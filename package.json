@@ -1,0 +1,77 @@
+{
+  "name": "midnight-did",
+  "version": "0.1.0",
+  "scripts": {
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix"
+  },
+  "private": true,
+  "packageManager": "npm@10.8.2",
+  "type": "module",
+  "workspaces": [
+    "contract",
+    "domain",
+    "did",
+    "api",
+    "cli"
+  ],
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "@types/node": "^22.15.29",
+    "@types/ws": "^8.18.1",
+    "@typescript-eslint/eslint-plugin": "^8.33.1",
+    "@typescript-eslint/parser": "^8.33.1",
+    "eslint": "^9.28.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-import-resolver-typescript": "^3.6.3",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-prettier": "^5.4.1",
+    "eslint-plugin-simple-import-sort": "^12.0.0",
+    "testcontainers": "^11.0.0",
+    "ts-node": "^10.9.2",
+    "turbo": "^2.5.5",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.0"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "^0.8.1",
+    "@midnight-ntwrk/ledger": "^4.0.0",
+    "@midnight-ntwrk/midnight-js-contracts": "2.0.1",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "2.0.1",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "2.0.1",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider": "2.0.1",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "2.0.1",
+    "@midnight-ntwrk/midnight-js-types": "2.0.1",
+    "@midnight-ntwrk/wallet": "5.0.0",
+    "@midnight-ntwrk/wallet-api": "5.0.0",
+    "@midnight-ntwrk/zswap": "^4.0.0",
+    "pino": "^9.7.0",
+    "pino-pretty": "^13.0.0",
+    "ws": "^8.18.2",
+    "zod": "^3.25.67"
+  },
+  "eslintConfig": {
+    "plugins": [
+      "import",
+      "simple-import-sort"
+    ],
+    "rules": {
+      "no-unused-vars": [
+        "error",
+        {
+          "args": "after-used",
+          "ignoreRestSiblings": true
+        }
+      ],
+      "import/no-unused-modules": [
+        1,
+        {
+          "unusedExports": true
+        }
+      ],
+      "no-duplicate-imports": "error",
+      "simple-import-sort/imports": "error",
+      "simple-import-sort/exports": "error"
+    }
+  }
+}
