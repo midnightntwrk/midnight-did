@@ -13,25 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-{
-  "include": ["src/**/*.ts"],
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist",
-    //"composite": true,
-    "declaration": true,
-    "lib": ["ESNext"],
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "node",
-    "allowJs": true,
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": true,
-    "strict": true,
-    "isolatedModules": true,
-    "sourceMap": true,
-    "resolveJsonModule": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true
-  }
-}
+import { run } from './cli.js';
+import { TestnetLocalConfig } from './config.js';
+import { createLogger } from './logger-utils.js';
+
+const config = new TestnetLocalConfig();
+const logger = await createLogger(config.logDir);
+await run(config, logger);

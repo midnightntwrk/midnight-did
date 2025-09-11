@@ -13,25 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-{
-  "include": ["src/**/*.ts"],
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist",
-    //"composite": true,
-    "declaration": true,
-    "lib": ["ESNext"],
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "node",
-    "allowJs": true,
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": true,
-    "strict": true,
-    "isolatedModules": true,
-    "sourceMap": true,
-    "resolveJsonModule": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true
-  }
-}
+// TODO: add Domain to Ledger mapping for the verification method
+// TODO: refactor network to align with the Midnight names
+// TODO: support batch update in the contract
+// TODO: support authentication in the contract
+// TODO: add services to the contract, domain and cli
+// TODO: implement the did-cli
+// TODO: add SecretStorage abbstraction
+// TODO: implement did resolver
+// TODO: restructure the project to midnight-did
+// TODO: compose the specification for the Midnight DID method
+
+export * from './api';
+export * from './cli';

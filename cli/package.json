@@ -1,0 +1,24 @@
+{
+  "name": "@midnight-ntwrk/did-cli",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "testnet-remote": "node --experimental-specifier-resolution=node --loader ts-node/esm src/testnet-remote.ts",
+    "testnet-remote-ps": "cp -r proof-server-testnet.yml ./dist/ && node --experimental-specifier-resolution=node --loader ts-node/esm src/testnet-remote-start-proof-server.ts",
+    "testnet-local": "node --experimental-specifier-resolution=node --loader ts-node/esm src/testnet-local.ts",
+    "standalone": "node --experimental-specifier-resolution=node --loader ts-node/esm src/standalone.ts",
+    "test-api": "DEBUG='testcontainers' vitest run",
+    "test-against-testnet": "RUN_ENV_TESTS=true TEST_ENV=testnet TEST_WALLET_SEED=1dec0dd58fbe4d3206ef960aebff95a77e09dffbd19f3e9439d23fe6de4fcdd1 vitest run",
+    "build": "rm -rf dist && tsc --project tsconfig.build.json",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start-testnet-remote": "npm run build && npm run testnet-remote",
+    "start-testnet-remote-ps": "npm run build && npm run testnet-remote-ps"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/contract": "*"
+  }
+}

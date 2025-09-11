@@ -13,25 +13,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-{
-  "include": ["src/**/*.ts"],
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist",
-    //"composite": true,
-    "declaration": true,
-    "lib": ["ESNext"],
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "node",
-    "allowJs": true,
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": true,
-    "strict": true,
-    "isolatedModules": true,
-    "sourceMap": true,
-    "resolveJsonModule": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true
-  }
-}
+import path from 'node:path';
+
+import { DockerComposeEnvironment, Wait } from 'testcontainers';
+
+import { run } from './cli.js';
+import { currentDir, TestnetRemoteConfig } from './config.js';
+import { createLogger } from './logger-utils.js';
+
+const config = new TestnetRemoteConfig();
+const dockerEnv = new DockerComposeEnvironment(
+  path.resolve(currentDir, '..'),
+  'proof-server-testnet.yml',
+).withWaitStrategy('proof-server', Wait.forLogMessage('Actix runtime found; starting in Actix runtime', 1));
+const logger = await createLogger(config.logDir);
+await run(config, logger, dockerEnv);
