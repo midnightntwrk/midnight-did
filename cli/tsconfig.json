@@ -20,7 +20,7 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@contract/*": ["../../contract/src/*"]
+      "@midnight-did-contract/*": ["../../contract/src/*"]
     }
   }
 }

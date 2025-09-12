@@ -1,5 +1,5 @@
 {
-  "name": "@midnight-ntwrk/contract",
+  "name": "@midnight-ntwrk/midnight-did-contract",
   "version": "0.1.0",
   "license": "Apache-2.0",
   "private": true,

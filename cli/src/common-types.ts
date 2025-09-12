@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { DIDContract, type MidnightDIDPrivateState, MidnightNetwork } from '@midnight-ntwrk/contract';
+import { DIDContract, type MidnightDIDPrivateState, MidnightNetwork } from '@midnight-ntwrk/midnight-did-contract';
 import { NetworkId } from '@midnight-ntwrk/ledger';
 import type { DeployedContract, FoundContract } from '@midnight-ntwrk/midnight-js-contracts';
 import type { ImpureCircuitId, MidnightProviders } from '@midnight-ntwrk/midnight-js-types';

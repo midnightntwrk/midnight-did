@@ -6,17 +6,14 @@
     "npm": ">=10"
   },
   "scripts": {
-    "lint": "turbo run lint",
-    "lint:fix": "turbo run lint:fix"
+    "lint": "npm run lint -w contract && npm run lint -w cli",
+    "lint:fix": "npm run lint:fix -w contract && npm run lint -w cli"
   },
   "private": true,
   "packageManager": "npm@10.8.2",
   "type": "module",
   "workspaces": [
     "contract",
-    "domain",
-    "did",
-    "api",
     "cli"
   ],
   "devDependencies": {
@@ -33,7 +30,6 @@
     "eslint-plugin-simple-import-sort": "^12.0.0",
     "testcontainers": "^11.0.0",
     "ts-node": "^10.9.2",
-    "turbo": "^2.5.5",
     "typescript": "^5.8.3",
     "vitest": "^3.2.0"
   },
