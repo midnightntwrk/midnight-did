@@ -159,7 +159,7 @@ export circuit publicKey(sk: Bytes<32>): Bytes<32> {
 }
 
 export circuit applyOperations(operations: Vector<4, DIDUpdateOperation>): [] {
-  //assert(publicKey(localSecretKey()) == controllerPublicKey, "DID controller is allowed to update the DID only");
+  assert(publicKey(localSecretKey()) == controllerPublicKey, "DID controller is allowed to update the DID only");
   assert(disclose(active), "Contract is not active");
 
   id = kernel.self();
