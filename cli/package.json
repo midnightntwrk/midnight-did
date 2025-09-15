@@ -15,6 +15,7 @@
     "coverage": "DEBUG='testcontainers' vitest run --coverage",
     "test-against-testnet": "RUN_ENV_TESTS=true TEST_ENV=testnet TEST_WALLET_SEED=1dec0dd58fbe4d3206ef960aebff95a77e09dffbd19f3e9439d23fe6de4fcdd1 vitest run",
     "build": "rm -rf dist && tsc --project tsconfig.build.json",
+    "prepack": "npm run build",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "typecheck": "tsc -p tsconfig.json --noEmit",

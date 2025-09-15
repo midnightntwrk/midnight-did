@@ -25,6 +25,11 @@ jspm_packages/
 # Optional npm cache directory
 .npm
 
+# Optional local npm cache used by packaging scripts
+.npm-cache
+cli/.npm-cache
+contract/.npm-cache
+
 # Optional eslint cache
 .eslintcache
 
@@ -60,5 +65,3 @@ jspm_packages/
 # Compact
 managed/
 
-# Tubro
-.turbo
