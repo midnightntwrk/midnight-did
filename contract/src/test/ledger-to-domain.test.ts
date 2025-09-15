@@ -1,23 +1,26 @@
 import { describe, expect, it } from "vitest";
 
-import { LedgerToDomain } from "../ledger-to-domain";
-import { MidnightDIDSimulator } from "./midnight-did-simulator";
 import {
   CurveType,
   KeyType,
-  VerificationMethodRelationType,
-  VerificationMethodType,
   parseService,
+  VerificationMethodRelationType,
+  VerificationMethodType
 } from "../did-document";
+import {
+  assertOperationsContractCompatible,
+  DomainToLedger
+} from "../domain-to-ledger";
+import { OperationBuilder } from "../ledger-operation-builder";
+import { LedgerToDomain } from "../ledger-to-domain";
 import {
   CurveType as LedgerCurveType,
   KeyType as LedgerKeyType,
   VerificationMethodRelation as LedgerVerificationMethodRelation,
-  VerificationMethodType as LedgerVerificationMethodType,
+  VerificationMethodType as LedgerVerificationMethodType
 } from "../managed/did/contract/index.cjs";
 import { MidnightNetwork, parseContractAddress } from "../midnight-did";
-import { OperationBuilder } from "../ledger-operation-builder";
-import { DomainToLedger, assertOperationsContractCompatible } from "../domain-to-ledger";
+import { MidnightDIDSimulator } from "./midnight-did-simulator";
 
 describe("LedgerToDomain mappings", () => {
   it("maps KeyType including OKP", () => {
@@ -29,10 +32,10 @@ describe("LedgerToDomain mappings", () => {
 
   it("maps CurveType", () => {
     expect(LedgerToDomain.CurveTypeMap[LedgerCurveType.ed25519]).toBe(
-      CurveType.ed25519,
+      CurveType.ed25519
     );
     expect(LedgerToDomain.CurveTypeMap[LedgerCurveType.Jubjub]).toBe(
-      CurveType.Jubjub,
+      CurveType.Jubjub
     );
   });
 
@@ -40,18 +43,18 @@ describe("LedgerToDomain mappings", () => {
     expect(
       LedgerToDomain.VerificationMethodTypeMap[
         LedgerVerificationMethodType.Undefined
-      ],
+      ]
     ).toBe(VerificationMethodType.Undefined);
     expect(
       LedgerToDomain.VerificationMethodTypeMap[
         LedgerVerificationMethodType.JsonWebKey
-      ],
+      ]
     ).toBe(VerificationMethodType.JsonWebKey);
 
     expect(
       LedgerToDomain.VerificationMethodRelationMap[
         LedgerVerificationMethodRelation.Authentication
-      ],
+      ]
     ).toBe(VerificationMethodRelationType.Authentication);
   });
 });
@@ -62,7 +65,7 @@ describe("LedgerToDomain helpers", () => {
       kty: LedgerKeyType.OKP,
       crv: LedgerCurveType.ed25519,
       x: 7n,
-      y: 9n,
+      y: 9n
     });
     expect(out.kty).toBe(KeyType.OKP);
     expect(out.crv).toBe(CurveType.ed25519);
@@ -74,7 +77,7 @@ describe("LedgerToDomain helpers", () => {
     const svc = LedgerToDomain.service({
       id: "svc-1",
       type: "DIDCommV2",
-      serviceEndpoint: ["https://a", "", "", ""],
+      serviceEndpoint: ["https://a", "", "", ""]
     });
     expect(svc.id).toBe("svc-1");
     expect(Array.isArray(svc.serviceEndpoint)).toBe(true);
@@ -97,7 +100,7 @@ describe("LedgerToDomain higher-level", () => {
 
   it("ledgerStateToDIDDocument builds a DID Document from ledger", () => {
     const sim = new MidnightDIDSimulator();
-    const addr = ("0".repeat(68));
+    const addr = "0".repeat(68);
     const did = `did:midnight:devnet:${addr}`;
     // add method, relation, and service
     const operations = [
@@ -105,19 +108,32 @@ describe("LedgerToDomain higher-level", () => {
         verificationMethod: {
           id: `${did}#key-1`,
           type: LedgerVerificationMethodType.JsonWebKey,
-          publicKeyJwk: { kty: LedgerKeyType.EC, crv: LedgerCurveType.ed25519, x: 1n, y: 2n },
-        },
+          publicKeyJwk: {
+            kty: LedgerKeyType.EC,
+            crv: LedgerCurveType.ed25519,
+            x: 1n,
+            y: 2n
+          }
+        }
       }),
       OperationBuilder.addVerificationMethodRelation({
         relation: LedgerVerificationMethodRelation.Authentication,
-        methodId: `${did}#key-1`,
+        methodId: `${did}#key-1`
       }),
       OperationBuilder.addService({
-        service: { id: "svc-1", type: "SVC-1", serviceEndpoint: ["https://x", "", "", ""] },
+        service: {
+          id: "svc-1",
+          type: "SVC-1",
+          serviceEndpoint: ["https://x", "", "", ""]
+        }
       }),
       OperationBuilder.addService({
-        service: { id: "didcomm-1", type: "DIDCommV2", serviceEndpoint: ["https://d", "", "", ""] },
-      }),      
+        service: {
+          id: "didcomm-1",
+          type: "DIDCommV2",
+          serviceEndpoint: ["https://d", "", "", ""]
+        }
+      })
     ];
 
     assertOperationsContractCompatible(operations);
@@ -127,7 +143,7 @@ describe("LedgerToDomain higher-level", () => {
     const doc = LedgerToDomain.ledgerStateToDIDDocument(
       sim.getLedger(),
       MidnightNetwork.DevNet,
-      parseContractAddress(addr),
+      parseContractAddress(addr)
     );
 
     expect(doc["@context"]).toContain("https://www.w3.org/ns/did/v1");

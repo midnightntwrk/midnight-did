@@ -29,12 +29,19 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
-      exclude: ["src/test/**"],
+      exclude: [
+        "src/test/**",
+        "src/index.ts",
+        "src/did-registrar.ts",
+        "src/did-resolver.ts",
+        "eslint.config.mjs",
+        "vitest.config.ts",
+      ],
       thresholds: {
-        branches: 50,
-        functions: 73,
-        lines: 72,
-        statements: -269
+        branches: 75,
+        functions: 80,
+        lines: 80,
+        statements: 80
       }
     },
     reporters: ["default", ["junit", { outputFile: "reports/report.xml" }]]

@@ -1,22 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { DomainToLedger } from "../domain-to-ledger";
 import {
+  createVerificationMethod,
   CurveType,
   KeyType,
-  VerificationMethodRelationType,
-  VerificationMethodType,
-  createVerificationMethod,
   parseDID,
   parseDIDKeyID,
+  VerificationMethodRelationType,
+  VerificationMethodType
 } from "../did-document";
 import { DIDOperationType } from "../did-operations";
+import { DomainToLedger } from "../domain-to-ledger";
 import {
   CurveType as LedgerCurveType,
   KeyType as LedgerKeyType,
   OperationType as LedgerOperationType,
   VerificationMethodRelation as LedgerVerificationMethodRelation,
-  VerificationMethodType as LedgerVerificationMethodType,
+  VerificationMethodType as LedgerVerificationMethodType
 } from "../managed/did/contract/index.cjs";
 
 describe("DomainToLedger mappings", () => {
@@ -29,23 +29,21 @@ describe("DomainToLedger mappings", () => {
 
   it("maps CurveType correctly", () => {
     expect(DomainToLedger.CurveTypeMap[CurveType.ed25519]).toBe(
-      LedgerCurveType.ed25519,
+      LedgerCurveType.ed25519
     );
     expect(DomainToLedger.CurveTypeMap[CurveType.Jubjub]).toBe(
-      LedgerCurveType.Jubjub,
+      LedgerCurveType.Jubjub
     );
   });
 
   it("maps VerificationMethodType correctly", () => {
     expect(
-      DomainToLedger.VerificationMethodTypeMap[
-        VerificationMethodType.Undefined
-      ],
+      DomainToLedger.VerificationMethodTypeMap[VerificationMethodType.Undefined]
     ).toBe(LedgerVerificationMethodType.Undefined);
     expect(
       DomainToLedger.VerificationMethodTypeMap[
         VerificationMethodType.JsonWebKey
-      ],
+      ]
     ).toBe(LedgerVerificationMethodType.JsonWebKey);
   });
 
@@ -53,27 +51,27 @@ describe("DomainToLedger mappings", () => {
     expect(
       DomainToLedger.VerificationMethodRelationMap[
         VerificationMethodRelationType.Authentication
-      ],
+      ]
     ).toBe(LedgerVerificationMethodRelation.Authentication);
     expect(
       DomainToLedger.VerificationMethodRelationMap[
         VerificationMethodRelationType.AssertionMethod
-      ],
+      ]
     ).toBe(LedgerVerificationMethodRelation.AssertionMethod);
     expect(
       DomainToLedger.VerificationMethodRelationMap[
         VerificationMethodRelationType.KeyAgreement
-      ],
+      ]
     ).toBe(LedgerVerificationMethodRelation.KeyAgreement);
     expect(
       DomainToLedger.VerificationMethodRelationMap[
         VerificationMethodRelationType.CapabilityInvocation
-      ],
+      ]
     ).toBe(LedgerVerificationMethodRelation.CapabilityInvocation);
     expect(
       DomainToLedger.VerificationMethodRelationMap[
         VerificationMethodRelationType.CapabilityDelegation
-      ],
+      ]
     ).toBe(LedgerVerificationMethodRelation.CapabilityDelegation);
   });
 });
@@ -95,7 +93,7 @@ describe("DomainToLedger helpers", () => {
       id: parseDIDKeyID(`${did}#key-1`),
       type: VerificationMethodType.JsonWebKey,
       controller: parseDID(did),
-      publicKeyJwk: jwk,
+      publicKeyJwk: jwk
     });
     const out = DomainToLedger.verificationMethod(vm);
     expect(out.id).toBe(vm.id);
@@ -107,7 +105,7 @@ describe("DomainToLedger helpers", () => {
     const svc = {
       id: "svc-1",
       type: "LinkedDomains",
-      serviceEndpoint: ["https://a"],
+      serviceEndpoint: ["https://a"]
     };
     const out = DomainToLedger.service(svc);
     expect(out.id).toBe("svc-1");
@@ -120,8 +118,9 @@ describe("DomainToLedger helpers", () => {
   it("serviceType accepts one-element array and rejects others", () => {
     expect(DomainToLedger.serviceType("A")).toBe("A");
     expect(DomainToLedger.serviceType(["A"])).toBe("A");
-    expect(() => DomainToLedger.serviceType(["A", "B"]))
-      .toThrow(/exactly one element/);
+    expect(() => DomainToLedger.serviceType(["A", "B"])).toThrow(
+      /exactly one element/
+    );
   });
 
   it("serviceEndpoint pads to 4 and rejects >4", () => {
@@ -129,12 +128,17 @@ describe("DomainToLedger helpers", () => {
       "https://x",
       "",
       "",
-      "",
+      ""
     ]);
-    expect(DomainToLedger.serviceEndpoint(["a", "b"]))
-      .toEqual(["a", "b", "", ""]);
-    expect(() => DomainToLedger.serviceEndpoint(["a", "b", "c", "d", "e"]))
-      .toThrow(/at most four/);
+    expect(DomainToLedger.serviceEndpoint(["a", "b"])).toEqual([
+      "a",
+      "b",
+      "",
+      ""
+    ]);
+    expect(() =>
+      DomainToLedger.serviceEndpoint(["a", "b", "c", "d", "e"])
+    ).toThrow(/at most four/);
   });
 });
 
@@ -144,30 +148,32 @@ describe("DomainToLedger operations", () => {
     id: parseDIDKeyID(`${did}#key-1`),
     type: VerificationMethodType.JsonWebKey,
     controller: parseDID(did),
-    publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.ed25519, x: 3n, y: 4n },
+    publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.ed25519, x: 3n, y: 4n }
   });
 
   it("maps Add/Update/Remove VerificationMethod ops", () => {
     const add = DomainToLedger.updateOperation({
       type: DIDOperationType.AddVerificationMethod,
-      verificationMethod: vm,
+      verificationMethod: vm
     });
     expect(add.operationType).toBe(LedgerOperationType.AddVerificationMethod);
     expect(add.addVerificationMethodOptions.verificationMethod.id).toBe(vm.id);
 
     const upd = DomainToLedger.updateOperation({
       type: DIDOperationType.UpdateVerificationMethod,
-      verificationMethod: vm,
+      verificationMethod: vm
     });
     expect(upd.operationType).toBe(
-      LedgerOperationType.UpdateVerificationMethod,
+      LedgerOperationType.UpdateVerificationMethod
     );
 
     const rem = DomainToLedger.updateOperation({
       type: DIDOperationType.RemoveVerificationMethod,
-      id: vm.id,
+      id: vm.id
     });
-    expect(rem.operationType).toBe(LedgerOperationType.RemoveVerificationMethod);
+    expect(rem.operationType).toBe(
+      LedgerOperationType.RemoveVerificationMethod
+    );
     expect(rem.removeVerificationMethodOptions.id).toBe(vm.id);
   });
 
@@ -175,46 +181,50 @@ describe("DomainToLedger operations", () => {
     const addRel = DomainToLedger.updateOperation({
       type: DIDOperationType.AddVerificationMethodRelation,
       relation: VerificationMethodRelationType.Authentication,
-      methodId: vm.id,
+      methodId: vm.id
     });
     expect(addRel.operationType).toBe(
-      LedgerOperationType.AddVerificationMethodRelation,
+      LedgerOperationType.AddVerificationMethodRelation
     );
     expect(addRel.addVerificationMethodRelationOptions.relation).toBe(
-      LedgerVerificationMethodRelation.Authentication,
+      LedgerVerificationMethodRelation.Authentication
     );
 
     const remRel = DomainToLedger.updateOperation({
       type: DIDOperationType.RemoveVerificationMethodRelation,
       relation: VerificationMethodRelationType.AssertionMethod,
-      methodId: vm.id,
+      methodId: vm.id
     });
     expect(remRel.operationType).toBe(
-      LedgerOperationType.RemoveVerificationMethodRelation,
+      LedgerOperationType.RemoveVerificationMethodRelation
     );
     expect(remRel.removeVerificationMethodRelationOptions.relation).toBe(
-      LedgerVerificationMethodRelation.AssertionMethod,
+      LedgerVerificationMethodRelation.AssertionMethod
     );
   });
 
   it("maps service ops", () => {
-    const service = { id: "svc-1", type: "LinkedDomains", serviceEndpoint: ["u"] };
+    const service = {
+      id: "svc-1",
+      type: "LinkedDomains",
+      serviceEndpoint: ["u"]
+    };
     const add = DomainToLedger.updateOperation({
       type: DIDOperationType.AddService,
-      service,
+      service
     });
     expect(add.operationType).toBe(LedgerOperationType.AddService);
     expect(add.addServiceOptions.service.id).toBe("svc-1");
 
     const upd = DomainToLedger.updateOperation({
       type: DIDOperationType.UpdateService,
-      service,
+      service
     });
     expect(upd.operationType).toBe(LedgerOperationType.UpdateService);
 
     const rem = DomainToLedger.updateOperation({
       type: DIDOperationType.RemoveService,
-      serviceId: "svc-1",
+      serviceId: "svc-1"
     });
     expect(rem.operationType).toBe(LedgerOperationType.RemoveService);
     expect(rem.removeServiceOptions.id).toBe("svc-1");
@@ -223,7 +233,7 @@ describe("DomainToLedger operations", () => {
   it("updateOperations maps arrays", () => {
     const ops = DomainToLedger.updateOperations([
       { type: DIDOperationType.Deactivate },
-      { type: DIDOperationType.RemoveService, serviceId: "x" },
+      { type: DIDOperationType.RemoveService, serviceId: "x" }
     ]);
     expect(ops.length).toBe(2);
     expect(ops[0].operationType).toBe(LedgerOperationType.Deactivate);

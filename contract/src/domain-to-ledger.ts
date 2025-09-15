@@ -279,7 +279,7 @@ export class DomainToLedger {
  * producing clear, early errors before invoking contract.applyOperations.
  */
 export function assertOperationsContractCompatible(
-  ops: Array<LedgerUpdateOperation>,
+  ops: Array<LedgerUpdateOperation>
 ): void {
   const isEnumVal = (enm: any, v: unknown) =>
     typeof v === "number" && Object.values(enm).includes(v as any);
@@ -289,14 +289,19 @@ export function assertOperationsContractCompatible(
 
   const fail = (ctx: string, msg: string, val?: unknown) => {
     const tail = val !== undefined ? `\nValue: ${JSON.stringify(val)}` : "";
-    throw new Error(`Contract operation validation failed at ${ctx}: ${msg}${tail}`);
+    throw new Error(
+      `Contract operation validation failed at ${ctx}: ${msg}${tail}`
+    );
   };
 
   ops.forEach((op, idx) => {
     const here = (p: string) => `ops[${idx}]${p}`;
 
     if (!isEnumVal(LedgerOperationType, op.operationType))
-      fail(here(".operationType"), `invalid OperationType: ${op.operationType}`);
+      fail(
+        here(".operationType"),
+        `invalid OperationType: ${op.operationType}`
+      );
 
     const checkVM = (vm: LedgerVerificationMethod, path: string) => {
       if (!isString(vm.id)) fail(path + ".id", "expected non-empty string");
@@ -310,7 +315,7 @@ export function assertOperationsContractCompatible(
       if (!isBigInt(pk.x) || !isBigInt(pk.y))
         fail(path + ".publicKeyJwk.(x,y)", "expected bigint for x and y", {
           x: pk.x,
-          y: pk.y,
+          y: pk.y
         });
     };
 
@@ -322,7 +327,10 @@ export function assertOperationsContractCompatible(
     const checkService = (svc: LedgerService, path: string) => {
       if (!isString(svc.id)) fail(path + ".id", "expected string");
       if (!isString(svc.type)) fail(path + ".type", "expected string");
-      if (!Array.isArray(svc.serviceEndpoint) || svc.serviceEndpoint.length !== 4)
+      if (
+        !Array.isArray(svc.serviceEndpoint) ||
+        svc.serviceEndpoint.length !== 4
+      )
         fail(path + ".serviceEndpoint", "expected string[4]");
       for (let i = 0; i < 4; i++)
         if (!isString(svc.serviceEndpoint[i]))
@@ -331,30 +339,54 @@ export function assertOperationsContractCompatible(
 
     switch (op.operationType) {
       case LedgerOperationType.AddVerificationMethod:
-        checkVM(op.addVerificationMethodOptions.verificationMethod, here(".addVerificationMethodOptions.verificationMethod"));
+        checkVM(
+          op.addVerificationMethodOptions.verificationMethod,
+          here(".addVerificationMethodOptions.verificationMethod")
+        );
         break;
       case LedgerOperationType.UpdateVerificationMethod:
-        checkVM(op.updateVerificationMethodOptions.verificationMethod, here(".updateVerificationMethodOptions.verificationMethod"));
+        checkVM(
+          op.updateVerificationMethodOptions.verificationMethod,
+          here(".updateVerificationMethodOptions.verificationMethod")
+        );
         break;
       case LedgerOperationType.RemoveVerificationMethod:
         if (!isString(op.removeVerificationMethodOptions.id))
           fail(here(".removeVerificationMethodOptions.id"), "expected string");
         break;
       case LedgerOperationType.AddVerificationMethodRelation:
-        checkRel(op.addVerificationMethodRelationOptions.relation, here(".addVerificationMethodRelationOptions.relation"));
+        checkRel(
+          op.addVerificationMethodRelationOptions.relation,
+          here(".addVerificationMethodRelationOptions.relation")
+        );
         if (!isString(op.addVerificationMethodRelationOptions.methodId))
-          fail(here(".addVerificationMethodRelationOptions.methodId"), "expected string");
+          fail(
+            here(".addVerificationMethodRelationOptions.methodId"),
+            "expected string"
+          );
         break;
       case LedgerOperationType.RemoveVerificationMethodRelation:
-        checkRel(op.removeVerificationMethodRelationOptions.relation, here(".removeVerificationMethodRelationOptions.relation"));
+        checkRel(
+          op.removeVerificationMethodRelationOptions.relation,
+          here(".removeVerificationMethodRelationOptions.relation")
+        );
         if (!isString(op.removeVerificationMethodRelationOptions.methodId))
-          fail(here(".removeVerificationMethodRelationOptions.methodId"), "expected string");
+          fail(
+            here(".removeVerificationMethodRelationOptions.methodId"),
+            "expected string"
+          );
         break;
       case LedgerOperationType.AddService:
-        checkService(op.addServiceOptions.service, here(".addServiceOptions.service"));
+        checkService(
+          op.addServiceOptions.service,
+          here(".addServiceOptions.service")
+        );
         break;
       case LedgerOperationType.UpdateService:
-        checkService(op.updateServiceOptions.service, here(".updateServiceOptions.service"));
+        checkService(
+          op.updateServiceOptions.service,
+          here(".updateServiceOptions.service")
+        );
         break;
       case LedgerOperationType.RemoveService:
         if (!isString(op.removeServiceOptions.id))
@@ -363,7 +395,10 @@ export function assertOperationsContractCompatible(
       case LedgerOperationType.Deactivate:
         break;
       default:
-        fail(here(".operationType"), `unsupported operation type: ${op.operationType}`);
+        fail(
+          here(".operationType"),
+          `unsupported operation type: ${op.operationType}`
+        );
     }
   });
 }
