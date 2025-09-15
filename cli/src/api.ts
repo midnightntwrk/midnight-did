@@ -17,6 +17,7 @@ import * as fs from 'node:fs';
 import * as fsAsync from 'node:fs/promises';
 
 import { type ContractAddress } from '@midnight-ntwrk/compact-runtime';
+import { type CoinInfo, nativeToken, Transaction, type TransactionId } from '@midnight-ntwrk/ledger';
 import {
   DIDContract,
   DIDDocument,
@@ -29,7 +30,6 @@ import {
   parseContractAddress,
   witnesses,
 } from '@midnight-ntwrk/midnight-did-contract';
-import { type CoinInfo, nativeToken, Transaction, type TransactionId } from '@midnight-ntwrk/ledger';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
 import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
