@@ -7,8 +7,8 @@ npm run contract -w contract
 echo "[2/7] Build contract (tsc)"
 npm run build -w contract
 
-echo "[3/7] Lint workspaces"
-npm run lint
+echo "[3/7] Lint workspaces and fix formatting"
+npm run lint:fix
 
 echo "[4/7] Run contract unit tests"
 npm run test -w contract

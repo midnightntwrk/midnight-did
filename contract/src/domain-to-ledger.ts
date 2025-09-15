@@ -41,7 +41,8 @@ export class DomainToLedger {
   static readonly KeyTypeMap: Record<KeyType, LedgerKeyType> = {
     [KeyType.EC]: LedgerKeyType.EC,
     [KeyType.RSA]: LedgerKeyType.RSA,
-    [KeyType.oct]: LedgerKeyType.oct
+    [KeyType.oct]: LedgerKeyType.oct,
+    [KeyType.OKP]: LedgerKeyType.OKP
   };
 
   static readonly CurveTypeMap: Record<CurveType, LedgerCurveType> = {

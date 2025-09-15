@@ -55,7 +55,8 @@ export const VerificationMethodTypeSchema = z.enum(VerificationMethodType);
 export enum KeyType {
   EC = "EC",
   RSA = "RSA",
-  oct = "oct"
+  oct = "oct",
+  OKP = "OKP"
 }
 export const KeyTypeSchema = z.enum(KeyType);
 

@@ -51,7 +51,7 @@ export enum VerificationMethodRelation {
 }
 
 export enum KeyType {
-  EC, RSA, oct
+  EC, RSA, oct, OKP
 }
 
 export enum CurveType {
