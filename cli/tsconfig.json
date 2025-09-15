@@ -18,9 +18,6 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
-    "paths": {
-      "@midnight-did-contract/*": ["../../contract/src/*"]
-    }
+    "baseUrl": "."
   }
 }
