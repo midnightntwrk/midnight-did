@@ -272,3 +272,98 @@ export class DomainToLedger {
     return operations.map((op) => this.updateOperation(op));
   }
 }
+
+/**
+ * Helper to validate that a constructed LedgerUpdateOperation (managed type)
+ * matches the contract’s expected shapes and enum ranges. This is useful for
+ * producing clear, early errors before invoking contract.applyOperations.
+ */
+export function assertOperationsContractCompatible(
+  ops: Array<LedgerUpdateOperation>,
+): void {
+  const isEnumVal = (enm: any, v: unknown) =>
+    typeof v === "number" && Object.values(enm).includes(v as any);
+
+  const isBigInt = (v: unknown) => typeof v === "bigint";
+  const isString = (v: unknown) => typeof v === "string" && v.length >= 0;
+
+  const fail = (ctx: string, msg: string, val?: unknown) => {
+    const tail = val !== undefined ? `\nValue: ${JSON.stringify(val)}` : "";
+    throw new Error(`Contract operation validation failed at ${ctx}: ${msg}${tail}`);
+  };
+
+  ops.forEach((op, idx) => {
+    const here = (p: string) => `ops[${idx}]${p}`;
+
+    if (!isEnumVal(LedgerOperationType, op.operationType))
+      fail(here(".operationType"), `invalid OperationType: ${op.operationType}`);
+
+    const checkVM = (vm: LedgerVerificationMethod, path: string) => {
+      if (!isString(vm.id)) fail(path + ".id", "expected non-empty string");
+      if (!isEnumVal(LedgerVerificationMethodType, vm.type))
+        fail(path + ".type", `invalid VerificationMethodType: ${vm.type}`);
+      const pk = vm.publicKeyJwk as LedgerPublicKeyJwk;
+      if (!isEnumVal(LedgerKeyType, pk.kty))
+        fail(path + ".publicKeyJwk.kty", `invalid KeyType: ${pk.kty}`);
+      if (!isEnumVal(LedgerCurveType, pk.crv))
+        fail(path + ".publicKeyJwk.crv", `invalid CurveType: ${pk.crv}`);
+      if (!isBigInt(pk.x) || !isBigInt(pk.y))
+        fail(path + ".publicKeyJwk.(x,y)", "expected bigint for x and y", {
+          x: pk.x,
+          y: pk.y,
+        });
+    };
+
+    const checkRel = (rel: number, path: string) => {
+      if (!isEnumVal(LedgerVerificationMethodRelation, rel))
+        fail(path, `invalid VerificationMethodRelation: ${rel}`);
+    };
+
+    const checkService = (svc: LedgerService, path: string) => {
+      if (!isString(svc.id)) fail(path + ".id", "expected string");
+      if (!isString(svc.type)) fail(path + ".type", "expected string");
+      if (!Array.isArray(svc.serviceEndpoint) || svc.serviceEndpoint.length !== 4)
+        fail(path + ".serviceEndpoint", "expected string[4]");
+      for (let i = 0; i < 4; i++)
+        if (!isString(svc.serviceEndpoint[i]))
+          fail(path + `.serviceEndpoint[${i}]`, "expected string");
+    };
+
+    switch (op.operationType) {
+      case LedgerOperationType.AddVerificationMethod:
+        checkVM(op.addVerificationMethodOptions.verificationMethod, here(".addVerificationMethodOptions.verificationMethod"));
+        break;
+      case LedgerOperationType.UpdateVerificationMethod:
+        checkVM(op.updateVerificationMethodOptions.verificationMethod, here(".updateVerificationMethodOptions.verificationMethod"));
+        break;
+      case LedgerOperationType.RemoveVerificationMethod:
+        if (!isString(op.removeVerificationMethodOptions.id))
+          fail(here(".removeVerificationMethodOptions.id"), "expected string");
+        break;
+      case LedgerOperationType.AddVerificationMethodRelation:
+        checkRel(op.addVerificationMethodRelationOptions.relation, here(".addVerificationMethodRelationOptions.relation"));
+        if (!isString(op.addVerificationMethodRelationOptions.methodId))
+          fail(here(".addVerificationMethodRelationOptions.methodId"), "expected string");
+        break;
+      case LedgerOperationType.RemoveVerificationMethodRelation:
+        checkRel(op.removeVerificationMethodRelationOptions.relation, here(".removeVerificationMethodRelationOptions.relation"));
+        if (!isString(op.removeVerificationMethodRelationOptions.methodId))
+          fail(here(".removeVerificationMethodRelationOptions.methodId"), "expected string");
+        break;
+      case LedgerOperationType.AddService:
+        checkService(op.addServiceOptions.service, here(".addServiceOptions.service"));
+        break;
+      case LedgerOperationType.UpdateService:
+        checkService(op.updateServiceOptions.service, here(".updateServiceOptions.service"));
+        break;
+      case LedgerOperationType.RemoveService:
+        if (!isString(op.removeServiceOptions.id))
+          fail(here(".removeServiceOptions.id"), "expected string");
+        break;
+      case LedgerOperationType.Deactivate:
+        break;
+      default:
+        fail(here(".operationType"), `unsupported operation type: ${op.operationType}`);
+    }
+  });
+}
