@@ -1,5 +1,5 @@
 {
-  "name": "@midnight-ntwrk/contract",
+  "name": "@midnight-ntwrk/midnight-did-contract",
   "version": "0.1.0",
   "license": "Apache-2.0",
   "private": true,
@@ -16,6 +16,7 @@
     }
   },
   "scripts": {
+    "contract": "npm run compact",
     "compact": "compactc src/did.compact src/managed/did",
     "test": "vitest run",
     "test:compile": "npm run compact && vitest run",

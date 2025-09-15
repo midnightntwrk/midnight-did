@@ -30,7 +30,7 @@ import {
   VerificationMethod,
   VerificationMethodRelation,
   VerificationMethodType,
-} from '@midnight-ntwrk/contract';
+} from '@midnight-ntwrk/midnight-did-contract';
 import { type Resource } from '@midnight-ntwrk/wallet';
 import { type Wallet } from '@midnight-ntwrk/wallet-api';
 import { type Logger } from 'pino';

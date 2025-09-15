@@ -28,7 +28,7 @@ import {
   OperationBuilder,
   parseContractAddress,
   witnesses,
-} from '@midnight-ntwrk/contract';
+} from '@midnight-ntwrk/midnight-did-contract';
 import { type CoinInfo, nativeToken, Transaction, type TransactionId } from '@midnight-ntwrk/ledger';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
