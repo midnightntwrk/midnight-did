@@ -6,8 +6,8 @@
     "npm": ">=10"
   },
   "scripts": {
-    "lint": "turbo run lint",
-    "lint:fix": "turbo run lint:fix",
+    "lint": "npm run lint -w contract && npm run lint -w cli",
+    "lint:fix": "npm run lint:fix -w contract && npm run lint:fix -w cli",
     "build:all": "npm run build -w contract && npm run build -w cli",
     "test:all": "npm run all -w contract && npm run test-api -w cli",
     "ci": "npm run contract -w contract && npm run build -w contract && npm run all -w contract && npm run build -w cli && npm run test-api -w cli"
