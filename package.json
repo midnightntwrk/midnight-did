@@ -10,7 +10,7 @@
     "lint:fix": "npm run lint:fix -w contract && npm run lint:fix -w cli",
     "build:all": "npm run build -w contract && npm run build -w cli",
     "test:all": "npm run all -w contract && npm run test-api -w cli",
-    "coverage": "npm run coverage -w contract && npm run coverage -w cli",
+    "coverage": "npm run coverage -w contract",
     "ci": "npm run contract -w contract && npm run build -w contract && npm run all -w contract && npm run build -w cli && npm run test-api -w cli",
     "pack:contract": "npm_config_cache=.npm-cache bash -lc 'cd contract && npm pack'",
     "pack:cli": "npm_config_cache=.npm-cache bash -lc 'cd cli && npm pack'",

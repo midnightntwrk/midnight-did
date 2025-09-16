@@ -204,23 +204,7 @@ export const update = async (
 };
 
 //TODO: Find the right place for this utils
-export class DomainToRuntime {
-  static readonly NetworkMap: Record<MidnightNetwork, NetworkId> = {
-    [MidnightNetwork.Undeployed]: NetworkId.Undeployed,
-    [MidnightNetwork.DevNet]: NetworkId.DevNet,
-    [MidnightNetwork.Testnet]: NetworkId.TestNet,
-    [MidnightNetwork.Mainnet]: NetworkId.MainNet,
-  };
-}
-
-export class RuntimeToDomain {
-  static readonly NetworkMap: Record<NetworkId, MidnightNetwork> = {
-    [NetworkId.Undeployed]: MidnightNetwork.Undeployed,
-    [NetworkId.DevNet]: MidnightNetwork.DevNet,
-    [NetworkId.TestNet]: MidnightNetwork.Testnet,
-    [NetworkId.MainNet]: MidnightNetwork.Mainnet,
-  };
-}
+import { RuntimeToDomain } from './runtime-to-domain';
 
 export const midnightNetwork: MidnightNetwork = RuntimeToDomain.NetworkMap[getNetworkId()];
 

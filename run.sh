@@ -11,7 +11,8 @@ echo "[3/8] Lint workspaces and fix formatting"
 npm run lint:fix
 
 echo "[4/8] Run contract unit tests"
-npm run test -w contract
+# Prefer CI-friendly run without worker threads in constrained environments
+npm run test:ci -w contract || npm run test -w contract
 
 echo "[5/8] Build CLI (prebuild builds contract)"
 npm run build -w cli

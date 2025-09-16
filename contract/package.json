@@ -19,6 +19,7 @@
     "contract": "npm run compact",
     "compact": "compactc src/did.compact src/managed/did",
     "test": "vitest run",
+    "test:ci": "vitest run --pool=forks",
     "test:compile": "npm run compact && vitest run",
     "prepack": "npm run build",
     "coverage": "vitest run --coverage",
