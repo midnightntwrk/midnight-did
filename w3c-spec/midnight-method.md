@@ -168,21 +168,21 @@ Each linked public key has its own identifier specified using the field `id`. Th
 
 Bound public keys can be revoked. Revoked public keys **MUST NOT** be reactivated, but can still possess the original `id`.
 
-The value of the `type` field represents the corresponding public key type. Midnight DID document's support `Ed25519VerificationKey`, `X25519KeyAgreementKey`, `JubJubVerificationKey`.
+The value of the `type` field **MUST** be `JsonWebKey` to support the compatibility and interoperability with other SSI systems, and support the majority of the cryptography suites according to the [RFC7517](https://www.rfc-editor.org/rfc/rfc7517) JSON Web Key (JWK) specification.
+
+The Midniht DID supports the following cryptographic algorithms:
+
+### 3.1.1 Ed25519
+Uses EdDSA over Ed25519 for signatures.
+Keys are represented as JWK in compressed format with `kty`=`OKP`, `crv`=`Ed25519`, and `x` parameter.
+
+### 3.1.2 JubJub (Midnight compatible)
+Used EdDSA over JubJub for signatures inside Midnight's ZK context: smart-contract and Midnight JS library.
+Keys are represented as JWK in uncompressed format with `kty`=`EC`, `crv`=`JubJub`, `x` and `y` parameters.
 
 The value of the `controller` field which identifies the controller of the corresponding private key **MUST** be a valid Midnight DID, implying that the public key is controlled by this Midnight DID.
 
-Midnight DID Documents support the encoding formats `publicKeyJwk2020` and `publicKeyMultibase`.
-Public keys of all types **MUST** be expressed in one of these two formats.
-
-**NOTE**:
----
-Officially the `blockchainAccountId` property is deprecated.
-It's not a part of the DID Core spec and is mentioned in the extensions.
-[Here](https://www.w3.org/2025/credentials/vcdi/vocab/v2/vocabulary.html#blockchainAccountId) and [here](https://w3c-ccg.github.io/security-vocab/#blockchainAccountId).
-If we need to add the reference to the account id, we need to follow the [CAIP](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-10.md) spec.
-But, the Midnight DID identifier, is a smart-contract by nature, and it can behave as an account id.
----
+The Midnight DID identifier is available right after the smart-contract deployment.
 
 The `verificationMethod` **MAY** include the reference to the blockchain account id associated with the verification method.
 The value of the `blockchainAccountId` field **MUST** be a valid address in the blockchain.
@@ -195,9 +195,9 @@ Below is a specific example of the `verificationMethod` property:
   "verificationMethod": [
     {
       "id": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#keys-1",
-      "type": "Ed25519VerificationKey",
+      "type": "JsonWebKey",
       "controller": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3",
-      "publicKeyJwk2020": {
+      "publicKeyJwk": {
         "kty": "OKP",
         "crv": "Ed25519",
         "x": "VCpo2LMLhn6iWku8MKvSLg2ZAoC-nlOyPVQaO3FxVeQ"
@@ -205,9 +205,14 @@ Below is a specific example of the `verificationMethod` property:
     },
     {
       "id": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#keys-1",
-      "type": "Ed25519VerificationKey",
+      "type": "JsonWebKey",
       "controller": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3",
-      "publicKeyMultibase": "z6Mki8X9xk2Yz4oYzFZ8YsMLzYGoVrAjPLgWXYQjBq8k2vC2P"
+      "publicKeyJwk": {
+        "kty": "OKP",
+        "crv": "JubJub",
+        "x": "VCpo2LMLhn6iWku8MKvSLg2ZAoC-nlOyPVQaO3FxVeQ",
+        "y": "VCpo2LMLhsdftgsdfg534hsfgs6-fgtsPVQaO3FxVeQ"
+      }
     }
   ]
 }
