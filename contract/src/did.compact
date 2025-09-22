@@ -231,9 +231,30 @@ circuit updateVerificationMethod(verificationMethod: VerificationMethod): [] {
 circuit removeVerificationMethod(id: Opaque<"string">): [] {
   assert(active, "Contract is not active");
 
-  assert(verificationMethods.member(disclose(id)), "Verification method does not exist");
+  const disclosedId = disclose(id);
+  assert(verificationMethods.member(disclosedId), "Verification method does not exist");
 
-  verificationMethods.remove(disclose(id));
+  verificationMethods.remove(disclosedId);
+
+  if (authenticationRelation.member(disclosedId)){
+    authenticationRelation.remove(disclosedId);
+  }
+
+  if (assertionMethodRelation.member(disclosedId)){
+    assertionMethodRelation.remove(disclosedId);
+  }
+
+  if (capabilityInvocationRelation.member(disclosedId)){
+    capabilityInvocationRelation.remove(disclosedId);
+  }
+
+  if (keyAgreementRelation.member(disclosedId)){
+    keyAgreementRelation.remove(disclosedId);
+  }
+
+  if (capabilityDelegationRelation.member(disclosedId)){
+    capabilityDelegationRelation.remove(disclosedId);
+  }
 }
 
 //TODO: discuss with the Midnight team why assertion doesn't work
