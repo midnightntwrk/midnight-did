@@ -74,7 +74,7 @@ did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc
 
 ## 2.2. Midnight DID document properties
 
-An Midnight DID document can have three distinct properties:
+The Midnight DID document can have three distinct properties:
 
 - **created**: property with the Date when the document was created.
 - **updated**: property with the Date when the document was updated.
@@ -92,14 +92,14 @@ Below is the basic structure of the Midnight DID Document:
 
 ```json
 {
-  "context": ["https://www.w3.org/ns/did/v1"],
+  "@context": ["https://www.w3.org/ns/did/v1"],
   "id": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3",
   "verificationMethod": [
     {
       "id": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1",
-      "type": "Ed25519VerificationKey2020",
+      "type": "JsonWebKey",
       "controller": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3",
-      "publicKeyJwk2020": {
+      "publicKeyJwk": {
         "kty": "OKP",
         "crv": "Ed25519",
         "x": "VCpo2LMLhn6iWku8MKvSLg2ZAoC-nlOyPVQaO3FxVeQ"
@@ -126,7 +126,6 @@ A Midnight DID document **MUST** include a `@context` property.
 The value of the `@context` property **MUST** be an array containing the following URIs, in order:
 1. `https://www.w3.org/ns/did/v1` (reference to the context of the DID Core specification v1)
 2. `https://w3c.github.io/vc-jws-2020/contexts/v1` (reference to the context of the `publicKeyJwk2020` specification v1)
-3. `https://w3id.org/security/suites/ed25519-2020/v1` (reference to the `publicKeyMultibase` specification)
 
 For more information, see [W3C DID specification](https://w3c.github.io/did-core/#production-0).
 
@@ -136,8 +135,7 @@ Below is an example in which the `@context` property has these values:
 {
   "@context": [
     "https://www.w3.org/ns/did/v1", 
-    "https://w3c.github.io/vc-jws-2020/contexts/v1", 
-    "https://w3id.org/security/suites/ed25519-2020/v1"
+    "https://w3c.github.io/vc-jws-2020/contexts/v1"
     ]
 }
 ```
@@ -170,7 +168,7 @@ Bound public keys can be revoked. Revoked public keys **MUST NOT** be reactivate
 
 The value of the `type` field **MUST** be `JsonWebKey` to support the compatibility and interoperability with other SSI systems, and support the majority of the cryptography suites according to the [RFC7517](https://www.rfc-editor.org/rfc/rfc7517) JSON Web Key (JWK) specification.
 
-The Midniht DID supports the following cryptographic algorithms:
+The Midnight DID supports the following cryptographic algorithms:
 
 ### 3.1.1 Ed25519
 Uses EdDSA over Ed25519 for signatures.
@@ -208,7 +206,7 @@ Below is a specific example of the `verificationMethod` property:
       "type": "JsonWebKey",
       "controller": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3",
       "publicKeyJwk": {
-        "kty": "OKP",
+        "kty": "EC",
         "crv": "JubJub",
         "x": "VCpo2LMLhn6iWku8MKvSLg2ZAoC-nlOyPVQaO3FxVeQ",
         "y": "VCpo2LMLhsdftgsdfg534hsfgs6-fgtsPVQaO3FxVeQ"
@@ -300,20 +298,20 @@ These keys **MUST** be set in the smart-contract contex to deploy it.
 
 # 4.2 Smart-contract secretKey
 
-The `secretKey` is a public key that controll the access to the `applyOperations` smart-contract circuit.
+The `secretKey` is a secret value that controls access to the `applyOperations` smart-contract circuit.
 
-The `secretKey` **MUST** be created in the application before the smart-contract publishing. The size of the key is 32 bytes.
+The `secretKey` **MUST** be created in the application before smart‑contract deployment. The size of the key is 32 bytes.
 
-The `secretKey` **MUST** be set to the `witnesses` of the smart-contract context to allow the execution of the `applyOperations` circuit.
+The `secretKey` **MUST** be set in the `witnesses` of the smart‑contract context to allow execution of the `applyOperations` circuit.
 
-# 4.3 Keys associated with the DIDDocument
-Midnight DID Controlles **MUST** manage the keys associated with the DIDDocument.
-It's reccomended to use the HD derivation algorithm to derive the keys in predictable manner.
+# 4.3 Keys associated with the DID Document
+Midnight DID Controllers **MUST** manage the keys associated with the DID Document.
+It is recommended to use an HD derivation algorithm to derive keys in a predictable manner.
 
-Current specification doesn't cover the key management aspecs.
+This specification does not cover key management aspects.
 
 **NOTE**:
-The way of the `secretKey` creation and rotation must be elaborate. In the current implementation it's a hash of the private ZK key: `applyOperations.prover`.
+The process for `secretKey` creation and rotation must be carefully designed. In the current implementation it is a hash of the private ZK key: `applyOperations.prover`.
 
 # 5. Midnight DID Ledger state
 
@@ -386,11 +384,11 @@ Updating the Midnight DID implies the DID Controller calls the smart contract ci
 
 The `secretKey` witness MUST be set to allow the update of the smart-contract.
 
-The circuite `applyOperations` used to update the Midnight DID ledger state.
+The circuit `applyOperations` used to update the Midnight DID ledger state.
 
 There are two instance of the update operations:
 - domain - used in the domain logic with all capabilities of the TypeScript
-- ledger - used in the `applyOperations` circuite.
+- ledger - used in the `applyOperations` circuit.
 
 The conversion between the `domain` and `ledger` operations is implemented in the `contract` package of the current repository.
 
@@ -464,7 +462,7 @@ Deletes a verification method by its `id`.
 
 Example:
 ```json
-{ "type": "RemoveVerificationMethod", "id": "did:midnight:devnet:0200...abab#key-1" }
+{ "type": "RemoveVerificationMethod", "id": "did:midnight:testnet:0200...abab#key-1" }
 ```
 
 ### 6.3.4 Add Verification Relation
@@ -591,7 +589,7 @@ Midnight DID's will be stored in an address controlled by the holder. This ensur
 
 The application is responsible for the key management (See the [Section 4. Private and Public Keys](#4-private-and-public-keys))
 
-It's reccomended to used the secret storage for the private keys and HD derivation convention for the Midnight DID keys to simlify the backup and recovery process.
+It is recommended to use secure storage for private keys and an HD derivation convention for Midnight DID keys to simplify backup and recovery.
 
 The concrete implementation of the Secret Storage depends on the target platform, and is out of scope of this specification.
 
@@ -600,11 +598,11 @@ The concrete implementation of the Secret Storage depends on the target platform
 A Midnight DID document stored on the Blockchain will never contain any personal information. Ownership is proofed by:
 
 - Control over the blockchain address.
-- Control over of the private keys which is related to the Midnight DID document.
+- Control over the private keys associated with the Midnight DID Document.
 
-It's reccomended to use the Verifiable Credentials to bind the Physical Identity to the Midnight DID, and expose the corresponding endpoint in the DIDDocument to share the corresponding credentials or the endpoint to fetch it.
+It is recommended to use Verifiable Credentials to bind physical identity to the Midnight DID, and to expose an endpoint in the DID Document to share the corresponding credentials or to fetch them.
 
-Using the DID extension to share the VC as a public ledger state is possible, but not reccomended.
+Using the DID extension to share the VC as a public ledger state is possible, but not recommended.
 
 ## 8.2. DID document changes
 
@@ -638,11 +636,11 @@ Therefore, Midnight DID document will **NEVER** contain any personal Data.
 ## 9.4. Separation of concerns
 
 The Midnight DID method separates concerns between the following roles:
-- Midnight DID smart-contract publisher and updater (the role implies having the ZK prover and verifier keys, as well as have access to the `secretKey`)
-- Midnight DIDDocument key holder (the role implies managin the private and public keys associated with the DID ledger state)
-- Midnight DIDDocument reader. The role has access to the public ledger state and can reconstruct the DIDDocument.
+- Midnight DID smart‑contract publisher and updater (the role implies having the ZK prover and verifier keys, as well as having access to the `secretKey`).
+- Midnight DID Document key holder (the role implies managing the private and public keys associated with the DID ledger state).
+- Midnight DID Document reader (has access to the public ledger state and can reconstruct the DID Document).
 
-The separation of concerns allows to use the Midnight DID method for custodial and non-custodial solutions.
+This separation of concerns allows the use of the Midnight DID method for both custodial and non‑custodial solutions.
 
 # 10. Appendix
 
@@ -651,7 +649,8 @@ A simple example of a Midnight DID Document is as follows:
 ```json
 {
   "@context": [
-    "https://www.w3.org/ns/did/v1"
+    "https://www.w3.org/ns/did/v1",
+    "https://w3id.org/security/suites/jws-2020/v1"
   ],
   "id": "did:midnight:undeployed:02008adc553193e2ef2e9fb5ced14ad6520661aeccc9c5fd52ac5323f64e0df8e41d",
   "alsoKnownAs": null,
@@ -662,10 +661,9 @@ A simple example of a Midnight DID Document is as follows:
       "type": "JsonWebKey",
       "controller": "did:midnight:undeployed:02008adc553193e2ef2e9fb5ced14ad6520661aeccc9c5fd52ac5323f64e0df8e41d",
       "publicKeyJwk": {
-        "kty": "EC",
+        "kty": "OKP",
         "crv": "ed25519",
-        "x": "42",
-        "y": "84"
+        "x": "42"
       }
     },
     {
@@ -673,10 +671,9 @@ A simple example of a Midnight DID Document is as follows:
       "type": "JsonWebKey",
       "controller": "did:midnight:undeployed:02008adc553193e2ef2e9fb5ced14ad6520661aeccc9c5fd52ac5323f64e0df8e41d",
       "publicKeyJwk": {
-        "kty": "EC",
+        "kty": "OKP",
         "crv": "ed25519",
-        "x": "42",
-        "y": "84"
+        "x": "42"
       }
     }
   ],
