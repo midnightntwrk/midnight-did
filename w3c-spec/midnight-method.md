@@ -417,7 +417,7 @@ Example:
     "controller": "did:midnight:devnet:0200...abab",
     "publicKeyJwk": {
       "kty": "OKP",
-      "crv": "ed25519",
+      "crv": "Ed25519",
       "x": "42",
       "y": "84"
     }
@@ -444,7 +444,7 @@ Example:
     "controller": "did:midnight:devnet:0200...abab",
     "publicKeyJwk": {
       "kty": "EC",
-      "crv": "ed25519",
+      "crv": "Ed25519",
       "x": "8",
       "y": "16"
     }
@@ -660,7 +660,7 @@ A simple example of a Midnight DID Document is as follows:
       "controller": "did:midnight:undeployed:02008adc553193e2ef2e9fb5ced14ad6520661aeccc9c5fd52ac5323f64e0df8e41d",
       "publicKeyJwk": {
         "kty": "OKP",
-        "crv": "ed25519",
+        "crv": "Ed25519",
         "x": "42"
       }
     },
@@ -670,7 +670,7 @@ A simple example of a Midnight DID Document is as follows:
       "controller": "did:midnight:undeployed:02008adc553193e2ef2e9fb5ced14ad6520661aeccc9c5fd52ac5323f64e0df8e41d",
       "publicKeyJwk": {
         "kty": "OKP",
-        "crv": "ed25519",
+        "crv": "Ed25519",
         "x": "42"
       }
     }
@@ -714,3 +714,7 @@ Uniform Resource Identifier (URI): Generic Syntax. T. Berners-Lee; R. Fielding; 
 [RFC7517]
 
 JSON Web Key (JWKS). M. Jones, Microsoft, May 2015. URL: https://www.rfc-editor.org/rfc/rfc7517.html
+
+[JOSE]
+
+JSON Object Signing and Encryption (JOSE), Jan 1st 2015. URL: https://www.iana.org/assignments/jose/jose.xhtml 

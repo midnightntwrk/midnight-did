@@ -1,14 +1,14 @@
 services:
   proof-server:
     container_name: 'counter-proof-server'
-    image: "proof-server-bootstrap-test:4.0.0"
+    image: "proof-server-bootstrap:4.0.0"
     ports:
       - "6300"
     environment:
       RUST_BACKTRACE: "full"
   indexer:
     container_name: 'counter-indexer'
-    image: 'midnightntwrk/indexer-standalone:2.1.1'
+    image: 'midnightntwrk/indexer-standalone:2.1.4'
     ports:
       - '0:8088'
     environment:
