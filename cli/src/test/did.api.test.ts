@@ -277,4 +277,54 @@ describe('Midnight DID method API', () => {
 
     expect(didDoc?.service?.length ?? 0).toBe(0);
   });
+
+  it('should add alsoKnownAs alias', async () => {
+    const operations: DIDOperation[] = [
+      {
+        type: DIDOperationType.AddAlsoKnownAs,
+        aliasUri: didString,
+      },
+    ];
+
+    const result = await api.update(contract, operations);
+    expect(result.txId).toMatch(/[0-9a-f]{64}/);
+
+    const didDoc = await api.resolve(providers, contract);
+    logger.info(`DIDDocument JSON (after aka add): ${JSON.stringify(didDoc, BigIntReplacer, 2)}`);
+    expect(didDoc?.alsoKnownAs?.includes(didString)).toBe(true);
+  });
+
+  it('should add second alsoKnownAs alias', async () => {
+    const operations: DIDOperation[] = [
+      {
+        type: DIDOperationType.AddAlsoKnownAs,
+        aliasUri: 'did:example:aka-2',
+      },
+    ];
+
+    const result = await api.update(contract, operations);
+    expect(result.txId).toMatch(/[0-9a-f]{64}/);
+
+    const didDoc = await api.resolve(providers, contract);
+    logger.info(`DIDDocument JSON (after aka second add): ${JSON.stringify(didDoc, BigIntReplacer, 2)}`);
+    expect(didDoc?.alsoKnownAs?.includes(didString)).toBe(true);
+    expect(didDoc?.alsoKnownAs?.includes('did:example:aka-2')).toBe(true);
+  });
+
+  it('should remove the first alsoKnownAs alias', async () => {
+    const operations: DIDOperation[] = [
+      {
+        type: DIDOperationType.RemoveAlsoKnownAs,
+        aliasUri: didString,
+      },
+    ];
+
+    const result = await api.update(contract, operations);
+    expect(result.txId).toMatch(/[0-9a-f]{64}/);
+
+    const didDoc = await api.resolve(providers, contract);
+    logger.info(`DIDDocument JSON (after aka remove): ${JSON.stringify(didDoc, BigIntReplacer, 2)}`);
+    expect(didDoc?.alsoKnownAs?.includes(didString)).toBe(false);
+    expect(didDoc?.alsoKnownAs?.includes('did:example:aka-2')).toBe(true);
+  });
 });

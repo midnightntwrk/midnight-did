@@ -118,6 +118,9 @@ export class DomainToLedger {
       [DIDOperationType.AddService]: LedgerOperationType.AddService,
       [DIDOperationType.UpdateService]: LedgerOperationType.UpdateService,
       [DIDOperationType.RemoveService]: LedgerOperationType.RemoveService,
+      [DIDOperationType.AddAlsoKnownAs]: LedgerOperationType.AddAlsoKnownAs,
+      [DIDOperationType.RemoveAlsoKnownAs]:
+        LedgerOperationType.RemoveAlsoKnownAs,
       [DIDOperationType.Deactivate]: LedgerOperationType.Deactivate
     };
 
@@ -232,6 +235,16 @@ export class DomainToLedger {
       case DIDOperationType.RemoveService:
         ledgerUpdateOperation.removeServiceOptions = {
           id: updateOperation.serviceId
+        };
+        return ledgerUpdateOperation;
+      case DIDOperationType.AddAlsoKnownAs:
+        ledgerUpdateOperation.addAlsoKnownAsOptions = {
+          value: updateOperation.aliasUri
+        };
+        return ledgerUpdateOperation;
+      case DIDOperationType.RemoveAlsoKnownAs:
+        ledgerUpdateOperation.removeAlsoKnownAsOptions = {
+          value: updateOperation.aliasUri
         };
         return ledgerUpdateOperation;
       default:

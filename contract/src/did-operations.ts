@@ -20,6 +20,8 @@ export enum DIDOperationType {
   AddService = "AddService",
   UpdateService = "UpdateService",
   RemoveService = "RemoveService",
+  AddAlsoKnownAs = "AddAlsoKnownAs",
+  RemoveAlsoKnownAs = "RemoveAlsoKnownAs",
   Deactivate = "Deactivate"
 }
 
@@ -62,6 +64,14 @@ export type DIDOperation =
       serviceId: string;
     }
   | {
+      type: DIDOperationType.AddAlsoKnownAs;
+      aliasUri: string;
+    }
+  | {
+      type: DIDOperationType.RemoveAlsoKnownAs;
+      aliasUri: string;
+    }
+  | {
       type: DIDOperationType.Deactivate;
     };
 
@@ -95,6 +105,14 @@ export const DIDOperationSchema = z.discriminatedUnion("type", [
     type: z.literal(DIDOperationType.RemoveVerificationMethodRelation),
     relation: VerificationMethodRelationTypeSchema,
     methodId: z.string()
+  }),
+  z.object({
+    type: z.literal(DIDOperationType.AddAlsoKnownAs),
+    aliasUri: z.string()
+  }),
+  z.object({
+    type: z.literal(DIDOperationType.RemoveAlsoKnownAs),
+    aliasUri: z.string()
   }),
   z.object({
     type: z.literal(DIDOperationType.Deactivate)
