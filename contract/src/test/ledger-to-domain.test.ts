@@ -104,6 +104,7 @@ describe("LedgerToDomain higher-level", () => {
     const did = `did:midnight:devnet:${addr}`;
     // add method, relation, and service
     const operations = [
+      OperationBuilder.addAlsoKnownAs("did:alias:example"),
       OperationBuilder.addVerificationMethod({
         verificationMethod: {
           id: `${did}#key-1`,
@@ -138,7 +139,11 @@ describe("LedgerToDomain higher-level", () => {
 
     assertOperationsContractCompatible(operations);
 
-    sim.applyOperations(operations);
+    // Apply in two batches to respect the 4-ops limit
+    const batch1 = operations.slice(0, 4);
+    const batch2 = operations.slice(4);
+    sim.applyOperations(batch1);
+    if (batch2.length > 0) sim.applyOperations(batch2);
 
     const doc = LedgerToDomain.ledgerStateToDIDDocument(
       sim.getLedger(),
@@ -152,5 +157,7 @@ describe("LedgerToDomain higher-level", () => {
     expect(doc.verificationMethod?.length).toBe(1);
     expect(doc.authentication?.length).toBe(1);
     expect(doc.service?.length).toBe(2);
+    expect(doc.alsoKnownAs).toBeDefined();
+    expect(doc.alsoKnownAs?.[0]).toBe("did:alias:example");
   });
 });

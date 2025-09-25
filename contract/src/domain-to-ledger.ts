@@ -164,6 +164,12 @@ export class DomainToLedger {
       },
       removeServiceOptions: {
         id: ""
+      },
+      addAlsoKnownAsOptions: {
+        value: ""
+      },
+      removeAlsoKnownAsOptions: {
+        value: ""
       }
     };
   }
@@ -278,6 +284,7 @@ export class DomainToLedger {
  * matches the contract’s expected shapes and enum ranges. This is useful for
  * producing clear, early errors before invoking contract.applyOperations.
  */
+//TODO: renew it
 export function assertOperationsContractCompatible(
   ops: Array<LedgerUpdateOperation>
 ): void {
@@ -391,6 +398,20 @@ export function assertOperationsContractCompatible(
       case LedgerOperationType.RemoveService:
         if (!isString(op.removeServiceOptions.id))
           fail(here(".removeServiceOptions.id"), "expected string");
+        break;
+      case LedgerOperationType.AddAlsoKnownAs:
+        if (
+          !op.addAlsoKnownAsOptions ||
+          !isString(op.addAlsoKnownAsOptions.value)
+        )
+          fail(here(".addAlsoKnownAsOptions.value"), "expected string");
+        break;
+      case LedgerOperationType.RemoveAlsoKnownAs:
+        if (
+          !op.removeAlsoKnownAsOptions ||
+          !isString(op.removeAlsoKnownAsOptions.value)
+        )
+          fail(here(".removeAlsoKnownAsOptions.value"), "expected string");
         break;
       case LedgerOperationType.Deactivate:
         break;

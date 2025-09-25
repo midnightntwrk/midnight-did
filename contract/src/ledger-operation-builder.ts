@@ -1,4 +1,5 @@
 import {
+  AddAlsoKnownAsOptions,
   AddServiceOptions,
   AddVerificationMethodOptions,
   AddVerificationMethodRelationOptions,
@@ -7,6 +8,7 @@ import {
   KeyType,
   OperationType,
   PublicKeyJwk,
+  RemoveAlsoKnownAsOptions,
   RemoveServiceOptions,
   RemoveVerificationMethodOptions,
   RemoveVerificationMethodRelationOptions,
@@ -66,6 +68,12 @@ export class OperationBuilder {
     },
     removeServiceOptions: {
       id: ""
+    },
+    addAlsoKnownAsOptions: {
+      value: ""
+    },
+    removeAlsoKnownAsOptions: {
+      value: ""
     }
   };
 
@@ -147,6 +155,22 @@ export class OperationBuilder {
       ...this.defaultDIDUpdateOperation,
       operationType: OperationType.RemoveService,
       removeServiceOptions: options
+    };
+  }
+
+  static addAlsoKnownAs(value: string): DIDUpdateOperation {
+    return {
+      ...this.defaultDIDUpdateOperation,
+      operationType: OperationType.AddAlsoKnownAs,
+      addAlsoKnownAsOptions: { value }
+    };
+  }
+
+  static removeAlsoKnownAs(value: string): DIDUpdateOperation {
+    return {
+      ...this.defaultDIDUpdateOperation,
+      operationType: OperationType.RemoveAlsoKnownAs,
+      removeAlsoKnownAsOptions: { value }
     };
   }
 

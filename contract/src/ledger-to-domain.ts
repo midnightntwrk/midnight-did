@@ -103,6 +103,7 @@ export class LedgerToDomain {
       version: Number(ledger.version.toString()),
       active: ledger.active,
       operationCount: Number(ledger.operationCount.toString()),
+      alsoKnownAs: Array.from(ledger.alsoKnownAs),
       verificationMethods: Array.from(
         ledger.verificationMethods,
         ([id, method]) => ({
@@ -180,6 +181,10 @@ export class LedgerToDomain {
       ? undefined
       : Array.from(ledger.services, ([id, service]) => this.service(service));
 
+    const alsoKnownAs = ledger.alsoKnownAs.isEmpty()
+      ? undefined
+      : Array.from(ledger.alsoKnownAs);
+
     const didDocument = createDIDDocument({
       id: did,
       context: MidnightDIDDocumentContext,
@@ -193,6 +198,12 @@ export class LedgerToDomain {
       capabilityDelegation: capabilityDelegation,
       service: service
     });
+
+    // If there are aliases, assign them explicitly (createDIDDocument enforces schema)
+    if (alsoKnownAs !== undefined) {
+      (didDocument as unknown as { alsoKnownAs?: string[] }).alsoKnownAs =
+        alsoKnownAs;
+    }
 
     return didDocument;
   }

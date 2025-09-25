@@ -20,6 +20,7 @@ import CompactStandardLibrary;
 export ledger contractVersion: Uint<32>;
 export ledger controllerPublicKey: Bytes<32>;
 export ledger id: ContractAddress;
+export ledger alsoKnownAs: Set<Opaque<"string">>;
 export ledger version: Counter;
 export ledger createdAt: Uint<64>;
 export ledger updatedAt: Uint<64>;
@@ -87,6 +88,8 @@ export enum OperationType {
   AddService,
   UpdateService,
   RemoveService,
+  AddAlsoKnownAs,
+  RemoveAlsoKnownAs,
   Deactivate
 }
 
@@ -124,6 +127,14 @@ export struct RemoveServiceOptions {
   id: Opaque<"string">,
 }
 
+export struct AddAlsoKnownAsOptions {
+  value: Opaque<"string">,
+}
+
+export struct RemoveAlsoKnownAsOptions {
+  value: Opaque<"string">,
+}
+
 export struct DIDUpdateOperation {
   operationType: OperationType,
   addVerificationMethodOptions: AddVerificationMethodOptions,
@@ -134,6 +145,8 @@ export struct DIDUpdateOperation {
   addServiceOptions: AddServiceOptions,
   updateServiceOptions: UpdateServiceOptions,
   removeServiceOptions: RemoveServiceOptions,
+  addAlsoKnownAsOptions: AddAlsoKnownAsOptions,
+  removeAlsoKnownAsOptions: RemoveAlsoKnownAsOptions,
 }
 
 constructor() {
@@ -202,11 +215,30 @@ circuit applyOperation(operation: DIDUpdateOperation): [] {
     updateService(operation.updateServiceOptions);
   } else if (operation.operationType == OperationType.RemoveService) {
     removeService(operation.removeServiceOptions);
+  } else if (operation.operationType == OperationType.AddAlsoKnownAs) {
+    addAlsoKnownAs(operation.addAlsoKnownAsOptions);
+  } else if (operation.operationType == OperationType.RemoveAlsoKnownAs) {
+    removeAlsoKnownAs(operation.removeAlsoKnownAsOptions);
   } else if (operation.operationType == OperationType.Deactivate) {
     deactivate();
   } else {
     // no-op for OperationType.Empty
   }
+}
+
+circuit addAlsoKnownAs(options: AddAlsoKnownAsOptions): [] {
+  assert(active, "Contract is not active");
+  const alias = disclose(options.value);
+  assert(!alsoKnownAs.member(alias), "alsoKnownAs value already exists");
+  alsoKnownAs.insert(alias);
+}
+
+
+circuit removeAlsoKnownAs(options: RemoveAlsoKnownAsOptions): [] {
+  assert(active, "Contract is not active");
+  const alias = disclose(options.value);
+  assert(alsoKnownAs.member(alias), "alsoKnownAs value does not exist");
+  alsoKnownAs.remove(alias);
 }
 
 circuit addVerificationMethod(verificationMethod: VerificationMethod): [] {

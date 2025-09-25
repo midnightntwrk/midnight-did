@@ -101,6 +101,18 @@ describe("OperationBuilder", () => {
     expect(op.removeServiceOptions.id).toBe("svc-1");
   });
 
+  it("should build addAlsoKnownAs operation", () => {
+    const op = OperationBuilder.addAlsoKnownAs("aka-1");
+    expect(op.operationType).toBe(OperationType.AddAlsoKnownAs);
+    expect(op.addAlsoKnownAsOptions.value).toBe("aka-1");
+  });
+
+  it("should build removeAlsoKnownAs operation", () => {
+    const op = OperationBuilder.removeAlsoKnownAs("aka-1");
+    expect(op.operationType).toBe(OperationType.RemoveAlsoKnownAs);
+    expect(op.removeAlsoKnownAsOptions.value).toBe("aka-1");
+  });
+
   it("should build deactivate operation", () => {
     const op = OperationBuilder.deactivate();
     expect(op.operationType).toBe(OperationType.Deactivate);

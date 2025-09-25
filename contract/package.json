@@ -19,7 +19,7 @@
     "contract": "npm run compact",
     "compact": "compactc src/did.compact src/managed/did",
     "test": "vitest run",
-    "test:ci": "vitest run --pool=forks",
+    "test:ci": "vitest run",
     "test:compile": "npm run compact && vitest run",
     "prepack": "npm run build",
     "coverage": "vitest run --coverage",
@@ -27,7 +27,7 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "all": "npm run compact && npm run build && npm run test"
+    "all": "npm run compact && npm run build && npm run test:ci"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^3.2.4"

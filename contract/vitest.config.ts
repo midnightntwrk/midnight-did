@@ -18,6 +18,12 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   mode: "node",
   test: {
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
     deps: {
       interopDefault: true
     },
