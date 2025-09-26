@@ -12,7 +12,7 @@ Dammstrasse 16
 Switzerland  
 <https://iamx.id/>
 
-Contact: <contact@imax.id>
+Contact: <contact@iamx.id>
 
 [Midnight Foundation](https://midnight.foundation)
 Contact: <contact@midnight.foundation>
@@ -24,6 +24,8 @@ Contact: <contact@identus.io>
 ## Contributors:
 - Dennis Mittmann
 - Yurii Shynbuiev
+- Pat Losoponkul
+- Fabio Pinheiro
 
 # Abstract
 
@@ -32,7 +34,7 @@ This specification describes a new DID method called Midnight for storing DIDs u
 # Contents
 
 1. [Conformance and Terminology](#1-conformance-and-terminology)
-2. [Midnight DID Syntax](#2-Midnight-did-syntax)
+2. [Midnight DID Syntax](#2-midnight-did-syntax)
 3. [Identifiers](#3-identifiers)
 4. [DID operations](#4-did-operations)
 5. [Security Considerations](#5-security-considerations)
@@ -117,7 +119,7 @@ The value of the `@context` property **MUST** be an array containing the followi
 
 For more information, see [W3C DID specification](https://w3c.github.io/did-core/#production-0).
 
-# 3.2. Identifier
+## 3.2. Identifier
 
 Midnight DID documents **MUST** include an `id` property.
 
@@ -125,7 +127,7 @@ The value of the `id` property denotes the Midnight DID subject that the Midnigh
 
 The value of `id` **MUST** be a valid Midnight DID. A Midnight DID **MUST** have exactly one DID subject.
 
-The Midnight DID identifier is available right after the smart-contract deployment and equals to the smart-contract address.
+The Midnight DID identifier is available right after the smart-contract deployment and equals the smart-contract address.
 
 ```json
 {
@@ -155,14 +157,14 @@ The value of the `controller` field, which identifies the controller of the corr
 
 ### 3.3.4. publicKeyJwk
 
-The value of the `publicKeyJwk` field conforms the [RFC7517](https://www.rfc-editor.org/rfc/rfc7517) JSON Web Key (JWK) specification, and contain the corresponding properties:
+The value of the `publicKeyJwk` field conforms to the [RFC7517](https://www.rfc-editor.org/rfc/rfc7517) JSON Web Key (JWK) specification, and contains the following properties:
 
 - `kty` - key type
 - `crv` - curve
 - `x` - base64url encoded x point on the curve
 - `y` - base64url encoded y point on the curve
 
-The Midnight DID supports the following cryptographic algorithms: Ed25519 and JubJub (Midnight compatible). Based on the cryptography suite, the values of the properties are following:
+The Midnight DID supports the following cryptographic algorithms: Ed25519 and JubJub (Midnight compatible). Based on the cryptography suite, the values of the properties are as follows:
 
 #### 3.3.4.1 Ed25519
 Uses EdDSA over Ed25519 for signatures.
@@ -172,18 +174,18 @@ Keys are represented as JWK in compressed format with:
 - `crv`=`Ed25519`, and 
 - `x` parameter.
 
-#### 3.3.2.2 JubJub (Midnight compatible)
-Used EdDSA over JubJub for signatures inside Midnight's ZK context (smart-contract and Midnight JS library)
+#### 3.3.4.2 JubJub (Midnight compatible)
+Uses EdDSA over JubJub for signatures inside Midnight's ZK context (smart contract and Midnight JS library).
 Keys are represented as JWK in uncompressed format with:
 
 - `kty`=`EC`, 
 - `crv`=`JubJub`, 
 - `x`, and
--  `y` parameters.
+- `y` parameters.
 
-### 3.3.3. blockchainAccountId (draft)
+### 3.3.5. blockchainAccountId (draft)
 
-**NOTE**: `blockchainAccountId` property should be discussed. It's an [extension](https://www.w3.org/TR/did-extensions-properties/#blockchainaccountid) to the DID Core specification, and might impact the `type` and `@contex` properties of the DID Document.
+**NOTE**: `blockchainAccountId` property should be discussed. It's an [extension](https://www.w3.org/TR/did-extensions-properties/#blockchainaccountid) to the DID Core specification and might impact the `type` and `@context` properties of the DID Document.
 
 The `verificationMethod` **MAY** include the reference to the blockchain account id associated with the verification method.
 The value of the `blockchainAccountId` field **MUST** be a valid address in the blockchain.
@@ -194,7 +196,7 @@ Below is a specific example of the `verificationMethod` property:
 {
   "verificationMethod": [
     {
-      "id": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#keys-1",
+      "id": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1",
       "type": "JsonWebKey",
       "controller": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3",
       "blockchainAccountId": "eip155:1:0xab16a96d359ec26a11e2c2b3d8f8b8942d5bfcdb"
@@ -203,19 +205,19 @@ Below is a specific example of the `verificationMethod` property:
 }
 ```
 
-## 3.4. Verification Relationship
+## 3.4. Verification Relationships
 
-In a Midnight DID Document, according to the DID Core [specification](https://www.w3.org/TR/did-extensions-properties/#verification-relationships), the following verification relationship are supported:
+In a Midnight DID Document, according to the DID Core [specification](https://www.w3.org/TR/did-extensions-properties/#verification-relationships), the following verification relationships are supported:
 
 - assertionMethod
 - authentication
 - capabilityInvocation
 - capabilityDelegation
-- keyAggrement
+- keyAgreement
 
-The verification relationship is represented by the corresponding properties by referencing to the verification method `id` defined in the DID Document.
+The verification relationships are represented by the corresponding properties by referencing the verification method `id` defined in the DID Document.
 
-Embedded verification method definition is not supported by a Midnigh DID method.
+Embedded verification method definition is not supported by the Midnight DID method.
 
 ### 3.4.1. Assertion Method
 
@@ -226,23 +228,24 @@ The `assertionMethod` property is OPTIONAL. If present, the associated value MUS
 Example:
 ```json
 {
-  ...
-  "assertionMethod": ["did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#keys-1"]
-  ...
+  "assertionMethod": [
+    "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1"
+  ]
 }
+```
 
 ### 3.4.2. Authentication
 
 The authentication verification relationship is used to specify how the DID subject is expected to be authenticated, for purposes such as logging into a website or engaging in any sort of challenge-response protocol.
 
-The `authentication` property is OPTIONAL. If present, the associated value MUST be a set of one or more verification methods. Each verification method MUST referenced.
+The `authentication` property is OPTIONAL. If present, the associated value MUST be a set of one or more verification methods. Each verification method MUST be referenced.
 
 Example:
 ```json
 {
-  ...
-  "authentication": ["did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#keys-1"]
-  ...
+  "authentication": [
+    "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1"
+  ]
 }
 ```
 
@@ -250,14 +253,14 @@ Example:
 
 The capabilityInvocation verification relationship is used to specify a verification method that might be used by the DID subject to invoke a cryptographic capability, such as the authorization to update the DID Document.
 
-The `capabilityInvocation` property is OPTIONAL. If present, the associated value MUST be a set of one or more verification methods. Each verification method MUST referenced.
+The `capabilityInvocation` property is OPTIONAL. If present, the associated value MUST be a set of one or more verification methods. Each verification method MUST be referenced.
 
 Example:
 ```json
 {
-  ...
-  "capabilityInvocation": ["did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#keys-1"]
-  ...
+  "capabilityInvocation": [
+    "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1"
+  ]
 }
 ```
 
@@ -270,9 +273,9 @@ The `capabilityDelegation` property is OPTIONAL. If present, the associated valu
 Example:
 ```json
 {
-  ...
-  "capabilityDelegation": ["did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#keys-1"]
-  ...
+  "capabilityDelegation": [
+    "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1"
+  ]
 }
 ```
 
@@ -285,9 +288,9 @@ The `keyAgreement` property is OPTIONAL. If present, the associated value MUST b
 Example:
 ```json
 {
-  ...
-  "keyAgreement": ["did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#keys-1"]
-  ...
+  "keyAgreement": [
+    "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1"
+  ]
 }
 ```
 
@@ -309,7 +312,7 @@ The value of the `id` property MUST be a URI conforming to [RFC3986]. A conformi
 
 The value of the `type` property MUST be a string or a set of strings. In order to maximize interoperability, the service type and its associated properties SHOULD be registered in the DID Specification Registries [DID-SPEC-REGISTRIES].
 
-#### 3.5.1.2. ServiceEndpoint
+#### 3.5.1.3. ServiceEndpoint
 
 The value of the `serviceEndpoint` property MUST be a string or a set of strings limited to four instances. All string values MUST be valid URIs conforming to [RFC3986] and normalized according to the Normalization and Comparison rules in RFC3986 and to any normalization rules in its applicable URI scheme specification.
 
@@ -320,7 +323,7 @@ Example of the `service` property:
   ...
   "service": [
   {
-    "id": "did-commDIDCommV2",
+    "id": "didcomm-1",
     "type": "SomeServiceType",
     "serviceEndpoint": ["https://localhost/sst", "wss://localhost/sst"]
   }
@@ -331,19 +334,19 @@ Example of the `service` property:
 
 ## 4. Midnight DID Document Metadata Properties
 
-The Midnight DID document metadata supports the following properties according to [DID Document Metadata](https://www.w3.org/TR/did-1.0/#did-document-metadata):
+The Midnight DID Document metadata supports the following properties according to [DID Document Metadata](https://www.w3.org/TR/did-1.0/#did-document-metadata):
 
 ### 4.1. Created
 
-The property **created** represents the Date when the document was created.
+The property **created** represents the date when the document was created.
 
 ### 4.2. Updated
 
-The property **updated** represent the Date when the document was updated.
+The property **updated** represents the date when the document was last updated.
 
 ### 4.3. Deactivated
 
-The property **deactivated** is a boolean value that represent the status of a Midnight DID.
+The property **deactivated** is a boolean value that represents the status of a Midnight DID.
 
 A deactivated Midnight DID can no longer be used or reactivated.
 
@@ -402,7 +405,7 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | keyAgreementRelation           | `Set<Opaque<"string">>`                        | Set of verification method ids authorized for `keyAgreement`. The DIDDocument's `keyAgreement` property is reconstructed from this state. |
 | capabilityInvocationRelation   | `Set<Opaque<"string">>`                        | Set of verification method ids authorized for `capabilityInvocation`. The DIDDocument's `capabilityInvocation` property is reconstructed from this state. |
 | capabilityDelegationRelation   | `Set<Opaque<"string">>`                        | Set of verification method ids authorized for `capabilityDelegation`. The DIDDocument's `capabilityDelegation` property is reconstructed from this state. |
-| services                       | `Map<Opaque<"string">, Service>`               | Map from service id (string) to service entries (type and `serviceEndpoint`). The DIDDocument's `services` property is reconstructed from this state. |
+| services                       | `Map<Opaque<"string">, Service>`               | Map from service id (string) to service entries (type and `serviceEndpoint`). The DIDDocument's `service` property is reconstructed from this state. |
 
 # 7. DID operations
 
@@ -429,7 +432,7 @@ After the smart-contract publishing, the Midnight DID is deployed, but doesn't c
 ## 7.2. Read
 
 Reading of a Midnight DID Document is done by attaching to the corresponding smart contract by the address in the Midnight DID in the network specified by the `network` segment of the DID ID.
-The smart contract public state contains all information required to reconstruct the DID Document. See the [Section 5. Midnight Ledger state](#5-midnight-did-ledger-state).
+The smart contract public state contains all information required to reconstruct the DID Document. See the [Section 6. Midnight DID Ledger state](#6-midnight-did-ledger-state).
 
 There are a couple of options to get the DID Ledger state:
 
@@ -444,7 +447,7 @@ The ledger state is deserialized to reconstruct the corresponding DIDDocument.
 
 Example of the implementation: Midnight DID Resolver in Rust
 
-**NOTE**: The DID ledger state will be available within the smart-contract compact language as well when the support for the smart-contract composability is implemented.=
+**NOTE**: The DID ledger state will be available within the smart-contract compact language as well when the support for the smart-contract composability is implemented.
 
 ## 7.3. Update
 
@@ -472,22 +475,21 @@ Adds a new verification method entry and (optionally, in a subsequent operation)
   - `id` MUST be a DID URL fragment belonging to this DID (e.g., `did:midnight:<network>:<addr>#key-1`).
   - `controller` MUST equal the DID subject.
   - `type` MUST be `JsonWebKey`.
-  - `publicKeyJwk` MUST follow the JWK profiles defined in section 3.1 (Ed25519 or JubJub).
+  - `publicKeyJwk` MUST follow the JWK profiles defined in section 3.3.4 (Ed25519 or JubJub).
   - Adding a method with an existing `id` MUST fail.
 
-Example:
+Example (Ed25519):
 ```json
 {
   "type": "AddVerificationMethod",
   "verificationMethod": {
     "id": "did:midnight:testnet:0200...abab#key-1",
     "type": "JsonWebKey",
-    "controller": "did:midnight:devnet:0200...abab",
+    "controller": "did:midnight:testnet:0200...abab",
     "publicKeyJwk": {
       "kty": "OKP",
       "crv": "Ed25519",
-      "x": "42",
-      "y": "84"
+      "x": "42"
     }
   }
 }
@@ -509,12 +511,11 @@ Example:
   "verificationMethod": {
     "id": "did:midnight:testnet:0200...abab#key-1",
     "type": "JsonWebKey",
-    "controller": "did:midnight:devnet:0200...abab",
+    "controller": "did:midnight:testnet:0200...abab",
     "publicKeyJwk": {
-      "kty": "EC",
+      "kty": "OKP",
       "crv": "Ed25519",
-      "x": "8",
-      "y": "16"
+      "x": "8"
     }
   }
 }
@@ -547,7 +548,7 @@ Example:
 {
   "type": "AddVerificationMethodRelation",
   "relation": "Authentication",
-  "methodId": "did:midnight:mainnet:0200...abab#key-1"
+  "methodId": "did:midnight:testnet:0200...abab#key-1"
 }
 ```
 
@@ -644,7 +645,7 @@ Note on batching: up to 4 operations can be applied in a single on‑chain call.
 
 # 8. Deactivation
 
-Midnight DID deactivation is one of the [update operation](#639-deactivate).
+Midnight DID deactivation is one of the update operations.
 
 # 9. Security Considerations
 
@@ -654,7 +655,7 @@ The Midnight features mathematically verifiable security against attackers. Secu
 
 Midnight DID will be stored in an address controlled by the holder. This ensures that third parties can't modify, register, update, or deactivate the DID document controlled by the holder.
 
-The application is responsible for the key management (See the [Section 4. Private and Public Keys](#4-private-and-public-keys))
+The application is responsible for key management (see [Section 5. Private and Public Keys](#5-private-and-public-keys)).
 
 It is recommended to use secure storage for private keys and an HD derivation convention for Midnight DID keys to simplify backup and recovery.
 
@@ -697,7 +698,7 @@ If personal information is added to the blockchain, potentially making it a viab
 
 For this reason, it is strongly suggested that personal information not be added to the blockchain.
 
-Therefore, the Midnight DID document will **NEVER** contain any personal Data.
+Therefore, the Midnight DID document will **NEVER** contain any personal data.
 
 ## 10.4. Separation of concerns
 
@@ -737,9 +738,10 @@ A simple example of a Midnight DID Document is as follows:
       "type": "JsonWebKey",
       "controller": "did:midnight:undeployed:02008adc553193e2ef2e9fb5ced14ad6520661aeccc9c5fd52ac5323f64e0df8e41d",
       "publicKeyJwk": {
-        "kty": "OKP",
+        "kty": "EC",
         "crv": "Ed25519",
-        "x": "42"
+        "x": "42",
+        "y": "84"
       }
     }
   ],
@@ -789,7 +791,7 @@ JSON Object Signing and Encryption (JOSE), Jan 1st 2015. URL: https://www.iana.o
 
 [VC-DATA-MODEL]
 
-Verifiable Credentials Data Model v2.0. W3C Reccomendation 15 May 2025. URL: https://www.w3.org/TR/vc-data-model/
+Verifiable Credentials Data Model v2.0. W3C Recommendation 15 May 2025. URL: https://www.w3.org/TR/vc-data-model/
 
 [DID-SPEC-REGISTRIES]
 
