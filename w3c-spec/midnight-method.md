@@ -341,7 +341,6 @@ Example of the `service` property:
 }
 ```
 
-
 ## 4. Midnight DID Document Metadata Properties
 
 The Midnight DID Document metadata supports the following properties according to [DID Document Metadata](https://www.w3.org/TR/did-1.0/#did-document-metadata):
@@ -403,6 +402,7 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | contractVersion                | `Uint<32>`                                   | Contract schema/version number to support upgrades and compatibility checks. |
 | controllerPublicKey            | `Bytes<32>`                                  | Controller’s public key bytes (method‑specific encoding), used to authorize updates. |
 | id                             | `ContractAddress`                            | Smart‑contract address that uniquely identifies the DID on Midnight. |
+| alsoKnownAs                    | `Set<Opaque<"string">>`                      | The DID Document’s `alsoKnownAs` field; allows to set the alias for the DID identity. |
 | version                        | `Counter`                                    | Monotonic on‑chain revision counter for the DID state. Must be set to the `versionId` property of the DIDDocument. |
 | createdAt                      | `Uint<64>`                                   | Creation timestamp (UNIX epoch, milliseconds) of the DID instance. Must be set to the `created` property of the DIDDocument and the DIDDocument's metadata. |
 | updatedAt                      | `Uint<64>`                                   | Last update timestamp (UNIX epoch, milliseconds) after applying operations. Must be set to the `updated` property of the DIDDocument and the DIDDocument’s metadata. |
@@ -635,7 +635,40 @@ Example:
 { "type": "RemoveService", "serviceId": "didcomm-1" }
 ```
 
-### 7.3.9 Deactivate
+### 7.3.9. Add AlsoKnownAs
+
+Adds an alias URI to the `alsoKnownAs` set. See section 3.3 for semantics.
+
+- Inputs: `aliasUri` — a URI conforming to RFC3986 (e.g., a DID or other URI).
+- Constraints:
+  - Adding a duplicate alias MUST fail.
+  - Implementations SHOULD validate that `aliasUri` is a syntactically valid URI.
+
+Example:
+```json
+{
+  "type": "AddAlsoKnownAs",
+  "aliasUri": "did:example:aka-1"
+}
+```
+
+### 7.3.10. Remove AlsoKnownAs
+
+Removes an alias URI from the `alsoKnownAs` set.
+
+- Inputs: `aliasUri` — the alias URI to remove.
+- Constraints:
+  - Removing an alias that does not exist MUST fail.
+
+Example:
+```json
+{
+  "type": "RemoveAlsoKnownAs",
+  "aliasUri": "did:example:aka-1"
+}
+```
+
+### 7.3.11. Deactivate
 
 Marks the DID as deactivated on‑chain. The public state remains readable for auditability, but no further update operations are permitted.
 
