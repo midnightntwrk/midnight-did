@@ -77,7 +77,8 @@ describe("DomainToLedger mappings", () => {
 });
 
 describe("DomainToLedger helpers", () => {
-  const jwk = { kty: KeyType.EC, crv: CurveType.ed25519, x: 1n, y: 2n };
+  // base64url for 0x01 -> "AQ", 0x02 -> "Ag"
+  const jwk = { kty: KeyType.EC, crv: CurveType.ed25519, x: "AQ", y: "Ag" };
 
   it("converts PublicKeyJwk", () => {
     const out = DomainToLedger.publicKeyJwk(jwk);
@@ -148,7 +149,8 @@ describe("DomainToLedger operations", () => {
     id: parseDIDKeyID(`${did}#key-1`),
     type: VerificationMethodType.JsonWebKey,
     controller: parseDID(did),
-    publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.ed25519, x: 3n, y: 4n }
+    // base64url for 0x03 -> "Aw", 0x04 -> "BA"
+    publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.ed25519, x: "Aw", y: "BA" }
   });
 
   it("maps Add/Update/Remove VerificationMethod ops", () => {

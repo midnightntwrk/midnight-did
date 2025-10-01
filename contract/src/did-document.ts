@@ -66,11 +66,14 @@ export enum CurveType {
 }
 export const CurveTypeSchema = z.enum(CurveType);
 
+// Base64url-encoded string (no padding). Conservative charset check only.
+const Base64UrlStringSchema = z.string().check(z.regex(/^[A-Za-z0-9_-]*$/));
+
 export const PublicKeyJwkSchema = z.object({
   kty: KeyTypeSchema,
   crv: CurveTypeSchema,
-  x: z.bigint(),
-  y: z.bigint()
+  x: Base64UrlStringSchema,
+  y: Base64UrlStringSchema
 });
 
 export type PublicKeyJwk = z.infer<typeof PublicKeyJwkSchema>;

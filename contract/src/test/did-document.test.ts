@@ -42,8 +42,8 @@ describe("DID Schemas", () => {
       publicKeyJwk: {
         kty: KeyType.EC,
         crv: CurveType.ed25519,
-        x: 0n,
-        y: 0n
+        x: "AA",
+        y: "AA"
       }
     });
     expect(vm.id).toBe("did:example:123#key-1");
@@ -70,8 +70,8 @@ describe("DID Schemas", () => {
           publicKeyJwk: {
             kty: KeyType.EC,
             crv: CurveType.ed25519,
-            x: 0n,
-            y: 0n
+            x: "AA",
+            y: "AA"
           }
         })
       ]
@@ -137,8 +137,8 @@ describe("DID Schemas", () => {
       publicKeyJwk: {
         kty: KeyType.EC,
         crv: CurveType.ed25519,
-        x: 0n,
-        y: 0n
+        x: "AA",
+        y: "AA"
       }
     });
     expect(vm.id).toBe("did:example:123#key-1");
@@ -167,8 +167,8 @@ describe("DID Schemas", () => {
           publicKeyJwk: {
             kty: KeyType.EC,
             crv: CurveType.ed25519,
-            x: 0n,
-            y: 0n
+            x: "AA",
+            y: "AA"
           }
         })
       ]

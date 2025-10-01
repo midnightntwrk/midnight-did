@@ -69,8 +69,8 @@ describe("LedgerToDomain helpers", () => {
     });
     expect(out.kty).toBe(KeyType.OKP);
     expect(out.crv).toBe(CurveType.ed25519);
-    expect(out.x).toBe(7n);
-    expect(out.y).toBe(9n);
+    expect(out.x).toBe("Bw"); // base64url(0x07)
+    expect(out.y).toBe("CQ"); // base64url(0x09)
   });
 
   it("converts service and filters blanks", () => {

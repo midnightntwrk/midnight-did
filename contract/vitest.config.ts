@@ -18,10 +18,11 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   mode: "node",
   test: {
-    pool: 'forks',
+    // Use worker_threads with a single thread to avoid sandboxed process kill issues
+    pool: 'threads',
     poolOptions: {
-      forks: {
-        singleFork: true,
+      threads: {
+        singleThread: true,
       },
     },
     deps: {

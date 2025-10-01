@@ -17,7 +17,7 @@ describe("DIDOperationSchema", () => {
     id: parseDIDKeyID(`${did}#key-1`),
     type: VerificationMethodType.JsonWebKey,
     controller: parseDID(did),
-    publicKeyJwk: { kty: KeyType.EC, crv: CurveType.ed25519, x: 1n, y: 2n }
+    publicKeyJwk: { kty: KeyType.EC, crv: CurveType.ed25519, x: "AQ", y: "Ag" }
   });
   const service = createService({
     id: "svc-1",

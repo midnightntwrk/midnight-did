@@ -119,8 +119,8 @@ describe('Midnight DID method API', () => {
     const publicKeyJwk = {
       kty: KeyType.EC,
       crv: CurveType.ed25519,
-      x: 42n,
-      y: 84n,
+      x: 'Kg', // base64url(0x2a = 42)
+      y: 'VA', // base64url(0x54 = 84)
     };
 
     const operations: DIDOperation[] = [
@@ -180,8 +180,8 @@ describe('Midnight DID method API', () => {
           publicKeyJwk: {
             kty: KeyType.EC,
             crv: CurveType.ed25519,
-            x: 42n,
-            y: 84n,
+            x: 'Kg',
+            y: 'VA',
           },
         },
       },

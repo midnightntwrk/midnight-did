@@ -185,8 +185,8 @@ Enter Verification Method type:'
     publicKeyJwk: {
       kty: KeyType.EC,
       crv: CurveType.ed25519,
-      x: 0n,
-      y: 0n,
+      x: 'AA',
+      y: 'AA',
     },
   });
 }

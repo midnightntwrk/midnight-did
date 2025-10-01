@@ -1,6 +1,8 @@
 import { ContractAddress } from "@midnight-ntwrk/compact-runtime";
 import { Buffer } from "buffer";
+import { z } from "zod/v4-mini";
 
+import { FieldCodec } from "./crypto-codecs";
 import {
   createDIDDocument,
   createVerificationMethod,
@@ -81,8 +83,8 @@ export class LedgerToDomain {
     return {
       kty: this.KeyTypeMap[publicKeyJwk.kty],
       crv: this.CurveTypeMap[publicKeyJwk.crv],
-      x: publicKeyJwk.x,
-      y: publicKeyJwk.y
+      x: z.encode(FieldCodec as any, publicKeyJwk.x) as string,
+      y: z.encode(FieldCodec as any, publicKeyJwk.y) as string
     };
   }
 
