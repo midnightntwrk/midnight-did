@@ -84,6 +84,9 @@ Below is the basic structure of the Midnight DID Document:
 {
   "@context": ["https://www.w3.org/ns/did/v1"],
   "id": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3",
+  "alsoKnownAs": [
+    "did:example:aka-2"
+  ],
   "verificationMethod": [
     {
       "id": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1",
@@ -135,7 +138,14 @@ The Midnight DID identifier is available right after the smart-contract deployme
 }
 ```
 
-## 3.3. Verification Methods
+## 3.3. Alias
+
+A DID subject can have multiple identifiers for different purposes, or at different times. The assertion that two or more DIDs (or other types of URI) refer to the same DID subject can be made using the `alsoKnownAs` property.
+
+The `alsoKnownAs` property is OPTIONAL. If present, the value MUST be a set where each item in the set is a URI conforming to [RFC3986].
+This relationship is a statement that the subject of this identifier is also identified by one or more other identifiers.
+
+## 3.4. Verification Methods
 
 A Midnight DID Document **MUST** include a `verificationMethod` property to specify a set of public keys linked to that Midnight DID.
 
@@ -143,19 +153,19 @@ Public and private key pairs can be used for the identity management, authorizat
 
 Every public key object linked to the `verificationMethod` property **MUST** include the fields `id`, `type`, `controller`, and specific public key properties, and **MAY** include other additional properties.
 
-### 3.3.1. id
+### 3.4.1. id
 
 Each linked public key has its own identifier specified using the field `id`. The value of `verificationMethod` **MUST NOT** contain multiple entries with the same `id`.
 
-### 3.3.2. type
+### 3.4.2. type
 
 The value of the `type` field **MUST** be `JsonWebKey` to support the compatibility and interoperability with other SSI systems, and support the majority of the cryptography suites according to the [RFC7517](https://www.rfc-editor.org/rfc/rfc7517) JSON Web Key (JWK) specification.
 
-### 3.3.3. controller
+### 3.4.3. controller
 
 The value of the `controller` field, which identifies the controller of the corresponding private key **MUST** be a valid Midnight DID, implying that the public key is controlled by this Midnight DID.
 
-### 3.3.4. publicKeyJwk
+### 3.4.4. publicKeyJwk
 
 The value of the `publicKeyJwk` field conforms to the [RFC7517](https://www.rfc-editor.org/rfc/rfc7517) JSON Web Key (JWK) specification, and contains the following properties:
 
@@ -166,7 +176,7 @@ The value of the `publicKeyJwk` field conforms to the [RFC7517](https://www.rfc-
 
 The Midnight DID supports the following cryptographic algorithms: Ed25519 and JubJub (Midnight compatible). Based on the cryptography suite, the values of the properties are as follows:
 
-#### 3.3.4.1 Ed25519
+#### 3.4.4.1 Ed25519
 Uses EdDSA over Ed25519 for signatures.
 Keys are represented as JWK in compressed format with:
 
@@ -174,7 +184,7 @@ Keys are represented as JWK in compressed format with:
 - `crv`=`Ed25519`, and 
 - `x` parameter.
 
-#### 3.3.4.2 JubJub (Midnight compatible)
+#### 3.4.4.2 JubJub (Midnight compatible)
 Uses EdDSA over JubJub for signatures inside Midnight's ZK context (smart contract and Midnight JS library).
 Keys are represented as JWK in uncompressed format with:
 
@@ -183,7 +193,7 @@ Keys are represented as JWK in uncompressed format with:
 - `x`, and
 - `y` parameters.
 
-### 3.3.5. blockchainAccountId (draft)
+### 3.4.5. blockchainAccountId (draft)
 
 **NOTE**: `blockchainAccountId` property should be discussed. It's an [extension](https://www.w3.org/TR/did-extensions-properties/#blockchainaccountid) to the DID Core specification and might impact the `type` and `@context` properties of the DID Document.
 
@@ -205,7 +215,7 @@ Below is a specific example of the `verificationMethod` property:
 }
 ```
 
-## 3.4. Verification Relationships
+## 3.5. Verification Relationships
 
 In a Midnight DID Document, according to the DID Core [specification](https://www.w3.org/TR/did-extensions-properties/#verification-relationships), the following verification relationships are supported:
 
@@ -219,7 +229,7 @@ The verification relationships are represented by the corresponding properties b
 
 Embedded verification method definition is not supported by the Midnight DID method.
 
-### 3.4.1. Assertion Method
+### 3.5.1. Assertion Method
 
 The assertionMethod verification relationship is used to specify how the DID subject is expected to express claims, such as for the purposes of issuing a Verifiable Credential [VC-DATA-MODEL].
 
@@ -234,7 +244,7 @@ Example:
 }
 ```
 
-### 3.4.2. Authentication
+### 3.5.2. Authentication
 
 The authentication verification relationship is used to specify how the DID subject is expected to be authenticated, for purposes such as logging into a website or engaging in any sort of challenge-response protocol.
 
@@ -249,7 +259,7 @@ Example:
 }
 ```
 
-### 3.4.3. Capability Invocation
+### 3.5.3. Capability Invocation
 
 The capabilityInvocation verification relationship is used to specify a verification method that might be used by the DID subject to invoke a cryptographic capability, such as the authorization to update the DID Document.
 
@@ -264,7 +274,7 @@ Example:
 }
 ```
 
-### 3.4.4. Capability Delegation
+### 3.5.4. Capability Delegation
 
 The capabilityDelegation verification relationship is used to specify a mechanism that might be used by the DID subject to delegate a cryptographic capability to another party, such as delegating the authority to access a specific HTTP API to a subordinate.
 
@@ -279,7 +289,7 @@ Example:
 }
 ```
 
-### 3.4.5. KeyAgreement
+### 3.5.5. KeyAgreement
 
 The keyAgreement verification relationship is used to specify how an entity can generate encryption material in order to transmit confidential information intended for the DID subject, such as for the purposes of establishing a secure communication channel with the recipient.
 
@@ -294,25 +304,25 @@ Example:
 }
 ```
 
-## 3.5. Services
+## 3.6. Services
 
 Services are used in DID documents to express ways of communicating with the DID subject or associated entities. A service can be any type of service the DID subject wants to advertise, including decentralized identity management services for further discovery, authentication, authorization, or interaction.
 
 Services are expressed using the `service` property, which is described below:
 
-### 3.5.1. Service
+### 3.6.1. Service
 
 The `service` property is OPTIONAL. If present, the associated value MUST be a set of services, where each service is described by a map. Each service map MUST contain `id`, `type`, and `serviceEndpoint` properties.
 
-#### 3.5.1.1. Id
+#### 3.6.1.1. Id
 
 The value of the `id` property MUST be a URI conforming to [RFC3986]. A conforming producer MUST NOT produce multiple service entries with the same `id`. A conforming consumer MUST produce an error if it detects multiple service entries with the same `id`.
 
-#### 3.5.1.2. Type
+#### 3.6.1.2. Type
 
 The value of the `type` property MUST be a string or a set of strings. In order to maximize interoperability, the service type and its associated properties SHOULD be registered in the DID Specification Registries [DID-SPEC-REGISTRIES].
 
-#### 3.5.1.3. ServiceEndpoint
+#### 3.6.1.3. ServiceEndpoint
 
 The value of the `serviceEndpoint` property MUST be a string or a set of strings limited to four instances. All string values MUST be valid URIs conforming to [RFC3986] and normalized according to the Normalization and Comparison rules in RFC3986 and to any normalization rules in its applicable URI scheme specification.
 
@@ -475,7 +485,7 @@ Adds a new verification method entry and (optionally, in a subsequent operation)
   - `id` MUST be a DID URL fragment belonging to this DID (e.g., `did:midnight:<network>:<addr>#key-1`).
   - `controller` MUST equal the DID subject.
   - `type` MUST be `JsonWebKey`.
-  - `publicKeyJwk` MUST follow the JWK profiles defined in section 3.3.4 (Ed25519 or JubJub).
+  - `publicKeyJwk` MUST follow the JWK profiles defined in section 3.4.4 (Ed25519 or JubJub).
   - Adding a method with an existing `id` MUST fail.
 
 Example (Ed25519):
