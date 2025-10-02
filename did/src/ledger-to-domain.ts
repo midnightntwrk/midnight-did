@@ -1,56 +1,43 @@
-import { ContractAddress } from "@midnight-ntwrk/compact-runtime";
+import { Buffer } from "buffer";
+import { z } from "zod/v4-mini";
 import {
   createDIDDocument,
   createVerificationMethod,
   CurveType,
   DIDDocument,
-  FieldCodec,
   KeyType,
-  parseService,
   PublicKeyJwk,
   Service,
   VerificationMethod,
   VerificationMethodRelationType,
-  VerificationMethodType
+  VerificationMethodType,
+  FieldCodec,
+  MidnightNetwork,
+  createMidnightDIDString,
+  parseContractAddress,
 } from "@midnight-ntwrk/midnight-did-domain";
-import { Buffer } from "buffer";
-import { z } from "zod/v4-mini";
-
-import {
-  DIDOperation as DomainUpdateOperation,
-  DIDOperationType
-} from "./did-operations";
-import { OperationBuilder } from "./ledger-operation-builder";
 import {
   CurveType as LedgerCurveType,
-  DIDUpdateOperation as LedgerUpdateOperation,
   KeyType as LedgerKeyType,
   Ledger,
-  OperationType as LedgerOperationType,
   PublicKeyJwk as LedgerPublicKeyJwk,
   Service as LedgerService,
   VerificationMethod as LedgerVerificationMethod,
   VerificationMethodRelation as LedgerVerificationMethodRelation,
-  VerificationMethodType as LedgerVerificationMethodType
-} from "./managed/did/contract/index.cjs";
-import {
-  ContractAddress as MidnightContractAddress,
-  createMidnightDIDString,
-  MidnightNetwork,
-  parseContractAddress
-} from "./midnight-did";
+  VerificationMethodType as LedgerVerificationMethodType,
+} from "@midnight-ntwrk/midnight-did-contract/dist/managed/did/contract/index.cjs";
 
 export class LedgerToDomain {
   static readonly KeyTypeMap: Record<LedgerKeyType, KeyType> = {
     [LedgerKeyType.EC]: KeyType.EC,
     [LedgerKeyType.RSA]: KeyType.RSA,
     [LedgerKeyType.oct]: KeyType.oct,
-    [LedgerKeyType.OKP]: KeyType.OKP
+    [LedgerKeyType.OKP]: KeyType.OKP,
   };
 
   static readonly CurveTypeMap: Record<LedgerCurveType, CurveType> = {
     [LedgerCurveType.ed25519]: CurveType.ed25519,
-    [LedgerCurveType.Jubjub]: CurveType.Jubjub
+    [LedgerCurveType.Jubjub]: CurveType.Jubjub,
   };
 
   static readonly VerificationMethodTypeMap: Record<
@@ -58,7 +45,7 @@ export class LedgerToDomain {
     VerificationMethodType
   > = {
     [LedgerVerificationMethodType.Undefined]: VerificationMethodType.Undefined,
-    [LedgerVerificationMethodType.JsonWebKey]: VerificationMethodType.JsonWebKey
+    [LedgerVerificationMethodType.JsonWebKey]: VerificationMethodType.JsonWebKey,
   };
 
   static readonly VerificationMethodRelationMap: Record<
@@ -76,7 +63,7 @@ export class LedgerToDomain {
     [LedgerVerificationMethodRelation.CapabilityInvocation]:
       VerificationMethodRelationType.CapabilityInvocation,
     [LedgerVerificationMethodRelation.CapabilityDelegation]:
-      VerificationMethodRelationType.CapabilityDelegation
+      VerificationMethodRelationType.CapabilityDelegation,
   };
 
   static publicKeyJwk(publicKeyJwk: LedgerPublicKeyJwk): PublicKeyJwk {
@@ -84,19 +71,13 @@ export class LedgerToDomain {
       kty: this.KeyTypeMap[publicKeyJwk.kty],
       crv: this.CurveTypeMap[publicKeyJwk.crv],
       x: z.encode(FieldCodec as any, publicKeyJwk.x) as string,
-      y: z.encode(FieldCodec as any, publicKeyJwk.y) as string
+      y: z.encode(FieldCodec as any, publicKeyJwk.y) as string,
     };
   }
 
   static service(service: LedgerService): Service {
-    const serviceEndpoint = service.serviceEndpoint.filter(
-      (endpoint) => endpoint.trim() !== ""
-    );
-    return parseService({
-      id: service.id,
-      type: service.type,
-      serviceEndpoint: serviceEndpoint
-    });
+    const serviceEndpoint = service.serviceEndpoint.filter((e) => e.trim() !== "");
+    return { id: service.id, type: service.type, serviceEndpoint } as Service;
   }
 
   static toJSON(ledger: Ledger): object {
@@ -106,55 +87,36 @@ export class LedgerToDomain {
       active: ledger.active,
       operationCount: Number(ledger.operationCount.toString()),
       alsoKnownAs: Array.from(ledger.alsoKnownAs),
-      verificationMethods: Array.from(
-        ledger.verificationMethods,
-        ([id, method]) => ({
-          id,
-          type: method.type,
-          publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk)
-        })
-      ),
+      verificationMethods: Array.from(ledger.verificationMethods, ([id, method]) => ({
+        id,
+        type: method.type,
+        publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
+      })),
       authenticationRelation: Array.from(ledger.authenticationRelation),
       assertionMethodRelation: Array.from(ledger.assertionMethodRelation),
       keyAgreementRelation: Array.from(ledger.keyAgreementRelation),
-      capabilityInvocationRelation: Array.from(
-        ledger.capabilityInvocationRelation
-      ),
-      capabilityDelegationRelation: Array.from(
-        ledger.capabilityDelegationRelation
-      ),
-      services: Array.from(ledger.services, ([id, service]) =>
-        this.service(service)
-      )
+      capabilityInvocationRelation: Array.from(ledger.capabilityInvocationRelation),
+      capabilityDelegationRelation: Array.from(ledger.capabilityDelegationRelation),
+      services: Array.from(ledger.services, ([, service]) => this.service(service)),
     };
   }
 
-  /**
-   * Converts a Ledger to a DIDDocument for the Midnight DID method.
-   * @param did - MidnightDID associated with the ledger
-   * @param ledger - Ledger object from the contract state
-   * @returns DIDDocument
-   */
   static ledgerStateToDIDDocument(
     ledger: Ledger,
     network: MidnightNetwork,
-    contractAddress: MidnightContractAddress
+    contractAddress: ReturnType<typeof parseContractAddress>
   ): DIDDocument {
-    //TODO: think about the context for the new key type
-    const MidnightDIDDocumentContext = Array.of("https://www.w3.org/ns/did/v1");
-
-    //const contractAddress = parseContractAddress(Buffer.from(ledger.id.bytes).toString("hex"));
-
+    const ctx = ["https://www.w3.org/ns/did/v1"];
     const did = createMidnightDIDString(contractAddress, network);
 
-    const verificationMethod = [];
+    const verificationMethod: VerificationMethod[] = [];
     for (const [id, method] of ledger.verificationMethods) {
       verificationMethod.push(
         createVerificationMethod({
           id,
           type: LedgerToDomain.VerificationMethodTypeMap[method.type],
           controller: did,
-          publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk)
+          publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
         })
       );
     }
@@ -162,51 +124,43 @@ export class LedgerToDomain {
     const assertionMethod = ledger.assertionMethodRelation.isEmpty()
       ? undefined
       : Array.from(ledger.assertionMethodRelation);
-
     const authentication = ledger.authenticationRelation.isEmpty()
       ? undefined
       : Array.from(ledger.authenticationRelation);
-
     const capabilityDelegation = ledger.capabilityDelegationRelation.isEmpty()
       ? undefined
       : Array.from(ledger.capabilityDelegationRelation);
-
     const capabilityInvocation = ledger.capabilityInvocationRelation.isEmpty()
       ? undefined
       : Array.from(ledger.capabilityInvocationRelation);
-
     const keyAgreement = ledger.keyAgreementRelation.isEmpty()
       ? undefined
       : Array.from(ledger.keyAgreementRelation);
-
     const service = ledger.services.isEmpty()
       ? undefined
-      : Array.from(ledger.services, ([id, service]) => this.service(service));
-
+      : Array.from(ledger.services, ([, s]) => this.service(s));
     const alsoKnownAs = ledger.alsoKnownAs.isEmpty()
       ? undefined
       : Array.from(ledger.alsoKnownAs);
 
     const didDocument = createDIDDocument({
       id: did,
-      context: MidnightDIDDocumentContext,
+      context: ctx,
       alsoKnownAs: undefined,
       controller: did,
-      verificationMethod: verificationMethod,
-      authentication: authentication,
-      assertionMethod: assertionMethod,
-      keyAgreement: keyAgreement,
-      capabilityInvocation: capabilityInvocation,
-      capabilityDelegation: capabilityDelegation,
-      service: service
+      verificationMethod,
+      authentication,
+      assertionMethod,
+      keyAgreement,
+      capabilityInvocation,
+      capabilityDelegation,
+      service,
     });
 
-    // If there are aliases, assign them explicitly (createDIDDocument enforces schema)
     if (alsoKnownAs !== undefined) {
-      (didDocument as unknown as { alsoKnownAs?: string[] }).alsoKnownAs =
-        alsoKnownAs;
+      (didDocument as unknown as { alsoKnownAs?: string[] }).alsoKnownAs = alsoKnownAs;
     }
-
     return didDocument;
   }
 }
+

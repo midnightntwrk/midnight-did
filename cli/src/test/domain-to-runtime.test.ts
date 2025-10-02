@@ -1,4 +1,4 @@
-import { MidnightNetwork } from '@midnight-ntwrk/midnight-did-contract';
+import { MidnightNetwork } from '@midnight-ntwrk/midnight-did-domain';
 import { NetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import { describe, expect, it } from 'vitest';
 

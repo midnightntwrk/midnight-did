@@ -30,7 +30,7 @@ import {
   parseService,
   VerificationMethodRelationType,
   VerificationMethodType,
-} from '@midnight-ntwrk/midnight-did-contract';
+} from '@midnight-ntwrk/midnight-did-domain';
 import { type Resource } from '@midnight-ntwrk/wallet';
 import { type Wallet } from '@midnight-ntwrk/wallet-api';
 import path from 'path';

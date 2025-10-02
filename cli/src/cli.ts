@@ -22,15 +22,15 @@ import {
   CurveType,
   DIDOperation,
   DIDOperationType,
+  DIDString,
   KeyType,
-  MidnightDIDString,
   parseContractAddress,
   parseDIDURL,
   parseVerificationMethodRelation,
   VerificationMethod,
   VerificationMethodRelation,
   VerificationMethodType,
-} from '@midnight-ntwrk/midnight-did-contract';
+} from '@midnight-ntwrk/midnight-did-domain';
 import { type Resource } from '@midnight-ntwrk/wallet';
 import { type Wallet } from '@midnight-ntwrk/wallet-api';
 import { type Logger } from 'pino';
@@ -162,7 +162,7 @@ const updateDIDLoop = async (
   }
 };
 
-async function promptForVerificationMethod(rli: Interface, did: MidnightDIDString): Promise<VerificationMethod | null> {
+async function promptForVerificationMethod(rli: Interface, did: string): Promise<VerificationMethod | null> {
   const id = await rli.question('Enter Verification Method id: ');
   let verificationMethodId = `${did}#${id.trim()}`;
 

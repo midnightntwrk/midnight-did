@@ -1,12 +1,11 @@
-import { z } from "zod/v4-mini";
-
 import {
   Service,
   VerificationMethod,
   VerificationMethodRelation,
   VerificationMethodRelationTypeSchema,
   VerificationMethodSchema
-} from "./did-document";
+} from "@midnight-ntwrk/midnight-did-domain";
+import { z } from "zod/v4-mini";
 
 /**
  * Enum representing each DID Operation type supported by the Midnight DID contract.

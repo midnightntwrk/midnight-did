@@ -1,0 +1,29 @@
+{
+  "name": "@midnight-ntwrk/midnight-did",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -b tsconfig.build.json --force",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:ci": "vitest run",
+    "coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/midnight-did-contract": "*",
+    "@midnight-ntwrk/midnight-did-domain": "*"
+  }
+}

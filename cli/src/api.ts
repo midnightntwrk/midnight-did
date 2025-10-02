@@ -18,18 +18,14 @@ import * as fsAsync from 'node:fs/promises';
 
 import { type ContractAddress } from '@midnight-ntwrk/compact-runtime';
 import { type CoinInfo, nativeToken, Transaction, type TransactionId } from '@midnight-ntwrk/ledger';
+import { DomainToLedger, LedgerToDomain } from '@midnight-ntwrk/midnight-did';
 import {
   DIDContract,
-  DIDDocument,
-  DIDOperation,
-  DomainToLedger,
-  LedgerToDomain,
   MidnightDIDPrivateState,
-  MidnightNetwork,
   OperationBuilder,
-  parseContractAddress,
   witnesses,
 } from '@midnight-ntwrk/midnight-did-contract';
+import { DIDDocument, DIDOperation, MidnightNetwork, parseContractAddress } from '@midnight-ntwrk/midnight-did-domain';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
 import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
@@ -183,7 +179,9 @@ export const update = async (
 
   let ledgerOperations = DomainToLedger.updateOperations(patches);
   logger.info('Ledger operations:');
-  ledgerOperations.map((lo) => logger.info(JSON.stringify(lo, BigIntReplacer, 2)));
+  for (const lo of ledgerOperations) {
+    logger.info(JSON.stringify(lo as unknown, BigIntReplacer, 2));
+  }
 
   let ledgerOperationsWithPadding = OperationBuilder.padding(ledgerOperations);
 

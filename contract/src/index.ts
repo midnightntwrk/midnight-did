@@ -14,10 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export * from "./domain-to-ledger";
 export * from "./ledger-operation-builder";
-export * from "./ledger-to-domain";
 export * as DIDContract from "./managed/did/contract/index.cjs";
-export * from "./midnight-did";
 export * from "./witnesses";
-export * from "@midnight-ntwrk/midnight-did-domain";

@@ -21,6 +21,7 @@
   "type": "module",
   "workspaces": [
     "domain",
+    "did",
     "contract",
     "cli"
   ],

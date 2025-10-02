@@ -1,6 +1,7 @@
+// moved from domain to did package
 import { describe, expect, it, vi } from "vitest";
 
-// Mock managed enums
+// Mock managed enums to avoid loading WASM/runtime
 vi.mock("@midnight-ntwrk/midnight-did-contract/dist/managed/did/contract/index.cjs", () => ({
   OperationType: {
     Undefined: 0,
@@ -29,8 +30,9 @@ vi.mock("@midnight-ntwrk/midnight-did-contract/dist/managed/did/contract/index.c
   CurveType: { ed25519: 0, Jubjub: 1 },
 }));
 
-import { DomainToLedger } from "@midnight-ntwrk/midnight-did-contract";
-import { DIDOperationType } from "../did-operations";
+// Import after mocks are defined
+import { DomainToLedger } from "..";
+import { DIDOperationType } from "@midnight-ntwrk/midnight-did-domain";
 
 import {
   VerificationMethodRelation as LRel,
@@ -81,3 +83,4 @@ describe("DomainToLedger (unit, mocked)", () => {
     expect(rel.addVerificationMethodRelationOptions.relation).toBe(LRel.Authentication);
   });
 });
+

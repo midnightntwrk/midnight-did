@@ -14,7 +14,8 @@
 // limitations under the License.
 
 import { NetworkId } from '@midnight-ntwrk/ledger';
-import { DIDContract, type MidnightDIDPrivateState, MidnightNetwork } from '@midnight-ntwrk/midnight-did-contract';
+import { DIDContract, type MidnightDIDPrivateState } from '@midnight-ntwrk/midnight-did-contract';
+import { MidnightNetwork } from '@midnight-ntwrk/midnight-did-domain';
 import type { DeployedContract, FoundContract } from '@midnight-ntwrk/midnight-js-contracts';
 import type { ImpureCircuitId, MidnightProviders } from '@midnight-ntwrk/midnight-js-types';
 
