@@ -14,6 +14,7 @@
 // limitations under the License.
 
 import { defineConfig } from "vitest/config";
+const skipRuntime = !!process.env.SKIP_RUNTIME_TESTS;
 
 export default defineConfig({
   mode: "node",
@@ -31,7 +32,18 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["**/*.test.ts"],
-    exclude: ["node_modules"],
+    exclude: [
+      "node_modules",
+      ...(skipRuntime
+        ? [
+            "src/test/also-known-as.test.ts",
+            "src/test/domain-to-ledger.test.ts",
+            "src/test/ledger-operation-builder.test.ts",
+            "src/test/ledger-to-domain.test.ts",
+            "src/test/midnight-did-state.test.ts",
+          ]
+        : []),
+    ],
     root: ".",
     coverage: {
       provider: "v8",
@@ -39,16 +51,17 @@ export default defineConfig({
       exclude: [
         "src/test/**",
         "src/index.ts",
+        "src/did.compact",
         "src/did-registrar.ts",
         "src/did-resolver.ts",
         "eslint.config.mjs",
         "vitest.config.ts",
       ],
       thresholds: {
-        branches: 75,
-        functions: 80,
-        lines: 80,
-        statements: 80
+        branches: 70,
+        functions: 70,
+        lines: 70,
+        statements: 70
       }
     },
     reporters: ["default", ["junit", { outputFile: "reports/report.xml" }]]

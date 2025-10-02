@@ -196,10 +196,13 @@ export class OperationBuilder {
   static verifyOperations(
     operations: DIDUpdateOperation[]
   ): DIDUpdateOperation[] {
-    // Basic shape check: must be an array of exactly 4 operations
-    if (!Array.isArray(operations) || operations.length !== 4) {
+    // Basic shape check: must be an array of at most 4 operations
+    if (!Array.isArray(operations)) {
+      throw new Error("Invalid operations: must be an array");
+    }
+    if (operations.length > 4) {
       throw new Error(
-        "Invalid operations: must be an array of exactly 4 items"
+        "Invalid operations: must be an array of at most 4 items"
       );
     }
 
@@ -289,29 +292,33 @@ export class OperationBuilder {
         );
       }
 
-      // addServiceOptions.serviceEndpoint: array length === 4
+      // addServiceOptions.service.serviceEndpoint: array length === 4
       const aso = (t as any).addServiceOptions;
       if (
         typeof aso !== "object" ||
         aso === null ||
-        !Array.isArray(aso.serviceEndpoint) ||
-        aso.serviceEndpoint.length !== 4
+        typeof aso.service !== "object" ||
+        aso.service === null ||
+        !Array.isArray(aso.service.serviceEndpoint) ||
+        aso.service.serviceEndpoint.length !== 4
       ) {
         throw new Error(
-          `Invalid addServiceOptions.serviceEndpoint at index ${idx}: expected array length 4`
+          `Invalid addServiceOptions.service.serviceEndpoint at index ${idx}: expected array length 4`
         );
       }
 
-      // updateServiceOptions.serviceEndpoint: array length === 4
+      // updateServiceOptions.service.serviceEndpoint: array length === 4
       const uso = (t as any).updateServiceOptions;
       if (
         typeof uso !== "object" ||
         uso === null ||
-        !Array.isArray(uso.serviceEndpoint) ||
-        uso.serviceEndpoint.length !== 4
+        typeof uso.service !== "object" ||
+        uso.service === null ||
+        !Array.isArray(uso.service.serviceEndpoint) ||
+        uso.service.serviceEndpoint.length !== 4
       ) {
         throw new Error(
-          `Invalid updateServiceOptions.serviceEndpoint at index ${idx}: expected array length 4`
+          `Invalid updateServiceOptions.service.serviceEndpoint at index ${idx}: expected array length 4`
         );
       }
 

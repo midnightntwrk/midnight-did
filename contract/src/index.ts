@@ -1,3 +1,4 @@
+/* istanbul ignore file */
 // This file is part of midnightntwrk/example-counter.
 // Copyright (C) 2025 Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
@@ -13,13 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export * from "./did-document";
-export * from "./did-operations";
-export * from "./did-registrar";
-export * from "./did-resolver";
 export * from "./domain-to-ledger";
 export * from "./ledger-operation-builder";
 export * from "./ledger-to-domain";
 export * as DIDContract from "./managed/did/contract/index.cjs";
 export * from "./midnight-did";
 export * from "./witnesses";
+export * from "@midnight-ntwrk/midnight-did-domain";

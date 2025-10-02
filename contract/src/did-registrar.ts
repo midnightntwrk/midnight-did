@@ -1,5 +1,4 @@
-import { DIDDocument } from "./did-document";
-import { DIDOperation } from "./did-operations";
+import { DIDDocument, DIDOperation } from "@midnight-ntwrk/midnight-did-domain";
 
 /**
  * A generic DIDRegistrar interface following the W3C DID Core specification.

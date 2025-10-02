@@ -13,9 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { DIDStringSchema } from "@midnight-ntwrk/midnight-did-domain";
 import { z } from "zod/v4-mini";
-
-import { DIDStringSchema } from "./did-document";
 
 export enum MidnightNetwork {
   Undeployed = "undeployed",

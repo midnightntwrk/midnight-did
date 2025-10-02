@@ -1,13 +1,10 @@
 import { ContractAddress } from "@midnight-ntwrk/compact-runtime";
-import { Buffer } from "buffer";
-import { z } from "zod/v4-mini";
-
-import { FieldCodec } from "./crypto-codecs";
 import {
   createDIDDocument,
   createVerificationMethod,
   CurveType,
   DIDDocument,
+  FieldCodec,
   KeyType,
   parseService,
   PublicKeyJwk,
@@ -15,7 +12,10 @@ import {
   VerificationMethod,
   VerificationMethodRelationType,
   VerificationMethodType
-} from "./did-document";
+} from "@midnight-ntwrk/midnight-did-domain";
+import { Buffer } from "buffer";
+import { z } from "zod/v4-mini";
+
 import {
   DIDOperation as DomainUpdateOperation,
   DIDOperationType

@@ -117,4 +117,129 @@ describe("OperationBuilder", () => {
     const op = OperationBuilder.deactivate();
     expect(op.operationType).toBe(OperationType.Deactivate);
   });
+
+  it("padding pads to exactly 4 operations and rejects >4", () => {
+    const ops = [OperationBuilder.deactivate(), OperationBuilder.deactivate()];
+    const padded = OperationBuilder.padding(ops);
+    expect(padded.length).toBe(4);
+    // first two preserved, last two undefined ops
+    expect(padded[0].operationType).toBe(OperationType.Deactivate);
+    expect(padded[1].operationType).toBe(OperationType.Deactivate);
+    expect(padded[2].operationType).toBe(OperationType.Undefined);
+    expect(padded[3].operationType).toBe(OperationType.Undefined);
+
+    expect(() =>
+      OperationBuilder.padding([
+        OperationBuilder.deactivate(),
+        OperationBuilder.deactivate(),
+        OperationBuilder.deactivate(),
+        OperationBuilder.deactivate(),
+        OperationBuilder.deactivate()
+      ])
+    ).toThrow(/exceeds 4/);
+  });
+
+  it("verifyOperations accepts well-formed array of 4 operations", () => {
+    const addVM = OperationBuilder.addVerificationMethod({
+      verificationMethod: sampleVM
+    });
+    const updVM = OperationBuilder.updateVerificationMethod({
+      verificationMethod: sampleVM
+    });
+    const addRel = OperationBuilder.addVerificationMethodRelation({
+      relation: VerificationMethodRelation.Authentication,
+      methodId: "key-1"
+    });
+    const addSvc = OperationBuilder.addService({
+      service: {
+        id: "svc-1",
+        type: "LinkedDomains",
+        // verifyOperations checks .addServiceOptions.serviceEndpoint length === 4
+        serviceEndpoint: ["a", "b", "c", "d"]
+      }
+    });
+    const out = OperationBuilder.verifyOperations([
+      addVM,
+      updVM,
+      addRel,
+      addSvc
+    ]);
+    expect(out).toHaveLength(4);
+    expect(out[0].operationType).toBe(OperationType.AddVerificationMethod);
+    expect(out[3].operationType).toBe(OperationType.AddService);
+  });
+
+  it("verifyOperations rejects non-array and >4 length", () => {
+    expect(() => OperationBuilder.verifyOperations({} as any)).toThrow(
+      /must be an array/
+    );
+    expect(() =>
+      OperationBuilder.verifyOperations([
+        OperationBuilder.deactivate(),
+        OperationBuilder.deactivate(),
+        OperationBuilder.deactivate(),
+        OperationBuilder.deactivate(),
+        OperationBuilder.deactivate()
+      ] as any)
+    ).toThrow(/at most 4/);
+  });
+
+  it("verifyOperations rejects invalid operationType and malformed shapes", () => {
+    const bad = OperationBuilder.deactivate();
+    (bad as any).operationType = 999; // invalid enum range
+    // Use three valid ops to reach length 4
+    const ops = [
+      bad,
+      OperationBuilder.addVerificationMethod({ verificationMethod: sampleVM }),
+      OperationBuilder.updateVerificationMethod({
+        verificationMethod: sampleVM
+      }),
+      OperationBuilder.addService({
+        service: { id: "s", type: "T", serviceEndpoint: ["", "", "", ""] }
+      })
+    ];
+    expect(() => OperationBuilder.verifyOperations(ops as any)).toThrow(
+      /operationType/
+    );
+
+    // Invalid relation value in removeVerificationMethodRelationOptions
+    const okOps = [
+      OperationBuilder.addVerificationMethod({ verificationMethod: sampleVM }),
+      OperationBuilder.updateVerificationMethod({
+        verificationMethod: sampleVM
+      }),
+      OperationBuilder.removeVerificationMethodRelation({
+        relation: -1 as any,
+        methodId: "k"
+      }),
+      OperationBuilder.addService({
+        service: { id: "s", type: "T", serviceEndpoint: ["1", "2", "3", "4"] }
+      })
+    ];
+    expect(() => OperationBuilder.verifyOperations(okOps as any)).toThrow(
+      /removeVerificationMethodRelationOptions\.relation/
+    );
+
+    // Invalid serviceEndpoint length in updateServiceOptions
+    const ops2 = [
+      OperationBuilder.addVerificationMethod({ verificationMethod: sampleVM }),
+      OperationBuilder.updateVerificationMethod({
+        verificationMethod: sampleVM
+      }),
+      OperationBuilder.addVerificationMethodRelation({
+        relation: VerificationMethodRelation.Authentication,
+        methodId: "k"
+      }),
+      OperationBuilder.updateService({
+        service: {
+          id: "s",
+          type: "T",
+          serviceEndpoint: ["only-3", "", ""] as any
+        }
+      })
+    ];
+    expect(() => OperationBuilder.verifyOperations(ops2 as any)).toThrow(
+      /updateServiceOptions\.service\.serviceEndpoint/
+    );
+  });
 });
