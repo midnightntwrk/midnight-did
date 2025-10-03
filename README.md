@@ -13,10 +13,44 @@ The main purpose of creating a new DID method is to make it a first-class citize
 - w3c-spec - the Midnight DID method specification
 - contract - smart-contract implementation of the Midnight DID
 - domain - common classes, interfaces, and implementations for DID, DIDDocument, and DIDResolver
-- did - the Midnight DID TypeScript implementation
-- api - the API implementation of the Midnight DID to support create, update, resolve, and deactivate operations.
+- did - conversion helpers between the domain model and contract-managed ledger
+- api - programmatic API to create, update, resolve Midnight DIDs (unit + integration tests)
 - cli - Node.js console application to manage the Midnight DID
 - resolver - Node.js implementation of the Midnight DID resolver
+
+## Package Dependency Diagram
+
+```mermaid
+graph TD
+  subgraph Workspace
+    domain["domain (\@midnight-ntwrk/midnight-did-domain)"]
+    contract["contract (\@midnight-ntwrk/midnight-did-contract)"]
+    did["did (\@midnight-ntwrk/midnight-did)"]
+    api["api (\@midnight-ntwrk/midnight-did-api)"]
+    cli["cli (\@midnight-ntwrk/midnight-did-cli)"]
+  end
+
+  domain --> contract
+  domain --> did
+  contract --> did
+  domain --> api
+  contract --> api
+  api --> cli
+```
+
+Why these dependencies
+- domain is the source of truth for DID schemas and operations (shared by others)
+- contract depends on domain for types and codecs
+- did links domain types with contract-managed types
+- api uses both contract and domain to provide a high-level interface; tests and infra live here
+- cli is a thin wrapper over api and does not reimplement logic
+
+## Development
+
+- Node 20 is required (see `.nvmrc`); npm >= 10
+- Recommended: `nvm use` before running scripts
+- One-shot pipeline: `./run.sh` (builds, lints, tests, coverage)
+
 
 ### LICENSE
 
@@ -69,4 +103,3 @@ Facilitates two-way data synchronization, automated workflows, and streamlined p
 
 ### Software Package Data Exchange (SPDX)
 Include the following Software Package Data Exchange (SPDX) short-form identifier in a comment at the top headers of each source code file.
-

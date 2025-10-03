@@ -4,4 +4,3 @@ export enum NetworkId {
   TestNet = 2,
   MainNet = 3,
 }
-

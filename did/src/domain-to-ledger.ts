@@ -1,21 +1,4 @@
-import { z } from "zod/v4-mini";
-import {
-  createDIDDocument,
-  createVerificationMethod,
-  CurveType,
-  DIDDocument,
-  KeyType,
-  PublicKeyJwk,
-  Service,
-  VerificationMethod,
-  VerificationMethodRelationType,
-  VerificationMethodType,
-} from "@midnight-ntwrk/midnight-did-domain";
-import { FieldCodec } from "@midnight-ntwrk/midnight-did-domain";
-import {
-  DIDOperation as DomainUpdateOperation,
-  DIDOperationType,
-} from "@midnight-ntwrk/midnight-did-domain";
+import { OperationBuilder } from "@midnight-ntwrk/midnight-did-contract";
 import {
   CurveType as LedgerCurveType,
   DIDUpdateOperation as LedgerUpdateOperation,
@@ -28,7 +11,22 @@ import {
   VerificationMethodRelation as LedgerVerificationMethodRelation,
   VerificationMethodType as LedgerVerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-contract/dist/managed/did/contract/index.cjs";
-import { OperationBuilder } from "@midnight-ntwrk/midnight-did-contract";
+import {
+  CurveType,
+  FieldCodec,
+  KeyType,
+  PublicKeyJwk,
+  Service,
+  VerificationMethod,
+  VerificationMethodRelationType,
+  VerificationMethodType,
+} from "@midnight-ntwrk/midnight-did-domain";
+import { z } from "zod/v4-mini";
+
+import {
+  DIDOperation as DomainUpdateOperation,
+  DIDOperationType,
+} from "./did-operations";
 
 export class DomainToLedger {
   static readonly KeyTypeMap: Record<KeyType, LedgerKeyType> = {
@@ -48,7 +46,8 @@ export class DomainToLedger {
     LedgerVerificationMethodType
   > = {
     [VerificationMethodType.Undefined]: LedgerVerificationMethodType.Undefined,
-    [VerificationMethodType.JsonWebKey]: LedgerVerificationMethodType.JsonWebKey,
+    [VerificationMethodType.JsonWebKey]:
+      LedgerVerificationMethodType.JsonWebKey,
   };
 
   static readonly VerificationMethodRelationMap: Record<
@@ -79,7 +78,7 @@ export class DomainToLedger {
   }
 
   static verificationMethod(
-    method: VerificationMethod
+    method: VerificationMethod,
   ): LedgerVerificationMethod {
     return {
       id: method.id,
@@ -96,25 +95,26 @@ export class DomainToLedger {
     };
   }
 
-  static readonly OperationMap: Record<DIDOperationType, LedgerOperationType> = {
-    [DIDOperationType.AddVerificationMethod]:
-      LedgerOperationType.AddVerificationMethod,
-    [DIDOperationType.UpdateVerificationMethod]:
-      LedgerOperationType.UpdateVerificationMethod,
-    [DIDOperationType.RemoveVerificationMethod]:
-      LedgerOperationType.RemoveVerificationMethod,
-    [DIDOperationType.AddVerificationMethodRelation]:
-      LedgerOperationType.AddVerificationMethodRelation,
-    [DIDOperationType.RemoveVerificationMethodRelation]:
-      LedgerOperationType.RemoveVerificationMethodRelation,
-    [DIDOperationType.AddService]: LedgerOperationType.AddService,
-    [DIDOperationType.UpdateService]: LedgerOperationType.UpdateService,
-    [DIDOperationType.RemoveService]: LedgerOperationType.RemoveService,
-    [DIDOperationType.AddAlsoKnownAs]: LedgerOperationType.AddAlsoKnownAs,
-    [DIDOperationType.RemoveAlsoKnownAs]:
-      LedgerOperationType.RemoveAlsoKnownAs,
-    [DIDOperationType.Deactivate]: LedgerOperationType.Deactivate,
-  };
+  static readonly OperationMap: Record<DIDOperationType, LedgerOperationType> =
+    {
+      [DIDOperationType.AddVerificationMethod]:
+        LedgerOperationType.AddVerificationMethod,
+      [DIDOperationType.UpdateVerificationMethod]:
+        LedgerOperationType.UpdateVerificationMethod,
+      [DIDOperationType.RemoveVerificationMethod]:
+        LedgerOperationType.RemoveVerificationMethod,
+      [DIDOperationType.AddVerificationMethodRelation]:
+        LedgerOperationType.AddVerificationMethodRelation,
+      [DIDOperationType.RemoveVerificationMethodRelation]:
+        LedgerOperationType.RemoveVerificationMethodRelation,
+      [DIDOperationType.AddService]: LedgerOperationType.AddService,
+      [DIDOperationType.UpdateService]: LedgerOperationType.UpdateService,
+      [DIDOperationType.RemoveService]: LedgerOperationType.RemoveService,
+      [DIDOperationType.AddAlsoKnownAs]: LedgerOperationType.AddAlsoKnownAs,
+      [DIDOperationType.RemoveAlsoKnownAs]:
+        LedgerOperationType.RemoveAlsoKnownAs,
+      [DIDOperationType.Deactivate]: LedgerOperationType.Deactivate,
+    };
 
   static undefinedVerificationMethod: LedgerVerificationMethod = {
     id: "",
@@ -141,10 +141,18 @@ export class DomainToLedger {
         methodId: "",
       },
       addServiceOptions: {
-        service: { id: "", type: "", serviceEndpoint: Array.of("", "", "", "") },
+        service: {
+          id: "",
+          type: "",
+          serviceEndpoint: Array.of("", "", "", ""),
+        },
       },
       updateServiceOptions: {
-        service: { id: "", type: "", serviceEndpoint: Array.of("", "", "", "") },
+        service: {
+          id: "",
+          type: "",
+          serviceEndpoint: Array.of("", "", "", ""),
+        },
       },
       removeServiceOptions: { id: "" },
       addAlsoKnownAsOptions: { value: "" },
@@ -152,7 +160,9 @@ export class DomainToLedger {
     };
   }
 
-  static updateOperation(updateOperation: DomainUpdateOperation): LedgerUpdateOperation {
+  static updateOperation(
+    updateOperation: DomainUpdateOperation,
+  ): LedgerUpdateOperation {
     const { type } = updateOperation;
     let ledgerUpdateOperation = this.defaultLedgerUpdateOperation();
     ledgerUpdateOperation.operationType = this.OperationMap[type];
@@ -160,27 +170,35 @@ export class DomainToLedger {
     switch (type) {
       case DIDOperationType.AddVerificationMethod:
         ledgerUpdateOperation.addVerificationMethodOptions = {
-          verificationMethod: this.verificationMethod(updateOperation.verificationMethod),
+          verificationMethod: this.verificationMethod(
+            updateOperation.verificationMethod,
+          ),
         };
         return ledgerUpdateOperation;
       case DIDOperationType.UpdateVerificationMethod:
         ledgerUpdateOperation.updateVerificationMethodOptions = {
-          verificationMethod: this.verificationMethod(updateOperation.verificationMethod),
+          verificationMethod: this.verificationMethod(
+            updateOperation.verificationMethod,
+          ),
         };
         return ledgerUpdateOperation;
       case DIDOperationType.RemoveVerificationMethod:
-        ledgerUpdateOperation.removeVerificationMethodOptions = { id: updateOperation.id };
+        ledgerUpdateOperation.removeVerificationMethodOptions = {
+          id: updateOperation.id,
+        };
         return ledgerUpdateOperation;
       case DIDOperationType.AddVerificationMethodRelation:
         ledgerUpdateOperation.addVerificationMethodRelationOptions = {
           methodId: updateOperation.methodId,
-          relation: this.VerificationMethodRelationMap[updateOperation.relation],
+          relation:
+            this.VerificationMethodRelationMap[updateOperation.relation],
         };
         return ledgerUpdateOperation;
       case DIDOperationType.RemoveVerificationMethodRelation:
         ledgerUpdateOperation.removeVerificationMethodRelationOptions = {
           methodId: updateOperation.methodId,
-          relation: this.VerificationMethodRelationMap[updateOperation.relation],
+          relation:
+            this.VerificationMethodRelationMap[updateOperation.relation],
         };
         return ledgerUpdateOperation;
       case DIDOperationType.Deactivate:
@@ -192,17 +210,25 @@ export class DomainToLedger {
       }
       case DIDOperationType.UpdateService: {
         const serviceToUpdate = this.service(updateOperation.service);
-        ledgerUpdateOperation.updateServiceOptions = { service: serviceToUpdate };
+        ledgerUpdateOperation.updateServiceOptions = {
+          service: serviceToUpdate,
+        };
         return ledgerUpdateOperation;
       }
       case DIDOperationType.RemoveService:
-        ledgerUpdateOperation.removeServiceOptions = { id: updateOperation.serviceId };
+        ledgerUpdateOperation.removeServiceOptions = {
+          id: updateOperation.serviceId,
+        };
         return ledgerUpdateOperation;
       case DIDOperationType.AddAlsoKnownAs:
-        ledgerUpdateOperation.addAlsoKnownAsOptions = { value: updateOperation.aliasUri };
+        ledgerUpdateOperation.addAlsoKnownAsOptions = {
+          value: updateOperation.aliasUri,
+        };
         return ledgerUpdateOperation;
       case DIDOperationType.RemoveAlsoKnownAs:
-        ledgerUpdateOperation.removeAlsoKnownAsOptions = { value: updateOperation.aliasUri };
+        ledgerUpdateOperation.removeAlsoKnownAsOptions = {
+          value: updateOperation.aliasUri,
+        };
         return ledgerUpdateOperation;
       default:
         throw new Error(`Unsupported operation type: ${type}`);
@@ -211,9 +237,10 @@ export class DomainToLedger {
 
   static serviceType(serviceType: string | string[]): string {
     if (typeof serviceType === "string") return serviceType;
-    if (Array.isArray(serviceType) && serviceType.length === 1) return serviceType[0];
+    if (Array.isArray(serviceType) && serviceType.length === 1)
+      return serviceType[0];
     throw new Error(
-      "service type property must be a string or an array with exactly one element"
+      "service type property must be a string or an array with exactly one element",
     );
   }
 
@@ -223,7 +250,9 @@ export class DomainToLedger {
       ledgerServiceEndpoint = [serviceEndpoint, "", "", ""];
     } else if (Array.isArray(serviceEndpoint)) {
       if (serviceEndpoint.length > 4)
-        throw new Error(`serviceEndpoint property must contain at most four elements`);
+        throw new Error(
+          `serviceEndpoint property must contain at most four elements`,
+        );
       ledgerServiceEndpoint = [...serviceEndpoint];
       while (ledgerServiceEndpoint.length < 4) ledgerServiceEndpoint.push("");
     } else {
@@ -232,8 +261,9 @@ export class DomainToLedger {
     return ledgerServiceEndpoint;
   }
 
-  static updateOperations(operations: Array<DomainUpdateOperation>): Array<LedgerUpdateOperation> {
+  static updateOperations(
+    operations: Array<DomainUpdateOperation>,
+  ): Array<LedgerUpdateOperation> {
     return operations.map((op) => this.updateOperation(op));
   }
 }
-

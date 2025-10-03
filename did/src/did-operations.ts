@@ -3,13 +3,10 @@ import {
   VerificationMethod,
   VerificationMethodRelation,
   VerificationMethodRelationTypeSchema,
-  VerificationMethodSchema
+  VerificationMethodSchema,
 } from "@midnight-ntwrk/midnight-did-domain";
 import { z } from "zod/v4-mini";
 
-/**
- * Enum representing each DID Operation type supported by the Midnight DID contract.
- */
 export enum DIDOperationType {
   AddVerificationMethod = "AddVerificationMethod",
   UpdateVerificationMethod = "UpdateVerificationMethod",
@@ -21,12 +18,9 @@ export enum DIDOperationType {
   RemoveService = "RemoveService",
   AddAlsoKnownAs = "AddAlsoKnownAs",
   RemoveAlsoKnownAs = "RemoveAlsoKnownAs",
-  Deactivate = "Deactivate"
+  Deactivate = "Deactivate",
 }
 
-/**
- * DIDOperation ADT using the DIDOperationType enum.
- */
 export type DIDOperation =
   | {
       type: DIDOperationType.AddVerificationMethod;
@@ -36,10 +30,7 @@ export type DIDOperation =
       type: DIDOperationType.UpdateVerificationMethod;
       verificationMethod: VerificationMethod;
     }
-  | {
-      type: DIDOperationType.RemoveVerificationMethod;
-      id: string; // method id
-    }
+  | { type: DIDOperationType.RemoveVerificationMethod; id: string }
   | {
       type: DIDOperationType.AddVerificationMethodRelation;
       relation: VerificationMethodRelation;
@@ -50,70 +41,45 @@ export type DIDOperation =
       relation: VerificationMethodRelation;
       methodId: string;
     }
-  | {
-      type: DIDOperationType.AddService;
-      service: Service;
-    }
-  | {
-      type: DIDOperationType.UpdateService;
-      service: Service;
-    }
-  | {
-      type: DIDOperationType.RemoveService;
-      serviceId: string;
-    }
-  | {
-      type: DIDOperationType.AddAlsoKnownAs;
-      aliasUri: string;
-    }
-  | {
-      type: DIDOperationType.RemoveAlsoKnownAs;
-      aliasUri: string;
-    }
-  | {
-      type: DIDOperationType.Deactivate;
-    };
+  | { type: DIDOperationType.AddService; service: Service }
+  | { type: DIDOperationType.UpdateService; service: Service }
+  | { type: DIDOperationType.RemoveService; serviceId: string }
+  | { type: DIDOperationType.AddAlsoKnownAs; aliasUri: string }
+  | { type: DIDOperationType.RemoveAlsoKnownAs; aliasUri: string }
+  | { type: DIDOperationType.Deactivate };
 
-/**
- * Zod schema for DIDOperationType enum.
- */
 export const DIDOperationTypeSchema = z.enum(DIDOperationType);
 
-/**
- * Zod schema for DIDOperation.
- */
 export const DIDOperationSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal(DIDOperationType.AddVerificationMethod),
-    verificationMethod: VerificationMethodSchema
+    verificationMethod: VerificationMethodSchema,
   }),
   z.object({
     type: z.literal(DIDOperationType.UpdateVerificationMethod),
-    verificationMethod: VerificationMethodSchema
+    verificationMethod: VerificationMethodSchema,
   }),
   z.object({
     type: z.literal(DIDOperationType.RemoveVerificationMethod),
-    id: z.string()
+    id: z.string(),
   }),
   z.object({
     type: z.literal(DIDOperationType.AddVerificationMethodRelation),
     relation: VerificationMethodRelationTypeSchema,
-    methodId: z.string()
+    methodId: z.string(),
   }),
   z.object({
     type: z.literal(DIDOperationType.RemoveVerificationMethodRelation),
     relation: VerificationMethodRelationTypeSchema,
-    methodId: z.string()
+    methodId: z.string(),
   }),
   z.object({
     type: z.literal(DIDOperationType.AddAlsoKnownAs),
-    aliasUri: z.string()
+    aliasUri: z.string(),
   }),
   z.object({
     type: z.literal(DIDOperationType.RemoveAlsoKnownAs),
-    aliasUri: z.string()
+    aliasUri: z.string(),
   }),
-  z.object({
-    type: z.literal(DIDOperationType.Deactivate)
-  })
+  z.object({ type: z.literal(DIDOperationType.Deactivate) }),
 ]);

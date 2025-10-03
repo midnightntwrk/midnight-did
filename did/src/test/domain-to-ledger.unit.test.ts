@@ -2,42 +2,44 @@
 import { describe, expect, it, vi } from "vitest";
 
 // Mock managed enums to avoid loading WASM/runtime
-vi.mock("@midnight-ntwrk/midnight-did-contract/dist/managed/did/contract/index.cjs", () => ({
-  OperationType: {
-    Undefined: 0,
-    AddVerificationMethod: 1,
-    UpdateVerificationMethod: 2,
-    RemoveVerificationMethod: 3,
-    AddVerificationMethodRelation: 4,
-    RemoveVerificationMethodRelation: 5,
-    AddService: 6,
-    UpdateService: 7,
-    RemoveService: 8,
-    AddAlsoKnownAs: 9,
-    RemoveAlsoKnownAs: 10,
-    Deactivate: 11,
-  },
-  VerificationMethodRelation: {
-    Undefined: 0,
-    Authentication: 1,
-    AssertionMethod: 2,
-    KeyAgreement: 3,
-    CapabilityInvocation: 4,
-    CapabilityDelegation: 5,
-  },
-  VerificationMethodType: { Undefined: 0, JsonWebKey: 1 },
-  KeyType: { EC: 0, RSA: 1, oct: 2, OKP: 3 },
-  CurveType: { ed25519: 0, Jubjub: 1 },
-}));
+vi.mock(
+  "@midnight-ntwrk/midnight-did-contract/dist/managed/did/contract/index.cjs",
+  () => ({
+    OperationType: {
+      Undefined: 0,
+      AddVerificationMethod: 1,
+      UpdateVerificationMethod: 2,
+      RemoveVerificationMethod: 3,
+      AddVerificationMethodRelation: 4,
+      RemoveVerificationMethodRelation: 5,
+      AddService: 6,
+      UpdateService: 7,
+      RemoveService: 8,
+      AddAlsoKnownAs: 9,
+      RemoveAlsoKnownAs: 10,
+      Deactivate: 11,
+    },
+    VerificationMethodRelation: {
+      Undefined: 0,
+      Authentication: 1,
+      AssertionMethod: 2,
+      KeyAgreement: 3,
+      CapabilityInvocation: 4,
+      CapabilityDelegation: 5,
+    },
+    VerificationMethodType: { Undefined: 0, JsonWebKey: 1 },
+    KeyType: { EC: 0, RSA: 1, oct: 2, OKP: 3 },
+    CurveType: { ed25519: 0, Jubjub: 1 },
+  }),
+);
 
 // Import after mocks are defined
-import { DomainToLedger } from "..";
-import { DIDOperationType } from "@midnight-ntwrk/midnight-did-domain";
-
 import {
-  VerificationMethodRelation as LRel,
   OperationType as LOp,
+  VerificationMethodRelation as LRel,
 } from "@midnight-ntwrk/midnight-did-contract/dist/managed/did/contract/index.cjs";
+
+import { DIDOperationType, DomainToLedger } from "..";
 
 describe("DomainToLedger (unit, mocked)", () => {
   it("publicKeyJwk decodes base64url to bigint", () => {
@@ -58,7 +60,7 @@ describe("DomainToLedger (unit, mocked)", () => {
 
     expect(DomainToLedger.serviceEndpoint("u")).toEqual(["u", "", "", ""]);
     expect(() =>
-      DomainToLedger.serviceEndpoint(["a", "b", "c", "d", "e"] as any)
+      DomainToLedger.serviceEndpoint(["a", "b", "c", "d", "e"] as any),
     ).toThrow();
   });
 
@@ -67,7 +69,12 @@ describe("DomainToLedger (unit, mocked)", () => {
       id: "did:midnight:testnet:0#key-1",
       type: "JsonWebKey" as any,
       controller: "did:midnight:testnet:0",
-      publicKeyJwk: { kty: "EC" as any, crv: "ed25519" as any, x: "AQ", y: "Ag" },
+      publicKeyJwk: {
+        kty: "EC" as any,
+        crv: "ed25519" as any,
+        x: "AQ",
+        y: "Ag",
+      },
     };
     const add = DomainToLedger.updateOperation({
       type: DIDOperationType.AddVerificationMethod,
@@ -80,7 +87,8 @@ describe("DomainToLedger (unit, mocked)", () => {
       relation: "Authentication" as any,
       methodId: vm.id,
     });
-    expect(rel.addVerificationMethodRelationOptions.relation).toBe(LRel.Authentication);
+    expect(rel.addVerificationMethodRelationOptions.relation).toBe(
+      LRel.Authentication,
+    );
   });
 });
-

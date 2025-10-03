@@ -1,4 +1,3 @@
-import { Buffer } from "buffer";
 import { z } from "zod/v4-mini";
 
 /** DID URL schema */
@@ -7,7 +6,7 @@ export const DIDURLSchema = z
   .check(
     z.startsWith("did:"),
     z.minLength(5),
-    z.refine((val) => val.split(":").length >= 3, "Invalid DID URL format")
+    z.refine((val) => val.split(":").length >= 3, "Invalid DID URL format"),
   )
   .brand("DIDURL");
 export type DIDURL = z.infer<typeof DIDURLSchema>;
@@ -16,7 +15,7 @@ export const KeyIDSchema = z
   .string()
   .check(
     z.regex(/^[a-zA-Z0-9.\-_:%]+$/), // conservative URI fragment charset
-    z.minLength(1)
+    z.minLength(1),
   )
   .brand("KeyID");
 
@@ -27,7 +26,7 @@ export const DIDKeyIDSchema = DIDURLSchema.check(
   z.refine((val) => {
     const [_, fragment] = val.split("#");
     return KeyIDSchema.safeParse(fragment).success;
-  }, "Invalid DID Key ID format: invalid or missing fragment")
+  }, "Invalid DID Key ID format: invalid or missing fragment"),
 ).brand("DIDKeyID");
 
 export type DIDKeyID = z.infer<typeof DIDKeyIDSchema>;
@@ -39,8 +38,8 @@ export const DIDStringSchema = z
     z.startsWith("did:"),
     z.minLength(5),
     z.refine((val) => val.split(":").length >= 3 && !/[/?#]/.test(val), {
-      error: "Invalid DID format"
-    })
+      error: "Invalid DID format",
+    }),
   )
   .brand("DID");
 export type DIDString = z.infer<typeof DIDStringSchema>;
@@ -48,7 +47,7 @@ export type DIDString = z.infer<typeof DIDStringSchema>;
 /** Verification Method Types */
 export enum VerificationMethodType {
   Undefined = "Undefined",
-  JsonWebKey = "JsonWebKey"
+  JsonWebKey = "JsonWebKey",
 }
 export const VerificationMethodTypeSchema = z.enum(VerificationMethodType);
 
@@ -56,13 +55,13 @@ export enum KeyType {
   EC = "EC",
   RSA = "RSA",
   oct = "oct",
-  OKP = "OKP"
+  OKP = "OKP",
 }
 export const KeyTypeSchema = z.enum(KeyType);
 
 export enum CurveType {
   ed25519 = "ed25519",
-  Jubjub = "Jubjub"
+  Jubjub = "Jubjub",
 }
 export const CurveTypeSchema = z.enum(CurveType);
 
@@ -73,7 +72,7 @@ export const PublicKeyJwkSchema = z.object({
   kty: KeyTypeSchema,
   crv: CurveTypeSchema,
   x: Base64UrlStringSchema,
-  y: Base64UrlStringSchema
+  y: Base64UrlStringSchema,
 });
 
 export type PublicKeyJwk = z.infer<typeof PublicKeyJwkSchema>;
@@ -83,7 +82,7 @@ export const VerificationMethodSchema = z.object({
   id: DIDKeyIDSchema,
   type: VerificationMethodTypeSchema,
   controller: DIDStringSchema,
-  publicKeyJwk: PublicKeyJwkSchema
+  publicKeyJwk: PublicKeyJwkSchema,
 });
 
 export type VerificationMethod = z.infer<typeof VerificationMethodSchema>;
@@ -95,11 +94,11 @@ export enum VerificationMethodRelationType {
   AssertionMethod = "AssertionMethod",
   KeyAgreement = "KeyAgreement",
   CapabilityInvocation = "CapabilityInvocation",
-  CapabilityDelegation = "CapabilityDelegation"
+  CapabilityDelegation = "CapabilityDelegation",
 }
 
 export const VerificationMethodRelationTypeSchema = z.enum(
-  VerificationMethodRelationType
+  VerificationMethodRelationType,
 );
 
 export type VerificationMethodRelation = z.infer<
@@ -117,7 +116,7 @@ export const URISchema = z.string();
 export const ServiceSchema = z.object({
   id: URISchema,
   type: z.union([z.string(), z.array(z.string())]),
-  serviceEndpoint: ServiceEndpointSchema
+  serviceEndpoint: ServiceEndpointSchema,
 });
 export type Service = z.infer<typeof ServiceSchema>;
 
@@ -133,7 +132,7 @@ export const DIDDocumentSchema = z.looseObject({
   keyAgreement: z.nullish(z.array(z.string())),
   capabilityInvocation: z.nullish(z.array(z.string())),
   capabilityDelegation: z.nullish(z.array(z.string())),
-  service: z.nullish(z.array(ServiceSchema))
+  service: z.nullish(z.array(ServiceSchema)),
 });
 export type DIDDocument = z.infer<typeof DIDDocumentSchema>;
 
@@ -145,7 +144,7 @@ export const DIDDocumentMetadataSchema = z.looseObject({
   nextUpdate: z.nullish(z.string()),
   nextVersionId: z.nullish(z.string()),
   equivalentId: z.nullish(z.array(z.string())),
-  canonicalId: z.nullish(z.string())
+  canonicalId: z.nullish(z.string()),
 });
 export type DIDDocumentMetadata = z.infer<typeof DIDDocumentMetadataSchema>;
 
@@ -153,7 +152,7 @@ export const KnownDIDMediaTypesSchema = z.enum([
   "application/did+ld+json",
   "application/did+json",
   "application/ld+json",
-  "application/json"
+  "application/json",
 ]);
 
 /** Known DID Media Types */
@@ -166,8 +165,8 @@ export const DIDResolutionResultSchema = z.looseObject({
   didDocumentMetadata: DIDDocumentMetadataSchema,
   didResolutionMetadata: z.object({
     contentType: z.nullish(KnownDIDMediaTypesSchema),
-    error: z.nullish(z.string())
-  })
+    error: z.nullish(z.string()),
+  }),
 });
 export type DIDResolutionResult = z.infer<typeof DIDResolutionResultSchema>;
 
@@ -229,7 +228,6 @@ export function createDIDDocument(params: {
     keyAgreement: params.keyAgreement ?? null,
     capabilityInvocation: params.capabilityInvocation ?? null,
     capabilityDelegation: params.capabilityDelegation ?? null,
-    service: params.service ?? null
+    service: params.service ?? null,
   });
 }
-

@@ -47,7 +47,19 @@ export default [
       'import/no-unused-modules': [1, { unusedExports: true }],
       'no-duplicate-imports': 'error',
       'simple-import-sort/imports': 'error',
-      'simple-import-sort/exports': 'error'
+      'simple-import-sort/exports': 'error',
+      // Enforce dependency boundaries: contract must not import other local packages
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            '@midnight-ntwrk/midnight-did-domain',
+            '@midnight-ntwrk/midnight-did',
+            '@midnight-ntwrk/midnight-did-api',
+            '@midnight-ntwrk/midnight-did-cli',
+          ],
+        },
+      ],
     }
   }
 ];

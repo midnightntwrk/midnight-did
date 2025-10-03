@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod/v4-mini";
+
 import { FieldCodec } from "../crypto-codecs";
 
 describe("FieldCodec (domain)", () => {
@@ -28,4 +29,3 @@ describe("FieldCodec (domain)", () => {
     }
   });
 });
-

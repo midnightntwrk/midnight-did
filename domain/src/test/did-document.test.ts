@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   createDIDDocument,
   createService,
@@ -10,7 +11,7 @@ import {
   parseDIDKeyID,
   parseDIDResolutionResult,
   parseDIDURL,
-  VerificationMethodType
+  VerificationMethodType,
 } from "../did-document";
 
 describe("DID Schemas (domain)", () => {
@@ -41,8 +42,8 @@ describe("DID Schemas (domain)", () => {
         kty: KeyType.EC,
         crv: CurveType.ed25519,
         x: "AA",
-        y: "AA"
-      }
+        y: "AA",
+      },
     });
     expect(vm.id).toBe("did:example:123#key-1");
   });
@@ -51,7 +52,7 @@ describe("DID Schemas (domain)", () => {
     const service = createService({
       id: "did:example:123#svc-1",
       type: "LinkedDomains",
-      serviceEndpoint: "https://example.com"
+      serviceEndpoint: "https://example.com",
     });
     expect(service.id).toBe("did:example:123#svc-1");
   });
@@ -69,10 +70,10 @@ describe("DID Schemas (domain)", () => {
             kty: KeyType.EC,
             crv: CurveType.ed25519,
             x: "AA",
-            y: "AA"
-          }
-        })
-      ]
+            y: "AA",
+          },
+        }),
+      ],
     });
     expect(doc.id).toBe("did:example:123");
   });
@@ -82,11 +83,11 @@ describe("DID Schemas (domain)", () => {
       "@context": "https://w3id.org/did-resolution/v1",
       didDocumentMetadata: {},
       didResolutionMetadata: {
-        contentType: "application/did+json"
-      }
+        contentType: "application/did+json",
+      },
     });
     expect(result.didResolutionMetadata.contentType).toBe(
-      "application/did+json"
+      "application/did+json",
     );
   });
 
@@ -96,9 +97,9 @@ describe("DID Schemas (domain)", () => {
         "@context": "https://w3id.org/did-resolution/v1",
         didDocumentMetadata: {},
         didResolutionMetadata: {
-          contentType: "application/unknown"
-        }
-      })
+          contentType: "application/unknown",
+        },
+      }),
     ).toThrow();
   });
 
@@ -111,7 +112,7 @@ describe("DID Schemas (domain)", () => {
 
   it("validates DID URL with and without fragments correctly", () => {
     expect(parseDIDURL("did:example:xyz/path?query#frag")).toBe(
-      "did:example:xyz/path?query#frag"
+      "did:example:xyz/path?query#frag",
     );
     expect(() => parseDIDURL("example:xyz#key-1")).toThrow();
   });
@@ -124,7 +125,7 @@ describe("DID Schemas (domain)", () => {
 
   it("parses and rejects DID Key IDs depending on fragment presence", () => {
     expect(parseDIDKeyID("did:example:abc#key-1")).toBe(
-      "did:example:abc#key-1"
+      "did:example:abc#key-1",
     );
     expect(() => parseDIDKeyID("did:example:abc")).toThrow();
     expect(() => parseDIDKeyID("did:example:abc#key?bad")).toThrow();
@@ -135,7 +136,12 @@ describe("DID Schemas (domain)", () => {
       id: "did:example:123#key-1",
       type: VerificationMethodType.JsonWebKey,
       controller: "did:example:123",
-      publicKeyJwk: { kty: KeyType.EC, crv: CurveType.ed25519, x: "AA", y: "AQ" }
+      publicKeyJwk: {
+        kty: KeyType.EC,
+        crv: CurveType.ed25519,
+        x: "AA",
+        y: "AQ",
+      },
     });
     expect(vm.publicKeyJwk.x).toBe("AA");
     expect(() =>
@@ -143,8 +149,13 @@ describe("DID Schemas (domain)", () => {
         id: "did:example:123#key-2",
         type: VerificationMethodType.JsonWebKey,
         controller: "did:example:123",
-        publicKeyJwk: { kty: KeyType.EC, crv: CurveType.ed25519, x: "+A/", y: "AA" }
-      })
+        publicKeyJwk: {
+          kty: KeyType.EC,
+          crv: CurveType.ed25519,
+          x: "+A/",
+          y: "AA",
+        },
+      }),
     ).toThrow();
   });
 
@@ -160,13 +171,14 @@ describe("DID Schemas (domain)", () => {
       keyAgreement: [],
       capabilityInvocation: [],
       capabilityDelegation: [],
-      service: []
+      service: [],
     });
-    expect(Array.isArray(doc["@context"]) || typeof doc["@context"] === "string").toBe(true);
+    expect(
+      Array.isArray(doc["@context"]) || typeof doc["@context"] === "string",
+    ).toBe(true);
     expect(doc.alsoKnownAs?.length).toBe(2);
     expect(Array.isArray(doc.controller)).toBe(true);
     expect(doc.authentication?.[0]).toBe("did:example:xyz#key-1");
     expect(doc.assertionMethod?.[0]).toBe("did:example:xyz#key-2");
   });
 });
-

@@ -1,21 +1,3 @@
-import { Buffer } from "buffer";
-import { z } from "zod/v4-mini";
-import {
-  createDIDDocument,
-  createVerificationMethod,
-  CurveType,
-  DIDDocument,
-  KeyType,
-  PublicKeyJwk,
-  Service,
-  VerificationMethod,
-  VerificationMethodRelationType,
-  VerificationMethodType,
-  FieldCodec,
-  MidnightNetwork,
-  createMidnightDIDString,
-  parseContractAddress,
-} from "@midnight-ntwrk/midnight-did-domain";
 import {
   CurveType as LedgerCurveType,
   KeyType as LedgerKeyType,
@@ -26,6 +8,24 @@ import {
   VerificationMethodRelation as LedgerVerificationMethodRelation,
   VerificationMethodType as LedgerVerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-contract/dist/managed/did/contract/index.cjs";
+import {
+  createDIDDocument,
+  createMidnightDIDString,
+  createVerificationMethod,
+  CurveType,
+  DIDDocument,
+  FieldCodec,
+  KeyType,
+  MidnightNetwork,
+  parseContractAddress,
+  PublicKeyJwk,
+  Service,
+  VerificationMethod,
+  VerificationMethodRelationType,
+  VerificationMethodType,
+} from "@midnight-ntwrk/midnight-did-domain";
+import { Buffer } from "buffer";
+import { z } from "zod/v4-mini";
 
 export class LedgerToDomain {
   static readonly KeyTypeMap: Record<LedgerKeyType, KeyType> = {
@@ -45,7 +45,8 @@ export class LedgerToDomain {
     VerificationMethodType
   > = {
     [LedgerVerificationMethodType.Undefined]: VerificationMethodType.Undefined,
-    [LedgerVerificationMethodType.JsonWebKey]: VerificationMethodType.JsonWebKey,
+    [LedgerVerificationMethodType.JsonWebKey]:
+      VerificationMethodType.JsonWebKey,
   };
 
   static readonly VerificationMethodRelationMap: Record<
@@ -76,7 +77,9 @@ export class LedgerToDomain {
   }
 
   static service(service: LedgerService): Service {
-    const serviceEndpoint = service.serviceEndpoint.filter((e) => e.trim() !== "");
+    const serviceEndpoint = service.serviceEndpoint.filter(
+      (e) => e.trim() !== "",
+    );
     return { id: service.id, type: service.type, serviceEndpoint } as Service;
   }
 
@@ -87,24 +90,33 @@ export class LedgerToDomain {
       active: ledger.active,
       operationCount: Number(ledger.operationCount.toString()),
       alsoKnownAs: Array.from(ledger.alsoKnownAs),
-      verificationMethods: Array.from(ledger.verificationMethods, ([id, method]) => ({
-        id,
-        type: method.type,
-        publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
-      })),
+      verificationMethods: Array.from(
+        ledger.verificationMethods,
+        ([id, method]) => ({
+          id,
+          type: method.type,
+          publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
+        }),
+      ),
       authenticationRelation: Array.from(ledger.authenticationRelation),
       assertionMethodRelation: Array.from(ledger.assertionMethodRelation),
       keyAgreementRelation: Array.from(ledger.keyAgreementRelation),
-      capabilityInvocationRelation: Array.from(ledger.capabilityInvocationRelation),
-      capabilityDelegationRelation: Array.from(ledger.capabilityDelegationRelation),
-      services: Array.from(ledger.services, ([, service]) => this.service(service)),
+      capabilityInvocationRelation: Array.from(
+        ledger.capabilityInvocationRelation,
+      ),
+      capabilityDelegationRelation: Array.from(
+        ledger.capabilityDelegationRelation,
+      ),
+      services: Array.from(ledger.services, ([, service]) =>
+        this.service(service),
+      ),
     };
   }
 
   static ledgerStateToDIDDocument(
     ledger: Ledger,
     network: MidnightNetwork,
-    contractAddress: ReturnType<typeof parseContractAddress>
+    contractAddress: ReturnType<typeof parseContractAddress>,
   ): DIDDocument {
     const ctx = ["https://www.w3.org/ns/did/v1"];
     const did = createMidnightDIDString(contractAddress, network);
@@ -117,7 +129,7 @@ export class LedgerToDomain {
           type: LedgerToDomain.VerificationMethodTypeMap[method.type],
           controller: did,
           publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
-        })
+        }),
       );
     }
 
@@ -158,9 +170,9 @@ export class LedgerToDomain {
     });
 
     if (alsoKnownAs !== undefined) {
-      (didDocument as unknown as { alsoKnownAs?: string[] }).alsoKnownAs = alsoKnownAs;
+      (didDocument as unknown as { alsoKnownAs?: string[] }).alsoKnownAs =
+        alsoKnownAs;
     }
     return didDocument;
   }
 }
-

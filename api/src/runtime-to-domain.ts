@@ -1,5 +1,5 @@
-import { MidnightNetwork } from '@midnight-ntwrk/midnight-did-domain';
-import { NetworkId } from '@midnight-ntwrk/midnight-js-network-id';
+import { MidnightNetwork } from "@midnight-ntwrk/midnight-did-domain";
+import { NetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 
 export class RuntimeToDomain {
   static readonly NetworkMap: Record<NetworkId, MidnightNetwork> = {
@@ -9,4 +9,3 @@ export class RuntimeToDomain {
     [NetworkId.MainNet]: MidnightNetwork.Mainnet,
   };
 }
-

@@ -34,7 +34,10 @@ export const MidnightDIDSchema = z
   .string()
   .check(
     z.startsWith("did:midnight:"),
-    z.refine((val) => val.split(":").length === 4, "Invalid Midnight DID format"),
+    z.refine(
+      (val) => val.split(":").length === 4,
+      "Invalid Midnight DID format",
+    ),
     z.refine((val) => {
       const [, , net] = val.split(":");
       return ["undeployed", "devnet", "testnet", "mainnet"].includes(net);
@@ -52,15 +55,18 @@ export function parseMidnightDIDString(input: string): MidnightDIDString {
   return MidnightDIDSchema.parse(input) as MidnightDIDString;
 }
 
-export function parseMidnightDID(did: MidnightDIDString): { network: MidnightNetwork; id: ContractAddress } {
+export function parseMidnightDID(did: MidnightDIDString): {
+  network: MidnightNetwork;
+  id: ContractAddress;
+} {
   const [, , net, addr] = did.split(":");
   const network =
     net === "devnet"
       ? MidnightNetwork.DevNet
       : net === "testnet"
-      ? MidnightNetwork.Testnet
-      : net === "mainnet"
-      ? MidnightNetwork.Mainnet
-      : MidnightNetwork.Undeployed;
+        ? MidnightNetwork.Testnet
+        : net === "mainnet"
+          ? MidnightNetwork.Mainnet
+          : MidnightNetwork.Undeployed;
   return { network, id: addr as ContractAddress };
 }

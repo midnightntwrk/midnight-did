@@ -2,33 +2,36 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the managed runtime enums used by the contract source to avoid loading WASM/runtime
-vi.mock("@midnight-ntwrk/midnight-did-contract/dist/managed/did/contract/index.cjs", () => ({
-  CurveType: { ed25519: 0, Jubjub: 1 },
-  KeyType: { EC: 0, RSA: 1, oct: 2, OKP: 3 },
-  VerificationMethodType: { Undefined: 0, JsonWebKey: 1 },
-  VerificationMethodRelation: {
-    Undefined: 0,
-    Authentication: 1,
-    AssertionMethod: 2,
-    KeyAgreement: 3,
-    CapabilityInvocation: 4,
-    CapabilityDelegation: 5,
-  },
-  OperationType: {
-    Undefined: 0,
-    AddVerificationMethod: 1,
-    UpdateVerificationMethod: 2,
-    RemoveVerificationMethod: 3,
-    AddVerificationMethodRelation: 4,
-    RemoveVerificationMethodRelation: 5,
-    AddService: 6,
-    UpdateService: 7,
-    RemoveService: 8,
-    AddAlsoKnownAs: 9,
-    RemoveAlsoKnownAs: 10,
-    Deactivate: 11,
-  },
-}));
+vi.mock(
+  "@midnight-ntwrk/midnight-did-contract/dist/managed/did/contract/index.cjs",
+  () => ({
+    CurveType: { ed25519: 0, Jubjub: 1 },
+    KeyType: { EC: 0, RSA: 1, oct: 2, OKP: 3 },
+    VerificationMethodType: { Undefined: 0, JsonWebKey: 1 },
+    VerificationMethodRelation: {
+      Undefined: 0,
+      Authentication: 1,
+      AssertionMethod: 2,
+      KeyAgreement: 3,
+      CapabilityInvocation: 4,
+      CapabilityDelegation: 5,
+    },
+    OperationType: {
+      Undefined: 0,
+      AddVerificationMethod: 1,
+      UpdateVerificationMethod: 2,
+      RemoveVerificationMethod: 3,
+      AddVerificationMethodRelation: 4,
+      RemoveVerificationMethodRelation: 5,
+      AddService: 6,
+      UpdateService: 7,
+      RemoveService: 8,
+      AddAlsoKnownAs: 9,
+      RemoveAlsoKnownAs: 10,
+      Deactivate: 11,
+    },
+  }),
+);
 
 // Import after mocks are defined
 import { LedgerToDomain, MidnightNetwork, parseContractAddress } from "..";
@@ -70,7 +73,11 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     const services = makeIterablePairs<string, any>([
       [
         "svc-1",
-        { id: "svc-1", type: "SVC", serviceEndpoint: ["https://u", "", "", ""] },
+        {
+          id: "svc-1",
+          type: "SVC",
+          serviceEndpoint: ["https://u", "", "", ""],
+        },
       ],
       [
         "svc-2",
@@ -101,7 +108,12 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
   });
 
   it("publicKeyJwk encodes bigint field elements as base64url", () => {
-    const out = LedgerToDomain.publicKeyJwk({ kty: 3, crv: 0, x: 7n, y: 9n } as any);
+    const out = LedgerToDomain.publicKeyJwk({
+      kty: 3,
+      crv: 0,
+      x: 7n,
+      y: 9n,
+    } as any);
     expect(out.kty).toBe("OKP");
     expect(out.crv).toBe("ed25519");
     expect(out.x).toBe("Bw");
@@ -140,7 +152,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     const doc = LedgerToDomain.ledgerStateToDIDDocument(
       stubLedger,
       MidnightNetwork.DevNet,
-      addr
+      addr,
     );
     expect(doc.id.startsWith("did:midnight:devnet:")).toBe(true);
     expect(doc.controller).toBeDefined();

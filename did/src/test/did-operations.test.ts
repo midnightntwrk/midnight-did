@@ -1,38 +1,63 @@
+import {
+  createVerificationMethod,
+  CurveType,
+  KeyType,
+  parseDID,
+  parseDIDKeyID,
+  VerificationMethodType,
+} from "@midnight-ntwrk/midnight-did-domain";
 import { describe, expect, it } from "vitest";
-import { DIDOperationSchema, DIDOperationType } from "../did-operations";
-import { VerificationMethodType, createVerificationMethod, parseDID, parseDIDKeyID, CurveType, KeyType } from "../did-document";
 
-describe("DIDOperationSchema (domain)", () => {
+import { DIDOperationSchema, DIDOperationType } from "../did-operations";
+
+describe("DIDOperationSchema (did)", () => {
   const did = `did:midnight:devnet:${"0".repeat(68)}`;
   const vm = createVerificationMethod({
     id: parseDIDKeyID(`${did}#key-1`),
     type: VerificationMethodType.JsonWebKey,
     controller: parseDID(did),
-    publicKeyJwk: { kty: KeyType.EC, crv: CurveType.ed25519, x: "AQ", y: "Ag" }
+    publicKeyJwk: { kty: KeyType.EC, crv: CurveType.ed25519, x: "AQ", y: "Ag" },
   });
 
   it("parses AddVerificationMethod", () => {
-    const op = DIDOperationSchema.parse({ type: DIDOperationType.AddVerificationMethod, verificationMethod: vm });
+    const op = DIDOperationSchema.parse({
+      type: DIDOperationType.AddVerificationMethod,
+      verificationMethod: vm,
+    });
     expect(op.type).toBe(DIDOperationType.AddVerificationMethod);
   });
 
   it("parses UpdateVerificationMethod", () => {
-    const op = DIDOperationSchema.parse({ type: DIDOperationType.UpdateVerificationMethod, verificationMethod: vm });
+    const op = DIDOperationSchema.parse({
+      type: DIDOperationType.UpdateVerificationMethod,
+      verificationMethod: vm,
+    });
     expect(op.type).toBe(DIDOperationType.UpdateVerificationMethod);
   });
 
   it("parses RemoveVerificationMethod", () => {
-    const op = DIDOperationSchema.parse({ type: DIDOperationType.RemoveVerificationMethod, id: vm.id });
+    const op = DIDOperationSchema.parse({
+      type: DIDOperationType.RemoveVerificationMethod,
+      id: vm.id,
+    });
     expect(op.type).toBe(DIDOperationType.RemoveVerificationMethod);
   });
 
   it("parses AddVerificationMethodRelation", () => {
-    const op = DIDOperationSchema.parse({ type: DIDOperationType.AddVerificationMethodRelation, relation: "Authentication", methodId: vm.id });
+    const op = DIDOperationSchema.parse({
+      type: DIDOperationType.AddVerificationMethodRelation,
+      relation: "Authentication",
+      methodId: vm.id,
+    });
     expect(op.type).toBe(DIDOperationType.AddVerificationMethodRelation);
   });
 
-    it("parses RemoveVerificationMethodRelation", () => {
-    const op = DIDOperationSchema.parse({ type: DIDOperationType.RemoveVerificationMethodRelation, relation: "AssertionMethod", methodId: vm.id });
+  it("parses RemoveVerificationMethodRelation", () => {
+    const op = DIDOperationSchema.parse({
+      type: DIDOperationType.RemoveVerificationMethodRelation,
+      relation: "AssertionMethod",
+      methodId: vm.id,
+    });
     expect(op.type).toBe(DIDOperationType.RemoveVerificationMethodRelation);
   });
 
@@ -45,4 +70,3 @@ describe("DIDOperationSchema (domain)", () => {
     expect(() => DIDOperationSchema.parse({ type: "Unknown" })).toThrow();
   });
 });
-

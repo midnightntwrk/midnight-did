@@ -1,22 +1,42 @@
-import * as fs from 'node:fs';
-import * as fsAsync from 'node:fs/promises';
+import * as fs from "node:fs";
+import * as fsAsync from "node:fs/promises";
 
-import { type ContractAddress } from '@midnight-ntwrk/compact-runtime';
-import { type CoinInfo, nativeToken, Transaction, type TransactionId } from '@midnight-ntwrk/ledger';
-import { DomainToLedger, LedgerToDomain } from '@midnight-ntwrk/midnight-did';
+import { type ContractAddress } from "@midnight-ntwrk/compact-runtime";
+import {
+  type CoinInfo,
+  nativeToken,
+  Transaction,
+  type TransactionId,
+} from "@midnight-ntwrk/ledger";
+import {
+  type DIDOperation,
+  DomainToLedger,
+  LedgerToDomain,
+} from "@midnight-ntwrk/midnight-did";
 import {
   DIDContract,
   MidnightDIDPrivateState,
   OperationBuilder,
   witnesses,
-} from '@midnight-ntwrk/midnight-did-contract';
-import { DIDDocument, DIDOperation, MidnightNetwork, parseContractAddress } from '@midnight-ntwrk/midnight-did-domain';
-import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
-import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
-import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
-import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
-import { getLedgerNetworkId, getNetworkId, getZswapNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
-import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
+} from "@midnight-ntwrk/midnight-did-contract";
+import {
+  DIDDocument,
+  MidnightNetwork,
+  parseContractAddress,
+} from "@midnight-ntwrk/midnight-did-domain";
+import {
+  deployContract,
+  findDeployedContract,
+} from "@midnight-ntwrk/midnight-js-contracts";
+import { httpClientProofProvider } from "@midnight-ntwrk/midnight-js-http-client-proof-provider";
+import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-public-data-provider";
+import { levelPrivateStateProvider } from "@midnight-ntwrk/midnight-js-level-private-state-provider";
+import {
+  getLedgerNetworkId,
+  getNetworkId,
+  getZswapNetworkId,
+} from "@midnight-ntwrk/midnight-js-network-id";
+import { NodeZkConfigProvider } from "@midnight-ntwrk/midnight-js-node-zk-config-provider";
 import {
   type BalancedTransaction,
   createBalancedTx,
@@ -24,25 +44,28 @@ import {
   type MidnightProvider,
   type UnbalancedTransaction,
   type WalletProvider,
-} from '@midnight-ntwrk/midnight-js-types';
-import { assertIsContractAddress, toHex } from '@midnight-ntwrk/midnight-js-utils';
-import { type Resource, WalletBuilder } from '@midnight-ntwrk/wallet';
-import { type Wallet } from '@midnight-ntwrk/wallet-api';
-import { Transaction as ZswapTransaction } from '@midnight-ntwrk/zswap';
-import { webcrypto } from 'crypto';
-import { type Logger } from 'pino';
-import * as Rx from 'rxjs';
-import { WebSocket } from 'ws';
+} from "@midnight-ntwrk/midnight-js-types";
+import {
+  assertIsContractAddress,
+  toHex,
+} from "@midnight-ntwrk/midnight-js-utils";
+import { type Resource, WalletBuilder } from "@midnight-ntwrk/wallet";
+import { type Wallet } from "@midnight-ntwrk/wallet-api";
+import { Transaction as ZswapTransaction } from "@midnight-ntwrk/zswap";
+import { webcrypto } from "crypto";
+import { type Logger } from "pino";
+import * as Rx from "rxjs";
+import { WebSocket } from "ws";
 
+import { type Config, contractConfig } from "./config";
+import { BigIntReplacer } from "./logger-utils";
+import { RuntimeToDomain } from "./runtime-to-domain";
 import {
   type DeployedMidnightDIDContract,
   type MidnightDIDContract,
   MidnightDIDPrivateStateId,
   type MidnightDIDProviders,
-} from './types';
-import { type Config, contractConfig } from './config';
-import { BigIntReplacer } from './logger-utils';
-import { RuntimeToDomain } from './runtime-to-domain';
+} from "./types";
 
 let logger: Logger;
 // @ts-expect-error assign for apollo/ws
@@ -53,11 +76,14 @@ export const getMidnightDIDLedgerState = async (
   contractAddress: ContractAddress,
 ): Promise<DIDContract.Ledger | null> => {
   assertIsContractAddress(contractAddress);
-  logger.info('Checking MidnightDID contract ledger state...');
+  logger.info("Checking MidnightDID contract ledger state...");
   const state = await providers.publicDataProvider
     .queryContractState(contractAddress)
-    .then((contractState) => (contractState != null ? DIDContract.ledger(contractState.data) : null));
-  if (state != null || state != undefined) logger.info(LedgerToDomain.toJSON(state));
+    .then((contractState) =>
+      contractState != null ? DIDContract.ledger(contractState.data) : null,
+    );
+  if (state != null || state != undefined)
+    logger.info(LedgerToDomain.toJSON(state));
   if (state != null && state?.verificationMethods != null) {
     for (const [id, method] of state!.verificationMethods) {
       logger.info(`VerificaitonMethod: id: ${id}, type: ${method.type}`);
@@ -66,16 +92,23 @@ export const getMidnightDIDLedgerState = async (
   return state;
 };
 
-export const midnightDIDContractInstance: MidnightDIDContract = new DIDContract.Contract(witnesses);
+export const midnightDIDContractInstance: MidnightDIDContract =
+  new DIDContract.Contract(witnesses);
 
-export async function hashProverKey(proverKey: Uint8Array): Promise<Uint8Array> {
-  const hash = await webcrypto.subtle.digest('SHA-256', proverKey);
+export async function hashProverKey(
+  proverKey: Uint8Array,
+): Promise<Uint8Array> {
+  const hash = await webcrypto.subtle.digest("SHA-256", proverKey);
   return new Uint8Array(hash);
 }
 
-export async function initPrivateState(providers: MidnightDIDProviders): Promise<MidnightDIDPrivateState> {
+export async function initPrivateState(
+  providers: MidnightDIDProviders,
+): Promise<MidnightDIDPrivateState> {
   providers.walletProvider.coinPublicKey;
-  const providedPrivateState = await providers.privateStateProvider.get('midnightDIDPrivateState');
+  const providedPrivateState = await providers.privateStateProvider.get(
+    "midnightDIDPrivateState",
+  );
   logger.info(`Stored private state: ${JSON.stringify(providedPrivateState)}`);
   if (
     providedPrivateState != null &&
@@ -84,16 +117,21 @@ export async function initPrivateState(providers: MidnightDIDProviders): Promise
     providedPrivateState.secretKey.BYTES_PER_ELEMENT === 1 &&
     providedPrivateState.secretKey.length === 32
   ) {
-    logger.info('The private state is restored from the privateStateProvider');
+    logger.info("The private state is restored from the privateStateProvider");
     return providedPrivateState;
   }
-  logger.info('Creating the new private state..');
-  const proverKey = await (providers as any).zkConfigProvider.getProverKey('applyOperations');
+  logger.info("Creating the new private state..");
+  const proverKey = await (providers as any).zkConfigProvider.getProverKey(
+    "applyOperations",
+  );
   const secretKey = await hashProverKey(proverKey);
   const privateState: MidnightDIDPrivateState = {
     secretKey,
   } as unknown as MidnightDIDPrivateState;
-  await providers.privateStateProvider.set(MidnightDIDPrivateStateId, privateState);
+  await providers.privateStateProvider.set(
+    MidnightDIDPrivateStateId,
+    privateState,
+  );
   return privateState;
 }
 
@@ -105,10 +143,12 @@ export const joinContract = async (
   const counterContract = await findDeployedContract(providers, {
     contractAddress,
     contract: midnightDIDContractInstance,
-    privateStateId: 'midnightDIDPrivateState',
+    privateStateId: "midnightDIDPrivateState",
     initialPrivateState: initialPrivateState,
   });
-  logger.info(`Joined contract at address: ${counterContract.deployTxData.public.contractAddress}`);
+  logger.info(
+    `Joined contract at address: ${counterContract.deployTxData.public.contractAddress}`,
+  );
   return counterContract;
 };
 
@@ -116,13 +156,15 @@ export const deploy = async (
   providers: MidnightDIDProviders,
   privateState: MidnightDIDPrivateState,
 ): Promise<DeployedMidnightDIDContract> => {
-  logger.info('Deploying Midnight DID contract...');
+  logger.info("Deploying Midnight DID contract...");
   const didContract = await deployContract(providers, {
     contract: midnightDIDContractInstance,
-    privateStateId: 'midnightDIDPrivateState',
+    privateStateId: "midnightDIDPrivateState",
     initialPrivateState: privateState,
   });
-  logger.info(`Deployed contract at address: ${didContract.deployTxData.public.contractAddress}`);
+  logger.info(
+    `Deployed contract at address: ${didContract.deployTxData.public.contractAddress}`,
+  );
   return didContract;
 };
 
@@ -130,9 +172,11 @@ export const createDID = async (
   providers: MidnightDIDProviders,
   privateState: MidnightDIDPrivateState,
 ): Promise<DeployedMidnightDIDContract> => {
-  logger.info('Creating DID...');
+  logger.info("Creating DID...");
   const didContract = await deploy(providers, privateState);
-  logger.info(`Created DID at contract address: ${didContract.deployTxData.public.contractAddress}`);
+  logger.info(
+    `Created DID at contract address: ${didContract.deployTxData.public.contractAddress}`,
+  );
   return didContract;
 };
 
@@ -140,18 +184,26 @@ export const update = async (
   didContract: DeployedMidnightDIDContract,
   patches: Array<DIDOperation>,
 ): Promise<FinalizedTxData> => {
-  if (patches.length === 0) throw new Error('No DID operations were provided.');
-  logger.info(`Updating DID at contract address: ${didContract.deployTxData.public.contractAddress}`);
+  if (patches.length === 0) throw new Error("No DID operations were provided.");
+  logger.info(
+    `Updating DID at contract address: ${didContract.deployTxData.public.contractAddress}`,
+  );
   let ledgerOperations = DomainToLedger.updateOperations(patches);
-  logger.info('Ledger operations:');
-  for (const lo of ledgerOperations) logger.info(JSON.stringify(lo as unknown, BigIntReplacer, 2));
+  logger.info("Ledger operations:");
+  for (const lo of ledgerOperations)
+    logger.info(JSON.stringify(lo as unknown, BigIntReplacer, 2));
   let ledgerOperationsWithPadding = OperationBuilder.padding(ledgerOperations);
-  const finalizedTxData = await didContract.callTx.applyOperations(ledgerOperationsWithPadding);
-  logger.info(`Transaction ${finalizedTxData.public.txId} added in block ${finalizedTxData.public.blockHeight}`);
+  const finalizedTxData = await didContract.callTx.applyOperations(
+    ledgerOperationsWithPadding,
+  );
+  logger.info(
+    `Transaction ${finalizedTxData.public.txId} added in block ${finalizedTxData.public.blockHeight}`,
+  );
   return finalizedTxData.public;
 };
 
-export const midnightNetwork: MidnightNetwork = RuntimeToDomain.NetworkMap[getNetworkId()];
+export const midnightNetwork: MidnightNetwork =
+  RuntimeToDomain.NetworkMap[getNetworkId()];
 
 export const resolve = async (
   providers: MidnightDIDProviders,
@@ -160,9 +212,14 @@ export const resolve = async (
   const network = RuntimeToDomain.NetworkMap[getNetworkId()];
   const contractAddress = didContract.deployTxData.public.contractAddress;
   const midnightContractAddress = parseContractAddress(contractAddress);
-  const didContractState = await getMidnightDIDLedgerState(providers, contractAddress);
+  const didContractState = await getMidnightDIDLedgerState(
+    providers,
+    contractAddress,
+  );
   if (didContractState === null) {
-    logger.info(`There is no Midnight DID contract deployed at ${contractAddress}.`);
+    logger.info(
+      `There is no Midnight DID contract deployed at ${contractAddress}.`,
+    );
     return null;
   }
   const didDocument = LedgerToDomain.ledgerStateToDIDDocument(
@@ -170,23 +227,38 @@ export const resolve = async (
     network,
     midnightContractAddress,
   );
-  logger.info(`MidnightDID Document:\n      ${JSON.stringify(didDocument, BigIntReplacer, 2)}`);
+  logger.info(
+    `MidnightDID Document:\n      ${JSON.stringify(didDocument, BigIntReplacer, 2)}`,
+  );
   return didDocument;
 };
 
-export const createWalletAndMidnightProvider = async (wallet: Wallet): Promise<WalletProvider & MidnightProvider> => {
+export const createWalletAndMidnightProvider = async (
+  wallet: Wallet,
+): Promise<WalletProvider & MidnightProvider> => {
   const state = await Rx.firstValueFrom(wallet.state());
   return {
     coinPublicKey: state.coinPublicKey,
     encryptionPublicKey: state.encryptionPublicKey,
-    balanceTx(tx: UnbalancedTransaction, newCoins: CoinInfo[]): Promise<BalancedTransaction> {
+    balanceTx(
+      tx: UnbalancedTransaction,
+      newCoins: CoinInfo[],
+    ): Promise<BalancedTransaction> {
       return wallet
         .balanceTransaction(
-          ZswapTransaction.deserialize(tx.serialize(getLedgerNetworkId()), getZswapNetworkId()),
+          ZswapTransaction.deserialize(
+            tx.serialize(getLedgerNetworkId()),
+            getZswapNetworkId(),
+          ),
           newCoins,
         )
         .then((tx) => wallet.proveTransaction(tx))
-        .then((zswapTx) => Transaction.deserialize(zswapTx.serialize(getZswapNetworkId()), getLedgerNetworkId()))
+        .then((zswapTx) =>
+          Transaction.deserialize(
+            zswapTx.serialize(getZswapNetworkId()),
+            getLedgerNetworkId(),
+          ),
+        )
         .then(createBalancedTx);
     },
     submitTx(tx: BalancedTransaction): Promise<TransactionId> {
@@ -206,7 +278,10 @@ export const waitForSync = (wallet: Wallet) =>
           `Waiting for funds. Backend lag: ${sourceGap}, wallet lag: ${applyGap}, transactions=${state.transactionHistory.length}`,
         );
       }),
-      Rx.filter((state) => state.syncProgress !== undefined && state.syncProgress.synced),
+      Rx.filter(
+        (state) =>
+          state.syncProgress !== undefined && state.syncProgress.synced,
+      ),
     ),
   );
 
@@ -251,16 +326,31 @@ export const buildWalletAndWaitForFunds = async (
   let wallet: Wallet & Resource;
   if (directoryPath !== undefined) {
     if (fs.existsSync(`${directoryPath}/${filename}`)) {
-      logger.info(`Attempting to restore state from ${directoryPath}/${filename}`);
+      logger.info(
+        `Attempting to restore state from ${directoryPath}/${filename}`,
+      );
       try {
-        const serializedStream = fs.createReadStream(`${directoryPath}/${filename}`, 'utf-8');
+        const serializedStream = fs.createReadStream(
+          `${directoryPath}/${filename}`,
+          "utf-8",
+        );
         const serialized = await streamToString(serializedStream);
-        serializedStream.on('finish', () => serializedStream.close());
-        wallet = await WalletBuilder.restore(indexer, indexerWS, proofServer, node, seed, serialized, 'info');
+        serializedStream.on("finish", () => serializedStream.close());
+        wallet = await WalletBuilder.restore(
+          indexer,
+          indexerWS,
+          proofServer,
+          node,
+          seed,
+          serialized,
+          "info",
+        );
         wallet.start();
         const stateObject = JSON.parse(serialized);
-        if ((await isAnotherChain(wallet, Number(stateObject.offset))) === true) {
-          logger.warn('The chain was reset, building wallet from scratch');
+        if (
+          (await isAnotherChain(wallet, Number(stateObject.offset))) === true
+        ) {
+          logger.warn("The chain was reset, building wallet from scratch");
           wallet = await WalletBuilder.buildFromSeed(
             indexer,
             indexerWS,
@@ -268,18 +358,24 @@ export const buildWalletAndWaitForFunds = async (
             node,
             seed,
             getZswapNetworkId(),
-            'info',
+            "info",
           );
           wallet.start();
         } else {
           const newState = await waitForSync(wallet);
           if (newState.syncProgress?.synced) {
-            logger.info('Wallet was able to sync from restored state');
+            logger.info("Wallet was able to sync from restored state");
           } else {
             logger.info(`Offset: ${stateObject.offset}`);
-            logger.info(`SyncProgress.lag.applyGap: ${newState.syncProgress?.lag.applyGap}`);
-            logger.info(`SyncProgress.lag.sourceGap: ${newState.syncProgress?.lag.sourceGap}`);
-            logger.warn('Wallet was not able to sync from restored state, building wallet from scratch');
+            logger.info(
+              `SyncProgress.lag.applyGap: ${newState.syncProgress?.lag.applyGap}`,
+            );
+            logger.info(
+              `SyncProgress.lag.sourceGap: ${newState.syncProgress?.lag.sourceGap}`,
+            );
+            logger.warn(
+              "Wallet was not able to sync from restored state, building wallet from scratch",
+            );
             wallet = await WalletBuilder.buildFromSeed(
               indexer,
               indexerWS,
@@ -287,16 +383,18 @@ export const buildWalletAndWaitForFunds = async (
               node,
               seed,
               getZswapNetworkId(),
-              'info',
+              "info",
             );
             wallet.start();
           }
         }
       } catch (error: unknown) {
-        if (typeof error === 'string') logger.error(error);
+        if (typeof error === "string") logger.error(error);
         else if (error instanceof Error) logger.error(error.message);
         else logger.error(error);
-        logger.warn('Wallet was not able to restore using the stored state, building wallet from scratch');
+        logger.warn(
+          "Wallet was not able to restore using the stored state, building wallet from scratch",
+        );
         wallet = await WalletBuilder.buildFromSeed(
           indexer,
           indexerWS,
@@ -304,12 +402,12 @@ export const buildWalletAndWaitForFunds = async (
           node,
           seed,
           getZswapNetworkId(),
-          'info',
+          "info",
         );
         wallet.start();
       }
     } else {
-      logger.info('Wallet save file not found, building wallet from scratch');
+      logger.info("Wallet save file not found, building wallet from scratch");
       wallet = await WalletBuilder.buildFromSeed(
         indexer,
         indexerWS,
@@ -317,12 +415,14 @@ export const buildWalletAndWaitForFunds = async (
         node,
         seed,
         getZswapNetworkId(),
-        'info',
+        "info",
       );
       wallet.start();
     }
   } else {
-    logger.info('File path for save file not found, building wallet from scratch');
+    logger.info(
+      "File path for save file not found, building wallet from scratch",
+    );
     wallet = await WalletBuilder.buildFromSeed(
       indexer,
       indexerWS,
@@ -330,7 +430,7 @@ export const buildWalletAndWaitForFunds = async (
       node,
       seed,
       getZswapNetworkId(),
-      'info',
+      "info",
     );
     wallet.start();
   }
@@ -354,17 +454,30 @@ export const randomBytes = (length: number): Uint8Array => {
   return bytes;
 };
 
-export const buildFreshWallet = async (config: Config): Promise<Wallet & Resource> =>
-  await buildWalletAndWaitForFunds(config, toHex(randomBytes(32)), '');
+export const buildFreshWallet = async (
+  config: Config,
+): Promise<Wallet & Resource> =>
+  await buildWalletAndWaitForFunds(config, toHex(randomBytes(32)), "");
 
-export const configureProviders = async (wallet: Wallet & Resource, config: Config) => {
-  const walletAndMidnightProvider = await createWalletAndMidnightProvider(wallet);
+export const configureProviders = async (
+  wallet: Wallet & Resource,
+  config: Config,
+) => {
+  const walletAndMidnightProvider =
+    await createWalletAndMidnightProvider(wallet);
   return {
-    privateStateProvider: levelPrivateStateProvider<typeof MidnightDIDPrivateStateId>({
+    privateStateProvider: levelPrivateStateProvider<
+      typeof MidnightDIDPrivateStateId
+    >({
       privateStateStoreName: contractConfig.privateStateStoreName,
     }),
-    publicDataProvider: indexerPublicDataProvider(config.indexer, config.indexerWS),
-    zkConfigProvider: new NodeZkConfigProvider<'applyOperations'>(contractConfig.zkConfigPath),
+    publicDataProvider: indexerPublicDataProvider(
+      config.indexer,
+      config.indexerWS,
+    ),
+    zkConfigProvider: new NodeZkConfigProvider<"applyOperations">(
+      contractConfig.zkConfigPath,
+    ),
     proofProvider: httpClientProofProvider(config.proofServer),
     walletProvider: walletAndMidnightProvider,
     midnightProvider: walletAndMidnightProvider,
@@ -375,12 +488,18 @@ export function setLogger(_logger: Logger) {
   logger = _logger;
 }
 
-export const streamToString = async (stream: fs.ReadStream): Promise<string> => {
+export const streamToString = async (
+  stream: fs.ReadStream,
+): Promise<string> => {
   const chunks: Buffer[] = [];
   return await new Promise((resolve, reject) => {
-    stream.on('data', (chunk) => chunks.push(typeof chunk === 'string' ? Buffer.from(chunk, 'utf8') : chunk));
-    stream.on('error', (err) => reject(err));
-    stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    stream.on("data", (chunk) =>
+      chunks.push(
+        typeof chunk === "string" ? Buffer.from(chunk, "utf8") : chunk,
+      ),
+    );
+    stream.on("error", (err) => reject(err));
+    stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
   });
 };
 
@@ -388,10 +507,14 @@ export const isAnotherChain = async (wallet: Wallet, offset: number) => {
   await waitForSyncProgress(wallet);
   const walletOffset = Number(JSON.parse(await wallet.serializeState()).offset);
   if (walletOffset < offset - 1) {
-    logger.info(`Your offset offset is: ${walletOffset} restored offset: ${offset} so it is another chain`);
+    logger.info(
+      `Your offset offset is: ${walletOffset} restored offset: ${offset} so it is another chain`,
+    );
     return true;
   } else {
-    logger.info(`Your offset offset is: ${walletOffset} restored offset: ${offset} ok`);
+    logger.info(
+      `Your offset offset is: ${walletOffset} restored offset: ${offset} ok`,
+    );
     return false;
   }
 };
@@ -405,18 +528,20 @@ export const saveState = async (wallet: Wallet, filename: string) => {
       const serializedState = await wallet.serializeState();
       const writer = fs.createWriteStream(`${directoryPath}/${filename}`);
       writer.write(serializedState);
-      writer.on('finish', function () {
-        logger.info(`File '${directoryPath}/${filename}' written successfully.`);
+      writer.on("finish", function () {
+        logger.info(
+          `File '${directoryPath}/${filename}' written successfully.`,
+        );
       });
-      writer.on('error', function (err) {
+      writer.on("error", function (err) {
         logger.error(err);
       });
       writer.end();
     } catch (e) {
-      if (typeof e === 'string') logger.warn(e);
+      if (typeof e === "string") logger.warn(e);
       else if (e instanceof Error) logger.warn(e.message);
     }
   } else {
-    logger.info('Not saving cache as sync cache was not defined');
+    logger.info("Not saving cache as sync cache was not defined");
   }
 };

@@ -16,12 +16,11 @@
 import { stdin as input, stdout as output } from 'node:process';
 import { createInterface, type Interface } from 'node:readline/promises';
 
+import { type DIDOperation, DIDOperationType } from '@midnight-ntwrk/midnight-did';
 import {
   createMidnightDIDString,
   createVerificationMethod,
   CurveType,
-  DIDOperation,
-  DIDOperationType,
   KeyType,
   parseContractAddress,
   parseDIDURL,

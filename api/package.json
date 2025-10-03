@@ -25,7 +25,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run -c vitest.unit.config.ts --pool=threads",
     "test:ci": "vitest run -c vitest.unit.config.ts --pool=threads",
-    "test-api": "vitest run -c vitest.api.config.ts --pool=threads"
+    "test-api": "vitest run -c vitest.api.config.ts --pool=threads",
+    "coverage": "vitest run -c vitest.unit.config.ts --coverage",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix"
   },
   "dependencies": {
     "@midnight-ntwrk/onchain-runtime": "^4.0.0",
