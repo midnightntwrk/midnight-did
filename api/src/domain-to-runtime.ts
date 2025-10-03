@@ -9,3 +9,4 @@ export class DomainToRuntime {
     [MidnightNetwork.Mainnet]: NetworkId.MainNet,
   };
 }
+

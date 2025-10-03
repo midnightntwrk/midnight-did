@@ -1,7 +1,6 @@
 {
   "include": ["src/**/*.ts"],
   "compilerOptions": {
-    // "rootDir": "src",
     "outDir": "dist",
     "composite": true,
     "declaration": true,
@@ -18,9 +17,7 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
-    "paths": {
-      "@midnight-ntwrk/midnight-did-api": ["../api/dist/src/index.d.ts"]
-    }
+    "baseUrl": "."
   }
 }
+

@@ -2,16 +2,16 @@
   "name": "midnight-did",
   "version": "0.1.0",
   "engines": {
-    "node": ">=20",
+    "node": ">=20 <21",
     "npm": ">=10"
   },
   "scripts": {
     "lint": "npm run lint -w contract && npm run lint -w cli",
     "lint:fix": "npm run lint:fix -w contract && npm run lint:fix -w cli",
     "build:all": "npm run build -w contract && npm run build -w cli",
-    "test:all": "npm run all -w contract && npm run test-api -w cli",
+    "test:all": "npm run all -w contract && npm run test -w api",
     "coverage": "npm run coverage -w contract",
-    "ci": "npm run contract -w contract && npm run build -w contract && npm run all -w contract && npm run build -w cli && npm run test-api -w cli",
+    "ci": "npm run contract -w contract && npm run build -w contract && npm run all -w contract && npm run build -w cli && npm run test -w api",
     "pack:contract": "npm_config_cache=.npm-cache bash -lc 'cd contract && npm pack'",
     "pack:cli": "npm_config_cache=.npm-cache bash -lc 'cd cli && npm pack'",
     "pack:all": "npm run pack:contract && npm run pack:cli && echo 'Artifacts:' && ls -1 *.tgz || true && ls -1 contract/*.tgz cli/*.tgz || true"
@@ -20,6 +20,7 @@
   "packageManager": "npm@10.8.2",
   "type": "module",
   "workspaces": [
+    "api",
     "domain",
     "did",
     "contract",

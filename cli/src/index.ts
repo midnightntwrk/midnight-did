@@ -24,5 +24,4 @@
 // TODO: restructure the project to midnight-did
 // TODO: compose the specification for the Midnight DID method
 
-export * from './api';
 export * from './cli';

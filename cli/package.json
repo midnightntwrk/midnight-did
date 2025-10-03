@@ -4,6 +4,10 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20 <21",
+    "npm": ">=10"
+  },
   "scripts": {
     "prebuild": "npm --prefix ../contract run build",
     "testnet-remote": "node --experimental-specifier-resolution=node --loader ts-node/esm src/testnet-remote.ts",
@@ -23,6 +27,7 @@
     "start-testnet-remote-ps": "npm run build && npm run testnet-remote-ps"
   },
   "dependencies": {
-    "@midnight-ntwrk/midnight-did-contract": "*"
+    "@midnight-ntwrk/midnight-did-contract": "*",
+    "@midnight-ntwrk/midnight-did-api": "*"
   }
 }

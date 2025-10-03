@@ -17,9 +17,8 @@ import path from 'node:path';
 
 import { DockerComposeEnvironment, Wait } from 'testcontainers';
 
+import { createLogger, currentDir, StandaloneConfig } from '../../api/dist/src/index.js';
 import { run } from './cli.js';
-import { currentDir, StandaloneConfig } from './config.js';
-import { createLogger } from './logger-utils.js';
 
 const config = new StandaloneConfig();
 const dockerEnv = new DockerComposeEnvironment(path.resolve(currentDir, '..'), 'standalone.yml')

@@ -22,7 +22,6 @@ import {
   CurveType,
   DIDOperation,
   DIDOperationType,
-  DIDString,
   KeyType,
   parseContractAddress,
   parseDIDURL,
@@ -36,9 +35,9 @@ import { type Wallet } from '@midnight-ntwrk/wallet-api';
 import { type Logger } from 'pino';
 import { type DockerComposeEnvironment, type StartedDockerComposeEnvironment } from 'testcontainers';
 
-import * as api from './api';
-import { type DeployedMidnightDIDContract, type MidnightDIDProviders } from './common-types';
-import { type Config, StandaloneConfig } from './config';
+import type { Config, DeployedMidnightDIDContract, MidnightDIDProviders } from '../../api/dist/src/index';
+import * as api from '../../api/dist/src/index.js';
+import { StandaloneConfig } from '../../api/dist/src/index.js';
 
 let logger: Logger;
 

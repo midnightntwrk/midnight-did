@@ -17,9 +17,8 @@ import path from 'node:path';
 
 import { DockerComposeEnvironment, Wait } from 'testcontainers';
 
+import { createLogger, currentDir, TestnetRemoteConfig } from '../../api/dist/src/index.js';
 import { run } from './cli.js';
-import { currentDir, TestnetRemoteConfig } from './config.js';
-import { createLogger } from './logger-utils.js';
 
 const config = new TestnetRemoteConfig();
 const dockerEnv = new DockerComposeEnvironment(

@@ -4,6 +4,10 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20 <21",
+    "npm": ">=10"
+  },
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "./dist/index.d.ts",
