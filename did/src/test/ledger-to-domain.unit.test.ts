@@ -93,6 +93,9 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       id: { bytes: idBytes },
       version: 1n,
       active: true,
+      createdAt: 1n,
+      updatedAt: 2n,
+      deactivatedAt: 0n,
       operationCount: 3n,
       alsoKnownAs: makeIterable<string>(["did:alias:one"]),
       verificationMethods,
@@ -155,10 +158,22 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       addr,
     );
     expect(doc.id.startsWith("did:midnight:devnet:")).toBe(true);
+    expect(doc["@context"]).toEqual([
+      "https://www.w3.org/ns/did/v1",
+      "https://w3c.github.io/vc-jws-2020/contexts/v1",
+    ]);
     expect(doc.controller).toBeDefined();
     expect(doc.verificationMethod?.length).toBe(1);
     expect(doc.authentication?.length).toBe(1);
     expect(doc.service?.length).toBe(2);
     expect(doc.alsoKnownAs?.[0]).toBe("did:alias:one");
+  });
+
+  it("ledgerStateToMetadata maps counters and timestamps", () => {
+    const metadata = LedgerToDomain.ledgerStateToMetadata(stubLedger);
+    expect(metadata.versionId).toBe("1");
+    expect(metadata.deactivated).toBe(false);
+    expect(metadata.created).toBe(new Date(1).toISOString());
+    expect(metadata.updated).toBe(new Date(2).toISOString());
   });
 });

@@ -66,8 +66,8 @@ const mainLoop = async (providers: MidnightDIDProviders, rli: Interface): Promis
       }
       case '2': {
         const contract = await findContractByAddress(providers, rli);
-        const didDocument = await api.resolve(providers, contract);
-        if (didDocument != null) logger.info('DID resolved successfully.');
+        const resolution = await api.resolve(providers, contract);
+        if (resolution != null) logger.info('DID resolved successfully.');
         else logger.error('Failed to resolve the DID...');
         break;
       }

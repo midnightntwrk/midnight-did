@@ -21,6 +21,7 @@ import {
 } from "@midnight-ntwrk/midnight-did-contract";
 import {
   DIDDocument,
+  DIDDocumentMetadata,
   MidnightNetwork,
   parseContractAddress,
 } from "@midnight-ntwrk/midnight-did-domain";
@@ -208,7 +209,10 @@ export const midnightNetwork: MidnightNetwork =
 export const resolve = async (
   providers: MidnightDIDProviders,
   didContract: DeployedMidnightDIDContract,
-): Promise<DIDDocument | null> => {
+): Promise<{
+  didDocument: DIDDocument;
+  didDocumentMetadata: DIDDocumentMetadata;
+} | null> => {
   const network = RuntimeToDomain.NetworkMap[getNetworkId()];
   const contractAddress = didContract.deployTxData.public.contractAddress;
   const midnightContractAddress = parseContractAddress(contractAddress);
@@ -227,10 +231,16 @@ export const resolve = async (
     network,
     midnightContractAddress,
   );
+  const didDocumentMetadata =
+    LedgerToDomain.ledgerStateToMetadata(didContractState);
   logger.info(
-    `MidnightDID Document:\n      ${JSON.stringify(didDocument, BigIntReplacer, 2)}`,
+    `MidnightDID Resolution Result:\n      ${JSON.stringify(
+      { didDocument, didDocumentMetadata },
+      BigIntReplacer,
+      2,
+    )}`,
   );
-  return didDocument;
+  return { didDocument, didDocumentMetadata };
 };
 
 export const createWalletAndMidnightProvider = async (

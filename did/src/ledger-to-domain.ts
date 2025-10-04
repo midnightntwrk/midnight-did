@@ -14,6 +14,7 @@ import {
   createVerificationMethod,
   CurveType,
   DIDDocument,
+  DIDDocumentMetadata,
   FieldCodec,
   KeyType,
   MidnightNetwork,
@@ -118,7 +119,10 @@ export class LedgerToDomain {
     network: MidnightNetwork,
     contractAddress: ReturnType<typeof parseContractAddress>,
   ): DIDDocument {
-    const ctx = ["https://www.w3.org/ns/did/v1"];
+    const ctx = [
+      "https://www.w3.org/ns/did/v1",
+      "https://w3c.github.io/vc-jws-2020/contexts/v1",
+    ];
     const did = createMidnightDIDString(contractAddress, network);
 
     const verificationMethod: VerificationMethod[] = [];
@@ -174,5 +178,32 @@ export class LedgerToDomain {
         alsoKnownAs;
     }
     return didDocument;
+  }
+
+  static ledgerStateToMetadata(ledger: Ledger): DIDDocumentMetadata {
+    const created = this.timestampToIsoString(ledger.createdAt);
+    const updated = this.timestampToIsoString(ledger.updatedAt);
+    const deactivatedAt = this.timestampToIsoString(ledger.deactivatedAt);
+
+    const metadata: DIDDocumentMetadata = {
+      created,
+      updated,
+      deactivated: !ledger.active,
+      versionId: ledger.version.toString(),
+    };
+
+    if (metadata.deactivated && deactivatedAt !== undefined)
+      metadata.updated ??= deactivatedAt;
+
+    return metadata;
+  }
+
+  private static timestampToIsoString(timestamp: bigint): string | undefined {
+    if (timestamp === 0n) return undefined;
+    const maxSafe = BigInt(Number.MAX_SAFE_INTEGER);
+    if (timestamp > maxSafe || timestamp < 0n) return undefined;
+    const milliseconds = Number(timestamp);
+    if (Number.isNaN(milliseconds)) return undefined;
+    return new Date(milliseconds).toISOString();
   }
 }

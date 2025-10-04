@@ -141,6 +141,7 @@ export const DIDDocumentMetadataSchema = z.looseObject({
   created: z.nullish(z.string()),
   updated: z.nullish(z.string()),
   deactivated: z.nullish(z.boolean()),
+  versionId: z.nullish(z.string()),
   nextUpdate: z.nullish(z.string()),
   nextVersionId: z.nullish(z.string()),
   equivalentId: z.nullish(z.array(z.string())),
