@@ -7,6 +7,8 @@ import {
 } from "@midnight-ntwrk/midnight-did-domain";
 import { z } from "zod/v4-mini";
 
+const RFC3986_URI_REGEX = /^[A-Za-z][A-Za-z0-9+.-]*:.+/;
+
 export enum DIDOperationType {
   AddVerificationMethod = "AddVerificationMethod",
   UpdateVerificationMethod = "UpdateVerificationMethod",
@@ -75,11 +77,25 @@ export const DIDOperationSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal(DIDOperationType.AddAlsoKnownAs),
-    aliasUri: z.string(),
+    aliasUri: z
+      .string()
+      .check(
+        z.refine(
+          (value) => RFC3986_URI_REGEX.test(value),
+          "aliasUri must be a valid RFC3986 URI",
+        ),
+      ),
   }),
   z.object({
     type: z.literal(DIDOperationType.RemoveAlsoKnownAs),
-    aliasUri: z.string(),
+    aliasUri: z
+      .string()
+      .check(
+        z.refine(
+          (value) => RFC3986_URI_REGEX.test(value),
+          "aliasUri must be a valid RFC3986 URI",
+        ),
+      ),
   }),
   z.object({ type: z.literal(DIDOperationType.Deactivate) }),
 ]);
