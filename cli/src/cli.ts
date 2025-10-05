@@ -181,10 +181,9 @@ Enter Verification Method type:'
     type: verificationMethodType,
     controller: did,
     publicKeyJwk: {
-      kty: KeyType.EC,
+      kty: KeyType.OKP,
       crv: CurveType.ed25519,
       x: 'AA',
-      y: 'AA',
     },
   });
 }

@@ -21,7 +21,7 @@ import {
 
 export class OperationBuilder {
   static defaultPublicKeyJwk: PublicKeyJwk = {
-    kty: KeyType.EC,
+    kty: KeyType.OKP,
     crv: CurveType.ed25519,
     x: 0n,
     y: 0n

@@ -16,7 +16,7 @@ const mockMethod = {
   id: "did:midnight:xyz#key-1",
   type: VerificationMethodType.JsonWebKey,
   publicKeyJwk: {
-    kty: KeyType.EC,
+    kty: KeyType.OKP,
     crv: CurveType.ed25519,
     x: 0n,
     y: 0n

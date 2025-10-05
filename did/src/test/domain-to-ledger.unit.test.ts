@@ -44,8 +44,18 @@ import { DIDOperationType, DomainToLedger } from "..";
 describe("DomainToLedger (unit, mocked)", () => {
   it("publicKeyJwk decodes base64url to bigint", () => {
     const out = DomainToLedger.publicKeyJwk({
-      kty: "EC" as any,
+      kty: "OKP" as any,
       crv: "ed25519" as any,
+      x: "AQ",
+    } as any);
+    expect(out.x).toBe(1n);
+    expect(out.y).toBe(0n);
+  });
+
+  it("publicKeyJwk retains y for JubJub keys", () => {
+    const out = DomainToLedger.publicKeyJwk({
+      kty: "EC" as any,
+      crv: "Jubjub" as any,
       x: "AQ",
       y: "Ag",
     } as any);
@@ -70,10 +80,9 @@ describe("DomainToLedger (unit, mocked)", () => {
       type: "JsonWebKey" as any,
       controller: "did:midnight:testnet:0",
       publicKeyJwk: {
-        kty: "EC" as any,
+        kty: "OKP" as any,
         crv: "ed25519" as any,
         x: "AQ",
-        y: "Ag",
       },
     };
     const add = DomainToLedger.updateOperation({

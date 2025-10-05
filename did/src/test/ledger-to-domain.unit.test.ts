@@ -65,7 +65,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
         "did:midnight:devnet:" + "0".repeat(68) + "#key-1",
         {
           type: 1, // JsonWebKey
-          publicKeyJwk: { kty: 3, crv: 0, x: 1n, y: 2n }, // OKP, ed25519
+          publicKeyJwk: { kty: 3, crv: 0, x: 1n, y: 0n }, // OKP, ed25519, no y
         },
       ],
     ]);
@@ -115,11 +115,24 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       kty: 3,
       crv: 0,
       x: 7n,
-      y: 9n,
+      y: 0n,
     } as any);
     expect(out.kty).toBe("OKP");
     expect(out.crv).toBe("ed25519");
     expect(out.x).toBe("Bw");
+    expect("y" in out).toBe(false);
+  });
+
+  it("publicKeyJwk retains y for non-OKP keys", () => {
+    const out = LedgerToDomain.publicKeyJwk({
+      kty: 0,
+      crv: 1,
+      x: 5n,
+      y: 9n,
+    } as any);
+    expect(out.kty).toBe("EC");
+    expect(out.crv).toBe("Jubjub");
+    expect(out.x).toBe("BQ");
     expect(out.y).toBe("CQ");
   });
 
@@ -167,6 +180,9 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(doc.authentication?.length).toBe(1);
     expect(doc.service?.length).toBe(2);
     expect(doc.alsoKnownAs?.[0]).toBe("did:alias:one");
+    expect("y" in (doc.verificationMethod?.[0]?.publicKeyJwk ?? {})).toBe(
+      false,
+    );
   });
 
   it("ledgerStateToMetadata maps counters and timestamps", () => {

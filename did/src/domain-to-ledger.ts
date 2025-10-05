@@ -69,12 +69,15 @@ export class DomainToLedger {
   };
 
   static publicKeyJwk(publicKeyJwk: PublicKeyJwk): LedgerPublicKeyJwk {
-    return {
-      kty: this.KeyTypeMap[publicKeyJwk.kty],
-      crv: this.CurveTypeMap[publicKeyJwk.crv],
-      x: z.decode(FieldCodec as any, publicKeyJwk.x) as bigint,
-      y: z.decode(FieldCodec as any, publicKeyJwk.y) as bigint,
-    };
+    const kty = this.KeyTypeMap[publicKeyJwk.kty];
+    const crv = this.CurveTypeMap[publicKeyJwk.crv];
+    const x = z.decode(FieldCodec as any, publicKeyJwk.x) as bigint;
+    const y =
+      publicKeyJwk.y !== undefined
+        ? (z.decode(FieldCodec as any, publicKeyJwk.y) as bigint)
+        : 0n;
+
+    return { kty, crv, x, y };
   }
 
   static verificationMethod(

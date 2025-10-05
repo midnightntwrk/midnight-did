@@ -39,10 +39,9 @@ describe("DID Schemas (domain)", () => {
       type: VerificationMethodType.JsonWebKey,
       controller: "did:example:123",
       publicKeyJwk: {
-        kty: KeyType.EC,
+        kty: KeyType.OKP,
         crv: CurveType.ed25519,
         x: "AA",
-        y: "AA",
       },
     });
     expect(vm.id).toBe("did:example:123#key-1");
@@ -67,10 +66,9 @@ describe("DID Schemas (domain)", () => {
           type: VerificationMethodType.JsonWebKey,
           controller: "did:example:123",
           publicKeyJwk: {
-            kty: KeyType.EC,
+            kty: KeyType.OKP,
             crv: CurveType.ed25519,
             x: "AA",
-            y: "AA",
           },
         }),
       ],
@@ -138,7 +136,7 @@ describe("DID Schemas (domain)", () => {
       controller: "did:example:123",
       publicKeyJwk: {
         kty: KeyType.EC,
-        crv: CurveType.ed25519,
+        crv: CurveType.Jubjub,
         x: "AA",
         y: "AQ",
       },
@@ -151,9 +149,40 @@ describe("DID Schemas (domain)", () => {
         controller: "did:example:123",
         publicKeyJwk: {
           kty: KeyType.EC,
-          crv: CurveType.ed25519,
+          crv: CurveType.Jubjub,
           x: "+A/",
           y: "AA",
+        },
+      }),
+    ).toThrow();
+  });
+
+  it("rejects OKP keys that include a y coordinate", () => {
+    expect(() =>
+      createVerificationMethod({
+        id: "did:example:123#key-3",
+        type: VerificationMethodType.JsonWebKey,
+        controller: "did:example:123",
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.ed25519,
+          x: "AA",
+          y: "AA",
+        },
+      }),
+    ).toThrow(/must not include a y coordinate/);
+  });
+
+  it("rejects non-OKP keys that omit a y coordinate", () => {
+    expect(() =>
+      createVerificationMethod({
+        id: "did:example:123#key-4",
+        type: VerificationMethodType.JsonWebKey,
+        controller: "did:example:123",
+        publicKeyJwk: {
+          kty: KeyType.EC,
+          crv: CurveType.Jubjub,
+          x: "AA",
         },
       }),
     ).toThrow();

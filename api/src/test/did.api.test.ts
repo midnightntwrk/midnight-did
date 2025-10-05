@@ -124,10 +124,9 @@ describe("Midnight DID method API", () => {
   it(`should add the verification method with ${VerificationMethodType.JsonWebKey} public key`, async () => {
     const methodId = parseDIDKeyID(`${didString}#key-1`);
     const publicKeyJwk = {
-      kty: KeyType.EC,
+      kty: KeyType.OKP,
       crv: CurveType.ed25519,
       x: "Kg",
-      y: "VA",
     };
     const operations: DIDOperation[] = [
       {
@@ -156,6 +155,34 @@ describe("Midnight DID method API", () => {
       VerificationMethodType.JsonWebKey,
     );
     expect(insertedVerificationMethod?.controller).toEqual(didString);
+    expect(insertedVerificationMethod?.publicKeyJwk).toEqual(publicKeyJwk);
+  });
+
+  it("should add a JubJub verification method that retains the y coordinate", async () => {
+    const methodId = parseDIDKeyID(`${didString}#key-3`);
+    const publicKeyJwk = {
+      kty: KeyType.EC,
+      crv: CurveType.Jubjub,
+      x: "Kg",
+      y: "VA",
+    };
+    const operations: DIDOperation[] = [
+      {
+        type: DIDOperationType.AddVerificationMethod,
+        verificationMethod: {
+          id: methodId,
+          type: VerificationMethodType.JsonWebKey,
+          controller: didString,
+          publicKeyJwk,
+        },
+      },
+    ];
+    await api.update(contract, operations);
+    const didDocument = (await api.resolve(providers, contract))?.didDocument;
+    expect(didDocument?.verificationMethod).not.toBeNull();
+    const insertedVerificationMethod = didDocument?.verificationMethod?.find(
+      (vm) => vm.id === methodId,
+    );
     expect(insertedVerificationMethod?.publicKeyJwk).toEqual(publicKeyJwk);
   });
 
@@ -190,10 +217,9 @@ describe("Midnight DID method API", () => {
           type: VerificationMethodType.JsonWebKey,
           controller: didString,
           publicKeyJwk: {
-            kty: KeyType.EC,
+            kty: KeyType.OKP,
             crv: CurveType.ed25519,
             x: "Kg",
-            y: "VA",
           },
         },
       },

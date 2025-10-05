@@ -760,53 +760,57 @@ A simple example of a Midnight DID Document is as follows:
 {
   "@context": [
     "https://www.w3.org/ns/did/v1",
-    "https://w3id.org/security/suites/jws-2020/v1"
+    "https://w3c.github.io/vc-jws-2020/contexts/v1"
   ],
-  "id": "did:midnight:undeployed:02008adc553193e2ef2e9fb5ced14ad6520661aeccc9c5fd52ac5323f64e0df8e41d",
-  "alsoKnownAs": null,
-  "controller": "did:midnight:undeployed:02008adc553193e2ef2e9fb5ced14ad6520661aeccc9c5fd52ac5323f64e0df8e41d",
+  "id": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a",
+  "alsoKnownAs": [
+    "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a",
+    "did:example:aka-2"
+  ],
+  "controller": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a",
   "verificationMethod": [
     {
-      "id": "did:midnight:undeployed:02008adc553193e2ef2e9fb5ced14ad6520661aeccc9c5fd52ac5323f64e0df8e41d#key-1",
+      "id": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a#key-1",
       "type": "JsonWebKey",
-      "controller": "did:midnight:undeployed:02008adc553193e2ef2e9fb5ced14ad6520661aeccc9c5fd52ac5323f64e0df8e41d",
+      "controller": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a",
       "publicKeyJwk": {
         "kty": "OKP",
-        "crv": "Ed25519",
-        "x": "42"
+        "crv": "ed25519",
+        "x": "Kg"
       }
     },
     {
-      "id": "did:midnight:undeployed:02008adc553193e2ef2e9fb5ced14ad6520661aeccc9c5fd52ac5323f64e0df8e41d#key-2",
+      "id": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a#key-2",
       "type": "JsonWebKey",
-      "controller": "did:midnight:undeployed:02008adc553193e2ef2e9fb5ced14ad6520661aeccc9c5fd52ac5323f64e0df8e41d",
+      "controller": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a",
+      "publicKeyJwk": {
+        "kty": "OKP",
+        "crv": "ed25519",
+        "x": "Kg"
+      }
+    },
+    {
+      "id": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a#key-3",
+      "type": "JsonWebKey",
+      "controller": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a",
       "publicKeyJwk": {
         "kty": "EC",
-        "crv": "Ed25519",
-        "x": "42",
-        "y": "84"
+        "crv": "Jubjub",
+        "x": "Kg",
+        "y": "VA"
       }
     }
   ],
   "authentication": [
-    "did:midnight:undeployed:02008adc553193e2ef2e9fb5ced14ad6520661aeccc9c5fd52ac5323f64e0df8e41d#key-1"
+    "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a#key-1"
   ],
   "assertionMethod": [
-    "did:midnight:undeployed:02008adc553193e2ef2e9fb5ced14ad6520661aeccc9c5fd52ac5323f64e0df8e41d#key-2"
+    "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a#key-2"
   ],
   "keyAgreement": null,
   "capabilityInvocation": null,
   "capabilityDelegation": null,
-  "service": [
-    {
-      "id": "didcomm-1",
-      "type": "DIDCommV2",
-      "serviceEndpoint": [
-        "https://localhost/updated",
-        "wss://localhost/updated"
-      ]
-    }
-  ]
+  "service": null
 }
 ```
 

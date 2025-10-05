@@ -69,12 +69,19 @@ export class LedgerToDomain {
   };
 
   static publicKeyJwk(publicKeyJwk: LedgerPublicKeyJwk): PublicKeyJwk {
-    return {
-      kty: this.KeyTypeMap[publicKeyJwk.kty],
-      crv: this.CurveTypeMap[publicKeyJwk.crv],
-      x: z.encode(FieldCodec as any, publicKeyJwk.x) as string,
-      y: z.encode(FieldCodec as any, publicKeyJwk.y) as string,
-    };
+    const kty = this.KeyTypeMap[publicKeyJwk.kty];
+    const crv = this.CurveTypeMap[publicKeyJwk.crv];
+    const x = z.encode(FieldCodec as any, publicKeyJwk.x) as string;
+    const y = z.encode(FieldCodec as any, publicKeyJwk.y) as string;
+
+    if (
+      kty === KeyType.OKP &&
+      crv === CurveType.ed25519 &&
+      publicKeyJwk.y === 0n
+    )
+      return { kty, crv, x } as PublicKeyJwk;
+
+    return { kty, crv, x, y } as PublicKeyJwk;
   }
 
   static service(service: LedgerService): Service {

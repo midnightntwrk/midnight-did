@@ -68,12 +68,34 @@ export const CurveTypeSchema = z.enum(CurveType);
 // Base64url-encoded string (no padding). Conservative charset check only.
 const Base64UrlStringSchema = z.string().check(z.regex(/^[A-Za-z0-9_-]*$/));
 
-export const PublicKeyJwkSchema = z.object({
-  kty: KeyTypeSchema,
-  crv: CurveTypeSchema,
-  x: Base64UrlStringSchema,
-  y: Base64UrlStringSchema,
-});
+export const PublicKeyJwkSchema = z
+  .looseObject({
+    kty: KeyTypeSchema,
+    crv: CurveTypeSchema,
+    x: Base64UrlStringSchema,
+    y: z.optional(z.any()),
+  })
+  .check(
+    z.refine(
+      (value) => value.kty !== KeyType.OKP || value.crv === CurveType.ed25519,
+      "OKP keys must use the ed25519 curve",
+    ),
+  )
+  .check(
+    z.refine(
+      (value) => value.kty !== KeyType.OKP || value.y === undefined,
+      "OKP keys must not include a y coordinate",
+    ),
+  )
+  .check(
+    z.refine((value) => {
+      if (value.kty === KeyType.OKP) return true;
+      return (
+        typeof value.y === "string" &&
+        Base64UrlStringSchema.safeParse(value.y).success
+      );
+    }, "Non-OKP keys must include a y coordinate"),
+  );
 
 export type PublicKeyJwk = z.infer<typeof PublicKeyJwkSchema>;
 
