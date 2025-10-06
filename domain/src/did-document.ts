@@ -149,13 +149,110 @@ export const DIDDocumentSchema = z.looseObject({
   alsoKnownAs: z.nullish(z.array(DIDStringSchema)),
   controller: z.nullish(z.union([DIDStringSchema, z.array(DIDStringSchema)])),
   verificationMethod: z.nullish(z.array(VerificationMethodSchema)),
-  authentication: z.nullish(z.array(z.string())),
-  assertionMethod: z.nullish(z.array(z.string())),
-  keyAgreement: z.nullish(z.array(z.string())),
-  capabilityInvocation: z.nullish(z.array(z.string())),
-  capabilityDelegation: z.nullish(z.array(z.string())),
+  authentication: z.nullish(z.array(DIDKeyIDSchema)),
+  assertionMethod: z.nullish(z.array(DIDKeyIDSchema)),
+  keyAgreement: z.nullish(z.array(DIDKeyIDSchema)),
+  capabilityInvocation: z.nullish(z.array(DIDKeyIDSchema)),
+  capabilityDelegation: z.nullish(z.array(DIDKeyIDSchema)),
   service: z.nullish(z.array(ServiceSchema)),
 });
+
+function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
+  type ValidationIssue = { message: string; path: (string | number)[] };
+  const issues: ValidationIssue[] = [];
+  const verificationMethods = doc.verificationMethod ?? [];
+  const seenVerificationMethodIds = new Map<string, number>();
+
+  verificationMethods.forEach((vm, index) => {
+    if (seenVerificationMethodIds.has(vm.id)) {
+      issues.push({
+        message: "verificationMethod ids must be unique",
+        path: ["verificationMethod", index, "id"],
+      });
+    } else {
+      seenVerificationMethodIds.set(vm.id, index);
+    }
+  });
+
+  const ensureRelationConsistency = (
+    relationName:
+      | "authentication"
+      | "assertionMethod"
+      | "keyAgreement"
+      | "capabilityInvocation"
+      | "capabilityDelegation",
+  ) => {
+    const relationValues = doc[relationName];
+    if (relationValues == null) return;
+    const seen = new Set<string>();
+    relationValues.forEach((value, index) => {
+      if (seen.has(value)) {
+        issues.push({
+          message: `${relationName} must not contain duplicate entries`,
+          path: [relationName, index],
+        });
+        return;
+      }
+      seen.add(value);
+      if (!seenVerificationMethodIds.has(value)) {
+        issues.push({
+          message: `${relationName} references a verificationMethod id that does not exist`,
+          path: [relationName, index],
+        });
+      }
+    });
+  };
+
+  ensureRelationConsistency("authentication");
+  ensureRelationConsistency("assertionMethod");
+  ensureRelationConsistency("keyAgreement");
+  ensureRelationConsistency("capabilityInvocation");
+  ensureRelationConsistency("capabilityDelegation");
+
+  const services = doc.service ?? [];
+  const seenServiceIds = new Set<string>();
+  services.forEach((service, index) => {
+    if (seenServiceIds.has(service.id)) {
+      issues.push({
+        message: "service ids must be unique",
+        path: ["service", index, "id"],
+      });
+    } else {
+      seenServiceIds.add(service.id);
+    }
+
+    const endpoints = Array.isArray(service.serviceEndpoint)
+      ? service.serviceEndpoint
+      : [service.serviceEndpoint];
+    const seenEndpoints = new Set<string>();
+    endpoints.forEach((endpoint, endpointIndex) => {
+      if (seenEndpoints.has(endpoint)) {
+        issues.push({
+          message: "serviceEndpoint values must be unique",
+          path: ["service", index, "serviceEndpoint", endpointIndex],
+        });
+      } else {
+        seenEndpoints.add(endpoint);
+      }
+    });
+  });
+
+  if (issues.length > 0) {
+    const message = issues
+      .map((issue) =>
+        issue.path && issue.path.length > 0
+          ? `${issue.message} at ${issue.path.join(".")}`
+          : issue.message,
+      )
+      .join("; ");
+    const error = new Error(message) as Error & {
+      issues?: ValidationIssue[];
+    };
+    error.issues = issues;
+    throw error;
+  }
+  return doc;
+}
 export type DIDDocument = z.infer<typeof DIDDocumentSchema>;
 
 /** DID Document Metadata */
@@ -195,7 +292,7 @@ export type DIDResolutionResult = z.infer<typeof DIDResolutionResultSchema>;
 
 /** Parsing Helpers */
 export const parseDIDDocument = (input: unknown) =>
-  DIDDocumentSchema.parse(input);
+  validateDIDDocumentConsistency(DIDDocumentSchema.parse(input));
 export const parseDIDURL = (input: unknown) => DIDURLSchema.parse(input);
 export const parseDIDKeyID = (input: unknown) => DIDKeyIDSchema.parse(input);
 export const parseDID = (input: unknown) => DIDStringSchema.parse(input);
@@ -240,7 +337,7 @@ export function createDIDDocument(params: {
   capabilityDelegation?: string[];
   service?: Service[];
 }): DIDDocument {
-  return DIDDocumentSchema.parse({
+  const doc = DIDDocumentSchema.parse({
     "@context": params.context ?? "https://www.w3.org/ns/did/v1",
     id: params.id,
     alsoKnownAs: params.alsoKnownAs ?? null,
@@ -253,4 +350,5 @@ export function createDIDDocument(params: {
     capabilityDelegation: params.capabilityDelegation ?? null,
     service: params.service ?? null,
   });
+  return validateDIDDocumentConsistency(doc);
 }

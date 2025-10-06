@@ -1,13 +1,4 @@
-import {
-  CurveType as LedgerCurveType,
-  KeyType as LedgerKeyType,
-  Ledger,
-  PublicKeyJwk as LedgerPublicKeyJwk,
-  Service as LedgerService,
-  VerificationMethod as LedgerVerificationMethod,
-  VerificationMethodRelation as LedgerVerificationMethodRelation,
-  VerificationMethodType as LedgerVerificationMethodType,
-} from "@midnight-ntwrk/midnight-did-contract/dist/managed/did/contract/index.cjs";
+import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import {
   createDIDDocument,
   createMidnightDIDString,
@@ -28,21 +19,37 @@ import {
 import { Buffer } from "buffer";
 import { z } from "zod/v4-mini";
 
+const LedgerCurveType = DIDContract.CurveType;
+const LedgerKeyType = DIDContract.KeyType;
+const LedgerVerificationMethodType = DIDContract.VerificationMethodType;
+const LedgerVerificationMethodRelation = DIDContract.VerificationMethodRelation;
+
+type LedgerKeyTypeValue = (typeof LedgerKeyType)[keyof typeof LedgerKeyType];
+type LedgerCurveTypeValue =
+  (typeof LedgerCurveType)[keyof typeof LedgerCurveType];
+type LedgerVerificationMethodTypeValue =
+  (typeof LedgerVerificationMethodType)[keyof typeof LedgerVerificationMethodType];
+type LedgerVerificationMethodRelationValue =
+  (typeof LedgerVerificationMethodRelation)[keyof typeof LedgerVerificationMethodRelation];
+type Ledger = DIDContract.Ledger;
+type LedgerPublicKeyJwk = DIDContract.PublicKeyJwk;
+type LedgerService = DIDContract.Service;
+
 export class LedgerToDomain {
-  static readonly KeyTypeMap: Record<LedgerKeyType, KeyType> = {
+  static readonly KeyTypeMap: Record<LedgerKeyTypeValue, KeyType> = {
     [LedgerKeyType.EC]: KeyType.EC,
     [LedgerKeyType.RSA]: KeyType.RSA,
     [LedgerKeyType.oct]: KeyType.oct,
     [LedgerKeyType.OKP]: KeyType.OKP,
   };
 
-  static readonly CurveTypeMap: Record<LedgerCurveType, CurveType> = {
+  static readonly CurveTypeMap: Record<LedgerCurveTypeValue, CurveType> = {
     [LedgerCurveType.ed25519]: CurveType.ed25519,
     [LedgerCurveType.Jubjub]: CurveType.Jubjub,
   };
 
   static readonly VerificationMethodTypeMap: Record<
-    LedgerVerificationMethodType,
+    LedgerVerificationMethodTypeValue,
     VerificationMethodType
   > = {
     [LedgerVerificationMethodType.Undefined]: VerificationMethodType.Undefined,
@@ -51,7 +58,7 @@ export class LedgerToDomain {
   };
 
   static readonly VerificationMethodRelationMap: Record<
-    LedgerVerificationMethodRelation,
+    LedgerVerificationMethodRelationValue,
     VerificationMethodRelationType
   > = {
     [LedgerVerificationMethodRelation.Undefined]:

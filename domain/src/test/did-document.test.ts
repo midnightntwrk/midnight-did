@@ -189,14 +189,24 @@ describe("DID Schemas (domain)", () => {
   });
 
   it("creates DIDDocument with optional arrays and nullish fields", () => {
+    const vm = createVerificationMethod({
+      id: "did:example:xyz#key-1",
+      type: VerificationMethodType.JsonWebKey,
+      controller: "did:example:xyz",
+      publicKeyJwk: {
+        kty: KeyType.OKP,
+        crv: CurveType.ed25519,
+        x: "AA",
+      },
+    });
     const doc = createDIDDocument({
       id: "did:example:xyz",
       context: ["https://www.w3.org/ns/did/v1", "https://w3id.org/security/v2"],
       alsoKnownAs: ["did:alias:one", "did:alias:two"],
       controller: ["did:example:ctrl1", "did:example:ctrl2"],
-      verificationMethod: [],
+      verificationMethod: [vm],
       authentication: ["did:example:xyz#key-1"],
-      assertionMethod: ["did:example:xyz#key-2"],
+      assertionMethod: ["did:example:xyz#key-1"],
       keyAgreement: [],
       capabilityInvocation: [],
       capabilityDelegation: [],
@@ -208,6 +218,127 @@ describe("DID Schemas (domain)", () => {
     expect(doc.alsoKnownAs?.length).toBe(2);
     expect(Array.isArray(doc.controller)).toBe(true);
     expect(doc.authentication?.[0]).toBe("did:example:xyz#key-1");
-    expect(doc.assertionMethod?.[0]).toBe("did:example:xyz#key-2");
+    expect(doc.assertionMethod?.[0]).toBe("did:example:xyz#key-1");
+  });
+
+  it("rejects duplicate verification method ids", () => {
+    expect(() =>
+      createDIDDocument({
+        id: "did:example:dup",
+        verificationMethod: [
+          createVerificationMethod({
+            id: "did:example:dup#key-1",
+            type: VerificationMethodType.JsonWebKey,
+            controller: "did:example:dup",
+            publicKeyJwk: {
+              kty: KeyType.OKP,
+              crv: CurveType.ed25519,
+              x: "AA",
+            },
+          }),
+          createVerificationMethod({
+            id: "did:example:dup#key-1",
+            type: VerificationMethodType.JsonWebKey,
+            controller: "did:example:dup",
+            publicKeyJwk: {
+              kty: KeyType.OKP,
+              crv: CurveType.ed25519,
+              x: "AQ",
+            },
+          }),
+        ],
+      }),
+    ).toThrow(/verificationMethod ids must be unique/);
+  });
+
+  const relationNames = [
+    "authentication",
+    "assertionMethod",
+    "keyAgreement",
+    "capabilityInvocation",
+    "capabilityDelegation",
+  ] as const;
+
+  for (const relationName of relationNames) {
+    it(`rejects ${relationName} relations that contain duplicates`, () => {
+      const did = `did:example:rel-${relationName}`;
+      const verificationMethod = createVerificationMethod({
+        id: `${did}#key-1`,
+        type: VerificationMethodType.JsonWebKey,
+        controller: did,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.ed25519,
+          x: "AA",
+        },
+      });
+      const params: any = {
+        id: did,
+        verificationMethod: [verificationMethod],
+      };
+      params[relationName] = [`${did}#key-1`, `${did}#key-1`];
+      expect(() => createDIDDocument(params)).toThrow(
+        new RegExp(`${relationName} must not contain duplicate entries`),
+      );
+    });
+
+    it(`rejects ${relationName} relations that reference unknown verification methods`, () => {
+      const did = `did:example:missing-${relationName}`;
+      const verificationMethod = createVerificationMethod({
+        id: `${did}#key-1`,
+        type: VerificationMethodType.JsonWebKey,
+        controller: did,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.ed25519,
+          x: "AA",
+        },
+      });
+      const params: any = {
+        id: did,
+        verificationMethod: [verificationMethod],
+      };
+      params[relationName] = [`${did}#key-2`];
+      expect(() => createDIDDocument(params)).toThrow(
+        new RegExp(
+          `${relationName} references a verificationMethod id that does not exist`,
+        ),
+      );
+    });
+  }
+
+  it("rejects services with duplicate ids", () => {
+    expect(() =>
+      createDIDDocument({
+        id: "did:example:svc",
+        service: [
+          createService({
+            id: "svc-1",
+            type: "LinkedDomains",
+            serviceEndpoint: "https://example.com",
+          }),
+          createService({
+            id: "svc-1",
+            type: "LinkedDomains",
+            serviceEndpoint: "https://example.org",
+          }),
+        ],
+      }),
+    ).toThrow(/service ids must be unique/);
+  });
+
+  it("rejects services with duplicate endpoints", () => {
+    expect(() =>
+      createDIDDocument({
+        id: "did:example:svc-endpoint",
+        service: [
+          createService({
+            id: "svc-1",
+            type: "LinkedDomains",
+            serviceEndpoint: ["https://example.com", "https://example.com"],
+          }),
+        ],
+      }),
+    ).toThrow(/serviceEndpoint values must be unique/);
   });
 });

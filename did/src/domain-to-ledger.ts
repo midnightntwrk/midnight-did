@@ -1,16 +1,7 @@
-import { OperationBuilder } from "@midnight-ntwrk/midnight-did-contract";
 import {
-  CurveType as LedgerCurveType,
-  DIDUpdateOperation as LedgerUpdateOperation,
-  KeyType as LedgerKeyType,
-  Ledger,
-  OperationType as LedgerOperationType,
-  PublicKeyJwk as LedgerPublicKeyJwk,
-  Service as LedgerService,
-  VerificationMethod as LedgerVerificationMethod,
-  VerificationMethodRelation as LedgerVerificationMethodRelation,
-  VerificationMethodType as LedgerVerificationMethodType,
-} from "@midnight-ntwrk/midnight-did-contract/dist/managed/did/contract/index.cjs";
+  DIDContract,
+  OperationBuilder,
+} from "@midnight-ntwrk/midnight-did-contract";
 import {
   CurveType,
   FieldCodec,
@@ -28,22 +19,43 @@ import {
   DIDOperationType,
 } from "./did-operations";
 
+const LedgerCurveType = DIDContract.CurveType;
+const LedgerVerificationMethodType = DIDContract.VerificationMethodType;
+const LedgerVerificationMethodRelation = DIDContract.VerificationMethodRelation;
+const LedgerOperationType = DIDContract.OperationType;
+const LedgerKeyType = DIDContract.KeyType;
+
+type LedgerKeyTypeValue = (typeof LedgerKeyType)[keyof typeof LedgerKeyType];
+type LedgerCurveTypeValue =
+  (typeof LedgerCurveType)[keyof typeof LedgerCurveType];
+type LedgerVerificationMethodTypeValue =
+  (typeof LedgerVerificationMethodType)[keyof typeof LedgerVerificationMethodType];
+type LedgerVerificationMethodRelationValue =
+  (typeof LedgerVerificationMethodRelation)[keyof typeof LedgerVerificationMethodRelation];
+type LedgerOperationTypeValue =
+  (typeof LedgerOperationType)[keyof typeof LedgerOperationType];
+
+type LedgerPublicKeyJwk = DIDContract.PublicKeyJwk;
+type LedgerService = DIDContract.Service;
+type LedgerVerificationMethod = DIDContract.VerificationMethod;
+type LedgerUpdateOperation = DIDContract.DIDUpdateOperation;
+
 export class DomainToLedger {
-  static readonly KeyTypeMap: Record<KeyType, LedgerKeyType> = {
+  static readonly KeyTypeMap: Record<KeyType, LedgerKeyTypeValue> = {
     [KeyType.EC]: LedgerKeyType.EC,
     [KeyType.RSA]: LedgerKeyType.RSA,
     [KeyType.oct]: LedgerKeyType.oct,
     [KeyType.OKP]: LedgerKeyType.OKP,
   };
 
-  static readonly CurveTypeMap: Record<CurveType, LedgerCurveType> = {
+  static readonly CurveTypeMap: Record<CurveType, LedgerCurveTypeValue> = {
     [CurveType.ed25519]: LedgerCurveType.ed25519,
     [CurveType.Jubjub]: LedgerCurveType.Jubjub,
   };
 
   static readonly VerificationMethodTypeMap: Record<
     VerificationMethodType,
-    LedgerVerificationMethodType
+    LedgerVerificationMethodTypeValue
   > = {
     [VerificationMethodType.Undefined]: LedgerVerificationMethodType.Undefined,
     [VerificationMethodType.JsonWebKey]:
@@ -52,7 +64,7 @@ export class DomainToLedger {
 
   static readonly VerificationMethodRelationMap: Record<
     VerificationMethodRelationType,
-    LedgerVerificationMethodRelation
+    LedgerVerificationMethodRelationValue
   > = {
     [VerificationMethodRelationType.Undefined]:
       LedgerVerificationMethodRelation.Undefined,
@@ -98,26 +110,27 @@ export class DomainToLedger {
     };
   }
 
-  static readonly OperationMap: Record<DIDOperationType, LedgerOperationType> =
-    {
-      [DIDOperationType.AddVerificationMethod]:
-        LedgerOperationType.AddVerificationMethod,
-      [DIDOperationType.UpdateVerificationMethod]:
-        LedgerOperationType.UpdateVerificationMethod,
-      [DIDOperationType.RemoveVerificationMethod]:
-        LedgerOperationType.RemoveVerificationMethod,
-      [DIDOperationType.AddVerificationMethodRelation]:
-        LedgerOperationType.AddVerificationMethodRelation,
-      [DIDOperationType.RemoveVerificationMethodRelation]:
-        LedgerOperationType.RemoveVerificationMethodRelation,
-      [DIDOperationType.AddService]: LedgerOperationType.AddService,
-      [DIDOperationType.UpdateService]: LedgerOperationType.UpdateService,
-      [DIDOperationType.RemoveService]: LedgerOperationType.RemoveService,
-      [DIDOperationType.AddAlsoKnownAs]: LedgerOperationType.AddAlsoKnownAs,
-      [DIDOperationType.RemoveAlsoKnownAs]:
-        LedgerOperationType.RemoveAlsoKnownAs,
-      [DIDOperationType.Deactivate]: LedgerOperationType.Deactivate,
-    };
+  static readonly OperationMap: Record<
+    DIDOperationType,
+    LedgerOperationTypeValue
+  > = {
+    [DIDOperationType.AddVerificationMethod]:
+      LedgerOperationType.AddVerificationMethod,
+    [DIDOperationType.UpdateVerificationMethod]:
+      LedgerOperationType.UpdateVerificationMethod,
+    [DIDOperationType.RemoveVerificationMethod]:
+      LedgerOperationType.RemoveVerificationMethod,
+    [DIDOperationType.AddVerificationMethodRelation]:
+      LedgerOperationType.AddVerificationMethodRelation,
+    [DIDOperationType.RemoveVerificationMethodRelation]:
+      LedgerOperationType.RemoveVerificationMethodRelation,
+    [DIDOperationType.AddService]: LedgerOperationType.AddService,
+    [DIDOperationType.UpdateService]: LedgerOperationType.UpdateService,
+    [DIDOperationType.RemoveService]: LedgerOperationType.RemoveService,
+    [DIDOperationType.AddAlsoKnownAs]: LedgerOperationType.AddAlsoKnownAs,
+    [DIDOperationType.RemoveAlsoKnownAs]: LedgerOperationType.RemoveAlsoKnownAs,
+    [DIDOperationType.Deactivate]: LedgerOperationType.Deactivate,
+  };
 
   static undefinedVerificationMethod: LedgerVerificationMethod = {
     id: "",
