@@ -35,11 +35,16 @@ This specification describes a new DID method called Midnight for storing DIDs u
 
 1. [Conformance and Terminology](#1-conformance-and-terminology)
 2. [Midnight DID Syntax](#2-midnight-did-syntax)
-3. [Identifiers](#3-identifiers)
-4. [DID operations](#4-did-operations)
-5. [Security Considerations](#5-security-considerations)
-6. [Privacy Considerations](#6-privacy-considerations)
-7. [Appendix](#7-appendix)
+3. [Midnight DID Document](#3-midnight-did-document)
+4. [Midnight DID Document Metadata Properties](#4-midnight-did-document-metadata-properties)
+5. [Private and Public Keys](#5-private-and-public-keys)
+6. [Midnight DID Ledger state](#6-midnight-did-ledger-state)
+7. [DID operations](#7-did-operations)
+8. [Deactivation](#8-deactivation)
+9. [Security Considerations](#9-security-considerations)
+10. [Privacy Considerations](#10-privacy-considerations)
+11. [Discoverability](#11-discoverability)
+12. [Appendix](#12-appendix)
 
 # 1. Conformance and Terminology
 
@@ -752,7 +757,18 @@ The Midnight DID method separates concerns between the following roles:
 
 This separation of concerns allows the use of the Midnight DID method for both custodial and non‑custodial solutions.
 
-# 11. Appendix
+# 11. Discoverability
+
+The ability to discover and resolve a Midnight DID depends on the network segment encoded in the identifier (`undeployed`, `devnet`, `testnet`, or `mainnet`). Each segment offers different durability guarantees.
+
+- **undeployed** — DIDs created on the local `undeployed` network are discoverable by the local tooling (for example, the Midnight Indexer and resolver running in that environment) while the environment is alive. Because this network can be recreated or destroyed at any time, no long-term discoverability guarantees are provided.
+- **devnet** — The shared developer network exposes the same discoverability behaviour as the Midnight Indexer and resolver stack, but uptime is best-effort. DIDs remain discoverable for as long as the `devnet` infrastructure is running; the network can be reset without notice.
+- **testnet** — DIDs published to the public testnet are discoverable by any participant connected to the network. The Midnight testnet is an actively maintained network; more information is available in the [Introducing the Midnight Testnet blog post](https://midnight.network/blog/introducing-the-midnight-testnet).
+- **mainnet** — Once the Midnight mainnet is live, DIDs deployed to the `mainnet` segment inherit the same discoverability guarantees as any production Midnight transaction: as long as the mainnet ledger exists, the DID state can be resolved.
+
+In every network, discoverability is ultimately provided by the Midnight ledger and its indexing infrastructure. Operators are responsible for running indexers and resolvers appropriate to their deployment model.
+
+# 12. Appendix
 
 A simple example of a Midnight DID Document is as follows:
 
