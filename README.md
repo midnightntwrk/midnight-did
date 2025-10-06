@@ -30,11 +30,14 @@ graph TD
     cli["cli (\@midnight-ntwrk/midnight-did-cli)"]
   end
 
-  domain --> contract
   domain --> did
-  contract --> did
   domain --> api
+  domain --> cli
+  contract --> did
   contract --> api
+  contract --> cli
+  did --> api
+  did --> cli
   api --> cli
 ```
 

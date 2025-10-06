@@ -36,11 +36,11 @@ export default defineConfig({
       "node_modules",
       ...(skipRuntime
         ? [
-            "src/test/also-known-as.test.ts",
-            "src/test/domain-to-ledger.test.ts",
+            "src/test/midnight-did-state.aliases.test.ts",
+            "src/test/midnight-did-state.lifecycle.test.ts",
+            "src/test/midnight-did-state.relations.test.ts",
+            "src/test/midnight-did-state.verification-methods.test.ts",
             "src/test/ledger-operation-builder.test.ts",
-            "src/test/ledger-to-domain.test.ts",
-            "src/test/midnight-did-state.test.ts",
           ]
         : []),
     ],

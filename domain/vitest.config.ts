@@ -14,8 +14,14 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
+      include: [
+        "src/**/*.ts",
+      ],
       exclude: [
         "src/test/**",
+        "src/test/**/*",
+        "src/test/**/*.ts",
+        "src/test/fixtures/**",
         "**/*.test.ts",
         "src/index.ts",
         "vitest.config.ts"
