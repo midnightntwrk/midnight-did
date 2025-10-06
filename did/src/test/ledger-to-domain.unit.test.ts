@@ -1,10 +1,10 @@
 // moved from domain to did package
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock the managed runtime enums used by the contract source to avoid loading WASM/runtime
-vi.mock(
-  "@midnight-ntwrk/midnight-did-contract/dist/managed/did/contract/index.cjs",
-  () => ({
+type ContractModule = typeof import("@midnight-ntwrk/midnight-did-contract");
+
+vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
+  const DIDContractMock = {
     CurveType: { ed25519: 0, Jubjub: 1 },
     KeyType: { EC: 0, RSA: 1, oct: 2, OKP: 3 },
     VerificationMethodType: { Undefined: 0, JsonWebKey: 1 },
@@ -30,10 +30,21 @@ vi.mock(
       RemoveAlsoKnownAs: 10,
       Deactivate: 11,
     },
-  }),
-);
+    PublicKeyJwk: {},
+    Service: {},
+  } as const;
+  const OperationBuilderMock = {
+    defaultPublicKeyJwk: { kty: 0, crv: 0, x: 0n, y: 0n },
+  } as const;
+  return {
+    DIDContract: DIDContractMock as unknown as ContractModule["DIDContract"],
+    OperationBuilder:
+      OperationBuilderMock as unknown as ContractModule["OperationBuilder"],
+  } satisfies Partial<ContractModule>;
+});
 
-// Import after mocks are defined
+import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
+
 import { LedgerToDomain, MidnightNetwork, parseContractAddress } from "..";
 
 function makeIterablePairs<K, V>(entries: Array<[K, V]>) {
@@ -64,8 +75,13 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       [
         "did:midnight:devnet:" + "0".repeat(68) + "#key-1",
         {
-          type: 1, // JsonWebKey
-          publicKeyJwk: { kty: 3, crv: 0, x: 1n, y: 0n }, // OKP, ed25519, no y
+          type: DIDContract.VerificationMethodType.JsonWebKey,
+          publicKeyJwk: {
+            kty: DIDContract.KeyType.OKP,
+            crv: DIDContract.CurveType.ed25519,
+            x: 1n,
+            y: 0n,
+          },
         },
       ],
     ]);
@@ -112,8 +128,8 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
 
   it("publicKeyJwk encodes bigint field elements as base64url", () => {
     const out = LedgerToDomain.publicKeyJwk({
-      kty: 3,
-      crv: 0,
+      kty: DIDContract.KeyType.OKP,
+      crv: DIDContract.CurveType.ed25519,
       x: 7n,
       y: 0n,
     } as any);
@@ -125,8 +141,8 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
 
   it("publicKeyJwk retains y for non-OKP keys", () => {
     const out = LedgerToDomain.publicKeyJwk({
-      kty: 0,
-      crv: 1,
+      kty: DIDContract.KeyType.EC,
+      crv: DIDContract.CurveType.Jubjub,
       x: 5n,
       y: 9n,
     } as any);

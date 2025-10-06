@@ -50,6 +50,7 @@ export default defineConfig({
       reporter: ["text", "json", "html"],
       exclude: [
         "src/test/**",
+        "**/*.test.ts",
         "src/index.ts",
         "src/did.compact",
         "src/did-registrar.ts",

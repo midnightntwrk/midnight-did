@@ -10,6 +10,9 @@ import pluginSimpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
 
 export default [
+  {
+    ignores: ['**/*.d.ts', '**/*.js'],
+  },
   js.configs.recommended,
   {
     files: ['**/*.ts', '**/*.tsx'],
@@ -42,4 +45,3 @@ export default [
     },
   },
 ];
-

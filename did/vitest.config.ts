@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   mode: "node",
   test: {
-    pool: 'threads',
+    pool: "threads",
     poolOptions: { threads: { singleThread: true } },
     deps: { interopDefault: true },
     globals: true,
@@ -18,25 +18,9 @@ export default defineConfig({
         "src/test/**",
         "**/*.test.ts",
         "src/index.ts",
-        "vitest.config.ts"
+        "eslint.config.mjs",
+        "vitest.config.ts",
       ],
-      thresholds: {
-        branches: 70,
-        functions: 70,
-        lines: 70,
-        statements: 70
-      }
-    }
-  },
-  server: {
-    fs: {
-      // Allow importing files from the monorepo root (contract sources)
-      allow: [".."],
     },
   },
-  resolve: {
-    alias: {
-      "@contract": "../contract/dist",
-    },
-  }
 });

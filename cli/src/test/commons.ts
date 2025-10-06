@@ -14,6 +14,7 @@
 // limitations under the License.
 
 import { nativeToken } from '@midnight-ntwrk/ledger';
+import * as api from '@midnight-ntwrk/midnight-did-api';
 import type { Resource } from '@midnight-ntwrk/wallet';
 import type { Wallet } from '@midnight-ntwrk/wallet-api';
 import path from 'path';
@@ -28,11 +29,10 @@ import {
 } from 'testcontainers';
 import { expect } from 'vitest';
 
-import type { Config } from '../../../api/dist/src/index';
-import * as api from '../../../api/dist/src/index.js';
-import { currentDir, StandaloneConfig, TestnetRemoteConfig } from '../../../api/dist/src/index.js';
-
 const GENESIS_MINT_WALLET_SEED = '0000000000000000000000000000000000000000000000000000000000000001';
+
+type Config = import('@midnight-ntwrk/midnight-did-api').Config;
+const { currentDir } = api;
 
 export interface TestConfiguration {
   seed: string;
@@ -47,7 +47,7 @@ export class LocalTestConfig implements TestConfiguration {
   entrypoint = 'dist/standalone.js';
   psMode = 'undeployed';
   cacheFileName = '';
-  dappConfig = new StandaloneConfig();
+  dappConfig = new api.StandaloneConfig();
 }
 
 export function parseArgs(required: string[]): TestConfiguration {
@@ -69,7 +69,7 @@ export function parseArgs(required: string[]): TestConfiguration {
     }
   }
 
-  let cfg: Config = new TestnetRemoteConfig();
+  let cfg: Config = new api.TestnetRemoteConfig();
   let env = '';
   let psMode = 'undeployed';
   let cacheFileName = '';
@@ -81,7 +81,7 @@ export function parseArgs(required: string[]): TestConfiguration {
     }
     switch (env) {
       case 'testnet':
-        cfg = new TestnetRemoteConfig();
+        cfg = new api.TestnetRemoteConfig();
         psMode = 'testnet';
         cacheFileName = `${seed.substring(0, 7)}-${psMode}.state`;
         break;

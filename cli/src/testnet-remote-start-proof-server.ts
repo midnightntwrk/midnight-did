@@ -15,9 +15,9 @@
 
 import path from 'node:path';
 
+import { createLogger, currentDir, TestnetRemoteConfig } from '@midnight-ntwrk/midnight-did-api';
 import { DockerComposeEnvironment, Wait } from 'testcontainers';
 
-import { createLogger, currentDir, TestnetRemoteConfig } from '../../api/dist/src/index.js';
 import { run } from './cli.js';
 
 const config = new TestnetRemoteConfig();

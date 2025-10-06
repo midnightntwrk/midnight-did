@@ -2,6 +2,7 @@
   "include": ["src/**/*.ts"],
   "compilerOptions": {
     "outDir": "dist",
+    "rootDir": "src",
     "composite": true,
     "declaration": true,
     "lib": ["ESNext"],
@@ -20,4 +21,3 @@
     "baseUrl": "."
   }
 }
-

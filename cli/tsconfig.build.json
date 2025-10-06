@@ -2,9 +2,6 @@
   "extends": "./tsconfig.json",
   "exclude": ["src/**/*.test.ts"],
   "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@midnight-ntwrk/midnight-did-api": ["../api/dist/index.d.ts"]
-    }
+    "baseUrl": "."
   }
 }

@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@midnight-ntwrk/midnight-did-contract": "*",
-    "@midnight-ntwrk/midnight-did-domain": "*"
+    "@midnight-ntwrk/midnight-did-domain": "*",
+    "zod": "^4.1.0"
   }
 }

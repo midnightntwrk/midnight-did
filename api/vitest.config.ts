@@ -12,10 +12,21 @@ export default defineConfig({
     exclude: ['node_modules'],
     root: '.',
     reporters: ['default'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: [
+        'src/test/**',
+        '**/*.test.ts',
+        'eslint.config.mjs',
+        'vitest.config.ts',
+        'vitest.unit.config.ts',
+        'vitest.api.config.ts',
+      ],
+    },
   },
   resolve: {
     extensions: ['.ts', '.js'],
     conditions: ['import', 'node', 'default'],
   },
 });
-

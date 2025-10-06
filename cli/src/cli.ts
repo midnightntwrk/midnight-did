@@ -17,6 +17,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import { createInterface, type Interface } from 'node:readline/promises';
 
 import { type DIDOperation, DIDOperationType } from '@midnight-ntwrk/midnight-did';
+import * as api from '@midnight-ntwrk/midnight-did-api';
 import {
   createMidnightDIDString,
   createVerificationMethod,
@@ -34,11 +35,11 @@ import { type Wallet } from '@midnight-ntwrk/wallet-api';
 import { type Logger } from 'pino';
 import { type DockerComposeEnvironment, type StartedDockerComposeEnvironment } from 'testcontainers';
 
-import type { Config, DeployedMidnightDIDContract, MidnightDIDProviders } from '../../api/dist/src/index';
-import * as api from '../../api/dist/src/index.js';
-import { StandaloneConfig } from '../../api/dist/src/index.js';
-
 let logger: Logger;
+
+type Config = import('@midnight-ntwrk/midnight-did-api').Config;
+type MidnightDIDProviders = import('@midnight-ntwrk/midnight-did-api').MidnightDIDProviders;
+type DeployedMidnightDIDContract = import('@midnight-ntwrk/midnight-did-api').DeployedMidnightDIDContract;
 
 /**
  * This seed gives access to tokens minted in the genesis block of a local development node - only
@@ -213,7 +214,7 @@ You can do one of the following:
 Which would you like to do? `;
 
 const buildWallet = async (config: Config, rli: Interface): Promise<(Wallet & Resource) | null> => {
-  if (config instanceof StandaloneConfig) {
+  if (config instanceof api.StandaloneConfig) {
     return await api.buildWalletAndWaitForFunds(config, GENESIS_MINT_WALLET_SEED, '');
   }
   while (true) {
@@ -249,7 +250,7 @@ export const run = async (config: Config, _logger: Logger, dockerEnv?: DockerCom
   if (dockerEnv !== undefined) {
     env = await dockerEnv.up();
 
-    if (config instanceof StandaloneConfig) {
+    if (config instanceof api.StandaloneConfig) {
       config.indexer = mapContainerPort(env, config.indexer, 'counter-indexer');
       config.indexerWS = mapContainerPort(env, config.indexerWS, 'counter-indexer');
       config.node = mapContainerPort(env, config.node, 'counter-node');

@@ -13,7 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { createLogger, TestnetRemoteConfig } from '../../api/dist/src/index.js';
+import { createLogger, TestnetRemoteConfig } from '@midnight-ntwrk/midnight-did-api';
+
 import { run } from './cli.js';
 
 const config = new TestnetRemoteConfig();

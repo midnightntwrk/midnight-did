@@ -18,9 +18,7 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
-    "paths": {
-      "@midnight-ntwrk/midnight-did-api": ["../api/dist/src/index.d.ts"]
-    }
-  }
+    "baseUrl": "."
+  },
+  "references": [{ "path": "../api" }]
 }

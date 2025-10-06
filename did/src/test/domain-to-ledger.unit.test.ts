@@ -1,10 +1,10 @@
 // moved from domain to did package
 import { describe, expect, it, vi } from "vitest";
 
-// Mock managed enums to avoid loading WASM/runtime
-vi.mock(
-  "@midnight-ntwrk/midnight-did-contract/dist/managed/did/contract/index.cjs",
-  () => ({
+type ContractModule = typeof import("@midnight-ntwrk/midnight-did-contract");
+
+vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
+  const DIDContractMock = {
     OperationType: {
       Undefined: 0,
       AddVerificationMethod: 1,
@@ -30,16 +30,24 @@ vi.mock(
     VerificationMethodType: { Undefined: 0, JsonWebKey: 1 },
     KeyType: { EC: 0, RSA: 1, oct: 2, OKP: 3 },
     CurveType: { ed25519: 0, Jubjub: 1 },
-  }),
-);
+    PublicKeyJwk: {},
+    Service: {},
+  } as const;
+  const OperationBuilderMock = {
+    defaultPublicKeyJwk: { kty: 0, crv: 0, x: 0n, y: 0n },
+  } as const;
+  return {
+    DIDContract: DIDContractMock as unknown as ContractModule["DIDContract"],
+    OperationBuilder:
+      OperationBuilderMock as unknown as ContractModule["OperationBuilder"],
+  } satisfies Partial<ContractModule>;
+});
 
-// Import after mocks are defined
-import {
-  OperationType as LOp,
-  VerificationMethodRelation as LRel,
-} from "@midnight-ntwrk/midnight-did-contract/dist/managed/did/contract/index.cjs";
+import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 
 import { DIDOperationType, DomainToLedger } from "..";
+
+const { OperationType: LOp, VerificationMethodRelation: LRel } = DIDContract;
 
 describe("DomainToLedger (unit, mocked)", () => {
   it("publicKeyJwk decodes base64url to bigint", () => {
