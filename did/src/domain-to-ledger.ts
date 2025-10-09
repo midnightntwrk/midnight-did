@@ -49,7 +49,7 @@ export class DomainToLedger {
   };
 
   static readonly CurveTypeMap: Record<CurveType, LedgerCurveTypeValue> = {
-    [CurveType.ed25519]: LedgerCurveType.ed25519,
+    [CurveType.Ed25519]: LedgerCurveType.Ed25519,
     [CurveType.Jubjub]: LedgerCurveType.Jubjub,
   };
 

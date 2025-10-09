@@ -183,7 +183,7 @@ Enter Verification Method type:'
     controller: did,
     publicKeyJwk: {
       kty: KeyType.OKP,
-      crv: CurveType.ed25519,
+      crv: CurveType.Ed25519,
       x: 'AA',
     },
   });

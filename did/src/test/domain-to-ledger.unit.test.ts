@@ -29,7 +29,7 @@ vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
     },
     VerificationMethodType: { Undefined: 0, JsonWebKey: 1 },
     KeyType: { EC: 0, RSA: 1, oct: 2, OKP: 3 },
-    CurveType: { ed25519: 0, Jubjub: 1 },
+    CurveType: { Ed25519: 0, Jubjub: 1 },
     PublicKeyJwk: {},
     Service: {},
   } as const;
@@ -53,7 +53,7 @@ describe("DomainToLedger (unit, mocked)", () => {
   it("publicKeyJwk decodes base64url to bigint", () => {
     const out = DomainToLedger.publicKeyJwk({
       kty: "OKP" as any,
-      crv: "ed25519" as any,
+      crv: "Ed25519" as any,
       x: "AQ",
     } as any);
     expect(out.x).toBe(1n);
@@ -89,7 +89,7 @@ describe("DomainToLedger (unit, mocked)", () => {
       controller: "did:midnight:testnet:0",
       publicKeyJwk: {
         kty: "OKP" as any,
-        crv: "ed25519" as any,
+        crv: "Ed25519" as any,
         x: "AQ",
       },
     };

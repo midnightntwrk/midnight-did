@@ -16,7 +16,7 @@ describe("DIDOperationSchema (did)", () => {
     id: parseDIDKeyID(`${did}#key-1`),
     type: VerificationMethodType.JsonWebKey,
     controller: parseDID(did),
-    publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.ed25519, x: "AQ" },
+    publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: "AQ" },
   });
 
   it("parses AddVerificationMethod", () => {

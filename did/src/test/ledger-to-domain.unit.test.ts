@@ -5,7 +5,7 @@ type ContractModule = typeof import("@midnight-ntwrk/midnight-did-contract");
 
 vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
   const DIDContractMock = {
-    CurveType: { ed25519: 0, Jubjub: 1 },
+    CurveType: { Ed25519: 0, Jubjub: 1 },
     KeyType: { EC: 0, RSA: 1, oct: 2, OKP: 3 },
     VerificationMethodType: { Undefined: 0, JsonWebKey: 1 },
     VerificationMethodRelation: {
@@ -78,7 +78,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
           type: DIDContract.VerificationMethodType.JsonWebKey,
           publicKeyJwk: {
             kty: DIDContract.KeyType.OKP,
-            crv: DIDContract.CurveType.ed25519,
+            crv: DIDContract.CurveType.Ed25519,
             x: 1n,
             y: 0n,
           },
@@ -129,12 +129,12 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
   it("publicKeyJwk encodes bigint field elements as base64url", () => {
     const out = LedgerToDomain.publicKeyJwk({
       kty: DIDContract.KeyType.OKP,
-      crv: DIDContract.CurveType.ed25519,
+      crv: DIDContract.CurveType.Ed25519,
       x: 7n,
       y: 0n,
     } as any);
     expect(out.kty).toBe("OKP");
-    expect(out.crv).toBe("ed25519");
+    expect(out.crv).toBe("Ed25519");
     expect(out.x).toBe("Bw");
     expect("y" in out).toBe(false);
   });

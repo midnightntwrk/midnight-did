@@ -44,7 +44,7 @@ export class LedgerToDomain {
   };
 
   static readonly CurveTypeMap: Record<LedgerCurveTypeValue, CurveType> = {
-    [LedgerCurveType.ed25519]: CurveType.ed25519,
+    [LedgerCurveType.Ed25519]: CurveType.Ed25519,
     [LedgerCurveType.Jubjub]: CurveType.Jubjub,
   };
 
@@ -83,7 +83,7 @@ export class LedgerToDomain {
 
     if (
       kty === KeyType.OKP &&
-      crv === CurveType.ed25519 &&
+      crv === CurveType.Ed25519 &&
       publicKeyJwk.y === 0n
     )
       return { kty, crv, x } as PublicKeyJwk;

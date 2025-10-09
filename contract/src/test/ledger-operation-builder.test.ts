@@ -15,7 +15,7 @@ describe("OperationBuilder", () => {
     type: VerificationMethodType.JsonWebKey,
     publicKeyJwk: {
       kty: KeyType.EC,
-      crv: CurveType.ed25519,
+      crv: CurveType.Ed25519,
       x: 8n,
       y: 16n
     }

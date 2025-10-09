@@ -791,7 +791,7 @@ A simple example of a Midnight DID Document is as follows:
       "controller": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a",
       "publicKeyJwk": {
         "kty": "OKP",
-        "crv": "ed25519",
+        "crv": "Ed25519",
         "x": "Kg"
       }
     },
@@ -801,7 +801,7 @@ A simple example of a Midnight DID Document is as follows:
       "controller": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a",
       "publicKeyJwk": {
         "kty": "OKP",
-        "crv": "ed25519",
+        "crv": "Ed25519",
         "x": "Kg"
       }
     },

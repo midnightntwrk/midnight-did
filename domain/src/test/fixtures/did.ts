@@ -6,7 +6,7 @@ export const exampleMethodId = `${exampleDid}#key-1`;
 
 export const exampleJsonWebKey = {
   kty: KeyType.OKP,
-  crv: CurveType.ed25519,
+  crv: CurveType.Ed25519,
   x: "AA",
 } as const;
 

@@ -12,7 +12,7 @@ export const mockVerificationMethod = {
   type: VerificationMethodType.JsonWebKey,
   publicKeyJwk: {
     kty: KeyType.OKP,
-    crv: CurveType.ed25519,
+    crv: CurveType.Ed25519,
     x: 0n,
     y: 0n
   }

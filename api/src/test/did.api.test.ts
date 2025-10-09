@@ -125,7 +125,7 @@ describe("Midnight DID method API", () => {
     const methodId = parseDIDKeyID(`${didString}#key-1`);
     const publicKeyJwk = {
       kty: KeyType.OKP,
-      crv: CurveType.ed25519,
+      crv: CurveType.Ed25519,
       x: "Kg",
     };
     const operations: DIDOperation[] = [
@@ -218,7 +218,7 @@ describe("Midnight DID method API", () => {
           controller: didString,
           publicKeyJwk: {
             kty: KeyType.OKP,
-            crv: CurveType.ed25519,
+            crv: CurveType.Ed25519,
             x: "Kg",
           },
         },
