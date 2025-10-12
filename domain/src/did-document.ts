@@ -21,13 +21,53 @@ export const KeyIDSchema = z
 
 export type KeyID = z.infer<typeof KeyIDSchema>;
 
-/** DID Key ID (e.g. did:example:123#key-1) */
-export const DIDKeyIDSchema = DIDURLSchema.check(
-  z.refine((val) => {
-    const [_, fragment] = val.split("#");
-    return KeyIDSchema.safeParse(fragment).success;
-  }, "Invalid DID Key ID format: invalid or missing fragment"),
-).brand("DIDKeyID");
+const hasUriScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
+
+const isRelativeReference = (value: string) => {
+  if (typeof value !== "string") return false;
+  if (value.length === 0) return false;
+  if (value.trim() !== value) return false;
+  if (hasUriScheme.test(value)) return false;
+  if (value.startsWith("//")) return false;
+  try {
+    new URL(value, "https://example.org");
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const RelativeURLSchema = z
+  .string()
+  .check(
+    z.refine(
+      isRelativeReference,
+      "Relative URL must be relative to the DID subject",
+    ),
+  )
+  .brand("RelativeURL");
+export type RelativeURL = z.infer<typeof RelativeURLSchema>;
+
+const extractKeyFragment = (value: string) => {
+  if (value.startsWith("#")) return value.slice(1);
+  if (value.startsWith("did:")) {
+    const fragmentIndex = value.indexOf("#");
+    if (fragmentIndex === -1) return "";
+    return value.substring(fragmentIndex + 1);
+  }
+  return value;
+};
+
+/** DID Key ID (e.g. did:example:123#key-1 or #key-1) */
+export const DIDKeyIDSchema = z
+  .union([DIDURLSchema, RelativeURLSchema])
+  .check(
+    z.refine((val) => {
+      const fragment = extractKeyFragment(val);
+      return fragment.length > 0 && KeyIDSchema.safeParse(fragment).success;
+    }, "Invalid DID Key ID format: invalid or missing fragment"),
+  )
+  .brand("DIDKeyID");
 
 export type DIDKeyID = z.infer<typeof DIDKeyIDSchema>;
 
@@ -146,33 +186,6 @@ export const ServiceEndpointSchema = z.union([
   z.array(URIStringSchema),
 ]);
 export type ServiceEndpoint = z.infer<typeof ServiceEndpointSchema>;
-
-const hasUriScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
-
-const isRelativeReference = (value: string) => {
-  if (typeof value !== "string") return false;
-  if (value.length === 0) return false;
-  if (value.trim() !== value) return false;
-  if (hasUriScheme.test(value)) return false;
-  if (value.startsWith("//")) return false;
-  try {
-    new URL(value, "https://example.org");
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-export const RelativeURLSchema = z
-  .string()
-  .check(
-    z.refine(
-      isRelativeReference,
-      "Relative URL must be relative to the DID subject",
-    ),
-  )
-  .brand("RelativeURL");
-export type RelativeURL = z.infer<typeof RelativeURLSchema>;
 
 export const ServiceIdSchema = z.union([DIDURLSchema, RelativeURLSchema]);
 export type ServiceId = z.infer<typeof ServiceIdSchema>;

@@ -414,12 +414,12 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | deactivatedAt                  | `Uint<64>`                                   | Deactivation timestamp (UNIX epoch, milliseconds); zero/absent if not deactivated. Must be set to the `deactivated` property of the DIDDocument and the DIDDocument's metadata |
 | active                         | `Boolean`                                    | Whether the DID is active (`true`) or deactivated (`false`). If the `active` is false, the `deactivated` property MUST be set in the DIDDocument and the DIDDocument's metadata |
 | operationCount                 | `Counter`                                    | Total number of DID update operations applied to this DID. Used for internal statistics. |
-| verificationMethods            | `Map<Opaque<"string">, VerificationMethod>`    | Map from verification method id (string) to its definition (type, controller, key material). The DIDDocument's property `verification` method is reconstructed from this state. |
-| authenticationRelation         | `Set<Opaque<"string">>`                        | Set of verification method ids authorized for `authentication`. The DIDDocument's `authentication` property is reconstructed from this state. |
-| assertionMethodRelation        | `Set<Opaque<"string">>`                        | Set of verification method ids authorized for `assertionMethod`. The DIDDocument's `assertionMethod` property is reconstructed from this state. |
-| keyAgreementRelation           | `Set<Opaque<"string">>`                        | Set of verification method ids authorized for `keyAgreement`. The DIDDocument's `keyAgreement` property is reconstructed from this state. |
-| capabilityInvocationRelation   | `Set<Opaque<"string">>`                        | Set of verification method ids authorized for `capabilityInvocation`. The DIDDocument's `capabilityInvocation` property is reconstructed from this state. |
-| capabilityDelegationRelation   | `Set<Opaque<"string">>`                        | Set of verification method ids authorized for `capabilityDelegation`. The DIDDocument's `capabilityDelegation` property is reconstructed from this state. |
+| verificationMethods            | `Map<Opaque<"string">, VerificationMethod>`    | Map from verification method identifiers (strings stored without a leading `#`) to their definition (type, controller, key material). Ledger-to-domain conversion adds the `#` prefix unless the identifier is already a DID URL. The DIDDocument's `verificationMethod` property is reconstructed from this state. |
+| authenticationRelation         | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `authentication`. The DIDDocument's `authentication` property is reconstructed from this state. |
+| assertionMethodRelation        | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `assertionMethod`. The DIDDocument's `assertionMethod` property is reconstructed from this state. |
+| keyAgreementRelation           | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `keyAgreement`. The DIDDocument's `keyAgreement` property is reconstructed from this state. |
+| capabilityInvocationRelation   | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `capabilityInvocation`. The DIDDocument's `capabilityInvocation` property is reconstructed from this state. |
+| capabilityDelegationRelation   | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `capabilityDelegation`. The DIDDocument's `capabilityDelegation` property is reconstructed from this state. |
 | services                       | `Map<Opaque<"string">, Service>`               | Map from service identifiers (strings stored without a leading `#`) to service entries (type and `serviceEndpoint`). When reconstructing the DID Document, the identifier is prefixed with `#` unless it already represents a DID URL or another relative reference. |
 
 # 7. DID operations
@@ -487,7 +487,7 @@ Adds a new verification method entry and (optionally, in a subsequent operation)
 
 - Inputs: `verificationMethod` object with `id`, `type`, `controller`, and `publicKeyJwk` fields.
 - Constraints:
-  - `id` MUST be a DID URL fragment belonging to this DID (e.g., `did:midnight:<network>:<addr>#key-1`).
+  - `id` MUST be either a DID URL bound to this DID (for example, `did:midnight:<network>:<addr>#key-1`) or a relative identifier that resolves against the DID (for example, `#key-1`). On-ledger, only the fragment portion (such as `key-1`) is stored; ledger-to-domain conversion restores the `#` prefix for Midnight DIDs.
   - `controller` MUST equal the DID subject.
   - `type` MUST be `JsonWebKey`.
   - `publicKeyJwk` MUST follow the JWK profiles defined in section 3.4.4 (Ed25519 or JubJub).
@@ -498,7 +498,7 @@ Example (Ed25519):
 {
   "type": "AddVerificationMethod",
   "verificationMethod": {
-    "id": "did:midnight:testnet:0200...abab#key-1",
+    "id": "#key-1",
     "type": "JsonWebKey",
     "controller": "did:midnight:testnet:0200...abab",
     "publicKeyJwk": {
@@ -524,7 +524,7 @@ Example:
 {
   "type": "UpdateVerificationMethod",
   "verificationMethod": {
-    "id": "did:midnight:testnet:0200...abab#key-1",
+    "id": "#key-1",
     "type": "JsonWebKey",
     "controller": "did:midnight:testnet:0200...abab",
     "publicKeyJwk": {
@@ -546,7 +546,7 @@ Deletes a verification method by its `id`.
 
 Example:
 ```json
-{ "type": "RemoveVerificationMethod", "id": "did:midnight:testnet:0200...abab#key-1" }
+{ "type": "RemoveVerificationMethod", "id": "#key-1" }
 ```
 
 ### 7.3.4 Add Verification Relation
@@ -555,7 +555,7 @@ Associate an existing verification method `methodId` with a DID Core verificatio
 
 - Inputs: `relation` ∈ { `Authentication`, `AssertionMethod`, `KeyAgreement`, `CapabilityInvocation`, `CapabilityDelegation` }, `methodId`.
 - Constraints:
-  - `methodId` MUST refer to an existing verification method.
+  - `methodId` MUST refer to an existing verification method and MUST be expressed as a DID URL for the subject or a relative identifier (e.g., `#key-1`).
   - Adding the same relation twice MUST fail.
 
 Example:
@@ -563,7 +563,7 @@ Example:
 {
   "type": "AddVerificationMethodRelation",
   "relation": "Authentication",
-  "methodId": "did:midnight:testnet:0200...abab#key-1"
+  "methodId": "#key-1"
 }
 ```
 
@@ -580,7 +580,7 @@ Example:
 {
   "type": "RemoveVerificationMethodRelation",
   "relation": "Authentication",
-  "methodId": "did:midnight:testnet:0200...abab#key-1"
+  "methodId": "#key-1"
 }
 ```
 

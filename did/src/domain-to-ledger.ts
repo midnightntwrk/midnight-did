@@ -96,10 +96,20 @@ export class DomainToLedger {
     method: VerificationMethod,
   ): LedgerVerificationMethod {
     return {
-      id: method.id,
+      id: this.verificationMethodId(method.id),
       type: this.VerificationMethodTypeMap[method.type],
       publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
     };
+  }
+
+  static verificationMethodId(methodId: string): string {
+    const normalized = methodId.trim();
+    if (normalized.startsWith("#")) return normalized.slice(1);
+    if (normalized.startsWith("did:") && normalized.includes("#")) {
+      const fragmentIndex = normalized.indexOf("#");
+      return normalized.slice(fragmentIndex + 1);
+    }
+    return normalized;
   }
 
   static service(service: Service): LedgerService {
@@ -211,19 +221,19 @@ export class DomainToLedger {
         return ledgerUpdateOperation;
       case DIDOperationType.RemoveVerificationMethod:
         ledgerUpdateOperation.removeVerificationMethodOptions = {
-          id: updateOperation.id,
+          id: this.verificationMethodId(updateOperation.id),
         };
         return ledgerUpdateOperation;
       case DIDOperationType.AddVerificationMethodRelation:
         ledgerUpdateOperation.addVerificationMethodRelationOptions = {
-          methodId: updateOperation.methodId,
+          methodId: this.verificationMethodId(updateOperation.methodId),
           relation:
             this.VerificationMethodRelationMap[updateOperation.relation],
         };
         return ledgerUpdateOperation;
       case DIDOperationType.RemoveVerificationMethodRelation:
         ledgerUpdateOperation.removeVerificationMethodRelationOptions = {
-          methodId: updateOperation.methodId,
+          methodId: this.verificationMethodId(updateOperation.methodId),
           relation:
             this.VerificationMethodRelationMap[updateOperation.relation],
         };

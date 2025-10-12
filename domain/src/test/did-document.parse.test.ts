@@ -36,8 +36,10 @@ describe("DID parsing utilities", () => {
 
   it("parses and validates DID Key IDs", () => {
     expect(parseDIDKeyID(exampleMethodId)).toBe(exampleMethodId);
+    expect(parseDIDKeyID("#rel-key" as const)).toBe("#rel-key");
     expect(() => parseDIDKeyID(exampleDid)).toThrow();
     expect(() => parseDIDKeyID("did:example:abc#key?bad")).toThrow();
+    expect(() => parseDIDKeyID("not/allowed/path" as const)).toThrow();
   });
 
   it("accepts all known DID media types", () => {

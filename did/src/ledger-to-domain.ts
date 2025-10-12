@@ -115,6 +115,20 @@ export class LedgerToDomain {
     } as Service;
   }
 
+  static verificationMethodId(id: string): string {
+    const rawId = id.trim();
+    if (rawId.startsWith("did:")) {
+      if (rawId.includes("#")) return rawId;
+      return `${rawId}#${rawId.slice(rawId.lastIndexOf(":") + 1)}`;
+    }
+    const needsFragmentPrefix =
+      !rawId.startsWith("#") &&
+      !rawId.startsWith("/") &&
+      !rawId.startsWith(".") &&
+      !rawId.startsWith("?");
+    return needsFragmentPrefix ? `#${rawId}` : rawId;
+  }
+
   static toJSON(ledger: Ledger): object {
     return {
       id: Buffer.from(ledger.id.bytes).toString("hex"),
@@ -125,19 +139,29 @@ export class LedgerToDomain {
       verificationMethods: Array.from(
         ledger.verificationMethods,
         ([id, method]) => ({
-          id,
+          id: this.verificationMethodId(id),
           type: method.type,
           publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
         }),
       ),
-      authenticationRelation: Array.from(ledger.authenticationRelation),
-      assertionMethodRelation: Array.from(ledger.assertionMethodRelation),
-      keyAgreementRelation: Array.from(ledger.keyAgreementRelation),
+      authenticationRelation: Array.from(
+        ledger.authenticationRelation,
+        (value) => this.verificationMethodId(value),
+      ),
+      assertionMethodRelation: Array.from(
+        ledger.assertionMethodRelation,
+        (value) => this.verificationMethodId(value),
+      ),
+      keyAgreementRelation: Array.from(ledger.keyAgreementRelation, (value) =>
+        this.verificationMethodId(value),
+      ),
       capabilityInvocationRelation: Array.from(
         ledger.capabilityInvocationRelation,
+        (value) => this.verificationMethodId(value),
       ),
       capabilityDelegationRelation: Array.from(
         ledger.capabilityDelegationRelation,
+        (value) => this.verificationMethodId(value),
       ),
       services: Array.from(ledger.services, ([, service]) =>
         this.service(service),
@@ -160,7 +184,7 @@ export class LedgerToDomain {
     for (const [id, method] of ledger.verificationMethods) {
       verificationMethod.push(
         createVerificationMethod({
-          id,
+          id: this.verificationMethodId(id),
           type: LedgerToDomain.VerificationMethodTypeMap[method.type],
           controller: did,
           publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
@@ -168,21 +192,22 @@ export class LedgerToDomain {
       );
     }
 
-    const assertionMethod = ledger.assertionMethodRelation.isEmpty()
-      ? undefined
-      : Array.from(ledger.assertionMethodRelation);
-    const authentication = ledger.authenticationRelation.isEmpty()
-      ? undefined
-      : Array.from(ledger.authenticationRelation);
-    const capabilityDelegation = ledger.capabilityDelegationRelation.isEmpty()
-      ? undefined
-      : Array.from(ledger.capabilityDelegationRelation);
-    const capabilityInvocation = ledger.capabilityInvocationRelation.isEmpty()
-      ? undefined
-      : Array.from(ledger.capabilityInvocationRelation);
-    const keyAgreement = ledger.keyAgreementRelation.isEmpty()
-      ? undefined
-      : Array.from(ledger.keyAgreementRelation);
+    const mapRelation = (
+      relation: Iterable<string> & { isEmpty(): boolean },
+    ): string[] | undefined =>
+      relation.isEmpty()
+        ? undefined
+        : Array.from(relation, (value) => this.verificationMethodId(value));
+
+    const assertionMethod = mapRelation(ledger.assertionMethodRelation);
+    const authentication = mapRelation(ledger.authenticationRelation);
+    const capabilityDelegation = mapRelation(
+      ledger.capabilityDelegationRelation,
+    );
+    const capabilityInvocation = mapRelation(
+      ledger.capabilityInvocationRelation,
+    );
+    const keyAgreement = mapRelation(ledger.keyAgreementRelation);
     const service = ledger.services.isEmpty()
       ? undefined
       : Array.from(ledger.services, ([, s]) => this.service(s));

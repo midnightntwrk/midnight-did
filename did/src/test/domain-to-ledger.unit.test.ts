@@ -117,14 +117,18 @@ describe("DomainToLedger (unit, mocked)", () => {
       verificationMethod: vm as any,
     });
     expect(add.operationType).toBe(LOp.AddVerificationMethod);
+    expect(add.addVerificationMethodOptions.verificationMethod.id).toBe(
+      "key-1",
+    );
 
     const rel = DomainToLedger.updateOperation({
       type: DIDOperationType.AddVerificationMethodRelation,
       relation: "Authentication" as any,
-      methodId: vm.id,
+      methodId: vm.id as any,
     });
     expect(rel.addVerificationMethodRelationOptions.relation).toBe(
       LRel.Authentication,
     );
+    expect(rel.addVerificationMethodRelationOptions.methodId).toBe("key-1");
   });
 });

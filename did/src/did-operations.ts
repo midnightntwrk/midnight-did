@@ -1,4 +1,6 @@
 import {
+  DIDKeyID,
+  DIDKeyIDSchema,
   Service,
   ServiceId,
   ServiceIdSchema,
@@ -35,16 +37,16 @@ export type DIDOperation =
       type: DIDOperationType.UpdateVerificationMethod;
       verificationMethod: VerificationMethod;
     }
-  | { type: DIDOperationType.RemoveVerificationMethod; id: string }
+  | { type: DIDOperationType.RemoveVerificationMethod; id: DIDKeyID }
   | {
       type: DIDOperationType.AddVerificationMethodRelation;
       relation: VerificationMethodRelation;
-      methodId: string;
+      methodId: DIDKeyID;
     }
   | {
       type: DIDOperationType.RemoveVerificationMethodRelation;
       relation: VerificationMethodRelation;
-      methodId: string;
+      methodId: DIDKeyID;
     }
   | { type: DIDOperationType.AddService; service: Service }
   | { type: DIDOperationType.UpdateService; service: Service }
@@ -66,17 +68,17 @@ export const DIDOperationSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal(DIDOperationType.RemoveVerificationMethod),
-    id: z.string(),
+    id: DIDKeyIDSchema,
   }),
   z.object({
     type: z.literal(DIDOperationType.AddVerificationMethodRelation),
     relation: VerificationMethodRelationTypeSchema,
-    methodId: z.string(),
+    methodId: DIDKeyIDSchema,
   }),
   z.object({
     type: z.literal(DIDOperationType.RemoveVerificationMethodRelation),
     relation: VerificationMethodRelationTypeSchema,
-    methodId: z.string(),
+    methodId: DIDKeyIDSchema,
   }),
   z.object({
     type: z.literal(DIDOperationType.AddService),

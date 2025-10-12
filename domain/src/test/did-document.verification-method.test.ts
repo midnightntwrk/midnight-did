@@ -4,6 +4,7 @@ import { createVerificationMethod, CurveType, KeyType } from "../did-document";
 import {
   exampleEcJsonWebKey,
   exampleJsonWebKey,
+  exampleRelativeVerificationMethodInput,
   exampleVerificationMethodInput,
 } from "./fixtures/did";
 
@@ -12,6 +13,11 @@ describe("createVerificationMethod", () => {
     const vm = createVerificationMethod(exampleVerificationMethodInput);
     expect(vm.id).toBe(exampleVerificationMethodInput.id);
     expect(vm.publicKeyJwk).toEqual(exampleJsonWebKey);
+  });
+
+  it("creates a valid verification method with relative id", () => {
+    const vm = createVerificationMethod(exampleRelativeVerificationMethodInput);
+    expect(vm.id).toBe(exampleRelativeVerificationMethodInput.id);
   });
 
   it("rejects OKP keys that include a y coordinate", () => {

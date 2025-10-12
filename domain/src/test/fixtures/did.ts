@@ -24,6 +24,11 @@ export const exampleVerificationMethodInput = {
   publicKeyJwk: exampleJsonWebKey,
 } as const;
 
+export const exampleRelativeVerificationMethodInput = {
+  ...exampleVerificationMethodInput,
+  id: "#key-rel",
+} as const;
+
 export const exampleServiceInput = {
   id: `${exampleDid}#svc-1`,
   type: "LinkedDomains",

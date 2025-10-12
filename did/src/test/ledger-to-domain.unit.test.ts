@@ -73,7 +73,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
 
     const verificationMethods = makeIterablePairs<string, any>([
       [
-        "did:midnight:devnet:" + "0".repeat(68) + "#key-1",
+        "key-1",
         {
           type: DIDContract.VerificationMethodType.JsonWebKey,
           publicKeyJwk: {
@@ -115,9 +115,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       operationCount: 3n,
       alsoKnownAs: makeIterable<string>(["did:alias:one"]),
       verificationMethods,
-      authenticationRelation: makeIterable<string>([
-        "did:midnight:devnet:" + "0".repeat(68) + "#key-1",
-      ]),
+      authenticationRelation: makeIterable<string>(["key-1"]),
       assertionMethodRelation: makeIterable<string>([]),
       keyAgreementRelation: makeIterable<string>([]),
       capabilityInvocationRelation: makeIterable<string>([]),
@@ -192,8 +190,10 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(json.active).toBe(true);
     expect(json.operationCount).toBe(3);
     expect(Array.isArray(json.verificationMethods)).toBe(true);
+    expect(json.verificationMethods[0].id).toBe("#key-1");
     expect(json.verificationMethods[0].publicKeyJwk.x).toBe("AQ"); // 1n -> AQ
     expect(Array.isArray(json.authenticationRelation)).toBe(true);
+    expect(json.authenticationRelation[0]).toBe("#key-1");
     expect(Array.isArray(json.services)).toBe(true);
     // ensure blank endpoints removed and single endpoint represented as string
     expect(typeof json.services[0].serviceEndpoint).toBe("string");
@@ -225,6 +225,8 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(doc.controller).toBeDefined();
     expect(doc.verificationMethod?.length).toBe(1);
     expect(doc.authentication?.length).toBe(1);
+    expect(doc.verificationMethod?.[0].id).toBe("#key-1");
+    expect(doc.authentication?.[0]).toBe("#key-1");
     expect(doc.service?.length).toBe(2);
     expect(doc.service?.[0].id).toBe("#svc-1");
     expect(doc.service?.[0].serviceEndpoint).toBe("https://u.example");

@@ -36,6 +36,14 @@ const logDir = path.resolve(
 );
 const logger = await createLogger(logDir);
 
+const toFragmentId = (value: string): string => {
+  const trimmed = value.trim();
+  if (trimmed.startsWith("#")) return trimmed;
+  const hashIndex = trimmed.indexOf("#");
+  if (hashIndex >= 0) return `#${trimmed.slice(hashIndex + 1)}`;
+  return `#${trimmed}`;
+};
+
 describe("Midnight DID method API", () => {
   let testEnvironment: TestEnvironment;
   let wallet: Wallet & Resource;
@@ -151,7 +159,7 @@ describe("Midnight DID method API", () => {
 
     expect(didDocument?.verificationMethod).not.toBeNull();
     const insertedVerificationMethod = didDocument?.verificationMethod?.find(
-      (vm) => vm.id === methodId,
+      (vm) => vm.id === toFragmentId(methodId),
     );
     expect(insertedVerificationMethod).not.toBeNull;
     expect(insertedVerificationMethod?.type).toEqual(
@@ -184,7 +192,7 @@ describe("Midnight DID method API", () => {
     const didDocument = (await api.resolve(providers, contract))?.didDocument;
     expect(didDocument?.verificationMethod).not.toBeNull();
     const insertedVerificationMethod = didDocument?.verificationMethod?.find(
-      (vm) => vm.id === methodId,
+      (vm) => vm.id === toFragmentId(methodId),
     );
     expect(insertedVerificationMethod?.publicKeyJwk).toEqual(publicKeyJwk);
   });
@@ -205,7 +213,8 @@ describe("Midnight DID method API", () => {
     );
     expect(
       didDoc?.authentication?.some(
-        (authenticationMethodId) => authenticationMethodId === methodId,
+        (authenticationMethodId) =>
+          authenticationMethodId === toFragmentId(methodId),
       ),
     ).toBe(true);
   });
@@ -240,7 +249,7 @@ describe("Midnight DID method API", () => {
     );
     expect(didDoc?.verificationMethod).not.toBeNull();
     const insertedVerificationMethod = didDoc?.verificationMethod?.find(
-      (vm) => vm.id === methodId,
+      (vm) => vm.id === toFragmentId(methodId),
     );
     expect(insertedVerificationMethod).not.toBeNull;
     expect(insertedVerificationMethod?.type).toEqual(

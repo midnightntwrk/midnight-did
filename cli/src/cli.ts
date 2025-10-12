@@ -24,7 +24,7 @@ import {
   CurveType,
   KeyType,
   parseContractAddress,
-  parseDIDURL,
+  parseDIDKeyID,
   parseVerificationMethodRelation,
   VerificationMethod,
   VerificationMethodRelation,
@@ -129,7 +129,7 @@ const updateDIDLoop = async (
         } else {
           pendingOperations.push({
             type: DIDOperationType.AddVerificationMethodRelation,
-            methodId: methodId,
+            methodId,
             relation: verificationMethodRelation,
           });
           logger.info('Verification relation operation added to pending patches.');
@@ -195,10 +195,14 @@ async function promptForVerificationMethodRelation(rli: Interface): Promise<Veri
   return verificationRelationType;
 }
 
-async function promptForVerificationMethodId(rli: Interface): Promise<string | null> {
+async function promptForVerificationMethodId(rli: Interface) {
   const methodIdInput = await rli.question('Enter methodId for relation: ');
-  let methodId = parseDIDURL(methodIdInput.trim()); //did:midnight:mainnet:asdfg..asd#auth-0
-  return methodId;
+  try {
+    return parseDIDKeyID(methodIdInput.trim());
+  } catch (error) {
+    logger.error(`Invalid verification method id: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
 }
 
 const buildWalletFromSeed = async (config: Config, rli: Interface): Promise<Wallet & Resource> => {
