@@ -104,10 +104,21 @@ export class DomainToLedger {
 
   static service(service: Service): LedgerService {
     return {
-      id: service.id,
+      id: this.serviceId(service.id),
       type: this.serviceType(service.type),
       serviceEndpoint: this.serviceEndpoint(service.serviceEndpoint),
     };
+  }
+
+  static serviceId(serviceId: string): string {
+    const normalized = serviceId.trim();
+    if (normalized.startsWith("#")) return normalized.slice(1);
+    if (normalized.startsWith("did:") && normalized.includes("#")) {
+      const fragmentIndex = normalized.indexOf("#");
+      const fragment = normalized.slice(fragmentIndex + 1);
+      return fragment;
+    }
+    return normalized;
   }
 
   static readonly OperationMap: Record<
@@ -233,7 +244,7 @@ export class DomainToLedger {
       }
       case DIDOperationType.RemoveService:
         ledgerUpdateOperation.removeServiceOptions = {
-          id: updateOperation.serviceId,
+          id: this.serviceId(updateOperation.serviceId),
         };
         return ledgerUpdateOperation;
       case DIDOperationType.AddAlsoKnownAs:

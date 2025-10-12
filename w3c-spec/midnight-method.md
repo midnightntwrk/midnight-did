@@ -321,7 +321,7 @@ The `service` property is OPTIONAL. If present, the associated value MUST be a s
 
 #### 3.6.1.1. Id
 
-The value of the `id` property MUST be a URI conforming to [RFC3986]. A conforming producer MUST NOT produce multiple service entries with the same `id`. A conforming consumer MUST produce an error if it detects multiple service entries with the same `id`.
+The value of the `id` property MUST be either a DID URL for the Midnight DID subject (for example, `did:midnight:<network>:<addr>#service-1`) or a relative URL resolved against that DID (for example, `#service-1`, `/routing`, or `?service=messaging`). Midnight DID deployments use fragment identifiers (`#fragment`) when serialising services in ledger transactions. A conforming producer MUST NOT emit multiple service entries with the same `id`, and a conforming consumer MUST produce an error if duplicate `id` values are detected.
 
 #### 3.6.1.2. Type
 
@@ -338,7 +338,7 @@ Example of the `service` property:
   ...
   "service": [
   {
-    "id": "didcomm-1",
+    "id": "#didcomm-1",
     "type": "SomeServiceType",
     "serviceEndpoint": ["https://localhost/sst", "wss://localhost/sst"]
   }
@@ -420,7 +420,7 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | keyAgreementRelation           | `Set<Opaque<"string">>`                        | Set of verification method ids authorized for `keyAgreement`. The DIDDocument's `keyAgreement` property is reconstructed from this state. |
 | capabilityInvocationRelation   | `Set<Opaque<"string">>`                        | Set of verification method ids authorized for `capabilityInvocation`. The DIDDocument's `capabilityInvocation` property is reconstructed from this state. |
 | capabilityDelegationRelation   | `Set<Opaque<"string">>`                        | Set of verification method ids authorized for `capabilityDelegation`. The DIDDocument's `capabilityDelegation` property is reconstructed from this state. |
-| services                       | `Map<Opaque<"string">, Service>`               | Map from service id (string) to service entries (type and `serviceEndpoint`). The DIDDocument's `service` property is reconstructed from this state. |
+| services                       | `Map<Opaque<"string">, Service>`               | Map from service identifiers (strings stored without a leading `#`) to service entries (type and `serviceEndpoint`). When reconstructing the DID Document, the identifier is prefixed with `#` unless it already represents a DID URL or another relative reference. |
 
 # 7. DID operations
 
@@ -590,7 +590,7 @@ Adds a service entry identified by a unique `id` with a `type` and `serviceEndpo
 
 - Inputs: `service` with fields `id`, `type`, `serviceEndpoint`.
 - Constraints:
-  - `id` MUST be unique across services.
+  - `id` MUST be unique across services and MUST be either a DID URL for the DID subject or a relative identifier (for example, `#service-1`). Midnight DID uses fragment identifiers in practice.
   - `type` MAY be a string or a single‑element string array.
   - `serviceEndpoint` MAY be a string or an array of up to 4 URIs. Internally, endpoints are padded to length 4.
 
@@ -599,7 +599,7 @@ Example:
 {
   "type": "AddService",
   "service": {
-    "id": "didcomm-1",
+    "id": "#didcomm-1",
     "type": "DIDCommV2",
     "serviceEndpoint": ["https://localhost/didcomm/v2", "wss://localhost/didcomm/v2"]
   }
@@ -620,7 +620,7 @@ Example:
 {
   "type": "UpdateService",
   "service": {
-    "id": "didcomm-1",
+    "id": "#didcomm-1",
     "type": "DIDCommV2",
     "serviceEndpoint": ["https://localhost/didcomm", "wss://localhost/didcomm"]
   }
@@ -637,7 +637,7 @@ Deletes a service entry by `serviceId`.
 
 Example:
 ```json
-{ "type": "RemoveService", "serviceId": "didcomm-1" }
+{ "type": "RemoveService", "serviceId": "#didcomm-1" }
 ```
 
 ### 7.3.9. Add AlsoKnownAs

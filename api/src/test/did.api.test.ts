@@ -12,6 +12,7 @@ import {
   parseMidnightDID,
   parseMidnightDIDString,
   parseService,
+  ServiceIdSchema,
   VerificationMethodRelationType,
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
@@ -42,6 +43,8 @@ describe("Midnight DID method API", () => {
   let contract: DeployedMidnightDIDContract;
   let contractAddress: MidnightContractAddress;
   let didString: MidnightDIDString;
+  const serviceId = ServiceIdSchema.parse("service-1");
+  const serviceFragmentId = `#${serviceId}`;
 
   beforeAll(
     async () => {
@@ -247,7 +250,7 @@ describe("Midnight DID method API", () => {
 
   it("should update the DID by adding a new service endpoint", async () => {
     const serviceToAdd = parseService({
-      id: "didcomm-1",
+      id: serviceFragmentId,
       type: "DIDCommV2",
       serviceEndpoint: [
         "https://localhost/didcomm/v2",
@@ -273,7 +276,7 @@ describe("Midnight DID method API", () => {
 
   it("should update the DID by modifying the existing service endpoint", async () => {
     const serviceToUpdate = parseService({
-      id: "didcomm-1",
+      id: serviceFragmentId,
       type: "DIDCommV2",
       serviceEndpoint: ["https://localhost/updated", "wss://localhost/updated"],
     });
@@ -295,7 +298,10 @@ describe("Midnight DID method API", () => {
 
   it("should update the DID by removing the service using its `id`", async () => {
     const operations: DIDOperation[] = [
-      { type: DIDOperationType.RemoveService, serviceId: "didcomm-1" },
+      {
+        type: DIDOperationType.RemoveService,
+        serviceId,
+      },
     ];
     const result = await api.update(contract, operations);
     expect(result.txId).toMatch(/[0-9a-f]{64}/);

@@ -1,5 +1,8 @@
 import {
   Service,
+  ServiceId,
+  ServiceIdSchema,
+  ServiceSchema,
   VerificationMethod,
   VerificationMethodRelation,
   VerificationMethodRelationTypeSchema,
@@ -45,7 +48,7 @@ export type DIDOperation =
     }
   | { type: DIDOperationType.AddService; service: Service }
   | { type: DIDOperationType.UpdateService; service: Service }
-  | { type: DIDOperationType.RemoveService; serviceId: string }
+  | { type: DIDOperationType.RemoveService; serviceId: ServiceId }
   | { type: DIDOperationType.AddAlsoKnownAs; aliasUri: string }
   | { type: DIDOperationType.RemoveAlsoKnownAs; aliasUri: string }
   | { type: DIDOperationType.Deactivate };
@@ -74,6 +77,18 @@ export const DIDOperationSchema = z.discriminatedUnion("type", [
     type: z.literal(DIDOperationType.RemoveVerificationMethodRelation),
     relation: VerificationMethodRelationTypeSchema,
     methodId: z.string(),
+  }),
+  z.object({
+    type: z.literal(DIDOperationType.AddService),
+    service: ServiceSchema,
+  }),
+  z.object({
+    type: z.literal(DIDOperationType.UpdateService),
+    service: ServiceSchema,
+  }),
+  z.object({
+    type: z.literal(DIDOperationType.RemoveService),
+    serviceId: ServiceIdSchema,
   }),
   z.object({
     type: z.literal(DIDOperationType.AddAlsoKnownAs),

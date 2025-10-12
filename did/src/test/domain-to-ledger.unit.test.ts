@@ -76,10 +76,29 @@ describe("DomainToLedger (unit, mocked)", () => {
     expect(DomainToLedger.serviceType(["A"])).toBe("A");
     expect(() => DomainToLedger.serviceType(["A", "B"] as any)).toThrow();
 
-    expect(DomainToLedger.serviceEndpoint("u")).toEqual(["u", "", "", ""]);
+    expect(DomainToLedger.serviceEndpoint("https://u.example")).toEqual([
+      "https://u.example",
+      "",
+      "",
+      "",
+    ]);
     expect(() =>
       DomainToLedger.serviceEndpoint(["a", "b", "c", "d", "e"] as any),
     ).toThrow();
+
+    const ledgerService = DomainToLedger.service({
+      id: "#svc-1",
+      type: "LinkedDomains",
+      serviceEndpoint: "https://example.com",
+    } as any);
+    expect(ledgerService.id).toBe("svc-1");
+    expect(DomainToLedger.serviceId("did:midnight:testnet:0#svc-ledger")).toBe(
+      "svc-ledger",
+    );
+    expect(DomainToLedger.serviceId("/services/messaging")).toBe(
+      "/services/messaging",
+    );
+    expect(DomainToLedger.serviceId("  #trimmed\t")).toBe("trimmed");
   });
 
   it("updateOperation maps domain ops to managed types", () => {

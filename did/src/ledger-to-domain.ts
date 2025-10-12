@@ -92,10 +92,27 @@ export class LedgerToDomain {
   }
 
   static service(service: LedgerService): Service {
-    const serviceEndpoint = service.serviceEndpoint.filter(
-      (e) => e.trim() !== "",
-    );
-    return { id: service.id, type: service.type, serviceEndpoint } as Service;
+    const endpoints = service.serviceEndpoint
+      .map((endpoint) => endpoint.trim())
+      .filter((endpoint) => endpoint !== "");
+    const normalizedEndpoint =
+      endpoints.length === 1 ? endpoints[0] : endpoints;
+
+    const rawId = service.id.trim();
+    const needsFragmentPrefix =
+      rawId.startsWith("//") ||
+      (!rawId.startsWith("did:") &&
+        !rawId.startsWith("#") &&
+        !rawId.startsWith("/") &&
+        !rawId.startsWith(".") &&
+        !rawId.startsWith("?"));
+    const serviceId = needsFragmentPrefix ? `#${rawId}` : rawId;
+
+    return {
+      id: serviceId,
+      type: service.type,
+      serviceEndpoint: normalizedEndpoint,
+    } as Service;
   }
 
   static toJSON(ledger: Ledger): object {

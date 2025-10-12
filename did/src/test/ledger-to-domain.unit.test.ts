@@ -92,7 +92,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
         {
           id: "svc-1",
           type: "SVC",
-          serviceEndpoint: ["https://u", "", "", ""],
+          serviceEndpoint: ["https://u.example", "", "", ""],
         },
       ],
       [
@@ -100,7 +100,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
         {
           id: "svc-2",
           type: "SVC2",
-          serviceEndpoint: ["wss://x", "https://y", "", ""],
+          serviceEndpoint: ["wss://x.example", "https://y.example", "", ""],
         },
       ],
     ]);
@@ -156,12 +156,32 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     const svc = LedgerToDomain.service({
       id: "svc-x",
       type: "T",
-      serviceEndpoint: ["https://a", "", "", ""],
+      serviceEndpoint: ["https://a.example", "", "", ""],
     } as any);
-    expect(svc.id).toBe("svc-x");
-    expect(Array.isArray(svc.serviceEndpoint)).toBe(true);
-    expect((svc.serviceEndpoint as string[])[0]).toBe("https://a");
-    expect((svc.serviceEndpoint as string[]).length).toBe(1);
+    expect(svc.id).toBe("#svc-x");
+    expect(typeof svc.serviceEndpoint).toBe("string");
+    expect(svc.serviceEndpoint).toBe("https://a.example");
+
+    const didService = LedgerToDomain.service({
+      id: "did:midnight:testnet:00#svc-y",
+      type: "T",
+      serviceEndpoint: ["https://b.example", "", "", ""],
+    } as any);
+    expect(didService.id).toBe("did:midnight:testnet:00#svc-y");
+
+    const relativeService = LedgerToDomain.service({
+      id: "/routes/messaging",
+      type: "T",
+      serviceEndpoint: ["https://c.example", "", "", ""],
+    } as any);
+    expect(relativeService.id).toBe("/routes/messaging");
+
+    const networkPathService = LedgerToDomain.service({
+      id: "//peer",
+      type: "T",
+      serviceEndpoint: ["https://d.example", "", "", ""],
+    } as any);
+    expect(networkPathService.id).toBe("#//peer");
   });
 
   it("toJSON flattens ledger to plain JSON with arrays", () => {
@@ -175,17 +195,28 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(json.verificationMethods[0].publicKeyJwk.x).toBe("AQ"); // 1n -> AQ
     expect(Array.isArray(json.authenticationRelation)).toBe(true);
     expect(Array.isArray(json.services)).toBe(true);
-    // ensure blank endpoints removed
-    expect(json.services[0].serviceEndpoint.length).toBe(1);
+    // ensure blank endpoints removed and single endpoint represented as string
+    expect(typeof json.services[0].serviceEndpoint).toBe("string");
   });
 
   it("ledgerStateToDIDDocument builds DID Document and assigns alsoKnownAs when present", () => {
     const addr = parseContractAddress("0".repeat(68));
-    const doc = LedgerToDomain.ledgerStateToDIDDocument(
-      stubLedger,
-      MidnightNetwork.DevNet,
-      addr,
+    const normalizedServices = Array.from(stubLedger.services, ([, service]) =>
+      LedgerToDomain.service(service),
     );
+    expect(normalizedServices[0].id).toBe("#svc-1");
+    expect(normalizedServices[1].id).toBe("#svc-2");
+    let doc;
+    try {
+      doc = LedgerToDomain.ledgerStateToDIDDocument(
+        stubLedger,
+        MidnightNetwork.DevNet,
+        addr,
+      );
+    } catch (error) {
+      console.error("ledger services", normalizedServices);
+      throw error;
+    }
     expect(doc.id.startsWith("did:midnight:devnet:")).toBe(true);
     expect(doc["@context"]).toEqual([
       "https://www.w3.org/ns/did/v1",
@@ -195,6 +226,10 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(doc.verificationMethod?.length).toBe(1);
     expect(doc.authentication?.length).toBe(1);
     expect(doc.service?.length).toBe(2);
+    expect(doc.service?.[0].id).toBe("#svc-1");
+    expect(doc.service?.[0].serviceEndpoint).toBe("https://u.example");
+    expect(doc.service?.[1].id).toBe("#svc-2");
+    expect(Array.isArray(doc.service?.[1].serviceEndpoint)).toBe(true);
     expect(doc.alsoKnownAs?.[0]).toBe("did:alias:one");
     expect("y" in (doc.verificationMethod?.[0]?.publicKeyJwk ?? {})).toBe(
       false,

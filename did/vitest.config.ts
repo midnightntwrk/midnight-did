@@ -9,6 +9,8 @@ export default defineConfig({
         "src/test/did-operations.test.ts",
         "src/test/domain-to-ledger.unit.test.ts",
         "src/test/ledger-to-domain.unit.test.ts",
+        "eslint.config.mjs",
+        "vitest.config.ts",
       ],
     },
   },

@@ -128,15 +128,58 @@ export type VerificationMethodRelation = z.infer<
 >;
 
 /** Service Endpoint */
-export const ServiceEndpointSchema = z.union([z.string(), z.array(z.string())]);
+const isUri = (value: string) => {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const URIStringSchema = z
+  .string()
+  .check(z.refine(isUri, "Invalid URI (must conform to RFC3986)"));
+
+export const ServiceEndpointSchema = z.union([
+  URIStringSchema,
+  z.array(URIStringSchema),
+]);
 export type ServiceEndpoint = z.infer<typeof ServiceEndpointSchema>;
 
-/** Service ID (not enforcing .url()) */
-export const URISchema = z.string();
+const hasUriScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
+
+const isRelativeReference = (value: string) => {
+  if (typeof value !== "string") return false;
+  if (value.length === 0) return false;
+  if (value.trim() !== value) return false;
+  if (hasUriScheme.test(value)) return false;
+  if (value.startsWith("//")) return false;
+  try {
+    new URL(value, "https://example.org");
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const RelativeURLSchema = z
+  .string()
+  .check(
+    z.refine(
+      isRelativeReference,
+      "Relative URL must be relative to the DID subject",
+    ),
+  )
+  .brand("RelativeURL");
+export type RelativeURL = z.infer<typeof RelativeURLSchema>;
+
+export const ServiceIdSchema = z.union([DIDURLSchema, RelativeURLSchema]);
+export type ServiceId = z.infer<typeof ServiceIdSchema>;
 
 /** Service */
 export const ServiceSchema = z.object({
-  id: URISchema,
+  id: ServiceIdSchema,
   type: z.union([z.string(), z.array(z.string())]),
   serviceEndpoint: ServiceEndpointSchema,
 });

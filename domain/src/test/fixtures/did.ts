@@ -30,6 +30,24 @@ export const exampleServiceInput = {
   serviceEndpoint: "https://example.com",
 } as const;
 
+export const exampleRelativeServiceInput = {
+  id: "#svc-relative",
+  type: "LinkedDomains",
+  serviceEndpoint: "https://example.com/relative",
+} as const;
+
+export const examplePathServiceInput = {
+  id: "/services/messaging",
+  type: "DIDCommV2",
+  serviceEndpoint: "https://example.com/messaging",
+} as const;
+
+export const exampleSegmentServiceInput = {
+  id: "service-1",
+  type: "LinkedDomains",
+  serviceEndpoint: "https://example.com/service-1",
+} as const;
+
 export const exampleResolutionPayload = {
   "@context": "https://w3id.org/did-resolution/v1",
   didDocumentMetadata: {},

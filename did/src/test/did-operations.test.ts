@@ -1,4 +1,5 @@
 import {
+  createService,
   createVerificationMethod,
   CurveType,
   KeyType,
@@ -17,6 +18,11 @@ describe("DIDOperationSchema (did)", () => {
     type: VerificationMethodType.JsonWebKey,
     controller: parseDID(did),
     publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: "AQ" },
+  });
+  const service = createService({
+    id: "#service-1",
+    type: "DIDCommV2",
+    serviceEndpoint: "https://example.com/service",
   });
 
   it("parses AddVerificationMethod", () => {
@@ -59,6 +65,39 @@ describe("DIDOperationSchema (did)", () => {
       methodId: vm.id,
     });
     expect(op.type).toBe(DIDOperationType.RemoveVerificationMethodRelation);
+  });
+
+  it("parses AddService", () => {
+    const op = DIDOperationSchema.parse({
+      type: DIDOperationType.AddService,
+      service,
+    });
+    expect(op.type).toBe(DIDOperationType.AddService);
+  });
+
+  it("parses UpdateService", () => {
+    const op = DIDOperationSchema.parse({
+      type: DIDOperationType.UpdateService,
+      service,
+    });
+    expect(op.type).toBe(DIDOperationType.UpdateService);
+  });
+
+  it("parses RemoveService with relative segment id", () => {
+    const op = DIDOperationSchema.parse({
+      type: DIDOperationType.RemoveService,
+      serviceId: "service-1",
+    });
+    expect(op.type).toBe(DIDOperationType.RemoveService);
+  });
+
+  it("rejects RemoveService when serviceId is not DID or relative", () => {
+    expect(() =>
+      DIDOperationSchema.parse({
+        type: DIDOperationType.RemoveService,
+        serviceId: "https://example.com/service",
+      }),
+    ).toThrow();
   });
 
   it("parses AddAlsoKnownAs when aliasUri is a valid URI", () => {
