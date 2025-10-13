@@ -1,3 +1,4 @@
+/* c8 ignore file */
 import { DIDDocument } from "./did-document";
 
 export interface DIDRegistrar<D, Op = unknown> {
