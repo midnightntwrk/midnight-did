@@ -321,6 +321,159 @@ describe("Midnight DID method API", () => {
     expect(didDoc?.service?.length ?? 0).toBe(0);
   });
 
+  it("should register services with all DID Core endpoint variations", async () => {
+    const serviceDefinitions = [
+      {
+        service: {
+          id: "#linked-domain-1",
+          type: "LinkedDomains",
+          serviceEndpoint: "https://example.com",
+        },
+        expectedEndpoint: "https://example.com",
+      },
+      {
+        service: {
+          id: "#msg-1",
+          type: "Messaging",
+          serviceEndpoint: [
+            "https://example.org/inbox",
+            "https://backup.example.org/inbox",
+          ],
+        },
+        expectedEndpoint: [
+          "https://example.org/inbox",
+          "https://backup.example.org/inbox",
+        ],
+      },
+      {
+        service: {
+          id: "#agent-legacy",
+          type: "AgentService",
+          serviceEndpoint: {
+            endpoint: "https://legacy-agent.example.net/",
+            routingKeys: ["did:example:456#key-routing"],
+            accept: ["didcomm/v1"],
+          },
+        },
+        expectedEndpoint: {
+          endpoint: "https://legacy-agent.example.net/",
+          routingKeys: ["did:example:456#key-routing"],
+          accept: ["didcomm/v1"],
+        },
+      },
+      {
+        service: {
+          id: "#agent",
+          type: "AgentService",
+          serviceEndpoint: {
+            uri: "https://agent.example.com/",
+            routingKeys: ["did:example:456#key-agency"],
+            accept: ["didcomm/v2"],
+          },
+        },
+        expectedEndpoint: {
+          uri: "https://agent.example.com/",
+          routingKeys: ["did:example:456#key-agency"],
+          accept: ["didcomm/v2"],
+        },
+      },
+      {
+        service: {
+          id: "#linked-domain",
+          type: "LinkedDomains",
+          serviceEndpoint: {
+            origins: ["https://example.org", "https://sub.example.org"],
+          },
+        },
+        expectedEndpoint: {
+          origins: ["https://example.org", "https://sub.example.org"],
+        },
+      },
+      {
+        service: {
+          id: "#combo",
+          type: "Messaging",
+          serviceEndpoint: [
+            "https://example.com/inbox",
+            {
+              uri: "https://backup.example.com/inbox",
+              routingKeys: ["did:example:789#routing"],
+            },
+          ],
+        },
+        expectedEndpoint: [
+          "https://example.com/inbox",
+          {
+            uri: "https://backup.example.com/inbox",
+            routingKeys: ["did:example:789#routing"],
+          },
+        ],
+      },
+      {
+        service: {
+          id: "#normalized",
+          type: "LinkedDomains",
+          serviceEndpoint: "HTTPS://Example.COM:443/path/../home",
+        },
+        expectedEndpoint: "https://example.com/home",
+      },
+    ] as const;
+
+    for (const { service } of serviceDefinitions) {
+      const operation: DIDOperation = {
+        type: DIDOperationType.AddService,
+        service: parseService({
+          id: service.id,
+          type: service.type,
+          serviceEndpoint: Array.isArray(service.serviceEndpoint)
+            ? service.serviceEndpoint.map((entry) =>
+                typeof entry === "string" ? entry : { ...entry },
+              )
+            : typeof service.serviceEndpoint === "object"
+              ? { ...service.serviceEndpoint }
+              : service.serviceEndpoint,
+        }),
+      };
+      const result = await api.update(contract, [operation]);
+      expect(result.txId).toMatch(/[0-9a-f]{64}/);
+    }
+
+    const didDoc = (await api.resolve(providers, contract))?.didDocument;
+    logger.info(
+      `DIDDocument JSON (after adding complex services): ${JSON.stringify(didDoc, BigIntReplacer, 2)}`,
+    );
+    expect(didDoc?.service?.length).toBeGreaterThanOrEqual(
+      serviceDefinitions.length,
+    );
+    for (const { service, expectedEndpoint } of serviceDefinitions) {
+      const fragmentId = toFragmentId(service.id);
+      const actual = didDoc?.service?.find((svc) => svc.id === fragmentId);
+      expect(actual).toBeDefined();
+      expect(actual?.type).toBe(service.type);
+      expect(actual?.serviceEndpoint).toEqual(expectedEndpoint);
+    }
+
+    for (const { service } of serviceDefinitions) {
+      const removal: DIDOperation = {
+        type: DIDOperationType.RemoveService,
+        serviceId: ServiceIdSchema.parse(service.id),
+      };
+      const result = await api.update(contract, [removal]);
+      expect(result.txId).toMatch(/[0-9a-f]{64}/);
+    }
+
+    const finalDoc = (await api.resolve(providers, contract))?.didDocument;
+    logger.info(
+      `DIDDocument JSON (after cleanup): ${JSON.stringify(finalDoc, BigIntReplacer, 2)}`,
+    );
+    for (const { service } of serviceDefinitions) {
+      const fragmentId = toFragmentId(service.id);
+      expect(
+        finalDoc?.service?.find((svc) => svc.id === fragmentId),
+      ).toBeUndefined();
+    }
+  });
+
   it("should add alsoKnownAs alias", async () => {
     const operations: DIDOperation[] = [
       { type: DIDOperationType.AddAlsoKnownAs, aliasUri: didString },

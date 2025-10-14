@@ -77,7 +77,7 @@ describe("OperationBuilder", () => {
     const service = {
       id: "svc-1",
       type: "LinkedDomains",
-      serviceEndpoint: ["https://example.com"]
+      serviceEndpoint: JSON.stringify("https://example.com")
     };
     const op = OperationBuilder.addService({ service: service });
     expect(op.operationType).toBe(OperationType.AddService);
@@ -88,7 +88,10 @@ describe("OperationBuilder", () => {
     const service = {
       id: "svc-1",
       type: "LinkedDomains",
-      serviceEndpoint: ["https://example.org"]
+      serviceEndpoint: JSON.stringify([
+        "https://example.org",
+        { uri: "https://example.org/alt" }
+      ])
     };
     const op = OperationBuilder.updateService({ service: service });
     expect(op.operationType).toBe(OperationType.UpdateService);
@@ -154,8 +157,7 @@ describe("OperationBuilder", () => {
       service: {
         id: "svc-1",
         type: "LinkedDomains",
-        // verifyOperations checks .addServiceOptions.serviceEndpoint length === 4
-        serviceEndpoint: ["a", "b", "c", "d"]
+        serviceEndpoint: JSON.stringify(["a", { uri: "b" }])
       }
     });
     const out = OperationBuilder.verifyOperations([
@@ -195,7 +197,11 @@ describe("OperationBuilder", () => {
         verificationMethod: sampleVM
       }),
       OperationBuilder.addService({
-        service: { id: "s", type: "T", serviceEndpoint: ["", "", "", ""] }
+        service: {
+          id: "s",
+          type: "T",
+          serviceEndpoint: JSON.stringify("https://example.com")
+        }
       })
     ];
     expect(() => OperationBuilder.verifyOperations(ops as any)).toThrow(
@@ -213,7 +219,11 @@ describe("OperationBuilder", () => {
         methodId: "k"
       }),
       OperationBuilder.addService({
-        service: { id: "s", type: "T", serviceEndpoint: ["1", "2", "3", "4"] }
+        service: {
+          id: "s",
+          type: "T",
+          serviceEndpoint: JSON.stringify("https://example.org")
+        }
       })
     ];
     expect(() => OperationBuilder.verifyOperations(okOps as any)).toThrow(
@@ -234,12 +244,33 @@ describe("OperationBuilder", () => {
         service: {
           id: "s",
           type: "T",
-          serviceEndpoint: ["only-3", "", ""] as any
+          serviceEndpoint: 42 as any
         }
       })
     ];
     expect(() => OperationBuilder.verifyOperations(ops2 as any)).toThrow(
       /updateServiceOptions\.service\.serviceEndpoint/
+    );
+
+    const ops3 = [
+      OperationBuilder.addVerificationMethod({ verificationMethod: sampleVM }),
+      OperationBuilder.updateVerificationMethod({
+        verificationMethod: sampleVM
+      }),
+      OperationBuilder.addVerificationMethodRelation({
+        relation: VerificationMethodRelation.Authentication,
+        methodId: "k"
+      }),
+      OperationBuilder.updateService({
+        service: {
+          id: "s",
+          type: "T",
+          serviceEndpoint: "not-json"
+        }
+      })
+    ];
+    expect(() => OperationBuilder.verifyOperations(ops3 as any)).toThrow(
+      /expected valid JSON string/
     );
   });
 });

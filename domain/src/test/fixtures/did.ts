@@ -47,6 +47,112 @@ export const examplePathServiceInput = {
   serviceEndpoint: "https://example.com/messaging",
 } as const;
 
+export const exampleServiceObjectInput = {
+  id: `${exampleDid}#svc-object`,
+  type: "LinkedDomains",
+  serviceEndpoint: {
+    uri: "https://example.com/object",
+    routingKeys: ["did:example:mediator"],
+  },
+} as const;
+
+export const exampleServiceSet = [
+  {
+    service: {
+      id: "#linked-domain-1",
+      type: "LinkedDomains",
+      serviceEndpoint: "https://example.com",
+    },
+    expectedEndpoint: "https://example.com",
+  },
+  {
+    service: {
+      id: "#msg-1",
+      type: "Messaging",
+      serviceEndpoint: [
+        "https://example.org/inbox",
+        "https://backup.example.org/inbox",
+      ],
+    },
+    expectedEndpoint: [
+      "https://example.org/inbox",
+      "https://backup.example.org/inbox",
+    ],
+  },
+  {
+    service: {
+      id: "#agent-legacy",
+      type: "AgentService",
+      serviceEndpoint: {
+        endpoint: "https://legacy-agent.example.net/",
+        routingKeys: ["did:example:456#key-routing"],
+        accept: ["didcomm/v1"],
+      },
+    },
+    expectedEndpoint: {
+      endpoint: "https://legacy-agent.example.net/",
+      routingKeys: ["did:example:456#key-routing"],
+      accept: ["didcomm/v1"],
+    },
+  },
+  {
+    service: {
+      id: "#agent",
+      type: "AgentService",
+      serviceEndpoint: {
+        uri: "https://agent.example.com/",
+        routingKeys: ["did:example:456#key-agency"],
+        accept: ["didcomm/v2"],
+      },
+    },
+    expectedEndpoint: {
+      uri: "https://agent.example.com/",
+      routingKeys: ["did:example:456#key-agency"],
+      accept: ["didcomm/v2"],
+    },
+  },
+  {
+    service: {
+      id: "#linked-domain",
+      type: "LinkedDomains",
+      serviceEndpoint: {
+        origins: ["https://example.org", "https://sub.example.org"],
+      },
+    },
+    expectedEndpoint: {
+      origins: ["https://example.org", "https://sub.example.org"],
+    },
+  },
+  {
+    service: {
+      id: "#combo",
+      type: "Messaging",
+      serviceEndpoint: [
+        "https://example.com/inbox",
+        {
+          uri: "https://backup.example.com/inbox",
+          routingKeys: ["did:example:789#routing"],
+        },
+      ],
+    },
+    expectedEndpoint: [
+      "https://example.com/inbox",
+      {
+        uri: "https://backup.example.com/inbox",
+        routingKeys: ["did:example:789#routing"],
+      },
+    ],
+  },
+  {
+    service: {
+      id: "#normalized",
+      type: "LinkedDomains",
+      serviceEndpoint: "HTTPS://Example.COM:443/path/../home",
+    },
+    expectedEndpoint: "https://example.com/home",
+  },
+] as const;
+
 export const exampleSegmentServiceInput = {
   id: "service-1",
   type: "LinkedDomains",

@@ -1,5 +1,7 @@
 import { z } from "zod/v4-mini";
 
+import { normalizeServiceEndpointValue } from "./uri-normalization";
+
 /** DID URL schema */
 export const DIDURLSchema = z
   .string()
@@ -181,11 +183,27 @@ export const URIStringSchema = z
   .string()
   .check(z.refine(isUri, "Invalid URI (must conform to RFC3986)"));
 
+const ServiceEndpointObjectSchema = z.record(z.string(), z.unknown());
+
+type ServiceEndpointObject = z.infer<typeof ServiceEndpointObjectSchema>;
+
+const ServiceEndpointArrayEntrySchema = z.union([
+  URIStringSchema,
+  ServiceEndpointObjectSchema,
+]);
+
 export const ServiceEndpointSchema = z.union([
   URIStringSchema,
-  z.array(URIStringSchema),
+  ServiceEndpointObjectSchema,
+  z.array(ServiceEndpointArrayEntrySchema),
 ]);
-export type ServiceEndpoint = z.infer<typeof ServiceEndpointSchema>;
+export type ServiceEndpoint =
+  | z.infer<typeof URIStringSchema>
+  | ServiceEndpointObject
+  | Array<z.infer<typeof ServiceEndpointArrayEntrySchema>>;
+export const normalizeServiceEndpoint = (
+  endpoint: ServiceEndpoint,
+): ServiceEndpoint => normalizeServiceEndpointValue(endpoint);
 
 export const ServiceIdSchema = z.union([DIDURLSchema, RelativeURLSchema]);
 export type ServiceId = z.infer<typeof ServiceIdSchema>;
@@ -214,9 +232,20 @@ export const DIDDocumentSchema = z.looseObject({
 });
 
 function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
+  const normalizedDoc: DIDDocument =
+    doc.service == null
+      ? doc
+      : {
+          ...doc,
+          service: doc.service.map((service) => ({
+            ...service,
+            serviceEndpoint: normalizeServiceEndpoint(service.serviceEndpoint),
+          })),
+        };
+
   type ValidationIssue = { message: string; path: (string | number)[] };
   const issues: ValidationIssue[] = [];
-  const verificationMethods = doc.verificationMethod ?? [];
+  const verificationMethods = normalizedDoc.verificationMethod ?? [];
   const seenVerificationMethodIds = new Map<string, number>();
 
   verificationMethods.forEach((vm, index) => {
@@ -238,7 +267,7 @@ function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
       | "capabilityInvocation"
       | "capabilityDelegation",
   ) => {
-    const relationValues = doc[relationName];
+    const relationValues = normalizedDoc[relationName];
     if (relationValues == null) return;
     const seen = new Set<string>();
     relationValues.forEach((value, index) => {
@@ -265,7 +294,7 @@ function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
   ensureRelationConsistency("capabilityInvocation");
   ensureRelationConsistency("capabilityDelegation");
 
-  const services = doc.service ?? [];
+  const services = normalizedDoc.service ?? [];
   const seenServiceIds = new Set<string>();
   services.forEach((service, index) => {
     if (seenServiceIds.has(service.id)) {
@@ -282,13 +311,15 @@ function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
       : [service.serviceEndpoint];
     const seenEndpoints = new Set<string>();
     endpoints.forEach((endpoint, endpointIndex) => {
-      if (seenEndpoints.has(endpoint)) {
+      const key =
+        typeof endpoint === "string" ? endpoint : JSON.stringify(endpoint);
+      if (seenEndpoints.has(key)) {
         issues.push({
           message: "serviceEndpoint values must be unique",
           path: ["service", index, "serviceEndpoint", endpointIndex],
         });
       } else {
-        seenEndpoints.add(endpoint);
+        seenEndpoints.add(key);
       }
     });
   });
@@ -307,7 +338,7 @@ function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
     error.issues = issues;
     throw error;
   }
-  return doc;
+  return normalizedDoc;
 }
 export type DIDDocument = z.infer<typeof DIDDocumentSchema>;
 
@@ -354,7 +385,13 @@ export const parseDIDKeyID = (input: unknown) => DIDKeyIDSchema.parse(input);
 export const parseDID = (input: unknown) => DIDStringSchema.parse(input);
 export const parseVerificationMethod = (input: unknown) =>
   VerificationMethodSchema.parse(input);
-export const parseService = (input: unknown) => ServiceSchema.parse(input);
+export const parseService = (input: unknown) => {
+  const service = ServiceSchema.parse(input);
+  return {
+    ...service,
+    serviceEndpoint: normalizeServiceEndpoint(service.serviceEndpoint),
+  };
+};
 export const parseDIDResolutionResult = (input: unknown) =>
   DIDResolutionResultSchema.parse(input);
 export const parseVerificationMethodType = (input: unknown) =>
@@ -377,7 +414,11 @@ export function createService(params: {
   type: string | string[];
   serviceEndpoint: ServiceEndpoint;
 }): Service {
-  return ServiceSchema.parse(params);
+  const service = ServiceSchema.parse(params);
+  return {
+    ...service,
+    serviceEndpoint: normalizeServiceEndpoint(service.serviceEndpoint),
+  };
 }
 
 export function createDIDDocument(params: {

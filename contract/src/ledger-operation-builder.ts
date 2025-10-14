@@ -56,14 +56,14 @@ export class OperationBuilder {
       service: {
         id: "",
         type: "",
-        serviceEndpoint: Array.of("", "", "", "")
+        serviceEndpoint: '""'
       }
     },
     updateServiceOptions: {
       service: {
         id: "",
         type: "",
-        serviceEndpoint: Array.of("", "", "", "")
+        serviceEndpoint: '""'
       }
     },
     removeServiceOptions: {
@@ -215,6 +215,19 @@ export class OperationBuilder {
     const inNumRange = (v: any, min: number, max: number): boolean =>
       typeof v === "number" && v >= min && v <= max;
 
+    const ensureServiceEndpoint = (endpoint: unknown, context: string) => {
+      if (typeof endpoint !== "string") {
+        throw new Error(
+          `Invalid ${context}: expected JSON string representation`
+        );
+      }
+      try {
+        JSON.parse(endpoint);
+      } catch (error) {
+        throw new Error(`Invalid ${context}: expected valid JSON string`);
+      }
+    };
+
     operations.forEach((t, idx) => {
       // t must be an object
       if (typeof t !== "object" || t === null) {
@@ -298,29 +311,28 @@ export class OperationBuilder {
         typeof aso !== "object" ||
         aso === null ||
         typeof aso.service !== "object" ||
-        aso.service === null ||
-        !Array.isArray(aso.service.serviceEndpoint) ||
-        aso.service.serviceEndpoint.length !== 4
+        aso.service === null
       ) {
-        throw new Error(
-          `Invalid addServiceOptions.service.serviceEndpoint at index ${idx}: expected array length 4`
-        );
+        throw new Error(`Invalid addServiceOptions at index ${idx}`);
       }
+      ensureServiceEndpoint(
+        aso.service.serviceEndpoint,
+        `addServiceOptions.service.serviceEndpoint at index ${idx}`
+      );
 
-      // updateServiceOptions.service.serviceEndpoint: array length === 4
       const uso = (t as any).updateServiceOptions;
       if (
         typeof uso !== "object" ||
         uso === null ||
         typeof uso.service !== "object" ||
-        uso.service === null ||
-        !Array.isArray(uso.service.serviceEndpoint) ||
-        uso.service.serviceEndpoint.length !== 4
+        uso.service === null
       ) {
-        throw new Error(
-          `Invalid updateServiceOptions.service.serviceEndpoint at index ${idx}: expected array length 4`
-        );
+        throw new Error(`Invalid updateServiceOptions at index ${idx}`);
       }
+      ensureServiceEndpoint(
+        uso.service.serviceEndpoint,
+        `updateServiceOptions.service.serviceEndpoint at index ${idx}`
+      );
 
       // removeServiceOptions (object presence only as per hint)
       const rso = (t as any).removeServiceOptions;

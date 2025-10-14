@@ -75,7 +75,7 @@ export struct VerificationMethod {
 export struct Service {
   id: Opaque<"string">,
   type: Opaque<"string">,
-  serviceEndpoint: Vector<4, Opaque<"string">>,
+  serviceEndpoint: Opaque<"string">,
 }
 
 export enum OperationType {

@@ -19,6 +19,7 @@ import {
   exampleMethodId,
   exampleResolutionPayload,
   exampleServiceInput,
+  exampleServiceObjectInput,
   exampleVerificationMethodInput,
   invalidDidStrings,
 } from "./fixtures/did";
@@ -73,6 +74,9 @@ describe("DID parsing utilities", () => {
       exampleVerificationMethodInput,
     );
     expect(parseService(exampleServiceInput)).toEqual(exampleServiceInput);
+    expect(parseService(exampleServiceObjectInput)).toEqual(
+      exampleServiceObjectInput,
+    );
     expect(parseVerificationMethodType(VerificationMethodType.JsonWebKey)).toBe(
       VerificationMethodType.JsonWebKey,
     );

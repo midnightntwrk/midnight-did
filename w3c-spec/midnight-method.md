@@ -329,7 +329,13 @@ The value of the `type` property MUST be a string or a set of strings. In order 
 
 #### 3.6.1.3. ServiceEndpoint
 
-The value of the `serviceEndpoint` property MUST be a string or a set of strings limited to four instances. All string values MUST be valid URIs conforming to [RFC3986] and normalized according to the Normalization and Comparison rules in RFC3986 and to any normalization rules in its applicable URI scheme specification.
+The value of the `serviceEndpoint` property MUST comply with the [DID Core 1.0](https://www.w3.org/TR/did-core/#services) definition. In particular, it MAY be:
+
+- a string that is a valid URI conforming to [RFC3986];
+- an object (map) whose members describe transport data (for example, DIDComm service metadata as profiled in [CID 1.0](https://www.w3.org/TR/cid-1.0/)); or
+- an array composed of strings and/or objects of the above forms.
+
+When persisted on-ledger, Midnight serialises the `serviceEndpoint` value as a JSON string so that all conforming representations can be recovered when reconstructing the DID Document.
 
 Example of the `service` property:
 
@@ -340,7 +346,10 @@ Example of the `service` property:
   {
     "id": "#didcomm-1",
     "type": "SomeServiceType",
-    "serviceEndpoint": ["https://localhost/sst", "wss://localhost/sst"]
+    "serviceEndpoint": [
+      "https://localhost/sst",
+      { "uri": "wss://localhost/sst", "routingKeys": ["did:example:mediator"] }
+    ]
   }
   ]
 }
@@ -420,7 +429,7 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | keyAgreementRelation           | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `keyAgreement`. The DIDDocument's `keyAgreement` property is reconstructed from this state. |
 | capabilityInvocationRelation   | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `capabilityInvocation`. The DIDDocument's `capabilityInvocation` property is reconstructed from this state. |
 | capabilityDelegationRelation   | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `capabilityDelegation`. The DIDDocument's `capabilityDelegation` property is reconstructed from this state. |
-| services                       | `Map<Opaque<"string">, Service>`               | Map from service identifiers (strings stored without a leading `#`) to service entries (type and `serviceEndpoint`). When reconstructing the DID Document, the identifier is prefixed with `#` unless it already represents a DID URL or another relative reference. |
+| services                       | `Map<Opaque<"string">, Service>`               | Map from service identifiers (strings stored without a leading `#`) to service definitions. The `serviceEndpoint` value is stored as a JSON string so that any DID Core–compliant representation (string, object, or array) can be rehydrated when reconstructing the DID Document. When rebuilding the document, identifiers are prefixed with `#` unless they already represent DID URLs or other relative references. |
 
 # 7. DID operations
 
@@ -592,7 +601,7 @@ Adds a service entry identified by a unique `id` with a `type` and `serviceEndpo
 - Constraints:
   - `id` MUST be unique across services and MUST be either a DID URL for the DID subject or a relative identifier (for example, `#service-1`). Midnight DID uses fragment identifiers in practice.
   - `type` MAY be a string or a single‑element string array.
-  - `serviceEndpoint` MAY be a string or an array of up to 4 URIs. Internally, endpoints are padded to length 4.
+  - `serviceEndpoint` MUST be encodable as JSON and MUST conform to the DID Core 1.0 service endpoint data model (string, object, or array of strings/objects). The value is persisted as a JSON string on-ledger.
 
 Example:
 ```json
@@ -601,7 +610,10 @@ Example:
   "service": {
     "id": "#didcomm-1",
     "type": "DIDCommV2",
-    "serviceEndpoint": ["https://localhost/didcomm/v2", "wss://localhost/didcomm/v2"]
+    "serviceEndpoint": [
+      "https://localhost/didcomm/v2",
+      { "uri": "wss://localhost/didcomm/v2", "routingKeys": ["did:example:mediator"] }
+    ]
   }
 }
 ```
@@ -613,7 +625,7 @@ Replaces the service definition with the same `id`.
 - Inputs: `service` with fields `id`, `type`, `serviceEndpoint`.
 - Constraints:
   - The service `id` MUST already exist; otherwise, the update MUST fail.
-  - `serviceEndpoint` rules are the same as for add (string or up to 4 entries).
+  - `serviceEndpoint` rules are the same as for add (DID Core–compliant JSON value).
 
 Example:
 ```json
@@ -622,7 +634,11 @@ Example:
   "service": {
     "id": "#didcomm-1",
     "type": "DIDCommV2",
-    "serviceEndpoint": ["https://localhost/didcomm", "wss://localhost/didcomm"]
+    "serviceEndpoint": {
+      "uri": "https://localhost/didcomm",
+      "accept": ["didcomm/v2"],
+      "routingKeys": ["did:midnight:testnet:mediator#key-1"]
+    }
   }
 }
 ```

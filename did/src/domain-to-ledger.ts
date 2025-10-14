@@ -6,6 +6,7 @@ import {
   CurveType,
   FieldCodec,
   KeyType,
+  normalizeServiceEndpoint,
   PublicKeyJwk,
   Service,
   VerificationMethod,
@@ -181,14 +182,14 @@ export class DomainToLedger {
         service: {
           id: "",
           type: "",
-          serviceEndpoint: Array.of("", "", "", ""),
+          serviceEndpoint: '""',
         },
       },
       updateServiceOptions: {
         service: {
           id: "",
           type: "",
-          serviceEndpoint: Array.of("", "", "", ""),
+          serviceEndpoint: '""',
         },
       },
       removeServiceOptions: { id: "" },
@@ -281,21 +282,13 @@ export class DomainToLedger {
     );
   }
 
-  static serviceEndpoint(serviceEndpoint: string | string[]): string[] {
-    let ledgerServiceEndpoint: string[];
-    if (typeof serviceEndpoint === "string") {
-      ledgerServiceEndpoint = [serviceEndpoint, "", "", ""];
-    } else if (Array.isArray(serviceEndpoint)) {
-      if (serviceEndpoint.length > 4)
-        throw new Error(
-          `serviceEndpoint property must contain at most four elements`,
-        );
-      ledgerServiceEndpoint = [...serviceEndpoint];
-      while (ledgerServiceEndpoint.length < 4) ledgerServiceEndpoint.push("");
-    } else {
-      throw new Error("Invalid type for serviceEndpoint");
+  static serviceEndpoint(serviceEndpoint: Service["serviceEndpoint"]): string {
+    try {
+      const normalized = normalizeServiceEndpoint(serviceEndpoint);
+      return JSON.stringify(normalized);
+    } catch {
+      throw new Error("Invalid serviceEndpoint: could not serialize to JSON");
     }
-    return ledgerServiceEndpoint;
   }
 
   static updateOperations(

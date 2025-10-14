@@ -92,7 +92,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
         {
           id: "svc-1",
           type: "SVC",
-          serviceEndpoint: ["https://u.example", "", "", ""],
+          serviceEndpoint: JSON.stringify("https://u.example"),
         },
       ],
       [
@@ -100,7 +100,10 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
         {
           id: "svc-2",
           type: "SVC2",
-          serviceEndpoint: ["wss://x.example", "https://y.example", "", ""],
+          serviceEndpoint: JSON.stringify([
+            "wss://x.example",
+            { uri: "https://y.example" },
+          ]),
         },
       ],
     ]);
@@ -154,7 +157,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     const svc = LedgerToDomain.service({
       id: "svc-x",
       type: "T",
-      serviceEndpoint: ["https://a.example", "", "", ""],
+      serviceEndpoint: JSON.stringify("https://a.example"),
     } as any);
     expect(svc.id).toBe("#svc-x");
     expect(typeof svc.serviceEndpoint).toBe("string");
@@ -163,23 +166,33 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     const didService = LedgerToDomain.service({
       id: "did:midnight:testnet:00#svc-y",
       type: "T",
-      serviceEndpoint: ["https://b.example", "", "", ""],
+      serviceEndpoint: JSON.stringify({ uri: "https://b.example" }),
     } as any);
     expect(didService.id).toBe("did:midnight:testnet:00#svc-y");
 
     const relativeService = LedgerToDomain.service({
       id: "/routes/messaging",
       type: "T",
-      serviceEndpoint: ["https://c.example", "", "", ""],
+      serviceEndpoint: JSON.stringify([
+        { uri: "https://c.example" },
+        "https://c.example/alt",
+      ]),
     } as any);
     expect(relativeService.id).toBe("/routes/messaging");
 
     const networkPathService = LedgerToDomain.service({
       id: "//peer",
       type: "T",
-      serviceEndpoint: ["https://d.example", "", "", ""],
+      serviceEndpoint: JSON.stringify({ uri: "https://d.example" }),
     } as any);
     expect(networkPathService.id).toBe("#//peer");
+
+    const legacyService = LedgerToDomain.service({
+      id: "legacy",
+      type: "Legacy",
+      serviceEndpoint: ["https://legacy.example", "", "", ""],
+    } as any);
+    expect(legacyService.serviceEndpoint).toBe("https://legacy.example");
   });
 
   it("toJSON flattens ledger to plain JSON with arrays", () => {
@@ -195,8 +208,12 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(Array.isArray(json.authenticationRelation)).toBe(true);
     expect(json.authenticationRelation[0]).toBe("#key-1");
     expect(Array.isArray(json.services)).toBe(true);
-    // ensure blank endpoints removed and single endpoint represented as string
     expect(typeof json.services[0].serviceEndpoint).toBe("string");
+    expect(json.services[0].serviceEndpoint).toBe("https://u.example");
+    expect(json.services[1].serviceEndpoint).toEqual([
+      "wss://x.example",
+      { uri: "https://y.example" },
+    ]);
   });
 
   it("ledgerStateToDIDDocument builds DID Document and assigns alsoKnownAs when present", () => {
@@ -231,7 +248,10 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(doc.service?.[0].id).toBe("#svc-1");
     expect(doc.service?.[0].serviceEndpoint).toBe("https://u.example");
     expect(doc.service?.[1].id).toBe("#svc-2");
-    expect(Array.isArray(doc.service?.[1].serviceEndpoint)).toBe(true);
+    expect(doc.service?.[1].serviceEndpoint).toEqual([
+      "wss://x.example",
+      { uri: "https://y.example" },
+    ]);
     expect(doc.alsoKnownAs?.[0]).toBe("did:alias:one");
     expect("y" in (doc.verificationMethod?.[0]?.publicKeyJwk ?? {})).toBe(
       false,

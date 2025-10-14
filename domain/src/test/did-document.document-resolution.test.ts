@@ -14,6 +14,8 @@ import {
   exampleResolutionPayload,
   exampleSegmentServiceInput,
   exampleServiceInput,
+  exampleServiceObjectInput,
+  exampleServiceSet,
   exampleVerificationMethodInput,
 } from "./fixtures/did";
 
@@ -37,6 +39,42 @@ describe("DID document construction", () => {
   it("accepts relative segment service identifiers", () => {
     const service = createService(exampleSegmentServiceInput);
     expect(service.id).toBe(exampleSegmentServiceInput.id);
+  });
+
+  it("accepts object service endpoints", () => {
+    const service = createService(exampleServiceObjectInput);
+    expect(service.serviceEndpoint).toEqual(
+      exampleServiceObjectInput.serviceEndpoint,
+    );
+  });
+
+  it("creates services for DID Core endpoint variations", () => {
+    const services = exampleServiceSet.map(({ service }) =>
+      createService({
+        ...service,
+        serviceEndpoint: Array.isArray(service.serviceEndpoint)
+          ? service.serviceEndpoint.map((entry) =>
+              typeof entry === "string" ? entry : { ...entry },
+            )
+          : typeof service.serviceEndpoint === "object"
+            ? { ...service.serviceEndpoint }
+            : service.serviceEndpoint,
+      }),
+    );
+    services.forEach((service, index) => {
+      expect(service.id).toBe(exampleServiceSet[index].service.id);
+      expect(service.type).toBe(exampleServiceSet[index].service.type);
+      expect(service.serviceEndpoint).toEqual(
+        exampleServiceSet[index].expectedEndpoint,
+      );
+    });
+
+    const document = createDIDDocument({
+      id: exampleDid,
+      context: "https://www.w3.org/ns/did/v1",
+      service: services,
+    });
+    expect(document.service?.length).toBe(exampleServiceSet.length);
   });
 
   it("rejects non-DID absolute service identifiers", () => {

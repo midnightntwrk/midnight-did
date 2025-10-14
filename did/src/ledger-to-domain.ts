@@ -9,6 +9,7 @@ import {
   FieldCodec,
   KeyType,
   MidnightNetwork,
+  normalizeServiceEndpoint,
   parseContractAddress,
   PublicKeyJwk,
   Service,
@@ -16,8 +17,15 @@ import {
   VerificationMethodRelationType,
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
-import { Buffer } from "buffer";
 import { z } from "zod/v4-mini";
+
+const bytesToHex = (bytes: Iterable<number>): string => {
+  let hex = "";
+  for (const byte of bytes) {
+    hex += Number(byte).toString(16).padStart(2, "0");
+  }
+  return hex;
+};
 
 const LedgerCurveType = DIDContract.CurveType;
 const LedgerKeyType = DIDContract.KeyType;
@@ -92,12 +100,6 @@ export class LedgerToDomain {
   }
 
   static service(service: LedgerService): Service {
-    const endpoints = service.serviceEndpoint
-      .map((endpoint) => endpoint.trim())
-      .filter((endpoint) => endpoint !== "");
-    const normalizedEndpoint =
-      endpoints.length === 1 ? endpoints[0] : endpoints;
-
     const rawId = service.id.trim();
     const needsFragmentPrefix =
       rawId.startsWith("//") ||
@@ -108,11 +110,42 @@ export class LedgerToDomain {
         !rawId.startsWith("?"));
     const serviceId = needsFragmentPrefix ? `#${rawId}` : rawId;
 
+    const serviceEndpoint = this.parseServiceEndpoint(service.serviceEndpoint);
     return {
       id: serviceId,
       type: service.type,
-      serviceEndpoint: normalizedEndpoint,
+      serviceEndpoint,
     } as Service;
+  }
+
+  private static parseServiceEndpoint(
+    endpoint: unknown,
+  ): Service["serviceEndpoint"] {
+    const normalize = (
+      value: Service["serviceEndpoint"],
+    ): Service["serviceEndpoint"] => normalizeServiceEndpoint(value);
+
+    if (Array.isArray(endpoint)) {
+      const filtered = endpoint
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter((value) => value !== "");
+      if (filtered.length === 0) return "";
+      if (filtered.length === 1) return normalize(filtered[0]);
+      return normalize(filtered as Service["serviceEndpoint"]);
+    }
+
+    if (typeof endpoint === "string") {
+      const raw = endpoint.trim();
+      if (raw === "") return "";
+      try {
+        const parsed = JSON.parse(raw);
+        return normalize(parsed as Service["serviceEndpoint"]);
+      } catch {
+        return normalize(raw);
+      }
+    }
+
+    return normalize(endpoint as Service["serviceEndpoint"]);
   }
 
   static verificationMethodId(id: string): string {
@@ -131,7 +164,7 @@ export class LedgerToDomain {
 
   static toJSON(ledger: Ledger): object {
     return {
-      id: Buffer.from(ledger.id.bytes).toString("hex"),
+      id: bytesToHex(ledger.id.bytes),
       version: Number(ledger.version.toString()),
       active: ledger.active,
       operationCount: Number(ledger.operationCount.toString()),

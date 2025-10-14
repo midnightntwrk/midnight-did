@@ -76,15 +76,17 @@ describe("DomainToLedger (unit, mocked)", () => {
     expect(DomainToLedger.serviceType(["A"])).toBe("A");
     expect(() => DomainToLedger.serviceType(["A", "B"] as any)).toThrow();
 
-    expect(DomainToLedger.serviceEndpoint("https://u.example")).toEqual([
-      "https://u.example",
-      "",
-      "",
-      "",
-    ]);
-    expect(() =>
-      DomainToLedger.serviceEndpoint(["a", "b", "c", "d", "e"] as any),
-    ).toThrow();
+    expect(DomainToLedger.serviceEndpoint("https://u.example")).toBe(
+      JSON.stringify("https://u.example"),
+    );
+    expect(
+      DomainToLedger.serviceEndpoint([
+        "wss://example.com",
+        { uri: "https://example.com/alt" },
+      ] as any),
+    ).toBe(
+      JSON.stringify(["wss://example.com", { uri: "https://example.com/alt" }]),
+    );
 
     const ledgerService = DomainToLedger.service({
       id: "#svc-1",
@@ -92,6 +94,23 @@ describe("DomainToLedger (unit, mocked)", () => {
       serviceEndpoint: "https://example.com",
     } as any);
     expect(ledgerService.id).toBe("svc-1");
+    expect(ledgerService.serviceEndpoint).toBe(
+      JSON.stringify("https://example.com"),
+    );
+    const objectLedgerService = DomainToLedger.service({
+      id: "#svc-obj",
+      type: "LinkedDomains",
+      serviceEndpoint: {
+        uri: "https://example.com/object",
+        routingKeys: ["did:example:mediator"],
+      },
+    } as any);
+    expect(objectLedgerService.serviceEndpoint).toBe(
+      JSON.stringify({
+        uri: "https://example.com/object",
+        routingKeys: ["did:example:mediator"],
+      }),
+    );
     expect(DomainToLedger.serviceId("did:midnight:testnet:0#svc-ledger")).toBe(
       "svc-ledger",
     );
