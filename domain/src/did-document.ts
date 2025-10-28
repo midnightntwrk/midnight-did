@@ -201,9 +201,67 @@ export type ServiceEndpoint =
   | z.infer<typeof URIStringSchema>
   | ServiceEndpointObject
   | Array<z.infer<typeof ServiceEndpointArrayEntrySchema>>;
-export const normalizeServiceEndpoint = (
+
+const isDefaultPort = (protocol: string, port: string) =>
+  (protocol === "http:" && port === "80") ||
+  (protocol === "https:" && port === "443") ||
+  (protocol === "ws:" && port === "80") ||
+  (protocol === "wss:" && port === "443");
+
+const normalizeUriString = (value: string): string => {
+  const schemeMatch = value.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
+  if (!schemeMatch) return value;
+  const scheme = schemeMatch[1].toLowerCase();
+  if (!["http", "https", "ws", "wss"].includes(scheme)) return value;
+  try {
+    const url = new URL(value);
+    const protocol = url.protocol.toLowerCase();
+    const username = url.username;
+    const password = url.password;
+    const auth = username
+      ? `${username}${password ? `:${password}` : ""}@`
+      : "";
+    const hostname = url.hostname.toLowerCase();
+    const port =
+      url.port && !isDefaultPort(protocol, url.port) ? `:${url.port}` : "";
+    let pathname = url.pathname;
+    const hadTrailingSlash = value.endsWith("/");
+    if (!hadTrailingSlash && pathname === "/") pathname = "";
+    const search = url.search;
+    const hash = url.hash;
+    return `${protocol}//${auth}${hostname}${port}${pathname}${search}${hash}`;
+  } catch {
+    return value;
+  }
+};
+
+const normalizeEndpointValue = (value: unknown): unknown => {
+  if (typeof value === "string") return normalizeUriString(value);
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeEndpointValue(entry));
+  }
+  if (value && typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
+      result[key] = normalizeEndpointValue(entry);
+    }
+    return result;
+  }
+  return value;
+};
+
+export function normalizeServiceEndpoint(
   endpoint: ServiceEndpoint,
-): ServiceEndpoint => normalizeServiceEndpointValue(endpoint);
+): ServiceEndpoint {
+  if (typeof endpoint === "string") return normalizeUriString(endpoint);
+  if (Array.isArray(endpoint))
+    return endpoint.map((entry) => normalizeEndpointValue(entry)) as Array<
+      string | Record<string, unknown>
+    >;
+  return normalizeEndpointValue(endpoint) as Record<string, unknown>;
+}
 
 export const ServiceIdSchema = z.union([DIDURLSchema, RelativeURLSchema]);
 export type ServiceId = z.infer<typeof ServiceIdSchema>;
