@@ -2,7 +2,7 @@
   "name": "midnight-did",
   "version": "0.1.0",
   "engines": {
-    "node": ">=20 <21",
+    "node": ">=20",
     "npm": ">=10"
   },
   "scripts": {
