@@ -115,7 +115,7 @@ export const PublicKeyJwkSchema = z
     kty: KeyTypeSchema,
     crv: CurveTypeSchema,
     x: Base64UrlStringSchema,
-    y: z.optional(z.any()),
+    y: z.optional(Base64UrlStringSchema),
   })
   .check(
     z.refine(
@@ -130,13 +130,10 @@ export const PublicKeyJwkSchema = z
     ),
   )
   .check(
-    z.refine((value) => {
-      if (value.kty === KeyType.OKP) return true;
-      return (
-        typeof value.y === "string" &&
-        Base64UrlStringSchema.safeParse(value.y).success
-      );
-    }, "Non-OKP keys must include a y coordinate"),
+    z.refine(
+      (value) => value.kty === KeyType.OKP || value.y !== undefined,
+      "Non-OKP keys must include a y coordinate",
+    ),
   );
 
 export type PublicKeyJwk = z.infer<typeof PublicKeyJwkSchema>;
