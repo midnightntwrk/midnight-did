@@ -31,5 +31,7 @@
   "dependencies": {
     "zod": "^4.1.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "base64-js": "^1.5.1"
+  }
 }
