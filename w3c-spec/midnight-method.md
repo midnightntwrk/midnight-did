@@ -22,10 +22,11 @@ Contact: <contact@identus.io>
 
 
 ## Contributors:
-- Dennis Mittmann
 - Yurii Shynbuiev
+- Dennis Mittmann
 - Pat Losoponkul
 - Fabio Pinheiro
+- Shailesh Patil
 
 # Abstract
 
@@ -842,7 +843,20 @@ A simple example of a Midnight DID Document is as follows:
   "keyAgreement": null,
   "capabilityInvocation": null,
   "capabilityDelegation": null,
-  "service": null
+  "service": [
+    {
+      "id": "#linked-domain-1",
+      "type": "LinkedDomains",
+      "serviceEndpoint": [
+        "https://example.org/inbox",
+        {
+          "uri": "https://backup.example.org/inbox",
+          "routingKeys": ["did:example:mediator#key-1"],
+          "accept": ["didcomm/v2"]
+        }
+      ]
+    }
+  ]
 }
 ```
 
