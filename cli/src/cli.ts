@@ -16,14 +16,19 @@
 import { stdin as input, stdout as output } from 'node:process';
 import { createInterface, type Interface } from 'node:readline/promises';
 
-import { type DIDOperation, DIDOperationType } from '@midnight-ntwrk/midnight-did';
+import {
+  createMidnightDIDDocument,
+  createMidnightDIDString,
+  type DIDOperation,
+  DIDOperationType,
+  type MidnightDIDDocument,
+  parseContractAddress,
+} from '@midnight-ntwrk/midnight-did';
 import * as api from '@midnight-ntwrk/midnight-did-api';
 import {
-  createMidnightDIDString,
   createVerificationMethod,
   CurveType,
   KeyType,
-  parseContractAddress,
   parseDIDKeyID,
   parseVerificationMethodRelation,
   VerificationMethod,
@@ -61,15 +66,24 @@ const mainLoop = async (providers: MidnightDIDProviders, rli: Interface): Promis
     switch (choice) {
       case '1': {
         const privateState = await api.initPrivateState(providers);
-        await api.createDID(providers, privateState);
+        const didContract = await api.createDID(providers, privateState);
+        const contractAddress = parseContractAddress(didContract.deployTxData.public.contractAddress);
+        const didStr = createMidnightDIDString(contractAddress, api.midnightNetwork);
+        const initialDocument: MidnightDIDDocument = createMidnightDIDDocument({ id: didStr });
         logger.info('DID created successfully.');
+        logger.debug(`Initial Midnight DID Document: ${JSON.stringify(initialDocument, null, 2)}`);
         break;
       }
       case '2': {
         const contract = await findContractByAddress(providers, rli);
         const resolution = await api.resolve(providers, contract);
-        if (resolution != null) logger.info('DID resolved successfully.');
-        else logger.error('Failed to resolve the DID...');
+        if (resolution != null) {
+          const didDocument: MidnightDIDDocument = resolution.didDocument;
+          logger.info('DID resolved successfully.');
+          logger.debug(`Resolved Midnight DID Document: ${JSON.stringify(didDocument, null, 2)}`);
+        } else {
+          logger.error('Failed to resolve the DID...');
+        }
         break;
       }
       case '3': {

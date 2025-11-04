@@ -116,7 +116,6 @@ describe("DID document construction", () => {
     );
     const document = createDIDDocument({
       id: exampleDid,
-      context: "https://www.w3.org/ns/did/v1",
       verificationMethod: [verificationMethod],
     });
     expect(document.id).toBe(exampleDid);
@@ -131,7 +130,6 @@ describe("DID document construction", () => {
     });
     const document = createDIDDocument({
       id: exampleDid,
-      context: "https://www.w3.org/ns/did/v1",
       verificationMethod: [verificationMethod],
     });
     const inserted = document.verificationMethod?.find(

@@ -1,7 +1,6 @@
 import * as fs from "node:fs";
 import * as fsAsync from "node:fs/promises";
 
-import { type ContractAddress } from "@midnight-ntwrk/compact-runtime";
 import {
   type CoinInfo,
   nativeToken,
@@ -9,9 +8,13 @@ import {
   type TransactionId,
 } from "@midnight-ntwrk/ledger";
 import {
+  type ContractAddress,
   type DIDOperation,
   DomainToLedger,
   LedgerToDomain,
+  MidnightDIDDocument,
+  MidnightNetwork,
+  parseContractAddress,
 } from "@midnight-ntwrk/midnight-did";
 import {
   DIDContract,
@@ -19,12 +22,7 @@ import {
   OperationBuilder,
   witnesses,
 } from "@midnight-ntwrk/midnight-did-contract";
-import {
-  DIDDocument,
-  DIDDocumentMetadata,
-  MidnightNetwork,
-  parseContractAddress,
-} from "@midnight-ntwrk/midnight-did-domain";
+import { DIDDocumentMetadata } from "@midnight-ntwrk/midnight-did-domain";
 import {
   deployContract,
   findDeployedContract,
@@ -210,7 +208,7 @@ export const resolve = async (
   providers: MidnightDIDProviders,
   didContract: DeployedMidnightDIDContract,
 ): Promise<{
-  didDocument: DIDDocument;
+  didDocument: MidnightDIDDocument;
   didDocumentMetadata: DIDDocumentMetadata;
 } | null> => {
   const network = RuntimeToDomain.NetworkMap[getNetworkId()];
@@ -218,7 +216,7 @@ export const resolve = async (
   const midnightContractAddress = parseContractAddress(contractAddress);
   const didContractState = await getMidnightDIDLedgerState(
     providers,
-    contractAddress,
+    midnightContractAddress,
   );
   if (didContractState === null) {
     logger.info(

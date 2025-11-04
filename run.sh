@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+node ./scripts/ensure-onchain-runtime-cjs.mjs
+
 echo "[1/14] Lint (fix) workspaces"
 npm run lint:fix || true
 

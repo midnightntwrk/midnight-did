@@ -1,16 +1,11 @@
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import {
-  createDIDDocument,
-  createMidnightDIDString,
   createVerificationMethod,
   CurveType,
-  DIDDocument,
   DIDDocumentMetadata,
   FieldCodec,
   KeyType,
-  MidnightNetwork,
   normalizeServiceEndpoint,
-  parseContractAddress,
   PublicKeyJwk,
   Service,
   VerificationMethod,
@@ -18,6 +13,16 @@ import {
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
 import { z } from "zod/v4-mini";
+
+import {
+  createMidnightDIDString,
+  MidnightNetwork,
+  parseContractAddress,
+} from "./midnight";
+import {
+  createMidnightDIDDocument,
+  MidnightDIDDocument,
+} from "./midnight-did-document";
 
 const bytesToHex = (bytes: Iterable<number>): string => {
   let hex = "";
@@ -206,11 +211,7 @@ export class LedgerToDomain {
     ledger: Ledger,
     network: MidnightNetwork,
     contractAddress: ReturnType<typeof parseContractAddress>,
-  ): DIDDocument {
-    const ctx = [
-      "https://www.w3.org/ns/did/v1",
-      "https://w3c.github.io/vc-jws-2020/contexts/v1",
-    ];
+  ): MidnightDIDDocument {
     const did = createMidnightDIDString(contractAddress, network);
 
     const verificationMethod: VerificationMethod[] = [];
@@ -248,11 +249,8 @@ export class LedgerToDomain {
       ? undefined
       : Array.from(ledger.alsoKnownAs);
 
-    const didDocument = createDIDDocument({
+    return createMidnightDIDDocument({
       id: did,
-      context: ctx,
-      alsoKnownAs: undefined,
-      controller: did,
       verificationMethod,
       authentication,
       assertionMethod,
@@ -260,13 +258,8 @@ export class LedgerToDomain {
       capabilityInvocation,
       capabilityDelegation,
       service,
+      alsoKnownAs,
     });
-
-    if (alsoKnownAs !== undefined) {
-      (didDocument as unknown as { alsoKnownAs?: string[] }).alsoKnownAs =
-        alsoKnownAs;
-    }
-    return didDocument;
   }
 
   static ledgerStateToMetadata(ledger: Ledger): DIDDocumentMetadata {

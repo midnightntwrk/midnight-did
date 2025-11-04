@@ -85,9 +85,9 @@ describe("DID parsing utilities", () => {
     );
   });
 
-  it("parses DID Documents", () => {
+  it("parses DID Documents with array @context", () => {
     const doc = parseDIDDocument({
-      "@context": "https://www.w3.org/ns/did/v1",
+      "@context": ["https://www.w3.org/ns/did/v1"],
       id: exampleDid,
       verificationMethod: [exampleVerificationMethodInput],
       authentication: [exampleVerificationMethodInput.id],
@@ -95,5 +95,16 @@ describe("DID parsing utilities", () => {
     });
     expect(doc.id).toBe(exampleDid);
     expect(doc.authentication).toEqual([exampleVerificationMethodInput.id]);
+  });
+
+  it("parses DID Documents with string @context (W3C DID Core compliant)", () => {
+    const doc = parseDIDDocument({
+      "@context": "https://www.w3.org/ns/did/v1",
+      id: exampleDid,
+      verificationMethod: [exampleVerificationMethodInput],
+      authentication: [exampleVerificationMethodInput.id],
+    });
+    expect(doc.id).toBe(exampleDid);
+    expect(doc["@context"]).toBe("https://www.w3.org/ns/did/v1");
   });
 });

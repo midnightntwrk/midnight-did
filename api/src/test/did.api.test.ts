@@ -44,7 +44,31 @@ const toFragmentId = (value: string): string => {
   return `#${trimmed}`;
 };
 
-describe("Midnight DID method API", () => {
+let containerRuntimeAvailable = true;
+let containerRuntimeError: string | undefined;
+try {
+  const { getContainerRuntimeClient } = await import(
+    "testcontainers/build/container-runtime/clients/client.js"
+  );
+  await getContainerRuntimeClient();
+} catch (error) {
+  containerRuntimeAvailable = false;
+  containerRuntimeError =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : undefined;
+  logger.warn(
+    `Skipping API integration tests: ${
+      containerRuntimeError ?? "container runtime unavailable"
+    }`,
+  );
+}
+
+const describeApi = containerRuntimeAvailable ? describe : describe.skip;
+
+describeApi("Midnight DID method API", () => {
   let testEnvironment: TestEnvironment;
   let wallet: Wallet & Resource;
   let providers: MidnightDIDProviders;
@@ -56,6 +80,7 @@ describe("Midnight DID method API", () => {
 
   beforeAll(
     async () => {
+      if (!containerRuntimeAvailable) return;
       api.setLogger(logger);
       testEnvironment = new TestEnvironment(logger);
       const testConfiguration = await testEnvironment.start();
@@ -69,6 +94,16 @@ describe("Midnight DID method API", () => {
   );
 
   afterAll(async () => {
+    if (!containerRuntimeAvailable) {
+      logger.warn(
+        `Skipped API integration tests because container runtime is unavailable${
+          containerRuntimeError !== undefined
+            ? `: ${containerRuntimeError}`
+            : ""
+        }`,
+      );
+      return;
+    }
     await testEnvironment.saveWalletCache();
     await testEnvironment.shutdown();
   });

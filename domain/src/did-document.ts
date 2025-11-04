@@ -1,7 +1,5 @@
 import { z } from "zod/v4-mini";
 
-import { normalizeServiceEndpointValue } from "./uri-normalization";
-
 /** DID URL schema */
 export const DIDURLSchema = z
   .string()
@@ -271,7 +269,7 @@ export const ServiceSchema = z.object({
 });
 export type Service = z.infer<typeof ServiceSchema>;
 
-/** DID Document */
+/** DID Document (W3C DID Core 1.0 compliant - generic) */
 export const DIDDocumentSchema = z.looseObject({
   "@context": z.union([z.string(), z.array(z.string())]),
   id: DIDStringSchema,

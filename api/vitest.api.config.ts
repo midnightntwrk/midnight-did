@@ -8,7 +8,10 @@ export default defineConfig({
     testTimeout: 1000 * 60 * 45,
     deps: {
       interopDefault: true,
-      inline: [/^@midnight-ntwrk\/compact-runtime\//, /^@midnight-ntwrk\/onchain-runtime\//],
+      inline: [
+        /^@midnight-ntwrk\/compact-runtime(?:\/.*)?$/,
+        /^@midnight-ntwrk\/onchain-runtime(?:\/.*)?$/,
+      ],
       optimizer: {
         ssr: {
           include: [
@@ -40,5 +43,11 @@ export default defineConfig({
   resolve: {
     extensions: ['.ts', '.js'],
     conditions: ['import', 'node', 'default'],
+  },
+  ssr: {
+    noExternal: [
+      '@midnight-ntwrk/compact-runtime',
+      '@midnight-ntwrk/onchain-runtime',
+    ],
   },
 });

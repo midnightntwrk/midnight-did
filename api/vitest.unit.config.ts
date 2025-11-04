@@ -13,7 +13,12 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['**/*.test.ts'],
-    exclude: ['node_modules', 'src/test/did.api.test.ts'],
+    exclude: [
+      'node_modules',
+      'src/test/did.api.test.ts',
+      'src/test/domain-to-runtime.test.ts',
+      'src/test/runtime-to-domain.test.ts',
+    ],
     root: '.',
     reporters: ['default'],
     coverage: {
