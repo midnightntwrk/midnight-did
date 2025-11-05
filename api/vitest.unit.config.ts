@@ -13,12 +13,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['**/*.test.ts'],
-    exclude: [
-      'node_modules',
-      'src/test/did.api.test.ts',
-      'src/test/domain-to-runtime.test.ts',
-      'src/test/runtime-to-domain.test.ts',
-    ],
+    exclude: ['node_modules', 'src/test/did.api.test.ts'],
     root: '.',
     reporters: ['default'],
     coverage: {
@@ -37,8 +32,5 @@ export default defineConfig({
   resolve: {
     extensions: ['.ts', '.js'],
     conditions: ['import', 'node', 'default'],
-    alias: {
-      '@midnight-ntwrk/midnight-js-network-id': path.join(rootDir, 'src/test/shims/network-id.ts'),
-    },
   },
 });

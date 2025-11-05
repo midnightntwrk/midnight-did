@@ -1,4 +1,4 @@
-import { MidnightNetwork } from "@midnight-ntwrk/midnight-did-domain";
+import { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
 import { NetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 
 export class RuntimeToDomain {

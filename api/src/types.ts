@@ -1,9 +1,9 @@
 import { NetworkId } from "@midnight-ntwrk/ledger";
+import { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
 import {
   DIDContract,
   type MidnightDIDPrivateState,
 } from "@midnight-ntwrk/midnight-did-contract";
-import { MidnightNetwork } from "@midnight-ntwrk/midnight-did-domain";
 import type {
   DeployedContract,
   FoundContract,

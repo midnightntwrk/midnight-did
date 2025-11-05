@@ -53,6 +53,7 @@ Why these dependencies
 - Node 20 is required (see `.nvmrc`); npm >= 10
 - Recommended: `nvm use` before running scripts
 - One-shot pipeline: `./run.sh` (builds, lints, tests, coverage)
+- `./run.sh` automatically patches `@midnight-ntwrk/onchain-runtime` with a CommonJS shim (see `docs/runtime-shim.md`) so contract tooling continues to work until upstream ships a CJS entrypoint.
 
 
 ### LICENSE
