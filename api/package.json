@@ -31,7 +31,7 @@
     "lint:fix": "eslint src --fix"
   },
   "dependencies": {
-    "@midnight-ntwrk/onchain-runtime": "^4.0.0",
+    "@midnight-ntwrk/onchain-runtime": "^0.3.0",
     "@midnight-ntwrk/midnight-did": "*",
     "@midnight-ntwrk/midnight-did-contract": "*",
     "@midnight-ntwrk/midnight-did-domain": "*",

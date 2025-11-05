@@ -31,6 +31,7 @@
     "test": "vitest run",
     "test:ci": "vitest run",
     "coverage": "vitest run --coverage",
+    "clean": "rm -rf dist && rm -rf coverage",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix"
   },

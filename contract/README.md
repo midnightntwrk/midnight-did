@@ -6,9 +6,10 @@ Purpose
 
 Prerequisites
 - Node 20 and npm >= 10
+- `@midnight-ntwrk/compact` CLI (automatically invoked via workspace scripts; see [compact releases](https://github.com/midnightntwrk/compact/releases/tag/compact-v0.2.0))
 
 Build & Test
-- Build compact: `npm run contract -w contract`
+- Build compact: `npm run contract -w contract` (runs `compact compile src/did.compact src/managed/did`)
 - Build TS: `npm run build -w contract`
 - Test (CI-friendly): `SKIP_RUNTIME_TESTS=1 npm run test:ci -w contract`
 - Coverage: `npm run coverage -w contract`
