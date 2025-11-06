@@ -36,6 +36,7 @@ export ledger capabilityDelegationRelation: Set<Opaque<"string">>;
 export ledger services: Map<Opaque<"string">, Service>;
 
 witness localSecretKey(): Bytes<32>;
+witness currentTimestamp(): Uint<64>;
 
 export enum VerificationMethodType {
   Undefined,
@@ -156,7 +157,10 @@ constructor() {
   active = true;
   controllerPublicKey = disclose(publicKey(localSecretKey()));
 
-  //createdAt = disclose(getEpoc());
+  const timestamp = disclose(currentTimestamp());
+  createdAt = timestamp;
+  updatedAt = timestamp;
+  deactivatedAt = 0;
 }
 
 //TODO: clarify with Midnight team how to find/deploy the smart contract with args
@@ -186,8 +190,10 @@ export circuit applyOperations(operations: Vector<4, DIDUpdateOperation>): [] {
     }
   
   const appliedOperationCount = operationCount.read() - previosOperationCount;
-  if (appliedOperationCount > 0)
+  if (appliedOperationCount > 0) {
     version.increment(1);
+    updatedAt = disclose(currentTimestamp());
+  }
 }
 
 circuit applyOperation(operation: DIDUpdateOperation): [] {
@@ -369,5 +375,8 @@ circuit removeService(options: RemoveServiceOptions): [] {
 
 circuit deactivate(): [] {
   assert(active, "DID is already inactive");
+  const timestamp = disclose(currentTimestamp());
   active = false;
+  deactivatedAt = timestamp;
+  updatedAt = timestamp;
 }

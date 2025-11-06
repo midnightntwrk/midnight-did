@@ -27,5 +27,11 @@ export const witnesses = {
   }: WitnessContext<Ledger, MidnightDIDPrivateState>): [
     MidnightDIDPrivateState,
     Uint8Array
-  ] => [privateState, privateState.secretKey]
+  ] => [privateState, privateState.secretKey],
+  currentTimestamp: ({
+    privateState
+  }: WitnessContext<Ledger, MidnightDIDPrivateState>): [
+    MidnightDIDPrivateState,
+    bigint
+  ] => [privateState, BigInt(Date.now())]
 };

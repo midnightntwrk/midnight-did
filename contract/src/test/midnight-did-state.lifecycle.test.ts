@@ -1,13 +1,20 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OperationBuilder } from "../ledger-operation-builder";
 import { addVerificationMethod, createSimulator } from "./fixtures/simulator";
 
 describe("MidnightDIDSimulator lifecycle", () => {
-  let simulator = createSimulator();
+  let simulator: ReturnType<typeof createSimulator>;
+  const initialTime = new Date("2024-01-01T00:00:00.000Z");
 
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(initialTime);
     simulator = createSimulator();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("initializes with an empty ledger", () => {
@@ -19,11 +26,18 @@ describe("MidnightDIDSimulator lifecycle", () => {
     expect(ledger.authenticationRelation.isEmpty).toBeTruthy();
     expect(ledger.capabilityDelegationRelation.isEmpty).toBeTruthy();
     expect(ledger.capabilityInvocationRelation.isEmpty).toBeTruthy();
+    expect(ledger.createdAt).toBe(BigInt(initialTime.getTime()));
+    expect(ledger.updatedAt).toBe(BigInt(initialTime.getTime()));
+    expect(ledger.deactivatedAt).toBe(0n);
   });
 
   it("deactivates the DID", () => {
+    const deactivatedAt = new Date("2024-01-01T00:10:00.000Z");
+    vi.setSystemTime(deactivatedAt);
     const ledger = simulator.applyOperation(OperationBuilder.deactivate());
     expect(ledger.active).toBe(false);
+    expect(ledger.deactivatedAt).toBe(BigInt(deactivatedAt.getTime()));
+    expect(ledger.updatedAt).toBe(BigInt(deactivatedAt.getTime()));
   });
 
   it("rejects operations after deactivation", () => {
@@ -36,5 +50,12 @@ describe("MidnightDIDSimulator lifecycle", () => {
     expect(() => simulator.applyOperations(ops)).toThrow(
       "Cannot pad: input exceeds 4 operations"
     );
+  });
+
+  it("updates updatedAt when operations succeed", () => {
+    const nextTime = new Date("2024-01-01T00:05:00.000Z");
+    vi.setSystemTime(nextTime);
+    const ledger = simulator.applyOperation(addVerificationMethod());
+    expect(ledger.updatedAt).toBe(BigInt(nextTime.getTime()));
   });
 });
