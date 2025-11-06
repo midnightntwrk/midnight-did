@@ -164,7 +164,10 @@ describeApi("Midnight DID method API", () => {
     const resolution = await api.resolve(providers, contract);
     expect(resolution).not.toBeNull();
     expect(resolution?.didDocumentMetadata.versionId).toBeDefined();
-    expect(resolution?.didDocumentMetadata.deactivated).toBe(false);
+    expect(resolution?.didDocumentMetadata.deactivated).toBeUndefined();
+    expect(resolution?.didDocumentMetadata.created).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/,
+    );
   });
 
   it(`should add the verification method with ${VerificationMethodType.JsonWebKey} public key`, async () => {

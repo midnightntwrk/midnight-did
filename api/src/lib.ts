@@ -83,11 +83,6 @@ export const getMidnightDIDLedgerState = async (
     );
   if (state != null || state != undefined)
     logger.info(LedgerToDomain.toJSON(state));
-  if (state != null && state?.verificationMethods != null) {
-    for (const [id, method] of state!.verificationMethods) {
-      logger.info(`VerificaitonMethod: id: ${id}, type: ${method.type}`);
-    }
-  }
   return state;
 };
 

@@ -419,9 +419,9 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | id                             | `ContractAddress`                            | Smart‑contract address that uniquely identifies the DID on Midnight. |
 | alsoKnownAs                    | `Set<Opaque<"string">>`                      | The DID Document’s `alsoKnownAs` field; allows to set the alias for the DID identity. |
 | version                        | `Counter`                                    | Monotonic on‑chain revision counter for the DID state. Must be set to the `versionId` property of the DIDDocument. |
-| createdAt                      | `Uint<64>`                                   | Creation timestamp (UNIX epoch, milliseconds) of the DID instance. Must be set to the `created` property of the DIDDocument and the DIDDocument's metadata. |
-| updatedAt                      | `Uint<64>`                                   | Last update timestamp (UNIX epoch, milliseconds) after applying operations. Must be set to the `updated` property of the DIDDocument and the DIDDocument’s metadata. |
-| deactivatedAt                  | `Uint<64>`                                   | Deactivation timestamp (UNIX epoch, milliseconds); zero/absent if not deactivated. Must be set to the `deactivated` property of the DIDDocument and the DIDDocument's metadata |
+| created                        | `Uint<64>`                                   | Creation timestamp (UNIX epoch, milliseconds) of the DID instance. Exposed as the DID Document Metadata `created` property (ISO 8601 UTC, second precision). |
+| updated                        | `Uint<64>`                                   | Last update timestamp (UNIX epoch, milliseconds) after applying operations. Exposed as the DID Document Metadata `updated` property (ISO 8601 UTC, second precision). |
+| deactivated                    | `Boolean`                                    | Whether the DID has been deactivated. When `true`, the resolver surfaces `deactivated: true` in metadata and reuses the `updated` timestamp as the deactivation time. |
 | active                         | `Boolean`                                    | Whether the DID is active (`true`) or deactivated (`false`). If the `active` is false, the `deactivated` property MUST be set in the DIDDocument and the DIDDocument's metadata |
 | operationCount                 | `Counter`                                    | Total number of DID update operations applied to this DID. Used for internal statistics. |
 | verificationMethods            | `Map<Opaque<"string">, VerificationMethod>`    | Map from verification method identifiers (strings stored without a leading `#`) to their definition (type, controller, key material). Ledger-to-domain conversion adds the `#` prefix unless the identifier is already a DID URL. The DIDDocument's `verificationMethod` property is reconstructed from this state. |
@@ -431,6 +431,17 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | capabilityInvocationRelation   | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `capabilityInvocation`. The DIDDocument's `capabilityInvocation` property is reconstructed from this state. |
 | capabilityDelegationRelation   | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `capabilityDelegation`. The DIDDocument's `capabilityDelegation` property is reconstructed from this state. |
 | services                       | `Map<Opaque<"string">, Service>`               | Map from service identifiers (strings stored without a leading `#`) to service definitions. The `serviceEndpoint` value is stored as a JSON string so that any DID Core–compliant representation (string, object, or array) can be rehydrated when reconstructing the DID Document. When rebuilding the document, identifiers are prefixed with `#` unless they already represent DID URLs or other relative references. |
+
+Example DID Document metadata emitted by the resolver layer:
+
+```json
+{
+  "created": "2024-01-01T09:30:00Z",
+  "updated": "2024-01-15T14:12:05Z",
+  "deactivated": false,
+  "versionId": "5"
+}
+```
 
 # 7. DID operations
 
@@ -452,7 +463,7 @@ To deploy the smart-contract instance, the following prerequisites MUST be met:
 
 After the smart-contract publishing, the Midnight DID is deployed, but doesn't contain the public information. It's still resolvable and contains the following properties:
 - `id` the smart-contract address
-- `createdAt` - the creation timestamp
+- `created` - the creation timestamp (ISO 8601 UTC string with second precision)
 
 ## 7.2. Read
 
@@ -697,7 +708,7 @@ Marks the DID as deactivated on‑chain. The public state remains readable for a
 - Inputs: none (discriminant only).
 - Effects:
   - Sets `active = false` in the ledger state.
-  - Implementations SHOULD set `deactivatedAt` (outside the circuit) in DID Document metadata as described in section 2.2.
+- Implementations SHOULD surface the contract’s `deactivated` flag (and accompanying `updated` timestamp) via DID Document metadata as described in section 2.2.
 - Constraints:
   - After deactivation, any subsequent update operation (add/update/remove key, relation, or service) MUST fail (as enforced in tests).
 

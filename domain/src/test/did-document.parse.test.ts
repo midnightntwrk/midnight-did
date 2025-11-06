@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DIDDocumentMetadataSchema,
   KnownDIDMediaTypesSchema,
   parseDID,
   parseDIDDocument,
@@ -106,5 +107,23 @@ describe("DID parsing utilities", () => {
     });
     expect(doc.id).toBe(exampleDid);
     expect(doc["@context"]).toBe("https://www.w3.org/ns/did/v1");
+  });
+
+  it("validates DID metadata timestamps", () => {
+    const metadata = DIDDocumentMetadataSchema.parse({
+      created: "2024-01-01T00:00:00Z",
+      updated: "2024-01-02T12:30:05Z",
+      deactivated: false,
+    });
+    expect(metadata.created).toBe("2024-01-01T00:00:00Z");
+    expect(metadata.updated).toBe("2024-01-02T12:30:05Z");
+  });
+
+  it("rejects metadata timestamps with sub-second precision", () => {
+    expect(() =>
+      DIDDocumentMetadataSchema.parse({
+        created: "2024-01-01T00:00:00.123Z",
+      }),
+    ).toThrow(/Timestamp must be an ISO 8601 UTC string/);
   });
 });

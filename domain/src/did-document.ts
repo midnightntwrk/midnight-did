@@ -396,9 +396,19 @@ function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
 export type DIDDocument = z.infer<typeof DIDDocumentSchema>;
 
 /** DID Document Metadata */
+const SECOND_PRECISION_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+const DateTimeStringSchema = z
+  .string()
+  .check(
+    z.refine(
+      (value) => SECOND_PRECISION_UTC.test(value),
+      "Timestamp must be an ISO 8601 UTC string with second precision (e.g. 2020-12-20T19:17:47Z)",
+    ),
+  );
+
 export const DIDDocumentMetadataSchema = z.looseObject({
-  created: z.nullish(z.string()),
-  updated: z.nullish(z.string()),
+  created: z.nullish(DateTimeStringSchema),
+  updated: z.nullish(DateTimeStringSchema),
   deactivated: z.nullish(z.boolean()),
   versionId: z.nullish(z.string()),
   nextUpdate: z.nullish(z.string()),

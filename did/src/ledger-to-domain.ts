@@ -168,11 +168,17 @@ export class LedgerToDomain {
   }
 
   static toJSON(ledger: Ledger): object {
+    const created = this.timestampToIsoString(ledger.created);
+    const updated = this.timestampToIsoString(ledger.updated);
+
     return {
       id: bytesToHex(ledger.id.bytes),
       version: Number(ledger.version.toString()),
       active: ledger.active,
       operationCount: Number(ledger.operationCount.toString()),
+      created,
+      updated,
+      deactivated: ledger.deactivated,
       alsoKnownAs: Array.from(ledger.alsoKnownAs),
       verificationMethods: Array.from(
         ledger.verificationMethods,
@@ -263,19 +269,23 @@ export class LedgerToDomain {
   }
 
   static ledgerStateToMetadata(ledger: Ledger): DIDDocumentMetadata {
-    const created = this.timestampToIsoString(ledger.createdAt);
-    const updated = this.timestampToIsoString(ledger.updatedAt);
-    const deactivatedAt = this.timestampToIsoString(ledger.deactivatedAt);
+    const created = this.timestampToIsoString(ledger.created);
+    const updated = this.timestampToIsoString(ledger.updated);
+    const deactivatedAt = ledger.deactivated
+      ? this.timestampToIsoString(ledger.updated)
+      : undefined;
 
+    const isDeactivated = ledger.deactivated || !ledger.active;
     const metadata: DIDDocumentMetadata = {
       created,
       updated,
-      deactivated: !ledger.active,
+      deactivated: isDeactivated ? true : undefined,
       versionId: ledger.version.toString(),
     };
 
-    if (metadata.deactivated && deactivatedAt !== undefined)
-      metadata.updated ??= deactivatedAt;
+    if (isDeactivated && deactivatedAt !== undefined) {
+      metadata.updated = deactivatedAt;
+    }
 
     return metadata;
   }
@@ -286,6 +296,7 @@ export class LedgerToDomain {
     if (timestamp > maxSafe || timestamp < 0n) return undefined;
     const milliseconds = Number(timestamp);
     if (Number.isNaN(milliseconds)) return undefined;
-    return new Date(milliseconds).toISOString();
+    const iso = new Date(milliseconds).toISOString();
+    return iso.replace(/\.\d{3}Z$/, "Z");
   }
 }

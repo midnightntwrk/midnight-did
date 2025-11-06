@@ -22,9 +22,9 @@ export ledger controllerPublicKey: Bytes<32>;
 export ledger id: ContractAddress;
 export ledger alsoKnownAs: Set<Opaque<"string">>;
 export ledger version: Counter;
-export ledger createdAt: Uint<64>;
-export ledger updatedAt: Uint<64>;
-export ledger deactivatedAt: Uint<64>;
+export ledger created: Uint<64>;
+export ledger updated: Uint<64>;
+export ledger deactivated: Boolean;
 export ledger active: Boolean;
 export ledger operationCount: Counter;
 export ledger verificationMethods: Map<Opaque<"string">, VerificationMethod>;
@@ -158,9 +158,9 @@ constructor() {
   controllerPublicKey = disclose(publicKey(localSecretKey()));
 
   const timestamp = disclose(currentTimestamp());
-  createdAt = timestamp;
-  updatedAt = timestamp;
-  deactivatedAt = 0;
+  created = timestamp;
+  updated = timestamp;
+  deactivated = false;
 }
 
 //TODO: clarify with Midnight team how to find/deploy the smart contract with args
@@ -192,7 +192,7 @@ export circuit applyOperations(operations: Vector<4, DIDUpdateOperation>): [] {
   const appliedOperationCount = operationCount.read() - previosOperationCount;
   if (appliedOperationCount > 0) {
     version.increment(1);
-    updatedAt = disclose(currentTimestamp());
+    updated = disclose(currentTimestamp());
   }
 }
 
@@ -377,6 +377,6 @@ circuit deactivate(): [] {
   assert(active, "DID is already inactive");
   const timestamp = disclose(currentTimestamp());
   active = false;
-  deactivatedAt = timestamp;
-  updatedAt = timestamp;
+  deactivated = true;
+  updated = timestamp;
 }

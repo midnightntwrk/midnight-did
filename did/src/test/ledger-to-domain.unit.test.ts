@@ -112,9 +112,9 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       id: { bytes: idBytes },
       version: 1n,
       active: true,
-      createdAt: 1n,
-      updatedAt: 2n,
-      deactivatedAt: 0n,
+      created: 1n,
+      updated: 2n,
+      deactivated: false,
       operationCount: 3n,
       alsoKnownAs: makeIterable<string>(["did:alias:one"]),
       verificationMethods,
@@ -261,8 +261,17 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
   it("ledgerStateToMetadata maps counters and timestamps", () => {
     const metadata = LedgerToDomain.ledgerStateToMetadata(stubLedger);
     expect(metadata.versionId).toBe("1");
-    expect(metadata.deactivated).toBe(false);
-    expect(metadata.created).toBe(new Date(1).toISOString());
-    expect(metadata.updated).toBe(new Date(2).toISOString());
+    expect(metadata.deactivated).toBeUndefined();
+    expect(metadata.created).toBe("1970-01-01T00:00:00Z");
+    expect(metadata.updated).toBe("1970-01-01T00:00:00Z");
+  });
+
+  it("ledgerStateToMetadata reports deactivation state", () => {
+    stubLedger.active = false;
+    stubLedger.deactivated = true;
+    stubLedger.updated = 10_000n;
+    const metadata = LedgerToDomain.ledgerStateToMetadata(stubLedger);
+    expect(metadata.deactivated).toBe(true);
+    expect(metadata.updated).toBe("1970-01-01T00:00:10Z");
   });
 });

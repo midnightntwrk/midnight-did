@@ -26,9 +26,9 @@ describe("MidnightDIDSimulator lifecycle", () => {
     expect(ledger.authenticationRelation.isEmpty).toBeTruthy();
     expect(ledger.capabilityDelegationRelation.isEmpty).toBeTruthy();
     expect(ledger.capabilityInvocationRelation.isEmpty).toBeTruthy();
-    expect(ledger.createdAt).toBe(BigInt(initialTime.getTime()));
-    expect(ledger.updatedAt).toBe(BigInt(initialTime.getTime()));
-    expect(ledger.deactivatedAt).toBe(0n);
+    expect(ledger.created).toBe(BigInt(initialTime.getTime()));
+    expect(ledger.updated).toBe(BigInt(initialTime.getTime()));
+    expect(ledger.deactivated).toBe(false);
   });
 
   it("deactivates the DID", () => {
@@ -36,8 +36,8 @@ describe("MidnightDIDSimulator lifecycle", () => {
     vi.setSystemTime(deactivatedAt);
     const ledger = simulator.applyOperation(OperationBuilder.deactivate());
     expect(ledger.active).toBe(false);
-    expect(ledger.deactivatedAt).toBe(BigInt(deactivatedAt.getTime()));
-    expect(ledger.updatedAt).toBe(BigInt(deactivatedAt.getTime()));
+    expect(ledger.deactivated).toBe(true);
+    expect(ledger.updated).toBe(BigInt(deactivatedAt.getTime()));
   });
 
   it("rejects operations after deactivation", () => {
@@ -52,10 +52,10 @@ describe("MidnightDIDSimulator lifecycle", () => {
     );
   });
 
-  it("updates updatedAt when operations succeed", () => {
+  it("updates the ledger timestamp when operations succeed", () => {
     const nextTime = new Date("2024-01-01T00:05:00.000Z");
     vi.setSystemTime(nextTime);
     const ledger = simulator.applyOperation(addVerificationMethod());
-    expect(ledger.updatedAt).toBe(BigInt(nextTime.getTime()));
+    expect(ledger.updated).toBe(BigInt(nextTime.getTime()));
   });
 });
