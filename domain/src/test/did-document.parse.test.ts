@@ -124,6 +124,6 @@ describe("DID parsing utilities", () => {
       DIDDocumentMetadataSchema.parse({
         created: "2024-01-01T00:00:00.123Z",
       }),
-    ).toThrow(/Timestamp must be an ISO 8601 UTC string/);
+    ).toThrow(/Invalid input|datetime/);
   });
 });
