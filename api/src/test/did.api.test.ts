@@ -116,10 +116,7 @@ describeApi("Midnight DID method API", () => {
     contractAddress = parseContractAddress(
       contract.deployTxData.public.contractAddress,
     );
-    logger.info(`MidnightDID contract address: ${contractAddress}`);
-
     didString = createMidnightDIDString(contractAddress, api.midnightNetwork);
-    logger.info(`MidnightDID ID is: ${didString}`);
 
     const didLedger = await api.getMidnightDIDLedgerState(
       providers,
@@ -191,9 +188,6 @@ describeApi("Midnight DID method API", () => {
     await api.update(contract, operations);
     const resolution = await api.resolve(providers, contract);
     const didDocument = resolution?.didDocument;
-    logger.info(
-      `DIDDocument JSON: ${JSON.stringify(didDocument, BigIntReplacer, 2)}`,
-    );
 
     expect(didDocument?.verificationMethod).not.toBeNull();
     const insertedVerificationMethod = didDocument?.verificationMethod?.find(
@@ -246,9 +240,6 @@ describeApi("Midnight DID method API", () => {
     ];
     await api.update(contract, operations);
     const didDoc = (await api.resolve(providers, contract))?.didDocument;
-    logger.info(
-      `DIDDocument JSON: ${JSON.stringify(didDoc, BigIntReplacer, 2)}`,
-    );
     expect(
       didDoc?.authentication?.some(
         (authenticationMethodId) =>
@@ -282,9 +273,6 @@ describeApi("Midnight DID method API", () => {
     const result = await api.update(contract, operations);
     expect(result.txId).toMatch(/[0-9a-f]{64}/);
     const didDoc = (await api.resolve(providers, contract))?.didDocument;
-    logger.info(
-      `DIDDocument JSON: ${JSON.stringify(didDoc, BigIntReplacer, 2)}`,
-    );
     expect(didDoc?.verificationMethod).not.toBeNull();
     const insertedVerificationMethod = didDoc?.verificationMethod?.find(
       (vm) => vm.id === toFragmentId(methodId),
@@ -310,9 +298,6 @@ describeApi("Midnight DID method API", () => {
     const result = await api.update(contract, operations);
     expect(result.txId).toMatch(/[0-9a-f]{64}/);
     const didDoc = (await api.resolve(providers, contract))?.didDocument;
-    logger.info(
-      `DIDDocument JSON: ${JSON.stringify(didDoc, BigIntReplacer, 2)}`,
-    );
     expect(didDoc?.service).not.toBeNull();
     const service = didDoc?.service!;
     expect(service.length).toBe(1);
@@ -333,9 +318,6 @@ describeApi("Midnight DID method API", () => {
     const result = await api.update(contract, operations);
     expect(result.txId).toMatch(/[0-9a-f]{64}/);
     const didDoc = (await api.resolve(providers, contract))?.didDocument;
-    logger.info(
-      `DIDDocument JSON (after update): ${JSON.stringify(didDoc, BigIntReplacer, 2)}`,
-    );
     expect(didDoc?.service).not.toBeNull();
     const service = didDoc?.service!;
     expect(service.length).toBe(1);
@@ -353,9 +335,6 @@ describeApi("Midnight DID method API", () => {
     const result = await api.update(contract, operations);
     expect(result.txId).toMatch(/[0-9a-f]{64}/);
     const didDoc = (await api.resolve(providers, contract))?.didDocument;
-    logger.info(
-      `DIDDocument JSON (after removal): ${JSON.stringify(didDoc, BigIntReplacer, 2)}`,
-    );
     expect(didDoc?.service?.length ?? 0).toBe(0);
   });
 
@@ -477,9 +456,6 @@ describeApi("Midnight DID method API", () => {
     }
 
     const didDoc = (await api.resolve(providers, contract))?.didDocument;
-    logger.info(
-      `DIDDocument JSON (after adding complex services): ${JSON.stringify(didDoc, BigIntReplacer, 2)}`,
-    );
     expect(didDoc?.service?.length).toBeGreaterThanOrEqual(
       serviceDefinitions.length,
     );
@@ -501,9 +477,6 @@ describeApi("Midnight DID method API", () => {
     }
 
     const finalDoc = (await api.resolve(providers, contract))?.didDocument;
-    logger.info(
-      `DIDDocument JSON (after cleanup): ${JSON.stringify(finalDoc, BigIntReplacer, 2)}`,
-    );
     for (const { service } of serviceDefinitions) {
       const fragmentId = toFragmentId(service.id);
       expect(
@@ -519,9 +492,6 @@ describeApi("Midnight DID method API", () => {
     const result = await api.update(contract, operations);
     expect(result.txId).toMatch(/[0-9a-f]{64}/);
     const didDoc = (await api.resolve(providers, contract))?.didDocument;
-    logger.info(
-      `DIDDocument JSON (after aka add): ${JSON.stringify(didDoc, BigIntReplacer, 2)}`,
-    );
     expect(didDoc?.alsoKnownAs?.includes(didString)).toBe(true);
   });
 
@@ -532,9 +502,6 @@ describeApi("Midnight DID method API", () => {
     const result = await api.update(contract, operations);
     expect(result.txId).toMatch(/[0-9a-f]{64}/);
     const didDoc = (await api.resolve(providers, contract))?.didDocument;
-    logger.info(
-      `DIDDocument JSON (after aka second add): ${JSON.stringify(didDoc, BigIntReplacer, 2)}`,
-    );
     expect(didDoc?.alsoKnownAs?.includes(didString)).toBe(true);
     expect(didDoc?.alsoKnownAs?.includes("did:example:aka-2")).toBe(true);
   });
@@ -555,9 +522,6 @@ describeApi("Midnight DID method API", () => {
     const result = await api.update(contract, operations);
     expect(result.txId).toMatch(/[0-9a-f]{64}/);
     didDoc = (await api.resolve(providers, contract))?.didDocument;
-    logger.info(
-      `DIDDocument JSON (after aka remove): ${JSON.stringify(didDoc, BigIntReplacer, 2)}`,
-    );
     expect(didDoc?.alsoKnownAs?.includes(didString)).toBe(false);
     expect(didDoc?.alsoKnownAs?.includes("did:example:aka-2")).toBe(true);
   });
