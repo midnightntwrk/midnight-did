@@ -1,7 +1,61 @@
-# Midnight Template Repository
+# Midnight DID
 
-This GitHub repository should be used as a template when creating a new Midnight GitHub repository.
-The template is configured with default repository settings and a set of default files that are expected to exist in all Midnight GitHub repositories.
+This GitHub repository contains the Midnight DID method specification and reference implementation in TypeScript.
+
+The main purpose of creating a new DID method is to make it a first-class citizen of the Midnight blockchain and solve the following challenges:
+- provide a W3C DID Core specification-compliant method that is compatible with other DID methods and Self-Sovereign Identity platforms.
+- support Midnight platform cryptography (JubJub + Poseidon hash)
+- enable DID resolution via the Midnight JS library and smart contract.
+- support signing and signature verification both within and outside smart contracts.
+
+## Repository structure
+
+- w3c-spec - the Midnight DID method specification
+- contract - smart-contract implementation of the Midnight DID
+- domain - common classes, interfaces, and implementations for DID, DIDDocument, and DIDResolver
+- did - conversion helpers between the domain model and contract-managed ledger
+- api - programmatic API to create, update, resolve Midnight DIDs (unit + integration tests)
+- cli - Node.js console application to manage the Midnight DID
+- resolver - Node.js implementation of the Midnight DID resolver
+
+## Package Dependency Diagram
+
+```mermaid
+graph TD
+  subgraph Workspace
+    domain["domain (\@midnight-ntwrk/midnight-did-domain)"]
+    contract["contract (\@midnight-ntwrk/midnight-did-contract)"]
+    did["did (\@midnight-ntwrk/midnight-did)"]
+    api["api (\@midnight-ntwrk/midnight-did-api)"]
+    cli["cli (\@midnight-ntwrk/midnight-did-cli)"]
+  end
+
+  domain --> did
+  domain --> api
+  domain --> cli
+  contract --> did
+  contract --> api
+  contract --> cli
+  did --> api
+  did --> cli
+  api --> cli
+```
+
+Why these dependencies
+- domain is the source of truth for DID schemas and operations (shared by others)
+- contract depends on domain for types and codecs
+- did links domain types with contract-managed types
+- api uses both contract and domain to provide a high-level interface; tests and infra live here
+- cli is a thin wrapper over api and does not reimplement logic
+
+## Development
+
+- Node 20 is required (see `.nvmrc`); npm >= 10
+- Recommended: `nvm use` before running scripts
+- One-shot pipeline: `./run.sh` (builds, lints, tests, coverage)
+- Circuit compilation uses the [`@midnight-ntwrk/compact`](https://github.com/midnightntwrk/compact) CLI via `compact compile`; the workspace scripts invoke it automatically.
+- `./run.sh` automatically patches `@midnight-ntwrk/onchain-runtime` with a CommonJS shim (see `docs/runtime-shim.md`) so contract tooling continues to work until upstream ships a CJS entrypoint.
+
 
 ### LICENSE
 
@@ -48,25 +102,9 @@ All repositories are scanned with Checkmarx's suite of tools including: Static A
 
 ### Unito
 
-Facilitates two-way data synchronization, automated workflows and streamline processes between: Jira, GitHub issues and Github project Kanban board. 
+Facilitates two-way data synchronization, automated workflows, and streamlined processes between: Jira, GitHub issues and Github project Kanban board. 
 
 # TODO - New Repo Owner
 
 ### Software Package Data Exchange (SPDX)
 Include the following Software Package Data Exchange (SPDX) short-form identifier in a comment at the top headers of each source code file.
-
-
- <I>// This file is part of <B>REPLACE WITH REPO-NAME</B>.<BR>
- // Copyright (C) 2025 Midnight Foundation<BR>
- // SPDX-License-Identifier: Apache-2.0<BR>
- // Licensed under the Apache License, Version 2.0 (the "License");<BR>
- // You may not use this file except in compliance with the License.<BR>
- // You may obtain a copy of the License at<BR>
- //<BR>
- //	http://www.apache.org/licenses/LICENSE-2.0<BR>
- //<BR>
- // Unless required by applicable law or agreed to in writing, software<BR>
- // distributed under the License is distributed on an "AS IS" BASIS,<BR>
- // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.<BR>
- // See the License for the specific language governing permissions and<BR>
- // limitations under the License.</I>

@@ -1,0 +1,54 @@
+{
+  "name": "@midnight-ntwrk/midnight-did-api",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc -b tsconfig.build.json --force",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run -c vitest.unit.config.ts --pool=threads --passWithNoTests",
+    "test:ci": "vitest run -c vitest.unit.config.ts --pool=threads --passWithNoTests",
+    "test-api": "vitest run -c vitest.api.config.ts --pool=threads",
+    "coverage": "vitest run -c vitest.unit.config.ts --coverage",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/onchain-runtime": "^0.3.0",
+    "@midnight-ntwrk/midnight-did": "*",
+    "@midnight-ntwrk/midnight-did-contract": "*",
+    "@midnight-ntwrk/midnight-did-domain": "*",
+    "@midnight-ntwrk/midnight-js-contracts": "2.0.1",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "2.0.1",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "2.0.1",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider": "2.0.1",
+    "@midnight-ntwrk/midnight-js-network-id": "2.0.1",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "2.0.1",
+    "@midnight-ntwrk/midnight-js-types": "2.0.1",
+    "@midnight-ntwrk/midnight-js-utils": "2.0.1",
+    "@midnight-ntwrk/wallet": "5.0.0",
+    "@midnight-ntwrk/wallet-api": "5.0.0",
+    "@midnight-ntwrk/zswap": "^4.0.0",
+    "pino": "^9.7.0",
+    "pino-pretty": "^13.0.0",
+    "ws": "^8.18.2",
+    "zod": "^4.1.0"
+  }
+}

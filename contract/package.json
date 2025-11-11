@@ -1,0 +1,44 @@
+{
+  "name": "@midnight-ntwrk/midnight-did-contract",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./dist/managed/did/contract/index.cjs": "./dist/managed/did/contract/index.cjs"
+  },
+  "scripts": {
+    "contract": "npm run compact",
+    "compact": "compact compile src/did.compact src/managed/did",
+    "test": "vitest run",
+    "test:ci": "vitest run",
+    "test:compile": "npm run compact && vitest run",
+    "prepack": "npm run build",
+    "coverage": "vitest run --coverage",
+    "clean": "rm -rf dist && rm -rf coverage && rm -rf reports",
+    "build": "rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/did.compact ./dist",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "all": "npm run compact && npm run build && npm run test:ci"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^3.2.4"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "*"
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "name": "midnight-did",
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "clean": "npm run clean -w contract && npm run clean -w domain && npm run clean -w did && npm run clean -w api && npm run clean -w cli",
+    "lint": "npm run lint -w contract && npm run lint -w cli && npm run lint -w domain && npm run lint -w did && npm run lint -w api",
+    "lint:fix": "npm run lint:fix -w contract && npm run lint:fix -w cli && npm run lint:fix -w domain && npm run lint:fix -w did && npm run lint:fix -w api",
+    "build:all": "npm run build -w contract && npm run build -w cli",
+    "test:all": "npm run all -w contract && npm run test -w api",
+    "coverage": "npm run coverage -w contract",
+    "ci": "npm run contract -w contract && npm run build -w contract && npm run all -w contract && npm run build -w cli && npm run test -w api",
+    "pack:contract": "npm_config_cache=.npm-cache bash -lc 'cd contract && npm pack'",
+    "pack:cli": "npm_config_cache=.npm-cache bash -lc 'cd cli && npm pack'",
+    "pack:all": "npm run pack:contract && npm run pack:cli && echo 'Artifacts:' && ls -1 *.tgz || true && ls -1 contract/*.tgz cli/*.tgz || true",
+    "checkdeps": "bash scripts/check-deps.sh"
+  },
+  "private": true,
+  "packageManager": "npm@10.8.2",
+  "type": "module",
+  "workspaces": [
+    "api",
+    "domain",
+    "did",
+    "contract",
+    "cli"
+  ],
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "@types/node": "^22.15.29",
+    "@types/ws": "^8.18.1",
+    "@typescript-eslint/eslint-plugin": "^8.33.1",
+    "@typescript-eslint/parser": "^8.33.1",
+    "@vitest/coverage-v8": "^3.2.0",
+    "eslint": "^9.28.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-import-resolver-typescript": "^3.6.3",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-prettier": "^5.4.1",
+    "eslint-plugin-simple-import-sort": "^12.0.0",
+    "testcontainers": "^11.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.0"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "^0.9.0",
+    "@midnight-ntwrk/ledger": "^4.0.0",
+    "@midnight-ntwrk/midnight-js-contracts": "2.0.1",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "2.0.1",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "2.0.1",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider": "2.0.1",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "2.0.1",
+    "@midnight-ntwrk/midnight-js-types": "2.0.1",
+    "@midnight-ntwrk/wallet": "5.0.0",
+    "@midnight-ntwrk/wallet-api": "5.0.0",
+    "@midnight-ntwrk/zswap": "^4.0.0",
+    "pino": "^9.7.0",
+    "pino-pretty": "^13.0.0",
+    "ws": "^8.18.2",
+    "zod": "^4.1.0"
+  },
+  "eslintConfig": {
+    "plugins": [
+      "import",
+      "simple-import-sort"
+    ],
+    "rules": {
+      "no-unused-vars": [
+        "error",
+        {
+          "args": "after-used",
+          "ignoreRestSiblings": true
+        }
+      ],
+      "import/no-unused-modules": [
+        1,
+        {
+          "unusedExports": true
+        }
+      ],
+      "no-duplicate-imports": "error",
+      "simple-import-sort/imports": "error",
+      "simple-import-sort/exports": "error"
+    }
+  }
+}
