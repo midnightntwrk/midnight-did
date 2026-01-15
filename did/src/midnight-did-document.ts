@@ -2,6 +2,8 @@ import {
   CurveType,
   DIDDocument,
   DIDDocumentSchema,
+  DIDKeyID,
+  DIDString,
   KeyType,
   Service,
   VerificationMethod,
@@ -9,7 +11,7 @@ import {
 } from "@midnight-ntwrk/midnight-did-domain";
 import { z } from "zod/v4-mini";
 
-import { MidnightDIDSchema } from "./midnight";
+import { MidnightDIDSchema, type MidnightDIDString } from "./midnight";
 
 /**
  * Midnight DID Document
@@ -123,10 +125,18 @@ export const MidnightDIDDocumentSchema = DIDDocumentSchema.check(
  *
  * Extends the generic DIDDocument with Midnight-specific constraints
  */
-export type MidnightDIDDocument = DIDDocument & {
+export type MidnightDIDDocument = {
   "@context": [string, string, ...string[]]; // At least 2 entries required
-  id: string; // Must be a valid MidnightDIDString
-  controller?: string | null; // Must equal id if present
+  id: MidnightDIDString;
+  alsoKnownAs?: DIDString[] | null;
+  controller?: MidnightDIDString | MidnightDIDString[] | null; // Must equal id if present
+  verificationMethod?: VerificationMethod[] | null;
+  authentication?: DIDKeyID[] | null;
+  assertionMethod?: DIDKeyID[] | null;
+  keyAgreement?: DIDKeyID[] | null;
+  capabilityInvocation?: DIDKeyID[] | null;
+  capabilityDelegation?: DIDKeyID[] | null;
+  service?: Service[] | null;
 };
 
 /**
@@ -158,7 +168,7 @@ export type MidnightDIDDocument = DIDDocument & {
  * ```
  */
 export function createMidnightDIDDocument(params: {
-  id: string;
+  id: MidnightDIDString;
   additionalContexts?: string[];
   alsoKnownAs?: string[];
   verificationMethod?: VerificationMethod[];
@@ -187,7 +197,20 @@ export function createMidnightDIDDocument(params: {
     service: params.service ?? null,
   };
 
-  return MidnightDIDDocumentSchema.parse(doc) as MidnightDIDDocument;
+  const parsed = MidnightDIDDocumentSchema.parse(doc) as DIDDocument;
+  return {
+    "@context": parsed["@context"] as [string, string, ...string[]],
+    id: params.id,
+    alsoKnownAs: parsed.alsoKnownAs ?? null,
+    controller: params.id,
+    verificationMethod: parsed.verificationMethod ?? null,
+    authentication: parsed.authentication ?? null,
+    assertionMethod: parsed.assertionMethod ?? null,
+    keyAgreement: parsed.keyAgreement ?? null,
+    capabilityInvocation: parsed.capabilityInvocation ?? null,
+    capabilityDelegation: parsed.capabilityDelegation ?? null,
+    service: parsed.service ?? null,
+  } as MidnightDIDDocument;
 }
 
 /**
@@ -197,5 +220,30 @@ export function createMidnightDIDDocument(params: {
  * @returns A validated Midnight DID Document
  * @throws {Error} If the input doesn't meet Midnight DID requirements
  */
-export const parseMidnightDIDDocument = (input: unknown): MidnightDIDDocument =>
-  MidnightDIDDocumentSchema.parse(input) as MidnightDIDDocument;
+export const parseMidnightDIDDocument = (
+  input: unknown,
+): MidnightDIDDocument => {
+  const parsed = MidnightDIDDocumentSchema.parse(input) as DIDDocument;
+  const id = MidnightDIDSchema.parse(parsed.id) as MidnightDIDString;
+  const controller =
+    parsed.controller == null
+      ? parsed.controller
+      : Array.isArray(parsed.controller)
+        ? parsed.controller.map(
+            (value) => MidnightDIDSchema.parse(value) as MidnightDIDString,
+          )
+        : (MidnightDIDSchema.parse(parsed.controller) as MidnightDIDString);
+  return {
+    "@context": parsed["@context"] as [string, string, ...string[]],
+    id,
+    alsoKnownAs: parsed.alsoKnownAs ?? null,
+    controller,
+    verificationMethod: parsed.verificationMethod ?? null,
+    authentication: parsed.authentication ?? null,
+    assertionMethod: parsed.assertionMethod ?? null,
+    keyAgreement: parsed.keyAgreement ?? null,
+    capabilityInvocation: parsed.capabilityInvocation ?? null,
+    capabilityDelegation: parsed.capabilityDelegation ?? null,
+    service: parsed.service ?? null,
+  } as MidnightDIDDocument;
+};

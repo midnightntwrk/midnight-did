@@ -7,13 +7,15 @@ import {
 } from "@midnight-ntwrk/midnight-did-domain";
 import { describe, expect, it } from "vitest";
 
+import { parseMidnightDIDString } from "../midnight";
 import {
   createMidnightDIDDocument,
   parseMidnightDIDDocument,
 } from "../midnight-did-document";
 
-const exampleMidnightDid =
-  "did:midnight:testnet:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3";
+const exampleMidnightDid = parseMidnightDIDString(
+  "did:midnight:testnet:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3",
+);
 
 const exampleVerificationMethod = createVerificationMethod({
   id: "#key-1",
