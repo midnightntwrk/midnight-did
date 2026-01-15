@@ -1,4 +1,4 @@
-# Midnight DID Specification Draft v0.2
+# Midnight DID Specification Draft v0.3
 
 # Status of This Document
 
@@ -180,7 +180,7 @@ The value of the `publicKeyJwk` field conforms to the [RFC7517](https://www.rfc-
 - `x` - base64url encoded x point on the curve
 - `y` - base64url encoded y point on the curve
 
-The Midnight DID supports the following cryptographic algorithms: Ed25519 and JubJub (Midnight compatible). Based on the cryptography suite, the values of the properties are as follows:
+The Midnight DID supports the following cryptographic algorithms: Ed25519, Jubjub (Midnight compatible), and P-256 (ES256). Based on the cryptography suite, the values of the properties are as follows:
 
 #### 3.4.4.1 Ed25519
 Uses EdDSA over Ed25519 for signatures.
@@ -195,7 +195,16 @@ Uses EdDSA over JubJub for signatures inside Midnight's ZK context (smart contra
 Keys are represented as JWK in uncompressed format with:
 
 - `kty`=`EC`, 
-- `crv`=`JubJub`, 
+- `crv`=`Jubjub`, 
+- `x`, and
+- `y` parameters.
+
+#### 3.4.4.3 P-256 (ES256)
+Uses ECDSA over secp256r1 (P-256 / ES256) for signatures outside the ledger (for example WebAuthn/passkeys).
+Keys are represented as JWK in uncompressed format with:
+
+- `kty`=`EC`,
+- `crv`=`P-256`,
 - `x`, and
 - `y` parameters.
 
