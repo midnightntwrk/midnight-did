@@ -38,6 +38,18 @@ const exampleJubJubVerificationMethod = createVerificationMethod({
   },
 });
 
+const exampleP256VerificationMethod = createVerificationMethod({
+  id: "#key-p256",
+  type: VerificationMethodType.JsonWebKey,
+  controller: exampleMidnightDid,
+  publicKeyJwk: {
+    kty: KeyType.EC,
+    crv: CurveType.P256,
+    x: "AQ",
+    y: "Ag",
+  },
+});
+
 describe("Midnight DID Document", () => {
   describe("createMidnightDIDDocument", () => {
     it("creates a valid Midnight DID Document with required contexts", () => {
@@ -97,6 +109,16 @@ describe("Midnight DID Document", () => {
       expect(doc.verificationMethod?.[0].publicKeyJwk.crv).toBe(
         CurveType.Jubjub,
       );
+    });
+
+    it("accepts P-256 (EC) verification methods", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+        verificationMethod: [exampleP256VerificationMethod],
+      });
+
+      expect(doc.verificationMethod?.[0].publicKeyJwk.kty).toBe(KeyType.EC);
+      expect(doc.verificationMethod?.[0].publicKeyJwk.crv).toBe(CurveType.P256);
     });
 
     it("includes alsoKnownAs when provided", () => {

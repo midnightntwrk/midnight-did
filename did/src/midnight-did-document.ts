@@ -22,7 +22,7 @@ import { MidnightDIDSchema } from "./midnight";
  * - id MUST be a valid Midnight DID (did:midnight:<network>:<address>)
  * - controller MUST equal the DID subject (single-controller model)
  * - verificationMethod type MUST be JsonWebKey only
- * - Only Ed25519 (OKP) and JubJub (EC) key types are supported
+ * - Only Ed25519 (OKP) and EC (Jubjub or P-256) key types are supported
  * - Embedded verification methods are NOT supported (referenced only)
  */
 
@@ -52,17 +52,17 @@ const MidnightVerificationMethodSchema = z
     z.refine((vm) => {
       const kty = vm.publicKeyJwk.kty;
       return kty === KeyType.OKP || kty === KeyType.EC;
-    }, "Midnight DID only supports OKP (Ed25519) or EC (JubJub) key types"),
+    }, "Midnight DID only supports OKP (Ed25519) or EC (Jubjub/P-256) key types"),
     z.refine((vm) => {
       const { kty, crv } = vm.publicKeyJwk;
       if (kty === KeyType.OKP) {
         return crv === CurveType.Ed25519;
       }
       if (kty === KeyType.EC) {
-        return crv === CurveType.Jubjub;
+        return crv === CurveType.Jubjub || crv === CurveType.P256;
       }
       return false;
-    }, "OKP keys must use Ed25519 curve; EC keys must use Jubjub curve"),
+    }, "OKP keys must use Ed25519 curve; EC keys must use Jubjub or P-256 curve"),
     z.refine((vm) => {
       // Verification methods must be referenced (contain # or be relative)
       const id = vm.id;

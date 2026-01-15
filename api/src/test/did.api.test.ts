@@ -24,7 +24,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as api from "..";
 import { DeployedMidnightDIDContract, type MidnightDIDProviders } from "..";
 import { currentDir } from "../config";
-import { BigIntReplacer, createLogger } from "../logger-utils";
+import { createLogger } from "../logger-utils";
 import { TestEnvironment } from "./commons";
 
 const logDir = path.resolve(
@@ -180,7 +180,7 @@ describeApi("Midnight DID method API", () => {
         verificationMethod: {
           id: methodId,
           type: VerificationMethodType.JsonWebKey,
-          controller: didString,
+          controller: DIDStringSchema.parse(didString),
           publicKeyJwk: publicKeyJwk,
         },
       },
@@ -215,7 +215,35 @@ describeApi("Midnight DID method API", () => {
         verificationMethod: {
           id: methodId,
           type: VerificationMethodType.JsonWebKey,
-          controller: didString,
+          controller: DIDStringSchema.parse(didString),
+          publicKeyJwk,
+        },
+      },
+    ];
+    await api.update(contract, operations);
+    const didDocument = (await api.resolve(providers, contract))?.didDocument;
+    expect(didDocument?.verificationMethod).not.toBeNull();
+    const insertedVerificationMethod = didDocument?.verificationMethod?.find(
+      (vm) => vm.id === toFragmentId(methodId),
+    );
+    expect(insertedVerificationMethod?.publicKeyJwk).toEqual(publicKeyJwk);
+  });
+
+  it("should add a P-256 verification method that retains the y coordinate", async () => {
+    const methodId = parseDIDKeyID(`${didString}#key-p256`);
+    const publicKeyJwk = {
+      kty: KeyType.EC,
+      crv: CurveType.P256,
+      x: "Kg",
+      y: "VA",
+    };
+    const operations: DIDOperation[] = [
+      {
+        type: DIDOperationType.AddVerificationMethod,
+        verificationMethod: {
+          id: methodId,
+          type: VerificationMethodType.JsonWebKey,
+          controller: DIDStringSchema.parse(didString),
           publicKeyJwk,
         },
       },
@@ -256,7 +284,7 @@ describeApi("Midnight DID method API", () => {
         verificationMethod: {
           id: methodId,
           type: VerificationMethodType.JsonWebKey,
-          controller: didString,
+          controller: DIDStringSchema.parse(didString),
           publicKeyJwk: {
             kty: KeyType.OKP,
             crv: CurveType.Ed25519,

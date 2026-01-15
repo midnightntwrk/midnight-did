@@ -29,7 +29,7 @@ vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
     },
     VerificationMethodType: { Undefined: 0, JsonWebKey: 1 },
     KeyType: { EC: 0, RSA: 1, oct: 2, OKP: 3 },
-    CurveType: { Ed25519: 0, Jubjub: 1 },
+    CurveType: { Ed25519: 0, Jubjub: 1, P256: 2 },
     PublicKeyJwk: {},
     Service: {},
   } as const;
@@ -69,6 +69,16 @@ describe("DomainToLedger (unit, mocked)", () => {
     } as any);
     expect(out.x).toBe(1n);
     expect(out.y).toBe(2n);
+  });
+
+  it("publicKeyJwk maps P-256 curve values", () => {
+    const out = DomainToLedger.publicKeyJwk({
+      kty: "EC" as any,
+      crv: "P-256" as any,
+      x: "AQ",
+      y: "Ag",
+    } as any);
+    expect(out.crv).toBe(DIDContract.CurveType.P256);
   });
 
   it("serviceType and serviceEndpoint behave correctly", () => {

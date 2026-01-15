@@ -19,6 +19,17 @@ describe("DIDOperationSchema (did)", () => {
     controller: parseDID(did),
     publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: "AQ" },
   });
+  const vmP256 = createVerificationMethod({
+    id: parseDIDKeyID(`${did}#key-p256`),
+    type: VerificationMethodType.JsonWebKey,
+    controller: parseDID(did),
+    publicKeyJwk: {
+      kty: KeyType.EC,
+      crv: CurveType.P256,
+      x: "AQ",
+      y: "Ag",
+    },
+  });
   const service = createService({
     id: "#service-1",
     type: "DIDCommV2",
@@ -33,10 +44,26 @@ describe("DIDOperationSchema (did)", () => {
     expect(op.type).toBe(DIDOperationType.AddVerificationMethod);
   });
 
+  it("parses AddVerificationMethod with P-256 key", () => {
+    const op = DIDOperationSchema.parse({
+      type: DIDOperationType.AddVerificationMethod,
+      verificationMethod: vmP256,
+    });
+    expect(op.type).toBe(DIDOperationType.AddVerificationMethod);
+  });
+
   it("parses UpdateVerificationMethod", () => {
     const op = DIDOperationSchema.parse({
       type: DIDOperationType.UpdateVerificationMethod,
       verificationMethod: vm,
+    });
+    expect(op.type).toBe(DIDOperationType.UpdateVerificationMethod);
+  });
+
+  it("parses UpdateVerificationMethod with P-256 key", () => {
+    const op = DIDOperationSchema.parse({
+      type: DIDOperationType.UpdateVerificationMethod,
+      verificationMethod: vmP256,
     });
     expect(op.type).toBe(DIDOperationType.UpdateVerificationMethod);
   });

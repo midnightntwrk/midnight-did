@@ -17,6 +17,13 @@ export const exampleEcJsonWebKey = {
   y: "AQ",
 } as const;
 
+export const exampleP256JsonWebKey = {
+  kty: KeyType.EC,
+  crv: CurveType.P256,
+  x: "AQ",
+  y: "Ag",
+} as const;
+
 export const exampleVerificationMethodInput = {
   id: exampleMethodId,
   type: VerificationMethodType.JsonWebKey,
