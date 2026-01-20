@@ -24,7 +24,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as api from "..";
 import { DeployedMidnightDIDContract, type MidnightDIDProviders } from "..";
 import { currentDir } from "../config";
-import { BigIntReplacer, createLogger } from "../logger-utils";
+import { createLogger } from "../logger-utils";
 import { TestEnvironment } from "./commons";
 
 const logDir = path.resolve(
