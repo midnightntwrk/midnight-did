@@ -1,7 +1,7 @@
 services:
   proof-server:
     container_name: 'counter-proof-server'
-    image: "proof-server-bootstrap:4.0.0"
+    image: "midnightnetwork/proof-server:4.0.0"
     ports:
       - "6300"
     environment:
