@@ -23,6 +23,7 @@
   "scripts": {
     "contract": "npm run compact",
     "compact": "compact compile src/did.compact src/managed/did",
+    "postcompact": "mkdir -p src/managed/did/contract/src src/managed/did/contract/compiler && cp src/did.compact src/managed/did/contract/src/did.compact && if [ -f src/managed/did/compiler/standard-library.compact ]; then cp src/managed/did/compiler/standard-library.compact src/managed/did/contract/compiler/standard-library.compact; else printf \"// Placeholder for compact standard library sourcemap\\n\" > src/managed/did/contract/compiler/standard-library.compact; fi",
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:compile": "npm run compact && vitest run",
