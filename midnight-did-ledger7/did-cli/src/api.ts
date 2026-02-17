@@ -598,146 +598,175 @@ export function setLogger(_logger: Logger) {
 /**
  * DID Operations
  *
- * Provides functions to perform DID document operations. Operations are
- * batched and applied atomically via the applyOperations circuit.
+ * Direct functions to modify the DID document. Each function calls a single
+ * circuit and increments the version counter.
  */
 
 // Re-export contract types for convenient access
-export type DIDUpdateOperation = DIDContract.DIDUpdateOperation;
 export type VerificationMethod = DIDContract.VerificationMethod;
 export type Service = DIDContract.Service;
-export const { OperationType, VerificationMethodType, VerificationMethodRelation, KeyType, CurveType } = DIDContract;
+export const {
+  VerificationMethodType,
+  VerificationMethodRelation,
+  KeyType,
+  CurveType
+} = DIDContract;
 
-/**
- * Apply one or more DID operations atomically.
- * The contract supports up to 4 operations per transaction.
- */
-export const applyDIDOperations = async (
+export const addVerificationMethod = async (
   didContract: DeployedDIDContract,
-  ...operations: DIDUpdateOperation[]
+  id: string,
+  publicKeyJwk: {
+    kty: 'EC' | 'RSA' | 'oct' | 'OKP';
+    crv: 'Ed25519' | 'Jubjub';
+    x: bigint;
+    y: bigint;
+  }
 ): Promise<any> => {
-  if (operations.length === 0) {
-    throw new Error('At least one operation is required');
-  }
-  if (operations.length > 4) {
-    throw new Error('Maximum 4 operations per transaction');
-  }
-
-  logger.info(`Applying ${operations.length} DID operation(s)`);
-  const result = await didContract.callTx.applyOperations(operations);
-  logger.info('DID operations applied successfully');
+  logger.info(`Adding verification method: ${id}`);
+  const result = await didContract.callTx.addVerificationMethod({
+    id,
+    typ: VerificationMethodType.JsonWebKey,
+    publicKeyJwk: {
+      kty: KeyType[publicKeyJwk.kty],
+      crv: CurveType[publicKeyJwk.crv],
+      x: publicKeyJwk.x,
+      y: publicKeyJwk.y,
+    },
+  });
+  logger.info('Verification method added successfully');
   return result;
 };
 
-/**
- * Helper functions to build DID operations.
- * These return DIDUpdateOperation objects that can be passed to applyDIDOperations().
- */
-
-export const addVerificationMethodOp = (
+export const updateVerificationMethod = async (
+  didContract: DeployedDIDContract,
   id: string,
   publicKeyJwk: {
     kty: 'EC' | 'RSA' | 'oct' | 'OKP';
     crv: 'Ed25519' | 'Jubjub';
     x: bigint;
     y: bigint;
-  },
-): DIDUpdateOperation => ({
-  operationType: OperationType.AddVerificationMethod,
-  addVerificationMethodOptions: {
-    verificationMethod: {
-      id,
-      typ: VerificationMethodType.JsonWebKey,
-      publicKeyJwk: {
-        kty: KeyType[publicKeyJwk.kty],
-        crv: CurveType[publicKeyJwk.crv],
-        x: publicKeyJwk.x,
-        y: publicKeyJwk.y,
-      },
+  }
+): Promise<any> => {
+  logger.info(`Updating verification method: ${id}`);
+  const result = await didContract.callTx.updateVerificationMethod({
+    id,
+    typ: VerificationMethodType.JsonWebKey,
+    publicKeyJwk: {
+      kty: KeyType[publicKeyJwk.kty],
+      crv: CurveType[publicKeyJwk.crv],
+      x: publicKeyJwk.x,
+      y: publicKeyJwk.y,
     },
-  },
-} as any);
+  });
+  logger.info('Verification method updated successfully');
+  return result;
+};
 
-export const updateVerificationMethodOp = (
+export const removeVerificationMethod = async (
+  didContract: DeployedDIDContract,
+  id: string
+): Promise<any> => {
+  logger.info(`Removing verification method: ${id}`);
+  const result = await didContract.callTx.removeVerificationMethod(id);
+  logger.info('Verification method removed successfully');
+  return result;
+};
+
+export const addVerificationMethodRelation = async (
+  didContract: DeployedDIDContract,
+  relation: 'Authentication' | 'AssertionMethod' | 'KeyAgreement' | 'CapabilityInvocation' | 'CapabilityDelegation',
+  methodId: string
+): Promise<any> => {
+  logger.info(`Adding ${relation} relation to ${methodId}`);
+  const result = await didContract.callTx.addVerificationMethodRelation(
+    VerificationMethodRelation[relation],
+    methodId
+  );
+  logger.info('Verification method relation added successfully');
+  return result;
+};
+
+export const removeVerificationMethodRelation = async (
+  didContract: DeployedDIDContract,
+  relation: 'Authentication' | 'AssertionMethod' | 'KeyAgreement' | 'CapabilityInvocation' | 'CapabilityDelegation',
+  methodId: string
+): Promise<any> => {
+  logger.info(`Removing ${relation} relation from ${methodId}`);
+  const result = await didContract.callTx.removeVerificationMethodRelation(
+    VerificationMethodRelation[relation],
+    methodId
+  );
+  logger.info('Verification method relation removed successfully');
+  return result;
+};
+
+export const addService = async (
+  didContract: DeployedDIDContract,
   id: string,
-  publicKeyJwk: {
-    kty: 'EC' | 'RSA' | 'oct' | 'OKP';
-    crv: 'Ed25519' | 'Jubjub';
-    x: bigint;
-    y: bigint;
-  },
-): DIDUpdateOperation => ({
-  operationType: OperationType.UpdateVerificationMethod,
-  updateVerificationMethodOptions: {
-    verificationMethod: {
-      id,
-      typ: VerificationMethodType.JsonWebKey,
-      publicKeyJwk: {
-        kty: KeyType[publicKeyJwk.kty],
-        crv: CurveType[publicKeyJwk.crv],
-        x: publicKeyJwk.x,
-        y: publicKeyJwk.y,
-      },
-    },
-  },
-} as any);
+  type: string,
+  serviceEndpoint: string
+): Promise<any> => {
+  logger.info(`Adding service: ${id}`);
+  const result = await didContract.callTx.addService({
+    id,
+    typ: type,
+    serviceEndpoint,
+  });
+  logger.info('Service added successfully');
+  return result;
+};
 
-export const removeVerificationMethodOp = (id: string): DIDUpdateOperation => ({
-  operationType: OperationType.RemoveVerificationMethod,
-  removeVerificationMethodOptions: { id },
-} as any);
+export const updateService = async (
+  didContract: DeployedDIDContract,
+  id: string,
+  type: string,
+  serviceEndpoint: string
+): Promise<any> => {
+  logger.info(`Updating service: ${id}`);
+  const result = await didContract.callTx.updateService({
+    id,
+    typ: type,
+    serviceEndpoint,
+  });
+  logger.info('Service updated successfully');
+  return result;
+};
 
-export const addVerificationMethodRelationOp = (
-  relation: 'Authentication' | 'AssertionMethod' | 'KeyAgreement' | 'CapabilityInvocation' | 'CapabilityDelegation',
-  methodId: string,
-): DIDUpdateOperation => ({
-  operationType: OperationType.AddVerificationMethodRelation,
-  addVerificationMethodRelationOptions: {
-    relation: VerificationMethodRelation[relation],
-    methodId,
-  },
-} as any);
+export const removeService = async (
+  didContract: DeployedDIDContract,
+  id: string
+): Promise<any> => {
+  logger.info(`Removing service: ${id}`);
+  const result = await didContract.callTx.removeService(id);
+  logger.info('Service removed successfully');
+  return result;
+};
 
-export const removeVerificationMethodRelationOp = (
-  relation: 'Authentication' | 'AssertionMethod' | 'KeyAgreement' | 'CapabilityInvocation' | 'CapabilityDelegation',
-  methodId: string,
-): DIDUpdateOperation => ({
-  operationType: OperationType.RemoveVerificationMethodRelation,
-  removeVerificationMethodRelationOptions: {
-    relation: VerificationMethodRelation[relation],
-    methodId,
-  },
-} as any);
+export const addAlsoKnownAs = async (
+  didContract: DeployedDIDContract,
+  value: string
+): Promise<any> => {
+  logger.info(`Adding alsoKnownAs: ${value}`);
+  const result = await didContract.callTx.addAlsoKnownAs(value);
+  logger.info('AlsoKnownAs added successfully');
+  return result;
+};
 
-export const addServiceOp = (id: string, type: string, serviceEndpoint: string): DIDUpdateOperation => ({
-  operationType: OperationType.AddService,
-  addServiceOptions: {
-    service: { id, typ: type, serviceEndpoint },
-  },
-} as any);
+export const removeAlsoKnownAs = async (
+  didContract: DeployedDIDContract,
+  value: string
+): Promise<any> => {
+  logger.info(`Removing alsoKnownAs: ${value}`);
+  const result = await didContract.callTx.removeAlsoKnownAs(value);
+  logger.info('AlsoKnownAs removed successfully');
+  return result;
+};
 
-export const updateServiceOp = (id: string, type: string, serviceEndpoint: string): DIDUpdateOperation => ({
-  operationType: OperationType.UpdateService,
-  updateServiceOptions: {
-    service: { id, typ: type, serviceEndpoint },
-  },
-} as any);
-
-export const removeServiceOp = (id: string): DIDUpdateOperation => ({
-  operationType: OperationType.RemoveService,
-  removeServiceOptions: { id },
-} as any);
-
-export const addAlsoKnownAsOp = (value: string): DIDUpdateOperation => ({
-  operationType: OperationType.AddAlsoKnownAs,
-  addAlsoKnownAsOptions: { value },
-} as any);
-
-export const removeAlsoKnownAsOp = (value: string): DIDUpdateOperation => ({
-  operationType: OperationType.RemoveAlsoKnownAs,
-  removeAlsoKnownAsOptions: { value },
-} as any);
-
-export const deactivateDIDOp = (): DIDUpdateOperation => ({
-  operationType: OperationType.Deactivate,
-} as any);
+export const deactivateDID = async (
+  didContract: DeployedDIDContract
+): Promise<any> => {
+  logger.info('Deactivating DID');
+  const result = await didContract.callTx.deactivate();
+  logger.info('DID deactivated successfully');
+  return result;
+};

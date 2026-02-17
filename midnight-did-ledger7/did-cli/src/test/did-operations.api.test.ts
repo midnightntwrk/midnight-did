@@ -63,14 +63,12 @@ describe('DID Operations API [@slow]', () => {
   });
 
   it('should add a verification method', async () => {
-    const vmOp = api.addVerificationMethodOp('#key-1', {
+    await api.addVerificationMethod(didContract, '#key-1', {
       kty: 'OKP',
       crv: 'Ed25519',
       x: 12345n,
       y: 67890n,
     });
-
-    await api.applyDIDOperations(didContract, vmOp);
 
     const didState = await api.displayDIDState(providers, didContract);
     expect(didState.didState?.verificationMethods.size()).toEqual(1n);
@@ -89,9 +87,7 @@ describe('DID Operations API [@slow]', () => {
   });
 
   it('should add a verification method relation', async () => {
-    const relationOp = api.addVerificationMethodRelationOp('Authentication', '#key-1');
-
-    await api.applyDIDOperations(didContract, relationOp);
+    await api.addVerificationMethodRelation(didContract, 'Authentication', '#key-1');
 
     const didState = await api.displayDIDState(providers, didContract);
     expect(didState.didState?.authenticationRelation.member('#key-1')).toEqual(true);
@@ -101,22 +97,18 @@ describe('DID Operations API [@slow]', () => {
   });
 
   it('should add multiple relations in one transaction', async () => {
-    const op1 = api.addVerificationMethodRelationOp('AssertionMethod', '#key-1');
-    const op2 = api.addVerificationMethodRelationOp('KeyAgreement', '#key-1');
-
-    await api.applyDIDOperations(didContract, op1, op2);
+    await api.addVerificationMethodRelation(didContract, 'AssertionMethod', '#key-1');
+    await api.addVerificationMethodRelation(didContract, 'KeyAgreement', '#key-1');
 
     const didState = await api.displayDIDState(providers, didContract);
     expect(didState.didState?.assertionMethodRelation.member('#key-1')).toEqual(true);
     expect(didState.didState?.keyAgreementRelation.member('#key-1')).toEqual(true);
-    expect(didState.didState?.version).toEqual(3n);
+    expect(didState.didState?.version).toEqual(4n);
     expect(didState.didState?.operationCount).toEqual(4n);
   });
 
   it('should add a service', async () => {
-    const serviceOp = api.addServiceOp('#service-1', 'MessagingService', 'https://example.com/messages');
-
-    await api.applyDIDOperations(didContract, serviceOp);
+    await api.addService(didContract, '#service-1', 'MessagingService', 'https://example.com/messages');
 
     const didState = await api.displayDIDState(providers, didContract);
     expect(didState.didState?.services.size()).toEqual(1n);
@@ -126,85 +118,71 @@ describe('DID Operations API [@slow]', () => {
     expect(service?.id).toEqual('#service-1');
     expect(service?.typ).toEqual('MessagingService');
     expect(service?.serviceEndpoint).toEqual('https://example.com/messages');
-    expect(didState.didState?.version).toEqual(4n);
+    expect(didState.didState?.version).toEqual(5n);
   });
 
   it('should update a service', async () => {
-    const updateOp = api.updateServiceOp('#service-1', 'MessagingService', 'https://new-endpoint.com/messages');
-
-    await api.applyDIDOperations(didContract, updateOp);
+    await api.updateService(didContract, '#service-1', 'MessagingService', 'https://new-endpoint.com/messages');
 
     const didState = await api.displayDIDState(providers, didContract);
     const service = didState.didState?.services.lookup('#service-1');
     expect(service?.serviceEndpoint).toEqual('https://new-endpoint.com/messages');
-    expect(didState.didState?.version).toEqual(5n);
+    expect(didState.didState?.version).toEqual(6n);
   });
 
   it('should add an alsoKnownAs value', async () => {
-    const aliasOp = api.addAlsoKnownAsOp('did:example:alternative-id');
-
-    await api.applyDIDOperations(didContract, aliasOp);
+    await api.addAlsoKnownAs(didContract, 'did:example:alternative-id');
 
     const didState = await api.displayDIDState(providers, didContract);
     expect(didState.didState?.alsoKnownAs.member('did:example:alternative-id')).toEqual(true);
     expect(didState.didState?.alsoKnownAs.size()).toEqual(1n);
-    expect(didState.didState?.version).toEqual(6n);
+    expect(didState.didState?.version).toEqual(7n);
   });
 
   it('should update a verification method', async () => {
-    const updateOp = api.updateVerificationMethodOp('#key-1', {
+    await api.updateVerificationMethod(didContract, '#key-1', {
       kty: 'OKP',
       crv: 'Ed25519',
       x: 99999n,
       y: 88888n,
     });
 
-    await api.applyDIDOperations(didContract, updateOp);
-
     const didState = await api.displayDIDState(providers, didContract);
     const vm = didState.didState?.verificationMethods.lookup('#key-1');
     expect(vm?.publicKeyJwk.x).toEqual(99999n);
     expect(vm?.publicKeyJwk.y).toEqual(88888n);
-    expect(didState.didState?.version).toEqual(7n);
+    expect(didState.didState?.version).toEqual(8n);
   });
 
   it('should remove a verification method relation', async () => {
-    const removeOp = api.removeVerificationMethodRelationOp('KeyAgreement', '#key-1');
-
-    await api.applyDIDOperations(didContract, removeOp);
+    await api.removeVerificationMethodRelation(didContract, 'KeyAgreement', '#key-1');
 
     const didState = await api.displayDIDState(providers, didContract);
     expect(didState.didState?.keyAgreementRelation.member('#key-1')).toEqual(false);
     expect(didState.didState?.authenticationRelation.member('#key-1')).toEqual(true); // Other relations still exist
-    expect(didState.didState?.version).toEqual(8n);
+    expect(didState.didState?.version).toEqual(9n);
   });
 
   it('should remove an alsoKnownAs value', async () => {
-    const removeOp = api.removeAlsoKnownAsOp('did:example:alternative-id');
-
-    await api.applyDIDOperations(didContract, removeOp);
+    await api.removeAlsoKnownAs(didContract, 'did:example:alternative-id');
 
     const didState = await api.displayDIDState(providers, didContract);
     expect(didState.didState?.alsoKnownAs.member('did:example:alternative-id')).toEqual(false);
     expect(didState.didState?.alsoKnownAs.size()).toEqual(0n);
-    expect(didState.didState?.version).toEqual(9n);
+    expect(didState.didState?.version).toEqual(10n);
   });
 
   it('should remove a service', async () => {
-    const removeOp = api.removeServiceOp('#service-1');
-
-    await api.applyDIDOperations(didContract, removeOp);
+    await api.removeService(didContract, '#service-1');
 
     const didState = await api.displayDIDState(providers, didContract);
     expect(didState.didState?.services.member('#service-1')).toEqual(false);
     expect(didState.didState?.services.size()).toEqual(0n);
-    expect(didState.didState?.version).toEqual(10n);
+    expect(didState.didState?.version).toEqual(11n);
   });
 
   it('should remove a verification method and its relations', async () => {
-    const removeOp = api.removeVerificationMethodOp('#key-1');
-
-    await api.applyDIDOperations(didContract, removeOp);
+    await api.removeVerificationMethod(didContract, '#key-1');
 
     const didState = await api.displayDIDState(providers, didContract);
     expect(didState.didState?.verificationMethods.member('#key-1')).toEqual(false);
@@ -212,30 +190,11 @@ describe('DID Operations API [@slow]', () => {
     // Relations should also be removed automatically
     expect(didState.didState?.authenticationRelation.member('#key-1')).toEqual(false);
     expect(didState.didState?.assertionMethodRelation.member('#key-1')).toEqual(false);
-    expect(didState.didState?.version).toEqual(11n);
-  });
-
-  it('should batch multiple operations in one transaction', async () => {
-    const op1 = api.addVerificationMethodOp('#key-2', { kty: 'OKP', crv: 'Ed25519', x: 1111n, y: 2222n });
-    const op2 = api.addVerificationMethodRelationOp('Authentication', '#key-2');
-    const op3 = api.addServiceOp('#service-2', 'IdentityHub', 'https://hub.example.com');
-    const op4 = api.addAlsoKnownAsOp('did:example:alias');
-
-    await api.applyDIDOperations(didContract, op1, op2, op3, op4);
-
-    const didState = await api.displayDIDState(providers, didContract);
-    expect(didState.didState?.verificationMethods.member('#key-2')).toEqual(true);
-    expect(didState.didState?.authenticationRelation.member('#key-2')).toEqual(true);
-    expect(didState.didState?.services.member('#service-2')).toEqual(true);
-    expect(didState.didState?.alsoKnownAs.member('did:example:alias')).toEqual(true);
     expect(didState.didState?.version).toEqual(12n);
-    expect(didState.didState?.operationCount).toEqual(19n); // Previous 15 + 4 new
   });
 
   it('should deactivate the DID', async () => {
-    const deactivateOp = api.deactivateDIDOp();
-
-    await api.applyDIDOperations(didContract, deactivateOp);
+    await api.deactivateDID(didContract);
 
     const didState = await api.displayDIDState(providers, didContract);
     expect(didState.didState?.active).toEqual(false);
@@ -244,8 +203,6 @@ describe('DID Operations API [@slow]', () => {
   });
 
   it('should fail when trying to operate on deactivated DID', async () => {
-    const op = api.addVerificationMethodOp('#key-3', { kty: 'OKP', crv: 'Ed25519', x: 3333n, y: 4444n });
-
-    await expect(api.applyDIDOperations(didContract, op)).rejects.toThrow();
+    await expect(api.addVerificationMethod(didContract, '#key-3', { kty: 'OKP', crv: 'Ed25519', x: 3333n, y: 4444n })).rejects.toThrow();
   });
 });

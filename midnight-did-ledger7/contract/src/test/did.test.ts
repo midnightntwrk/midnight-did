@@ -16,30 +16,9 @@
 import { DIDSimulator } from "./did-simulator.js";
 import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import { describe, it, expect, beforeEach } from "vitest";
-import { OperationType, VerificationMethodType, VerificationMethodRelation, KeyType, CurveType } from "../managed/did/contract/index.js";
+import { VerificationMethodType, VerificationMethodRelation, KeyType, CurveType } from "../managed/did/contract/index.js";
 
 setNetworkId("undeployed");
-
-// Helper to create a complete DIDUpdateOperation with all required fields
-// Compact requires all fields to be present even if not used for the specific operation
-const createCompleteOperation = (partial: any): any => {
-  const emptyVm = { id: '', typ: VerificationMethodType.Undefined, publicKeyJwk: { kty: KeyType.EC, crv: CurveType.Ed25519, x: 0n, y: 0n } };
-  const emptyService = { id: '', typ: '', serviceEndpoint: '' };
-
-  return {
-    operationType: partial.operationType ?? OperationType.Undefined,
-    addVerificationMethodOptions: partial.addVerificationMethodOptions ?? { verificationMethod: emptyVm },
-    updateVerificationMethodOptions: partial.updateVerificationMethodOptions ?? { verificationMethod: emptyVm },
-    removeVerificationMethodOptions: partial.removeVerificationMethodOptions ?? { id: '' },
-    addVerificationMethodRelationOptions: partial.addVerificationMethodRelationOptions ?? { relation: VerificationMethodRelation.Undefined, methodId: '' },
-    removeVerificationMethodRelationOptions: partial.removeVerificationMethodRelationOptions ?? { relation: VerificationMethodRelation.Undefined, methodId: '' },
-    addServiceOptions: partial.addServiceOptions ?? { service: emptyService },
-    updateServiceOptions: partial.updateServiceOptions ?? { service: emptyService },
-    removeServiceOptions: partial.removeServiceOptions ?? { id: '' },
-    addAlsoKnownAsOptions: partial.addAlsoKnownAsOptions ?? { value: '' },
-    removeAlsoKnownAsOptions: partial.removeAlsoKnownAsOptions ?? { value: '' },
-  };
-};
 
 describe("DID smart contract", () => {
   it("properly initializes ledger state and private state", () => {
@@ -64,23 +43,16 @@ describe("DID smart contract", () => {
     });
 
     it("should add a verification method", () => {
-      const operation = createCompleteOperation({
-        operationType: OperationType.AddVerificationMethod,
-        addVerificationMethodOptions: {
-          verificationMethod: {
-            id: '#key-1',
-            typ: VerificationMethodType.JsonWebKey,
-            publicKeyJwk: {
-              kty: KeyType.OKP,
-              crv: CurveType.Ed25519,
-              x: 12345n,
-              y: 67890n,
-            },
-          },
+      simulator.addVerificationMethod({
+        id: '#key-1',
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.Ed25519,
+          x: 12345n,
+          y: 67890n,
         },
       });
-
-      simulator.applyOperations([operation]);
 
       const ledger = simulator.getLedger();
       expect(ledger.verificationMethods.member('#key-1')).toEqual(true);
@@ -99,28 +71,18 @@ describe("DID smart contract", () => {
 
     it("should update a verification method", () => {
       // First add
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddVerificationMethod,
-        addVerificationMethodOptions: {
-          verificationMethod: {
-            id: '#key-1',
-            typ: VerificationMethodType.JsonWebKey,
-            publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 111n, y: 222n },
-          },
-        },
-      })]);
+      simulator.addVerificationMethod({
+        id: '#key-1',
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 111n, y: 222n },
+      });
 
       // Then update
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.UpdateVerificationMethod,
-        updateVerificationMethodOptions: {
-          verificationMethod: {
-            id: '#key-1',
-            typ: VerificationMethodType.JsonWebKey,
-            publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 999n, y: 888n },
-          },
-        },
-      })]);
+      simulator.updateVerificationMethod({
+        id: '#key-1',
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 999n, y: 888n },
+      });
 
       const ledger = simulator.getLedger();
       const vm = ledger.verificationMethods.lookup('#key-1');
@@ -132,22 +94,14 @@ describe("DID smart contract", () => {
 
     it("should remove a verification method", () => {
       // First add
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddVerificationMethod,
-        addVerificationMethodOptions: {
-          verificationMethod: {
-            id: '#key-1',
-            typ: VerificationMethodType.JsonWebKey,
-            publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 111n, y: 222n },
-          },
-        },
-      })]);
+      simulator.addVerificationMethod({
+        id: '#key-1',
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 111n, y: 222n },
+      });
 
       // Then remove
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.RemoveVerificationMethod,
-        removeVerificationMethodOptions: { id: '#key-1' },
-      })]);
+      simulator.removeVerificationMethod('#key-1');
 
       const ledger = simulator.getLedger();
       expect(ledger.verificationMethods.member('#key-1')).toEqual(false);
@@ -157,34 +111,15 @@ describe("DID smart contract", () => {
 
     it("should remove verification method and its relations", () => {
       // Add verification method
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddVerificationMethod,
-        addVerificationMethodOptions: {
-          verificationMethod: {
-            id: '#key-1',
-            typ: VerificationMethodType.JsonWebKey,
-            publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 111n, y: 222n },
-          },
-        },
-      })]);
+      simulator.addVerificationMethod({
+        id: '#key-1',
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 111n, y: 222n },
+      });
 
       // Add relations
-      simulator.applyOperations([
-        createCompleteOperation({
-          operationType: OperationType.AddVerificationMethodRelation,
-          addVerificationMethodRelationOptions: {
-            relation: VerificationMethodRelation.Authentication,
-            methodId: '#key-1',
-          },
-        }),
-        createCompleteOperation({
-          operationType: OperationType.AddVerificationMethodRelation,
-          addVerificationMethodRelationOptions: {
-            relation: VerificationMethodRelation.AssertionMethod,
-            methodId: '#key-1',
-          },
-        }),
-      ]);
+      simulator.addVerificationMethodRelation(VerificationMethodRelation.Authentication, '#key-1');
+      simulator.addVerificationMethodRelation(VerificationMethodRelation.AssertionMethod, '#key-1');
 
       // Verify relations exist
       let ledger = simulator.getLedger();
@@ -192,10 +127,7 @@ describe("DID smart contract", () => {
       expect(ledger.assertionMethodRelation.member('#key-1')).toEqual(true);
 
       // Remove verification method
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.RemoveVerificationMethod,
-        removeVerificationMethodOptions: { id: '#key-1' },
-      })]);
+      simulator.removeVerificationMethod('#key-1');
 
       // Verify method and relations are gone
       ledger = simulator.getLedger();
@@ -211,26 +143,15 @@ describe("DID smart contract", () => {
     beforeEach(() => {
       simulator = new DIDSimulator();
       // Add a verification method first
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddVerificationMethod,
-        addVerificationMethodOptions: {
-          verificationMethod: {
-            id: '#key-1',
-            typ: VerificationMethodType.JsonWebKey,
-            publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 111n, y: 222n },
-          },
-        },
-      })]);
+      simulator.addVerificationMethod({
+        id: '#key-1',
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 111n, y: 222n },
+      });
     });
 
     it("should add Authentication relation", () => {
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddVerificationMethodRelation,
-        addVerificationMethodRelationOptions: {
-          relation: VerificationMethodRelation.Authentication,
-          methodId: '#key-1',
-        },
-      })]);
+      simulator.addVerificationMethodRelation(VerificationMethodRelation.Authentication, '#key-1');
 
       const ledger = simulator.getLedger();
       expect(ledger.authenticationRelation.member('#key-1')).toEqual(true);
@@ -238,52 +159,28 @@ describe("DID smart contract", () => {
     });
 
     it("should add AssertionMethod relation", () => {
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddVerificationMethodRelation,
-        addVerificationMethodRelationOptions: {
-          relation: VerificationMethodRelation.AssertionMethod,
-          methodId: '#key-1',
-        },
-      })]);
+      simulator.addVerificationMethodRelation(VerificationMethodRelation.AssertionMethod, '#key-1');
 
       const ledger = simulator.getLedger();
       expect(ledger.assertionMethodRelation.member('#key-1')).toEqual(true);
     });
 
     it("should add KeyAgreement relation", () => {
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddVerificationMethodRelation,
-        addVerificationMethodRelationOptions: {
-          relation: VerificationMethodRelation.KeyAgreement,
-          methodId: '#key-1',
-        },
-      })]);
+      simulator.addVerificationMethodRelation(VerificationMethodRelation.KeyAgreement, '#key-1');
 
       const ledger = simulator.getLedger();
       expect(ledger.keyAgreementRelation.member('#key-1')).toEqual(true);
     });
 
     it("should add CapabilityInvocation relation", () => {
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddVerificationMethodRelation,
-        addVerificationMethodRelationOptions: {
-          relation: VerificationMethodRelation.CapabilityInvocation,
-          methodId: '#key-1',
-        },
-      })]);
+      simulator.addVerificationMethodRelation(VerificationMethodRelation.CapabilityInvocation, '#key-1');
 
       const ledger = simulator.getLedger();
       expect(ledger.capabilityInvocationRelation.member('#key-1')).toEqual(true);
     });
 
     it("should add CapabilityDelegation relation", () => {
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddVerificationMethodRelation,
-        addVerificationMethodRelationOptions: {
-          relation: VerificationMethodRelation.CapabilityDelegation,
-          methodId: '#key-1',
-        },
-      })]);
+      simulator.addVerificationMethodRelation(VerificationMethodRelation.CapabilityDelegation, '#key-1');
 
       const ledger = simulator.getLedger();
       expect(ledger.capabilityDelegationRelation.member('#key-1')).toEqual(true);
@@ -291,22 +188,10 @@ describe("DID smart contract", () => {
 
     it("should remove a relation", () => {
       // Add relation
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddVerificationMethodRelation,
-        addVerificationMethodRelationOptions: {
-          relation: VerificationMethodRelation.Authentication,
-          methodId: '#key-1',
-        },
-      })]);
+      simulator.addVerificationMethodRelation(VerificationMethodRelation.Authentication, '#key-1');
 
       // Remove relation
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.RemoveVerificationMethodRelation,
-        removeVerificationMethodRelationOptions: {
-          relation: VerificationMethodRelation.Authentication,
-          methodId: '#key-1',
-        },
-      })]);
+      simulator.removeVerificationMethodRelation(VerificationMethodRelation.Authentication, '#key-1');
 
       const ledger = simulator.getLedger();
       expect(ledger.authenticationRelation.member('#key-1')).toEqual(false);
@@ -322,16 +207,11 @@ describe("DID smart contract", () => {
     });
 
     it("should add a service", () => {
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddService,
-        addServiceOptions: {
-          service: {
-            id: '#service-1',
-            typ: 'MessagingService',
-            serviceEndpoint: 'https://example.com/messages',
-          },
-        },
-      })]);
+      simulator.addService({
+        id: '#service-1',
+        typ: 'MessagingService',
+        serviceEndpoint: 'https://example.com/messages',
+      });
 
       const ledger = simulator.getLedger();
       expect(ledger.services.member('#service-1')).toEqual(true);
@@ -345,28 +225,18 @@ describe("DID smart contract", () => {
 
     it("should update a service", () => {
       // Add service
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddService,
-        addServiceOptions: {
-          service: {
-            id: '#service-1',
-            typ: 'MessagingService',
-            serviceEndpoint: 'https://example.com/messages',
-          },
-        },
-      })]);
+      simulator.addService({
+        id: '#service-1',
+        typ: 'MessagingService',
+        serviceEndpoint: 'https://example.com/messages',
+      });
 
       // Update service
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.UpdateService,
-        updateServiceOptions: {
-          service: {
-            id: '#service-1',
-            typ: 'MessagingService',
-            serviceEndpoint: 'https://new-endpoint.com/messages',
-          },
-        },
-      })]);
+      simulator.updateService({
+        id: '#service-1',
+        typ: 'MessagingService',
+        serviceEndpoint: 'https://new-endpoint.com/messages',
+      });
 
       const ledger = simulator.getLedger();
       const service = ledger.services.lookup('#service-1');
@@ -376,22 +246,14 @@ describe("DID smart contract", () => {
 
     it("should remove a service", () => {
       // Add service
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddService,
-        addServiceOptions: {
-          service: {
-            id: '#service-1',
-            typ: 'MessagingService',
-            serviceEndpoint: 'https://example.com/messages',
-          },
-        },
-      })]);
+      simulator.addService({
+        id: '#service-1',
+        typ: 'MessagingService',
+        serviceEndpoint: 'https://example.com/messages',
+      });
 
       // Remove service
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.RemoveService,
-        removeServiceOptions: { id: '#service-1' },
-      })]);
+      simulator.removeService('#service-1');
 
       const ledger = simulator.getLedger();
       expect(ledger.services.member('#service-1')).toEqual(false);
@@ -407,10 +269,7 @@ describe("DID smart contract", () => {
     });
 
     it("should add an alsoKnownAs value", () => {
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddAlsoKnownAs,
-        addAlsoKnownAsOptions: { value: 'did:example:alternative-id' },
-      })]);
+      simulator.addAlsoKnownAs('did:example:alternative-id');
 
       const ledger = simulator.getLedger();
       expect(ledger.alsoKnownAs.member('did:example:alternative-id')).toEqual(true);
@@ -420,16 +279,10 @@ describe("DID smart contract", () => {
 
     it("should remove an alsoKnownAs value", () => {
       // Add
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddAlsoKnownAs,
-        addAlsoKnownAsOptions: { value: 'did:example:alternative-id' },
-      })]);
+      simulator.addAlsoKnownAs('did:example:alternative-id');
 
       // Remove
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.RemoveAlsoKnownAs,
-        removeAlsoKnownAsOptions: { value: 'did:example:alternative-id' },
-      })]);
+      simulator.removeAlsoKnownAs('did:example:alternative-id');
 
       const ledger = simulator.getLedger();
       expect(ledger.alsoKnownAs.member('did:example:alternative-id')).toEqual(false);
@@ -437,10 +290,8 @@ describe("DID smart contract", () => {
     });
 
     it("should add multiple alsoKnownAs values", () => {
-      simulator.applyOperations([
-        createCompleteOperation({ operationType: OperationType.AddAlsoKnownAs, addAlsoKnownAsOptions: { value: 'alias-1' } }),
-        createCompleteOperation({ operationType: OperationType.AddAlsoKnownAs, addAlsoKnownAsOptions: { value: 'alias-2' } }),
-      ]);
+      simulator.addAlsoKnownAs('alias-1');
+      simulator.addAlsoKnownAs('alias-2');
 
       const ledger = simulator.getLedger();
       expect(ledger.alsoKnownAs.size()).toEqual(2n);
@@ -457,9 +308,7 @@ describe("DID smart contract", () => {
     });
 
     it("should deactivate the DID", () => {
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.Deactivate,
-      })]);
+      simulator.deactivate();
 
       const ledger = simulator.getLedger();
       expect(ledger.active).toEqual(false);
@@ -469,22 +318,15 @@ describe("DID smart contract", () => {
 
     it("should fail when trying to add verification method after deactivation", () => {
       // Deactivate
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.Deactivate,
-      })]);
+      simulator.deactivate();
 
       // Try to add verification method (should fail)
       expect(() => {
-        simulator.applyOperations([createCompleteOperation({
-          operationType: OperationType.AddVerificationMethod,
-          addVerificationMethodOptions: {
-            verificationMethod: {
-              id: '#key-1',
-              typ: VerificationMethodType.JsonWebKey,
-              publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 111n, y: 222n },
-            },
-          },
-        })]);
+        simulator.addVerificationMethod({
+          id: '#key-1',
+          typ: VerificationMethodType.JsonWebKey,
+          publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 111n, y: 222n },
+        });
       }).toThrow();
     });
   });
@@ -497,82 +339,49 @@ describe("DID smart contract", () => {
     });
 
     it("should apply multiple operations in one transaction", () => {
-      simulator.applyOperations([
-        createCompleteOperation({
-          operationType: OperationType.AddVerificationMethod,
-          addVerificationMethodOptions: {
-            verificationMethod: {
-              id: '#key-1',
-              typ: VerificationMethodType.JsonWebKey,
-              publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 111n, y: 222n },
-            },
-          },
-        }),
-        createCompleteOperation({
-          operationType: OperationType.AddVerificationMethodRelation,
-          addVerificationMethodRelationOptions: {
-            relation: VerificationMethodRelation.Authentication,
-            methodId: '#key-1',
-          },
-        }),
-        createCompleteOperation({
-          operationType: OperationType.AddService,
-          addServiceOptions: {
-            service: {
-              id: '#service-1',
-              typ: 'MessagingService',
-              serviceEndpoint: 'https://example.com',
-            },
-          },
-        }),
-        createCompleteOperation({
-          operationType: OperationType.AddAlsoKnownAs,
-          addAlsoKnownAsOptions: { value: 'did:example:alias' },
-        }),
-      ]);
+      simulator.addVerificationMethod({
+        id: '#key-1',
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 111n, y: 222n },
+      });
+      simulator.addVerificationMethodRelation(VerificationMethodRelation.Authentication, '#key-1');
+      simulator.addService({
+        id: '#service-1',
+        typ: 'MessagingService',
+        serviceEndpoint: 'https://example.com',
+      });
+      simulator.addAlsoKnownAs('did:example:alias');
 
       const ledger = simulator.getLedger();
       expect(ledger.verificationMethods.member('#key-1')).toEqual(true);
       expect(ledger.authenticationRelation.member('#key-1')).toEqual(true);
       expect(ledger.services.member('#service-1')).toEqual(true);
       expect(ledger.alsoKnownAs.member('did:example:alias')).toEqual(true);
-      expect(ledger.version).toEqual(1n); // All in one transaction
+      expect(ledger.version).toEqual(4n);
       expect(ledger.operationCount).toEqual(4n);
     });
 
     it("should handle version counter correctly across multiple transactions", () => {
       // Transaction 1
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddVerificationMethod,
-        addVerificationMethodOptions: {
-          verificationMethod: {
-            id: '#key-1',
-            typ: VerificationMethodType.JsonWebKey,
-            publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 111n, y: 222n },
-          },
-        },
-      })]);
+      simulator.addVerificationMethod({
+        id: '#key-1',
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: { kty: KeyType.OKP, crv: CurveType.Ed25519, x: 111n, y: 222n },
+      });
 
       expect(simulator.getLedger().version).toEqual(1n);
 
       // Transaction 2
-      simulator.applyOperations([createCompleteOperation({
-        operationType: OperationType.AddService,
-        addServiceOptions: {
-          service: { id: '#service-1', typ: 'Test', serviceEndpoint: 'https://test.com' },
-        },
-      })]);
+      simulator.addService({ id: '#service-1', typ: 'Test', serviceEndpoint: 'https://test.com' });
 
       expect(simulator.getLedger().version).toEqual(2n);
 
-      // Transaction 3 (batch)
-      simulator.applyOperations([
-        createCompleteOperation({ operationType: OperationType.AddAlsoKnownAs, addAlsoKnownAsOptions: { value: 'alias-1' } }),
-        createCompleteOperation({ operationType: OperationType.AddAlsoKnownAs, addAlsoKnownAsOptions: { value: 'alias-2' } }),
-      ]);
+      // Transaction 3
+      simulator.addAlsoKnownAs('alias-1');
+      simulator.addAlsoKnownAs('alias-2');
 
       const ledger = simulator.getLedger();
-      expect(ledger.version).toEqual(3n);
+      expect(ledger.version).toEqual(4n);
       expect(ledger.operationCount).toEqual(4n);
     });
   });
