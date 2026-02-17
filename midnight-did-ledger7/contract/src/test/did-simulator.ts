@@ -55,4 +55,31 @@ export class DIDSimulator {
   public getPrivateState(): DIDPrivateState {
     return this.circuitContext.currentPrivateState;
   }
+
+  /**
+   * Call the applyOperations circuit with the given operations.
+   * Updates the circuit context with the resulting state.
+   * The contract requires exactly 4 operations, so we pad with Undefined operations.
+   */
+  public applyOperations(operations: any[]): void {
+    // Pad to exactly 4 operations with Undefined operations
+    const paddedOps = [...operations];
+    while (paddedOps.length < 4) {
+      paddedOps.push({ operationType: 0 }); // OperationType.Undefined = 0
+    }
+    if (paddedOps.length > 4) {
+      throw new Error('Maximum 4 operations allowed per transaction');
+    }
+
+    const result = this.contract.impureCircuits.applyOperations(
+      this.circuitContext,
+      paddedOps as any
+    );
+    this.circuitContext = createCircuitContext(
+      sampleContractAddress(),
+      result.newZswapLocalState,
+      result.newContractState,
+      result.newPrivateState
+    );
+  }
 }
