@@ -1,0 +1,44 @@
+{
+  "name": "@midnight-ntwrk/midnight-did-domain",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./midnight": {
+      "types": "./dist/midnight.d.ts",
+      "require": "./dist/midnight.js",
+      "import": "./dist/midnight.js",
+      "default": "./dist/midnight.js"
+    }
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -b tsconfig.build.json --force",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:ci": "vitest run",
+    "coverage": "vitest run --coverage",
+    "clean": "rm -rf dist && rm -rf coverage",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix"
+  },
+  "dependencies": {
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "base64-js": "^1.5.1"
+  }
+}
