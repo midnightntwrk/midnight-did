@@ -4,12 +4,12 @@ import {
   KeyType,
   VerificationMethodRelation,
   VerificationMethodType
-} from "../../managed/did/contract/index.cjs";
+} from "../../managed/did/contract/index.js";
 import { MidnightDIDSimulator } from "../midnight-did-simulator";
 
 export const mockVerificationMethod = {
   id: "did:midnight:xyz#key-1",
-  type: VerificationMethodType.JsonWebKey,
+  typ: VerificationMethodType.JsonWebKey,
   publicKeyJwk: {
     kty: KeyType.OKP,
     crv: CurveType.Ed25519,

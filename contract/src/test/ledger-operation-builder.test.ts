@@ -7,12 +7,12 @@ import {
   OperationType,
   VerificationMethodRelation,
   VerificationMethodType
-} from "../managed/did/contract/index.cjs";
+} from "../managed/did/contract/index.js";
 
 describe("OperationBuilder", () => {
   const sampleVM = {
     id: "key-1",
-    type: VerificationMethodType.JsonWebKey,
+    typ: VerificationMethodType.JsonWebKey,
     publicKeyJwk: {
       kty: KeyType.EC,
       crv: CurveType.Ed25519,
@@ -156,7 +156,7 @@ describe("OperationBuilder", () => {
     const addSvc = OperationBuilder.addService({
       service: {
         id: "svc-1",
-        type: "LinkedDomains",
+        typ: "LinkedDomains",
         serviceEndpoint: JSON.stringify(["a", { uri: "b" }])
       }
     });
@@ -199,7 +199,7 @@ describe("OperationBuilder", () => {
       OperationBuilder.addService({
         service: {
           id: "s",
-          type: "T",
+          typ: "T",
           serviceEndpoint: JSON.stringify("https://example.com")
         }
       })

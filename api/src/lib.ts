@@ -1,12 +1,6 @@
-import * as fs from "node:fs";
-import * as fsAsync from "node:fs/promises";
-
-import {
-  type CoinInfo,
-  nativeToken,
-  Transaction,
-  type TransactionId,
-} from "@midnight-ntwrk/ledger";
+import { CompiledContract } from "@midnight-ntwrk/compact-js";
+import * as ledger from "@midnight-ntwrk/ledger-v7";
+import { unshieldedToken } from "@midnight-ntwrk/ledger-v7";
 import {
   type ContractAddress,
   type DIDOperation,
@@ -30,27 +24,34 @@ import {
 import { httpClientProofProvider } from "@midnight-ntwrk/midnight-js-http-client-proof-provider";
 import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-public-data-provider";
 import { levelPrivateStateProvider } from "@midnight-ntwrk/midnight-js-level-private-state-provider";
-import {
-  getLedgerNetworkId,
-  getNetworkId,
-  getZswapNetworkId,
-} from "@midnight-ntwrk/midnight-js-network-id";
+import { getNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import { NodeZkConfigProvider } from "@midnight-ntwrk/midnight-js-node-zk-config-provider";
 import {
-  type BalancedTransaction,
-  createBalancedTx,
   type FinalizedTxData,
   type MidnightProvider,
-  type UnbalancedTransaction,
+  type UnboundTransaction,
   type WalletProvider,
 } from "@midnight-ntwrk/midnight-js-types";
 import {
   assertIsContractAddress,
   toHex,
 } from "@midnight-ntwrk/midnight-js-utils";
-import { type Resource, WalletBuilder } from "@midnight-ntwrk/wallet";
-import { type Wallet } from "@midnight-ntwrk/wallet-api";
-import { Transaction as ZswapTransaction } from "@midnight-ntwrk/zswap";
+import { DustWallet } from "@midnight-ntwrk/wallet-sdk-dust-wallet";
+import { WalletFacade } from "@midnight-ntwrk/wallet-sdk-facade";
+import {
+  generateRandomSeed,
+  HDWallet,
+  Roles,
+} from "@midnight-ntwrk/wallet-sdk-hd";
+import { ShieldedWallet } from "@midnight-ntwrk/wallet-sdk-shielded";
+import {
+  createKeystore,
+  InMemoryTransactionHistoryStorage,
+  PublicKey,
+  type UnshieldedKeystore,
+  UnshieldedWallet,
+} from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
+import { Buffer } from "buffer";
 import { webcrypto } from "crypto";
 import { type Logger } from "pino";
 import * as Rx from "rxjs";
@@ -61,14 +62,121 @@ import { BigIntReplacer } from "./logger-utils";
 import { RuntimeToDomain } from "./runtime-to-domain";
 import {
   type DeployedMidnightDIDContract,
+  type MidnightDIDCircuits,
   type MidnightDIDContract,
   MidnightDIDPrivateStateId,
   type MidnightDIDProviders,
+  type MidnightDIDWalletContext,
 } from "./types";
 
 let logger: Logger;
 // @ts-expect-error assign for apollo/ws
 globalThis.WebSocket = WebSocket;
+
+// HD key derivation from seed
+const deriveKeysFromSeed = (seed: string) => {
+  const hdWallet = HDWallet.fromSeed(Buffer.from(seed, "hex"));
+  if (hdWallet.type !== "seedOk") {
+    throw new Error("Failed to initialize HDWallet from seed");
+  }
+  const derivationResult = hdWallet.hdWallet
+    .selectAccount(0)
+    .selectRoles([Roles.Zswap, Roles.NightExternal, Roles.Dust])
+    .deriveKeysAt(0);
+  if (derivationResult.type !== "keysDerived") {
+    throw new Error("Failed to derive keys");
+  }
+  hdWallet.hdWallet.clear();
+  return derivationResult.keys;
+};
+
+// Build wallet configurations
+const buildShieldedConfig = ({
+  indexer,
+  indexerWS,
+  node,
+  proofServer,
+}: Config) => ({
+  networkId: getNetworkId(),
+  indexerClientConnection: { indexerHttpUrl: indexer, indexerWsUrl: indexerWS },
+  provingServerUrl: new URL(proofServer),
+  relayURL: new URL(node.replace(/^http/, "ws")),
+});
+
+const buildUnshieldedConfig = ({ indexer, indexerWS }: Config) => ({
+  networkId: getNetworkId(),
+  indexerClientConnection: { indexerHttpUrl: indexer, indexerWsUrl: indexerWS },
+  txHistoryStorage: new InMemoryTransactionHistoryStorage(),
+});
+
+const buildDustConfig = ({
+  indexer,
+  indexerWS,
+  node,
+  proofServer,
+}: Config) => ({
+  networkId: getNetworkId(),
+  costParameters: {
+    additionalFeeOverhead: 300_000_000_000_000n,
+    feeBlocksMargin: 5,
+  },
+  indexerClientConnection: { indexerHttpUrl: indexer, indexerWsUrl: indexerWS },
+  provingServerUrl: new URL(proofServer),
+  relayURL: new URL(node.replace(/^http/, "ws")),
+});
+
+// Manual transaction intent signing (SDK bug workaround)
+const signTransactionIntents = (
+  tx: { intents?: Map<number, any> },
+  signFn: (payload: Uint8Array) => ledger.Signature,
+  proofMarker: "proof" | "pre-proof",
+): void => {
+  if (!tx.intents || tx.intents.size === 0) return;
+
+  for (const segment of tx.intents.keys()) {
+    const intent = tx.intents.get(segment);
+    if (!intent) continue;
+
+    const cloned = ledger.Intent.deserialize(
+      "signature",
+      proofMarker,
+      "pre-binding",
+      intent.serialize(),
+    );
+
+    const sigData = cloned.signatureData(segment);
+    const signature = signFn(sigData);
+
+    if (cloned.fallibleUnshieldedOffer) {
+      const sigs = cloned.fallibleUnshieldedOffer.inputs.map(
+        (_: ledger.UtxoSpend, i: number) =>
+          cloned.fallibleUnshieldedOffer!.signatures.at(i) ?? signature,
+      );
+      cloned.fallibleUnshieldedOffer =
+        cloned.fallibleUnshieldedOffer.addSignatures(sigs);
+    }
+
+    if (cloned.guaranteedUnshieldedOffer) {
+      const sigs = cloned.guaranteedUnshieldedOffer.inputs.map(
+        (_: ledger.UtxoSpend, i: number) =>
+          cloned.guaranteedUnshieldedOffer!.signatures.at(i) ?? signature,
+      );
+      cloned.guaranteedUnshieldedOffer =
+        cloned.guaranteedUnshieldedOffer.addSignatures(sigs);
+    }
+
+    tx.intents.set(segment, cloned);
+  }
+};
+
+// Pre-compile contract with assets
+const midnightDIDCompiledContract = CompiledContract.make(
+  "did",
+  DIDContract.Contract,
+).pipe(
+  CompiledContract.withWitnesses(witnesses),
+  CompiledContract.withCompiledFileAssets(contractConfig.zkConfigPath),
+);
 
 export const getMidnightDIDLedgerState = async (
   providers: MidnightDIDProviders,
@@ -99,7 +207,7 @@ export async function hashProverKey(
 export async function initPrivateState(
   providers: MidnightDIDProviders,
 ): Promise<MidnightDIDPrivateState> {
-  providers.walletProvider.coinPublicKey;
+  providers.walletProvider.getCoinPublicKey();
   const providedPrivateState = await providers.privateStateProvider.get(
     "midnightDIDPrivateState",
   );
@@ -134,16 +242,16 @@ export const joinContract = async (
   contractAddress: string,
 ): Promise<DeployedMidnightDIDContract> => {
   const initialPrivateState = await initPrivateState(providers);
-  const counterContract = await findDeployedContract(providers, {
+  const didContract = await findDeployedContract(providers, {
     contractAddress,
-    contract: midnightDIDContractInstance,
+    compiledContract: midnightDIDCompiledContract,
     privateStateId: "midnightDIDPrivateState",
     initialPrivateState: initialPrivateState,
   });
   logger.info(
-    `Joined contract at address: ${counterContract.deployTxData.public.contractAddress}`,
+    `Joined contract at address: ${didContract.deployTxData.public.contractAddress}`,
   );
-  return counterContract;
+  return didContract;
 };
 
 export const deploy = async (
@@ -152,7 +260,7 @@ export const deploy = async (
 ): Promise<DeployedMidnightDIDContract> => {
   logger.info("Deploying Midnight DID contract...");
   const didContract = await deployContract(providers, {
-    contract: midnightDIDContractInstance,
+    compiledContract: midnightDIDCompiledContract,
     privateStateId: "midnightDIDPrivateState",
     initialPrivateState: privateState,
   });
@@ -237,218 +345,182 @@ export const resolve = async (
 };
 
 export const createWalletAndMidnightProvider = async (
-  wallet: Wallet,
+  ctx: MidnightDIDWalletContext,
 ): Promise<WalletProvider & MidnightProvider> => {
-  const state = await Rx.firstValueFrom(wallet.state());
+  const state = await Rx.firstValueFrom(
+    ctx.wallet.state().pipe(Rx.filter((s) => s.isSynced)),
+  );
+
   return {
-    coinPublicKey: state.coinPublicKey,
-    encryptionPublicKey: state.encryptionPublicKey,
-    balanceTx(
-      tx: UnbalancedTransaction,
-      newCoins: CoinInfo[],
-    ): Promise<BalancedTransaction> {
-      return wallet
-        .balanceTransaction(
-          ZswapTransaction.deserialize(
-            tx.serialize(getLedgerNetworkId()),
-            getZswapNetworkId(),
-          ),
-          newCoins,
-        )
-        .then((tx) => wallet.proveTransaction(tx))
-        .then((zswapTx) =>
-          Transaction.deserialize(
-            zswapTx.serialize(getZswapNetworkId()),
-            getLedgerNetworkId(),
-          ),
-        )
-        .then(createBalancedTx);
+    getCoinPublicKey() {
+      return state.shielded.coinPublicKey.toHexString();
     },
-    submitTx(tx: BalancedTransaction): Promise<TransactionId> {
-      return wallet.submitTransaction(tx);
+    getEncryptionPublicKey() {
+      return state.shielded.encryptionPublicKey.toHexString();
+    },
+    async balanceTx(tx, ttl?) {
+      const recipe = await ctx.wallet.balanceUnboundTransaction(
+        tx as any,
+        {
+          shieldedSecretKeys: ctx.shieldedSecretKeys as any,
+          dustSecretKey: ctx.dustSecretKey as any,
+        },
+        { ttl: ttl ?? new Date(Date.now() + 30 * 60 * 1000) },
+      );
+
+      // Manual intent signing (SDK bug workaround)
+      const signFn = (payload: Uint8Array) =>
+        ctx.unshieldedKeystore.signData(payload);
+      signTransactionIntents(recipe.baseTransaction, signFn, "proof");
+      if (recipe.balancingTransaction) {
+        signTransactionIntents(
+          recipe.balancingTransaction,
+          signFn,
+          "pre-proof",
+        );
+      }
+
+      return ctx.wallet.finalizeRecipe(recipe) as any;
+    },
+    submitTx(tx) {
+      return ctx.wallet.submitTransaction(tx as any) as any;
     },
   };
 };
 
-export const waitForSync = (wallet: Wallet) =>
+export const waitForSync = (wallet: WalletFacade) =>
   Rx.firstValueFrom(
     wallet.state().pipe(
       Rx.throttleTime(5_000),
       Rx.tap((state) => {
-        const applyGap = state.syncProgress?.lag.applyGap ?? 0n;
-        const sourceGap = state.syncProgress?.lag.sourceGap ?? 0n;
-        logger.info(
-          `Waiting for funds. Backend lag: ${sourceGap}, wallet lag: ${applyGap}, transactions=${state.transactionHistory.length}`,
-        );
+        logger.info(`Waiting for sync... isSynced=${state.isSynced}`);
       }),
-      Rx.filter(
-        (state) =>
-          state.syncProgress !== undefined && state.syncProgress.synced,
-      ),
+      Rx.filter((state) => state.isSynced),
     ),
   );
 
-export const waitForSyncProgress = async (wallet: Wallet) =>
-  await Rx.firstValueFrom(
-    wallet.state().pipe(
-      Rx.throttleTime(5_000),
-      Rx.tap((state) => {
-        const applyGap = state.syncProgress?.lag.applyGap ?? 0n;
-        const sourceGap = state.syncProgress?.lag.sourceGap ?? 0n;
-        logger.info(
-          `Waiting for funds. Backend lag: ${sourceGap}, wallet lag: ${applyGap}, transactions=${state.transactionHistory.length}`,
-        );
-      }),
-      Rx.filter((state) => state.syncProgress !== undefined),
-    ),
-  );
-
-export const waitForFunds = (wallet: Wallet) =>
+export const waitForFunds = (wallet: WalletFacade): Promise<bigint> =>
   Rx.firstValueFrom(
     wallet.state().pipe(
       Rx.throttleTime(10_000),
       Rx.tap((state) => {
-        const applyGap = state.syncProgress?.lag.applyGap ?? 0n;
-        const sourceGap = state.syncProgress?.lag.sourceGap ?? 0n;
-        logger.info(
-          `Waiting for funds. Backend lag: ${sourceGap}, wallet lag: ${applyGap}, transactions=${state.transactionHistory.length}`,
-        );
+        const balance = state.unshielded.balances[unshieldedToken().raw] ?? 0n;
+        logger.info(`Waiting for funds... balance=${balance}`);
       }),
-      Rx.filter((state) => state.syncProgress?.synced === true),
-      Rx.map((s) => s.balances[nativeToken()] ?? 0n),
+      Rx.filter((state) => state.isSynced),
+      Rx.map((s) => s.unshielded.balances[unshieldedToken().raw] ?? 0n),
       Rx.filter((balance) => balance > 0n),
     ),
   );
 
 export const buildWalletAndWaitForFunds = async (
-  { indexer, indexerWS, node, proofServer }: Config,
+  config: Config,
   seed: string,
-  filename: string,
-): Promise<Wallet & Resource> => {
-  const directoryPath = process.env.SYNC_CACHE;
-  let wallet: Wallet & Resource;
-  if (directoryPath !== undefined) {
-    if (fs.existsSync(`${directoryPath}/${filename}`)) {
-      logger.info(
-        `Attempting to restore state from ${directoryPath}/${filename}`,
-      );
-      try {
-        const serializedStream = fs.createReadStream(
-          `${directoryPath}/${filename}`,
-          "utf-8",
-        );
-        const serialized = await streamToString(serializedStream);
-        serializedStream.on("finish", () => serializedStream.close());
-        wallet = await WalletBuilder.restore(
-          indexer,
-          indexerWS,
-          proofServer,
-          node,
-          seed,
-          serialized,
-          "info",
-        );
-        wallet.start();
-        const stateObject = JSON.parse(serialized);
-        if (
-          (await isAnotherChain(wallet, Number(stateObject.offset))) === true
-        ) {
-          logger.warn("The chain was reset, building wallet from scratch");
-          wallet = await WalletBuilder.buildFromSeed(
-            indexer,
-            indexerWS,
-            proofServer,
-            node,
-            seed,
-            getZswapNetworkId(),
-            "info",
-          );
-          wallet.start();
-        } else {
-          const newState = await waitForSync(wallet);
-          if (newState.syncProgress?.synced) {
-            logger.info("Wallet was able to sync from restored state");
-          } else {
-            logger.info(`Offset: ${stateObject.offset}`);
-            logger.info(
-              `SyncProgress.lag.applyGap: ${newState.syncProgress?.lag.applyGap}`,
-            );
-            logger.info(
-              `SyncProgress.lag.sourceGap: ${newState.syncProgress?.lag.sourceGap}`,
-            );
-            logger.warn(
-              "Wallet was not able to sync from restored state, building wallet from scratch",
-            );
-            wallet = await WalletBuilder.buildFromSeed(
-              indexer,
-              indexerWS,
-              proofServer,
-              node,
-              seed,
-              getZswapNetworkId(),
-              "info",
-            );
-            wallet.start();
-          }
-        }
-      } catch (error: unknown) {
-        if (typeof error === "string") logger.error(error);
-        else if (error instanceof Error) logger.error(error.message);
-        else logger.error(error);
-        logger.warn(
-          "Wallet was not able to restore using the stored state, building wallet from scratch",
-        );
-        wallet = await WalletBuilder.buildFromSeed(
-          indexer,
-          indexerWS,
-          proofServer,
-          node,
-          seed,
-          getZswapNetworkId(),
-          "info",
-        );
-        wallet.start();
-      }
-    } else {
-      logger.info("Wallet save file not found, building wallet from scratch");
-      wallet = await WalletBuilder.buildFromSeed(
-        indexer,
-        indexerWS,
-        proofServer,
-        node,
-        seed,
-        getZswapNetworkId(),
-        "info",
-      );
-      wallet.start();
-    }
-  } else {
-    logger.info(
-      "File path for save file not found, building wallet from scratch",
-    );
-    wallet = await WalletBuilder.buildFromSeed(
-      indexer,
-      indexerWS,
-      proofServer,
-      node,
-      seed,
-      getZswapNetworkId(),
-      "info",
-    );
-    wallet.start();
+): Promise<MidnightDIDWalletContext> => {
+  logger.info("Building wallet from seed");
+
+  // Derive HD keys
+  const keys = deriveKeysFromSeed(seed);
+  const shieldedSecretKeys = ledger.ZswapSecretKeys.fromSeed(keys[Roles.Zswap]);
+  const dustSecretKey = ledger.DustSecretKey.fromSeed(keys[Roles.Dust]);
+  const unshieldedKeystore = createKeystore(
+    keys[Roles.NightExternal],
+    getNetworkId(),
+  );
+
+  // Create three sub-wallets
+  const shieldedWallet = ShieldedWallet(
+    buildShieldedConfig(config),
+  ).startWithSecretKeys(shieldedSecretKeys as any);
+  const unshieldedWallet = UnshieldedWallet(
+    buildUnshieldedConfig(config),
+  ).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore));
+  const dustWallet = DustWallet(buildDustConfig(config)).startWithSecretKey(
+    dustSecretKey as any,
+    ledger.LedgerParameters.initialParameters().dust,
+  );
+
+  // Compose into facade
+  const wallet = new WalletFacade(shieldedWallet, unshieldedWallet, dustWallet);
+  await wallet.start(shieldedSecretKeys as any, dustSecretKey as any);
+
+  // Wait for sync
+  logger.info("Waiting for wallet sync...");
+  await Rx.firstValueFrom(
+    wallet.state().pipe(
+      Rx.throttleTime(5_000),
+      Rx.filter((state) => state.isSynced),
+    ),
+  );
+
+  // Wait for funds
+  logger.info("Waiting for funds...");
+  const balance = await Rx.firstValueFrom(
+    wallet.state().pipe(
+      Rx.throttleTime(10_000),
+      Rx.filter((state) => state.isSynced),
+      Rx.map((s) => s.unshielded.balances[unshieldedToken().raw] ?? 0n),
+      Rx.filter((balance) => balance > 0n),
+    ),
+  );
+  logger.info(`Wallet balance: ${balance}`);
+
+  return { wallet, shieldedSecretKeys, dustSecretKey, unshieldedKeystore };
+};
+
+export const registerForDustGeneration = async (
+  wallet: WalletFacade,
+  unshieldedKeystore: UnshieldedKeystore,
+): Promise<void> => {
+  const state = await Rx.firstValueFrom(
+    wallet.state().pipe(Rx.filter((s) => s.isSynced)),
+  );
+
+  // Check if dust already available
+  if (state.dust.availableCoins.length > 0) {
+    const dustBal = state.dust.walletBalance(new Date());
+    logger.info(`Dust already available: ${dustBal}`);
+    return;
   }
 
-  const state = await Rx.firstValueFrom(wallet.state());
-  logger.info(`Your wallet seed is: ${seed}`);
-  logger.info(`Your wallet address is: ${state.address}`);
-  let balance = state.balances[nativeToken()];
-  if (balance === undefined || balance === 0n) {
-    logger.info(`Your wallet balance is: 0`);
-    logger.info(`Waiting to receive tokens...`);
-    balance = await waitForFunds(wallet);
+  // Get unregistered NIGHT UTXOs
+  const nightUtxos = state.unshielded.availableCoins.filter(
+    (coin: any) => coin.meta?.registeredForDustGeneration !== true,
+  );
+
+  if (nightUtxos.length === 0) {
+    logger.info("Waiting for existing dust generation...");
+    await Rx.firstValueFrom(
+      wallet.state().pipe(
+        Rx.throttleTime(5_000),
+        Rx.filter((s) => s.dust.walletBalance(new Date()) > 0n),
+      ),
+    );
+    return;
   }
-  logger.info(`Your wallet balance is: ${balance}`);
-  return wallet;
+
+  // Register UTXOs
+  logger.info(
+    `Registering ${nightUtxos.length} NIGHT UTXOs for dust generation`,
+  );
+  const recipe = await wallet.registerNightUtxosForDustGeneration(
+    nightUtxos,
+    unshieldedKeystore.getPublicKey(),
+    (payload) => unshieldedKeystore.signData(payload),
+  );
+  const finalized = await wallet.finalizeRecipe(recipe);
+  await wallet.submitTransaction(finalized as any);
+
+  // Wait for dust to generate
+  logger.info("Waiting for dust generation...");
+  await Rx.firstValueFrom(
+    wallet.state().pipe(
+      Rx.throttleTime(5_000),
+      Rx.filter((s) => s.dust.walletBalance(new Date()) > 0n),
+    ),
+  );
+
+  logger.info("Dust generation complete");
 };
 
 export const randomBytes = (length: number): Uint8Array => {
@@ -459,29 +531,32 @@ export const randomBytes = (length: number): Uint8Array => {
 
 export const buildFreshWallet = async (
   config: Config,
-): Promise<Wallet & Resource> =>
-  await buildWalletAndWaitForFunds(config, toHex(randomBytes(32)), "");
+): Promise<MidnightDIDWalletContext> =>
+  await buildWalletAndWaitForFunds(config, toHex(randomBytes(32)));
 
 export const configureProviders = async (
-  wallet: Wallet & Resource,
+  ctx: MidnightDIDWalletContext,
   config: Config,
 ) => {
-  const walletAndMidnightProvider =
-    await createWalletAndMidnightProvider(wallet);
+  const walletAndMidnightProvider = await createWalletAndMidnightProvider(ctx);
+  const zkConfigProvider = new NodeZkConfigProvider<MidnightDIDCircuits>(
+    contractConfig.zkConfigPath,
+  );
+
   return {
-    privateStateProvider: levelPrivateStateProvider<
-      typeof MidnightDIDPrivateStateId
-    >({
+    privateStateProvider: levelPrivateStateProvider({
       privateStateStoreName: contractConfig.privateStateStoreName,
+      walletProvider: walletAndMidnightProvider,
     }),
     publicDataProvider: indexerPublicDataProvider(
       config.indexer,
       config.indexerWS,
     ),
-    zkConfigProvider: new NodeZkConfigProvider<"applyOperations">(
-      contractConfig.zkConfigPath,
+    zkConfigProvider,
+    proofProvider: httpClientProofProvider(
+      config.proofServer,
+      zkConfigProvider,
     ),
-    proofProvider: httpClientProofProvider(config.proofServer),
     walletProvider: walletAndMidnightProvider,
     midnightProvider: walletAndMidnightProvider,
   };
@@ -490,61 +565,3 @@ export const configureProviders = async (
 export function setLogger(_logger: Logger) {
   logger = _logger;
 }
-
-export const streamToString = async (
-  stream: fs.ReadStream,
-): Promise<string> => {
-  const chunks: Buffer[] = [];
-  return await new Promise((resolve, reject) => {
-    stream.on("data", (chunk) =>
-      chunks.push(
-        typeof chunk === "string" ? Buffer.from(chunk, "utf8") : chunk,
-      ),
-    );
-    stream.on("error", (err) => reject(err));
-    stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-  });
-};
-
-export const isAnotherChain = async (wallet: Wallet, offset: number) => {
-  await waitForSyncProgress(wallet);
-  const walletOffset = Number(JSON.parse(await wallet.serializeState()).offset);
-  if (walletOffset < offset - 1) {
-    logger.info(
-      `Your offset offset is: ${walletOffset} restored offset: ${offset} so it is another chain`,
-    );
-    return true;
-  } else {
-    logger.info(
-      `Your offset offset is: ${walletOffset} restored offset: ${offset} ok`,
-    );
-    return false;
-  }
-};
-
-export const saveState = async (wallet: Wallet, filename: string) => {
-  const directoryPath = process.env.SYNC_CACHE;
-  if (directoryPath !== undefined) {
-    logger.info(`Saving state in ${directoryPath}/${filename}`);
-    try {
-      await fsAsync.mkdir(directoryPath, { recursive: true });
-      const serializedState = await wallet.serializeState();
-      const writer = fs.createWriteStream(`${directoryPath}/${filename}`);
-      writer.write(serializedState);
-      writer.on("finish", function () {
-        logger.info(
-          `File '${directoryPath}/${filename}' written successfully.`,
-        );
-      });
-      writer.on("error", function (err) {
-        logger.error(err);
-      });
-      writer.end();
-    } catch (e) {
-      if (typeof e === "string") logger.warn(e);
-      else if (e instanceof Error) logger.warn(e.message);
-    }
-  } else {
-    logger.info("Not saving cache as sync cache was not defined");
-  }
-};

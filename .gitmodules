@@ -4,3 +4,6 @@
 [submodule "midnight-docs"]
 	path = midnight-docs
 	url = https://github.com/midnightntwrk/midnight-docs.git
+[submodule "example-bboard"]
+	path = example-bboard
+	url = https://github.com/midnightntwrk/example-bboard.git

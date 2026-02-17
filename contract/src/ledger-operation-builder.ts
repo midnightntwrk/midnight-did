@@ -17,7 +17,7 @@ import {
   VerificationMethod,
   VerificationMethodRelation,
   VerificationMethodType
-} from "./managed/did/contract/index.cjs";
+} from "./managed/did/contract/index.js";
 
 export class OperationBuilder {
   static defaultPublicKeyJwk: PublicKeyJwk = {
@@ -29,7 +29,7 @@ export class OperationBuilder {
 
   static defaultVerificationMethod: VerificationMethod = {
     id: "",
-    type: VerificationMethodType.Undefined,
+    typ: VerificationMethodType.Undefined,
     publicKeyJwk: this.defaultPublicKeyJwk
   };
 
@@ -55,14 +55,14 @@ export class OperationBuilder {
     addServiceOptions: {
       service: {
         id: "",
-        type: "",
+        typ: "",
         serviceEndpoint: '""'
       }
     },
     updateServiceOptions: {
       service: {
         id: "",
-        type: "",
+        typ: "",
         serviceEndpoint: '""'
       }
     },
@@ -249,9 +249,9 @@ export class OperationBuilder {
       ) {
         throw new Error(`Invalid addVerificationMethodOptions at index ${idx}`);
       }
-      if (!inNumRange(avm.verificationMethod.type, 0, 2)) {
+      if (!inNumRange(avm.verificationMethod.typ, 0, 1)) {
         throw new Error(
-          `Invalid verificationMethod.type (add) at index ${idx}: expected 0..2`
+          `Invalid verificationMethod.typ (add) at index ${idx}: expected 0..1`
         );
       }
 
@@ -267,9 +267,9 @@ export class OperationBuilder {
           `Invalid updateVerificationMethodOptions at index ${idx}`
         );
       }
-      if (!inNumRange(uvm.verificationMethod.type, 0, 2)) {
+      if (!inNumRange(uvm.verificationMethod.typ, 0, 1)) {
         throw new Error(
-          `Invalid verificationMethod.type (update) at index ${idx}: expected 0..2`
+          `Invalid verificationMethod.typ (update) at index ${idx}: expected 0..1`
         );
       }
 

@@ -16,8 +16,6 @@ import {
   VerificationMethodRelationType,
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
-import { type Resource } from "@midnight-ntwrk/wallet";
-import { type Wallet } from "@midnight-ntwrk/wallet-api";
 import path from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -70,7 +68,7 @@ const describeApi = containerRuntimeAvailable ? describe : describe.skip;
 
 describeApi("Midnight DID method API", () => {
   let testEnvironment: TestEnvironment;
-  let wallet: Wallet & Resource;
+  let walletCtx: api.MidnightDIDWalletContext;
   let providers: MidnightDIDProviders;
   let contract: DeployedMidnightDIDContract;
   let contractAddress: MidnightContractAddress;
@@ -84,9 +82,9 @@ describeApi("Midnight DID method API", () => {
       api.setLogger(logger);
       testEnvironment = new TestEnvironment(logger);
       const testConfiguration = await testEnvironment.start();
-      wallet = await testEnvironment.getWallet();
+      walletCtx = await testEnvironment.getWallet();
       providers = await api.configureProviders(
-        wallet,
+        walletCtx,
         testConfiguration.dappConfig,
       );
     },
@@ -104,7 +102,6 @@ describeApi("Midnight DID method API", () => {
       );
       return;
     }
-    await testEnvironment.saveWalletCache();
     await testEnvironment.shutdown();
   });
 

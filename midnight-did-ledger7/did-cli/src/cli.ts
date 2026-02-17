@@ -126,7 +126,10 @@ const getDustLabel = async (wallet: api.WalletContext['wallet']): Promise<string
 };
 
 /** Prompt for a contract address and join an existing deployed contract. */
-const joinContract = async (providers: DIDProviders, rli: Interface): Promise<DeployedDIDContract> => {
+const joinContract = async (
+  providers: DIDProviders,
+  rli: Interface,
+): Promise<DeployedDIDContract> => {
   const contractAddress = await rli.question('Enter the contract address (hex): ');
   return await api.joinContract(providers, contractAddress);
 };
@@ -159,7 +162,7 @@ const deployOrJoin = async (
       case '1':
         try {
           const contract = await api.withStatus('Deploying DID contract', () =>
-            api.deploy(providers, {}),
+            api.deploy(providers),
           );
           console.log(`  Contract deployed at: ${contract.deployTxData.public.contractAddress}\n`);
           return contract;

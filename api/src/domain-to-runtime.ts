@@ -1,11 +1,11 @@
 import { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
-import { NetworkId } from "@midnight-ntwrk/midnight-js-network-id";
+import type { NetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 
 export class DomainToRuntime {
   static readonly NetworkMap: Record<MidnightNetwork, NetworkId> = {
-    [MidnightNetwork.Undeployed]: NetworkId.Undeployed,
-    [MidnightNetwork.DevNet]: NetworkId.DevNet,
-    [MidnightNetwork.Testnet]: NetworkId.TestNet,
-    [MidnightNetwork.Mainnet]: NetworkId.MainNet,
+    [MidnightNetwork.Undeployed]: "undeployed",
+    [MidnightNetwork.DevNet]: "devnet",
+    [MidnightNetwork.Testnet]: "testnet",
+    [MidnightNetwork.Mainnet]: "mainnet",
   };
 }

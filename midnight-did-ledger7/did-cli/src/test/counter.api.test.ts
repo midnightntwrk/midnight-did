@@ -46,8 +46,8 @@ describe('API', () => {
   });
 
   it('should deploy the DID contract and verify initial state [@slow]', async () => {
-    // Deploy the DID contract with empty private state
-    const didContract = await api.deploy(providers, {});
+    // Deploy the DID contract (no wallet context needed with simplified contract)
+    const didContract = await api.deploy(providers);
     expect(didContract).not.toBeNull();
     expect(didContract.deployTxData.public.contractAddress).toMatch(/[0-9a-f]{64}/);
 

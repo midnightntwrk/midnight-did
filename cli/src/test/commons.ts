@@ -13,10 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { nativeToken } from '@midnight-ntwrk/ledger';
+import { unshieldedToken } from '@midnight-ntwrk/ledger-v7';
 import * as api from '@midnight-ntwrk/midnight-did-api';
-import type { Resource } from '@midnight-ntwrk/wallet';
-import type { Wallet } from '@midnight-ntwrk/wallet-api';
 import path from 'path';
 import type { Logger } from 'pino';
 import * as Rx from 'rxjs';
@@ -104,7 +102,7 @@ export class TestEnvironment {
   private env: StartedDockerComposeEnvironment | undefined;
   private dockerEnv: DockerComposeEnvironment | undefined;
   private container: StartedTestContainer | undefined;
-  private wallet: (Wallet & Resource) | undefined;
+  private wallet: api.MidnightDIDWalletContext | undefined;
   private testConfig: TestConfiguration;
 
   constructor(logger: Logger) {
@@ -171,7 +169,7 @@ export class TestEnvironment {
 
   shutdown = async () => {
     if (this.wallet !== undefined) {
-      await this.wallet.close();
+      await this.wallet.wallet.stop();
     }
     if (this.env !== undefined) {
       this.logger.info('Test containers closing');
@@ -185,20 +183,19 @@ export class TestEnvironment {
 
   getWallet = async () => {
     this.logger.info('Setting up wallet');
-    this.wallet = await api.buildWalletAndWaitForFunds(
-      this.testConfig.dappConfig,
-      this.testConfig.seed,
-      this.testConfig.cacheFileName,
-    );
+    this.wallet = await api.buildWalletAndWaitForFunds(this.testConfig.dappConfig, this.testConfig.seed);
     expect(this.wallet).not.toBeNull();
-    const state = await Rx.firstValueFrom(this.wallet!.state());
-    expect(state.balances[nativeToken()].valueOf()).toBeGreaterThan(BigInt(0));
+    const state = await Rx.firstValueFrom(this.wallet!.wallet.state());
+    const balance = state.unshielded.balances[unshieldedToken().raw] ?? 0n;
+    expect(balance).toBeGreaterThan(0n);
+
+    // Register for dust generation
+    await api.registerForDustGeneration(this.wallet.wallet, this.wallet.unshieldedKeystore);
+
     return this.wallet;
   };
 
   saveWalletCache = async () => {
-    if (this.wallet !== undefined) {
-      await api.saveState(this.wallet, this.testConfig.cacheFileName);
-    }
+    // Wallet state serialization no longer supported in wallet SDK v1.0.0
   };
 }

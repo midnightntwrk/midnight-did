@@ -1,4 +1,5 @@
-import { NetworkId } from "@midnight-ntwrk/ledger";
+import type { ImpureCircuitId } from "@midnight-ntwrk/compact-js";
+import * as ledger from "@midnight-ntwrk/ledger-v7";
 import { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
 import {
   DIDContract,
@@ -8,10 +9,9 @@ import type {
   DeployedContract,
   FoundContract,
 } from "@midnight-ntwrk/midnight-js-contracts";
-import type {
-  ImpureCircuitId,
-  MidnightProviders,
-} from "@midnight-ntwrk/midnight-js-types";
+import type { MidnightProviders } from "@midnight-ntwrk/midnight-js-types";
+import type { WalletFacade } from "@midnight-ntwrk/wallet-sdk-facade";
+import type { UnshieldedKeystore } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
 
 export type MidnightDIDCircuits = ImpureCircuitId<
   DIDContract.Contract<MidnightDIDPrivateState>
@@ -31,9 +31,16 @@ export type DeployedMidnightDIDContract =
   | DeployedContract<MidnightDIDContract>
   | FoundContract<MidnightDIDContract>;
 
-export const NetworkMapping: Record<NetworkId, MidnightNetwork> = {
-  [NetworkId.Undeployed]: MidnightNetwork.Undeployed,
-  [NetworkId.DevNet]: MidnightNetwork.DevNet,
-  [NetworkId.TestNet]: MidnightNetwork.Testnet,
-  [NetworkId.MainNet]: MidnightNetwork.Mainnet,
+export interface MidnightDIDWalletContext {
+  wallet: WalletFacade;
+  shieldedSecretKeys: ledger.ZswapSecretKeys;
+  dustSecretKey: ledger.DustSecretKey;
+  unshieldedKeystore: UnshieldedKeystore;
+}
+
+export const NetworkMapping: Record<string, MidnightNetwork> = {
+  undeployed: MidnightNetwork.Undeployed,
+  devnet: MidnightNetwork.DevNet,
+  testnet: MidnightNetwork.Testnet,
+  mainnet: MidnightNetwork.Mainnet,
 };

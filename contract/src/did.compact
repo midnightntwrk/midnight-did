@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pragma language_version 0.18;
+pragma language_version >= 0.20;
 
 import CompactStandardLibrary;
 
@@ -69,13 +69,13 @@ export struct PublicKeyJwk {
 
 export struct VerificationMethod {
   id: Opaque<"string">,
-  type: VerificationMethodType,
+  typ: VerificationMethodType,
   publicKeyJwk: PublicKeyJwk
 };
 
 export struct Service {
   id: Opaque<"string">,
-  type: Opaque<"string">,
+  typ: Opaque<"string">,
   serviceEndpoint: Opaque<"string">,
 }
 

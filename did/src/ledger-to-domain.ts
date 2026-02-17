@@ -118,7 +118,7 @@ export class LedgerToDomain {
     const serviceEndpoint = this.parseServiceEndpoint(service.serviceEndpoint);
     return {
       id: serviceId,
-      type: service.type,
+      type: service.typ,
       serviceEndpoint,
     } as Service;
   }
@@ -184,7 +184,7 @@ export class LedgerToDomain {
         ledger.verificationMethods,
         ([id, method]) => ({
           id: this.verificationMethodId(id),
-          type: method.type,
+          type: method.typ,
           publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
         }),
       ),
@@ -225,7 +225,7 @@ export class LedgerToDomain {
       verificationMethod.push(
         createVerificationMethod({
           id: this.verificationMethodId(id),
-          type: LedgerToDomain.VerificationMethodTypeMap[method.type],
+          type: LedgerToDomain.VerificationMethodTypeMap[method.typ],
           controller: did,
           publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
         }),

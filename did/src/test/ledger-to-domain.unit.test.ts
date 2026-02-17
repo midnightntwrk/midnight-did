@@ -75,7 +75,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       [
         "key-1",
         {
-          type: DIDContract.VerificationMethodType.JsonWebKey,
+          typ: DIDContract.VerificationMethodType.JsonWebKey,
           publicKeyJwk: {
             kty: DIDContract.KeyType.OKP,
             crv: DIDContract.CurveType.Ed25519,
@@ -91,7 +91,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
         "svc-1",
         {
           id: "svc-1",
-          type: "SVC",
+          typ: "SVC",
           serviceEndpoint: JSON.stringify("https://u.example"),
         },
       ],
@@ -99,7 +99,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
         "svc-2",
         {
           id: "svc-2",
-          type: "SVC2",
+          typ: "SVC2",
           serviceEndpoint: JSON.stringify([
             "wss://x.example",
             { uri: "https://y.example" },
