@@ -35,9 +35,9 @@ const GENESIS_MINT_WALLET_SEED = '0000000000000000000000000000000000000000000000
 const BANNER = `
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
-║              Midnight Counter Example                        ║
-║              ─────────────────────                           ║
-║              A privacy-preserving smart contract demo        ║
+║              Midnight DID (Decentralized Identity)           ║
+║              ──────────────────────────────────              ║
+║              Privacy-preserving DID management               ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
 `;
@@ -61,21 +61,35 @@ const contractMenu = (dustBalance: string) => `
 ${DIVIDER}
   Contract Actions${dustBalance ? `                    DUST: ${dustBalance}` : ''}
 ${DIVIDER}
-  [1] Deploy a new counter contract
-  [2] Join an existing counter contract
+  [1] Deploy a new DID contract
+  [2] Join an existing DID contract
   [3] Monitor DUST balance
   [4] Exit
 ${'─'.repeat(62)}
 > `;
 
-/** Build the counter actions menu, showing current DUST balance in the header. */
-const counterMenu = (dustBalance: string) => `
+/** Build the DID operations menu, showing current DUST balance in the header. */
+const didMenu = (dustBalance: string) => `
 ${DIVIDER}
-  Counter Actions${dustBalance ? `                     DUST: ${dustBalance}` : ''}
+  DID Operations${dustBalance ? `                       DUST: ${dustBalance}` : ''}
 ${DIVIDER}
-  [1] Increment counter
-  [2] Display current counter value
-  [3] Exit
+  Verification Methods:
+    [1] Add verification method      [2] Update verification method
+    [3] Remove verification method
+
+  Verification Method Relations:
+    [4] Add relation                 [5] Remove relation
+
+  Services:
+    [6] Add service                  [7] Update service
+    [8] Remove service
+
+  Aliases:
+    [9] Add alsoKnownAs             [10] Remove alsoKnownAs
+
+  Other:
+   [11] Display DID state           [12] Deactivate DID
+   [13] Exit
 ${'─'.repeat(62)}
 > `;
 
@@ -208,9 +222,161 @@ const deployOrJoin = async (
   }
 };
 
+// ─── DID Operation Helpers ─────────────────────────────────────────────────
+
+/** Prompt user to add a verification method */
+const addVerificationMethod = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
+  console.log('\n  Add Verification Method');
+  const id = await rli.question('  Method ID (e.g., #key-1): ');
+  const kty = await rli.question('  Key type [1=EC, 2=RSA, 3=oct, 4=OKP]: ');
+  const crv = await rli.question('  Curve type [1=Ed25519, 2=Jubjub]: ');
+  const x = await rli.question('  X coordinate (bigint): ');
+  const y = await rli.question('  Y coordinate (bigint): ');
+
+  const keyTypes = ['EC', 'RSA', 'oct', 'OKP'] as const;
+  const curveTypes = ['Ed25519', 'Jubjub'] as const;
+
+  const op = api.addVerificationMethodOp(id, {
+    kty: keyTypes[parseInt(kty) - 1],
+    crv: curveTypes[parseInt(crv) - 1],
+    x: BigInt(x),
+    y: BigInt(y),
+  });
+
+  await api.withStatus('Adding verification method', () => api.applyDIDOperations(didContract, op));
+  console.log('  ✓ Verification method added\n');
+};
+
+/** Prompt user to update a verification method */
+const updateVerificationMethod = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
+  console.log('\n  Update Verification Method');
+  const id = await rli.question('  Method ID to update: ');
+  const kty = await rli.question('  New key type [1=EC, 2=RSA, 3=oct, 4=OKP]: ');
+  const crv = await rli.question('  New curve type [1=Ed25519, 2=Jubjub]: ');
+  const x = await rli.question('  New X coordinate (bigint): ');
+  const y = await rli.question('  New Y coordinate (bigint): ');
+
+  const keyTypes = ['EC', 'RSA', 'oct', 'OKP'] as const;
+  const curveTypes = ['Ed25519', 'Jubjub'] as const;
+
+  const op = api.updateVerificationMethodOp(id, {
+    kty: keyTypes[parseInt(kty) - 1],
+    crv: curveTypes[parseInt(crv) - 1],
+    x: BigInt(x),
+    y: BigInt(y),
+  });
+
+  await api.withStatus('Updating verification method', () => api.applyDIDOperations(didContract, op));
+  console.log('  ✓ Verification method updated\n');
+};
+
+/** Prompt user to remove a verification method */
+const removeVerificationMethod = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
+  console.log('\n  Remove Verification Method');
+  const id = await rli.question('  Method ID to remove: ');
+  const op = api.removeVerificationMethodOp(id);
+  await api.withStatus('Removing verification method', () => api.applyDIDOperations(didContract, op));
+  console.log('  ✓ Verification method removed\n');
+};
+
+/** Prompt user to add a verification method relation */
+const addRelation = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
+  console.log('\n  Add Verification Method Relation');
+  const methodId = await rli.question('  Method ID: ');
+  const relationType = await rli.question(
+    '  Relation [1=Authentication, 2=AssertionMethod, 3=KeyAgreement, 4=CapabilityInvocation, 5=CapabilityDelegation]: ',
+  );
+
+  const relations = ['Authentication', 'AssertionMethod', 'KeyAgreement', 'CapabilityInvocation', 'CapabilityDelegation'] as const;
+  const op = api.addVerificationMethodRelationOp(relations[parseInt(relationType) - 1], methodId);
+
+  await api.withStatus('Adding relation', () => api.applyDIDOperations(didContract, op));
+  console.log('  ✓ Relation added\n');
+};
+
+/** Prompt user to remove a verification method relation */
+const removeRelation = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
+  console.log('\n  Remove Verification Method Relation');
+  const methodId = await rli.question('  Method ID: ');
+  const relationType = await rli.question(
+    '  Relation [1=Authentication, 2=AssertionMethod, 3=KeyAgreement, 4=CapabilityInvocation, 5=CapabilityDelegation]: ',
+  );
+
+  const relations = ['Authentication', 'AssertionMethod', 'KeyAgreement', 'CapabilityInvocation', 'CapabilityDelegation'] as const;
+  const op = api.removeVerificationMethodRelationOp(relations[parseInt(relationType) - 1], methodId);
+
+  await api.withStatus('Removing relation', () => api.applyDIDOperations(didContract, op));
+  console.log('  ✓ Relation removed\n');
+};
+
+/** Prompt user to add a service */
+const addService = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
+  console.log('\n  Add Service');
+  const id = await rli.question('  Service ID (e.g., #service-1): ');
+  const type = await rli.question('  Service type (e.g., MessagingService): ');
+  const endpoint = await rli.question('  Service endpoint (URL): ');
+
+  const op = api.addServiceOp(id, type, endpoint);
+  await api.withStatus('Adding service', () => api.applyDIDOperations(didContract, op));
+  console.log('  ✓ Service added\n');
+};
+
+/** Prompt user to update a service */
+const updateService = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
+  console.log('\n  Update Service');
+  const id = await rli.question('  Service ID to update: ');
+  const type = await rli.question('  New service type: ');
+  const endpoint = await rli.question('  New service endpoint (URL): ');
+
+  const op = api.updateServiceOp(id, type, endpoint);
+  await api.withStatus('Updating service', () => api.applyDIDOperations(didContract, op));
+  console.log('  ✓ Service updated\n');
+};
+
+/** Prompt user to remove a service */
+const removeService = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
+  console.log('\n  Remove Service');
+  const id = await rli.question('  Service ID to remove: ');
+  const op = api.removeServiceOp(id);
+  await api.withStatus('Removing service', () => api.applyDIDOperations(didContract, op));
+  console.log('  ✓ Service removed\n');
+};
+
+/** Prompt user to add an alsoKnownAs value */
+const addAlsoKnownAs = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
+  console.log('\n  Add AlsoKnownAs');
+  const value = await rli.question('  Alias value (e.g., did:example:alternative-id): ');
+  const op = api.addAlsoKnownAsOp(value);
+  await api.withStatus('Adding alsoKnownAs', () => api.applyDIDOperations(didContract, op));
+  console.log('  ✓ AlsoKnownAs added\n');
+};
+
+/** Prompt user to remove an alsoKnownAs value */
+const removeAlsoKnownAs = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
+  console.log('\n  Remove AlsoKnownAs');
+  const value = await rli.question('  Alias value to remove: ');
+  const op = api.removeAlsoKnownAsOp(value);
+  await api.withStatus('Removing alsoKnownAs', () => api.applyDIDOperations(didContract, op));
+  console.log('  ✓ AlsoKnownAs removed\n');
+};
+
+/** Prompt user to deactivate the DID */
+const deactivateDID = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
+  console.log('\n  Deactivate DID');
+  const confirm = await rli.question('  Are you sure? This action cannot be undone [y/N]: ');
+  if (confirm.toLowerCase() !== 'y') {
+    console.log('  Cancelled\n');
+    return;
+  }
+
+  const op = api.deactivateDIDOp();
+  await api.withStatus('Deactivating DID', () => api.applyDIDOperations(didContract, op));
+  console.log('  ✓ DID deactivated\n');
+};
+
 /**
  * Main interaction loop. Once a contract is deployed/joined, the user
- * can increment the counter or query its current value.
+ * can perform various DID operations.
  */
 const mainLoop = async (providers: DIDProviders, walletCtx: api.WalletContext, rli: Interface): Promise<void> => {
   const didContract = await deployOrJoin(providers, walletCtx, rli);
@@ -220,23 +386,60 @@ const mainLoop = async (providers: DIDProviders, walletCtx: api.WalletContext, r
 
   while (true) {
     const dustLabel = await getDustLabel(walletCtx.wallet);
-    const choice = await rli.question(counterMenu(dustLabel));
-    switch (choice.trim()) {
-      case '1':
-        try {
-          await api.withStatus('Displaying DID state', () => api.displayDIDState(providers, didContract));
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          console.log(`  ✗ Display failed: ${msg}\n`);
-        }
-        break;
-      case '2':
-        await api.displayDIDState(providers, didContract);
-        break;
-      case '3':
-        return;
-      default:
-        console.log(`  Invalid choice: ${choice}`);
+    const choice = await rli.question(didMenu(dustLabel));
+    try {
+      switch (choice.trim()) {
+        case '1': // Add verification method
+          await addVerificationMethod(didContract, rli);
+          break;
+        case '2': // Update verification method
+          await updateVerificationMethod(didContract, rli);
+          break;
+        case '3': // Remove verification method
+          await removeVerificationMethod(didContract, rli);
+          break;
+        case '4': // Add relation
+          await addRelation(didContract, rli);
+          break;
+        case '5': // Remove relation
+          await removeRelation(didContract, rli);
+          break;
+        case '6': // Add service
+          await addService(didContract, rli);
+          break;
+        case '7': // Update service
+          await updateService(didContract, rli);
+          break;
+        case '8': // Remove service
+          await removeService(didContract, rli);
+          break;
+        case '9': // Add alsoKnownAs
+          await addAlsoKnownAs(didContract, rli);
+          break;
+        case '10': // Remove alsoKnownAs
+          await removeAlsoKnownAs(didContract, rli);
+          break;
+        case '11': // Display DID state
+          await api.displayDIDState(providers, didContract);
+          break;
+        case '12': // Deactivate DID
+          await deactivateDID(didContract, rli);
+          break;
+        case '13': // Exit
+          return;
+        default:
+          console.log(`  Invalid choice: ${choice}`);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.log(`\n  ✗ Operation failed: ${msg}`);
+      if (msg.toLowerCase().includes('dust') || msg.toLowerCase().includes('no dust')) {
+        console.log('    Insufficient DUST for transaction fees.');
+      }
+      if (msg.toLowerCase().includes('not active') || msg.toLowerCase().includes('inactive')) {
+        console.log('    DID has been deactivated and cannot be modified.');
+      }
+      console.log('');
     }
   }
 };
@@ -280,10 +483,10 @@ export const run = async (config: Config, _logger: Logger, dockerEnv?: DockerCom
 
       // In standalone mode, remap ports to the dynamically assigned container ports
       if (config instanceof StandaloneConfig) {
-        config.indexer = mapContainerPort(env, config.indexer, 'counter-indexer');
-        config.indexerWS = mapContainerPort(env, config.indexerWS, 'counter-indexer');
-        config.node = mapContainerPort(env, config.node, 'counter-node');
-        config.proofServer = mapContainerPort(env, config.proofServer, 'counter-proof-server');
+        config.indexer = mapContainerPort(env, config.indexer, 'did-indexer');
+        config.indexerWS = mapContainerPort(env, config.indexerWS, 'did-indexer');
+        config.node = mapContainerPort(env, config.node, 'did-node');
+        config.proofServer = mapContainerPort(env, config.proofServer, 'did-proof-server');
       }
     }
 
