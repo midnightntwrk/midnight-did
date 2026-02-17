@@ -93,7 +93,7 @@ export const getDIDLedgerState = async (
         active: ledgerState.active
       };
     });
-  logger.info(`Ledger state: ${JSON.stringify(state)}`);
+  logger.info(`Ledger state: version=${state?.contractVersion}, active=${state?.active}`);
   return state;
 };
 
@@ -136,7 +136,7 @@ export const displayDIDState = async (
   if (didState === null) {
     logger.info(`There is no DID contract deployed at ${contractAddress}.`);
   } else {
-    logger.info(`DID contract state: ${JSON.stringify(didState)}`);
+    logger.info(`DID contract state: version=${didState.contractVersion}, active=${didState.active}`);
   }
   return { contractAddress, didState };
 };
