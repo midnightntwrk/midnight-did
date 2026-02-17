@@ -99,7 +99,7 @@ export class DomainToLedger {
   ): LedgerVerificationMethod {
     return {
       id: this.verificationMethodId(method.id),
-      type: this.VerificationMethodTypeMap[method.type],
+      typ: this.VerificationMethodTypeMap[method.type],
       publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
     };
   }
@@ -117,7 +117,7 @@ export class DomainToLedger {
   static service(service: Service): LedgerService {
     return {
       id: this.serviceId(service.id),
-      type: this.serviceType(service.type),
+      typ: this.serviceType(service.type),
       serviceEndpoint: this.serviceEndpoint(service.serviceEndpoint),
     };
   }
@@ -157,7 +157,7 @@ export class DomainToLedger {
 
   static undefinedVerificationMethod: LedgerVerificationMethod = {
     id: "",
-    type: LedgerVerificationMethodType.Undefined,
+    typ: LedgerVerificationMethodType.Undefined,
     publicKeyJwk: OperationBuilder.defaultPublicKeyJwk,
   };
 
@@ -182,14 +182,14 @@ export class DomainToLedger {
       addServiceOptions: {
         service: {
           id: "",
-          type: "",
+          typ: "",
           serviceEndpoint: '""',
         },
       },
       updateServiceOptions: {
         service: {
           id: "",
-          type: "",
+          typ: "",
           serviceEndpoint: '""',
         },
       },

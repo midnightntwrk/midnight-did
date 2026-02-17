@@ -1,6 +1,4 @@
-import { nativeToken } from "@midnight-ntwrk/ledger";
-import type { Resource } from "@midnight-ntwrk/wallet";
-import type { Wallet } from "@midnight-ntwrk/wallet-api";
+import { unshieldedToken } from "@midnight-ntwrk/ledger-v7";
 import type { Logger } from "pino";
 import * as Rx from "rxjs";
 import {
@@ -93,7 +91,7 @@ export class TestEnvironment {
   private env: StartedDockerComposeEnvironment | undefined;
   private dockerEnv: DockerComposeEnvironment | undefined;
   private container: StartedTestContainer | undefined;
-  private wallet: (Wallet & Resource) | undefined;
+  private walletCtx: api.MidnightDIDWalletContext | undefined;
   private testConfig: TestConfiguration;
 
   constructor(logger: Logger) {
@@ -120,15 +118,12 @@ export class TestEnvironment {
       this.logger.info(`Using compose file: ${composeFile}`);
       this.dockerEnv = new DockerComposeEnvironment(currentDir, composeFile)
         .withWaitStrategy(
-          "counter-proof-server",
-          Wait.forLogMessage(
-            "Actix runtime found; starting in Actix runtime",
-            1,
-          ),
+          "did-proof-server",
+          Wait.forLogMessage("Actix runtime found; starting in Actix runtime", 1),
         )
         .withWaitStrategy(
-          "counter-indexer",
-          Wait.forLogMessage(/starting indexing/, 1),
+          "did-indexer",
+          Wait.forHealthCheck().withStartupTimeout(180000),
         );
       this.env = await this.dockerEnv.up();
 
@@ -137,22 +132,22 @@ export class TestEnvironment {
         indexer: TestEnvironment.mapContainerPort(
           this.env,
           this.testConfig.dappConfig.indexer,
-          "counter-indexer",
+          "did-indexer",
         ),
         indexerWS: TestEnvironment.mapContainerPort(
           this.env,
           this.testConfig.dappConfig.indexerWS,
-          "counter-indexer",
+          "did-indexer",
         ),
         node: TestEnvironment.mapContainerPort(
           this.env,
           this.testConfig.dappConfig.node,
-          "counter-node",
+          "did-node",
         ),
         proofServer: TestEnvironment.mapContainerPort(
           this.env,
           this.testConfig.dappConfig.proofServer,
-          "counter-proof-server",
+          "did-proof-server",
         ),
       };
     }
@@ -186,8 +181,8 @@ export class TestEnvironment {
       .start();
 
   shutdown = async () => {
-    if (this.wallet !== undefined) {
-      await this.wallet.close();
+    if (this.walletCtx !== undefined) {
+      await this.walletCtx.wallet.stop();
     }
     if (this.env !== undefined) {
       this.logger.info("Test containers closing");
@@ -201,20 +196,22 @@ export class TestEnvironment {
 
   getWallet = async () => {
     this.logger.info("Setting up wallet");
-    this.wallet = await api.buildWalletAndWaitForFunds(
+    this.walletCtx = await api.buildWalletAndWaitForFunds(
       this.testConfig.dappConfig,
       this.testConfig.seed,
-      this.testConfig.cacheFileName,
     );
-    expect(this.wallet).not.toBeNull();
-    const state = await Rx.firstValueFrom(this.wallet!.state());
-    expect(state.balances[nativeToken()].valueOf()).toBeGreaterThan(BigInt(0));
-    return this.wallet;
-  };
+    expect(this.walletCtx).not.toBeNull();
 
-  saveWalletCache = async () => {
-    if (this.wallet !== undefined) {
-      await api.saveState(this.wallet, this.testConfig.cacheFileName);
-    }
+    const state = await Rx.firstValueFrom(this.walletCtx.wallet.state());
+    const balance = state.unshielded.balances[unshieldedToken().raw] ?? 0n;
+    expect(balance).toBeGreaterThan(0n);
+
+    // Register for dust generation
+    await api.registerForDustGeneration(
+      this.walletCtx.wallet,
+      this.walletCtx.unshieldedKeystore,
+    );
+
+    return this.walletCtx;
   };
 }

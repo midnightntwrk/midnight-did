@@ -31,6 +31,8 @@ describe("DID smart contract", () => {
     const initialLedgerState = simulator.getLedger();
     expect(initialLedgerState.contractVersion).toEqual(1n);
     expect(initialLedgerState.active).toEqual(true);
+    expect(initialLedgerState.created).toEqual(0n);
+    expect(initialLedgerState.updated).toEqual(0n);
     const initialPrivateState = simulator.getPrivateState();
     expect(initialPrivateState).toEqual({});
   });

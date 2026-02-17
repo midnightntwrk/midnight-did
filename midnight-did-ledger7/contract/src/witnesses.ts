@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// DID private state (minimal version without witnesses)
+// DID private state (no witnesses in simplified version)
 export type DIDPrivateState = Record<string, never>;
 
-// No witnesses in this minimal version
+// No witnesses in simplified version
 export const witnesses = {};

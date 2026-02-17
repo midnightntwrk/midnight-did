@@ -35,8 +35,6 @@ import {
   VerificationMethodRelation,
   VerificationMethodType,
 } from '@midnight-ntwrk/midnight-did-domain';
-import { type Resource } from '@midnight-ntwrk/wallet';
-import { type Wallet } from '@midnight-ntwrk/wallet-api';
 import { type Logger } from 'pino';
 import { type DockerComposeEnvironment, type StartedDockerComposeEnvironment } from 'testcontainers';
 
@@ -219,9 +217,9 @@ async function promptForVerificationMethodId(rli: Interface) {
   }
 }
 
-const buildWalletFromSeed = async (config: Config, rli: Interface): Promise<Wallet & Resource> => {
+const buildWalletFromSeed = async (config: Config, rli: Interface): Promise<api.MidnightDIDWalletContext> => {
   const seed = await rli.question('Enter your wallet seed: ');
-  return await api.buildWalletAndWaitForFunds(config, seed, '');
+  return await api.buildWalletAndWaitForFunds(config, seed);
 };
 
 const WALLET_LOOP_QUESTION = `
@@ -231,9 +229,9 @@ You can do one of the following:
   3. Exit
 Which would you like to do? `;
 
-const buildWallet = async (config: Config, rli: Interface): Promise<(Wallet & Resource) | null> => {
+const buildWallet = async (config: Config, rli: Interface): Promise<api.MidnightDIDWalletContext | null> => {
   if (config instanceof api.StandaloneConfig) {
-    return await api.buildWalletAndWaitForFunds(config, GENESIS_MINT_WALLET_SEED, '');
+    return await api.buildWalletAndWaitForFunds(config, GENESIS_MINT_WALLET_SEED);
   }
   while (true) {
     const choice = await rli.question(WALLET_LOOP_QUESTION);
@@ -298,7 +296,7 @@ export const run = async (config: Config, _logger: Logger, dockerEnv?: DockerCom
     } finally {
       try {
         if (wallet !== null) {
-          await wallet.close();
+          await wallet.wallet.stop();
         }
       } catch (e) {
         logger.error(`Error closing wallet: ${e}`);

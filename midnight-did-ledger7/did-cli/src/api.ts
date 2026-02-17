@@ -97,8 +97,6 @@ export const getDIDLedgerState = async (
   return state;
 };
 
-export const didContractInstance: DIDContractType = new DIDContract.Contract(witnesses);
-
 export const joinContract = async (
   providers: DIDProviders,
   contractAddress: string,
@@ -115,13 +113,12 @@ export const joinContract = async (
 
 export const deploy = async (
   providers: DIDProviders,
-  privateState: DIDPrivateState,
 ): Promise<DeployedDIDContract> => {
   logger.info('Deploying DID contract...');
   const didContract = await deployContract(providers, {
     compiledContract: didCompiledContract,
     privateStateId: 'didPrivateState',
-    initialPrivateState: privateState,
+    initialPrivateState: {},
   });
   logger.info(`Deployed contract at address: ${didContract.deployTxData.public.contractAddress}`);
   return didContract;

@@ -1,7 +1,7 @@
 import {
   type CircuitContext,
-  constructorContext,
-  QueryContext,
+  createCircuitContext,
+  createConstructorContext,
   sampleContractAddress
 } from "@midnight-ntwrk/compact-runtime";
 
@@ -11,7 +11,7 @@ import {
   DIDUpdateOperation,
   type Ledger,
   ledger
-} from "../managed/did/contract/index.cjs";
+} from "../managed/did/contract/index.js";
 import { type MidnightDIDPrivateState, witnesses } from "../witnesses.js";
 
 export class MidnightDIDSimulator {
@@ -29,21 +29,18 @@ export class MidnightDIDSimulator {
       currentContractState,
       currentZswapLocalState
     } = this.contract.initialState(
-      constructorContext(midnightDIDPrivateState, "0".repeat(64))
+      createConstructorContext(midnightDIDPrivateState, "0".repeat(64))
     );
-    this.circuitContext = {
-      currentPrivateState,
+    this.circuitContext = createCircuitContext(
+      sampleContractAddress(),
       currentZswapLocalState,
-      originalState: currentContractState,
-      transactionContext: new QueryContext(
-        currentContractState.data,
-        sampleContractAddress()
-      )
-    };
+      currentContractState,
+      currentPrivateState
+    );
   }
 
   public getLedger(): Ledger {
-    return ledger(this.circuitContext.transactionContext.state);
+    return ledger(this.circuitContext.currentQueryContext.state);
   }
 
   public getPrivateState(): MidnightDIDPrivateState {
