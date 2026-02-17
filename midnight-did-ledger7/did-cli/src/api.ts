@@ -594,3 +594,150 @@ export const monitorDustBalance = async (wallet: WalletFacade, stopSignal: Promi
 export function setLogger(_logger: Logger) {
   logger = _logger;
 }
+
+/**
+ * DID Operations
+ *
+ * Provides functions to perform DID document operations. Operations are
+ * batched and applied atomically via the applyOperations circuit.
+ */
+
+// Re-export contract types for convenient access
+export type DIDUpdateOperation = DIDContract.DIDUpdateOperation;
+export type VerificationMethod = DIDContract.VerificationMethod;
+export type Service = DIDContract.Service;
+export const { OperationType, VerificationMethodType, VerificationMethodRelation, KeyType, CurveType } = DIDContract;
+
+/**
+ * Apply one or more DID operations atomically.
+ * The contract supports up to 4 operations per transaction.
+ */
+export const applyDIDOperations = async (
+  didContract: DeployedDIDContract,
+  ...operations: DIDUpdateOperation[]
+): Promise<any> => {
+  if (operations.length === 0) {
+    throw new Error('At least one operation is required');
+  }
+  if (operations.length > 4) {
+    throw new Error('Maximum 4 operations per transaction');
+  }
+
+  logger.info(`Applying ${operations.length} DID operation(s)`);
+  const result = await didContract.callTx.applyOperations(operations);
+  logger.info('DID operations applied successfully');
+  return result;
+};
+
+/**
+ * Helper functions to build DID operations.
+ * These return DIDUpdateOperation objects that can be passed to applyDIDOperations().
+ */
+
+export const addVerificationMethodOp = (
+  id: string,
+  publicKeyJwk: {
+    kty: 'EC' | 'RSA' | 'oct' | 'OKP';
+    crv: 'Ed25519' | 'Jubjub';
+    x: bigint;
+    y: bigint;
+  },
+): DIDUpdateOperation => ({
+  operationType: OperationType.AddVerificationMethod,
+  addVerificationMethodOptions: {
+    verificationMethod: {
+      id,
+      typ: VerificationMethodType.JsonWebKey,
+      publicKeyJwk: {
+        kty: KeyType[publicKeyJwk.kty],
+        crv: CurveType[publicKeyJwk.crv],
+        x: publicKeyJwk.x,
+        y: publicKeyJwk.y,
+      },
+    },
+  },
+} as any);
+
+export const updateVerificationMethodOp = (
+  id: string,
+  publicKeyJwk: {
+    kty: 'EC' | 'RSA' | 'oct' | 'OKP';
+    crv: 'Ed25519' | 'Jubjub';
+    x: bigint;
+    y: bigint;
+  },
+): DIDUpdateOperation => ({
+  operationType: OperationType.UpdateVerificationMethod,
+  updateVerificationMethodOptions: {
+    verificationMethod: {
+      id,
+      typ: VerificationMethodType.JsonWebKey,
+      publicKeyJwk: {
+        kty: KeyType[publicKeyJwk.kty],
+        crv: CurveType[publicKeyJwk.crv],
+        x: publicKeyJwk.x,
+        y: publicKeyJwk.y,
+      },
+    },
+  },
+} as any);
+
+export const removeVerificationMethodOp = (id: string): DIDUpdateOperation => ({
+  operationType: OperationType.RemoveVerificationMethod,
+  removeVerificationMethodOptions: { id },
+} as any);
+
+export const addVerificationMethodRelationOp = (
+  relation: 'Authentication' | 'AssertionMethod' | 'KeyAgreement' | 'CapabilityInvocation' | 'CapabilityDelegation',
+  methodId: string,
+): DIDUpdateOperation => ({
+  operationType: OperationType.AddVerificationMethodRelation,
+  addVerificationMethodRelationOptions: {
+    relation: VerificationMethodRelation[relation],
+    methodId,
+  },
+} as any);
+
+export const removeVerificationMethodRelationOp = (
+  relation: 'Authentication' | 'AssertionMethod' | 'KeyAgreement' | 'CapabilityInvocation' | 'CapabilityDelegation',
+  methodId: string,
+): DIDUpdateOperation => ({
+  operationType: OperationType.RemoveVerificationMethodRelation,
+  removeVerificationMethodRelationOptions: {
+    relation: VerificationMethodRelation[relation],
+    methodId,
+  },
+} as any);
+
+export const addServiceOp = (id: string, type: string, serviceEndpoint: string): DIDUpdateOperation => ({
+  operationType: OperationType.AddService,
+  addServiceOptions: {
+    service: { id, typ: type, serviceEndpoint },
+  },
+} as any);
+
+export const updateServiceOp = (id: string, type: string, serviceEndpoint: string): DIDUpdateOperation => ({
+  operationType: OperationType.UpdateService,
+  updateServiceOptions: {
+    service: { id, typ: type, serviceEndpoint },
+  },
+} as any);
+
+export const removeServiceOp = (id: string): DIDUpdateOperation => ({
+  operationType: OperationType.RemoveService,
+  removeServiceOptions: { id },
+} as any);
+
+export const addAlsoKnownAsOp = (value: string): DIDUpdateOperation => ({
+  operationType: OperationType.AddAlsoKnownAs,
+  addAlsoKnownAsOptions: { value },
+} as any);
+
+export const removeAlsoKnownAsOp = (value: string): DIDUpdateOperation => ({
+  operationType: OperationType.RemoveAlsoKnownAs,
+  removeAlsoKnownAsOptions: { value },
+} as any);
+
+export const deactivateDIDOp = (): DIDUpdateOperation => ({
+  operationType: OperationType.Deactivate,
+} as any);
