@@ -34,12 +34,16 @@ case $TARGET in
     build)
         echo "🏗️  Building packages..."
         npm run build -w contract
+        npm run build -w domain
+        npm run build -w did
         npm run build -w did-cli
         ;;
 
     test)
         echo "🧪 Running unit tests..."
         npm run test -w contract
+        npm run test -w domain
+        npm run test -w did
         ;;
 
     test-api)
