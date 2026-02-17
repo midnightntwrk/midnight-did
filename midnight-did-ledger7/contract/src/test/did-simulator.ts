@@ -22,12 +22,7 @@ import {
 import {
   Contract,
   type Ledger,
-  ledger,
-  OperationType,
-  VerificationMethodType,
-  VerificationMethodRelation,
-  KeyType,
-  CurveType
+  ledger
 } from "../managed/did/contract/index.js";
 import { type DIDPrivateState, witnesses } from "../witnesses.js";
 
@@ -62,50 +57,86 @@ export class DIDSimulator {
   }
 
   /**
-   * Call the applyOperations circuit with the given operations.
-   * Updates the circuit context with the resulting state.
-   * The contract requires exactly 4 operations, so we pad with Undefined operations.
+   * Execute a circuit and update the context with the resulting state.
    */
-  public applyOperations(operations: any[]): void {
-    // Helper to create a complete undefined operation with all required fields
-    const createUndefinedOperation = () => {
-      const emptyVm = { id: '', typ: VerificationMethodType.Undefined, publicKeyJwk: { kty: KeyType.EC, crv: CurveType.Ed25519, x: 0n, y: 0n } };
-      const emptyService = { id: '', typ: '', serviceEndpoint: '' };
-
-      return {
-        operationType: OperationType.Undefined,
-        addVerificationMethodOptions: { verificationMethod: emptyVm },
-        updateVerificationMethodOptions: { verificationMethod: emptyVm },
-        removeVerificationMethodOptions: { id: '' },
-        addVerificationMethodRelationOptions: { relation: VerificationMethodRelation.Undefined, methodId: '' },
-        removeVerificationMethodRelationOptions: { relation: VerificationMethodRelation.Undefined, methodId: '' },
-        addServiceOptions: { service: emptyService },
-        updateServiceOptions: { service: emptyService },
-        removeServiceOptions: { id: '' },
-        addAlsoKnownAsOptions: { value: '' },
-        removeAlsoKnownAsOptions: { value: '' },
-      };
-    };
-
-    // Pad to exactly 4 operations with Undefined operations
-    const paddedOps = [...operations];
-    while (paddedOps.length < 4) {
-      paddedOps.push(createUndefinedOperation());
-    }
-    if (paddedOps.length > 4) {
-      throw new Error('Maximum 4 operations allowed per transaction');
-    }
-
-    const result = this.contract.impureCircuits.applyOperations(
-      this.circuitContext,
-      paddedOps as any
-    );
-
+  private executeCircuit(circuitFn: () => any): void {
+    const result = circuitFn();
     this.circuitContext = createCircuitContext(
       sampleContractAddress(),
       result.context.currentZswapLocalState,
       result.context.currentQueryContext.state,
       result.context.currentPrivateState
+    );
+  }
+
+  // Individual circuit methods
+  public addVerificationMethod(vm: any): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.addVerificationMethod(this.circuitContext, vm)
+    );
+  }
+
+  public updateVerificationMethod(vm: any): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.updateVerificationMethod(this.circuitContext, vm)
+    );
+  }
+
+  public removeVerificationMethod(id: string): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.removeVerificationMethod(this.circuitContext, id)
+    );
+  }
+
+  public addVerificationMethodRelation(relation: any, methodId: string): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.addVerificationMethodRelation(
+        this.circuitContext, relation, methodId
+      )
+    );
+  }
+
+  public removeVerificationMethodRelation(relation: any, methodId: string): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.removeVerificationMethodRelation(
+        this.circuitContext, relation, methodId
+      )
+    );
+  }
+
+  public addService(service: any): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.addService(this.circuitContext, service)
+    );
+  }
+
+  public updateService(service: any): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.updateService(this.circuitContext, service)
+    );
+  }
+
+  public removeService(id: string): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.removeService(this.circuitContext, id)
+    );
+  }
+
+  public addAlsoKnownAs(value: string): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.addAlsoKnownAs(this.circuitContext, value)
+    );
+  }
+
+  public removeAlsoKnownAs(value: string): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.removeAlsoKnownAs(this.circuitContext, value)
+    );
+  }
+
+  public deactivate(): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.deactivate(this.circuitContext)
     );
   }
 }

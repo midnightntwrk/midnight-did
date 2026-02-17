@@ -236,14 +236,16 @@ const addVerificationMethod = async (didContract: DeployedDIDContract, rli: Inte
   const keyTypes = ['EC', 'RSA', 'oct', 'OKP'] as const;
   const curveTypes = ['Ed25519', 'Jubjub'] as const;
 
-  const op = api.addVerificationMethodOp(id, {
+  const publicKeyJwk = {
     kty: keyTypes[parseInt(kty) - 1],
     crv: curveTypes[parseInt(crv) - 1],
     x: BigInt(x),
     y: BigInt(y),
-  });
+  };
 
-  await api.withStatus('Adding verification method', () => api.applyDIDOperations(didContract, op));
+  await api.withStatus('Adding verification method', () =>
+    api.addVerificationMethod(didContract, id, publicKeyJwk)
+  );
   console.log('  ✓ Verification method added\n');
 };
 
@@ -259,14 +261,16 @@ const updateVerificationMethod = async (didContract: DeployedDIDContract, rli: I
   const keyTypes = ['EC', 'RSA', 'oct', 'OKP'] as const;
   const curveTypes = ['Ed25519', 'Jubjub'] as const;
 
-  const op = api.updateVerificationMethodOp(id, {
+  const publicKeyJwk = {
     kty: keyTypes[parseInt(kty) - 1],
     crv: curveTypes[parseInt(crv) - 1],
     x: BigInt(x),
     y: BigInt(y),
-  });
+  };
 
-  await api.withStatus('Updating verification method', () => api.applyDIDOperations(didContract, op));
+  await api.withStatus('Updating verification method', () =>
+    api.updateVerificationMethod(didContract, id, publicKeyJwk)
+  );
   console.log('  ✓ Verification method updated\n');
 };
 
@@ -274,8 +278,9 @@ const updateVerificationMethod = async (didContract: DeployedDIDContract, rli: I
 const removeVerificationMethod = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
   console.log('\n  Remove Verification Method');
   const id = await rli.question('  Method ID to remove: ');
-  const op = api.removeVerificationMethodOp(id);
-  await api.withStatus('Removing verification method', () => api.applyDIDOperations(didContract, op));
+  await api.withStatus('Removing verification method', () =>
+    api.removeVerificationMethod(didContract, id)
+  );
   console.log('  ✓ Verification method removed\n');
 };
 
@@ -288,9 +293,11 @@ const addRelation = async (didContract: DeployedDIDContract, rli: Interface): Pr
   );
 
   const relations = ['Authentication', 'AssertionMethod', 'KeyAgreement', 'CapabilityInvocation', 'CapabilityDelegation'] as const;
-  const op = api.addVerificationMethodRelationOp(relations[parseInt(relationType) - 1], methodId);
+  const relation = relations[parseInt(relationType) - 1];
 
-  await api.withStatus('Adding relation', () => api.applyDIDOperations(didContract, op));
+  await api.withStatus('Adding relation', () =>
+    api.addVerificationMethodRelation(didContract, relation, methodId)
+  );
   console.log('  ✓ Relation added\n');
 };
 
@@ -303,9 +310,11 @@ const removeRelation = async (didContract: DeployedDIDContract, rli: Interface):
   );
 
   const relations = ['Authentication', 'AssertionMethod', 'KeyAgreement', 'CapabilityInvocation', 'CapabilityDelegation'] as const;
-  const op = api.removeVerificationMethodRelationOp(relations[parseInt(relationType) - 1], methodId);
+  const relation = relations[parseInt(relationType) - 1];
 
-  await api.withStatus('Removing relation', () => api.applyDIDOperations(didContract, op));
+  await api.withStatus('Removing relation', () =>
+    api.removeVerificationMethodRelation(didContract, relation, methodId)
+  );
   console.log('  ✓ Relation removed\n');
 };
 
@@ -316,8 +325,9 @@ const addService = async (didContract: DeployedDIDContract, rli: Interface): Pro
   const type = await rli.question('  Service type (e.g., MessagingService): ');
   const endpoint = await rli.question('  Service endpoint (URL): ');
 
-  const op = api.addServiceOp(id, type, endpoint);
-  await api.withStatus('Adding service', () => api.applyDIDOperations(didContract, op));
+  await api.withStatus('Adding service', () =>
+    api.addService(didContract, id, type, endpoint)
+  );
   console.log('  ✓ Service added\n');
 };
 
@@ -328,8 +338,9 @@ const updateService = async (didContract: DeployedDIDContract, rli: Interface): 
   const type = await rli.question('  New service type: ');
   const endpoint = await rli.question('  New service endpoint (URL): ');
 
-  const op = api.updateServiceOp(id, type, endpoint);
-  await api.withStatus('Updating service', () => api.applyDIDOperations(didContract, op));
+  await api.withStatus('Updating service', () =>
+    api.updateService(didContract, id, type, endpoint)
+  );
   console.log('  ✓ Service updated\n');
 };
 
@@ -337,8 +348,9 @@ const updateService = async (didContract: DeployedDIDContract, rli: Interface): 
 const removeService = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
   console.log('\n  Remove Service');
   const id = await rli.question('  Service ID to remove: ');
-  const op = api.removeServiceOp(id);
-  await api.withStatus('Removing service', () => api.applyDIDOperations(didContract, op));
+  await api.withStatus('Removing service', () =>
+    api.removeService(didContract, id)
+  );
   console.log('  ✓ Service removed\n');
 };
 
@@ -346,8 +358,9 @@ const removeService = async (didContract: DeployedDIDContract, rli: Interface): 
 const addAlsoKnownAs = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
   console.log('\n  Add AlsoKnownAs');
   const value = await rli.question('  Alias value (e.g., did:example:alternative-id): ');
-  const op = api.addAlsoKnownAsOp(value);
-  await api.withStatus('Adding alsoKnownAs', () => api.applyDIDOperations(didContract, op));
+  await api.withStatus('Adding alsoKnownAs', () =>
+    api.addAlsoKnownAs(didContract, value)
+  );
   console.log('  ✓ AlsoKnownAs added\n');
 };
 
@@ -355,8 +368,9 @@ const addAlsoKnownAs = async (didContract: DeployedDIDContract, rli: Interface):
 const removeAlsoKnownAs = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
   console.log('\n  Remove AlsoKnownAs');
   const value = await rli.question('  Alias value to remove: ');
-  const op = api.removeAlsoKnownAsOp(value);
-  await api.withStatus('Removing alsoKnownAs', () => api.applyDIDOperations(didContract, op));
+  await api.withStatus('Removing alsoKnownAs', () =>
+    api.removeAlsoKnownAs(didContract, value)
+  );
   console.log('  ✓ AlsoKnownAs removed\n');
 };
 
@@ -369,8 +383,9 @@ const deactivateDID = async (didContract: DeployedDIDContract, rli: Interface): 
     return;
   }
 
-  const op = api.deactivateDIDOp();
-  await api.withStatus('Deactivating DID', () => api.applyDIDOperations(didContract, op));
+  await api.withStatus('Deactivating DID', () =>
+    api.deactivateDID(didContract)
+  );
   console.log('  ✓ DID deactivated\n');
 };
 
