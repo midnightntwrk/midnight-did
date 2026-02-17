@@ -132,7 +132,7 @@ export class TestEnvironment {
       this.dockerEnv = new DockerComposeEnvironment(path.resolve(currentDir, '..'), composeFile)
         .withWaitStrategy(
           'did-proof-server',
-          Wait.forLogMessage('Actix runtime found; starting in Actix runtime', 1),
+          Wait.forListeningPorts().withStartupTimeout(180_000),
         )
         .withWaitStrategy('did-indexer', Wait.forLogMessage(/starting indexing/, 1));
       this.env = await this.dockerEnv.up();
