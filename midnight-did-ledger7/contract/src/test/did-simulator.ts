@@ -22,7 +22,12 @@ import {
 import {
   Contract,
   type Ledger,
-  ledger
+  ledger,
+  OperationType,
+  VerificationMethodType,
+  VerificationMethodRelation,
+  KeyType,
+  CurveType
 } from "../managed/did/contract/index.js";
 import { type DIDPrivateState, witnesses } from "../witnesses.js";
 
@@ -62,10 +67,30 @@ export class DIDSimulator {
    * The contract requires exactly 4 operations, so we pad with Undefined operations.
    */
   public applyOperations(operations: any[]): void {
+    // Helper to create a complete undefined operation with all required fields
+    const createUndefinedOperation = () => {
+      const emptyVm = { id: '', typ: VerificationMethodType.Undefined, publicKeyJwk: { kty: KeyType.EC, crv: CurveType.Ed25519, x: 0n, y: 0n } };
+      const emptyService = { id: '', typ: '', serviceEndpoint: '' };
+
+      return {
+        operationType: OperationType.Undefined,
+        addVerificationMethodOptions: { verificationMethod: emptyVm },
+        updateVerificationMethodOptions: { verificationMethod: emptyVm },
+        removeVerificationMethodOptions: { id: '' },
+        addVerificationMethodRelationOptions: { relation: VerificationMethodRelation.Undefined, methodId: '' },
+        removeVerificationMethodRelationOptions: { relation: VerificationMethodRelation.Undefined, methodId: '' },
+        addServiceOptions: { service: emptyService },
+        updateServiceOptions: { service: emptyService },
+        removeServiceOptions: { id: '' },
+        addAlsoKnownAsOptions: { value: '' },
+        removeAlsoKnownAsOptions: { value: '' },
+      };
+    };
+
     // Pad to exactly 4 operations with Undefined operations
     const paddedOps = [...operations];
     while (paddedOps.length < 4) {
-      paddedOps.push({ operationType: 0 }); // OperationType.Undefined = 0
+      paddedOps.push(createUndefinedOperation());
     }
     if (paddedOps.length > 4) {
       throw new Error('Maximum 4 operations allowed per transaction');
@@ -75,11 +100,12 @@ export class DIDSimulator {
       this.circuitContext,
       paddedOps as any
     );
+
     this.circuitContext = createCircuitContext(
       sampleContractAddress(),
-      result.newZswapLocalState,
-      result.newContractState,
-      result.newPrivateState
+      result.context.currentZswapLocalState,
+      result.context.currentQueryContext.state,
+      result.context.currentPrivateState
     );
   }
 }
