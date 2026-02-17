@@ -80,18 +80,14 @@ export interface WalletContext {
 export const getDIDLedgerState = async (
   providers: DIDProviders,
   contractAddress: ContractAddress,
-): Promise<{ contractVersion: bigint; active: boolean } | null> => {
+): Promise<DIDContract.Ledger | null> => {
   assertIsContractAddress(contractAddress);
   logger.info('Checking contract ledger state...');
   const state = await providers.publicDataProvider
     .queryContractState(contractAddress)
     .then((contractState) => {
       if (contractState == null) return null;
-      const ledgerState = DIDContract.ledger(contractState.data);
-      return {
-        contractVersion: ledgerState.contractVersion,
-        active: ledgerState.active
-      };
+      return DIDContract.ledger(contractState.data);
     });
   logger.info(`Ledger state: version=${state?.contractVersion}, active=${state?.active}`);
   return state;
@@ -127,14 +123,92 @@ export const deploy = async (
 export const displayDIDState = async (
   providers: DIDProviders,
   didContract: DeployedDIDContract,
-): Promise<{ didState: { contractVersion: bigint; active: boolean } | null; contractAddress: string }> => {
+): Promise<{ didState: DIDContract.Ledger | null; contractAddress: string }> => {
   const contractAddress = didContract.deployTxData.public.contractAddress;
   const didState = await getDIDLedgerState(providers, contractAddress);
+
   if (didState === null) {
+    console.log(`\n  ✗ No DID contract found at ${contractAddress}\n`);
     logger.info(`There is no DID contract deployed at ${contractAddress}.`);
-  } else {
-    logger.info(`DID contract state: version=${didState.contractVersion}, active=${didState.active}`);
+    return { contractAddress, didState };
   }
+
+  // Display comprehensive DID state
+  console.log('\n╔══════════════════════════════════════════════════════════════╗');
+  console.log('║                        DID Document State                    ║');
+  console.log('╚══════════════════════════════════════════════════════════════╝\n');
+
+  console.log(`  Contract Address: ${contractAddress}`);
+  console.log(`  Contract Version: ${didState.contractVersion}`);
+  console.log(`  Status: ${didState.active ? '✓ Active' : '✗ Deactivated'}`);
+  console.log(`  Document Version: ${didState.version}`);
+  console.log(`  Operation Count: ${didState.operationCount}`);
+  console.log(`  Created: ${didState.created}`);
+  console.log(`  Updated: ${didState.updated}`);
+
+  // Verification Methods
+  console.log('\n  ─── Verification Methods ─────────────────────────────────────');
+  if (didState.verificationMethods.isEmpty()) {
+    console.log('    (none)');
+  } else {
+    for (const [id, vm] of didState.verificationMethods) {
+      const keyTypeName = ['EC', 'RSA', 'oct', 'OKP'][vm.publicKeyJwk.kty] || vm.publicKeyJwk.kty;
+      const curveTypeName = ['Ed25519', 'Jubjub'][vm.publicKeyJwk.crv] || vm.publicKeyJwk.crv;
+      console.log(`    • ${id}`);
+      console.log(`      Type: JsonWebKey`);
+      console.log(`      Key: ${keyTypeName}/${curveTypeName}`);
+      console.log(`      x: ${vm.publicKeyJwk.x}`);
+      console.log(`      y: ${vm.publicKeyJwk.y}`);
+    }
+  }
+
+  // Relations
+  const relations = [
+    { name: 'Authentication', set: didState.authenticationRelation },
+    { name: 'AssertionMethod', set: didState.assertionMethodRelation },
+    { name: 'KeyAgreement', set: didState.keyAgreementRelation },
+    { name: 'CapabilityInvocation', set: didState.capabilityInvocationRelation },
+    { name: 'CapabilityDelegation', set: didState.capabilityDelegationRelation },
+  ];
+
+  console.log('\n  ─── Verification Method Relations ────────────────────────────');
+  let hasAnyRelations = false;
+  for (const { name, set } of relations) {
+    if (!set.isEmpty()) {
+      hasAnyRelations = true;
+      const members = Array.from(set).join(', ');
+      console.log(`    ${name}: ${members}`);
+    }
+  }
+  if (!hasAnyRelations) {
+    console.log('    (none)');
+  }
+
+  // Services
+  console.log('\n  ─── Services ─────────────────────────────────────────────────');
+  if (didState.services.isEmpty()) {
+    console.log('    (none)');
+  } else {
+    for (const [id, service] of didState.services) {
+      console.log(`    • ${id}`);
+      console.log(`      Type: ${service.typ}`);
+      console.log(`      Endpoint: ${service.serviceEndpoint}`);
+    }
+  }
+
+  // AlsoKnownAs
+  console.log('\n  ─── AlsoKnownAs ──────────────────────────────────────────────');
+  if (didState.alsoKnownAs.isEmpty()) {
+    console.log('    (none)');
+  } else {
+    for (const alias of didState.alsoKnownAs) {
+      console.log(`    • ${alias}`);
+    }
+  }
+
+  console.log('\n' + '─'.repeat(62) + '\n');
+
+  logger.info(`DID contract state: version=${didState.contractVersion}, active=${didState.active}`);
   return { contractAddress, didState };
 };
 

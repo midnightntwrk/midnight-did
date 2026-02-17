@@ -119,7 +119,10 @@ export class TestEnvironment {
       this.dockerEnv = new DockerComposeEnvironment(currentDir, composeFile)
         .withWaitStrategy(
           "did-proof-server",
-          Wait.forLogMessage("Actix runtime found; starting in Actix runtime", 1),
+          Wait.forLogMessage(
+            "Actix runtime found; starting in Actix runtime",
+            1,
+          ),
         )
         .withWaitStrategy(
           "did-indexer",
