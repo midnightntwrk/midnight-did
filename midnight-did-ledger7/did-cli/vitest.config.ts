@@ -1,4 +1,4 @@
-// This file is part of midnightntwrk/example-counter.
+// This file is part of midnightntwrk/midnight-did.
 // Copyright (C) 2025 Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,6 +28,7 @@ export default defineConfig({
     include: ['**/*.test.ts'],
     exclude: ['node_modules'],
     root: '.',
+    fileParallelism: false,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
