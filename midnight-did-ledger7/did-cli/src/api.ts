@@ -15,15 +15,18 @@
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { type ContractAddress } from '@midnight-ntwrk/compact-runtime';
-import { DIDContract, type DIDPrivateState, witnesses } from '@midnight-ntwrk/did-contract';
+import { DIDContract } from '@midnight-ntwrk/did-contract';
 import * as ledger from '@midnight-ntwrk/ledger-v7';
 import { unshieldedToken } from '@midnight-ntwrk/ledger-v7';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
 import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
 import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
-import { type FinalizedTxData, type MidnightProvider, type WalletProvider } from '@midnight-ntwrk/midnight-js-types';
+import { type MidnightProvider, type WalletProvider } from '@midnight-ntwrk/midnight-js-types';
 import { WalletFacade } from '@midnight-ntwrk/wallet-sdk-facade';
 import { DustWallet } from '@midnight-ntwrk/wallet-sdk-dust-wallet';
 import { HDWallet, Roles, generateRandomSeed } from '@midnight-ntwrk/wallet-sdk-hd';
@@ -38,13 +41,7 @@ import {
 import { type Logger } from 'pino';
 import * as Rx from 'rxjs';
 import { WebSocket } from 'ws';
-import {
-  type DIDCircuits,
-  type DIDContractType,
-  type DIDPrivateStateId,
-  type DIDProviders,
-  type DeployedDIDContract,
-} from './common-types';
+import { type DIDCircuits, type DIDPrivateStateId, type DIDProviders, type DeployedDIDContract } from './common-types';
 import { type Config, contractConfig } from './config';
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
 import { assertIsContractAddress, toHex } from '@midnight-ntwrk/midnight-js-utils';
@@ -83,20 +80,15 @@ export const getDIDLedgerState = async (
 ): Promise<DIDContract.Ledger | null> => {
   assertIsContractAddress(contractAddress);
   logger.info('Checking contract ledger state...');
-  const state = await providers.publicDataProvider
-    .queryContractState(contractAddress)
-    .then((contractState) => {
-      if (contractState == null) return null;
-      return DIDContract.ledger(contractState.data);
-    });
+  const state = await providers.publicDataProvider.queryContractState(contractAddress).then((contractState) => {
+    if (contractState == null) return null;
+    return DIDContract.ledger(contractState.data);
+  });
   logger.info(`Ledger state: version=${state?.contractVersion}, active=${state?.active}`);
   return state;
 };
 
-export const joinContract = async (
-  providers: DIDProviders,
-  contractAddress: string,
-): Promise<DeployedDIDContract> => {
+export const joinContract = async (providers: DIDProviders, contractAddress: string): Promise<DeployedDIDContract> => {
   const didContract = await findDeployedContract(providers, {
     contractAddress,
     compiledContract: didCompiledContract,
@@ -107,9 +99,7 @@ export const joinContract = async (
   return didContract;
 };
 
-export const deploy = async (
-  providers: DIDProviders,
-): Promise<DeployedDIDContract> => {
+export const deploy = async (providers: DIDProviders): Promise<DeployedDIDContract> => {
   logger.info('Deploying DID contract...');
   const didContract = await deployContract(providers, {
     compiledContract: didCompiledContract,
@@ -680,12 +670,7 @@ export function setLogger(_logger: Logger) {
 export type { DeployedDIDContract, DIDProviders } from './common-types';
 export type VerificationMethod = DIDContract.VerificationMethod;
 export type Service = DIDContract.Service;
-export const {
-  VerificationMethodType,
-  VerificationMethodRelation,
-  KeyType,
-  CurveType
-} = DIDContract;
+export const { VerificationMethodType, VerificationMethodRelation, KeyType, CurveType } = DIDContract;
 
 export const addVerificationMethod = async (
   didContract: DeployedDIDContract,
@@ -695,7 +680,7 @@ export const addVerificationMethod = async (
     crv: 'Ed25519' | 'Jubjub';
     x: bigint;
     y: bigint;
-  }
+  },
 ): Promise<any> => {
   logger.info(`Adding verification method: ${id}`);
   const result = await didContract.callTx.addVerificationMethod({
@@ -720,7 +705,7 @@ export const updateVerificationMethod = async (
     crv: 'Ed25519' | 'Jubjub';
     x: bigint;
     y: bigint;
-  }
+  },
 ): Promise<any> => {
   logger.info(`Updating verification method: ${id}`);
   const result = await didContract.callTx.updateVerificationMethod({
@@ -737,10 +722,7 @@ export const updateVerificationMethod = async (
   return result;
 };
 
-export const removeVerificationMethod = async (
-  didContract: DeployedDIDContract,
-  id: string
-): Promise<any> => {
+export const removeVerificationMethod = async (didContract: DeployedDIDContract, id: string): Promise<any> => {
   logger.info(`Removing verification method: ${id}`);
   const result = await didContract.callTx.removeVerificationMethod(id);
   logger.info('Verification method removed successfully');
@@ -750,13 +732,10 @@ export const removeVerificationMethod = async (
 export const addVerificationMethodRelation = async (
   didContract: DeployedDIDContract,
   relation: 'Authentication' | 'AssertionMethod' | 'KeyAgreement' | 'CapabilityInvocation' | 'CapabilityDelegation',
-  methodId: string
+  methodId: string,
 ): Promise<any> => {
   logger.info(`Adding ${relation} relation to ${methodId}`);
-  const result = await didContract.callTx.addVerificationMethodRelation(
-    VerificationMethodRelation[relation],
-    methodId
-  );
+  const result = await didContract.callTx.addVerificationMethodRelation(VerificationMethodRelation[relation], methodId);
   logger.info('Verification method relation added successfully');
   return result;
 };
@@ -764,12 +743,12 @@ export const addVerificationMethodRelation = async (
 export const removeVerificationMethodRelation = async (
   didContract: DeployedDIDContract,
   relation: 'Authentication' | 'AssertionMethod' | 'KeyAgreement' | 'CapabilityInvocation' | 'CapabilityDelegation',
-  methodId: string
+  methodId: string,
 ): Promise<any> => {
   logger.info(`Removing ${relation} relation from ${methodId}`);
   const result = await didContract.callTx.removeVerificationMethodRelation(
     VerificationMethodRelation[relation],
-    methodId
+    methodId,
   );
   logger.info('Verification method relation removed successfully');
   return result;
@@ -779,7 +758,7 @@ export const addService = async (
   didContract: DeployedDIDContract,
   id: string,
   type: string,
-  serviceEndpoint: string
+  serviceEndpoint: string,
 ): Promise<any> => {
   logger.info(`Adding service: ${id}`);
   const result = await didContract.callTx.addService({
@@ -795,7 +774,7 @@ export const updateService = async (
   didContract: DeployedDIDContract,
   id: string,
   type: string,
-  serviceEndpoint: string
+  serviceEndpoint: string,
 ): Promise<any> => {
   logger.info(`Updating service: ${id}`);
   const result = await didContract.callTx.updateService({
@@ -807,39 +786,28 @@ export const updateService = async (
   return result;
 };
 
-export const removeService = async (
-  didContract: DeployedDIDContract,
-  id: string
-): Promise<any> => {
+export const removeService = async (didContract: DeployedDIDContract, id: string): Promise<any> => {
   logger.info(`Removing service: ${id}`);
   const result = await didContract.callTx.removeService(id);
   logger.info('Service removed successfully');
   return result;
 };
 
-export const addAlsoKnownAs = async (
-  didContract: DeployedDIDContract,
-  value: string
-): Promise<any> => {
+export const addAlsoKnownAs = async (didContract: DeployedDIDContract, value: string): Promise<any> => {
   logger.info(`Adding alsoKnownAs: ${value}`);
   const result = await didContract.callTx.addAlsoKnownAs(value);
   logger.info('AlsoKnownAs added successfully');
   return result;
 };
 
-export const removeAlsoKnownAs = async (
-  didContract: DeployedDIDContract,
-  value: string
-): Promise<any> => {
+export const removeAlsoKnownAs = async (didContract: DeployedDIDContract, value: string): Promise<any> => {
   logger.info(`Removing alsoKnownAs: ${value}`);
   const result = await didContract.callTx.removeAlsoKnownAs(value);
   logger.info('AlsoKnownAs removed successfully');
   return result;
 };
 
-export const deactivateDID = async (
-  didContract: DeployedDIDContract
-): Promise<any> => {
+export const deactivateDID = async (didContract: DeployedDIDContract): Promise<any> => {
   logger.info('Deactivating DID');
   const result = await didContract.callTx.deactivate();
   logger.info('DID deactivated successfully');

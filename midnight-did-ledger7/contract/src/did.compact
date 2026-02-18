@@ -112,7 +112,7 @@ export circuit removeAlsoKnownAs(value: Opaque<"string">): [] {
 }
 
 export circuit addVerificationMethod(verificationMethod: VerificationMethod): [] {
-  assert(disclose(active), "Contract is not active");
+  assert(active, "Contract is not active");
 
   const disclosedVerificationMethod = disclose(verificationMethod);
   assert(!verificationMethods.member(disclosedVerificationMethod.id), "Verification method already exists");

@@ -38,17 +38,18 @@ describe('DID Operations API [@slow]', () => {
       const testConfiguration = await testEnvironment.start();
       walletCtx = await testEnvironment.getWallet();
       providers = await api.configureProviders(walletCtx, testConfiguration.dappConfig);
-
-      // Deploy the DID contract for all tests
-      didContract = await api.deploy(providers);
-      expect(didContract).not.toBeNull();
-      expect(didContract.deployTxData.public.contractAddress).toMatch(/[0-9a-f]{64}/);
     },
     1000 * 60 * 45,
   );
 
   afterAll(async () => {
     await testEnvironment.shutdown();
+  });
+
+  it('should deploy the DID contract', async () => {
+    didContract = await api.deploy(providers);
+    expect(didContract).not.toBeNull();
+    expect(didContract.deployTxData.public.contractAddress).toMatch(/[0-9a-f]{64}/);
   });
 
   it('should verify initial DID state', async () => {
@@ -182,6 +183,7 @@ describe('DID Operations API [@slow]', () => {
   });
 
   it('should remove a verification method and its relations', async () => {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     await api.removeVerificationMethod(didContract, '#key-1');
 
     const didState = await api.displayDIDState(providers, didContract);
@@ -194,6 +196,7 @@ describe('DID Operations API [@slow]', () => {
   });
 
   it('should deactivate the DID', async () => {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     await api.deactivateDID(didContract);
 
     const didState = await api.displayDIDState(providers, didContract);
@@ -203,6 +206,8 @@ describe('DID Operations API [@slow]', () => {
   });
 
   it('should fail when trying to operate on deactivated DID', async () => {
-    await expect(api.addVerificationMethod(didContract, '#key-3', { kty: 'OKP', crv: 'Ed25519', x: 3333n, y: 4444n })).rejects.toThrow();
+    await expect(
+      api.addVerificationMethod(didContract, '#key-3', { kty: 'OKP', crv: 'Ed25519', x: 3333n, y: 4444n }),
+    ).rejects.toThrow();
   });
 });

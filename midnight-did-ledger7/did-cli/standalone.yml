@@ -1,7 +1,8 @@
 services:
   proof-server:
     container_name: 'did-proof-server'
-    image: 'midnightntwrk/proof-server:7.0.0'
+    image: 'proof-server-bootstrap:7.0.0'
+    pull_policy: never
     command: ['midnight-proof-server -v']
     ports:
       - '6300'

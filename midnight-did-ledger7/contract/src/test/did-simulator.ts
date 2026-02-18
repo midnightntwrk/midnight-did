@@ -72,34 +72,50 @@ export class DIDSimulator {
   // Individual circuit methods
   public addVerificationMethod(vm: any): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.addVerificationMethod(this.circuitContext, vm)
+      this.contract.impureCircuits.addVerificationMethod(
+        this.circuitContext,
+        vm
+      )
     );
   }
 
   public updateVerificationMethod(vm: any): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.updateVerificationMethod(this.circuitContext, vm)
+      this.contract.impureCircuits.updateVerificationMethod(
+        this.circuitContext,
+        vm
+      )
     );
   }
 
   public removeVerificationMethod(id: string): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.removeVerificationMethod(this.circuitContext, id)
+      this.contract.impureCircuits.removeVerificationMethod(
+        this.circuitContext,
+        id
+      )
     );
   }
 
   public addVerificationMethodRelation(relation: any, methodId: string): void {
     this.executeCircuit(() =>
       this.contract.impureCircuits.addVerificationMethodRelation(
-        this.circuitContext, relation, methodId
+        this.circuitContext,
+        relation,
+        methodId
       )
     );
   }
 
-  public removeVerificationMethodRelation(relation: any, methodId: string): void {
+  public removeVerificationMethodRelation(
+    relation: any,
+    methodId: string
+  ): void {
     this.executeCircuit(() =>
       this.contract.impureCircuits.removeVerificationMethodRelation(
-        this.circuitContext, relation, methodId
+        this.circuitContext,
+        relation,
+        methodId
       )
     );
   }

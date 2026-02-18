@@ -16,30 +16,11 @@ vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
       CapabilityInvocation: 4,
       CapabilityDelegation: 5,
     },
-    OperationType: {
-      Undefined: 0,
-      AddVerificationMethod: 1,
-      UpdateVerificationMethod: 2,
-      RemoveVerificationMethod: 3,
-      AddVerificationMethodRelation: 4,
-      RemoveVerificationMethodRelation: 5,
-      AddService: 6,
-      UpdateService: 7,
-      RemoveService: 8,
-      AddAlsoKnownAs: 9,
-      RemoveAlsoKnownAs: 10,
-      Deactivate: 11,
-    },
     PublicKeyJwk: {},
     Service: {},
   } as const;
-  const OperationBuilderMock = {
-    defaultPublicKeyJwk: { kty: 0, crv: 0, x: 0n, y: 0n },
-  } as const;
   return {
     DIDContract: DIDContractMock as unknown as ContractModule["DIDContract"],
-    OperationBuilder:
-      OperationBuilderMock as unknown as ContractModule["OperationBuilder"],
   } satisfies Partial<ContractModule>;
 });
 

@@ -1,4 +1,4 @@
-// This file is part of midnightntwrk/example-counter.
+// This file is part of midnightntwrk/midnight-did.
 // Copyright (C) 2025 Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -130,10 +130,7 @@ export class TestEnvironment {
       const composeFile = process.env.COMPOSE_FILE ?? 'standalone.yml';
       this.logger.info(`Using compose file: ${composeFile}`);
       this.dockerEnv = new DockerComposeEnvironment(path.resolve(currentDir, '..'), composeFile)
-        .withWaitStrategy(
-          'did-proof-server',
-          Wait.forListeningPorts().withStartupTimeout(180_000),
-        )
+        .withWaitStrategy('did-proof-server', Wait.forLogMessage('Actix runtime found; starting in Actix runtime', 1))
         .withWaitStrategy('did-indexer', Wait.forLogMessage(/starting indexing/, 1));
       this.env = await this.dockerEnv.up();
 

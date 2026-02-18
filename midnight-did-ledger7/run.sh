@@ -3,7 +3,7 @@ set -e
 
 # Midnight DID (Ledger v7) - Incremental Build & Test Script
 # Usage: ./run.sh [target]
-# Targets: setup, compile, build, test, test-api, all
+# Targets: setup, compile, build, lint, typecheck, test, coverage, test-api, all
 
 TARGET=${1:-all}
 
@@ -39,11 +39,26 @@ case $TARGET in
         npm run build -w did-cli
         ;;
 
+    lint)
+        echo "🔍 Running linters..."
+        npm run lint
+        ;;
+
+    typecheck)
+        echo "🔎 Running type checks..."
+        npm run typecheck
+        ;;
+
     test)
         echo "🧪 Running unit tests..."
         npm run test -w contract
         npm run test -w domain
         npm run test -w did
+        ;;
+
+    coverage)
+        echo "📊 Running tests with coverage..."
+        npm run coverage
         ;;
 
     test-api)
@@ -54,19 +69,28 @@ case $TARGET in
     all)
         echo "▶️  Running full pipeline..."
         echo ""
-        echo "[1/5] Setup..."
+        echo "[1/8] Setup..."
         $0 setup
         echo ""
-        echo "[2/5] Compile..."
+        echo "[2/8] Compile..."
         $0 compile
         echo ""
-        echo "[3/5] Build..."
+        echo "[3/8] Lint..."
+        $0 lint
+        echo ""
+        echo "[4/8] Type Check..."
+        $0 typecheck
+        echo ""
+        echo "[5/8] Build..."
         $0 build
         echo ""
-        echo "[4/5] Test..."
+        echo "[6/8] Test..."
         $0 test
         echo ""
-        echo "[5/5] API Tests..."
+        echo "[7/8] Coverage..."
+        $0 coverage
+        echo ""
+        echo "[8/8] API Tests..."
         $0 test-api
         echo ""
         echo "✅ All steps completed successfully!"
@@ -74,7 +98,7 @@ case $TARGET in
 
     *)
         echo "❌ Unknown target: $TARGET"
-        echo "Available targets: setup, compile, build, test, test-api, all"
+        echo "Available targets: setup, compile, build, lint, typecheck, test, coverage, test-api, all"
         exit 1
         ;;
 esac
