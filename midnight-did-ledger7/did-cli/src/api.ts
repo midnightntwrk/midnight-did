@@ -722,7 +722,51 @@ export const updateVerificationMethod = async (
   return result;
 };
 
-export const removeVerificationMethod = async (didContract: DeployedDIDContract, id: string): Promise<any> => {
+/**
+ * Remove a verification method and all its relations.
+ * This operation is decomposed into multiple transactions:
+ * 1. Query current state to find which relations the method belongs to
+ * 2. Remove the method from each relation (one transaction per relation)
+ * 3. Remove the verification method itself
+ *
+ * This approach allows the wallet to sync between each operation.
+ */
+export const removeVerificationMethod = async (
+  didContract: DeployedDIDContract,
+  providers: DIDProviders,
+  id: string,
+): Promise<any> => {
+  logger.info(`Removing verification method and its relations: ${id}`);
+
+  // Step 1: Query current DID state to see which relations this method is in
+  const contractAddress = didContract.deployTxData.public.contractAddress;
+  const didState = await getDIDLedgerState(providers, contractAddress);
+
+  if (!didState) {
+    throw new Error('Cannot query DID state');
+  }
+
+  // Step 2: Remove from each relation (one transaction per relation)
+  const relationsToCheck: Array<{
+    name: 'Authentication' | 'AssertionMethod' | 'KeyAgreement' | 'CapabilityInvocation' | 'CapabilityDelegation';
+    member: boolean;
+  }> = [
+    { name: 'Authentication', member: didState.authenticationRelation.member(id) },
+    { name: 'AssertionMethod', member: didState.assertionMethodRelation.member(id) },
+    { name: 'KeyAgreement', member: didState.keyAgreementRelation.member(id) },
+    { name: 'CapabilityInvocation', member: didState.capabilityInvocationRelation.member(id) },
+    { name: 'CapabilityDelegation', member: didState.capabilityDelegationRelation.member(id) },
+  ];
+
+  for (const { name, member } of relationsToCheck) {
+    if (member) {
+      logger.info(`Removing ${id} from ${name} relation`);
+      await didContract.callTx.removeVerificationMethodRelation(VerificationMethodRelation[name], id);
+      logger.info(`Removed ${id} from ${name} relation`);
+    }
+  }
+
+  // Step 3: Remove the verification method itself
   logger.info(`Removing verification method: ${id}`);
   const result = await didContract.callTx.removeVerificationMethod(id);
   logger.info('Verification method removed successfully');

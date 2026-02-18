@@ -268,10 +268,14 @@ const updateVerificationMethod = async (didContract: DeployedDIDContract, rli: I
 };
 
 /** Prompt user to remove a verification method */
-const removeVerificationMethod = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
+const removeVerificationMethod = async (
+  didContract: DeployedDIDContract,
+  providers: api.DIDProviders,
+  rli: Interface,
+): Promise<void> => {
   console.log('\n  Remove Verification Method');
   const id = await rli.question('  Method ID to remove: ');
-  await api.withStatus('Removing verification method', () => api.removeVerificationMethod(didContract, id));
+  await api.withStatus('Removing verification method', () => api.removeVerificationMethod(didContract, providers, id));
   console.log('  ✓ Verification method removed\n');
 };
 
@@ -400,7 +404,7 @@ const mainLoop = async (providers: DIDProviders, walletCtx: api.WalletContext, r
           await updateVerificationMethod(didContract, rli);
           break;
         case '3': // Remove verification method
-          await removeVerificationMethod(didContract, rli);
+          await removeVerificationMethod(didContract, providers, rli);
           break;
         case '4': // Add relation
           await addRelation(didContract, rli);
