@@ -18,6 +18,7 @@
     "preprod-ps": "docker compose -f proof-server.yml pull && node --experimental-specifier-resolution=node --loader ts-node/esm src/preprod-start-proof-server.ts"
   },
   "dependencies": {
-    "@midnight-ntwrk/did-contract": "*"
+    "@midnight-ntwrk/did-contract": "*",
+    "@midnight-ntwrk/did-api": "*"
   }
 }
