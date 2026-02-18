@@ -183,26 +183,26 @@ describe('DID Operations API [@slow]', () => {
   });
 
   it('should remove a verification method and its relations', async () => {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    await api.removeVerificationMethod(didContract, '#key-1');
+    await api.removeVerificationMethod(didContract, providers, '#key-1');
 
     const didState = await api.displayDIDState(providers, didContract);
     expect(didState.didState?.verificationMethods.member('#key-1')).toEqual(false);
     expect(didState.didState?.verificationMethods.size()).toEqual(0n);
-    // Relations should also be removed automatically
+    // Relations should also be removed automatically (via separate transactions)
     expect(didState.didState?.authenticationRelation.member('#key-1')).toEqual(false);
     expect(didState.didState?.assertionMethodRelation.member('#key-1')).toEqual(false);
-    expect(didState.didState?.version).toEqual(12n);
+    // Version is now 14 because we have: remove auth (12), remove assertion (13), remove VM (14)
+    expect(didState.didState?.version).toEqual(14n);
   });
 
   it('should deactivate the DID', async () => {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
     await api.deactivateDID(didContract);
 
     const didState = await api.displayDIDState(providers, didContract);
     expect(didState.didState?.active).toEqual(false);
     expect(didState.didState?.deactivated).toEqual(true);
-    expect(didState.didState?.version).toEqual(13n);
+    // Version is now 15 (was 14 after removeVerificationMethod, now +1 for deactivate)
+    expect(didState.didState?.version).toEqual(15n);
   });
 
   it('should fail when trying to operate on deactivated DID', async () => {

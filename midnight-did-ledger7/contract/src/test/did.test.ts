@@ -157,7 +157,17 @@ describe("DID smart contract", () => {
       expect(ledger.authenticationRelation.member("#key-1")).toEqual(true);
       expect(ledger.assertionMethodRelation.member("#key-1")).toEqual(true);
 
-      // Remove verification method
+      // Remove relations first (new decomposed pattern)
+      simulator.removeVerificationMethodRelation(
+        VerificationMethodRelation.Authentication,
+        "#key-1"
+      );
+      simulator.removeVerificationMethodRelation(
+        VerificationMethodRelation.AssertionMethod,
+        "#key-1"
+      );
+
+      // Then remove verification method
       simulator.removeVerificationMethod("#key-1");
 
       // Verify method and relations are gone

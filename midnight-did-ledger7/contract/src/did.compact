@@ -144,27 +144,10 @@ export circuit removeVerificationMethod(id: Opaque<"string">): [] {
   const disclosedId = disclose(id);
   assert(verificationMethods.member(disclosedId), "Verification method does not exist");
 
+  // PLAN B: Only remove the verification method itself
+  // Relations should be removed separately by the caller (API layer)
+  // This allows wallet to sync between each relation removal
   verificationMethods.remove(disclosedId);
-
-  if (authenticationRelation.member(disclosedId)){
-    authenticationRelation.remove(disclosedId);
-  }
-
-  if (assertionMethodRelation.member(disclosedId)){
-    assertionMethodRelation.remove(disclosedId);
-  }
-
-  if (capabilityInvocationRelation.member(disclosedId)){
-    capabilityInvocationRelation.remove(disclosedId);
-  }
-
-  if (keyAgreementRelation.member(disclosedId)){
-    keyAgreementRelation.remove(disclosedId);
-  }
-
-  if (capabilityDelegationRelation.member(disclosedId)){
-    capabilityDelegationRelation.remove(disclosedId);
-  }
 
   operationCount.increment(1);
   version.increment(1);
@@ -181,20 +164,17 @@ export circuit addVerificationMethodRelation(
   const disclosedMethodId = disclose(methodId);
   assert(verificationMethods.member(disclosedMethodId), "Verification method does not exist");
 
+  // EXPERIMENT: Remove membership assertions to reduce branch complexity
+  // Insert is idempotent for sets
   if (disclosedRelation == VerificationMethodRelation.Authentication) {
-    assert(!authenticationRelation.member(disclosedMethodId), "Method already in 'authentication' relation");
     authenticationRelation.insert(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.AssertionMethod) {
-    assert(!assertionMethodRelation.member(disclosedMethodId), "Method already in 'assertion' method relation");
     assertionMethodRelation.insert(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.KeyAgreement) {
-    assert(!keyAgreementRelation.member(disclosedMethodId), "Method already in 'key agreement' relation");
     keyAgreementRelation.insert(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.CapabilityInvocation) {
-    assert(!capabilityInvocationRelation.member(disclosedMethodId), "Method already in 'capability invocation' relation");
     capabilityInvocationRelation.insert(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.CapabilityDelegation) {
-    assert(!capabilityDelegationRelation.member(disclosedMethodId), "Method already in 'capability delegation' relation");
     capabilityDelegationRelation.insert(disclosedMethodId);
   }
 
@@ -213,20 +193,17 @@ export circuit removeVerificationMethodRelation(
   const disclosedMethodId = disclose(methodId);
   assert(verificationMethods.member(disclosedMethodId), "Verification method does not exist");
 
+  // EXPERIMENT: Remove membership assertions to reduce branch complexity
+  // Remove is a no-op if item not in set
   if (disclosedRelation == VerificationMethodRelation.Authentication) {
-    assert(authenticationRelation.member(disclosedMethodId), "Method not in 'authentication' relation");
     authenticationRelation.remove(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.AssertionMethod) {
-    assert(assertionMethodRelation.member(disclosedMethodId), "Method not in 'assertion' method relation");
     assertionMethodRelation.remove(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.KeyAgreement) {
-    assert(keyAgreementRelation.member(disclosedMethodId), "Method not in 'key agreement' relation");
     keyAgreementRelation.remove(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.CapabilityInvocation) {
-    assert(capabilityInvocationRelation.member(disclosedMethodId), "Method not in 'capability invocation' relation");
     capabilityInvocationRelation.remove(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.CapabilityDelegation) {
-    assert(capabilityDelegationRelation.member(disclosedMethodId), "Method not in 'capability delegation' relation");
     capabilityDelegationRelation.remove(disclosedMethodId);
   }
 
