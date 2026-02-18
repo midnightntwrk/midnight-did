@@ -1,4 +1,4 @@
-// This file is part of midnightntwrk/example-counter.
+// This file is part of midnightntwrk/midnight-did.
 // Copyright (C) 2025 Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -676,7 +676,8 @@ export function setLogger(_logger: Logger) {
  * circuit and increments the version counter.
  */
 
-// Re-export contract types for convenient access
+// Re-export types for convenient access
+export type { DeployedDIDContract, DIDProviders } from './common-types';
 export type VerificationMethod = DIDContract.VerificationMethod;
 export type Service = DIDContract.Service;
 export const {
