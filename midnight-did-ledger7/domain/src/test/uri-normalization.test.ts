@@ -43,4 +43,67 @@ describe("URI normalization helpers", () => {
       { uri: "ws://example.org/updates" },
     ]);
   });
+
+  it("removes default HTTP port 80", () => {
+    expect(normalizeUriString("http://example.com:80/path")).toBe(
+      "http://example.com/path",
+    );
+  });
+
+  it("removes default WS port 80", () => {
+    expect(normalizeUriString("ws://example.com:80/socket")).toBe(
+      "ws://example.com/socket",
+    );
+  });
+
+  it("keeps non-default ports", () => {
+    expect(normalizeUriString("http://example.com:8080/path")).toBe(
+      "http://example.com:8080/path",
+    );
+    expect(normalizeUriString("https://example.com:8443/path")).toBe(
+      "https://example.com:8443/path",
+    );
+  });
+
+  it("handles malformed URLs gracefully", () => {
+    const malformed = "http://[invalid";
+    expect(normalizeUriString(malformed)).toBe(malformed);
+  });
+
+  it("handles URLs with authentication", () => {
+    expect(normalizeUriString("HTTPS://user:pass@Example.COM:443/path")).toBe(
+      "https://user:pass@example.com/path",
+    );
+    expect(normalizeUriString("HTTPS://user@Example.COM:443/path")).toBe(
+      "https://user@example.com/path",
+    );
+  });
+
+  it("preserves trailing slash when present in original URL", () => {
+    expect(normalizeUriString("https://example.com/path/")).toBe(
+      "https://example.com/path/",
+    );
+  });
+
+  it("normalizes primitive values correctly", () => {
+    expect(normalizeServiceEndpointValue(null)).toBe(null);
+    expect(normalizeServiceEndpointValue(undefined)).toBe(undefined);
+    expect(normalizeServiceEndpointValue(123)).toBe(123);
+    expect(normalizeServiceEndpointValue(true)).toBe(true);
+  });
+
+  it("normalizes nested objects with primitive values", () => {
+    const complex = {
+      uri: "HTTPS://Example.com/api",
+      count: 42,
+      active: true,
+      metadata: null,
+    };
+    expect(normalizeServiceEndpointValue(complex)).toEqual({
+      uri: "https://example.com/api",
+      count: 42,
+      active: true,
+      metadata: null,
+    });
+  });
 });

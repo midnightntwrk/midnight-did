@@ -36,6 +36,7 @@ case $TARGET in
         npm run build -w contract
         npm run build -w domain
         npm run build -w did
+        npm run build -w api
         npm run build -w did-cli
         ;;
 

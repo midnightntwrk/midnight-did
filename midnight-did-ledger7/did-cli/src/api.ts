@@ -43,8 +43,9 @@ import * as Rx from 'rxjs';
 import { WebSocket } from 'ws';
 import { type DIDCircuits, type DIDPrivateStateId, type DIDProviders, type DeployedDIDContract } from './common-types';
 import { type Config, contractConfig } from './config';
+import * as DidApi from '@midnight-ntwrk/did-api';
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
-import { assertIsContractAddress, toHex } from '@midnight-ntwrk/midnight-js-utils';
+import { toHex } from '@midnight-ntwrk/midnight-js-utils';
 import { getNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import { CompiledContract } from '@midnight-ntwrk/compact-js';
 import { Buffer } from 'buffer';
@@ -78,12 +79,8 @@ export const getDIDLedgerState = async (
   providers: DIDProviders,
   contractAddress: ContractAddress,
 ): Promise<DIDContract.Ledger | null> => {
-  assertIsContractAddress(contractAddress);
   logger.info('Checking contract ledger state...');
-  const state = await providers.publicDataProvider.queryContractState(contractAddress).then((contractState) => {
-    if (contractState == null) return null;
-    return DIDContract.ledger(contractState.data);
-  });
+  const state = await DidApi.getDIDLedgerState(providers, contractAddress);
   logger.info(`Ledger state: version=${state?.contractVersion}, active=${state?.active}`);
   return state;
 };
@@ -683,16 +680,7 @@ export const addVerificationMethod = async (
   },
 ): Promise<any> => {
   logger.info(`Adding verification method: ${id}`);
-  const result = await didContract.callTx.addVerificationMethod({
-    id,
-    typ: VerificationMethodType.JsonWebKey,
-    publicKeyJwk: {
-      kty: KeyType[publicKeyJwk.kty],
-      crv: CurveType[publicKeyJwk.crv],
-      x: publicKeyJwk.x,
-      y: publicKeyJwk.y,
-    },
-  });
+  const result = await DidApi.addVerificationMethod(didContract, id, publicKeyJwk);
   logger.info('Verification method added successfully');
   return result;
 };
@@ -708,16 +696,7 @@ export const updateVerificationMethod = async (
   },
 ): Promise<any> => {
   logger.info(`Updating verification method: ${id}`);
-  const result = await didContract.callTx.updateVerificationMethod({
-    id,
-    typ: VerificationMethodType.JsonWebKey,
-    publicKeyJwk: {
-      kty: KeyType[publicKeyJwk.kty],
-      crv: CurveType[publicKeyJwk.crv],
-      x: publicKeyJwk.x,
-      y: publicKeyJwk.y,
-    },
-  });
+  const result = await DidApi.updateVerificationMethod(didContract, id, publicKeyJwk);
   logger.info('Verification method updated successfully');
   return result;
 };
@@ -737,38 +716,7 @@ export const removeVerificationMethod = async (
   id: string,
 ): Promise<any> => {
   logger.info(`Removing verification method and its relations: ${id}`);
-
-  // Step 1: Query current DID state to see which relations this method is in
-  const contractAddress = didContract.deployTxData.public.contractAddress;
-  const didState = await getDIDLedgerState(providers, contractAddress);
-
-  if (!didState) {
-    throw new Error('Cannot query DID state');
-  }
-
-  // Step 2: Remove from each relation (one transaction per relation)
-  const relationsToCheck: Array<{
-    name: 'Authentication' | 'AssertionMethod' | 'KeyAgreement' | 'CapabilityInvocation' | 'CapabilityDelegation';
-    member: boolean;
-  }> = [
-    { name: 'Authentication', member: didState.authenticationRelation.member(id) },
-    { name: 'AssertionMethod', member: didState.assertionMethodRelation.member(id) },
-    { name: 'KeyAgreement', member: didState.keyAgreementRelation.member(id) },
-    { name: 'CapabilityInvocation', member: didState.capabilityInvocationRelation.member(id) },
-    { name: 'CapabilityDelegation', member: didState.capabilityDelegationRelation.member(id) },
-  ];
-
-  for (const { name, member } of relationsToCheck) {
-    if (member) {
-      logger.info(`Removing ${id} from ${name} relation`);
-      await didContract.callTx.removeVerificationMethodRelation(VerificationMethodRelation[name], id);
-      logger.info(`Removed ${id} from ${name} relation`);
-    }
-  }
-
-  // Step 3: Remove the verification method itself
-  logger.info(`Removing verification method: ${id}`);
-  const result = await didContract.callTx.removeVerificationMethod(id);
+  const result = await DidApi.removeVerificationMethod(didContract, providers, id);
   logger.info('Verification method removed successfully');
   return result;
 };
@@ -779,7 +727,7 @@ export const addVerificationMethodRelation = async (
   methodId: string,
 ): Promise<any> => {
   logger.info(`Adding ${relation} relation to ${methodId}`);
-  const result = await didContract.callTx.addVerificationMethodRelation(VerificationMethodRelation[relation], methodId);
+  const result = await DidApi.addVerificationMethodRelation(didContract, relation, methodId);
   logger.info('Verification method relation added successfully');
   return result;
 };
@@ -790,10 +738,7 @@ export const removeVerificationMethodRelation = async (
   methodId: string,
 ): Promise<any> => {
   logger.info(`Removing ${relation} relation from ${methodId}`);
-  const result = await didContract.callTx.removeVerificationMethodRelation(
-    VerificationMethodRelation[relation],
-    methodId,
-  );
+  const result = await DidApi.removeVerificationMethodRelation(didContract, relation, methodId);
   logger.info('Verification method relation removed successfully');
   return result;
 };
@@ -805,11 +750,7 @@ export const addService = async (
   serviceEndpoint: string,
 ): Promise<any> => {
   logger.info(`Adding service: ${id}`);
-  const result = await didContract.callTx.addService({
-    id,
-    typ: type,
-    serviceEndpoint,
-  });
+  const result = await DidApi.addService(didContract, id, type, serviceEndpoint);
   logger.info('Service added successfully');
   return result;
 };
@@ -821,39 +762,35 @@ export const updateService = async (
   serviceEndpoint: string,
 ): Promise<any> => {
   logger.info(`Updating service: ${id}`);
-  const result = await didContract.callTx.updateService({
-    id,
-    typ: type,
-    serviceEndpoint,
-  });
+  const result = await DidApi.updateService(didContract, id, type, serviceEndpoint);
   logger.info('Service updated successfully');
   return result;
 };
 
 export const removeService = async (didContract: DeployedDIDContract, id: string): Promise<any> => {
   logger.info(`Removing service: ${id}`);
-  const result = await didContract.callTx.removeService(id);
+  const result = await DidApi.removeService(didContract, id);
   logger.info('Service removed successfully');
   return result;
 };
 
 export const addAlsoKnownAs = async (didContract: DeployedDIDContract, value: string): Promise<any> => {
   logger.info(`Adding alsoKnownAs: ${value}`);
-  const result = await didContract.callTx.addAlsoKnownAs(value);
+  const result = await DidApi.addAlsoKnownAs(didContract, value);
   logger.info('AlsoKnownAs added successfully');
   return result;
 };
 
 export const removeAlsoKnownAs = async (didContract: DeployedDIDContract, value: string): Promise<any> => {
   logger.info(`Removing alsoKnownAs: ${value}`);
-  const result = await didContract.callTx.removeAlsoKnownAs(value);
+  const result = await DidApi.removeAlsoKnownAs(didContract, value);
   logger.info('AlsoKnownAs removed successfully');
   return result;
 };
 
 export const deactivateDID = async (didContract: DeployedDIDContract): Promise<any> => {
   logger.info('Deactivating DID');
-  const result = await didContract.callTx.deactivate();
+  const result = await DidApi.deactivateDID(didContract);
   logger.info('DID deactivated successfully');
   return result;
 };
