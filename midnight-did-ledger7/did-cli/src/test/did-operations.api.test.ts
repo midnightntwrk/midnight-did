@@ -13,10 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { type WalletContext, type DeployedDIDContract } from '../api';
+import { type WalletContext, type DeployedDIDContract, type DIDProviders } from '../api';
 import path from 'path';
 import * as api from '../api';
-import { type DIDProviders } from '../common-types';
 import { currentDir } from '../config';
 import { createLogger } from '../logger-utils';
 import { TestEnvironment } from './commons';
