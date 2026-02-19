@@ -41,9 +41,17 @@ import {
 import { type Logger } from 'pino';
 import * as Rx from 'rxjs';
 import { WebSocket } from 'ws';
-import { type DIDCircuits, type DIDPrivateStateId, type DIDProviders, type DeployedDIDContract } from './common-types';
 import { type Config, contractConfig } from './config';
 import * as DidApi from '@midnight-ntwrk/did-api';
+import type { DIDCircuits, DIDProviders, DeployedDIDContract } from '@midnight-ntwrk/did-api';
+
+export const DIDPrivateStateId = 'didPrivateState';
+
+// Re-export types for convenient access
+export type { DIDProviders, DeployedDIDContract, DIDCircuits } from '@midnight-ntwrk/did-api';
+export type VerificationMethod = DidApi.VerificationMethod;
+export type Service = DidApi.Service;
+export const { VerificationMethodType, VerificationMethodRelation, KeyType, CurveType } = DidApi;
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
 import { toHex } from '@midnight-ntwrk/midnight-js-utils';
 import { getNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
@@ -662,12 +670,6 @@ export function setLogger(_logger: Logger) {
  * Direct functions to modify the DID document. Each function calls a single
  * circuit and increments the version counter.
  */
-
-// Re-export types for convenient access
-export type { DeployedDIDContract, DIDProviders } from './common-types';
-export type VerificationMethod = DIDContract.VerificationMethod;
-export type Service = DIDContract.Service;
-export const { VerificationMethodType, VerificationMethodRelation, KeyType, CurveType } = DIDContract;
 
 export const addVerificationMethod = async (
   didContract: DeployedDIDContract,

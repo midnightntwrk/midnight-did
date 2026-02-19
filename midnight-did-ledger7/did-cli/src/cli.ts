@@ -18,7 +18,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import { createInterface, type Interface } from 'node:readline/promises';
 import { type Logger } from 'pino';
 import { type StartedDockerComposeEnvironment, type DockerComposeEnvironment } from 'testcontainers';
-import { type DIDProviders, type DeployedDIDContract } from './common-types';
+import type { DIDProviders, DeployedDIDContract } from '@midnight-ntwrk/did-api';
 import { type Config, StandaloneConfig } from './config';
 import * as api from './api';
 
