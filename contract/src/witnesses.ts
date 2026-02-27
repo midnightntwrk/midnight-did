@@ -1,4 +1,4 @@
-// This file is part of midnightntwrk/example-counter.
+// This file is part of midnightntwrk/midnight-did.
 // Copyright (C) 2025 Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,21 +17,21 @@ import { WitnessContext } from "@midnight-ntwrk/compact-runtime";
 
 import { Ledger } from "./managed/did/contract/index.js";
 
-export type MidnightDIDPrivateState = {
+export type DIDPrivateState = {
   readonly secretKey: Uint8Array;
 };
 
 export const witnesses = {
   localSecretKey: ({
     privateState
-  }: WitnessContext<Ledger, MidnightDIDPrivateState>): [
-    MidnightDIDPrivateState,
+  }: WitnessContext<Ledger, DIDPrivateState>): [
+    DIDPrivateState,
     Uint8Array
   ] => [privateState, privateState.secretKey],
   currentTimestamp: ({
     privateState
-  }: WitnessContext<Ledger, MidnightDIDPrivateState>): [
-    MidnightDIDPrivateState,
-    bigint
-  ] => [privateState, BigInt(Date.now())]
+  }: WitnessContext<Ledger, DIDPrivateState>): [DIDPrivateState, bigint] => [
+    privateState,
+    BigInt(Date.now())
+  ]
 };

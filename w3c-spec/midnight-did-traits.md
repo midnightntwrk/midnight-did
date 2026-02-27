@@ -6,8 +6,8 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 
 | Trait | Status | Notes |
 | --- | --- | --- |
-| Deterministic / namespaced | ✔ | `did:midnight:{network}:{68-hex}` derived from contract address; avoids collisions across networks. |
-| Self-certifying | △ | DID value is not derived from controller key; security anchored in on-chain contract + secretKey. |
+| Deterministic / namespaced | ✔ | `did:midnight:{network}:{64-hex}` derived from contract address; avoids collisions across networks. |
+| Self-certifying | △ | DID value is not derived from controller key; security anchored in on-chain contract + secret key witness. |
 | Ledger anchored | ✔ | All CRUD operations interact with Midnight ledger smart contract. |
 | Method-specific syntax | ✔ | Defined in spec §2; conforms to RFC3986 and DID Core requirements. |
 
@@ -17,7 +17,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | --- | --- | --- |
 | Create | ✔ | Contract deployment creates DID state. |
 | Read / Resolve | ✔ | `did/src/ledger-to-domain.ts` reconstructs DID Document from ledger state. |
-| Update | ✔ | `applyOperations` circuit handles adds/updates/removals. |
+| Update | ✔ | Individual contract circuits handle adds/updates/removals with secret-key authorization. |
 | Deactivate | ✔ | Deactivation operation prevents further updates. |
 | Recover | △ | No explicit recovery; requires redeployment/new DID. |
 
@@ -45,14 +45,14 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | --- | --- | --- |
 | Single controller | ✔ | Contract enforces single controller equal to DID. |
 | Multi-controller | ✖ | Not supported. |
-| Delegated updates | ✔ | Possession of contract `secretKey` required. |
-| On-chain access control | ✔ | Updates validated by `applyOperations` circuit. |
+| Delegated updates | ✔ | Possession of the secret key witness allows updates. |
+| On-chain access control | ✔ | Circuits verify the secret key against `controllerPublicKey`. |
 
 ## Operational Traits
 
 | Trait | Status | Notes |
 | --- | --- | --- |
-| Batch operations | △ | Up to 4 operations per transaction. |
+| Batch operations | ✖ | One circuit call per operation (no batching). |
 | Network portability | ✔ | Works on undeployed/devnet/testnet/mainnet. |
 | Privacy guidance | ✔ | Spec discourages PII on-chain; ZK witness protects updates. |
 | Service discovery | ✔ | Indexers/resolvers dependent on Midnight network (§11). |

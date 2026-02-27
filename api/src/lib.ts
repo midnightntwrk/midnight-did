@@ -1,10 +1,10 @@
+import { webcrypto } from "node:crypto";
+
 import { CompiledContract } from "@midnight-ntwrk/compact-js";
 import * as ledger from "@midnight-ntwrk/ledger-v7";
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v7";
 import {
   type ContractAddress,
-  type DIDOperation,
-  DomainToLedger,
   LedgerToDomain,
   MidnightDIDDocument,
   MidnightNetwork,
@@ -12,11 +12,21 @@ import {
 } from "@midnight-ntwrk/midnight-did";
 import {
   DIDContract,
-  MidnightDIDPrivateState,
-  OperationBuilder,
+  type DIDPrivateState as MidnightDIDPrivateState,
   witnesses,
 } from "@midnight-ntwrk/midnight-did-contract";
-import { DIDDocumentMetadata } from "@midnight-ntwrk/midnight-did-domain";
+import {
+  CurveType,
+  DIDDocumentMetadata,
+  FieldCodec,
+  KeyType,
+  normalizeServiceEndpoint,
+  PublicKeyJwk,
+  Service,
+  VerificationMethod,
+  VerificationMethodRelationType,
+  VerificationMethodType,
+} from "@midnight-ntwrk/midnight-did-domain";
 import {
   deployContract,
   findDeployedContract,
@@ -29,7 +39,6 @@ import { NodeZkConfigProvider } from "@midnight-ntwrk/midnight-js-node-zk-config
 import {
   type FinalizedTxData,
   type MidnightProvider,
-  type UnboundTransaction,
   type WalletProvider,
 } from "@midnight-ntwrk/midnight-js-types";
 import {
@@ -38,11 +47,7 @@ import {
 } from "@midnight-ntwrk/midnight-js-utils";
 import { DustWallet } from "@midnight-ntwrk/wallet-sdk-dust-wallet";
 import { WalletFacade } from "@midnight-ntwrk/wallet-sdk-facade";
-import {
-  generateRandomSeed,
-  HDWallet,
-  Roles,
-} from "@midnight-ntwrk/wallet-sdk-hd";
+import { HDWallet, Roles } from "@midnight-ntwrk/wallet-sdk-hd";
 import { ShieldedWallet } from "@midnight-ntwrk/wallet-sdk-shielded";
 import {
   createKeystore,
@@ -52,10 +57,10 @@ import {
   UnshieldedWallet,
 } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
 import { Buffer } from "buffer";
-import { webcrypto } from "crypto";
 import { type Logger } from "pino";
 import * as Rx from "rxjs";
 import { WebSocket } from "ws";
+import { z } from "zod/v4-mini";
 
 import { type Config, contractConfig } from "./config";
 import { BigIntReplacer } from "./logger-utils";
@@ -207,11 +212,9 @@ export async function hashProverKey(
 export async function initPrivateState(
   providers: MidnightDIDProviders,
 ): Promise<MidnightDIDPrivateState> {
-  providers.walletProvider.getCoinPublicKey();
   const providedPrivateState = await providers.privateStateProvider.get(
-    "midnightDIDPrivateState",
+    MidnightDIDPrivateStateId,
   );
-  logger.info(`Stored private state: ${JSON.stringify(providedPrivateState)}`);
   if (
     providedPrivateState != null &&
     providedPrivateState.secretKey != null &&
@@ -222,18 +225,28 @@ export async function initPrivateState(
     logger.info("The private state is restored from the privateStateProvider");
     return providedPrivateState;
   }
+
   logger.info("Creating the new private state..");
   const proverKey = await (providers as any).zkConfigProvider.getProverKey(
-    "applyOperations",
+    "addVerificationMethod",
   );
   const secretKey = await hashProverKey(proverKey);
-  const privateState: MidnightDIDPrivateState = {
-    secretKey,
-  } as unknown as MidnightDIDPrivateState;
-  await providers.privateStateProvider.set(
-    MidnightDIDPrivateStateId,
-    privateState,
-  );
+  const privateState: MidnightDIDPrivateState = { secretKey };
+  try {
+    await providers.privateStateProvider.set(
+      MidnightDIDPrivateStateId,
+      privateState,
+    );
+  } catch (error: any) {
+    if (
+      typeof error?.message === "string" &&
+      error.message.includes("Contract address not set")
+    ) {
+      logger.info("Private state save skipped (contract address not set yet).");
+    } else {
+      throw error;
+    }
+  }
   return privateState;
 }
 
@@ -282,26 +295,256 @@ export const createDID = async (
   return didContract;
 };
 
-export const update = async (
+const normalizeFragmentId = (value: string): string => {
+  const trimmed = value.trim();
+  if (trimmed.startsWith("#")) return trimmed;
+  const hashIndex = trimmed.indexOf("#");
+  if (hashIndex >= 0) return `#${trimmed.slice(hashIndex + 1)}`;
+  return `#${trimmed}`;
+};
+
+const LedgerKeyType = DIDContract.KeyType;
+const LedgerCurveType = DIDContract.CurveType;
+const LedgerVerificationMethodType = DIDContract.VerificationMethodType;
+const LedgerVerificationMethodRelation = DIDContract.VerificationMethodRelation;
+
+const LedgerKeyTypeMap: Record<
+  KeyType,
+  (typeof LedgerKeyType)[keyof typeof LedgerKeyType]
+> = {
+  [KeyType.EC]: LedgerKeyType.EC,
+  [KeyType.RSA]: LedgerKeyType.RSA,
+  [KeyType.oct]: LedgerKeyType.oct,
+  [KeyType.OKP]: LedgerKeyType.OKP,
+};
+
+const LedgerCurveTypeMap: Record<
+  CurveType,
+  (typeof LedgerCurveType)[keyof typeof LedgerCurveType]
+> = {
+  [CurveType.Ed25519]: LedgerCurveType.Ed25519,
+  [CurveType.Jubjub]: LedgerCurveType.Jubjub,
+};
+
+const LedgerVerificationMethodTypeMap: Record<
+  VerificationMethodType,
+  (typeof LedgerVerificationMethodType)[keyof typeof LedgerVerificationMethodType]
+> = {
+  [VerificationMethodType.Undefined]: LedgerVerificationMethodType.Undefined,
+  [VerificationMethodType.JsonWebKey]: LedgerVerificationMethodType.JsonWebKey,
+};
+
+const LedgerVerificationMethodRelationMap: Record<
+  VerificationMethodRelationType,
+  (typeof LedgerVerificationMethodRelation)[keyof typeof LedgerVerificationMethodRelation]
+> = {
+  [VerificationMethodRelationType.Undefined]:
+    LedgerVerificationMethodRelation.Undefined,
+  [VerificationMethodRelationType.Authentication]:
+    LedgerVerificationMethodRelation.Authentication,
+  [VerificationMethodRelationType.AssertionMethod]:
+    LedgerVerificationMethodRelation.AssertionMethod,
+  [VerificationMethodRelationType.KeyAgreement]:
+    LedgerVerificationMethodRelation.KeyAgreement,
+  [VerificationMethodRelationType.CapabilityInvocation]:
+    LedgerVerificationMethodRelation.CapabilityInvocation,
+  [VerificationMethodRelationType.CapabilityDelegation]:
+    LedgerVerificationMethodRelation.CapabilityDelegation,
+};
+
+const publicKeyJwkToLedger = (
+  publicKeyJwk: PublicKeyJwk,
+): DIDContract.PublicKeyJwk => {
+  const kty = LedgerKeyTypeMap[publicKeyJwk.kty];
+  const crv = LedgerCurveTypeMap[publicKeyJwk.crv];
+  const x = z.decode(FieldCodec as any, publicKeyJwk.x) as bigint;
+  const y =
+    publicKeyJwk.y !== undefined
+      ? (z.decode(FieldCodec as any, publicKeyJwk.y) as bigint)
+      : 0n;
+
+  return { kty, crv, x, y };
+};
+
+const verificationMethodToLedger = (
+  method: VerificationMethod,
+): DIDContract.VerificationMethod => ({
+  id: normalizeFragmentId(method.id),
+  typ: LedgerVerificationMethodTypeMap[method.type],
+  publicKeyJwk: publicKeyJwkToLedger(method.publicKeyJwk),
+});
+
+const serviceTypeToLedger = (serviceType: string | string[]): string => {
+  if (typeof serviceType === "string") return serviceType;
+  if (Array.isArray(serviceType) && serviceType.length === 1)
+    return serviceType[0];
+  throw new Error(
+    "service type property must be a string or an array with exactly one element",
+  );
+};
+
+const serviceEndpointToLedger = (
+  serviceEndpoint: Service["serviceEndpoint"],
+): string => {
+  try {
+    const normalized = normalizeServiceEndpoint(serviceEndpoint);
+    return JSON.stringify(normalized);
+  } catch {
+    throw new Error("Invalid serviceEndpoint: could not serialize to JSON");
+  }
+};
+
+const serviceToLedger = (service: Service): DIDContract.Service => ({
+  id: normalizeFragmentId(service.id),
+  typ: serviceTypeToLedger(service.type),
+  serviceEndpoint: serviceEndpointToLedger(service.serviceEndpoint),
+});
+
+export const addVerificationMethod = async (
   didContract: DeployedMidnightDIDContract,
-  patches: Array<DIDOperation>,
+  verificationMethod: VerificationMethod,
 ): Promise<FinalizedTxData> => {
-  if (patches.length === 0) throw new Error("No DID operations were provided.");
-  logger.info(
-    `Updating DID at contract address: ${didContract.deployTxData.public.contractAddress}`,
+  const result = await didContract.callTx.addVerificationMethod(
+    verificationMethodToLedger(verificationMethod),
   );
-  let ledgerOperations = DomainToLedger.updateOperations(patches);
-  logger.info("Ledger operations:");
-  for (const lo of ledgerOperations)
-    logger.info(JSON.stringify(lo as unknown, BigIntReplacer, 2));
-  let ledgerOperationsWithPadding = OperationBuilder.padding(ledgerOperations);
-  const finalizedTxData = await didContract.callTx.applyOperations(
-    ledgerOperationsWithPadding,
+  return result.public;
+};
+
+export const updateVerificationMethod = async (
+  didContract: DeployedMidnightDIDContract,
+  verificationMethod: VerificationMethod,
+): Promise<FinalizedTxData> => {
+  const result = await didContract.callTx.updateVerificationMethod(
+    verificationMethodToLedger(verificationMethod),
   );
-  logger.info(
-    `Transaction ${finalizedTxData.public.txId} added in block ${finalizedTxData.public.blockHeight}`,
+  return result.public;
+};
+
+export const removeVerificationMethod = async (
+  didContract: DeployedMidnightDIDContract,
+  providers: MidnightDIDProviders,
+  methodId: string,
+): Promise<FinalizedTxData> => {
+  const normalizedMethodId = normalizeFragmentId(methodId);
+  const contractAddress = didContract.deployTxData.public.contractAddress;
+  const didState = await getMidnightDIDLedgerState(providers, contractAddress);
+
+  if (!didState) {
+    throw new Error("Cannot query DID state");
+  }
+
+  const relationsToCheck: Array<{
+    relation: VerificationMethodRelationType;
+    member: boolean;
+  }> = [
+    {
+      relation: VerificationMethodRelationType.Authentication,
+      member: didState.authenticationRelation.member(normalizedMethodId),
+    },
+    {
+      relation: VerificationMethodRelationType.AssertionMethod,
+      member: didState.assertionMethodRelation.member(normalizedMethodId),
+    },
+    {
+      relation: VerificationMethodRelationType.KeyAgreement,
+      member: didState.keyAgreementRelation.member(normalizedMethodId),
+    },
+    {
+      relation: VerificationMethodRelationType.CapabilityInvocation,
+      member: didState.capabilityInvocationRelation.member(normalizedMethodId),
+    },
+    {
+      relation: VerificationMethodRelationType.CapabilityDelegation,
+      member: didState.capabilityDelegationRelation.member(normalizedMethodId),
+    },
+  ];
+
+  for (const { relation, member } of relationsToCheck) {
+    if (!member) continue;
+    await didContract.callTx.removeVerificationMethodRelation(
+      LedgerVerificationMethodRelationMap[relation],
+      normalizedMethodId,
+    );
+  }
+
+  const result =
+    await didContract.callTx.removeVerificationMethod(normalizedMethodId);
+  return result.public;
+};
+
+export const addVerificationMethodRelation = async (
+  didContract: DeployedMidnightDIDContract,
+  relation: VerificationMethodRelationType,
+  methodId: string,
+): Promise<FinalizedTxData> => {
+  const result = await didContract.callTx.addVerificationMethodRelation(
+    LedgerVerificationMethodRelationMap[relation],
+    normalizeFragmentId(methodId),
   );
-  return finalizedTxData.public;
+  return result.public;
+};
+
+export const removeVerificationMethodRelation = async (
+  didContract: DeployedMidnightDIDContract,
+  relation: VerificationMethodRelationType,
+  methodId: string,
+): Promise<FinalizedTxData> => {
+  const result = await didContract.callTx.removeVerificationMethodRelation(
+    LedgerVerificationMethodRelationMap[relation],
+    normalizeFragmentId(methodId),
+  );
+  return result.public;
+};
+
+export const addService = async (
+  didContract: DeployedMidnightDIDContract,
+  service: Service,
+): Promise<FinalizedTxData> => {
+  const result = await didContract.callTx.addService(serviceToLedger(service));
+  return result.public;
+};
+
+export const updateService = async (
+  didContract: DeployedMidnightDIDContract,
+  service: Service,
+): Promise<FinalizedTxData> => {
+  const result = await didContract.callTx.updateService(
+    serviceToLedger(service),
+  );
+  return result.public;
+};
+
+export const removeService = async (
+  didContract: DeployedMidnightDIDContract,
+  serviceId: string,
+): Promise<FinalizedTxData> => {
+  const result = await didContract.callTx.removeService(
+    normalizeFragmentId(serviceId),
+  );
+  return result.public;
+};
+
+export const addAlsoKnownAs = async (
+  didContract: DeployedMidnightDIDContract,
+  aliasUri: string,
+): Promise<FinalizedTxData> => {
+  const result = await didContract.callTx.addAlsoKnownAs(aliasUri);
+  return result.public;
+};
+
+export const removeAlsoKnownAs = async (
+  didContract: DeployedMidnightDIDContract,
+  aliasUri: string,
+): Promise<FinalizedTxData> => {
+  const result = await didContract.callTx.removeAlsoKnownAs(aliasUri);
+  return result.public;
+};
+
+export const deactivate = async (
+  didContract: DeployedMidnightDIDContract,
+): Promise<FinalizedTxData> => {
+  const result = await didContract.callTx.deactivate();
+  return result.public;
 };
 
 export const midnightNetwork: MidnightNetwork =

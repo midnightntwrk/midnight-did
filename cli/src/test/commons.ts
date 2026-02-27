@@ -1,4 +1,4 @@
-// This file is part of midnightntwrk/example-counter.
+// This file is part of midnightntwrk/midnight-did.
 // Copyright (C) 2025 Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +14,6 @@
 // limitations under the License.
 
 import { unshieldedToken } from '@midnight-ntwrk/ledger-v7';
-import * as api from '@midnight-ntwrk/midnight-did-api';
 import path from 'path';
 import type { Logger } from 'pino';
 import * as Rx from 'rxjs';
@@ -27,10 +26,11 @@ import {
 } from 'testcontainers';
 import { expect } from 'vitest';
 
-const GENESIS_MINT_WALLET_SEED = '0000000000000000000000000000000000000000000000000000000000000001';
+import type { WalletContext } from '../api';
+import * as api from '../api';
+import { type Config, currentDir, PreprodConfig, PreviewConfig, StandaloneConfig } from '../config';
 
-type Config = import('@midnight-ntwrk/midnight-did-api').Config;
-const { currentDir } = api;
+const GENESIS_MINT_WALLET_SEED = '0000000000000000000000000000000000000000000000000000000000000001';
 
 export interface TestConfiguration {
   seed: string;
@@ -45,7 +45,7 @@ export class LocalTestConfig implements TestConfiguration {
   entrypoint = 'dist/standalone.js';
   psMode = 'undeployed';
   cacheFileName = '';
-  dappConfig = new api.StandaloneConfig();
+  dappConfig = new StandaloneConfig();
 }
 
 export function parseArgs(required: string[]): TestConfiguration {
@@ -67,7 +67,7 @@ export function parseArgs(required: string[]): TestConfiguration {
     }
   }
 
-  let cfg: Config = new api.TestnetRemoteConfig();
+  let cfg: Config = new PreviewConfig();
   let env = '';
   let psMode = 'undeployed';
   let cacheFileName = '';
@@ -78,9 +78,14 @@ export function parseArgs(required: string[]): TestConfiguration {
       throw new Error('TEST_ENV environment variable is not defined.');
     }
     switch (env) {
-      case 'testnet':
-        cfg = new api.TestnetRemoteConfig();
-        psMode = 'testnet';
+      case 'preview':
+        cfg = new PreviewConfig();
+        psMode = 'preview';
+        cacheFileName = `${seed.substring(0, 7)}-${psMode}.state`;
+        break;
+      case 'preprod':
+        cfg = new PreprodConfig();
+        psMode = 'preprod';
         cacheFileName = `${seed.substring(0, 7)}-${psMode}.state`;
         break;
       default:
@@ -102,7 +107,7 @@ export class TestEnvironment {
   private env: StartedDockerComposeEnvironment | undefined;
   private dockerEnv: DockerComposeEnvironment | undefined;
   private container: StartedTestContainer | undefined;
-  private wallet: api.MidnightDIDWalletContext | undefined;
+  private walletCtx: WalletContext | undefined;
   private testConfig: TestConfiguration;
 
   constructor(logger: Logger) {
@@ -126,22 +131,19 @@ export class TestEnvironment {
       const composeFile = process.env.COMPOSE_FILE ?? 'standalone.yml';
       this.logger.info(`Using compose file: ${composeFile}`);
       this.dockerEnv = new DockerComposeEnvironment(path.resolve(currentDir, '..'), composeFile)
-        .withWaitStrategy(
-          'counter-proof-server',
-          Wait.forLogMessage('Actix runtime found; starting in Actix runtime', 1),
-        )
-        .withWaitStrategy('counter-indexer', Wait.forLogMessage(/starting indexing/, 1));
+        .withWaitStrategy('did-proof-server', Wait.forLogMessage('Actix runtime found; starting in Actix runtime', 1))
+        .withWaitStrategy('did-indexer', Wait.forLogMessage(/starting indexing/, 1));
       this.env = await this.dockerEnv.up();
 
       this.testConfig.dappConfig = {
         ...this.testConfig.dappConfig,
-        indexer: TestEnvironment.mapContainerPort(this.env, this.testConfig.dappConfig.indexer, 'counter-indexer'),
-        indexerWS: TestEnvironment.mapContainerPort(this.env, this.testConfig.dappConfig.indexerWS, 'counter-indexer'),
-        node: TestEnvironment.mapContainerPort(this.env, this.testConfig.dappConfig.node, 'counter-node'),
+        indexer: TestEnvironment.mapContainerPort(this.env, this.testConfig.dappConfig.indexer, 'did-indexer'),
+        indexerWS: TestEnvironment.mapContainerPort(this.env, this.testConfig.dappConfig.indexerWS, 'did-indexer'),
+        node: TestEnvironment.mapContainerPort(this.env, this.testConfig.dappConfig.node, 'did-node'),
         proofServer: TestEnvironment.mapContainerPort(
           this.env,
           this.testConfig.dappConfig.proofServer,
-          'counter-proof-server',
+          'did-proof-server',
         ),
       };
     }
@@ -159,17 +161,17 @@ export class TestEnvironment {
     return mappedUrl.toString().replace(/\/+$/, '');
   };
 
-  static getProofServerContainer = async (env: string) =>
-    await new GenericContainer('midnightnetwork/proof-server:4.0.0')
+  static getProofServerContainer = async (_env: string) =>
+    await new GenericContainer('proof-server-bootstrap:7.0.0')
       .withExposedPorts(6300)
-      .withCommand([`midnight-proof-server --network ${env}`])
+      .withCommand(['midnight-proof-server -v'])
       .withEnvironment({ RUST_BACKTRACE: 'full' })
-      .withWaitStrategy(Wait.forLogMessage('Actix runtime found; starting in Actix runtime', 1000000))
+      .withWaitStrategy(Wait.forLogMessage('Actix runtime found; starting in Actix runtime', 1))
       .start();
 
   shutdown = async () => {
-    if (this.wallet !== undefined) {
-      await this.wallet.wallet.stop();
+    if (this.walletCtx !== undefined) {
+      await this.walletCtx.wallet.stop();
     }
     if (this.env !== undefined) {
       this.logger.info('Test containers closing');
@@ -183,19 +185,10 @@ export class TestEnvironment {
 
   getWallet = async () => {
     this.logger.info('Setting up wallet');
-    this.wallet = await api.buildWalletAndWaitForFunds(this.testConfig.dappConfig, this.testConfig.seed);
-    expect(this.wallet).not.toBeNull();
-    const state = await Rx.firstValueFrom(this.wallet!.wallet.state());
-    const balance = state.unshielded.balances[unshieldedToken().raw] ?? 0n;
-    expect(balance).toBeGreaterThan(0n);
-
-    // Register for dust generation
-    await api.registerForDustGeneration(this.wallet.wallet, this.wallet.unshieldedKeystore);
-
-    return this.wallet;
-  };
-
-  saveWalletCache = async () => {
-    // Wallet state serialization no longer supported in wallet SDK v1.0.0
+    this.walletCtx = await api.buildWalletAndWaitForFunds(this.testConfig.dappConfig, this.testConfig.seed);
+    expect(this.walletCtx).not.toBeNull();
+    const state = await Rx.firstValueFrom(this.walletCtx.wallet.state());
+    expect(state.unshielded.balances[unshieldedToken().raw] ?? 0n).toBeGreaterThan(0n);
+    return this.walletCtx;
   };
 }

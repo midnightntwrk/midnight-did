@@ -16,7 +16,6 @@ The main purpose of creating a new DID method is to make it a first-class citize
 - did - conversion helpers between the domain model and contract-managed ledger
 - api - programmatic API to create, update, resolve Midnight DIDs (unit + integration tests)
 - cli - Node.js console application to manage the Midnight DID
-- resolver - Node.js implementation of the Midnight DID resolver
 
 ## Package Dependency Diagram
 
@@ -42,7 +41,7 @@ graph TD
 ```
 
 Why these dependencies
-- domain is the source of truth for DID schemas and operations (shared by others)
+- domain is the source of truth for DID schemas and codecs (shared by others)
 - contract depends on domain for types and codecs
 - did links domain types with contract-managed types
 - api uses both contract and domain to provide a high-level interface; tests and infra live here

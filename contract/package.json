@@ -22,7 +22,7 @@
   },
   "scripts": {
     "contract": "npm run compact",
-    "compact": "compact compile src/did.compact src/managed/did",
+    "compact": "compact compile src/did.compact src/managed/did && node ./scripts/strip-managed-sourcemaps.mjs",
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:compile": "npm run compact && vitest run",

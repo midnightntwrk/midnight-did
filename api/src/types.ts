@@ -3,7 +3,7 @@ import * as ledger from "@midnight-ntwrk/ledger-v7";
 import { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
 import {
   DIDContract,
-  type MidnightDIDPrivateState,
+  type DIDPrivateState,
 } from "@midnight-ntwrk/midnight-did-contract";
 import type {
   DeployedContract,
@@ -12,6 +12,7 @@ import type {
 import type { MidnightProviders } from "@midnight-ntwrk/midnight-js-types";
 import type { WalletFacade } from "@midnight-ntwrk/wallet-sdk-facade";
 import type { UnshieldedKeystore } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
+export type MidnightDIDPrivateState = DIDPrivateState;
 
 export type MidnightDIDCircuits = ImpureCircuitId<
   DIDContract.Contract<MidnightDIDPrivateState>

@@ -13,7 +13,7 @@ import {
 } from "../midnight-did-document";
 
 const exampleMidnightDid =
-  "did:midnight:testnet:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3";
+  "did:midnight:testnet:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6";
 
 const exampleVerificationMethod = createVerificationMethod({
   id: "#key-1",
@@ -213,8 +213,7 @@ describe("Midnight DID Document", () => {
           "https://w3c.github.io/vc-jws-2020/contexts/v1",
         ],
         id: exampleMidnightDid,
-        controller:
-          "did:midnight:testnet:0200ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        controller: `did:midnight:testnet:${"f".repeat(64)}`,
       };
 
       expect(() => parseMidnightDIDDocument(input)).toThrow(

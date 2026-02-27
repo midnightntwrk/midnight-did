@@ -15,9 +15,20 @@ describe("URI normalization helpers", () => {
     );
   });
 
+  it("normalizes credentials and preserves non-default ports", () => {
+    expect(normalizeUriString("HTTPS://user:pass@Example.COM:444/path")).toBe(
+      "https://user:pass@example.com:444/path",
+    );
+  });
+
   it("leaves non-HTTP schemes unchanged", () => {
     const did = "did:example:123456";
     expect(normalizeUriString(did)).toBe(did);
+  });
+
+  it("returns input when URL parsing fails", () => {
+    const value = "http://[invalid";
+    expect(normalizeUriString(value)).toBe(value);
   });
 
   it("normalizes nested service endpoint structures", () => {
@@ -42,5 +53,9 @@ describe("URI normalization helpers", () => {
       "https://example.com/inbox",
       { uri: "ws://example.org/updates" },
     ]);
+  });
+
+  it("returns non-string endpoints untouched", () => {
+    expect(normalizeServiceEndpointValue(42)).toBe(42);
   });
 });

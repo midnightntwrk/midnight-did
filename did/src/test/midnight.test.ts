@@ -9,7 +9,7 @@ import {
   parseMidnightDIDString,
 } from "../midnight";
 
-const RAW_ADDRESS = "0".repeat(68);
+const RAW_ADDRESS = "0".repeat(64);
 const sampleAddress = parseContractAddress(RAW_ADDRESS);
 
 describe("Midnight utilities", () => {
@@ -20,7 +20,7 @@ describe("Midnight utilities", () => {
 
   it("rejects malformed contract addresses", () => {
     expect(() => parseContractAddress("1234")).toThrow();
-    expect(() => parseContractAddress("g".repeat(68))).toThrow();
+    expect(() => parseContractAddress("g".repeat(64))).toThrow();
   });
 
   it("creates and parses Midnight DID strings", () => {

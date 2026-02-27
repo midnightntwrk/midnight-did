@@ -171,7 +171,7 @@ export class TestEnvironment {
   };
 
   static getProofServerContainer = async (env: string) =>
-    await new GenericContainer("midnightnetwork/proof-server:4.0.0")
+    await new GenericContainer("midnightntwrk/proof-server:7.0.0")
       .withExposedPorts(6300)
       .withCommand([`midnight-proof-server --network ${env}`])
       .withEnvironment({ RUST_BACKTRACE: "full" })

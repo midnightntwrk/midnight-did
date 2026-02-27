@@ -2,8 +2,8 @@
 
 Purpose
 - All integrations and conversions between domain and ledger/contract
-- `DomainToLedger` and `LedgerToDomain` helpers
-- DIDOperation types/schemas used by updates live here
+- `LedgerToDomain` helper for DID resolution
+- Midnight DID network and identifier utilities
 
 Prerequisites
 - Node 20 and npm >= 10
