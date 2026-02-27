@@ -1,5 +1,5 @@
-// This file is part of midnightntwrk/example-counter.
-// Copyright (C) 2025-2026 Midnight Foundation
+// This file is part of midnightntwrk/midnight-did.
+// Copyright (C) 2025 Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -15,14 +15,15 @@
 
 import path from 'node:path';
 
-import { createLogger, currentDir, StandaloneConfig } from '@midnight-ntwrk/midnight-did-api';
 import { DockerComposeEnvironment, Wait } from 'testcontainers';
 
 import { run } from './cli.js';
+import { currentDir, StandaloneConfig } from './config.js';
+import { createLogger } from './logger-utils.js';
 
 const config = new StandaloneConfig();
 const dockerEnv = new DockerComposeEnvironment(path.resolve(currentDir, '..'), 'standalone.yml')
-  .withWaitStrategy('counter-proof-server', Wait.forLogMessage('Actix runtime found; starting in Actix runtime', 1))
-  .withWaitStrategy('counter-indexer', Wait.forLogMessage(/starting indexing/, 1));
+  .withWaitStrategy('did-proof-server', Wait.forLogMessage('Actix runtime found; starting in Actix runtime', 1))
+  .withWaitStrategy('did-indexer', Wait.forLogMessage(/starting indexing/, 1));
 const logger = await createLogger(config.logDir);
 await run(config, logger, dockerEnv);

@@ -1,4 +1,4 @@
-# Midnight DID Specification Draft v0.3
+# Midnight DID Specification Draft v0.2
 
 # Status of This Document
 
@@ -59,25 +59,25 @@ Midnight DID is a URI conforming to [IETF RFC 3986](https://www.ietf.org/rfc/rfc
 
 Midnight DID is generated in conformity with [W3C DIDs specification](https://www.w3.org/TR/did-core/).
 
-The `specific-idstring` in a Midnight DID is a unique identifier for each entity. It conforms to the structure of a Midnight smart contract address and network segment.
+The `specific-idstring` in a Midnight DID is a unique identifier for each entity. It conforms to the structure of a Midnight smart contract address and network segment. The contract address is 32 bytes and is encoded as 64 hex characters (lowercase recommended).
 
 The ABNF grammar used to generate the Midnight DID identifier is as follows:
 
 ```
 midnight-did = "did:midnight:" network ":" specific-idstring
 network = "undeployed" | "devnet" | "testnet" | "mainnet"
-specific-idstring = 68HEXDIG
+specific-idstring = 64HEXDIG
 ```
 
-The regular expression for Midnight DID is as follows:
+The regular expression for the `specific-idstring` component is as follows:
 ```
-/^[0-9a-f]{68}$/
+/^[0-9a-fA-F]{64}$/
 ```
 
 Below is an example of a Midnight DID:
 
 ```
-did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3
+did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6
 ```
 
 ## 3. Midnight DID Document
@@ -88,16 +88,20 @@ Below is the basic structure of the Midnight DID Document:
 
 ```json
 {
-  "@context": ["https://www.w3.org/ns/did/v1"],
-  "id": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3",
+  "@context": [
+    "https://www.w3.org/ns/did/v1",
+    "https://w3c.github.io/vc-jws-2020/contexts/v1"
+  ],
+  "id": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
+  "controller": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
   "alsoKnownAs": [
     "did:example:aka-2"
   ],
   "verificationMethod": [
     {
-      "id": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1",
+      "id": "#key-1",
       "type": "JsonWebKey",
-      "controller": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3",
+      "controller": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
       "publicKeyJwk": {
         "kty": "OKP",
         "crv": "Ed25519",
@@ -106,10 +110,10 @@ Below is the basic structure of the Midnight DID Document:
     }
   ],
   "authentication": [
-    "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1"
+    "#key-1"
   ],
   "assertionMethod": [
-    "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1"
+    "#key-1"
   ],
   "keyAgreement": [],
   "capabilityInvocation": [],
@@ -140,7 +144,7 @@ The Midnight DID identifier is available right after the smart-contract deployme
 
 ```json
 {
-  "id": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3"
+  "id": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6"
 }
 ```
 
@@ -153,7 +157,7 @@ This relationship is a statement that the subject of this identifier is also ide
 
 ## 3.4. Verification Methods
 
-A Midnight DID Document **MUST** include a `verificationMethod` property to specify a set of public keys linked to that Midnight DID.
+A Midnight DID Document **MAY** include a `verificationMethod` property to specify a set of public keys linked to that Midnight DID.
 
 Public and private key pairs can be used for the identity management, authorization, and verification of Midnight DID. A Midnight DID can be linked to multiple public and private key pairs, and one pair of public and private keys can also be used to manage multiple Midnight DIDs.
 
@@ -161,7 +165,7 @@ Every public key object linked to the `verificationMethod` property **MUST** inc
 
 ### 3.4.1. id
 
-Each linked public key has its own identifier specified using the field `id`. The value of `verificationMethod` **MUST NOT** contain multiple entries with the same `id`.
+Each linked public key has its own identifier specified using the field `id`. The value of `verificationMethod` **MUST NOT** contain multiple entries with the same `id`. The identifier **MUST** be either a DID URL for the subject with a fragment (for example, `did:midnight:<network>:<addr>#key-1`) or a relative reference that resolves against the DID (for example, `#key-1`).
 
 ### 3.4.2. type
 
@@ -180,7 +184,7 @@ The value of the `publicKeyJwk` field conforms to the [RFC7517](https://www.rfc-
 - `x` - base64url encoded x point on the curve
 - `y` - base64url encoded y point on the curve
 
-The Midnight DID supports the following cryptographic algorithms: Ed25519, Jubjub (Midnight compatible), and P-256 (ES256). Based on the cryptography suite, the values of the properties are as follows:
+The Midnight DID supports the following cryptographic algorithms: Ed25519 and Jubjub (Midnight compatible). Based on the cryptography suite, the values of the properties are as follows:
 
 #### 3.4.4.1 Ed25519
 Uses EdDSA over Ed25519 for signatures.
@@ -190,21 +194,12 @@ Keys are represented as JWK in compressed format with:
 - `crv`=`Ed25519`, and 
 - `x` parameter.
 
-#### 3.4.4.2 JubJub (Midnight compatible)
-Uses EdDSA over JubJub for signatures inside Midnight's ZK context (smart contract and Midnight JS library).
+#### 3.4.4.2 Jubjub (Midnight compatible)
+Uses EdDSA over Jubjub for signatures inside Midnight's ZK context (smart contract and Midnight JS library).
 Keys are represented as JWK in uncompressed format with:
 
 - `kty`=`EC`, 
 - `crv`=`Jubjub`, 
-- `x`, and
-- `y` parameters.
-
-#### 3.4.4.3 P-256 (ES256)
-Uses ECDSA over secp256r1 (P-256 / ES256) for signatures outside the ledger (for example WebAuthn/passkeys).
-Keys are represented as JWK in uncompressed format with:
-
-- `kty`=`EC`,
-- `crv`=`P-256`,
 - `x`, and
 - `y` parameters.
 
@@ -221,9 +216,9 @@ Below is a specific example of the `verificationMethod` property:
 {
   "verificationMethod": [
     {
-      "id": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1",
+      "id": "#key-1",
       "type": "JsonWebKey",
-      "controller": "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3",
+      "controller": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
       "blockchainAccountId": "eip155:1:0xab16a96d359ec26a11e2c2b3d8f8b8942d5bfcdb"
     }
   ]
@@ -254,7 +249,7 @@ Example:
 ```json
 {
   "assertionMethod": [
-    "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1"
+    "#key-1"
   ]
 }
 ```
@@ -269,7 +264,7 @@ Example:
 ```json
 {
   "authentication": [
-    "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1"
+    "#key-1"
   ]
 }
 ```
@@ -284,7 +279,7 @@ Example:
 ```json
 {
   "capabilityInvocation": [
-    "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1"
+    "#key-1"
   ]
 }
 ```
@@ -299,7 +294,7 @@ Example:
 ```json
 {
   "capabilityDelegation": [
-    "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1"
+    "#key-1"
   ]
 }
 ```
@@ -314,7 +309,7 @@ Example:
 ```json
 {
   "keyAgreement": [
-    "did:midnight:undeployed:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3#key-1"
+    "#key-1"
   ]
 }
 ```
@@ -395,27 +390,31 @@ There are three types of DID Keys associated with the Midnight DID:
 Midnight DID controller **MUST** generate the key pair associated with the contract to deploy it and execute the circuits.
 
 The keys are generated by the `compact` CLI (`compact compile`) during the compilation phase:
-- `applyOperations.prover` - ZK private key
-- `applyOperations.verifier` - ZK public key
+- `<circuit>.prover` - ZK private key
+- `<circuit>.verifier` - ZK public key
 
-These keys **MUST** be set in the smart-contract context to deploy it.
+Each exported circuit (e.g., `addVerificationMethod`, `updateService`, `deactivate`) has its own prover/verifier key pair. These keys **MUST** be set in the smart-contract context to deploy it and execute circuits.
 
-## 5.2. Smart-contract secretKey
+## 5.2. Smart-contract access control
 
-The `secretKey` is a secret value that controls access to the `applyOperations` smart-contract circuit.
+The contract requires two witnesses:
 
-The `secretKey` **MUST** be created in the application before smart‑contract deployment. The size of the key is 32 bytes.
+- `localSecretKey` — a 32‑byte secret used to authorize updates.
+- `currentTimestamp` — the current time in milliseconds since epoch, used to populate `created`/`updated`.
 
-The `secretKey` **MUST** be set in the `witnesses` of the smart‑contract context to allow execution of the `applyOperations` circuit.
+During deployment, the contract stores `controllerPublicKey`, derived as:
+
+```
+persistentHash([pad(32, "did:controller:pk"), localSecretKey])
+```
+
+Each update circuit asserts that the derived public key from the witness matches `controllerPublicKey`. This ensures that only holders of the secret key can mutate the DID state.
 
 ## 5.3. Keys associated with the DID Document
 Midnight DID Controllers **MUST** manage the keys associated with the DID Document.
 It is recommended to use an HD derivation algorithm to derive keys in a predictable manner.
 
 This specification does not cover key management aspects.
-
-**NOTE**:
-The process for `secretKey` creation and rotation must be carefully designed. In the current implementation, it is a hash of the private ZK key: `applyOperations.prover`.
 
 # 6. Midnight DID Ledger state
 
@@ -424,8 +423,8 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | Field                          | Type                                         | Description |
 |--------------------------------|----------------------------------------------|-------------|
 | contractVersion                | `Uint<32>`                                   | Contract schema/version number to support upgrades and compatibility checks. |
-| controllerPublicKey            | `Bytes<32>`                                  | Controller’s public key bytes (method‑specific encoding), used to authorize updates. |
-| id                             | `ContractAddress`                            | Smart‑contract address that uniquely identifies the DID on Midnight. |
+| controllerPublicKey            | `Bytes<32>`                                  | Public key derived from the secret key witness; used to authorize updates. |
+| id                             | `ContractAddress`                            | Smart‑contract address (32‑byte / 64‑hex) that uniquely identifies the DID on Midnight. |
 | alsoKnownAs                    | `Set<Opaque<"string">>`                      | The DID Document’s `alsoKnownAs` field; allows to set the alias for the DID identity. |
 | version                        | `Counter`                                    | Monotonic on‑chain revision counter for the DID state. Must be set to the `versionId` property of the DIDDocument. |
 | created                        | `Uint<64>`                                   | Creation timestamp (UNIX epoch, milliseconds) of the DID instance. Exposed as the DID Document Metadata `created` property (ISO 8601 UTC, second precision). |
@@ -433,7 +432,7 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | deactivated                    | `Boolean`                                    | Whether the DID has been deactivated. When `true`, the resolver surfaces `deactivated: true` in metadata and reuses the `updated` timestamp as the deactivation time. |
 | active                         | `Boolean`                                    | Whether the DID is active (`true`) or deactivated (`false`). If the `active` is false, the `deactivated` property MUST be set in the DIDDocument and the DIDDocument's metadata |
 | operationCount                 | `Counter`                                    | Total number of DID update operations applied to this DID. Used for internal statistics. |
-| verificationMethods            | `Map<Opaque<"string">, VerificationMethod>`    | Map from verification method identifiers (strings stored without a leading `#`) to their definition (type, controller, key material). Ledger-to-domain conversion adds the `#` prefix unless the identifier is already a DID URL. The DIDDocument's `verificationMethod` property is reconstructed from this state. |
+| verificationMethods            | `Map<Opaque<"string">, VerificationMethod>`    | Map from verification method identifiers (strings stored without a leading `#`) to their definition (type and key material). Ledger-to-domain conversion adds the `#` prefix unless the identifier is already a DID URL. The DIDDocument's `verificationMethod` property is reconstructed from this state. |
 | authenticationRelation         | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `authentication`. The DIDDocument's `authentication` property is reconstructed from this state. |
 | assertionMethodRelation        | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `assertionMethod`. The DIDDocument's `assertionMethod` property is reconstructed from this state. |
 | keyAgreementRelation           | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `keyAgreement`. The DIDDocument's `keyAgreement` property is reconstructed from this state. |
@@ -454,13 +453,13 @@ Example DID Document metadata emitted by the resolver layer:
 
 # 7. DID operations
 
-The publisher of the smart contract is the DID Controller, who keeps the private keys associated with the corresponding smart contract, the secret key for update operations, and associated private keys for the public key material of the DID Document.
+The publisher of the smart contract is the DID Controller, who keeps the private keys associated with the corresponding smart contract and the private keys for the public key material of the DID Document.
 
-All update operations are performed by executing the smart contract circuit of the corresponding smart contract.
+All update operations are performed by executing one of the smart contract circuits corresponding to the desired modification.
 
 Due to the `compact` language limitations, the `datetime` is not supported inside the circuit, so the corresponding `created`, `updated`, and `deactivated` properties of the DID Document Metadata are managed outside of the smart contract circuit.
 
-The smart contract circuit supports batch updates of the DID public data associated with the smart contract.
+Each update is a separate circuit call; batching multiple logical operations into a single on‑chain call is not supported in this version.
 
 ## 7.1. Create
 
@@ -468,7 +467,6 @@ Creating a DID involves deploying the corresponding smart contract instance to t
 
 To deploy the smart-contract instance, the following prerequisites MUST be met:
 - Smart-contract prover and verifier ZK-keys MUST be generated
-- The `secretKey` for the update operation MUST be generated
 
 After the smart-contract publishing, the Midnight DID is deployed, but doesn't contain the public information. It's still resolvable and contains the following properties:
 - `id` the smart-contract address
@@ -496,20 +494,26 @@ Example of the implementation: Midnight DID Resolver in Rust
 
 ## 7.3. Update
 
-Updating the Midnight DID implies that the DID Controller calls the smart contract circuit with the corresponding DIDUpdateOperations.
+Updating the Midnight DID implies that the DID Controller calls one of the smart contract's individual circuits for each type of modification.
 
-The `secretKey` witness MUST be set to allow the update of the smart contract.
+Each update circuit requires the `localSecretKey` witness to match the on‑chain `controllerPublicKey`. The `currentTimestamp` witness is used to populate the `updated` ledger field after each successful operation.
 
-The circuit `applyOperations` is used to update the Midnight DID ledger state.
+Each update operation corresponds to a dedicated exported circuit in the `did.compact` contract:
+- `addVerificationMethod` - adds a new verification method
+- `updateVerificationMethod` - updates an existing verification method
+- `removeVerificationMethod` - removes a verification method
+- `addVerificationMethodRelation` - links a verification method to a relationship
+- `removeVerificationMethodRelation` - removes a verification method from a relationship
+- `addService` - adds a new service endpoint
+- `updateService` - updates an existing service endpoint
+- `removeService` - removes a service endpoint
+- `addAlsoKnownAs` - adds an alternative identifier
+- `removeAlsoKnownAs` - removes an alternative identifier
+- `deactivate` - deactivates the DID
 
-There are two instances of the update operations:
-- domain - used in the domain logic with all capabilities of TypeScript
-- ledger - used in the `applyOperations` circuit.
+Each circuit increments the version counter and updates the `updated` timestamp.
 
-The conversion between the `domain` and `ledger` operations is implemented in the `contract` package of the current repository.
-
-The `domain` DIDUpdateOperation implementation is in the [did-operations.ts](#) file.
-The `ledger` DIDUpdateOperation implementation is in the [did.compact](#) file.
+The circuit implementations are in the [did.compact](#) file, and the API helpers that call these circuits are in the [api.ts](#) file.
 
 ### 7.3.1 Add Verification Method
 
@@ -520,22 +524,33 @@ Adds a new verification method entry and (optionally, in a subsequent operation)
   - `id` MUST be either a DID URL bound to this DID (for example, `did:midnight:<network>:<addr>#key-1`) or a relative identifier that resolves against the DID (for example, `#key-1`). On-ledger, only the fragment portion (such as `key-1`) is stored; ledger-to-domain conversion restores the `#` prefix for Midnight DIDs.
   - `controller` MUST equal the DID subject.
   - `type` MUST be `JsonWebKey`.
-  - `publicKeyJwk` MUST follow the JWK profiles defined in section 3.4.4 (Ed25519 or JubJub).
+  - `publicKeyJwk` MUST follow the JWK profiles defined in section 3.4.4 (Ed25519 or Jubjub).
   - Adding a method with an existing `id` MUST fail.
 
 Example (Ed25519):
+```typescript
+await addVerificationMethod(didContract, {
+  id: '#key-1',
+  type: 'JsonWebKey',
+  controller: 'did:midnight:testnet:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6',
+  publicKeyJwk: {
+    kty: 'OKP',
+    crv: 'Ed25519',
+    x: 'Kg'
+  }
+});
+```
+
+Circuit Input:
 ```json
 {
-  "type": "AddVerificationMethod",
-  "verificationMethod": {
-    "id": "#key-1",
-    "type": "JsonWebKey",
-    "controller": "did:midnight:testnet:0200...abab",
-    "publicKeyJwk": {
-      "kty": "OKP",
-      "crv": "Ed25519",
-      "x": "42"
-    }
+  "id": "#key-1",
+  "typ": "JsonWebKey",
+  "publicKeyJwk": {
+    "kty": "OKP",
+    "crv": "Ed25519",
+    "x": "42",
+    "y": "0"
   }
 }
 ```
@@ -550,20 +565,17 @@ Replaces the stored definition of an existing verification method (same `id`).
   - Relationships that refer to this `id` remain valid after the update.
 
 Example:
-```json
-{
-  "type": "UpdateVerificationMethod",
-  "verificationMethod": {
-    "id": "#key-1",
-    "type": "JsonWebKey",
-    "controller": "did:midnight:testnet:0200...abab",
-    "publicKeyJwk": {
-      "kty": "OKP",
-      "crv": "Ed25519",
-      "x": "8"
-    }
+```typescript
+await updateVerificationMethod(didContract, {
+  id: '#key-1',
+  type: 'JsonWebKey',
+  controller: 'did:midnight:testnet:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6',
+  publicKeyJwk: {
+    kty: 'OKP',
+    crv: 'Ed25519',
+    x: 'CA'
   }
-}
+});
 ```
 
 ### 7.3.3. Remove Verification Method
@@ -575,8 +587,8 @@ Deletes a verification method by its `id`.
   - Removing a non‑existent method MUST fail.
 
 Example:
-```json
-{ "type": "RemoveVerificationMethod", "id": "#key-1" }
+```typescript
+await removeVerificationMethod(didContract, providers, '#key-1');
 ```
 
 ### 7.3.4 Add Verification Relation
@@ -589,12 +601,8 @@ Associate an existing verification method `methodId` with a DID Core verificatio
   - Adding the same relation twice MUST fail.
 
 Example:
-```json
-{
-  "type": "AddVerificationMethodRelation",
-  "relation": "Authentication",
-  "methodId": "#key-1"
-}
+```typescript
+await addVerificationMethodRelation(didContract, 'Authentication', '#key-1');
 ```
 
 ### 7.3.5 Remove Verification Relation
@@ -606,12 +614,8 @@ Removes a verification method `methodId` from a DID Core verification relationsh
   - Removing an unknown pair (relation, methodId) MUST fail.
 
 Example:
-```json
-{
-  "type": "RemoveVerificationMethodRelation",
-  "relation": "Authentication",
-  "methodId": "#key-1"
-}
+```typescript
+await removeVerificationMethodRelation(didContract, 'Authentication', '#key-1');
 ```
 
 ### 7.3.6 Add Service
@@ -625,18 +629,12 @@ Adds a service entry identified by a unique `id` with a `type` and `serviceEndpo
   - `serviceEndpoint` MUST be encodable as JSON and MUST conform to the DID Core 1.0 service endpoint data model (string, object, or array of strings/objects). The value is persisted as a JSON string on-ledger.
 
 Example:
-```json
-{
-  "type": "AddService",
-  "service": {
-    "id": "#didcomm-1",
-    "type": "DIDCommV2",
-    "serviceEndpoint": [
-      "https://localhost/didcomm/v2",
-      { "uri": "wss://localhost/didcomm/v2", "routingKeys": ["did:example:mediator"] }
-    ]
-  }
-}
+```typescript
+await addService(didContract, {
+  id: '#didcomm-1',
+  type: 'DIDCommV2',
+  serviceEndpoint: 'https://localhost/didcomm/v2'
+});
 ```
 
 ### 7.3.7 Update Service
@@ -649,19 +647,12 @@ Replaces the service definition with the same `id`.
   - `serviceEndpoint` rules are the same as for add (DID Core–compliant JSON value).
 
 Example:
-```json
-{
-  "type": "UpdateService",
-  "service": {
-    "id": "#didcomm-1",
-    "type": "DIDCommV2",
-    "serviceEndpoint": {
-      "uri": "https://localhost/didcomm",
-      "accept": ["didcomm/v2"],
-      "routingKeys": ["did:midnight:testnet:mediator#key-1"]
-    }
-  }
-}
+```typescript
+await updateService(didContract, {
+  id: '#didcomm-1',
+  type: 'DIDCommV2',
+  serviceEndpoint: 'https://new-endpoint.com/didcomm'
+});
 ```
 
 ### 7.3.8 Remove Service
@@ -673,8 +664,8 @@ Deletes a service entry by `serviceId`.
   - Removing a non‑existent service MUST fail.
 
 Example:
-```json
-{ "type": "RemoveService", "serviceId": "#didcomm-1" }
+```typescript
+await removeService(didContract, '#didcomm-1');
 ```
 
 ### 7.3.9. Add AlsoKnownAs
@@ -687,11 +678,8 @@ Adds an alias URI to the `alsoKnownAs` set. See section 3.3 for semantics.
   - Implementations SHOULD validate that `aliasUri` is a syntactically valid URI.
 
 Example:
-```json
-{
-  "type": "AddAlsoKnownAs",
-  "aliasUri": "did:example:aka-1"
-}
+```typescript
+await addAlsoKnownAs(didContract, 'did:example:aka-1');
 ```
 
 ### 7.3.10. Remove AlsoKnownAs
@@ -703,30 +691,25 @@ Removes an alias URI from the `alsoKnownAs` set.
   - Removing an alias that does not exist MUST fail.
 
 Example:
-```json
-{
-  "type": "RemoveAlsoKnownAs",
-  "aliasUri": "did:example:aka-1"
-}
+```typescript
+await removeAlsoKnownAs(didContract, 'did:example:aka-1');
 ```
 
 ### 7.3.11. Deactivate
 
 Marks the DID as deactivated on‑chain. The public state remains readable for auditability, but no further update operations are permitted.
 
-- Inputs: none (discriminant only).
+- Inputs: none.
 - Effects:
   - Sets `active = false` in the ledger state.
 - Implementations SHOULD surface the contract’s `deactivated` flag (and accompanying `updated` timestamp) via DID Document metadata as described in section 2.2.
 - Constraints:
-  - After deactivation, any subsequent update operation (add/update/remove key, relation, or service) MUST fail (as enforced in tests).
+  - After deactivation, any subsequent update operation (add/update/remove key, relation, or service) MUST fail.
 
 Example:
-```json
-{ "type": "Deactivate" }
+```typescript
+await deactivate(didContract);
 ```
-
-Note on batching: up to 4 operations can be applied in a single on‑chain call. If more than 4 operations are provided, the batch MUST be split.
 
 # 8. Deactivation
 
@@ -758,7 +741,7 @@ Using the DID extension to share the VC as a public ledger state is possible, bu
 
 ## 9.2. DID document changes
 
-All Midnight DID methods are generated by a transaction that publishes the secret key and deploys the smart contract with the corresponding public ledger state.
+All Midnight DIDs are created by deploying the smart contract with the corresponding public ledger state. The secret key is provided as a witness to authorize updates and is not published on-chain.
 
 **NOTE**:
 It's possible to add the history of changes to the Midnight DID after the corresponding discussion.
@@ -788,7 +771,7 @@ Therefore, the Midnight DID document will **NEVER** contain any personal data.
 ## 10.4. Separation of concerns
 
 The Midnight DID method separates concerns between the following roles:
-- Midnight DID smart‑contract publisher and updater (the role implies having the ZK prover and verifier keys, as well as having access to the `secretKey`).
+- Midnight DID smart‑contract publisher and updater (the role implies having access to the ZK prover and verifier keys, as well as the `localSecretKey` witness).
 - Midnight DID Document key holder (the role implies managing the private and public keys associated with the DID ledger state).
 - Midnight DID Document reader (has access to the public ledger state and can reconstruct the DID Document).
 
@@ -815,17 +798,17 @@ A simple example of a Midnight DID Document is as follows:
     "https://www.w3.org/ns/did/v1",
     "https://w3c.github.io/vc-jws-2020/contexts/v1"
   ],
-  "id": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a",
+  "id": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
   "alsoKnownAs": [
-    "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a",
+    "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
     "did:example:aka-2"
   ],
-  "controller": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a",
+  "controller": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
   "verificationMethod": [
     {
-      "id": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a#key-1",
+      "id": "#key-1",
       "type": "JsonWebKey",
-      "controller": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a",
+      "controller": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
       "publicKeyJwk": {
         "kty": "OKP",
         "crv": "Ed25519",
@@ -833,9 +816,9 @@ A simple example of a Midnight DID Document is as follows:
       }
     },
     {
-      "id": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a#key-2",
+      "id": "#key-2",
       "type": "JsonWebKey",
-      "controller": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a",
+      "controller": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
       "publicKeyJwk": {
         "kty": "OKP",
         "crv": "Ed25519",
@@ -843,9 +826,9 @@ A simple example of a Midnight DID Document is as follows:
       }
     },
     {
-      "id": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a#key-3",
+      "id": "#key-3",
       "type": "JsonWebKey",
-      "controller": "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a",
+      "controller": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
       "publicKeyJwk": {
         "kty": "EC",
         "crv": "Jubjub",
@@ -855,10 +838,10 @@ A simple example of a Midnight DID Document is as follows:
     }
   ],
   "authentication": [
-    "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a#key-1"
+    "#key-1"
   ],
   "assertionMethod": [
-    "did:midnight:undeployed:0200bae9fe8928a8bb38c6983d053d822433a24b343c2d907808dc37364ae71eb70a#key-2"
+    "#key-2"
   ],
   "keyAgreement": null,
   "capabilityInvocation": null,

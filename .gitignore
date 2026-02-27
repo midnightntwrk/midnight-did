@@ -65,3 +65,7 @@ contract/.npm-cache
 # Compact
 managed/
 
+# Submodules and examples
+.gitsubmodules
+example-counter
+

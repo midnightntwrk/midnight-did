@@ -11,7 +11,7 @@ const ContractAddressHexSchema = z
   .string()
   .check(
     z.regex(/^[0-9a-fA-F]+$/),
-    z.refine((s) => s.length === 68, "Contract address must be 68 hex chars"),
+    z.refine((s) => s.length === 64, "Contract address must be 64 hex chars"),
   )
   .brand("ContractAddress");
 
@@ -44,7 +44,7 @@ export const MidnightDIDSchema = z
     }, "Unknown network in Midnight DID"),
     z.refine((val) => {
       const addr = val.split(":")[3] ?? "";
-      return /^[0-9a-fA-F]{68}$/.test(addr);
+      return /^[0-9a-fA-F]{64}$/.test(addr);
     }, "Invalid contract address in Midnight DID"),
   )
   .brand("MidnightDID");

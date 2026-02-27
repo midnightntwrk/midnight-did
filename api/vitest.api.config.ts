@@ -8,19 +8,6 @@ export default defineConfig({
     testTimeout: 1000 * 60 * 45,
     deps: {
       interopDefault: true,
-      inline: [
-        /^@midnight-ntwrk\/compact-runtime(?:\/.*)?$/,
-        /^@midnight-ntwrk\/onchain-runtime(?:\/.*)?$/,
-      ],
-      optimizer: {
-        ssr: {
-          include: [
-            '@midnight-ntwrk/onchain-runtime/midnight_onchain_runtime_wasm_fs.js',
-            '@midnight-ntwrk/onchain-runtime',
-            '@midnight-ntwrk/compact-runtime',
-          ],
-        },
-      },
     },
     globals: true,
     environment: 'node',
@@ -44,10 +31,5 @@ export default defineConfig({
     extensions: ['.ts', '.js'],
     conditions: ['import', 'node', 'default'],
   },
-  ssr: {
-    noExternal: [
-      '@midnight-ntwrk/compact-runtime',
-      '@midnight-ntwrk/onchain-runtime',
-    ],
-  },
+  ssr: {},
 });

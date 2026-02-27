@@ -1,5 +1,5 @@
-// This file is part of midnightntwrk/example-counter.
-// Copyright (C) 2025-2026 Midnight Foundation
+// This file is part of midnightntwrk/midnight-did.
+// Copyright (C) 2025 Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import { run } from './cli.js';
 
 const config = new TestnetRemoteConfig();
 const dockerEnv = new DockerComposeEnvironment(
-  path.resolve(currentDir, '..'),
+  path.resolve(currentDir, '..', 'cli'),
   'proof-server-testnet.yml',
 ).withWaitStrategy('proof-server', Wait.forLogMessage('Actix runtime found; starting in Actix runtime', 1));
 const logger = await createLogger(config.logDir);

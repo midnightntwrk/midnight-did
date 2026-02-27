@@ -7,15 +7,13 @@ import {
 } from "@midnight-ntwrk/midnight-did-domain";
 import { describe, expect, it } from "vitest";
 
-import { parseMidnightDIDString } from "../midnight";
 import {
   createMidnightDIDDocument,
   parseMidnightDIDDocument,
 } from "../midnight-did-document";
 
-const exampleMidnightDid = parseMidnightDIDString(
-  "did:midnight:testnet:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3",
-);
+const exampleMidnightDid =
+  "did:midnight:testnet:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6";
 
 const exampleVerificationMethod = createVerificationMethod({
   id: "#key-1",
@@ -37,18 +35,6 @@ const exampleJubJubVerificationMethod = createVerificationMethod({
     crv: CurveType.Jubjub,
     x: "Kg",
     y: "VA",
-  },
-});
-
-const exampleP256VerificationMethod = createVerificationMethod({
-  id: "#key-p256",
-  type: VerificationMethodType.JsonWebKey,
-  controller: exampleMidnightDid,
-  publicKeyJwk: {
-    kty: KeyType.EC,
-    crv: CurveType.P256,
-    x: "AQ",
-    y: "Ag",
   },
 });
 
@@ -111,16 +97,6 @@ describe("Midnight DID Document", () => {
       expect(doc.verificationMethod?.[0].publicKeyJwk.crv).toBe(
         CurveType.Jubjub,
       );
-    });
-
-    it("accepts P-256 (EC) verification methods", () => {
-      const doc = createMidnightDIDDocument({
-        id: exampleMidnightDid,
-        verificationMethod: [exampleP256VerificationMethod],
-      });
-
-      expect(doc.verificationMethod?.[0].publicKeyJwk.kty).toBe(KeyType.EC);
-      expect(doc.verificationMethod?.[0].publicKeyJwk.crv).toBe(CurveType.P256);
     });
 
     it("includes alsoKnownAs when provided", () => {
@@ -237,8 +213,7 @@ describe("Midnight DID Document", () => {
           "https://w3c.github.io/vc-jws-2020/contexts/v1",
         ],
         id: exampleMidnightDid,
-        controller:
-          "did:midnight:testnet:0200ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        controller: `did:midnight:testnet:${"f".repeat(64)}`,
       };
 
       expect(() => parseMidnightDIDDocument(input)).toThrow(

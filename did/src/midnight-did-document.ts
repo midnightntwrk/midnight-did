@@ -152,11 +152,11 @@ export type MidnightDIDDocument = {
  * @example
  * ```typescript
  * const doc = createMidnightDIDDocument({
- *   id: "did:midnight:testnet:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3",
+ *   id: "did:midnight:testnet:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
  *   verificationMethod: [{
  *     id: "#key-1",
  *     type: "JsonWebKey",
- *     controller: "did:midnight:testnet:02007dd39c6606563dd043f06a94f60659b00d4d4ff6a65d2db4ddbc277956c13aa3",
+ *     controller: "did:midnight:testnet:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
  *     publicKeyJwk: {
  *       kty: "OKP",
  *       crv: "Ed25519",

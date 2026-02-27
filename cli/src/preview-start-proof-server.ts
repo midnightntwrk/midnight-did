@@ -13,10 +13,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { createLogger, TestnetLocalConfig } from '@midnight-ntwrk/midnight-did-api';
+import path from 'node:path';
+
+import { DockerComposeEnvironment, Wait } from 'testcontainers';
 
 import { run } from './cli.js';
+import { currentDir, PreviewConfig } from './config.js';
+import { createLogger } from './logger-utils.js';
 
-const config = new TestnetLocalConfig();
+const config = new PreviewConfig();
+const dockerEnv = new DockerComposeEnvironment(path.resolve(currentDir, '..'), 'proof-server.yml').withWaitStrategy(
+  'proof-server',
+  Wait.forLogMessage('Actix runtime found; starting in Actix runtime', 1),
+);
 const logger = await createLogger(config.logDir);
-await run(config, logger);
+await run(config, logger, dockerEnv);

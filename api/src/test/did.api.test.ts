@@ -1,17 +1,18 @@
-import { DIDOperation, DIDOperationType } from "@midnight-ntwrk/midnight-did";
 import {
-  ContractAddress as MidnightContractAddress,
   createMidnightDIDString,
+  parseContractAddress,
+} from "@midnight-ntwrk/midnight-did";
+import {
+  createService,
+  createVerificationMethod,
   CurveType,
   DIDStringSchema,
   KeyType,
   MidnightDIDSchema,
   MidnightDIDString,
-  parseContractAddress,
   parseDIDKeyID,
   parseMidnightDID,
   parseMidnightDIDString,
-  parseService,
   ServiceIdSchema,
   VerificationMethodRelationType,
   VerificationMethodType,
@@ -20,7 +21,10 @@ import path from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import * as api from "..";
-import { DeployedMidnightDIDContract, type MidnightDIDProviders } from "..";
+import {
+  type DeployedMidnightDIDContract,
+  type MidnightDIDProviders,
+} from "..";
 import { currentDir } from "../config";
 import { createLogger } from "../logger-utils";
 import { TestEnvironment } from "./commons";
@@ -71,10 +75,14 @@ describeApi("Midnight DID method API", () => {
   let walletCtx: api.MidnightDIDWalletContext;
   let providers: MidnightDIDProviders;
   let contract: DeployedMidnightDIDContract;
-  let contractAddress: MidnightContractAddress;
+  let contractAddress: ReturnType<typeof parseContractAddress>;
   let didString: MidnightDIDString;
-  const serviceId = ServiceIdSchema.parse("service-1");
-  const serviceFragmentId = `#${serviceId}`;
+  let didAsDid: ReturnType<typeof DIDStringSchema.parse>;
+  const serviceId = ServiceIdSchema.parse("#service-1");
+  const secondAlias = DIDStringSchema.parse("did:example:aka-2");
+
+  const resolveDocument = async () =>
+    (await api.resolve(providers, contract))?.didDocument;
 
   beforeAll(
     async () => {
@@ -114,18 +122,19 @@ describeApi("Midnight DID method API", () => {
       contract.deployTxData.public.contractAddress,
     );
     didString = createMidnightDIDString(contractAddress, api.midnightNetwork);
+    didAsDid = DIDStringSchema.parse(didString);
 
     const didLedger = await api.getMidnightDIDLedgerState(
       providers,
       contractAddress,
     );
-    expect(didLedger?.active).toBeTruthy;
-    expect(didLedger?.verificationMethods.isEmpty).toBeTruthy;
-    expect(didLedger?.assertionMethodRelation.isEmpty).toBeTruthy;
-    expect(didLedger?.authenticationRelation.isEmpty).toBeTruthy;
-    expect(didLedger?.capabilityDelegationRelation.isEmpty).toBeTruthy;
-    expect(didLedger?.capabilityInvocationRelation.isEmpty).toBeTruthy;
-    expect(didLedger?.services.isEmpty).toBeTruthy;
+    expect(didLedger?.active).toBe(true);
+    expect(didLedger?.verificationMethods.isEmpty()).toBe(true);
+    expect(didLedger?.assertionMethodRelation.isEmpty()).toBe(true);
+    expect(didLedger?.authenticationRelation.isEmpty()).toBe(true);
+    expect(didLedger?.capabilityDelegationRelation.isEmpty()).toBe(true);
+    expect(didLedger?.capabilityInvocationRelation.isEmpty()).toBe(true);
+    expect(didLedger?.services.isEmpty()).toBe(true);
   });
 
   it("should resolve the DID Document including a reference to the DID Core 1.0 specification in the `@context` property", async () => {
@@ -147,7 +156,8 @@ describeApi("Midnight DID method API", () => {
     expect(() => DIDStringSchema.parse(didDoc?.id)).not.toThrow();
     expect(() => MidnightDIDSchema.parse(didDoc?.id)).not.toThrow();
 
-    const midnightDIDString = parseMidnightDIDString(didDoc?.id);
+    expect(didDoc?.id).toBeDefined();
+    const midnightDIDString = parseMidnightDIDString(didDoc!.id);
     const midnightDID = parseMidnightDID(midnightDIDString);
 
     expect(midnightDID.network).toBe(api.midnightNetwork.toString());
@@ -165,32 +175,26 @@ describeApi("Midnight DID method API", () => {
   });
 
   it(`should add the verification method with ${VerificationMethodType.JsonWebKey} public key`, async () => {
-    const methodId = parseDIDKeyID(`${didString}#key-1`);
+    const methodId = `${didString}#key-1`;
     const publicKeyJwk = {
       kty: KeyType.OKP,
       crv: CurveType.Ed25519,
       x: "Kg",
     };
-    const operations: DIDOperation[] = [
-      {
-        type: DIDOperationType.AddVerificationMethod,
-        verificationMethod: {
-          id: methodId,
-          type: VerificationMethodType.JsonWebKey,
-          controller: DIDStringSchema.parse(didString),
-          publicKeyJwk: publicKeyJwk,
-        },
-      },
-    ];
-    await api.update(contract, operations);
-    const resolution = await api.resolve(providers, contract);
-    const didDocument = resolution?.didDocument;
+    const verificationMethod = createVerificationMethod({
+      id: methodId,
+      type: VerificationMethodType.JsonWebKey,
+      controller: didString,
+      publicKeyJwk,
+    });
+    await api.addVerificationMethod(contract, verificationMethod);
 
+    const didDocument = await resolveDocument();
     expect(didDocument?.verificationMethod).not.toBeNull();
     const insertedVerificationMethod = didDocument?.verificationMethod?.find(
       (vm) => vm.id === toFragmentId(methodId),
     );
-    expect(insertedVerificationMethod).not.toBeNull;
+    expect(insertedVerificationMethod).not.toBeNull();
     expect(insertedVerificationMethod?.type).toEqual(
       VerificationMethodType.JsonWebKey,
     );
@@ -199,54 +203,22 @@ describeApi("Midnight DID method API", () => {
   });
 
   it("should add a JubJub verification method that retains the y coordinate", async () => {
-    const methodId = parseDIDKeyID(`${didString}#key-3`);
+    const methodId = `${didString}#key-3`;
     const publicKeyJwk = {
       kty: KeyType.EC,
       crv: CurveType.Jubjub,
       x: "Kg",
       y: "VA",
     };
-    const operations: DIDOperation[] = [
-      {
-        type: DIDOperationType.AddVerificationMethod,
-        verificationMethod: {
-          id: methodId,
-          type: VerificationMethodType.JsonWebKey,
-          controller: DIDStringSchema.parse(didString),
-          publicKeyJwk,
-        },
-      },
-    ];
-    await api.update(contract, operations);
-    const didDocument = (await api.resolve(providers, contract))?.didDocument;
-    expect(didDocument?.verificationMethod).not.toBeNull();
-    const insertedVerificationMethod = didDocument?.verificationMethod?.find(
-      (vm) => vm.id === toFragmentId(methodId),
-    );
-    expect(insertedVerificationMethod?.publicKeyJwk).toEqual(publicKeyJwk);
-  });
+    const verificationMethod = createVerificationMethod({
+      id: methodId,
+      type: VerificationMethodType.JsonWebKey,
+      controller: didString,
+      publicKeyJwk,
+    });
+    await api.addVerificationMethod(contract, verificationMethod);
 
-  it("should add a P-256 verification method that retains the y coordinate", async () => {
-    const methodId = parseDIDKeyID(`${didString}#key-p256`);
-    const publicKeyJwk = {
-      kty: KeyType.EC,
-      crv: CurveType.P256,
-      x: "Kg",
-      y: "VA",
-    };
-    const operations: DIDOperation[] = [
-      {
-        type: DIDOperationType.AddVerificationMethod,
-        verificationMethod: {
-          id: methodId,
-          type: VerificationMethodType.JsonWebKey,
-          controller: DIDStringSchema.parse(didString),
-          publicKeyJwk,
-        },
-      },
-    ];
-    await api.update(contract, operations);
-    const didDocument = (await api.resolve(providers, contract))?.didDocument;
+    const didDocument = await resolveDocument();
     expect(didDocument?.verificationMethod).not.toBeNull();
     const insertedVerificationMethod = didDocument?.verificationMethod?.find(
       (vm) => vm.id === toFragmentId(methodId),
@@ -255,16 +227,14 @@ describeApi("Midnight DID method API", () => {
   });
 
   it("should add the verification relation", async () => {
-    const methodId = parseDIDKeyID(`${didString}#key-1`);
-    const operations: DIDOperation[] = [
-      {
-        type: DIDOperationType.AddVerificationMethodRelation,
-        relation: VerificationMethodRelationType.Authentication,
-        methodId: methodId,
-      },
-    ];
-    await api.update(contract, operations);
-    const didDoc = (await api.resolve(providers, contract))?.didDocument;
+    const methodId = `${didString}#key-1`;
+    await api.addVerificationMethodRelation(
+      contract,
+      VerificationMethodRelationType.Authentication,
+      methodId,
+    );
+
+    const didDoc = await resolveDocument();
     expect(
       didDoc?.authentication?.some(
         (authenticationMethodId) =>
@@ -273,56 +243,76 @@ describeApi("Midnight DID method API", () => {
     ).toBe(true);
   });
 
-  it("should update the DID by adding a new verification method and its corresponding verification relation using a batch operation", async () => {
-    const methodId = parseDIDKeyID(`${didString}#key-2`);
-    const operations: DIDOperation[] = [
-      {
-        type: DIDOperationType.AddVerificationMethod,
-        verificationMethod: {
-          id: methodId,
-          type: VerificationMethodType.JsonWebKey,
-          controller: DIDStringSchema.parse(didString),
-          publicKeyJwk: {
-            kty: KeyType.OKP,
-            crv: CurveType.Ed25519,
-            x: "Kg",
-          },
-        },
+  it("should update the DID by adding a new verification method and its corresponding verification relation", async () => {
+    const methodId = `${didString}#key-2`;
+    const verificationMethod = createVerificationMethod({
+      id: methodId,
+      type: VerificationMethodType.JsonWebKey,
+      controller: didString,
+      publicKeyJwk: {
+        kty: KeyType.OKP,
+        crv: CurveType.Ed25519,
+        x: "Kg",
       },
-      {
-        type: DIDOperationType.AddVerificationMethodRelation,
-        relation: VerificationMethodRelationType.AssertionMethod,
-        methodId: methodId,
-      },
-    ];
-    const result = await api.update(contract, operations);
-    expect(result.txId).toMatch(/[0-9a-f]{64}/);
-    const didDoc = (await api.resolve(providers, contract))?.didDocument;
+    });
+    await api.addVerificationMethod(contract, verificationMethod);
+    await api.addVerificationMethodRelation(
+      contract,
+      VerificationMethodRelationType.AssertionMethod,
+      methodId,
+    );
+
+    const didDoc = await resolveDocument();
     expect(didDoc?.verificationMethod).not.toBeNull();
     const insertedVerificationMethod = didDoc?.verificationMethod?.find(
       (vm) => vm.id === toFragmentId(methodId),
     );
-    expect(insertedVerificationMethod).not.toBeNull;
+    expect(insertedVerificationMethod).not.toBeNull();
     expect(insertedVerificationMethod?.type).toEqual(
       VerificationMethodType.JsonWebKey,
     );
+    const assertionId = parseDIDKeyID(toFragmentId(methodId));
+    expect(didDoc?.assertionMethod?.includes(assertionId)).toBe(true);
+  });
+
+  it("should remove the verification relation", async () => {
+    const methodId = `${didString}#key-2`;
+    await api.removeVerificationMethodRelation(
+      contract,
+      VerificationMethodRelationType.AssertionMethod,
+      methodId,
+    );
+
+    const didDoc = await resolveDocument();
+    const assertionId = parseDIDKeyID(toFragmentId(methodId));
+    expect((didDoc?.assertionMethod ?? []).includes(assertionId)).toBe(false);
+  });
+
+  it("should remove the verification method and its relations", async () => {
+    const methodId = `${didString}#key-1`;
+    await api.removeVerificationMethod(contract, providers, methodId);
+    const didDoc = await resolveDocument();
+    expect(
+      didDoc?.verificationMethod?.some(
+        (vm) => vm.id === toFragmentId(methodId),
+      ),
+    ).toBe(false);
+    const authId = parseDIDKeyID(toFragmentId(methodId));
+    expect((didDoc?.authentication ?? []).includes(authId)).toBe(false);
   });
 
   it("should update the DID by adding a new service endpoint", async () => {
-    const serviceToAdd = parseService({
-      id: serviceFragmentId,
+    const serviceToAdd = createService({
+      id: serviceId,
       type: "DIDCommV2",
       serviceEndpoint: [
         "https://localhost/didcomm/v2",
         "wss://localhost/didcomm/v2",
       ],
     });
-    const operations: DIDOperation[] = [
-      { type: DIDOperationType.AddService, service: serviceToAdd },
-    ];
-    const result = await api.update(contract, operations);
-    expect(result.txId).toMatch(/[0-9a-f]{64}/);
-    const didDoc = (await api.resolve(providers, contract))?.didDocument;
+    await api.addService(contract, serviceToAdd);
+
+    const didDoc = await resolveDocument();
     expect(didDoc?.service).not.toBeNull();
     const service = didDoc?.service!;
     expect(service.length).toBe(1);
@@ -332,17 +322,14 @@ describeApi("Midnight DID method API", () => {
   });
 
   it("should update the DID by modifying the existing service endpoint", async () => {
-    const serviceToUpdate = parseService({
-      id: serviceFragmentId,
+    const serviceToUpdate = createService({
+      id: serviceId,
       type: "DIDCommV2",
       serviceEndpoint: ["https://localhost/updated", "wss://localhost/updated"],
     });
-    const operations: DIDOperation[] = [
-      { type: DIDOperationType.UpdateService, service: serviceToUpdate },
-    ];
-    const result = await api.update(contract, operations);
-    expect(result.txId).toMatch(/[0-9a-f]{64}/);
-    const didDoc = (await api.resolve(providers, contract))?.didDocument;
+    await api.updateService(contract, serviceToUpdate);
+
+    const didDoc = await resolveDocument();
     expect(didDoc?.service).not.toBeNull();
     const service = didDoc?.service!;
     expect(service.length).toBe(1);
@@ -351,15 +338,8 @@ describeApi("Midnight DID method API", () => {
   });
 
   it("should update the DID by removing the service using its `id`", async () => {
-    const operations: DIDOperation[] = [
-      {
-        type: DIDOperationType.RemoveService,
-        serviceId,
-      },
-    ];
-    const result = await api.update(contract, operations);
-    expect(result.txId).toMatch(/[0-9a-f]{64}/);
-    const didDoc = (await api.resolve(providers, contract))?.didDocument;
+    await api.removeService(contract, serviceId);
+    const didDoc = await resolveDocument();
     expect(didDoc?.service?.length ?? 0).toBe(0);
   });
 
@@ -462,25 +442,21 @@ describeApi("Midnight DID method API", () => {
     ] as const;
 
     for (const { service } of serviceDefinitions) {
-      const operation: DIDOperation = {
-        type: DIDOperationType.AddService,
-        service: parseService({
-          id: service.id,
-          type: service.type,
-          serviceEndpoint: Array.isArray(service.serviceEndpoint)
-            ? service.serviceEndpoint.map((entry) =>
-                typeof entry === "string" ? entry : { ...entry },
-              )
-            : typeof service.serviceEndpoint === "object"
-              ? { ...service.serviceEndpoint }
-              : service.serviceEndpoint,
-        }),
-      };
-      const result = await api.update(contract, [operation]);
-      expect(result.txId).toMatch(/[0-9a-f]{64}/);
+      const serviceToAdd = createService({
+        id: service.id,
+        type: service.type,
+        serviceEndpoint: Array.isArray(service.serviceEndpoint)
+          ? service.serviceEndpoint.map((entry) =>
+              typeof entry === "string" ? entry : { ...entry },
+            )
+          : typeof service.serviceEndpoint === "object"
+            ? { ...service.serviceEndpoint }
+            : service.serviceEndpoint,
+      });
+      await api.addService(contract, serviceToAdd);
     }
 
-    const didDoc = (await api.resolve(providers, contract))?.didDocument;
+    const didDoc = await resolveDocument();
     expect(didDoc?.service?.length).toBeGreaterThanOrEqual(
       serviceDefinitions.length,
     );
@@ -493,15 +469,10 @@ describeApi("Midnight DID method API", () => {
     }
 
     for (const { service } of serviceDefinitions) {
-      const removal: DIDOperation = {
-        type: DIDOperationType.RemoveService,
-        serviceId: ServiceIdSchema.parse(service.id),
-      };
-      const result = await api.update(contract, [removal]);
-      expect(result.txId).toMatch(/[0-9a-f]{64}/);
+      await api.removeService(contract, ServiceIdSchema.parse(service.id));
     }
 
-    const finalDoc = (await api.resolve(providers, contract))?.didDocument;
+    const finalDoc = await resolveDocument();
     for (const { service } of serviceDefinitions) {
       const fragmentId = toFragmentId(service.id);
       expect(
@@ -511,43 +482,34 @@ describeApi("Midnight DID method API", () => {
   });
 
   it("should add alsoKnownAs alias", async () => {
-    const operations: DIDOperation[] = [
-      { type: DIDOperationType.AddAlsoKnownAs, aliasUri: didString },
-    ];
-    const result = await api.update(contract, operations);
-    expect(result.txId).toMatch(/[0-9a-f]{64}/);
-    const didDoc = (await api.resolve(providers, contract))?.didDocument;
-    expect(didDoc?.alsoKnownAs?.includes(didString)).toBe(true);
+    await api.addAlsoKnownAs(contract, didAsDid);
+    const didDoc = await resolveDocument();
+    expect(didDoc?.alsoKnownAs?.includes(didAsDid)).toBe(true);
   });
 
   it("should add second alsoKnownAs alias", async () => {
-    const operations: DIDOperation[] = [
-      { type: DIDOperationType.AddAlsoKnownAs, aliasUri: "did:example:aka-2" },
-    ];
-    const result = await api.update(contract, operations);
-    expect(result.txId).toMatch(/[0-9a-f]{64}/);
-    const didDoc = (await api.resolve(providers, contract))?.didDocument;
-    expect(didDoc?.alsoKnownAs?.includes(didString)).toBe(true);
-    expect(didDoc?.alsoKnownAs?.includes("did:example:aka-2")).toBe(true);
+    await api.addAlsoKnownAs(contract, secondAlias);
+    const didDoc = await resolveDocument();
+    expect(didDoc?.alsoKnownAs?.includes(didAsDid)).toBe(true);
+    expect(didDoc?.alsoKnownAs?.includes(secondAlias)).toBe(true);
   });
 
   it("should remove the first alsoKnownAs alias", async () => {
-    let didDoc = (await api.resolve(providers, contract))?.didDocument;
-    if (!didDoc?.alsoKnownAs?.includes(didString)) {
-      const addOps: DIDOperation[] = [
-        { type: DIDOperationType.AddAlsoKnownAs, aliasUri: didString },
-      ];
-      await api.update(contract, addOps);
-      didDoc = (await api.resolve(providers, contract))?.didDocument;
-      expect(didDoc?.alsoKnownAs?.includes(didString)).toBe(true);
+    let didDoc = await resolveDocument();
+    if (!didDoc?.alsoKnownAs?.includes(didAsDid)) {
+      await api.addAlsoKnownAs(contract, didAsDid);
+      didDoc = await resolveDocument();
+      expect(didDoc?.alsoKnownAs?.includes(didAsDid)).toBe(true);
     }
-    const operations: DIDOperation[] = [
-      { type: DIDOperationType.RemoveAlsoKnownAs, aliasUri: didString },
-    ];
-    const result = await api.update(contract, operations);
-    expect(result.txId).toMatch(/[0-9a-f]{64}/);
-    didDoc = (await api.resolve(providers, contract))?.didDocument;
-    expect(didDoc?.alsoKnownAs?.includes(didString)).toBe(false);
-    expect(didDoc?.alsoKnownAs?.includes("did:example:aka-2")).toBe(true);
+    await api.removeAlsoKnownAs(contract, didAsDid);
+    didDoc = await resolveDocument();
+    expect(didDoc?.alsoKnownAs?.includes(didAsDid)).toBe(false);
+    expect(didDoc?.alsoKnownAs?.includes(secondAlias)).toBe(true);
+  });
+
+  it("should deactivate the DID", async () => {
+    await api.deactivate(contract);
+    const resolution = await api.resolve(providers, contract);
+    expect(resolution?.didDocumentMetadata.deactivated).toBe(true);
   });
 });
