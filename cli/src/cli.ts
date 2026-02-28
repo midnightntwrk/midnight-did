@@ -281,7 +281,11 @@ const removeVerificationMethod = async (
 };
 
 /** Prompt user to add a verification method relation */
-const addRelation = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
+const addRelation = async (
+  didContract: DeployedDIDContract,
+  providers: DIDProviders,
+  rli: Interface,
+): Promise<void> => {
   console.log('\n  Add Verification Method Relation');
   const methodId = await rli.question('  Method ID: ');
   const relationType = await rli.question(
@@ -297,12 +301,18 @@ const addRelation = async (didContract: DeployedDIDContract, rli: Interface): Pr
   ] as const;
   const relation = relations[parseInt(relationType) - 1];
 
-  await api.withStatus('Adding relation', () => api.addVerificationMethodRelation(didContract, relation, methodId));
+  await api.withStatus('Adding relation', () =>
+    api.addVerificationMethodRelation(didContract, providers, relation, methodId),
+  );
   console.log('  ✓ Relation added\n');
 };
 
 /** Prompt user to remove a verification method relation */
-const removeRelation = async (didContract: DeployedDIDContract, rli: Interface): Promise<void> => {
+const removeRelation = async (
+  didContract: DeployedDIDContract,
+  providers: DIDProviders,
+  rli: Interface,
+): Promise<void> => {
   console.log('\n  Remove Verification Method Relation');
   const methodId = await rli.question('  Method ID: ');
   const relationType = await rli.question(
@@ -319,7 +329,7 @@ const removeRelation = async (didContract: DeployedDIDContract, rli: Interface):
   const relation = relations[parseInt(relationType) - 1];
 
   await api.withStatus('Removing relation', () =>
-    api.removeVerificationMethodRelation(didContract, relation, methodId),
+    api.removeVerificationMethodRelation(didContract, providers, relation, methodId),
   );
   console.log('  ✓ Relation removed\n');
 };
@@ -408,10 +418,10 @@ const mainLoop = async (providers: DIDProviders, walletCtx: api.WalletContext, r
           await removeVerificationMethod(didContract, providers, rli);
           break;
         case '4': // Add relation
-          await addRelation(didContract, rli);
+          await addRelation(didContract, providers, rli);
           break;
         case '5': // Remove relation
-          await removeRelation(didContract, rli);
+          await removeRelation(didContract, providers, rli);
           break;
         case '6': // Add service
           await addService(didContract, rli);

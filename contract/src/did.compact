@@ -84,7 +84,6 @@ export struct Service {
 
 // Constructor
 constructor() {
-  //TODO: clarify with the Midnight team why `id` is not set correctly (did.api.test.ts)
   contractVersion = 1;
   id = kernel.self();
   active = true;
