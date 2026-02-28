@@ -118,7 +118,7 @@ describe('DID Operations API [@slow]', () => {
     const service = didState.didState?.services.lookup('#service-1');
     expect(service?.id).toEqual('#service-1');
     expect(service?.typ).toEqual('MessagingService');
-    expect(service?.serviceEndpoint).toEqual('https://example.com/messages');
+    expect(service?.serviceEndpoint).toEqual(JSON.stringify('https://example.com/messages'));
     expect(didState.didState?.version).toEqual(5n);
   });
 
@@ -127,7 +127,7 @@ describe('DID Operations API [@slow]', () => {
 
     const didState = await api.displayDIDState(providers, didContract);
     const service = didState.didState?.services.lookup('#service-1');
-    expect(service?.serviceEndpoint).toEqual('https://new-endpoint.com/messages');
+    expect(service?.serviceEndpoint).toEqual(JSON.stringify('https://new-endpoint.com/messages'));
     expect(didState.didState?.version).toEqual(6n);
   });
 

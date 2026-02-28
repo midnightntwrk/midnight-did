@@ -5,6 +5,8 @@ export enum MidnightNetwork {
   DevNet = "DevNet",
   Testnet = "Testnet",
   Mainnet = "Mainnet",
+  Preview = "Preview",
+  Preprod = "Preprod",
 }
 
 const ContractAddressHexSchema = z
@@ -40,7 +42,14 @@ export const MidnightDIDSchema = z
     ),
     z.refine((val) => {
       const [, , net] = val.split(":");
-      return ["undeployed", "devnet", "testnet", "mainnet"].includes(net);
+      return [
+        "undeployed",
+        "devnet",
+        "testnet",
+        "mainnet",
+        "preview",
+        "preprod",
+      ].includes(net);
     }, "Unknown network in Midnight DID"),
     z.refine((val) => {
       const addr = val.split(":")[3] ?? "";
@@ -67,6 +76,10 @@ export function parseMidnightDID(did: MidnightDIDString): {
         ? MidnightNetwork.Testnet
         : net === "mainnet"
           ? MidnightNetwork.Mainnet
-          : MidnightNetwork.Undeployed;
+          : net === "preview"
+            ? MidnightNetwork.Preview
+            : net === "preprod"
+              ? MidnightNetwork.Preprod
+              : MidnightNetwork.Undeployed;
   return { network, id: addr as ContractAddress };
 }

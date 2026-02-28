@@ -44,4 +44,6 @@ export const NetworkMapping: Record<string, MidnightNetwork> = {
   devnet: MidnightNetwork.DevNet,
   testnet: MidnightNetwork.Testnet,
   mainnet: MidnightNetwork.Mainnet,
+  preview: MidnightNetwork.Preview,
+  preprod: MidnightNetwork.Preprod,
 };

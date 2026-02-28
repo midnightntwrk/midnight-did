@@ -78,6 +78,7 @@ type RelationName =
   | 'CapabilityDelegation';
 
 type BoundIdField = 'verificationMethod.id' | 'service.id' | 'methodId' | 'serviceId';
+type ServiceEndpointInput = string | Record<string, unknown> | Array<string | Record<string, unknown>>;
 const hasUriScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
 
 const expectedDidSubject = (didContract: DeployedDIDContract): string => {
@@ -120,6 +121,63 @@ const normalizeBoundFragmentId = (didContract: DeployedDIDContract, value: strin
   }
 
   return `#${trimmed}`;
+};
+
+const assertMidnightKeyProfile = (publicKeyJwk: {
+  kty: 'EC' | 'RSA' | 'oct' | 'OKP';
+  crv: 'Ed25519' | 'Jubjub';
+}): void => {
+  if (publicKeyJwk.kty === 'OKP') {
+    if (publicKeyJwk.crv !== 'Ed25519') {
+      throw new Error('OKP keys must use Ed25519');
+    }
+    return;
+  }
+  if (publicKeyJwk.kty === 'EC') {
+    if (publicKeyJwk.crv !== 'Jubjub') {
+      throw new Error('EC keys must use Jubjub');
+    }
+    return;
+  }
+  throw new Error('Only OKP (Ed25519) and EC (Jubjub) keys are supported');
+};
+
+const serviceTypeToLedger = (type: string | string[]): string => {
+  if (typeof type === 'string') {
+    const normalized = type.trim();
+    if (normalized.length === 0) {
+      throw new Error('Service type must not be empty');
+    }
+    return normalized;
+  }
+
+  if (!Array.isArray(type) || type.length === 0) {
+    throw new Error('Service type must be a non-empty string set');
+  }
+  const normalized = type.map((entry) => entry.trim());
+  if (normalized.some((entry) => entry.length === 0)) {
+    throw new Error('Service type entries must not be empty');
+  }
+  if (new Set(normalized).size !== normalized.length) {
+    throw new Error('Service type entries must be unique');
+  }
+  return normalized.length === 1 ? normalized[0] : JSON.stringify(normalized);
+};
+
+const serviceEndpointToLedger = (endpoint: ServiceEndpointInput): string => {
+  if (typeof endpoint === 'string') {
+    const raw = endpoint.trim();
+    if (raw.length === 0) {
+      throw new Error('Service endpoint must not be empty');
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      return JSON.stringify(parsed);
+    } catch {
+      return JSON.stringify(raw);
+    }
+  }
+  return JSON.stringify(endpoint);
 };
 
 let logger: Logger;
@@ -781,6 +839,7 @@ export const addVerificationMethod = async (
     y: bigint;
   },
 ): Promise<any> => {
+  assertMidnightKeyProfile(publicKeyJwk);
   const normalizedId = normalizeBoundFragmentId(didContract, id, 'verificationMethod.id');
   logger.info(`Adding verification method: ${normalizedId}`);
   const result = await didContract.callTx.addVerificationMethod({
@@ -807,6 +866,7 @@ export const updateVerificationMethod = async (
     y: bigint;
   },
 ): Promise<any> => {
+  assertMidnightKeyProfile(publicKeyJwk);
   const normalizedId = normalizeBoundFragmentId(didContract, id, 'verificationMethod.id');
   logger.info(`Updating verification method: ${normalizedId}`);
   const result = await didContract.callTx.updateVerificationMethod({
@@ -948,15 +1008,15 @@ export const removeVerificationMethodRelation = async (
 export const addService = async (
   didContract: DeployedDIDContract,
   id: string,
-  type: string,
-  serviceEndpoint: string,
+  type: string | string[],
+  serviceEndpoint: ServiceEndpointInput,
 ): Promise<any> => {
   const normalizedServiceId = normalizeBoundFragmentId(didContract, id, 'service.id');
   logger.info(`Adding service: ${normalizedServiceId}`);
   const result = await didContract.callTx.addService({
     id: normalizedServiceId,
-    typ: type,
-    serviceEndpoint,
+    typ: serviceTypeToLedger(type),
+    serviceEndpoint: serviceEndpointToLedger(serviceEndpoint),
   });
   logger.info('Service added successfully');
   return result;
@@ -965,15 +1025,15 @@ export const addService = async (
 export const updateService = async (
   didContract: DeployedDIDContract,
   id: string,
-  type: string,
-  serviceEndpoint: string,
+  type: string | string[],
+  serviceEndpoint: ServiceEndpointInput,
 ): Promise<any> => {
   const normalizedServiceId = normalizeBoundFragmentId(didContract, id, 'service.id');
   logger.info(`Updating service: ${normalizedServiceId}`);
   const result = await didContract.callTx.updateService({
     id: normalizedServiceId,
-    typ: type,
-    serviceEndpoint,
+    typ: serviceTypeToLedger(type),
+    serviceEndpoint: serviceEndpointToLedger(serviceEndpoint),
   });
   logger.info('Service updated successfully');
   return result;

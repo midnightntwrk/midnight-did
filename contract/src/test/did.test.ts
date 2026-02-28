@@ -107,6 +107,36 @@ describe("DID smart contract", () => {
       ).toThrow();
     });
 
+    it("should reject unsupported key type profiles", () => {
+      expect(() =>
+        simulator.addVerificationMethod({
+          id: "#key-rsa",
+          typ: VerificationMethodType.JsonWebKey,
+          publicKeyJwk: {
+            kty: KeyType.RSA,
+            crv: CurveType.Ed25519,
+            x: 12345n,
+            y: 67890n
+          }
+        })
+      ).toThrow();
+    });
+
+    it("should reject unsupported key/curve combinations", () => {
+      expect(() =>
+        simulator.addVerificationMethod({
+          id: "#key-ec-invalid",
+          typ: VerificationMethodType.JsonWebKey,
+          publicKeyJwk: {
+            kty: KeyType.EC,
+            crv: CurveType.Ed25519,
+            x: 12345n,
+            y: 67890n
+          }
+        })
+      ).toThrow();
+    });
+
     it("should update a verification method", () => {
       // First add
       simulator.addVerificationMethod({

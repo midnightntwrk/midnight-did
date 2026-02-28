@@ -59,6 +59,23 @@ describe("Midnight utilities", () => {
     );
   });
 
+  it("maps preview and preprod networks in Midnight DIDs", () => {
+    const previewDid = createMidnightDIDString(
+      sampleAddress,
+      MidnightNetwork.Preview,
+    );
+    const preprodDid = createMidnightDIDString(
+      sampleAddress,
+      MidnightNetwork.Preprod,
+    );
+    expect(parseMidnightDID(parseMidnightDIDString(previewDid)).network).toBe(
+      MidnightNetwork.Preview,
+    );
+    expect(parseMidnightDID(parseMidnightDIDString(preprodDid)).network).toBe(
+      MidnightNetwork.Preprod,
+    );
+  });
+
   it("validates schema helper", () => {
     const did = createMidnightDIDString(
       sampleAddress,

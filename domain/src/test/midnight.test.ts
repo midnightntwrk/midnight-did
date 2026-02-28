@@ -46,4 +46,15 @@ describe("Midnight DID helpers", () => {
     const { network } = parseMidnightDID(parseMidnightDIDString(did));
     expect(network).toBe(MidnightNetwork.Undeployed);
   });
+
+  it("maps preview and preprod network strings to the correct enum", () => {
+    const previewDid = `did:midnight:preview:${sampleAddress}`;
+    const preprodDid = `did:midnight:preprod:${sampleAddress}`;
+    expect(parseMidnightDID(parseMidnightDIDString(previewDid)).network).toBe(
+      MidnightNetwork.Preview,
+    );
+    expect(parseMidnightDID(parseMidnightDIDString(preprodDid)).network).toBe(
+      MidnightNetwork.Preprod,
+    );
+  });
 });

@@ -65,7 +65,7 @@ The ABNF grammar used to generate the Midnight DID identifier is as follows:
 
 ```
 midnight-did = "did:midnight:" network ":" specific-idstring
-network = "undeployed" | "devnet" | "testnet" | "mainnet"
+network = "undeployed" | "devnet" | "testnet" | "mainnet" | "preview" | "preprod"
 specific-idstring = 64HEXDIG
 ```
 
@@ -203,28 +203,6 @@ Keys are represented as JWK in uncompressed format with:
 - `crv`=`Jubjub`, 
 - `x`, and
 - `y` parameters.
-
-### 3.4.5. blockchainAccountId (draft)
-
-**NOTE**: `blockchainAccountId` property should be discussed. It's an [extension](https://www.w3.org/TR/did-extensions-properties/#blockchainaccountid) to the DID Core specification and might impact the `type` and `@context` properties of the DID Document.
-
-The `verificationMethod` **MAY** include the reference to the blockchain account id associated with the verification method.
-The value of the `blockchainAccountId` field **MUST** be a valid address in the blockchain.
-
-Below is a specific example of the `verificationMethod` property:
-
-```json
-{
-  "verificationMethod": [
-    {
-      "id": "#key-1",
-      "type": "JsonWebKey",
-      "controller": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
-      "blockchainAccountId": "eip155:1:0xab16a96d359ec26a11e2c2b3d8f8b8942d5bfcdb"
-    }
-  ]
-}
-```
 
 ## 3.5. Verification Relationships
 
@@ -435,7 +413,7 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | created                        | `Uint<64>`                                   | Creation timestamp (UNIX epoch, milliseconds) of the DID instance. Exposed as the DID Document Metadata `created` property (ISO 8601 UTC, second precision). |
 | updated                        | `Uint<64>`                                   | Last update timestamp (UNIX epoch, milliseconds) after applying operations. Exposed as the DID Document Metadata `updated` property (ISO 8601 UTC, second precision). |
 | deactivated                    | `Boolean`                                    | Whether the DID has been deactivated. When `true`, the resolver surfaces `deactivated: true` in metadata and reuses the `updated` timestamp as the deactivation time. |
-| active                         | `Boolean`                                    | Whether the DID is active (`true`) or deactivated (`false`). If the `active` is false, the `deactivated` property MUST be set in the DIDDocument and the DIDDocument's metadata |
+| active                         | `Boolean`                                    | Whether the DID is active (`true`) or deactivated (`false`). If `active` is false, the resolver MUST set `deactivated: true` in DID Document metadata. |
 | operationCount                 | `Counter`                                    | Total number of DID update operations applied to this DID. Used for internal statistics. |
 | verificationMethods            | `Map<Opaque<"string">, VerificationMethod>`    | Map from verification method identifiers (strings stored without a leading `#`) to their definition (type and key material). Ledger-to-domain conversion adds the `#` prefix unless the identifier is already a DID URL. The DIDDocument's `verificationMethod` property is reconstructed from this state. |
 | authenticationRelation         | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `authentication`. The DIDDocument's `authentication` property is reconstructed from this state. |
@@ -784,12 +762,14 @@ This separation of concerns allows the use of the Midnight DID method for both c
 
 # 11. Discoverability
 
-The ability to discover and resolve a Midnight DID depends on the network segment encoded in the identifier (`undeployed`, `devnet`, `testnet`, or `mainnet`). Each segment offers different durability guarantees.
+The ability to discover and resolve a Midnight DID depends on the network segment encoded in the identifier (`undeployed`, `devnet`, `testnet`, `mainnet`, `preview`, or `preprod`). Each segment offers different durability guarantees.
 
 - **undeployed** — DIDs created on the local `undeployed` network are discoverable by the local tooling (for example, the Midnight Indexer and resolver running in that environment) while the environment is alive. Because this network can be recreated or destroyed at any time, no long-term discoverability guarantees are provided.
 - **devnet** — The shared developer network exposes the same discoverability behaviour as the Midnight Indexer and resolver stack, but uptime is best-effort. DIDs remain discoverable for as long as the `devnet` infrastructure is running; the network can be reset without notice.
 - **testnet** — DIDs published to the public testnet are discoverable by any participant connected to the network. The Midnight testnet is an actively maintained network; more information is available in the [Introducing the Midnight Testnet blog post](https://midnight.network/blog/introducing-the-midnight-testnet).
 - **mainnet** — Once the Midnight mainnet is live, DIDs deployed to the `mainnet` segment inherit the same discoverability guarantees as any production Midnight transaction: as long as the mainnet ledger exists, the DID state can be resolved.
+- **preview** — The preview network is a pre-release shared environment. DIDs are discoverable while preview infrastructure is running, but persistence and compatibility guarantees are lower than testnet/mainnet.
+- **preprod** — The preprod network is a staging environment intended to mirror production behavior more closely than preview. Discoverability is expected while preprod infrastructure is operating, but long-term guarantees remain below mainnet.
 
 In every network, discoverability is ultimately provided by the Midnight ledger and its indexing infrastructure. Operators are responsible for running indexers and resolvers appropriate to their deployment model.
 
