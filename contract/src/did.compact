@@ -130,6 +130,7 @@ export circuit addVerificationMethod(verificationMethod: VerificationMethod): []
   assert(active, "Contract is not active");
 
   const disclosedVerificationMethod = disclose(verificationMethod);
+  assert(disclosedVerificationMethod.typ == VerificationMethodType.JsonWebKey, "Only JsonWebKey verification methods are supported");
   assert(!verificationMethods.member(disclosedVerificationMethod.id), "Verification method already exists");
 
   verificationMethods.insert(disclosedVerificationMethod.id, disclosedVerificationMethod);
@@ -144,6 +145,7 @@ export circuit updateVerificationMethod(verificationMethod: VerificationMethod):
   assert(active, "Contract is not active");
 
   const disclosedVerificationMethod = disclose(verificationMethod);
+  assert(disclosedVerificationMethod.typ == VerificationMethodType.JsonWebKey, "Only JsonWebKey verification methods are supported");
   assert(verificationMethods.member(disclosedVerificationMethod.id), "Verification method does not exist");
 
   verificationMethods.remove(disclosedVerificationMethod.id);
@@ -181,18 +183,21 @@ export circuit addVerificationMethodRelation(
   const disclosedRelation = disclose(relation);
   const disclosedMethodId = disclose(methodId);
   assert(verificationMethods.member(disclosedMethodId), "Verification method does not exist");
-
-  // EXPERIMENT: Remove membership assertions to reduce branch complexity
-  // Insert is idempotent for sets
+  assert(disclosedRelation != VerificationMethodRelation.Undefined, "Verification relation must be defined");
   if (disclosedRelation == VerificationMethodRelation.Authentication) {
+    assert(!authenticationRelation.member(disclosedMethodId), "Verification method relation already exists");
     authenticationRelation.insert(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.AssertionMethod) {
+    assert(!assertionMethodRelation.member(disclosedMethodId), "Verification method relation already exists");
     assertionMethodRelation.insert(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.KeyAgreement) {
+    assert(!keyAgreementRelation.member(disclosedMethodId), "Verification method relation already exists");
     keyAgreementRelation.insert(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.CapabilityInvocation) {
+    assert(!capabilityInvocationRelation.member(disclosedMethodId), "Verification method relation already exists");
     capabilityInvocationRelation.insert(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.CapabilityDelegation) {
+    assert(!capabilityDelegationRelation.member(disclosedMethodId), "Verification method relation already exists");
     capabilityDelegationRelation.insert(disclosedMethodId);
   }
 
@@ -211,18 +216,21 @@ export circuit removeVerificationMethodRelation(
   const disclosedRelation = disclose(relation);
   const disclosedMethodId = disclose(methodId);
   assert(verificationMethods.member(disclosedMethodId), "Verification method does not exist");
-
-  // EXPERIMENT: Remove membership assertions to reduce branch complexity
-  // Remove is a no-op if item not in set
+  assert(disclosedRelation != VerificationMethodRelation.Undefined, "Verification relation must be defined");
   if (disclosedRelation == VerificationMethodRelation.Authentication) {
+    assert(authenticationRelation.member(disclosedMethodId), "Verification method relation does not exist");
     authenticationRelation.remove(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.AssertionMethod) {
+    assert(assertionMethodRelation.member(disclosedMethodId), "Verification method relation does not exist");
     assertionMethodRelation.remove(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.KeyAgreement) {
+    assert(keyAgreementRelation.member(disclosedMethodId), "Verification method relation does not exist");
     keyAgreementRelation.remove(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.CapabilityInvocation) {
+    assert(capabilityInvocationRelation.member(disclosedMethodId), "Verification method relation does not exist");
     capabilityInvocationRelation.remove(disclosedMethodId);
   } else if (disclosedRelation == VerificationMethodRelation.CapabilityDelegation) {
+    assert(capabilityDelegationRelation.member(disclosedMethodId), "Verification method relation does not exist");
     capabilityDelegationRelation.remove(disclosedMethodId);
   }
 

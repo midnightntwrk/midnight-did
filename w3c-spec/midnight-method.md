@@ -174,6 +174,7 @@ The value of the `type` field **MUST** be `JsonWebKey` to support the compatibil
 ### 3.4.3. controller
 
 The value of the `controller` field, which identifies the controller of the corresponding private key **MUST** be a valid Midnight DID, implying that the public key is controlled by this Midnight DID.
+For Midnight DID, the canonical resolved representation sets `controller` equal to the DID subject. The controller value is derived during ledger-to-document reconstruction and is not stored as a separate on-ledger field.
 
 ### 3.4.4. publicKeyJwk
 
@@ -330,7 +331,11 @@ The value of the `id` property MUST be either a DID URL for the Midnight DID sub
 
 #### 3.6.1.2. Type
 
-The value of the `type` property MUST be a string or a set of strings. In order to maximize interoperability, the service type and its associated properties SHOULD be registered in the DID Specification Registries [DID-SPEC-REGISTRIES].
+The value of the `type` property MUST be either:
+- a string; or
+- a set represented as an array of unique strings.
+
+When persisted on-ledger, Midnight serialises a multi-value set as a JSON array string and rehydrates it during DID Document reconstruction. In order to maximize interoperability, the service type and its associated properties SHOULD be registered in the DID Specification Registries [DID-SPEC-REGISTRIES].
 
 #### 3.6.1.3. ServiceEndpoint
 
@@ -625,7 +630,7 @@ Adds a service entry identified by a unique `id` with a `type` and `serviceEndpo
 - Inputs: `service` with fields `id`, `type`, `serviceEndpoint`.
 - Constraints:
   - `id` MUST be unique across services and MUST be either a DID URL for the DID subject or a relative identifier (for example, `#service-1`). Midnight DID uses fragment identifiers in practice.
-  - `type` MAY be a string or a single‑element string array.
+  - `type` MUST be either a string or an array of unique strings.
   - `serviceEndpoint` MUST be encodable as JSON and MUST conform to the DID Core 1.0 service endpoint data model (string, object, or array of strings/objects). The value is persisted as a JSON string on-ledger.
 
 Example:

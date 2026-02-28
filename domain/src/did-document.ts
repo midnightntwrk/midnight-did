@@ -273,7 +273,7 @@ export type Service = z.infer<typeof ServiceSchema>;
 export const DIDDocumentSchema = z.looseObject({
   "@context": z.union([z.string(), z.array(z.string())]),
   id: DIDStringSchema,
-  alsoKnownAs: z.nullish(z.array(DIDStringSchema)),
+  alsoKnownAs: z.nullish(z.array(URIStringSchema)),
   controller: z.nullish(z.union([DIDStringSchema, z.array(DIDStringSchema)])),
   verificationMethod: z.nullish(z.array(VerificationMethodSchema)),
   authentication: z.nullish(z.array(DIDKeyIDSchema)),

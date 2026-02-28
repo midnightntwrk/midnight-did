@@ -174,6 +174,13 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       serviceEndpoint: ["https://legacy.example", "", "", ""],
     } as any);
     expect(legacyService.serviceEndpoint).toBe("https://legacy.example");
+
+    const multiTypeService = LedgerToDomain.service({
+      id: "svc-multi-type",
+      typ: JSON.stringify(["DIDCommV2", "LinkedDomains"]),
+      serviceEndpoint: JSON.stringify("https://multi.example"),
+    } as any);
+    expect(multiTypeService.type).toEqual(["DIDCommV2", "LinkedDomains"]);
   });
 
   it("toJSON flattens ledger to plain JSON with arrays", () => {

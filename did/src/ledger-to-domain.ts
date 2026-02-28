@@ -116,11 +116,35 @@ export class LedgerToDomain {
     const serviceId = needsFragmentPrefix ? `#${rawId}` : rawId;
 
     const serviceEndpoint = this.parseServiceEndpoint(service.serviceEndpoint);
+    const serviceType = this.parseServiceType(
+      (service as { typ?: string; type?: string }).typ ??
+        (service as { typ?: string; type?: string }).type ??
+        "",
+    );
     return {
       id: serviceId,
-      type: service.typ,
+      type: serviceType,
       serviceEndpoint,
     } as Service;
+  }
+
+  private static parseServiceType(raw: string): Service["type"] {
+    const value = raw.trim();
+    if (value.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(value);
+        if (
+          Array.isArray(parsed) &&
+          parsed.length > 0 &&
+          parsed.every((entry) => typeof entry === "string")
+        ) {
+          return parsed;
+        }
+      } catch {
+        // fall through to string
+      }
+    }
+    return value;
   }
 
   private static parseServiceEndpoint(
@@ -222,10 +246,17 @@ export class LedgerToDomain {
 
     const verificationMethod: VerificationMethod[] = [];
     for (const [id, method] of ledger.verificationMethods) {
+      const verificationMethodType =
+        LedgerToDomain.VerificationMethodTypeMap[method.typ];
+      if (verificationMethodType !== VerificationMethodType.JsonWebKey) {
+        throw new Error(
+          `Unsupported verification method type for id '${id}': ${verificationMethodType}`,
+        );
+      }
       verificationMethod.push(
         createVerificationMethod({
           id: this.verificationMethodId(id),
-          type: LedgerToDomain.VerificationMethodTypeMap[method.typ],
+          type: verificationMethodType,
           controller: did,
           publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
         }),

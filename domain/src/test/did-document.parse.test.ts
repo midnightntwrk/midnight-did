@@ -109,6 +109,18 @@ describe("DID parsing utilities", () => {
     expect(doc["@context"]).toBe("https://www.w3.org/ns/did/v1");
   });
 
+  it("accepts URI aliases in alsoKnownAs", () => {
+    const doc = parseDIDDocument({
+      "@context": "https://www.w3.org/ns/did/v1",
+      id: exampleDid,
+      alsoKnownAs: ["https://example.com/aka", "did:example:aka-1"],
+    });
+    expect(doc.alsoKnownAs).toEqual([
+      "https://example.com/aka",
+      "did:example:aka-1",
+    ]);
+  });
+
   it("validates DID metadata timestamps", () => {
     const metadata = DIDDocumentMetadataSchema.parse({
       created: "2024-01-01T00:00:00Z",
