@@ -360,7 +360,7 @@ const normalizeBoundFragmentId = (
   return normalizeFragmentId(trimmed);
 };
 
-const assertAliasUri = (aliasUri: string): void => {
+const assertAliasUri = (aliasUri: string): string => {
   const value = aliasUri.trim();
   if (value.length === 0) {
     throw new Error("aliasUri must not be empty");
@@ -372,6 +372,7 @@ const assertAliasUri = (aliasUri: string): void => {
   } catch {
     throw new Error("aliasUri must be a valid absolute URI (RFC3986)");
   }
+  return value;
 };
 
 const LedgerKeyType = DIDContract.KeyType;
@@ -704,8 +705,8 @@ export const addAlsoKnownAs = async (
   didContract: DeployedMidnightDIDContract,
   aliasUri: string,
 ): Promise<FinalizedTxData> => {
-  assertAliasUri(aliasUri);
-  const result = await didContract.callTx.addAlsoKnownAs(aliasUri);
+  const alias = assertAliasUri(aliasUri);
+  const result = await didContract.callTx.addAlsoKnownAs(alias);
   return result.public;
 };
 
@@ -713,7 +714,8 @@ export const removeAlsoKnownAs = async (
   didContract: DeployedMidnightDIDContract,
   aliasUri: string,
 ): Promise<FinalizedTxData> => {
-  const result = await didContract.callTx.removeAlsoKnownAs(aliasUri);
+  const alias = assertAliasUri(aliasUri);
+  const result = await didContract.callTx.removeAlsoKnownAs(alias);
   return result.public;
 };
 
