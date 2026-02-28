@@ -192,6 +192,27 @@ describe("DID smart contract", () => {
       expect(ledger.version).toEqual(2n);
     });
 
+    it("should fail to remove a verification method while relations still exist", () => {
+      simulator.addVerificationMethod({
+        id: "#key-2",
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.Ed25519,
+          x: 333n,
+          y: 444n
+        }
+      });
+      simulator.addVerificationMethodRelation(
+        VerificationMethodRelation.Authentication,
+        "#key-2"
+      );
+
+      expect(() => simulator.removeVerificationMethod("#key-2")).toThrow(
+        /still referenced in authenticationRelation/
+      );
+    });
+
     it("should remove verification method and its relations", () => {
       // Add verification method
       simulator.addVerificationMethod({

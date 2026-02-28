@@ -25,6 +25,11 @@ import * as ledger from '@midnight-ntwrk/ledger-v7';
 import { unshieldedToken } from '@midnight-ntwrk/ledger-v7';
 import { DIDContract, type DIDPrivateState, witnesses } from '@midnight-ntwrk/midnight-did-contract';
 import {
+  normalizeServiceEndpoint,
+  type ServiceEndpoint,
+  ServiceEndpointSchema,
+} from '@midnight-ntwrk/midnight-did-domain';
+import {
   deployContract,
   type DeployedContract,
   findDeployedContract,
@@ -165,19 +170,13 @@ const serviceTypeToLedger = (type: string | string[]): string => {
 };
 
 const serviceEndpointToLedger = (endpoint: ServiceEndpointInput): string => {
-  if (typeof endpoint === 'string') {
-    const raw = endpoint.trim();
-    if (raw.length === 0) {
-      throw new Error('Service endpoint must not be empty');
-    }
-    try {
-      const parsed = JSON.parse(raw);
-      return JSON.stringify(parsed);
-    } catch {
-      return JSON.stringify(raw);
-    }
+  try {
+    const parsed = ServiceEndpointSchema.parse(endpoint) as ServiceEndpoint;
+    const normalized = normalizeServiceEndpoint(parsed);
+    return JSON.stringify(normalized);
+  } catch {
+    throw new Error('Invalid serviceEndpoint: could not serialize to JSON');
   }
-  return JSON.stringify(endpoint);
 };
 
 const assertAliasUri = (value: string): string => {

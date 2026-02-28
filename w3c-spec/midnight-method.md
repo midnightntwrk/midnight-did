@@ -440,7 +440,7 @@ The publisher of the smart contract is the DID Controller, who keeps the private
 
 All update operations are performed by executing one of the smart contract circuits corresponding to the desired modification.
 
-Due to the `compact` language limitations, the `datetime` is not supported inside the circuit, so the corresponding `created`, `updated`, and `deactivated` properties of the DID Document Metadata are managed outside of the smart contract circuit.
+The `created` and `updated` ledger fields are populated from the `currentTimestamp` witness during contract deployment and each successful update circuit call. DID Document metadata is then composed by the resolver layer from these on-ledger values (`created`, `updated`, `deactivated`, `version`).
 
 Each update is a separate circuit call; batching multiple logical operations into a single on‑chain call is not supported in this version.
 
@@ -480,6 +480,8 @@ Example of the implementation: Midnight DID Resolver in Rust
 Updating the Midnight DID implies that the DID Controller calls one of the smart contract's individual circuits for each type of modification.
 
 Each update circuit requires the `localSecretKey` witness to match the on‑chain `controllerPublicKey`. The `currentTimestamp` witness is used to populate the `updated` ledger field after each successful operation.
+
+Conformance note: due to Compact language limitations for rich URI/data-model validation, normative checks for DID URL subject binding and DID Core structure conformance (for example `serviceEndpoint` shape) are enforced at the SDK/resolver layers (`domain`, `api`, `did`). The smart contract enforces authorization, existence/uniqueness, and state-transition invariants.
 
 Each update operation corresponds to a dedicated exported circuit in the `did.compact` contract:
 - `addVerificationMethod` - adds a new verification method

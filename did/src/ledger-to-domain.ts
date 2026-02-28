@@ -246,6 +246,7 @@ export class LedgerToDomain {
     const did = createMidnightDIDString(contractAddress, network);
 
     const verificationMethod: VerificationMethod[] = [];
+    const verificationMethodIds = new Set<string>();
     for (const [id, method] of ledger.verificationMethods) {
       const verificationMethodType =
         LedgerToDomain.VerificationMethodTypeMap[method.typ];
@@ -262,7 +263,37 @@ export class LedgerToDomain {
           publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
         }),
       );
+      verificationMethodIds.add(id);
     }
+
+    const assertRelationTargetsExist = (
+      relationName: string,
+      relation: Iterable<string> & { isEmpty(): boolean },
+    ) => {
+      if (relation.isEmpty()) return;
+      for (const methodId of relation) {
+        if (!verificationMethodIds.has(methodId)) {
+          throw new Error(
+            `${relationName} references missing verification method '${this.verificationMethodId(methodId)}'`,
+          );
+        }
+      }
+    };
+
+    assertRelationTargetsExist("authentication", ledger.authenticationRelation);
+    assertRelationTargetsExist(
+      "assertionMethod",
+      ledger.assertionMethodRelation,
+    );
+    assertRelationTargetsExist("keyAgreement", ledger.keyAgreementRelation);
+    assertRelationTargetsExist(
+      "capabilityInvocation",
+      ledger.capabilityInvocationRelation,
+    );
+    assertRelationTargetsExist(
+      "capabilityDelegation",
+      ledger.capabilityDelegationRelation,
+    );
 
     const mapRelation = (
       relation: Iterable<string> & { isEmpty(): boolean },

@@ -66,4 +66,11 @@ describe('service endpoint serialization', () => {
       serviceEndpoint: JSON.stringify(endpoint),
     });
   });
+
+  it('rejects invalid URI string serviceEndpoint', async () => {
+    const didContract = makeContract();
+    await expect(api.addService(didContract, '#service-invalid', 'MessagingService', 'not-a-uri')).rejects.toThrow(
+      /Invalid serviceEndpoint/,
+    );
+  });
 });
