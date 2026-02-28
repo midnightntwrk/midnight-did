@@ -276,11 +276,35 @@ export const DIDDocumentSchema = z.looseObject({
   alsoKnownAs: z.nullish(z.array(URIStringSchema)),
   controller: z.nullish(z.union([DIDStringSchema, z.array(DIDStringSchema)])),
   verificationMethod: z.nullish(z.array(VerificationMethodSchema)),
-  authentication: z.nullish(z.array(DIDKeyIDSchema)),
-  assertionMethod: z.nullish(z.array(DIDKeyIDSchema)),
-  keyAgreement: z.nullish(z.array(DIDKeyIDSchema)),
-  capabilityInvocation: z.nullish(z.array(DIDKeyIDSchema)),
-  capabilityDelegation: z.nullish(z.array(DIDKeyIDSchema)),
+  authentication: z.nullish(
+    z
+      .array(DIDKeyIDSchema)
+      .check(z.minLength(1, "authentication must contain at least one entry")),
+  ),
+  assertionMethod: z.nullish(
+    z
+      .array(DIDKeyIDSchema)
+      .check(z.minLength(1, "assertionMethod must contain at least one entry")),
+  ),
+  keyAgreement: z.nullish(
+    z
+      .array(DIDKeyIDSchema)
+      .check(z.minLength(1, "keyAgreement must contain at least one entry")),
+  ),
+  capabilityInvocation: z.nullish(
+    z
+      .array(DIDKeyIDSchema)
+      .check(
+        z.minLength(1, "capabilityInvocation must contain at least one entry"),
+      ),
+  ),
+  capabilityDelegation: z.nullish(
+    z
+      .array(DIDKeyIDSchema)
+      .check(
+        z.minLength(1, "capabilityDelegation must contain at least one entry"),
+      ),
+  ),
   service: z.nullish(z.array(ServiceSchema)),
 });
 

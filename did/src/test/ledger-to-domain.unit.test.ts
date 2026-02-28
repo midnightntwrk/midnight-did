@@ -246,6 +246,18 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     );
   });
 
+  it("ledgerStateToDIDDocument rejects relations to missing verification methods", () => {
+    const addr = parseContractAddress("0".repeat(64));
+    stubLedger.authenticationRelation = makeIterable<string>(["missing-key"]);
+    expect(() =>
+      LedgerToDomain.ledgerStateToDIDDocument(
+        stubLedger,
+        MidnightNetwork.DevNet,
+        addr,
+      ),
+    ).toThrow(/references missing verification method/);
+  });
+
   it("ledgerStateToMetadata maps counters and timestamps", () => {
     const metadata = LedgerToDomain.ledgerStateToMetadata(stubLedger);
     expect(metadata.versionId).toBe("1");

@@ -109,6 +109,17 @@ describe("DID parsing utilities", () => {
     expect(doc["@context"]).toBe("https://www.w3.org/ns/did/v1");
   });
 
+  it("rejects DID Documents with empty verification relationship arrays", () => {
+    expect(() =>
+      parseDIDDocument({
+        "@context": "https://www.w3.org/ns/did/v1",
+        id: exampleDid,
+        verificationMethod: [exampleVerificationMethodInput],
+        authentication: [],
+      }),
+    ).toThrow();
+  });
+
   it("accepts URI aliases in alsoKnownAs", () => {
     const doc = parseDIDDocument({
       "@context": "https://www.w3.org/ns/did/v1",

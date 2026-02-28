@@ -175,6 +175,11 @@ export circuit removeVerificationMethod(id: Opaque<"string">): [] {
 
   const disclosedId = disclose(id);
   assert(verificationMethods.member(disclosedId), "Verification method does not exist");
+  assert(!authenticationRelation.member(disclosedId), "Verification method still referenced in authenticationRelation");
+  assert(!assertionMethodRelation.member(disclosedId), "Verification method still referenced in assertionMethodRelation");
+  assert(!keyAgreementRelation.member(disclosedId), "Verification method still referenced in keyAgreementRelation");
+  assert(!capabilityInvocationRelation.member(disclosedId), "Verification method still referenced in capabilityInvocationRelation");
+  assert(!capabilityDelegationRelation.member(disclosedId), "Verification method still referenced in capabilityDelegationRelation");
 
   // PLAN B: Only remove the verification method itself
   // Relations should be removed separately by the caller (API layer)
