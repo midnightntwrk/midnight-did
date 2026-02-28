@@ -230,6 +230,7 @@ describeApi("Midnight DID method API", () => {
     const methodId = `${didString}#key-1`;
     await api.addVerificationMethodRelation(
       contract,
+      providers,
       VerificationMethodRelationType.Authentication,
       methodId,
     );
@@ -241,6 +242,18 @@ describeApi("Midnight DID method API", () => {
           authenticationMethodId === toFragmentId(methodId),
       ),
     ).toBe(true);
+  });
+
+  it("should fail to add duplicate verification relation", async () => {
+    const methodId = `${didString}#key-1`;
+    await expect(
+      api.addVerificationMethodRelation(
+        contract,
+        providers,
+        VerificationMethodRelationType.Authentication,
+        methodId,
+      ),
+    ).rejects.toThrow(/already contains verification method/);
   });
 
   it("should update the DID by adding a new verification method and its corresponding verification relation", async () => {
@@ -258,6 +271,7 @@ describeApi("Midnight DID method API", () => {
     await api.addVerificationMethod(contract, verificationMethod);
     await api.addVerificationMethodRelation(
       contract,
+      providers,
       VerificationMethodRelationType.AssertionMethod,
       methodId,
     );
@@ -279,6 +293,7 @@ describeApi("Midnight DID method API", () => {
     const methodId = `${didString}#key-2`;
     await api.removeVerificationMethodRelation(
       contract,
+      providers,
       VerificationMethodRelationType.AssertionMethod,
       methodId,
     );
@@ -286,6 +301,18 @@ describeApi("Midnight DID method API", () => {
     const didDoc = await resolveDocument();
     const assertionId = parseDIDKeyID(toFragmentId(methodId));
     expect((didDoc?.assertionMethod ?? []).includes(assertionId)).toBe(false);
+  });
+
+  it("should fail removing a missing verification relation", async () => {
+    const methodId = `${didString}#key-2`;
+    await expect(
+      api.removeVerificationMethodRelation(
+        contract,
+        providers,
+        VerificationMethodRelationType.AssertionMethod,
+        methodId,
+      ),
+    ).rejects.toThrow(/does not contain verification method/);
   });
 
   it("should remove the verification method and its relations", async () => {

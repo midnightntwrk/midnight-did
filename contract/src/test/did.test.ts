@@ -92,6 +92,21 @@ describe("DID smart contract", () => {
       expect(vm.publicKeyJwk.y).toEqual(67890n);
     });
 
+    it("should reject non-JsonWebKey verification methods", () => {
+      expect(() =>
+        simulator.addVerificationMethod({
+          id: "#key-1",
+          typ: VerificationMethodType.Undefined,
+          publicKeyJwk: {
+            kty: KeyType.OKP,
+            crv: CurveType.Ed25519,
+            x: 12345n,
+            y: 67890n
+          }
+        })
+      ).toThrow();
+    });
+
     it("should update a verification method", () => {
       // First add
       simulator.addVerificationMethod({
@@ -285,6 +300,28 @@ describe("DID smart contract", () => {
       const ledger = simulator.getLedger();
       expect(ledger.authenticationRelation.member("#key-1")).toEqual(false);
       expect(ledger.authenticationRelation.size()).toEqual(0n);
+    });
+
+    it("should fail when adding the same relation twice", () => {
+      simulator.addVerificationMethodRelation(
+        VerificationMethodRelation.Authentication,
+        "#key-1"
+      );
+      expect(() =>
+        simulator.addVerificationMethodRelation(
+          VerificationMethodRelation.Authentication,
+          "#key-1"
+        )
+      ).toThrow();
+    });
+
+    it("should fail when removing a relation that does not exist", () => {
+      expect(() =>
+        simulator.removeVerificationMethodRelation(
+          VerificationMethodRelation.Authentication,
+          "#key-1"
+        )
+      ).toThrow();
     });
   });
 

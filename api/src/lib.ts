@@ -5,10 +5,12 @@ import * as ledger from "@midnight-ntwrk/ledger-v7";
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v7";
 import {
   type ContractAddress,
+  createMidnightDIDString,
   LedgerToDomain,
   MidnightDIDDocument,
   MidnightNetwork,
   parseContractAddress,
+  parseMidnightDIDString,
 } from "@midnight-ntwrk/midnight-did";
 import {
   DIDContract,
@@ -303,6 +305,75 @@ const normalizeFragmentId = (value: string): string => {
   return `#${trimmed}`;
 };
 
+const hasUriScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
+
+const getDidSubject = (didContract: DeployedMidnightDIDContract): string => {
+  const network = RuntimeToDomain.NetworkMap[getNetworkId()];
+  const contractAddress = parseContractAddress(
+    didContract.deployTxData.public.contractAddress,
+  );
+  return createMidnightDIDString(contractAddress, network);
+};
+
+const normalizeBoundFragmentId = (
+  didContract: DeployedMidnightDIDContract,
+  value: string,
+  field: "verificationMethod.id" | "service.id" | "methodId" | "serviceId",
+): string => {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new Error(`${field} must not be empty`);
+  }
+  if (trimmed.startsWith("//")) {
+    throw new Error(`${field} must be a DID URL or relative reference`);
+  }
+  if (trimmed.startsWith("#")) return trimmed;
+
+  const hashIndex = trimmed.indexOf("#");
+  if (trimmed.startsWith("did:")) {
+    if (hashIndex <= 0 || hashIndex === trimmed.length - 1) {
+      throw new Error(
+        `${field} DID URL must include a non-empty fragment identifier`,
+      );
+    }
+    const didSubject = parseMidnightDIDString(trimmed.slice(0, hashIndex));
+    const expected = getDidSubject(didContract);
+    if (didSubject !== expected) {
+      throw new Error(
+        `${field} DID URL subject must match the current DID (${expected})`,
+      );
+    }
+    return `#${trimmed.slice(hashIndex + 1)}`;
+  }
+
+  if (
+    trimmed.startsWith("/") ||
+    trimmed.startsWith(".") ||
+    trimmed.startsWith("?")
+  ) {
+    return `#${trimmed}`;
+  }
+
+  if (hasUriScheme.test(trimmed)) {
+    throw new Error(`${field} must be a DID URL or relative reference`);
+  }
+  return normalizeFragmentId(trimmed);
+};
+
+const assertAliasUri = (aliasUri: string): void => {
+  const value = aliasUri.trim();
+  if (value.length === 0) {
+    throw new Error("aliasUri must not be empty");
+  }
+  try {
+    // RFC3986-conformant absolute URI
+
+    new URL(value);
+  } catch {
+    throw new Error("aliasUri must be a valid absolute URI (RFC3986)");
+  }
+};
+
 const LedgerKeyType = DIDContract.KeyType;
 const LedgerCurveType = DIDContract.CurveType;
 const LedgerVerificationMethodType = DIDContract.VerificationMethodType;
@@ -367,20 +438,42 @@ const publicKeyJwkToLedger = (
 };
 
 const verificationMethodToLedger = (
+  didContract: DeployedMidnightDIDContract,
   method: VerificationMethod,
-): DIDContract.VerificationMethod => ({
-  id: normalizeFragmentId(method.id),
-  typ: LedgerVerificationMethodTypeMap[method.type],
-  publicKeyJwk: publicKeyJwkToLedger(method.publicKeyJwk),
-});
+): DIDContract.VerificationMethod => {
+  if (method.type !== VerificationMethodType.JsonWebKey) {
+    throw new Error("verificationMethod.type must be JsonWebKey");
+  }
+  const didSubject = getDidSubject(didContract);
+  if (method.controller !== didSubject) {
+    throw new Error(
+      `verificationMethod.controller must equal DID subject (${didSubject})`,
+    );
+  }
+  return {
+    id: normalizeBoundFragmentId(
+      didContract,
+      method.id,
+      "verificationMethod.id",
+    ),
+    typ: LedgerVerificationMethodTypeMap[method.type],
+    publicKeyJwk: publicKeyJwkToLedger(method.publicKeyJwk),
+  };
+};
 
 const serviceTypeToLedger = (serviceType: string | string[]): string => {
   if (typeof serviceType === "string") return serviceType;
-  if (Array.isArray(serviceType) && serviceType.length === 1)
-    return serviceType[0];
-  throw new Error(
-    "service type property must be a string or an array with exactly one element",
-  );
+  if (!Array.isArray(serviceType) || serviceType.length === 0) {
+    throw new Error("service type property must be a non-empty string set");
+  }
+  const normalized = serviceType.map((value) => value.trim());
+  if (normalized.some((value) => value.length === 0)) {
+    throw new Error("service type entries must not be empty");
+  }
+  if (new Set(normalized).size !== normalized.length) {
+    throw new Error("service type entries must be unique");
+  }
+  return normalized.length === 1 ? normalized[0] : JSON.stringify(normalized);
 };
 
 const serviceEndpointToLedger = (
@@ -394,18 +487,41 @@ const serviceEndpointToLedger = (
   }
 };
 
-const serviceToLedger = (service: Service): DIDContract.Service => ({
-  id: normalizeFragmentId(service.id),
+const serviceToLedger = (
+  didContract: DeployedMidnightDIDContract,
+  service: Service,
+): DIDContract.Service => ({
+  id: normalizeBoundFragmentId(didContract, service.id, "service.id"),
   typ: serviceTypeToLedger(service.type),
   serviceEndpoint: serviceEndpointToLedger(service.serviceEndpoint),
 });
+
+const relationSetFromState = (
+  didState: DIDContract.Ledger,
+  relation: VerificationMethodRelationType,
+) => {
+  switch (relation) {
+    case VerificationMethodRelationType.Authentication:
+      return didState.authenticationRelation;
+    case VerificationMethodRelationType.AssertionMethod:
+      return didState.assertionMethodRelation;
+    case VerificationMethodRelationType.KeyAgreement:
+      return didState.keyAgreementRelation;
+    case VerificationMethodRelationType.CapabilityInvocation:
+      return didState.capabilityInvocationRelation;
+    case VerificationMethodRelationType.CapabilityDelegation:
+      return didState.capabilityDelegationRelation;
+    case VerificationMethodRelationType.Undefined:
+      throw new Error("relation must be defined");
+  }
+};
 
 export const addVerificationMethod = async (
   didContract: DeployedMidnightDIDContract,
   verificationMethod: VerificationMethod,
 ): Promise<FinalizedTxData> => {
   const result = await didContract.callTx.addVerificationMethod(
-    verificationMethodToLedger(verificationMethod),
+    verificationMethodToLedger(didContract, verificationMethod),
   );
   return result.public;
 };
@@ -415,7 +531,7 @@ export const updateVerificationMethod = async (
   verificationMethod: VerificationMethod,
 ): Promise<FinalizedTxData> => {
   const result = await didContract.callTx.updateVerificationMethod(
-    verificationMethodToLedger(verificationMethod),
+    verificationMethodToLedger(didContract, verificationMethod),
   );
   return result.public;
 };
@@ -425,7 +541,11 @@ export const removeVerificationMethod = async (
   providers: MidnightDIDProviders,
   methodId: string,
 ): Promise<FinalizedTxData> => {
-  const normalizedMethodId = normalizeFragmentId(methodId);
+  const normalizedMethodId = normalizeBoundFragmentId(
+    didContract,
+    methodId,
+    "methodId",
+  );
   const contractAddress = didContract.deployTxData.public.contractAddress;
   const didState = await getMidnightDIDLedgerState(providers, contractAddress);
 
@@ -474,24 +594,58 @@ export const removeVerificationMethod = async (
 
 export const addVerificationMethodRelation = async (
   didContract: DeployedMidnightDIDContract,
+  providers: MidnightDIDProviders,
   relation: VerificationMethodRelationType,
   methodId: string,
 ): Promise<FinalizedTxData> => {
+  const normalizedMethodId = normalizeBoundFragmentId(
+    didContract,
+    methodId,
+    "methodId",
+  );
+  const contractAddress = didContract.deployTxData.public.contractAddress;
+  const didState = await getMidnightDIDLedgerState(providers, contractAddress);
+  if (!didState) {
+    throw new Error("Cannot query DID state");
+  }
+  const relationSet = relationSetFromState(didState, relation);
+  if (relationSet.member(normalizedMethodId)) {
+    throw new Error(
+      `relation ${relation} already contains verification method ${normalizedMethodId}`,
+    );
+  }
   const result = await didContract.callTx.addVerificationMethodRelation(
     LedgerVerificationMethodRelationMap[relation],
-    normalizeFragmentId(methodId),
+    normalizedMethodId,
   );
   return result.public;
 };
 
 export const removeVerificationMethodRelation = async (
   didContract: DeployedMidnightDIDContract,
+  providers: MidnightDIDProviders,
   relation: VerificationMethodRelationType,
   methodId: string,
 ): Promise<FinalizedTxData> => {
+  const normalizedMethodId = normalizeBoundFragmentId(
+    didContract,
+    methodId,
+    "methodId",
+  );
+  const contractAddress = didContract.deployTxData.public.contractAddress;
+  const didState = await getMidnightDIDLedgerState(providers, contractAddress);
+  if (!didState) {
+    throw new Error("Cannot query DID state");
+  }
+  const relationSet = relationSetFromState(didState, relation);
+  if (!relationSet.member(normalizedMethodId)) {
+    throw new Error(
+      `relation ${relation} does not contain verification method ${normalizedMethodId}`,
+    );
+  }
   const result = await didContract.callTx.removeVerificationMethodRelation(
     LedgerVerificationMethodRelationMap[relation],
-    normalizeFragmentId(methodId),
+    normalizedMethodId,
   );
   return result.public;
 };
@@ -500,7 +654,9 @@ export const addService = async (
   didContract: DeployedMidnightDIDContract,
   service: Service,
 ): Promise<FinalizedTxData> => {
-  const result = await didContract.callTx.addService(serviceToLedger(service));
+  const result = await didContract.callTx.addService(
+    serviceToLedger(didContract, service),
+  );
   return result.public;
 };
 
@@ -509,7 +665,7 @@ export const updateService = async (
   service: Service,
 ): Promise<FinalizedTxData> => {
   const result = await didContract.callTx.updateService(
-    serviceToLedger(service),
+    serviceToLedger(didContract, service),
   );
   return result.public;
 };
@@ -518,9 +674,12 @@ export const removeService = async (
   didContract: DeployedMidnightDIDContract,
   serviceId: string,
 ): Promise<FinalizedTxData> => {
-  const result = await didContract.callTx.removeService(
-    normalizeFragmentId(serviceId),
+  const normalizedServiceId = normalizeBoundFragmentId(
+    didContract,
+    serviceId,
+    "serviceId",
   );
+  const result = await didContract.callTx.removeService(normalizedServiceId);
   return result.public;
 };
 
@@ -528,6 +687,7 @@ export const addAlsoKnownAs = async (
   didContract: DeployedMidnightDIDContract,
   aliasUri: string,
 ): Promise<FinalizedTxData> => {
+  assertAliasUri(aliasUri);
   const result = await didContract.callTx.addAlsoKnownAs(aliasUri);
   return result.public;
 };
