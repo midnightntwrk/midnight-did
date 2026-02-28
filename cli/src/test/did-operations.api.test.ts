@@ -88,7 +88,7 @@ describe('DID Operations API [@slow]', () => {
   });
 
   it('should add a verification method relation', async () => {
-    await api.addVerificationMethodRelation(didContract, 'Authentication', '#key-1');
+    await api.addVerificationMethodRelation(didContract, providers, 'Authentication', '#key-1');
 
     const didState = await api.displayDIDState(providers, didContract);
     expect(didState.didState?.authenticationRelation.member('#key-1')).toEqual(true);
@@ -98,8 +98,8 @@ describe('DID Operations API [@slow]', () => {
   });
 
   it('should add multiple relations in one transaction', async () => {
-    await api.addVerificationMethodRelation(didContract, 'AssertionMethod', '#key-1');
-    await api.addVerificationMethodRelation(didContract, 'KeyAgreement', '#key-1');
+    await api.addVerificationMethodRelation(didContract, providers, 'AssertionMethod', '#key-1');
+    await api.addVerificationMethodRelation(didContract, providers, 'KeyAgreement', '#key-1');
 
     const didState = await api.displayDIDState(providers, didContract);
     expect(didState.didState?.assertionMethodRelation.member('#key-1')).toEqual(true);
@@ -156,7 +156,7 @@ describe('DID Operations API [@slow]', () => {
   });
 
   it('should remove a verification method relation', async () => {
-    await api.removeVerificationMethodRelation(didContract, 'KeyAgreement', '#key-1');
+    await api.removeVerificationMethodRelation(didContract, providers, 'KeyAgreement', '#key-1');
 
     const didState = await api.displayDIDState(providers, didContract);
     expect(didState.didState?.keyAgreementRelation.member('#key-1')).toEqual(false);

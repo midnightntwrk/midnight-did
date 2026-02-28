@@ -70,6 +70,57 @@ export type VerificationMethod = DIDContract.VerificationMethod;
 export type Service = DIDContract.Service;
 export type Ledger = DIDContract.Ledger;
 export const { VerificationMethodType, VerificationMethodRelation, KeyType, CurveType } = DIDContract;
+type RelationName =
+  | 'Authentication'
+  | 'AssertionMethod'
+  | 'KeyAgreement'
+  | 'CapabilityInvocation'
+  | 'CapabilityDelegation';
+
+type BoundIdField = 'verificationMethod.id' | 'service.id' | 'methodId' | 'serviceId';
+const hasUriScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
+
+const expectedDidSubject = (didContract: DeployedDIDContract): string => {
+  const networkId = String(getNetworkId()).toLowerCase();
+  const contractAddress = didContract.deployTxData.public.contractAddress.toLowerCase();
+  return `did:midnight:${networkId}:${contractAddress}`;
+};
+
+const normalizeBoundFragmentId = (didContract: DeployedDIDContract, value: string, field: BoundIdField): string => {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new Error(`${field} must not be empty`);
+  }
+  if (trimmed.startsWith('//')) {
+    throw new Error(`${field} must be a DID URL or relative reference`);
+  }
+  if (trimmed.startsWith('#')) {
+    return trimmed;
+  }
+
+  const hashIndex = trimmed.indexOf('#');
+  if (trimmed.startsWith('did:')) {
+    if (hashIndex <= 0 || hashIndex === trimmed.length - 1) {
+      throw new Error(`${field} DID URL must include a non-empty fragment identifier`);
+    }
+    const didSubject = trimmed.slice(0, hashIndex).toLowerCase();
+    const expected = expectedDidSubject(didContract);
+    if (didSubject !== expected) {
+      throw new Error(`${field} DID URL subject must match the current DID (${expected})`);
+    }
+    return `#${trimmed.slice(hashIndex + 1)}`;
+  }
+
+  if (trimmed.startsWith('/') || trimmed.startsWith('.') || trimmed.startsWith('?')) {
+    return `#${trimmed}`;
+  }
+
+  if (hasUriScheme.test(trimmed)) {
+    throw new Error(`${field} must be a DID URL or relative reference`);
+  }
+
+  return `#${trimmed}`;
+};
 
 let logger: Logger;
 
@@ -730,9 +781,10 @@ export const addVerificationMethod = async (
     y: bigint;
   },
 ): Promise<any> => {
-  logger.info(`Adding verification method: ${id}`);
+  const normalizedId = normalizeBoundFragmentId(didContract, id, 'verificationMethod.id');
+  logger.info(`Adding verification method: ${normalizedId}`);
   const result = await didContract.callTx.addVerificationMethod({
-    id,
+    id: normalizedId,
     typ: VerificationMethodType.JsonWebKey,
     publicKeyJwk: {
       kty: KeyType[publicKeyJwk.kty],
@@ -755,9 +807,10 @@ export const updateVerificationMethod = async (
     y: bigint;
   },
 ): Promise<any> => {
-  logger.info(`Updating verification method: ${id}`);
+  const normalizedId = normalizeBoundFragmentId(didContract, id, 'verificationMethod.id');
+  logger.info(`Updating verification method: ${normalizedId}`);
   const result = await didContract.callTx.updateVerificationMethod({
-    id,
+    id: normalizedId,
     typ: VerificationMethodType.JsonWebKey,
     publicKeyJwk: {
       kty: KeyType[publicKeyJwk.kty],
@@ -784,7 +837,8 @@ export const removeVerificationMethod = async (
   providers: DIDProviders,
   id: string,
 ): Promise<any> => {
-  logger.info(`Removing verification method and its relations: ${id}`);
+  const normalizedId = normalizeBoundFragmentId(didContract, id, 'methodId');
+  logger.info(`Removing verification method and its relations: ${normalizedId}`);
   const contractAddress = didContract.deployTxData.public.contractAddress;
   const didState = await getDIDLedgerState(providers, contractAddress);
 
@@ -798,54 +852,94 @@ export const removeVerificationMethod = async (
   }> = [
     {
       name: 'Authentication',
-      member: didState.authenticationRelation.member(id),
+      member: didState.authenticationRelation.member(normalizedId),
     },
     {
       name: 'AssertionMethod',
-      member: didState.assertionMethodRelation.member(id),
+      member: didState.assertionMethodRelation.member(normalizedId),
     },
-    { name: 'KeyAgreement', member: didState.keyAgreementRelation.member(id) },
+    { name: 'KeyAgreement', member: didState.keyAgreementRelation.member(normalizedId) },
     {
       name: 'CapabilityInvocation',
-      member: didState.capabilityInvocationRelation.member(id),
+      member: didState.capabilityInvocationRelation.member(normalizedId),
     },
     {
       name: 'CapabilityDelegation',
-      member: didState.capabilityDelegationRelation.member(id),
+      member: didState.capabilityDelegationRelation.member(normalizedId),
     },
   ];
 
   for (const { name, member } of relationsToCheck) {
     if (member) {
-      await didContract.callTx.removeVerificationMethodRelation(VerificationMethodRelation[name], id);
+      await didContract.callTx.removeVerificationMethodRelation(VerificationMethodRelation[name], normalizedId);
     }
   }
 
-  const result = await didContract.callTx.removeVerificationMethod(id);
+  const result = await didContract.callTx.removeVerificationMethod(normalizedId);
   logger.info('Verification method removed successfully');
   return result;
 };
 
+const relationSetFromState = (didState: DIDContract.Ledger, relation: RelationName) => {
+  switch (relation) {
+    case 'Authentication':
+      return didState.authenticationRelation;
+    case 'AssertionMethod':
+      return didState.assertionMethodRelation;
+    case 'KeyAgreement':
+      return didState.keyAgreementRelation;
+    case 'CapabilityInvocation':
+      return didState.capabilityInvocationRelation;
+    case 'CapabilityDelegation':
+      return didState.capabilityDelegationRelation;
+  }
+};
+
 export const addVerificationMethodRelation = async (
   didContract: DeployedDIDContract,
-  relation: 'Authentication' | 'AssertionMethod' | 'KeyAgreement' | 'CapabilityInvocation' | 'CapabilityDelegation',
+  providers: DIDProviders,
+  relation: RelationName,
   methodId: string,
 ): Promise<any> => {
-  logger.info(`Adding ${relation} relation to ${methodId}`);
-  const result = await didContract.callTx.addVerificationMethodRelation(VerificationMethodRelation[relation], methodId);
+  const normalizedMethodId = normalizeBoundFragmentId(didContract, methodId, 'methodId');
+  logger.info(`Adding ${relation} relation to ${normalizedMethodId}`);
+  const contractAddress = didContract.deployTxData.public.contractAddress;
+  const didState = await getDIDLedgerState(providers, contractAddress);
+  if (!didState) {
+    throw new Error('Cannot query DID state');
+  }
+  const relationSet = relationSetFromState(didState, relation);
+  if (relationSet.member(normalizedMethodId)) {
+    throw new Error(`relation ${relation} already contains verification method ${normalizedMethodId}`);
+  }
+  const result = await didContract.callTx.addVerificationMethodRelation(
+    VerificationMethodRelation[relation],
+    normalizedMethodId,
+  );
   logger.info('Verification method relation added successfully');
   return result;
 };
 
 export const removeVerificationMethodRelation = async (
   didContract: DeployedDIDContract,
-  relation: 'Authentication' | 'AssertionMethod' | 'KeyAgreement' | 'CapabilityInvocation' | 'CapabilityDelegation',
+  providers: DIDProviders,
+  relation: RelationName,
   methodId: string,
 ): Promise<any> => {
-  logger.info(`Removing ${relation} relation from ${methodId}`);
+  const normalizedMethodId = normalizeBoundFragmentId(didContract, methodId, 'methodId');
+  logger.info(`Removing ${relation} relation from ${normalizedMethodId}`);
+  const contractAddress = didContract.deployTxData.public.contractAddress;
+  const didState = await getDIDLedgerState(providers, contractAddress);
+  if (!didState) {
+    throw new Error('Cannot query DID state');
+  }
+  const relationSet = relationSetFromState(didState, relation);
+  if (!relationSet.member(normalizedMethodId)) {
+    throw new Error(`relation ${relation} does not contain verification method ${normalizedMethodId}`);
+  }
   const result = await didContract.callTx.removeVerificationMethodRelation(
     VerificationMethodRelation[relation],
-    methodId,
+    normalizedMethodId,
   );
   logger.info('Verification method relation removed successfully');
   return result;
@@ -857,9 +951,10 @@ export const addService = async (
   type: string,
   serviceEndpoint: string,
 ): Promise<any> => {
-  logger.info(`Adding service: ${id}`);
+  const normalizedServiceId = normalizeBoundFragmentId(didContract, id, 'service.id');
+  logger.info(`Adding service: ${normalizedServiceId}`);
   const result = await didContract.callTx.addService({
-    id,
+    id: normalizedServiceId,
     typ: type,
     serviceEndpoint,
   });
@@ -873,9 +968,10 @@ export const updateService = async (
   type: string,
   serviceEndpoint: string,
 ): Promise<any> => {
-  logger.info(`Updating service: ${id}`);
+  const normalizedServiceId = normalizeBoundFragmentId(didContract, id, 'service.id');
+  logger.info(`Updating service: ${normalizedServiceId}`);
   const result = await didContract.callTx.updateService({
-    id,
+    id: normalizedServiceId,
     typ: type,
     serviceEndpoint,
   });
@@ -884,13 +980,23 @@ export const updateService = async (
 };
 
 export const removeService = async (didContract: DeployedDIDContract, id: string): Promise<any> => {
-  logger.info(`Removing service: ${id}`);
-  const result = await didContract.callTx.removeService(id);
+  const normalizedServiceId = normalizeBoundFragmentId(didContract, id, 'serviceId');
+  logger.info(`Removing service: ${normalizedServiceId}`);
+  const result = await didContract.callTx.removeService(normalizedServiceId);
   logger.info('Service removed successfully');
   return result;
 };
 
 export const addAlsoKnownAs = async (didContract: DeployedDIDContract, value: string): Promise<any> => {
+  const alias = value.trim();
+  if (alias.length === 0) {
+    throw new Error('Alias URI must not be empty');
+  }
+  try {
+    new URL(alias);
+  } catch {
+    throw new Error('Alias URI must be a valid absolute URI (RFC3986)');
+  }
   logger.info(`Adding alsoKnownAs: ${value}`);
   const result = await didContract.callTx.addAlsoKnownAs(value);
   logger.info('AlsoKnownAs added successfully');
