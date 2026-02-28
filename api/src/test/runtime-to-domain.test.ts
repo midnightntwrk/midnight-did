@@ -12,6 +12,8 @@ describe("RuntimeToDomain.NetworkMap", () => {
     expect(RuntimeToDomain.NetworkMap["devnet"]).toBe(MidnightNetwork.DevNet);
     expect(RuntimeToDomain.NetworkMap["testnet"]).toBe(MidnightNetwork.Testnet);
     expect(RuntimeToDomain.NetworkMap["mainnet"]).toBe(MidnightNetwork.Mainnet);
+    expect(RuntimeToDomain.NetworkMap["preview"]).toBe(MidnightNetwork.Preview);
+    expect(RuntimeToDomain.NetworkMap["preprod"]).toBe(MidnightNetwork.Preprod);
   });
 
   it("is inverse of DomainToRuntime.NetworkMap for all defined values", () => {

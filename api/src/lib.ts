@@ -437,6 +437,22 @@ const publicKeyJwkToLedger = (
   return { kty, crv, x, y };
 };
 
+const assertMidnightKeyProfile = (publicKeyJwk: PublicKeyJwk): void => {
+  if (publicKeyJwk.kty === KeyType.OKP) {
+    if (publicKeyJwk.crv !== CurveType.Ed25519) {
+      throw new Error("OKP keys must use Ed25519");
+    }
+    return;
+  }
+  if (publicKeyJwk.kty === KeyType.EC) {
+    if (publicKeyJwk.crv !== CurveType.Jubjub) {
+      throw new Error("EC keys must use Jubjub");
+    }
+    return;
+  }
+  throw new Error("Only OKP (Ed25519) and EC (Jubjub) keys are supported");
+};
+
 const verificationMethodToLedger = (
   didContract: DeployedMidnightDIDContract,
   method: VerificationMethod,
@@ -444,6 +460,7 @@ const verificationMethodToLedger = (
   if (method.type !== VerificationMethodType.JsonWebKey) {
     throw new Error("verificationMethod.type must be JsonWebKey");
   }
+  assertMidnightKeyProfile(method.publicKeyJwk);
   const didSubject = getDidSubject(didContract);
   if (method.controller !== didSubject) {
     throw new Error(

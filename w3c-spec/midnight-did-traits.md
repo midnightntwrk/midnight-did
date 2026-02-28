@@ -53,7 +53,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | Trait | Status | Notes |
 | --- | --- | --- |
 | Batch operations | ✖ | One circuit call per operation (no batching). |
-| Network portability | ✔ | Works on undeployed/devnet/testnet/mainnet. |
+| Network portability | ✔ | Works on undeployed/devnet/testnet/mainnet/preview/preprod. |
 | Privacy guidance | ✔ | Spec discourages PII on-chain; ZK witness protects updates. |
 | Service discovery | ✔ | Indexers/resolvers dependent on Midnight network (§11). |
 

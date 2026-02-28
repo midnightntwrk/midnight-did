@@ -130,6 +130,13 @@ export circuit addVerificationMethod(verificationMethod: VerificationMethod): []
 
   const disclosedVerificationMethod = disclose(verificationMethod);
   assert(disclosedVerificationMethod.typ == VerificationMethodType.JsonWebKey, "Only JsonWebKey verification methods are supported");
+  if (disclosedVerificationMethod.publicKeyJwk.kty == KeyType.OKP) {
+    assert(disclosedVerificationMethod.publicKeyJwk.crv == CurveType.Ed25519, "OKP keys must use Ed25519");
+  } else if (disclosedVerificationMethod.publicKeyJwk.kty == KeyType.EC) {
+    assert(disclosedVerificationMethod.publicKeyJwk.crv == CurveType.Jubjub, "EC keys must use Jubjub");
+  } else {
+    assert(false, "Only OKP (Ed25519) and EC (Jubjub) keys are supported");
+  }
   assert(!verificationMethods.member(disclosedVerificationMethod.id), "Verification method already exists");
 
   verificationMethods.insert(disclosedVerificationMethod.id, disclosedVerificationMethod);
@@ -145,6 +152,13 @@ export circuit updateVerificationMethod(verificationMethod: VerificationMethod):
 
   const disclosedVerificationMethod = disclose(verificationMethod);
   assert(disclosedVerificationMethod.typ == VerificationMethodType.JsonWebKey, "Only JsonWebKey verification methods are supported");
+  if (disclosedVerificationMethod.publicKeyJwk.kty == KeyType.OKP) {
+    assert(disclosedVerificationMethod.publicKeyJwk.crv == CurveType.Ed25519, "OKP keys must use Ed25519");
+  } else if (disclosedVerificationMethod.publicKeyJwk.kty == KeyType.EC) {
+    assert(disclosedVerificationMethod.publicKeyJwk.crv == CurveType.Jubjub, "EC keys must use Jubjub");
+  } else {
+    assert(false, "Only OKP (Ed25519) and EC (Jubjub) keys are supported");
+  }
   assert(verificationMethods.member(disclosedVerificationMethod.id), "Verification method does not exist");
 
   verificationMethods.remove(disclosedVerificationMethod.id);

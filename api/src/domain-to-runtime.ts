@@ -7,5 +7,7 @@ export class DomainToRuntime {
     [MidnightNetwork.DevNet]: "devnet",
     [MidnightNetwork.Testnet]: "testnet",
     [MidnightNetwork.Mainnet]: "mainnet",
+    [MidnightNetwork.Preview]: "preview",
+    [MidnightNetwork.Preprod]: "preprod",
   };
 }
