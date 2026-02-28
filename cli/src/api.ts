@@ -180,6 +180,19 @@ const serviceEndpointToLedger = (endpoint: ServiceEndpointInput): string => {
   return JSON.stringify(endpoint);
 };
 
+const assertAliasUri = (value: string): string => {
+  const alias = value.trim();
+  if (alias.length === 0) {
+    throw new Error('Alias URI must not be empty');
+  }
+  try {
+    new URL(alias);
+  } catch {
+    throw new Error('Alias URI must be a valid absolute URI (RFC3986)');
+  }
+  return alias;
+};
+
 let logger: Logger;
 
 // Required for GraphQL subscriptions (wallet sync) to work in Node.js
@@ -1048,24 +1061,17 @@ export const removeService = async (didContract: DeployedDIDContract, id: string
 };
 
 export const addAlsoKnownAs = async (didContract: DeployedDIDContract, value: string): Promise<any> => {
-  const alias = value.trim();
-  if (alias.length === 0) {
-    throw new Error('Alias URI must not be empty');
-  }
-  try {
-    new URL(alias);
-  } catch {
-    throw new Error('Alias URI must be a valid absolute URI (RFC3986)');
-  }
+  const alias = assertAliasUri(value);
   logger.info(`Adding alsoKnownAs: ${value}`);
-  const result = await didContract.callTx.addAlsoKnownAs(value);
+  const result = await didContract.callTx.addAlsoKnownAs(alias);
   logger.info('AlsoKnownAs added successfully');
   return result;
 };
 
 export const removeAlsoKnownAs = async (didContract: DeployedDIDContract, value: string): Promise<any> => {
+  const alias = assertAliasUri(value);
   logger.info(`Removing alsoKnownAs: ${value}`);
-  const result = await didContract.callTx.removeAlsoKnownAs(value);
+  const result = await didContract.callTx.removeAlsoKnownAs(alias);
   logger.info('AlsoKnownAs removed successfully');
   return result;
 };

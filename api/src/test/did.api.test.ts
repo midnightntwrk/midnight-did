@@ -534,6 +534,18 @@ describeApi("Midnight DID method API", () => {
     expect(didDoc?.alsoKnownAs?.includes(secondAlias)).toBe(true);
   });
 
+  it("should reject invalid alsoKnownAs URI when adding", async () => {
+    await expect(api.addAlsoKnownAs(contract, "not-a-uri")).rejects.toThrow(
+      /aliasUri must be a valid absolute URI/,
+    );
+  });
+
+  it("should reject invalid alsoKnownAs URI when removing", async () => {
+    await expect(api.removeAlsoKnownAs(contract, " ")).rejects.toThrow(
+      /aliasUri must not be empty/,
+    );
+  });
+
   it("should deactivate the DID", async () => {
     await api.deactivate(contract);
     const resolution = await api.resolve(providers, contract);

@@ -173,6 +173,14 @@ describe('DID Operations API [@slow]', () => {
     expect(didState.didState?.version).toEqual(10n);
   });
 
+  it('should reject invalid alsoKnownAs URI when adding', async () => {
+    await expect(api.addAlsoKnownAs(didContract, 'not-a-uri')).rejects.toThrow(/aliasUri must be a valid absolute URI/);
+  });
+
+  it('should reject invalid alsoKnownAs URI when removing', async () => {
+    await expect(api.removeAlsoKnownAs(didContract, '')).rejects.toThrow(/aliasUri must not be empty/);
+  });
+
   it('should remove a service', async () => {
     await api.removeService(didContract, '#service-1');
 
