@@ -192,6 +192,12 @@ export class LedgerToDomain {
     return needsFragmentPrefix ? `#${rawId}` : rawId;
   }
 
+  static absoluteDidUrlReference(did: string, id: string): string {
+    const normalized = this.verificationMethodId(id);
+    if (normalized.startsWith("did:")) return normalized;
+    return `${did}${normalized}`;
+  }
+
   static toJSON(ledger: Ledger): object {
     const created = this.timestampToIsoString(ledger.created);
     const updated = this.timestampToIsoString(ledger.updated);
@@ -257,7 +263,7 @@ export class LedgerToDomain {
       }
       verificationMethod.push(
         createVerificationMethod({
-          id: this.verificationMethodId(id),
+          id: this.absoluteDidUrlReference(did, id),
           type: verificationMethodType,
           controller: did,
           publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
@@ -274,7 +280,7 @@ export class LedgerToDomain {
       for (const methodId of relation) {
         if (!verificationMethodIds.has(methodId)) {
           throw new Error(
-            `${relationName} references missing verification method '${this.verificationMethodId(methodId)}'`,
+            `${relationName} references missing verification method '${this.absoluteDidUrlReference(did, methodId)}'`,
           );
         }
       }
@@ -313,7 +319,10 @@ export class LedgerToDomain {
     const keyAgreement = mapRelation(ledger.keyAgreementRelation);
     const service = ledger.services.isEmpty()
       ? undefined
-      : Array.from(ledger.services, ([, s]) => this.service(s));
+      : Array.from(ledger.services, ([, s]) => ({
+          ...this.service(s),
+          id: this.absoluteDidUrlReference(did, s.id),
+        }));
     const alsoKnownAs = ledger.alsoKnownAs.isEmpty()
       ? undefined
       : Array.from(ledger.alsoKnownAs);

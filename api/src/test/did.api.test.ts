@@ -279,7 +279,7 @@ describeApi("Midnight DID method API", () => {
     const didDoc = await resolveDocument();
     expect(didDoc?.verificationMethod).not.toBeNull();
     const insertedVerificationMethod = didDoc?.verificationMethod?.find(
-      (vm) => vm.id === toFragmentId(methodId),
+      (vm) => vm.id === methodId,
     );
     expect(insertedVerificationMethod).not.toBeNull();
     expect(insertedVerificationMethod?.type).toEqual(
@@ -319,11 +319,9 @@ describeApi("Midnight DID method API", () => {
     const methodId = `${didString}#key-1`;
     await api.removeVerificationMethod(contract, providers, methodId);
     const didDoc = await resolveDocument();
-    expect(
-      didDoc?.verificationMethod?.some(
-        (vm) => vm.id === toFragmentId(methodId),
-      ),
-    ).toBe(false);
+    expect(didDoc?.verificationMethod?.some((vm) => vm.id === methodId)).toBe(
+      false,
+    );
     const authId = parseDIDKeyID(toFragmentId(methodId));
     expect((didDoc?.authentication ?? []).includes(authId)).toBe(false);
   });
@@ -343,7 +341,7 @@ describeApi("Midnight DID method API", () => {
     expect(didDoc?.service).not.toBeNull();
     const service = didDoc?.service!;
     expect(service.length).toBe(1);
-    expect(service[0].id).toBe(serviceToAdd.id);
+    expect(service[0].id).toBe(`${didString}${serviceToAdd.id}`);
     expect(service[0].type).toBe(serviceToAdd.type);
     expect(service[0].serviceEndpoint).toEqual(serviceToAdd.serviceEndpoint);
   });
@@ -360,7 +358,7 @@ describeApi("Midnight DID method API", () => {
     expect(didDoc?.service).not.toBeNull();
     const service = didDoc?.service!;
     expect(service.length).toBe(1);
-    expect(service[0].id).toBe(serviceToUpdate.id);
+    expect(service[0].id).toBe(`${didString}${serviceToUpdate.id}`);
     expect(service[0].serviceEndpoint).toEqual(serviceToUpdate.serviceEndpoint);
   });
 
@@ -488,8 +486,8 @@ describeApi("Midnight DID method API", () => {
       serviceDefinitions.length,
     );
     for (const { service, expectedEndpoint } of serviceDefinitions) {
-      const fragmentId = toFragmentId(service.id);
-      const actual = didDoc?.service?.find((svc) => svc.id === fragmentId);
+      const canonicalId = `${didString}${toFragmentId(service.id)}`;
+      const actual = didDoc?.service?.find((svc) => svc.id === canonicalId);
       expect(actual).toBeDefined();
       expect(actual?.type).toBe(service.type);
       expect(actual?.serviceEndpoint).toEqual(expectedEndpoint);
@@ -501,9 +499,9 @@ describeApi("Midnight DID method API", () => {
 
     const finalDoc = await resolveDocument();
     for (const { service } of serviceDefinitions) {
-      const fragmentId = toFragmentId(service.id);
+      const canonicalId = `${didString}${toFragmentId(service.id)}`;
       expect(
-        finalDoc?.service?.find((svc) => svc.id === fragmentId),
+        finalDoc?.service?.find((svc) => svc.id === canonicalId),
       ).toBeUndefined();
     }
   });

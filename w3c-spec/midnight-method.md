@@ -166,6 +166,7 @@ Every public key object linked to the `verificationMethod` property **MUST** inc
 ### 3.4.1. id
 
 Each linked public key has its own identifier specified using the field `id`. The value of `verificationMethod` **MUST NOT** contain multiple entries with the same `id`. The identifier **MUST** be either a DID URL for the subject with a fragment (for example, `did:midnight:<network>:<addr>#key-1`) or a relative reference that resolves against the DID (for example, `#key-1`).
+Midnight normalizes identifiers to fragment form (`#...`) at the SDK/contract boundary for on-ledger storage and relation management. During DID Document resolution, Midnight emits canonical absolute DID URLs for `verificationMethod.id`.
 
 ### 3.4.2. type
 
@@ -305,7 +306,7 @@ The `service` property is OPTIONAL. If present, the associated value MUST be a s
 
 #### 3.6.1.1. Id
 
-The value of the `id` property MUST be either a DID URL for the Midnight DID subject (for example, `did:midnight:<network>:<addr>#service-1`) or a relative URL resolved against that DID (for example, `#service-1`, `/routing`, or `?service=messaging`). Midnight DID deployments use fragment identifiers (`#fragment`) when serialising services in ledger transactions. A conforming producer MUST NOT emit multiple service entries with the same `id`, and a conforming consumer MUST produce an error if duplicate `id` values are detected.
+The value of the `id` property MUST be either a DID URL for the Midnight DID subject (for example, `did:midnight:<network>:<addr>#service-1`) or a relative URL resolved against that DID (for example, `#service-1`, `/routing`, or `?service=messaging`). Midnight DID deployments normalize service IDs to fragment identifiers (`#fragment`) when serializing services in ledger transactions. During DID Document resolution, service IDs are emitted as canonical absolute DID URLs. A conforming producer MUST NOT emit multiple service entries with the same `id`, and a conforming consumer MUST produce an error if duplicate `id` values are detected.
 
 #### 3.6.1.2. Type
 
@@ -415,13 +416,13 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | deactivated                    | `Boolean`                                    | Whether the DID has been deactivated. When `true`, the resolver surfaces `deactivated: true` in metadata and reuses the `updated` timestamp as the deactivation time. |
 | active                         | `Boolean`                                    | Whether the DID is active (`true`) or deactivated (`false`). If `active` is false, the resolver MUST set `deactivated: true` in DID Document metadata. |
 | operationCount                 | `Counter`                                    | Total number of DID update operations applied to this DID. Used for internal statistics. |
-| verificationMethods            | `Map<Opaque<"string">, VerificationMethod>`    | Map from verification method identifiers (strings stored without a leading `#`) to their definition (type and key material). Ledger-to-domain conversion adds the `#` prefix unless the identifier is already a DID URL. The DIDDocument's `verificationMethod` property is reconstructed from this state. |
+| verificationMethods            | `Map<Opaque<"string">, VerificationMethod>`    | Map from verification method identifiers (canonicalized to fragment form for storage) to their definition (type and key material). Resolver output reconstructs canonical absolute DID URLs for `verificationMethod.id`. |
 | authenticationRelation         | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `authentication`. The DIDDocument's `authentication` property is reconstructed from this state. |
 | assertionMethodRelation        | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `assertionMethod`. The DIDDocument's `assertionMethod` property is reconstructed from this state. |
 | keyAgreementRelation           | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `keyAgreement`. The DIDDocument's `keyAgreement` property is reconstructed from this state. |
 | capabilityInvocationRelation   | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `capabilityInvocation`. The DIDDocument's `capabilityInvocation` property is reconstructed from this state. |
 | capabilityDelegationRelation   | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `capabilityDelegation`. The DIDDocument's `capabilityDelegation` property is reconstructed from this state. |
-| services                       | `Map<Opaque<"string">, Service>`               | Map from service identifiers (strings stored without a leading `#`) to service definitions. The `serviceEndpoint` value is stored as a JSON string so that any DID Core–compliant representation (string, object, or array) can be rehydrated when reconstructing the DID Document. When rebuilding the document, identifiers are prefixed with `#` unless they already represent DID URLs or other relative references. |
+| services                       | `Map<Opaque<"string">, Service>`               | Map from service identifiers (canonicalized to fragment form for storage) to service definitions. The `serviceEndpoint` value is stored as a JSON string so that any DID Core–compliant representation (string, object, or array) can be rehydrated when reconstructing the DID Document. Resolver output emits canonical absolute DID URLs for service `id` values. |
 
 Example DID Document metadata emitted by the resolver layer:
 
@@ -506,7 +507,7 @@ Adds a new verification method entry and (optionally, in a subsequent operation)
 
 - Inputs: `verificationMethod` object with `id`, `type`, `controller`, and `publicKeyJwk` fields.
 - Constraints:
-  - `id` MUST be either a DID URL bound to this DID (for example, `did:midnight:<network>:<addr>#key-1`) or a relative identifier that resolves against the DID (for example, `#key-1`). On-ledger, only the fragment portion (such as `key-1`) is stored; ledger-to-domain conversion restores the `#` prefix for Midnight DIDs.
+  - `id` MUST be either a DID URL bound to this DID (for example, `did:midnight:<network>:<addr>#key-1`) or a relative identifier that resolves against the DID (for example, `#key-1`). On-ledger, Midnight canonicalizes to fragment form (`#key-1`) for storage. Resolver output emits the absolute DID URL form.
   - `controller` MUST equal the DID subject.
   - `type` MUST be `JsonWebKey`.
   - `publicKeyJwk` MUST follow the JWK profiles defined in section 3.4.4 (Ed25519 or Jubjub).
@@ -609,7 +610,7 @@ Adds a service entry identified by a unique `id` with a `type` and `serviceEndpo
 
 - Inputs: `service` with fields `id`, `type`, `serviceEndpoint`.
 - Constraints:
-  - `id` MUST be unique across services and MUST be either a DID URL for the DID subject or a relative identifier (for example, `#service-1`). Midnight DID uses fragment identifiers in practice.
+  - `id` MUST be unique across services and MUST be either a DID URL for the DID subject or a relative identifier (for example, `#service-1`). Midnight canonicalizes service IDs to fragment form for storage and emits absolute DID URL form in resolved documents.
   - `type` MUST be either a string or an array of unique strings.
   - `serviceEndpoint` MUST be encodable as JSON and MUST conform to the DID Core 1.0 service endpoint data model (string, object, or array of strings/objects). The value is persisted as a JSON string on-ledger.
 
