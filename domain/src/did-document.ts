@@ -102,6 +102,7 @@ export const KeyTypeSchema = z.enum(KeyType);
 export enum CurveType {
   Ed25519 = "Ed25519",
   Jubjub = "Jubjub",
+  P256 = "P-256",
 }
 export const CurveTypeSchema = z.enum(CurveType);
 
@@ -119,6 +120,15 @@ export const PublicKeyJwkSchema = z
     z.refine(
       (value) => value.kty !== KeyType.OKP || value.crv === CurveType.Ed25519,
       "OKP keys must use the Ed25519 curve",
+    ),
+  )
+  .check(
+    z.refine(
+      (value) =>
+        value.kty !== KeyType.EC ||
+        value.crv === CurveType.Jubjub ||
+        value.crv === CurveType.P256,
+      "EC keys must use Jubjub or P-256 curve",
     ),
   )
   .check(

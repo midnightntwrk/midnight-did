@@ -59,6 +59,7 @@ export class LedgerToDomain {
   static readonly CurveTypeMap: Record<LedgerCurveTypeValue, CurveType> = {
     [LedgerCurveType.Ed25519]: CurveType.Ed25519,
     [LedgerCurveType.Jubjub]: CurveType.Jubjub,
+    [LedgerCurveType.P256]: CurveType.P256,
   };
 
   static readonly VerificationMethodTypeMap: Record<

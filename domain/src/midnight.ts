@@ -26,9 +26,9 @@ export function parseContractAddress(input: string): ContractAddress {
 export function createMidnightDIDString(
   contractAddress: ContractAddress,
   network: MidnightNetwork,
-): string {
+): MidnightDIDString {
   const net = network.toLowerCase();
-  return `did:midnight:${net}:${contractAddress}`;
+  return `did:midnight:${net}:${contractAddress}` as MidnightDIDString;
 }
 
 // did:midnight:<network>:<contract_address>

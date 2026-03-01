@@ -5,7 +5,7 @@ type ContractModule = typeof import("@midnight-ntwrk/midnight-did-contract");
 
 vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
   const DIDContractMock = {
-    CurveType: { Ed25519: 0, Jubjub: 1 },
+    CurveType: { Ed25519: 0, Jubjub: 1, P256: 2 },
     KeyType: { EC: 0, RSA: 1, oct: 2, OKP: 3 },
     VerificationMethodType: { Undefined: 0, JsonWebKey: 1 },
     VerificationMethodRelation: {
@@ -132,6 +132,17 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(out.crv).toBe("Jubjub");
     expect(out.x).toBe("BQ");
     expect(out.y).toBe("CQ");
+  });
+
+  it("publicKeyJwk maps P-256 curve values", () => {
+    const out = LedgerToDomain.publicKeyJwk({
+      kty: DIDContract.KeyType.EC,
+      crv: DIDContract.CurveType.P256,
+      x: 5n,
+      y: 9n,
+    } as any);
+    expect(out.kty).toBe("EC");
+    expect(out.crv).toBe("P-256");
   });
 
   it("service filters blank endpoints and preserves id/type", () => {

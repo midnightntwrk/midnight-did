@@ -4,6 +4,7 @@ import { createVerificationMethod, CurveType, KeyType } from "../did-document";
 import {
   exampleEcJsonWebKey,
   exampleJsonWebKey,
+  exampleP256JsonWebKey,
   exampleRelativeVerificationMethodInput,
   exampleVerificationMethodInput,
 } from "./fixtures/did";
@@ -49,5 +50,14 @@ describe("createVerificationMethod", () => {
       publicKeyJwk: exampleEcJsonWebKey,
     });
     expect(vm.publicKeyJwk).toEqual(exampleEcJsonWebKey);
+  });
+
+  it("accepts P-256 EC keys", () => {
+    const vm = createVerificationMethod({
+      ...exampleVerificationMethodInput,
+      id: `${exampleVerificationMethodInput.controller}#key-p256`,
+      publicKeyJwk: exampleP256JsonWebKey,
+    });
+    expect(vm.publicKeyJwk).toEqual(exampleP256JsonWebKey);
   });
 });
