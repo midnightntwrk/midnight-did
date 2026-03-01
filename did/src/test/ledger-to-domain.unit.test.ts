@@ -206,6 +206,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
 
   it("ledgerStateToDIDDocument builds DID Document and assigns alsoKnownAs when present", () => {
     const addr = parseContractAddress("0".repeat(64));
+    const didSubject = `did:midnight:devnet:${"0".repeat(64)}`;
     const normalizedServices = Array.from(stubLedger.services, ([, service]) =>
       LedgerToDomain.service(service),
     );
@@ -230,12 +231,12 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(doc.controller).toBeDefined();
     expect(doc.verificationMethod?.length).toBe(1);
     expect(doc.authentication?.length).toBe(1);
-    expect(doc.verificationMethod?.[0].id).toBe("#key-1");
+    expect(doc.verificationMethod?.[0].id).toBe(`${didSubject}#key-1`);
     expect(doc.authentication?.[0]).toBe("#key-1");
     expect(doc.service?.length).toBe(2);
-    expect(doc.service?.[0].id).toBe("#svc-1");
+    expect(doc.service?.[0].id).toBe(`${didSubject}#svc-1`);
     expect(doc.service?.[0].serviceEndpoint).toBe("https://u.example");
-    expect(doc.service?.[1].id).toBe("#svc-2");
+    expect(doc.service?.[1].id).toBe(`${didSubject}#svc-2`);
     expect(doc.service?.[1].serviceEndpoint).toEqual([
       "wss://x.example",
       { uri: "https://y.example" },

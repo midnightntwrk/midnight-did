@@ -120,6 +120,23 @@ describe("DID parsing utilities", () => {
     ).toThrow();
   });
 
+  it("accepts relative relation references when verificationMethod ids are absolute DID URLs", () => {
+    const vmId = `${exampleDid}#key-1`;
+    const doc = parseDIDDocument({
+      "@context": "https://www.w3.org/ns/did/v1",
+      id: exampleDid,
+      verificationMethod: [
+        {
+          ...exampleVerificationMethodInput,
+          id: vmId,
+        },
+      ],
+      authentication: ["#key-1"],
+    });
+    expect(doc.verificationMethod?.[0].id).toBe(vmId);
+    expect(doc.authentication).toEqual(["#key-1"]);
+  });
+
   it("accepts URI aliases in alsoKnownAs", () => {
     const doc = parseDIDDocument({
       "@context": "https://www.w3.org/ns/did/v1",

@@ -324,15 +324,28 @@ function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
   const issues: ValidationIssue[] = [];
   const verificationMethods = normalizedDoc.verificationMethod ?? [];
   const seenVerificationMethodIds = new Map<string, number>();
+  const canonicalizeKeyReference = (value: string): string => {
+    if (value.startsWith("did:")) return value;
+    if (
+      value.startsWith("#") ||
+      value.startsWith("/") ||
+      value.startsWith(".") ||
+      value.startsWith("?")
+    ) {
+      return `${normalizedDoc.id}${value}`;
+    }
+    return value;
+  };
 
   verificationMethods.forEach((vm, index) => {
-    if (seenVerificationMethodIds.has(vm.id)) {
+    const canonicalId = canonicalizeKeyReference(vm.id);
+    if (seenVerificationMethodIds.has(canonicalId)) {
       issues.push({
         message: "verificationMethod ids must be unique",
         path: ["verificationMethod", index, "id"],
       });
     } else {
-      seenVerificationMethodIds.set(vm.id, index);
+      seenVerificationMethodIds.set(canonicalId, index);
     }
   });
 
@@ -348,15 +361,16 @@ function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
     if (relationValues == null) return;
     const seen = new Set<string>();
     relationValues.forEach((value, index) => {
-      if (seen.has(value)) {
+      const canonicalValue = canonicalizeKeyReference(value);
+      if (seen.has(canonicalValue)) {
         issues.push({
           message: `${relationName} must not contain duplicate entries`,
           path: [relationName, index],
         });
         return;
       }
-      seen.add(value);
-      if (!seenVerificationMethodIds.has(value)) {
+      seen.add(canonicalValue);
+      if (!seenVerificationMethodIds.has(canonicalValue)) {
         issues.push({
           message: `${relationName} references a verificationMethod id that does not exist`,
           path: [relationName, index],
