@@ -186,7 +186,7 @@ The value of the `publicKeyJwk` field conforms to the [RFC7517](https://www.rfc-
 - `x` - base64url encoded x point on the curve
 - `y` - base64url encoded y point on the curve
 
-The Midnight DID supports the following cryptographic algorithms: Ed25519 and Jubjub (Midnight compatible). Based on the cryptography suite, the values of the properties are as follows:
+The Midnight DID supports the following cryptographic algorithms: Ed25519, Jubjub (Midnight compatible), and P-256. Based on the cryptography suite, the values of the properties are as follows:
 
 #### 3.4.4.1 Ed25519
 Uses EdDSA over Ed25519 for signatures.
@@ -202,6 +202,14 @@ Keys are represented as JWK in uncompressed format with:
 
 - `kty`=`EC`, 
 - `crv`=`Jubjub`, 
+- `x`, and
+- `y` parameters.
+
+#### 3.4.4.3 P-256
+Uses NIST P-256 keys represented as JWK with:
+
+- `kty`=`EC`,
+- `crv`=`P-256`,
 - `x`, and
 - `y` parameters.
 
@@ -510,7 +518,7 @@ Adds a new verification method entry and (optionally, in a subsequent operation)
   - `id` MUST be either a DID URL bound to this DID (for example, `did:midnight:<network>:<addr>#key-1`) or a relative identifier that resolves against the DID (for example, `#key-1`). On-ledger, Midnight canonicalizes to fragment form (`#key-1`) for storage. Resolver output emits the absolute DID URL form.
   - `controller` MUST equal the DID subject.
   - `type` MUST be `JsonWebKey`.
-  - `publicKeyJwk` MUST follow the JWK profiles defined in section 3.4.4 (Ed25519 or Jubjub).
+  - `publicKeyJwk` MUST follow the JWK profiles defined in section 3.4.4 (Ed25519, Jubjub, or P-256).
   - Adding a method with an existing `id` MUST fail.
 
 Example (Ed25519):

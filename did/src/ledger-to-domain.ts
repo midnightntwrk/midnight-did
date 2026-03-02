@@ -1,5 +1,6 @@
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import {
+  createService,
   createVerificationMethod,
   CurveType,
   DIDDocumentMetadata,
@@ -319,10 +320,14 @@ export class LedgerToDomain {
     const keyAgreement = mapRelation(ledger.keyAgreementRelation);
     const service = ledger.services.isEmpty()
       ? undefined
-      : Array.from(ledger.services, ([, s]) => ({
-          ...this.service(s),
-          id: this.absoluteDidUrlReference(did, s.id),
-        }));
+      : Array.from(ledger.services, ([, s]) => {
+          const parsed = this.service(s);
+          return createService({
+            id: this.absoluteDidUrlReference(did, s.id),
+            type: parsed.type,
+            serviceEndpoint: parsed.serviceEndpoint,
+          });
+        });
     const alsoKnownAs = ledger.alsoKnownAs.isEmpty()
       ? undefined
       : Array.from(ledger.alsoKnownAs);

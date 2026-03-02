@@ -49,7 +49,7 @@ Why these dependencies
 
 ## Development
 
-- Node 20 is required (see `.nvmrc`); npm >= 10
+- Node 24 is required (see `.nvmrc`); npm >= 10
 - Recommended: `nvm use` before running scripts
 - One-shot pipeline: `./run.sh` (builds, lints, tests, coverage)
 - Circuit compilation uses the [`@midnight-ntwrk/compact`](https://github.com/midnightntwrk/compact) CLI via `compact compile`; the workspace scripts invoke it automatically.

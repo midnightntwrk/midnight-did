@@ -137,6 +137,24 @@ describe("DID smart contract", () => {
       ).toThrow();
     });
 
+    it("should add an EC P-256 verification method", () => {
+      simulator.addVerificationMethod({
+        id: "#key-p256",
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.EC,
+          crv: CurveType.P256,
+          x: 12345n,
+          y: 67890n
+        }
+      });
+
+      const ledger = simulator.getLedger();
+      const vm = ledger.verificationMethods.lookup("#key-p256");
+      expect(vm.publicKeyJwk.kty).toEqual(KeyType.EC);
+      expect(vm.publicKeyJwk.crv).toEqual(CurveType.P256);
+    });
+
     it("should update a verification method", () => {
       // First add
       simulator.addVerificationMethod({
@@ -168,6 +186,37 @@ describe("DID smart contract", () => {
       expect(vm.publicKeyJwk.y).toEqual(888n);
       expect(ledger.version).toEqual(2n);
       expect(ledger.operationCount).toEqual(2n);
+    });
+
+    it("should update a verification method to EC P-256", () => {
+      simulator.addVerificationMethod({
+        id: "#key-update-p256",
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.Ed25519,
+          x: 111n,
+          y: 0n
+        }
+      });
+
+      simulator.updateVerificationMethod({
+        id: "#key-update-p256",
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.EC,
+          crv: CurveType.P256,
+          x: 999n,
+          y: 888n
+        }
+      });
+
+      const ledger = simulator.getLedger();
+      const vm = ledger.verificationMethods.lookup("#key-update-p256");
+      expect(vm.publicKeyJwk.kty).toEqual(KeyType.EC);
+      expect(vm.publicKeyJwk.crv).toEqual(CurveType.P256);
+      expect(vm.publicKeyJwk.x).toEqual(999n);
+      expect(vm.publicKeyJwk.y).toEqual(888n);
     });
 
     it("should remove a verification method", () => {

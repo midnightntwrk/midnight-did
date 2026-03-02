@@ -35,19 +35,10 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - name: Install Compact developer tools
-        run: |
-          curl --proto '=https' --tlsv1.2 -LsSf https://github.com/midnightntwrk/compact/releases/latest/download/compact-installer.sh | sh
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-
-      - name: Install Compact compiler toolchain
-        run: |
-          if [ -n "${COMPACT_COMPILER_VERSION}" ]; then
-            compact update "${COMPACT_COMPILER_VERSION}"
-          else
-            compact update
-          fi
+      - name: Set up Compact toolchain
+        uses: midnightntwrk/setup-compact-action@v1
+        with:
+          compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
 
       - name: Verify Compact installation
         run: compact compile --version

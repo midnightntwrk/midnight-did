@@ -226,6 +226,29 @@ describeApi("Midnight DID method API", () => {
     expect(insertedVerificationMethod?.publicKeyJwk).toEqual(publicKeyJwk);
   });
 
+  it("should add a P-256 verification method", async () => {
+    const methodId = `${didString}#key-p256`;
+    const publicKeyJwk = {
+      kty: KeyType.EC,
+      crv: CurveType.P256,
+      x: "Kg",
+      y: "VA",
+    };
+    const verificationMethod = createVerificationMethod({
+      id: methodId,
+      type: VerificationMethodType.JsonWebKey,
+      controller: didString,
+      publicKeyJwk,
+    });
+    await api.addVerificationMethod(contract, verificationMethod);
+
+    const didDocument = await resolveDocument();
+    const insertedVerificationMethod = didDocument?.verificationMethod?.find(
+      (vm) => vm.id === toFragmentId(methodId),
+    );
+    expect(insertedVerificationMethod?.publicKeyJwk).toEqual(publicKeyJwk);
+  });
+
   it("should add the verification relation", async () => {
     const methodId = `${didString}#key-1`;
     await api.addVerificationMethodRelation(

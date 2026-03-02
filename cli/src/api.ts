@@ -85,6 +85,17 @@ type RelationName =
 type BoundIdField = 'verificationMethod.id' | 'service.id' | 'methodId' | 'serviceId';
 type ServiceEndpointInput = string | Record<string, unknown> | Array<string | Record<string, unknown>>;
 const hasUriScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
+const LedgerKeyTypeMap = {
+  EC: KeyType.EC,
+  RSA: KeyType.RSA,
+  oct: KeyType.oct,
+  OKP: KeyType.OKP,
+} as const;
+const LedgerCurveTypeMap = {
+  Ed25519: CurveType.Ed25519,
+  Jubjub: CurveType.Jubjub,
+  'P-256': CurveType.P256,
+} as const;
 
 const expectedDidSubject = (didContract: DeployedDIDContract): string => {
   const networkId = String(getNetworkId()).toLowerCase();
@@ -130,7 +141,7 @@ const normalizeBoundFragmentId = (didContract: DeployedDIDContract, value: strin
 
 const assertMidnightKeyProfile = (publicKeyJwk: {
   kty: 'EC' | 'RSA' | 'oct' | 'OKP';
-  crv: 'Ed25519' | 'Jubjub';
+  crv: 'Ed25519' | 'Jubjub' | 'P-256';
 }): void => {
   if (publicKeyJwk.kty === 'OKP') {
     if (publicKeyJwk.crv !== 'Ed25519') {
@@ -139,12 +150,12 @@ const assertMidnightKeyProfile = (publicKeyJwk: {
     return;
   }
   if (publicKeyJwk.kty === 'EC') {
-    if (publicKeyJwk.crv !== 'Jubjub') {
-      throw new Error('EC keys must use Jubjub');
+    if (publicKeyJwk.crv !== 'Jubjub' && publicKeyJwk.crv !== 'P-256') {
+      throw new Error('EC keys must use Jubjub or P-256');
     }
     return;
   }
-  throw new Error('Only OKP (Ed25519) and EC (Jubjub) keys are supported');
+  throw new Error('Only OKP (Ed25519) and EC (Jubjub/P-256) keys are supported');
 };
 
 const serviceTypeToLedger = (type: string | string[]): string => {
@@ -318,7 +329,7 @@ export const displayDIDState = async (
   } else {
     for (const [id, vm] of didState.verificationMethods) {
       const keyTypeName = ['EC', 'RSA', 'oct', 'OKP'][vm.publicKeyJwk.kty] || vm.publicKeyJwk.kty;
-      const curveTypeName = ['Ed25519', 'Jubjub'][vm.publicKeyJwk.crv] || vm.publicKeyJwk.crv;
+      const curveTypeName = ['Ed25519', 'Jubjub', 'P-256'][vm.publicKeyJwk.crv] || vm.publicKeyJwk.crv;
       console.log(`    • ${id}`);
       console.log(`      Type: JsonWebKey`);
       console.log(`      Key: ${keyTypeName}/${curveTypeName}`);
@@ -846,7 +857,7 @@ export const addVerificationMethod = async (
   id: string,
   publicKeyJwk: {
     kty: 'EC' | 'RSA' | 'oct' | 'OKP';
-    crv: 'Ed25519' | 'Jubjub';
+    crv: 'Ed25519' | 'Jubjub' | 'P-256';
     x: bigint;
     y: bigint;
   },
@@ -858,8 +869,8 @@ export const addVerificationMethod = async (
     id: normalizedId,
     typ: VerificationMethodType.JsonWebKey,
     publicKeyJwk: {
-      kty: KeyType[publicKeyJwk.kty],
-      crv: CurveType[publicKeyJwk.crv],
+      kty: LedgerKeyTypeMap[publicKeyJwk.kty],
+      crv: LedgerCurveTypeMap[publicKeyJwk.crv],
       x: publicKeyJwk.x,
       y: publicKeyJwk.y,
     },
@@ -873,7 +884,7 @@ export const updateVerificationMethod = async (
   id: string,
   publicKeyJwk: {
     kty: 'EC' | 'RSA' | 'oct' | 'OKP';
-    crv: 'Ed25519' | 'Jubjub';
+    crv: 'Ed25519' | 'Jubjub' | 'P-256';
     x: bigint;
     y: bigint;
   },
@@ -885,8 +896,8 @@ export const updateVerificationMethod = async (
     id: normalizedId,
     typ: VerificationMethodType.JsonWebKey,
     publicKeyJwk: {
-      kty: KeyType[publicKeyJwk.kty],
-      crv: CurveType[publicKeyJwk.crv],
+      kty: LedgerKeyTypeMap[publicKeyJwk.kty],
+      crv: LedgerCurveTypeMap[publicKeyJwk.crv],
       x: publicKeyJwk.x,
       y: publicKeyJwk.y,
     },
