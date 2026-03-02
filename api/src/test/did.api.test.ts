@@ -46,6 +46,9 @@ const toFragmentId = (value: string): string => {
   return `#${trimmed}`;
 };
 
+const hasSameMethodFragment = (left: string, right: string): boolean =>
+  toFragmentId(left) === toFragmentId(right);
+
 let containerRuntimeAvailable = true;
 let containerRuntimeError: string | undefined;
 try {
@@ -192,7 +195,7 @@ describeApi("Midnight DID method API", () => {
     const didDocument = await resolveDocument();
     expect(didDocument?.verificationMethod).not.toBeNull();
     const insertedVerificationMethod = didDocument?.verificationMethod?.find(
-      (vm) => vm.id === toFragmentId(methodId),
+      (vm) => hasSameMethodFragment(vm.id, methodId),
     );
     expect(insertedVerificationMethod).not.toBeNull();
     expect(insertedVerificationMethod?.type).toEqual(
@@ -221,7 +224,7 @@ describeApi("Midnight DID method API", () => {
     const didDocument = await resolveDocument();
     expect(didDocument?.verificationMethod).not.toBeNull();
     const insertedVerificationMethod = didDocument?.verificationMethod?.find(
-      (vm) => vm.id === toFragmentId(methodId),
+      (vm) => hasSameMethodFragment(vm.id, methodId),
     );
     expect(insertedVerificationMethod?.publicKeyJwk).toEqual(publicKeyJwk);
   });
@@ -244,7 +247,7 @@ describeApi("Midnight DID method API", () => {
 
     const didDocument = await resolveDocument();
     const insertedVerificationMethod = didDocument?.verificationMethod?.find(
-      (vm) => vm.id === toFragmentId(methodId),
+      (vm) => hasSameMethodFragment(vm.id, methodId),
     );
     expect(insertedVerificationMethod?.publicKeyJwk).toEqual(publicKeyJwk);
   });
@@ -301,8 +304,8 @@ describeApi("Midnight DID method API", () => {
 
     const didDoc = await resolveDocument();
     expect(didDoc?.verificationMethod).not.toBeNull();
-    const insertedVerificationMethod = didDoc?.verificationMethod?.find(
-      (vm) => vm.id === methodId,
+    const insertedVerificationMethod = didDoc?.verificationMethod?.find((vm) =>
+      hasSameMethodFragment(vm.id, methodId),
     );
     expect(insertedVerificationMethod).not.toBeNull();
     expect(insertedVerificationMethod?.type).toEqual(
@@ -342,9 +345,11 @@ describeApi("Midnight DID method API", () => {
     const methodId = `${didString}#key-1`;
     await api.removeVerificationMethod(contract, providers, methodId);
     const didDoc = await resolveDocument();
-    expect(didDoc?.verificationMethod?.some((vm) => vm.id === methodId)).toBe(
-      false,
-    );
+    expect(
+      didDoc?.verificationMethod?.some((vm) =>
+        hasSameMethodFragment(vm.id, methodId),
+      ),
+    ).toBe(false);
     const authId = parseDIDKeyID(toFragmentId(methodId));
     expect((didDoc?.authentication ?? []).includes(authId)).toBe(false);
   });
