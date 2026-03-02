@@ -69,3 +69,6 @@ managed/
 .gitsubmodules
 example-counter
 
+# Local assistant workspace
+.cloude
+.claude
