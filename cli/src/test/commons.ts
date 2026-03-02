@@ -31,6 +31,7 @@ import * as api from '../api';
 import { type Config, currentDir, PreprodConfig, PreviewConfig, StandaloneConfig } from '../config';
 
 const GENESIS_MINT_WALLET_SEED = '0000000000000000000000000000000000000000000000000000000000000001';
+const PROOF_SERVER_IMAGE = process.env.PROOF_SERVER_IMAGE ?? 'midnightntwrk/proof-server:7.0.0';
 
 export interface TestConfiguration {
   seed: string;
@@ -162,7 +163,7 @@ export class TestEnvironment {
   };
 
   static getProofServerContainer = async (env: string) =>
-    await new GenericContainer('midnightntwrk/proof-server:7.0.0')
+    await new GenericContainer(PROOF_SERVER_IMAGE)
       .withExposedPorts(6300)
       .withCommand([`midnight-proof-server --network ${env}`])
       .withEnvironment({ RUST_BACKTRACE: 'full' })

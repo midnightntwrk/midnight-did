@@ -24,7 +24,6 @@ jobs:
     timeout-minutes: 60
     env:
       COMPACT_COMPILER_VERSION: 0.29.0
-      NPM_OPTIONAL_FALLBACK: "0"
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
@@ -45,13 +44,7 @@ jobs:
         run: compact compile --version
 
       - name: Install dependencies
-        run: npm ci --include=optional
-
-      - name: Optional Rollup Linux fallback
-        if: runner.os == 'Linux' && env.NPM_OPTIONAL_FALLBACK == '1'
-        run: |
-          # Temporary fallback if optional deps resolution regresses in npm/runner images.
-          npm_config_package_lock=false npm install --no-save @rollup/rollup-linux-x64-gnu@4.50.1
+        run: npm ci
 
       - name: Run project workflow
         run: bash ./run.sh
