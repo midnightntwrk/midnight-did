@@ -161,10 +161,10 @@ export class TestEnvironment {
     return mappedUrl.toString().replace(/\/+$/, '');
   };
 
-  static getProofServerContainer = async (_env: string) =>
-    await new GenericContainer('proof-server-bootstrap:7.0.0')
+  static getProofServerContainer = async (env: string) =>
+    await new GenericContainer('midnightntwrk/proof-server:7.0.0')
       .withExposedPorts(6300)
-      .withCommand(['midnight-proof-server -v'])
+      .withCommand([`midnight-proof-server --network ${env}`])
       .withEnvironment({ RUST_BACKTRACE: 'full' })
       .withWaitStrategy(Wait.forLogMessage('Actix runtime found; starting in Actix runtime', 1))
       .start();
