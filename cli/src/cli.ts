@@ -225,12 +225,12 @@ const addVerificationMethod = async (didContract: DeployedDIDContract, rli: Inte
   console.log('\n  Add Verification Method');
   const id = await rli.question('  Method ID (e.g., #key-1): ');
   const kty = await rli.question('  Key type [1=EC, 2=RSA, 3=oct, 4=OKP]: ');
-  const crv = await rli.question('  Curve type [1=Ed25519, 2=Jubjub]: ');
+  const crv = await rli.question('  Curve type [1=Ed25519, 2=Jubjub, 3=P-256]: ');
   const x = await rli.question('  X coordinate (bigint): ');
   const y = await rli.question('  Y coordinate (bigint): ');
 
   const keyTypes = ['EC', 'RSA', 'oct', 'OKP'] as const;
-  const curveTypes = ['Ed25519', 'Jubjub'] as const;
+  const curveTypes = ['Ed25519', 'Jubjub', 'P-256'] as const;
 
   const publicKeyJwk = {
     kty: keyTypes[parseInt(kty) - 1],
@@ -248,12 +248,12 @@ const updateVerificationMethod = async (didContract: DeployedDIDContract, rli: I
   console.log('\n  Update Verification Method');
   const id = await rli.question('  Method ID to update: ');
   const kty = await rli.question('  New key type [1=EC, 2=RSA, 3=oct, 4=OKP]: ');
-  const crv = await rli.question('  New curve type [1=Ed25519, 2=Jubjub]: ');
+  const crv = await rli.question('  New curve type [1=Ed25519, 2=Jubjub, 3=P-256]: ');
   const x = await rli.question('  New X coordinate (bigint): ');
   const y = await rli.question('  New Y coordinate (bigint): ');
 
   const keyTypes = ['EC', 'RSA', 'oct', 'OKP'] as const;
-  const curveTypes = ['Ed25519', 'Jubjub'] as const;
+  const curveTypes = ['Ed25519', 'Jubjub', 'P-256'] as const;
 
   const publicKeyJwk = {
     kty: keyTypes[parseInt(kty) - 1],

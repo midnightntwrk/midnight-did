@@ -60,7 +60,7 @@ export enum KeyType {
 }
 
 export enum CurveType {
-  Ed25519, Jubjub
+  Ed25519, Jubjub, P256
 }
 
 export struct PublicKeyJwk {
@@ -133,9 +133,9 @@ export circuit addVerificationMethod(verificationMethod: VerificationMethod): []
   if (disclosedVerificationMethod.publicKeyJwk.kty == KeyType.OKP) {
     assert(disclosedVerificationMethod.publicKeyJwk.crv == CurveType.Ed25519, "OKP keys must use Ed25519");
   } else if (disclosedVerificationMethod.publicKeyJwk.kty == KeyType.EC) {
-    assert(disclosedVerificationMethod.publicKeyJwk.crv == CurveType.Jubjub, "EC keys must use Jubjub");
+    assert(disclosedVerificationMethod.publicKeyJwk.crv == CurveType.Jubjub || disclosedVerificationMethod.publicKeyJwk.crv == CurveType.P256, "EC keys must use Jubjub or P-256");
   } else {
-    assert(false, "Only OKP (Ed25519) and EC (Jubjub) keys are supported");
+    assert(false, "Only OKP (Ed25519) and EC (Jubjub/P-256) keys are supported");
   }
   assert(!verificationMethods.member(disclosedVerificationMethod.id), "Verification method already exists");
 
@@ -155,9 +155,9 @@ export circuit updateVerificationMethod(verificationMethod: VerificationMethod):
   if (disclosedVerificationMethod.publicKeyJwk.kty == KeyType.OKP) {
     assert(disclosedVerificationMethod.publicKeyJwk.crv == CurveType.Ed25519, "OKP keys must use Ed25519");
   } else if (disclosedVerificationMethod.publicKeyJwk.kty == KeyType.EC) {
-    assert(disclosedVerificationMethod.publicKeyJwk.crv == CurveType.Jubjub, "EC keys must use Jubjub");
+    assert(disclosedVerificationMethod.publicKeyJwk.crv == CurveType.Jubjub || disclosedVerificationMethod.publicKeyJwk.crv == CurveType.P256, "EC keys must use Jubjub or P-256");
   } else {
-    assert(false, "Only OKP (Ed25519) and EC (Jubjub) keys are supported");
+    assert(false, "Only OKP (Ed25519) and EC (Jubjub/P-256) keys are supported");
   }
   assert(verificationMethods.member(disclosedVerificationMethod.id), "Verification method does not exist");
 

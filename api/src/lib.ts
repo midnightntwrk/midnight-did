@@ -396,6 +396,7 @@ const LedgerCurveTypeMap: Record<
 > = {
   [CurveType.Ed25519]: LedgerCurveType.Ed25519,
   [CurveType.Jubjub]: LedgerCurveType.Jubjub,
+  [CurveType.P256]: LedgerCurveType.P256,
 };
 
 const LedgerVerificationMethodTypeMap: Record<
@@ -446,12 +447,17 @@ const assertMidnightKeyProfile = (publicKeyJwk: PublicKeyJwk): void => {
     return;
   }
   if (publicKeyJwk.kty === KeyType.EC) {
-    if (publicKeyJwk.crv !== CurveType.Jubjub) {
-      throw new Error("EC keys must use Jubjub");
+    if (
+      publicKeyJwk.crv !== CurveType.Jubjub &&
+      publicKeyJwk.crv !== CurveType.P256
+    ) {
+      throw new Error("EC keys must use Jubjub or P-256");
     }
     return;
   }
-  throw new Error("Only OKP (Ed25519) and EC (Jubjub) keys are supported");
+  throw new Error(
+    "Only OKP (Ed25519) and EC (Jubjub/P-256) keys are supported",
+  );
 };
 
 const verificationMethodToLedger = (
