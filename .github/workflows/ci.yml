@@ -44,7 +44,8 @@ jobs:
         run: compact compile --version
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci --include=optional || npm install --include=optional
 
       - name: Ensure Rollup Linux binary is present
         if: runner.os == 'Linux'
