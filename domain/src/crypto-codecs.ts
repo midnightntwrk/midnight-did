@@ -73,26 +73,30 @@ const base64UrlDecode = (input: string): Uint8Array => {
   return decodeBase64(base64 + "=".repeat(padding));
 };
 
+const bigintToBytes = (x: bigint): Uint8Array => {
+  if (x === 0n) return Uint8Array.of(0);
+  const out: number[] = [];
+  let t = x;
+  while (t > 0n) {
+    out.push(Number(t & 0xffn));
+    t >>= 8n;
+  }
+  out.reverse();
+  return Uint8Array.from(out);
+};
+
+export const decodeFieldElement = (s: string): bigint => {
+  const bytes = base64UrlDecode(s);
+  if (bytes.length === 0) return 0n;
+  let v = 0n;
+  for (const b of bytes) v = (v << 8n) + BigInt(b);
+  return v;
+};
+
+export const encodeFieldElement = (v: bigint): string =>
+  base64UrlEncode(bigintToBytes(v));
+
 export const FieldCodec = z.codec(z.string(), z.bigint(), {
-  decode: (s: string): bigint => {
-    const bytes = base64UrlDecode(s);
-    if (bytes.length === 0) return 0n;
-    let v = 0n;
-    for (const b of bytes) v = (v << 8n) + BigInt(b);
-    return v;
-  },
-  encode: (v: bigint): string => {
-    const toBytes = (x: bigint): Uint8Array => {
-      if (x === 0n) return Uint8Array.of(0);
-      const out: number[] = [];
-      let t = x;
-      while (t > 0n) {
-        out.push(Number(t & 0xffn));
-        t >>= 8n;
-      }
-      out.reverse();
-      return Uint8Array.from(out);
-    };
-    return base64UrlEncode(toBytes(v));
-  },
+  decode: decodeFieldElement,
+  encode: encodeFieldElement,
 });

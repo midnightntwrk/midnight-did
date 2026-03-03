@@ -20,8 +20,8 @@ import {
   assertAbsoluteUri,
   type BoundIdField,
   CurveType,
+  decodeFieldElement,
   DIDDocumentMetadata,
-  FieldCodec,
   KeyType,
   normalizeBoundFragmentId as normalizeBoundFragmentIdWithSubject,
   PublicKeyJwk,
@@ -374,11 +374,9 @@ const publicKeyJwkToLedger = (
 ): DIDContract.PublicKeyJwk => {
   const kty = LedgerKeyTypeMap[publicKeyJwk.kty];
   const crv = LedgerCurveTypeMap[publicKeyJwk.crv];
-  const x = z.decode(FieldCodec as any, publicKeyJwk.x) as bigint;
+  const x = decodeFieldElement(publicKeyJwk.x);
   const y =
-    publicKeyJwk.y !== undefined
-      ? (z.decode(FieldCodec as any, publicKeyJwk.y) as bigint)
-      : 0n;
+    publicKeyJwk.y !== undefined ? decodeFieldElement(publicKeyJwk.y) : 0n;
 
   return { kty, crv, x, y };
 };

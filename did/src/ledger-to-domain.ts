@@ -4,16 +4,16 @@ import {
   createVerificationMethod,
   CurveType,
   DIDDocumentMetadata,
-  FieldCodec,
+  encodeFieldElement,
   KeyType,
   normalizeServiceEndpoint,
   PublicKeyJwk,
   Service,
+  ServiceEndpointSchema,
   VerificationMethod,
   VerificationMethodRelationType,
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
-import { z } from "zod/v4-mini";
 
 import {
   createMidnightDIDString,
@@ -93,8 +93,8 @@ export class LedgerToDomain {
   static publicKeyJwk(publicKeyJwk: LedgerPublicKeyJwk): PublicKeyJwk {
     const kty = this.KeyTypeMap[publicKeyJwk.kty];
     const crv = this.CurveTypeMap[publicKeyJwk.crv];
-    const x = z.encode(FieldCodec as any, publicKeyJwk.x) as string;
-    const y = z.encode(FieldCodec as any, publicKeyJwk.y) as string;
+    const x = encodeFieldElement(publicKeyJwk.x);
+    const y = encodeFieldElement(publicKeyJwk.y);
 
     if (
       kty === KeyType.OKP &&
@@ -132,19 +132,28 @@ export class LedgerToDomain {
 
   private static parseServiceType(raw: string): Service["type"] {
     const value = raw.trim();
+    if (value.length === 0) {
+      throw new Error("Invalid service type: empty value");
+    }
     if (value.startsWith("[")) {
       try {
         const parsed = JSON.parse(value);
         if (
           Array.isArray(parsed) &&
           parsed.length > 0 &&
-          parsed.every((entry) => typeof entry === "string")
+          parsed.every(
+            (entry) => typeof entry === "string" && entry.trim().length > 0,
+          ) &&
+          new Set(parsed.map((entry) => entry.trim())).size === parsed.length
         ) {
-          return parsed;
+          return parsed.map((entry) => entry.trim());
         }
       } catch {
-        // fall through to string
+        throw new Error("Invalid service type: malformed JSON array");
       }
+      throw new Error(
+        "Invalid service type: expected non-empty unique strings",
+      );
     }
     return value;
   }
@@ -160,23 +169,37 @@ export class LedgerToDomain {
       const filtered = endpoint
         .map((value) => (typeof value === "string" ? value.trim() : ""))
         .filter((value) => value !== "");
-      if (filtered.length === 0) return "";
+      if (filtered.length === 0) {
+        throw new Error("Invalid serviceEndpoint: empty legacy endpoint array");
+      }
       if (filtered.length === 1) return normalize(filtered[0]);
       return normalize(filtered as Service["serviceEndpoint"]);
     }
 
     if (typeof endpoint === "string") {
       const raw = endpoint.trim();
-      if (raw === "") return "";
+      if (raw === "") {
+        throw new Error("Invalid serviceEndpoint: empty value");
+      }
       try {
         const parsed = JSON.parse(raw);
-        return normalize(parsed as Service["serviceEndpoint"]);
+        return normalize(
+          ServiceEndpointSchema.parse(parsed) as Service["serviceEndpoint"],
+        );
       } catch {
-        return normalize(raw);
+        const direct = ServiceEndpointSchema.safeParse(raw);
+        if (direct.success) {
+          return normalize(direct.data as Service["serviceEndpoint"]);
+        }
+        throw new Error("Invalid serviceEndpoint: malformed JSON payload");
       }
     }
 
-    return normalize(endpoint as Service["serviceEndpoint"]);
+    const parsed = ServiceEndpointSchema.safeParse(endpoint);
+    if (parsed.success) {
+      return normalize(parsed.data as Service["serviceEndpoint"]);
+    }
+    throw new Error("Invalid serviceEndpoint: unsupported endpoint shape");
   }
 
   static verificationMethodId(id: string): string {

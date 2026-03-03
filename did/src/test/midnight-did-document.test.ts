@@ -110,6 +110,15 @@ describe("Midnight DID Document", () => {
       expect(doc.alsoKnownAs).toEqual(["did:example:alias"]);
     });
 
+    it("accepts non-DID URI values in alsoKnownAs", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+        alsoKnownAs: ["https://example.com/alias"],
+      });
+
+      expect(doc.alsoKnownAs).toEqual(["https://example.com/alias"]);
+    });
+
     it("includes service endpoints when provided", () => {
       const service = createService({
         id: "#service-1",
