@@ -194,6 +194,24 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(multiTypeService.type).toEqual(["DIDCommV2", "LinkedDomains"]);
   });
 
+  it("service rejects malformed serviceType and serviceEndpoint payloads", () => {
+    expect(() =>
+      LedgerToDomain.service({
+        id: "svc-invalid-type",
+        typ: JSON.stringify(["DIDCommV2", "DIDCommV2"]),
+        serviceEndpoint: JSON.stringify("https://valid.example"),
+      } as any),
+    ).toThrow(/Invalid service type/);
+
+    expect(() =>
+      LedgerToDomain.service({
+        id: "svc-invalid-endpoint",
+        typ: "LinkedDomains",
+        serviceEndpoint: "not-json",
+      } as any),
+    ).toThrow(/Invalid serviceEndpoint/);
+  });
+
   it("toJSON flattens ledger to plain JSON with arrays", () => {
     const json = LedgerToDomain.toJSON(stubLedger) as any;
     expect(typeof json.id).toBe("string");

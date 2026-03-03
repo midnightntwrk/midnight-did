@@ -6,6 +6,7 @@ import {
   DIDString,
   KeyType,
   Service,
+  URIString,
   VerificationMethod,
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
@@ -128,7 +129,7 @@ export const MidnightDIDDocumentSchema = DIDDocumentSchema.check(
 export type MidnightDIDDocument = {
   "@context": [string, string, ...string[]]; // At least 2 entries required
   id: MidnightDIDString;
-  alsoKnownAs?: DIDString[] | null;
+  alsoKnownAs?: URIString[] | null;
   controller?: MidnightDIDString | MidnightDIDString[] | null; // Must equal id if present
   verificationMethod?: VerificationMethod[] | null;
   authentication?: DIDKeyID[] | null;
@@ -170,7 +171,7 @@ export type MidnightDIDDocument = {
 export function createMidnightDIDDocument(params: {
   id: MidnightDIDString;
   additionalContexts?: string[];
-  alsoKnownAs?: string[];
+  alsoKnownAs?: URIString[];
   verificationMethod?: VerificationMethod[];
   authentication?: string[];
   assertionMethod?: string[];

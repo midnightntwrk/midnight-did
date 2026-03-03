@@ -187,6 +187,7 @@ const isUri = (value: string) => {
 export const URIStringSchema = z
   .string()
   .check(z.refine(isUri, "Invalid URI (must conform to RFC3986)"));
+export type URIString = z.infer<typeof URIStringSchema>;
 
 const ServiceEndpointObjectSchema = z.record(z.string(), z.unknown());
 
@@ -520,7 +521,7 @@ export function createService(params: {
 export function createDIDDocument(params: {
   id: string;
   context?: string | string[];
-  alsoKnownAs?: string[];
+  alsoKnownAs?: URIString[];
   controller?: string | string[];
   verificationMethod?: VerificationMethod[];
   authentication?: string[];
