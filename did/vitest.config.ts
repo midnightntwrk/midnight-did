@@ -5,7 +5,12 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
+      include: ["src/**/*.ts"],
       exclude: [
+        "dist/**",
+        "**/*.d.ts",
+        "src/test/**",
+        "**/*.test.ts",
         "src/test/ledger-to-domain.unit.test.ts",
         "eslint.config.mjs",
         "vitest.config.ts",
