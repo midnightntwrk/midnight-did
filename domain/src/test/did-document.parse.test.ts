@@ -137,6 +137,42 @@ describe("DID parsing utilities", () => {
     expect(doc.authentication).toEqual(["#key-1"]);
   });
 
+  it("accepts bare relation references when verificationMethod ids are absolute DID URLs", () => {
+    const vmId = `${exampleDid}#key-1`;
+    const doc = parseDIDDocument({
+      "@context": "https://www.w3.org/ns/did/v1",
+      id: exampleDid,
+      verificationMethod: [
+        {
+          ...exampleVerificationMethodInput,
+          id: vmId,
+        },
+      ],
+      authentication: ["key-1"],
+    });
+    expect(doc.verificationMethod?.[0].id).toBe(vmId);
+    expect(doc.authentication).toEqual(["key-1"]);
+  });
+
+  it("rejects duplicate verificationMethod ids after canonicalization", () => {
+    expect(() =>
+      parseDIDDocument({
+        "@context": "https://www.w3.org/ns/did/v1",
+        id: exampleDid,
+        verificationMethod: [
+          {
+            ...exampleVerificationMethodInput,
+            id: "key-1",
+          },
+          {
+            ...exampleVerificationMethodInput,
+            id: "#key-1",
+          },
+        ],
+      }),
+    ).toThrow(/verificationMethod ids must be unique/);
+  });
+
   it("accepts URI aliases in alsoKnownAs", () => {
     const doc = parseDIDDocument({
       "@context": "https://www.w3.org/ns/did/v1",

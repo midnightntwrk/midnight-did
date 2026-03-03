@@ -336,15 +336,8 @@ function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
   const seenVerificationMethodIds = new Map<string, number>();
   const canonicalizeKeyReference = (value: string): string => {
     if (value.startsWith("did:")) return value;
-    if (
-      value.startsWith("#") ||
-      value.startsWith("/") ||
-      value.startsWith(".") ||
-      value.startsWith("?")
-    ) {
-      return `${normalizedDoc.id}${value}`;
-    }
-    return value;
+    const fragment = value.startsWith("#") ? value : `#${value}`;
+    return `${normalizedDoc.id}${fragment}`;
   };
 
   verificationMethods.forEach((vm, index) => {
