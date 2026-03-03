@@ -23,11 +23,14 @@ import {
 import { type ContractAddress } from '@midnight-ntwrk/compact-runtime';
 import * as ledger from '@midnight-ntwrk/ledger-v7';
 import { unshieldedToken } from '@midnight-ntwrk/ledger-v7';
+import { parseContractAddress } from '@midnight-ntwrk/midnight-did';
 import { DIDContract, type DIDPrivateState, witnesses } from '@midnight-ntwrk/midnight-did-contract';
 import {
-  normalizeServiceEndpoint,
-  type ServiceEndpoint,
-  ServiceEndpointSchema,
+  assertAbsoluteUri,
+  type BoundIdField,
+  normalizeBoundFragmentId as normalizeBoundFragmentIdWithSubject,
+  serviceEndpointToLedger as serviceEndpointToLedgerValue,
+  serviceTypeToLedger as serviceTypeToLedgerValue,
 } from '@midnight-ntwrk/midnight-did-domain';
 import {
   deployContract,
@@ -40,7 +43,12 @@ import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-p
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
 import { getNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
-import type { MidnightProvider, MidnightProviders, WalletProvider } from '@midnight-ntwrk/midnight-js-types';
+import type {
+  FinalizedTxData,
+  MidnightProvider,
+  MidnightProviders,
+  WalletProvider,
+} from '@midnight-ntwrk/midnight-js-types';
 import { assertIsContractAddress, toHex } from '@midnight-ntwrk/midnight-js-utils';
 import {
   MidnightBech32m,
@@ -82,9 +90,7 @@ type RelationName =
   | 'CapabilityInvocation'
   | 'CapabilityDelegation';
 
-type BoundIdField = 'verificationMethod.id' | 'service.id' | 'methodId' | 'serviceId';
 type ServiceEndpointInput = string | Record<string, unknown> | Array<string | Record<string, unknown>>;
-const hasUriScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
 const LedgerKeyTypeMap = {
   EC: KeyType.EC,
   RSA: KeyType.RSA,
@@ -99,45 +105,12 @@ const LedgerCurveTypeMap = {
 
 const expectedDidSubject = (didContract: DeployedDIDContract): string => {
   const networkId = String(getNetworkId()).toLowerCase();
-  const contractAddress = didContract.deployTxData.public.contractAddress.toLowerCase();
+  const contractAddress = parseContractAddress(didContract.deployTxData.public.contractAddress);
   return `did:midnight:${networkId}:${contractAddress}`;
 };
 
-const normalizeBoundFragmentId = (didContract: DeployedDIDContract, value: string, field: BoundIdField): string => {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    throw new Error(`${field} must not be empty`);
-  }
-  if (trimmed.startsWith('//')) {
-    throw new Error(`${field} must be a DID URL or relative reference`);
-  }
-  if (trimmed.startsWith('#')) {
-    return trimmed;
-  }
-
-  const hashIndex = trimmed.indexOf('#');
-  if (trimmed.startsWith('did:')) {
-    if (hashIndex <= 0 || hashIndex === trimmed.length - 1) {
-      throw new Error(`${field} DID URL must include a non-empty fragment identifier`);
-    }
-    const didSubject = trimmed.slice(0, hashIndex).toLowerCase();
-    const expected = expectedDidSubject(didContract);
-    if (didSubject !== expected) {
-      throw new Error(`${field} DID URL subject must match the current DID (${expected})`);
-    }
-    return `#${trimmed.slice(hashIndex + 1)}`;
-  }
-
-  if (trimmed.startsWith('/') || trimmed.startsWith('.') || trimmed.startsWith('?')) {
-    return `#${trimmed}`;
-  }
-
-  if (hasUriScheme.test(trimmed)) {
-    throw new Error(`${field} must be a DID URL or relative reference`);
-  }
-
-  return `#${trimmed}`;
-};
+const normalizeBoundFragmentId = (didContract: DeployedDIDContract, value: string, field: BoundIdField): string =>
+  normalizeBoundFragmentIdWithSubject(value, field, expectedDidSubject(didContract));
 
 const assertMidnightKeyProfile = (publicKeyJwk: {
   kty: 'EC' | 'RSA' | 'oct' | 'OKP';
@@ -158,50 +131,17 @@ const assertMidnightKeyProfile = (publicKeyJwk: {
   throw new Error('Only OKP (Ed25519) and EC (Jubjub/P-256) keys are supported');
 };
 
-const serviceTypeToLedger = (type: string | string[]): string => {
-  if (typeof type === 'string') {
-    const normalized = type.trim();
-    if (normalized.length === 0) {
-      throw new Error('Service type must not be empty');
-    }
-    return normalized;
-  }
-
-  if (!Array.isArray(type) || type.length === 0) {
-    throw new Error('Service type must be a non-empty string set');
-  }
-  const normalized = type.map((entry) => entry.trim());
-  if (normalized.some((entry) => entry.length === 0)) {
-    throw new Error('Service type entries must not be empty');
-  }
-  if (new Set(normalized).size !== normalized.length) {
-    throw new Error('Service type entries must be unique');
-  }
-  return normalized.length === 1 ? normalized[0] : JSON.stringify(normalized);
-};
+const serviceTypeToLedger = (type: string | string[]): string => serviceTypeToLedgerValue(type);
 
 const serviceEndpointToLedger = (endpoint: ServiceEndpointInput): string => {
   try {
-    const parsed = ServiceEndpointSchema.parse(endpoint) as ServiceEndpoint;
-    const normalized = normalizeServiceEndpoint(parsed);
-    return JSON.stringify(normalized);
+    return serviceEndpointToLedgerValue(endpoint);
   } catch {
     throw new Error('Invalid serviceEndpoint: could not serialize to JSON');
   }
 };
 
-const assertAliasUri = (value: string): string => {
-  const alias = value.trim();
-  if (alias.length === 0) {
-    throw new Error('Alias URI must not be empty');
-  }
-  try {
-    new URL(alias);
-  } catch {
-    throw new Error('Alias URI must be a valid absolute URI (RFC3986)');
-  }
-  return alias;
-};
+const assertAliasUri = (value: string): string => assertAbsoluteUri(value, 'aliasUri');
 
 let logger: Logger;
 
@@ -241,8 +181,8 @@ export const initPrivateState = async (providers: DIDProviders): Promise<DIDPriv
   const privateState: DIDPrivateState = { secretKey };
   try {
     await providers.privateStateProvider.set(DIDPrivateStateId, privateState);
-  } catch (error: any) {
-    if (typeof error?.message === 'string' && error.message.includes('Contract address not set')) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message.includes('Contract address not set')) {
       logger.info('Private state save skipped (contract address not set yet).');
     } else {
       throw error;
@@ -395,7 +335,7 @@ export const displayDIDState = async (
  * (UnboundTransaction) intents that contain 'proof' data.
  */
 const signTransactionIntents = (
-  tx: { intents?: Map<number, any> },
+  tx: { intents?: Map<number, { serialize: () => Uint8Array }> },
   signFn: (payload: Uint8Array) => ledger.Signature,
   proofMarker: 'proof' | 'pre-proof',
 ): void => {
@@ -587,6 +527,8 @@ export const withStatus = async <T>(message: string, fn: () => Promise<T>): Prom
  * the UTXOs have been explicitly designated for dust generation via an on-chain
  * transaction. DUST is the non-transferable fee token used by the Midnight network.
  */
+type CoinWithDustMeta = { meta?: { registeredForDustGeneration?: boolean } };
+
 const registerForDustGeneration = async (
   wallet: WalletFacade,
   unshieldedKeystore: UnshieldedKeystore,
@@ -602,7 +544,7 @@ const registerForDustGeneration = async (
 
   // Only register coins that haven't been designated yet
   const nightUtxos = state.unshielded.availableCoins.filter(
-    (coin: any) => coin.meta?.registeredForDustGeneration !== true,
+    (coin) => (coin as CoinWithDustMeta).meta?.registeredForDustGeneration !== true,
   );
   if (nightUtxos.length === 0) {
     // All coins already registered — just wait for dust to generate
@@ -644,7 +586,16 @@ const registerForDustGeneration = async (
  * Prints a formatted wallet summary to the console, showing all three
  * wallet types (Shielded, Unshielded, Dust) with their addresses and balances.
  */
-const printWalletSummary = (seed: string, state: any, unshieldedKeystore: UnshieldedKeystore) => {
+type WalletSummaryState = {
+  unshielded: { balances: Record<string, bigint> };
+  shielded: {
+    coinPublicKey: { toHexString: () => string };
+    encryptionPublicKey: { toHexString: () => string };
+  };
+  dust: { dustAddress: string };
+};
+
+const printWalletSummary = (seed: string, state: WalletSummaryState, unshieldedKeystore: UnshieldedKeystore) => {
   const networkId = getNetworkId();
   const unshieldedBalance = state.unshielded.balances[unshieldedToken().raw] ?? 0n;
 
@@ -814,7 +765,7 @@ export const monitorDustBalance = async (wallet: WalletFacade, stopSignal: Promi
       const pendingCoins = state.dust.pendingCoins.length;
 
       const registeredNight = state.unshielded.availableCoins.filter(
-        (coin: any) => coin.meta?.registeredForDustGeneration === true,
+        (coin) => (coin as CoinWithDustMeta).meta?.registeredForDustGeneration === true,
       ).length;
       const totalNight = state.unshielded.availableCoins.length;
 
@@ -861,7 +812,7 @@ export const addVerificationMethod = async (
     x: bigint;
     y: bigint;
   },
-): Promise<any> => {
+): Promise<FinalizedTxData> => {
   assertMidnightKeyProfile(publicKeyJwk);
   const normalizedId = normalizeBoundFragmentId(didContract, id, 'verificationMethod.id');
   logger.info(`Adding verification method: ${normalizedId}`);
@@ -876,7 +827,7 @@ export const addVerificationMethod = async (
     },
   });
   logger.info('Verification method added successfully');
-  return result;
+  return result.public;
 };
 
 export const updateVerificationMethod = async (
@@ -888,7 +839,7 @@ export const updateVerificationMethod = async (
     x: bigint;
     y: bigint;
   },
-): Promise<any> => {
+): Promise<FinalizedTxData> => {
   assertMidnightKeyProfile(publicKeyJwk);
   const normalizedId = normalizeBoundFragmentId(didContract, id, 'verificationMethod.id');
   logger.info(`Updating verification method: ${normalizedId}`);
@@ -903,7 +854,7 @@ export const updateVerificationMethod = async (
     },
   });
   logger.info('Verification method updated successfully');
-  return result;
+  return result.public;
 };
 
 /**
@@ -919,7 +870,7 @@ export const removeVerificationMethod = async (
   didContract: DeployedDIDContract,
   providers: DIDProviders,
   id: string,
-): Promise<any> => {
+): Promise<FinalizedTxData> => {
   const normalizedId = normalizeBoundFragmentId(didContract, id, 'methodId');
   logger.info(`Removing verification method and its relations: ${normalizedId}`);
   const contractAddress = didContract.deployTxData.public.contractAddress;
@@ -960,7 +911,7 @@ export const removeVerificationMethod = async (
 
   const result = await didContract.callTx.removeVerificationMethod(normalizedId);
   logger.info('Verification method removed successfully');
-  return result;
+  return result.public;
 };
 
 const relationSetFromState = (didState: DIDContract.Ledger, relation: RelationName) => {
@@ -975,6 +926,10 @@ const relationSetFromState = (didState: DIDContract.Ledger, relation: RelationNa
       return didState.capabilityInvocationRelation;
     case 'CapabilityDelegation':
       return didState.capabilityDelegationRelation;
+    default: {
+      const unreachable: never = relation;
+      throw new Error(`unsupported relation ${String(unreachable)}`);
+    }
   }
 };
 
@@ -983,7 +938,7 @@ export const addVerificationMethodRelation = async (
   providers: DIDProviders,
   relation: RelationName,
   methodId: string,
-): Promise<any> => {
+): Promise<FinalizedTxData> => {
   const normalizedMethodId = normalizeBoundFragmentId(didContract, methodId, 'methodId');
   logger.info(`Adding ${relation} relation to ${normalizedMethodId}`);
   const contractAddress = didContract.deployTxData.public.contractAddress;
@@ -1000,7 +955,7 @@ export const addVerificationMethodRelation = async (
     normalizedMethodId,
   );
   logger.info('Verification method relation added successfully');
-  return result;
+  return result.public;
 };
 
 export const removeVerificationMethodRelation = async (
@@ -1008,7 +963,7 @@ export const removeVerificationMethodRelation = async (
   providers: DIDProviders,
   relation: RelationName,
   methodId: string,
-): Promise<any> => {
+): Promise<FinalizedTxData> => {
   const normalizedMethodId = normalizeBoundFragmentId(didContract, methodId, 'methodId');
   logger.info(`Removing ${relation} relation from ${normalizedMethodId}`);
   const contractAddress = didContract.deployTxData.public.contractAddress;
@@ -1025,7 +980,7 @@ export const removeVerificationMethodRelation = async (
     normalizedMethodId,
   );
   logger.info('Verification method relation removed successfully');
-  return result;
+  return result.public;
 };
 
 export const addService = async (
@@ -1033,7 +988,7 @@ export const addService = async (
   id: string,
   type: string | string[],
   serviceEndpoint: ServiceEndpointInput,
-): Promise<any> => {
+): Promise<FinalizedTxData> => {
   const normalizedServiceId = normalizeBoundFragmentId(didContract, id, 'service.id');
   logger.info(`Adding service: ${normalizedServiceId}`);
   const result = await didContract.callTx.addService({
@@ -1042,7 +997,7 @@ export const addService = async (
     serviceEndpoint: serviceEndpointToLedger(serviceEndpoint),
   });
   logger.info('Service added successfully');
-  return result;
+  return result.public;
 };
 
 export const updateService = async (
@@ -1050,7 +1005,7 @@ export const updateService = async (
   id: string,
   type: string | string[],
   serviceEndpoint: ServiceEndpointInput,
-): Promise<any> => {
+): Promise<FinalizedTxData> => {
   const normalizedServiceId = normalizeBoundFragmentId(didContract, id, 'service.id');
   logger.info(`Updating service: ${normalizedServiceId}`);
   const result = await didContract.callTx.updateService({
@@ -1059,36 +1014,36 @@ export const updateService = async (
     serviceEndpoint: serviceEndpointToLedger(serviceEndpoint),
   });
   logger.info('Service updated successfully');
-  return result;
+  return result.public;
 };
 
-export const removeService = async (didContract: DeployedDIDContract, id: string): Promise<any> => {
+export const removeService = async (didContract: DeployedDIDContract, id: string): Promise<FinalizedTxData> => {
   const normalizedServiceId = normalizeBoundFragmentId(didContract, id, 'serviceId');
   logger.info(`Removing service: ${normalizedServiceId}`);
   const result = await didContract.callTx.removeService(normalizedServiceId);
   logger.info('Service removed successfully');
-  return result;
+  return result.public;
 };
 
-export const addAlsoKnownAs = async (didContract: DeployedDIDContract, value: string): Promise<any> => {
+export const addAlsoKnownAs = async (didContract: DeployedDIDContract, value: string): Promise<FinalizedTxData> => {
   const alias = assertAliasUri(value);
   logger.info(`Adding alsoKnownAs: ${value}`);
   const result = await didContract.callTx.addAlsoKnownAs(alias);
   logger.info('AlsoKnownAs added successfully');
-  return result;
+  return result.public;
 };
 
-export const removeAlsoKnownAs = async (didContract: DeployedDIDContract, value: string): Promise<any> => {
+export const removeAlsoKnownAs = async (didContract: DeployedDIDContract, value: string): Promise<FinalizedTxData> => {
   const alias = assertAliasUri(value);
   logger.info(`Removing alsoKnownAs: ${value}`);
   const result = await didContract.callTx.removeAlsoKnownAs(alias);
   logger.info('AlsoKnownAs removed successfully');
-  return result;
+  return result.public;
 };
 
-export const deactivateDID = async (didContract: DeployedDIDContract): Promise<any> => {
+export const deactivateDID = async (didContract: DeployedDIDContract): Promise<FinalizedTxData> => {
   logger.info('Deactivating DID');
   const result = await didContract.callTx.deactivate();
   logger.info('DID deactivated successfully');
-  return result;
+  return result.public;
 };
