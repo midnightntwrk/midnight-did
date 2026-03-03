@@ -10,7 +10,6 @@ import {
   MidnightDIDDocument,
   MidnightNetwork,
   parseContractAddress,
-  parseMidnightDIDString,
 } from "@midnight-ntwrk/midnight-did";
 import {
   DIDContract,
@@ -18,13 +17,17 @@ import {
   witnesses,
 } from "@midnight-ntwrk/midnight-did-contract";
 import {
+  assertAbsoluteUri,
+  type BoundIdField,
   CurveType,
   DIDDocumentMetadata,
   FieldCodec,
   KeyType,
-  normalizeServiceEndpoint,
+  normalizeBoundFragmentId as normalizeBoundFragmentIdWithSubject,
   PublicKeyJwk,
   Service,
+  serviceEndpointToLedger as serviceEndpointToLedgerValue,
+  serviceTypeToLedger as serviceTypeToLedgerValue,
   VerificationMethod,
   VerificationMethodRelationType,
   VerificationMethodType,
@@ -134,7 +137,7 @@ const buildDustConfig = ({
 
 // Manual transaction intent signing (SDK bug workaround)
 const signTransactionIntents = (
-  tx: { intents?: Map<number, any> },
+  tx: { intents?: Map<number, { serialize: () => Uint8Array }> },
   signFn: (payload: Uint8Array) => ledger.Signature,
   proofMarker: "proof" | "pre-proof",
 ): void => {
@@ -196,8 +199,7 @@ export const getMidnightDIDLedgerState = async (
     .then((contractState) =>
       contractState != null ? DIDContract.ledger(contractState.data) : null,
     );
-  if (state != null || state != undefined)
-    logger.info(LedgerToDomain.toJSON(state));
+  if (state != null) logger.info(LedgerToDomain.toJSON(state));
   return state;
 };
 
@@ -214,6 +216,11 @@ export async function hashProverKey(
 export async function initPrivateState(
   providers: MidnightDIDProviders,
 ): Promise<MidnightDIDPrivateState> {
+  type ProvidersWithProverKey = MidnightDIDProviders & {
+    zkConfigProvider: {
+      getProverKey: (circuitName: string) => Promise<Uint8Array>;
+    };
+  };
   const providedPrivateState = await providers.privateStateProvider.get(
     MidnightDIDPrivateStateId,
   );
@@ -229,9 +236,9 @@ export async function initPrivateState(
   }
 
   logger.info("Creating the new private state..");
-  const proverKey = await (providers as any).zkConfigProvider.getProverKey(
-    "addVerificationMethod",
-  );
+  const proverKey = await (
+    providers as ProvidersWithProverKey
+  ).zkConfigProvider.getProverKey("addVerificationMethod");
   const secretKey = await hashProverKey(proverKey);
   const privateState: MidnightDIDPrivateState = { secretKey };
   try {
@@ -239,9 +246,9 @@ export async function initPrivateState(
       MidnightDIDPrivateStateId,
       privateState,
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (
-      typeof error?.message === "string" &&
+      error instanceof Error &&
       error.message.includes("Contract address not set")
     ) {
       logger.info("Private state save skipped (contract address not set yet).");
@@ -297,16 +304,6 @@ export const createDID = async (
   return didContract;
 };
 
-const normalizeFragmentId = (value: string): string => {
-  const trimmed = value.trim();
-  if (trimmed.startsWith("#")) return trimmed;
-  const hashIndex = trimmed.indexOf("#");
-  if (hashIndex >= 0) return `#${trimmed.slice(hashIndex + 1)}`;
-  return `#${trimmed}`;
-};
-
-const hasUriScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
-
 const getDidSubject = (didContract: DeployedMidnightDIDContract): string => {
   const network = RuntimeToDomain.NetworkMap[getNetworkId()];
   const contractAddress = parseContractAddress(
@@ -318,62 +315,9 @@ const getDidSubject = (didContract: DeployedMidnightDIDContract): string => {
 const normalizeBoundFragmentId = (
   didContract: DeployedMidnightDIDContract,
   value: string,
-  field: "verificationMethod.id" | "service.id" | "methodId" | "serviceId",
-): string => {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    throw new Error(`${field} must not be empty`);
-  }
-  if (trimmed.startsWith("//")) {
-    throw new Error(`${field} must be a DID URL or relative reference`);
-  }
-  if (trimmed.startsWith("#")) return trimmed;
-
-  const hashIndex = trimmed.indexOf("#");
-  if (trimmed.startsWith("did:")) {
-    if (hashIndex <= 0 || hashIndex === trimmed.length - 1) {
-      throw new Error(
-        `${field} DID URL must include a non-empty fragment identifier`,
-      );
-    }
-    const didSubject = parseMidnightDIDString(trimmed.slice(0, hashIndex));
-    const expected = getDidSubject(didContract);
-    if (didSubject !== expected) {
-      throw new Error(
-        `${field} DID URL subject must match the current DID (${expected})`,
-      );
-    }
-    return `#${trimmed.slice(hashIndex + 1)}`;
-  }
-
-  if (
-    trimmed.startsWith("/") ||
-    trimmed.startsWith(".") ||
-    trimmed.startsWith("?")
-  ) {
-    return `#${trimmed}`;
-  }
-
-  if (hasUriScheme.test(trimmed)) {
-    throw new Error(`${field} must be a DID URL or relative reference`);
-  }
-  return normalizeFragmentId(trimmed);
-};
-
-const assertAliasUri = (aliasUri: string): string => {
-  const value = aliasUri.trim();
-  if (value.length === 0) {
-    throw new Error("aliasUri must not be empty");
-  }
-  try {
-    // RFC3986-conformant absolute URI
-
-    new URL(value);
-  } catch {
-    throw new Error("aliasUri must be a valid absolute URI (RFC3986)");
-  }
-  return value;
-};
+  field: BoundIdField,
+): string =>
+  normalizeBoundFragmentIdWithSubject(value, field, getDidSubject(didContract));
 
 const LedgerKeyType = DIDContract.KeyType;
 const LedgerCurveType = DIDContract.CurveType;
@@ -485,40 +429,23 @@ const verificationMethodToLedger = (
   };
 };
 
-const serviceTypeToLedger = (serviceType: string | string[]): string => {
-  if (typeof serviceType === "string") return serviceType;
-  if (!Array.isArray(serviceType) || serviceType.length === 0) {
-    throw new Error("service type property must be a non-empty string set");
-  }
-  const normalized = serviceType.map((value) => value.trim());
-  if (normalized.some((value) => value.length === 0)) {
-    throw new Error("service type entries must not be empty");
-  }
-  if (new Set(normalized).size !== normalized.length) {
-    throw new Error("service type entries must be unique");
-  }
-  return normalized.length === 1 ? normalized[0] : JSON.stringify(normalized);
-};
-
-const serviceEndpointToLedger = (
-  serviceEndpoint: Service["serviceEndpoint"],
-): string => {
-  try {
-    const normalized = normalizeServiceEndpoint(serviceEndpoint);
-    return JSON.stringify(normalized);
-  } catch {
-    throw new Error("Invalid serviceEndpoint: could not serialize to JSON");
-  }
-};
-
 const serviceToLedger = (
   didContract: DeployedMidnightDIDContract,
   service: Service,
-): DIDContract.Service => ({
-  id: normalizeBoundFragmentId(didContract, service.id, "service.id"),
-  typ: serviceTypeToLedger(service.type),
-  serviceEndpoint: serviceEndpointToLedger(service.serviceEndpoint),
-});
+): DIDContract.Service => {
+  let endpoint: string;
+  try {
+    endpoint = serviceEndpointToLedgerValue(service.serviceEndpoint);
+  } catch {
+    throw new Error("Invalid serviceEndpoint: could not serialize to JSON");
+  }
+
+  return {
+    id: normalizeBoundFragmentId(didContract, service.id, "service.id"),
+    typ: serviceTypeToLedgerValue(service.type),
+    serviceEndpoint: endpoint,
+  };
+};
 
 const relationSetFromState = (
   didState: DIDContract.Ledger,
@@ -711,7 +638,7 @@ export const addAlsoKnownAs = async (
   didContract: DeployedMidnightDIDContract,
   aliasUri: string,
 ): Promise<FinalizedTxData> => {
-  const alias = assertAliasUri(aliasUri);
+  const alias = assertAbsoluteUri(aliasUri, "aliasUri");
   const result = await didContract.callTx.addAlsoKnownAs(alias);
   return result.public;
 };
@@ -720,7 +647,7 @@ export const removeAlsoKnownAs = async (
   didContract: DeployedMidnightDIDContract,
   aliasUri: string,
 ): Promise<FinalizedTxData> => {
-  const alias = assertAliasUri(aliasUri);
+  const alias = assertAbsoluteUri(aliasUri, "aliasUri");
   const result = await didContract.callTx.removeAlsoKnownAs(alias);
   return result.public;
 };

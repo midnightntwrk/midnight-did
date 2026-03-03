@@ -9,6 +9,7 @@ import type {
   DeployedContract,
   FoundContract,
 } from "@midnight-ntwrk/midnight-js-contracts";
+import type { NetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import type { MidnightProviders } from "@midnight-ntwrk/midnight-js-types";
 import type { WalletFacade } from "@midnight-ntwrk/wallet-sdk-facade";
 import type { UnshieldedKeystore } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
@@ -39,7 +40,7 @@ export interface MidnightDIDWalletContext {
   unshieldedKeystore: UnshieldedKeystore;
 }
 
-export const NetworkMapping: Record<string, MidnightNetwork> = {
+export const NetworkMapping: Record<NetworkId, MidnightNetwork> = {
   undeployed: MidnightNetwork.Undeployed,
   devnet: MidnightNetwork.DevNet,
   testnet: MidnightNetwork.Testnet,
