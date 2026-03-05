@@ -191,7 +191,7 @@ export class TestEnvironment {
     }
     if (this.env !== undefined) {
       this.logger.info("Test containers closing");
-      await this.env.down();
+      await this.env.down({ removeVolumes: true, timeout: 30 });
     }
     if (this.container !== undefined) {
       this.logger.info("Test container closing");
