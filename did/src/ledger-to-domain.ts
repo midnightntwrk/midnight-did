@@ -19,11 +19,11 @@ import {
   createMidnightDIDString,
   MidnightNetwork,
   parseContractAddress,
-} from "./midnight";
+} from "./midnight.js";
 import {
   createMidnightDIDDocument,
   MidnightDIDDocument,
-} from "./midnight-did-document";
+} from "./midnight-did-document.js";
 
 const bytesToHex = (bytes: Iterable<number>): string => {
   let hex = "";

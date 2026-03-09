@@ -1,5 +1,5 @@
 /* c8 ignore file */
-import { DIDDocument } from "./did-document";
+import { DIDDocument } from "./did-document.js";
 
 export interface DIDRegistrar<D, Op = unknown> {
   create(patches?: Array<Op>): Promise<{ did: D; document: DIDDocument }>;

@@ -55,6 +55,23 @@ Why these dependencies
 - Circuit compilation uses the [`@midnight-ntwrk/compact`](https://github.com/midnightntwrk/compact) CLI via `compact compile`; the workspace scripts invoke it automatically.
 - `./run.sh` automatically patches `@midnight-ntwrk/onchain-runtime` with a CommonJS shim (see `docs/runtime-shim.md`) so contract tooling continues to work until upstream ships a CJS entrypoint.
 
+### Testing
+
+- Prerequisite: Docker Desktop (or Docker Engine) must be running for integration tests.
+- Install dependencies once: `npm ci`
+
+- API tests:
+  - Unit/integration suite: `npm run test -w api`
+  - API-only integration target: `npm run test-api -w api`
+
+- Resolver tests:
+  - Unit suite: `npm run test -w did-resolver-service`
+  - Integration suite: `npm run test:integration -w did-resolver-service`
+
+- Run both API and resolver tests:
+  - `npm run test -w api && npm run test -w did-resolver-service && npm run test:integration -w did-resolver-service`
+  - Full repository pipeline (recommended): `./run.sh`
+
 
 ### LICENSE
 
