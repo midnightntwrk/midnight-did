@@ -1,0 +1,182 @@
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
+import Fastify, {
+  type FastifyInstance,
+  type FastifyRequest,
+  type FastifyServerOptions,
+} from "fastify";
+import { type Logger } from "pino";
+
+import { type ResolverService } from "./service.js";
+import { type ResolveRequestOptions } from "./types.js";
+import { resolverPage } from "./ui.js";
+
+const didResolutionRequiredFields = [
+  "didDocument",
+  "didDocumentMetadata",
+  "didResolutionMetadata",
+] as const;
+
+const didDocumentSchema = {
+  type: "object",
+  additionalProperties: true,
+} as const;
+const metadataSchema = { type: "object", additionalProperties: true } as const;
+
+const successResolveSchema = {
+  type: "object",
+  required: didResolutionRequiredFields,
+  properties: {
+    didDocument: didDocumentSchema,
+    didDocumentMetadata: metadataSchema,
+    didResolutionMetadata: metadataSchema,
+  },
+} as const;
+
+const errorResolveSchema = {
+  type: "object",
+  required: didResolutionRequiredFields,
+  properties: {
+    didDocument: { type: "null" },
+    didDocumentMetadata: metadataSchema,
+    didResolutionMetadata: metadataSchema,
+  },
+} as const;
+
+const resolveResponseSchema = {
+  200: successResolveSchema,
+  400: errorResolveSchema,
+  404: errorResolveSchema,
+  500: errorResolveSchema,
+} as const;
+
+type ResolveQuery = ResolveRequestOptions;
+
+const resolveDidWithOptions = async (
+  resolverService: ResolverService,
+  did: string,
+  options: ResolveQuery,
+) => resolverService.resolve(did, options);
+
+export const createApp = async (
+  resolverService: ResolverService,
+  options?: { logger?: Logger },
+): Promise<FastifyInstance> => {
+  const fastifyOptions: FastifyServerOptions = options?.logger
+    ? { loggerInstance: options.logger }
+    : { logger: true };
+  const app = Fastify(fastifyOptions);
+
+  await app.register(swagger, {
+    openapi: {
+      info: {
+        title: "Midnight DID Resolver API",
+        description:
+          "Resolve did:midnight identifiers to DID Resolution output.",
+        version: "0.1.0",
+      },
+    },
+  });
+
+  await app.register(swaggerUi, {
+    routePrefix: "/docs",
+  });
+
+  app.get("/", async (_request, reply) => {
+    reply.type("text/html").send(resolverPage);
+  });
+
+  app.get(
+    "/health",
+    {
+      schema: {
+        tags: ["System"],
+        response: {
+          200: {
+            type: "object",
+            required: ["status"],
+            properties: {
+              status: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    async () => ({ status: "ok" }),
+  );
+
+  app.get(
+    "/resolve/:did",
+    {
+      schema: {
+        tags: ["Resolver"],
+        params: {
+          type: "object",
+          required: ["did"],
+          properties: {
+            did: { type: "string" },
+          },
+        },
+        querystring: {
+          type: "object",
+          properties: {
+            indexerUrl: { type: "string" },
+            indexerWsUrl: { type: "string" },
+          },
+        },
+        response: resolveResponseSchema,
+      },
+    },
+    async (
+      request: FastifyRequest<{
+        Params: { did: string };
+        Querystring: ResolveQuery;
+      }>,
+      reply,
+    ) => {
+      const result = await resolveDidWithOptions(
+        resolverService,
+        request.params.did,
+        request.query,
+      );
+      return reply.code(result.statusCode).send(result.payload);
+    },
+  );
+
+  app.post(
+    "/resolve",
+    {
+      schema: {
+        tags: ["Resolver"],
+        body: {
+          type: "object",
+          required: ["did"],
+          properties: {
+            did: { type: "string" },
+            indexerUrl: { type: "string" },
+            indexerWsUrl: { type: "string" },
+          },
+        },
+        response: resolveResponseSchema,
+      },
+    },
+    async (
+      request: FastifyRequest<{
+        Body: { did: string } & ResolveQuery;
+      }>,
+      reply,
+    ) => {
+      const result = await resolveDidWithOptions(
+        resolverService,
+        request.body.did,
+        {
+          indexerUrl: request.body.indexerUrl,
+          indexerWsUrl: request.body.indexerWsUrl,
+        },
+      );
+      return reply.code(result.statusCode).send(result.payload);
+    },
+  );
+
+  return app;
+};

@@ -197,16 +197,13 @@ describeDidFlow("did-resolver-service e2e DID lifecycle", () => {
       let nodePort: number;
       let proofServerPort: number;
       try {
-        resolverPort = await waitForMappedPort(
-          env,
-          {
-            cwd: resolverDir,
-            composeFile: "compose.e2e.yml",
-            projectName,
-            serviceName: "did-resolver",
-            internalPort: 3001,
-          },
-        );
+        resolverPort = await waitForMappedPort(env, {
+          cwd: resolverDir,
+          composeFile: "compose.e2e.yml",
+          projectName,
+          serviceName: "did-resolver",
+          internalPort: 3001,
+        });
         indexerPort = await waitForMappedPort(env, {
           cwd: resolverDir,
           composeFile: "compose.e2e.yml",
@@ -221,16 +218,13 @@ describeDidFlow("did-resolver-service e2e DID lifecycle", () => {
           serviceName: "node",
           internalPort: 9944,
         });
-        proofServerPort = await waitForMappedPort(
-          env,
-          {
-            cwd: resolverDir,
-            composeFile: "compose.e2e.yml",
-            projectName,
-            serviceName: "proof-server",
-            internalPort: 6300,
-          },
-        );
+        proofServerPort = await waitForMappedPort(env, {
+          cwd: resolverDir,
+          composeFile: "compose.e2e.yml",
+          projectName,
+          serviceName: "proof-server",
+          internalPort: 6300,
+        });
       } catch (error) {
         dumpComposeDiagnostics(projectName);
         throw error;

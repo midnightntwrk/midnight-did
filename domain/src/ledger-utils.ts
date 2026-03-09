@@ -2,7 +2,7 @@ import {
   normalizeServiceEndpoint,
   type ServiceEndpoint,
   ServiceEndpointSchema,
-} from "./did-document";
+} from "./did-document.js";
 
 export type BoundIdField =
   | "verificationMethod.id"

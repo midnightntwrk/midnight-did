@@ -12,7 +12,7 @@ import {
 } from "@midnight-ntwrk/midnight-did-domain";
 import { z } from "zod/v4-mini";
 
-import { MidnightDIDSchema, type MidnightDIDString } from "./midnight";
+import { MidnightDIDSchema, type MidnightDIDString } from "./midnight.js";
 
 /**
  * Midnight DID Document

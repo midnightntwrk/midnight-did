@@ -1,3 +1,4 @@
-export { LedgerToDomain } from "./ledger-to-domain";
-export * from "./midnight";
-export * from "./midnight-did-document";
+export { LedgerToDomain } from "./ledger-to-domain.js";
+export * from "./midnight.js";
+export * from "./midnight-did-document.js";
+export { MidnightDIDResolver } from "./midnight-did-resolver.js";

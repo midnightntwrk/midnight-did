@@ -14,4 +14,4 @@
 // limitations under the License.
 
 export * as DIDContract from "./managed/did/contract/index.js";
-export * from "./witnesses";
+export * from "./witnesses.js";
