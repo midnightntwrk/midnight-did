@@ -82,6 +82,11 @@ export struct Service {
   serviceEndpoint: Opaque<"string">,
 }
 
+export struct JubjubSignature {
+  r: NativePoint,
+  s: Field,
+}
+
 // Constructor
 constructor() {
   contractVersion = 1;
@@ -97,6 +102,18 @@ constructor() {
 
 export circuit publicKey(sk: Bytes<32>): Bytes<32> {
   return persistentHash<Vector<2, Bytes<32>>>([pad(32, "did:controller:pk"), sk]);
+}
+
+export circuit verifyJubjubSignature(
+  pk: NativePoint,
+  signature: JubjubSignature,
+  challenge: Field
+): Boolean {
+  const leftSide: NativePoint = ecMulGenerator(signature.s);
+  const cPk: NativePoint = ecMul(pk, challenge);
+  const rightSide: NativePoint = ecAdd(signature.r, cPk);
+  assert(leftSide == rightSide, "Jubjub signature verification failed");
+  return leftSide == rightSide;
 }
 
 export circuit addAlsoKnownAs(value: Opaque<"string">): [] {
