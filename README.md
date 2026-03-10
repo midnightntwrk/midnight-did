@@ -1,126 +1,121 @@
 # Midnight DID
 
-This GitHub repository contains the Midnight DID method specification and reference implementation in TypeScript.
+Midnight DID is a reference implementation of the `did:midnight` method.
+This repository contains the smart contract, domain model, resolver/conversion logic, API, CLI, and reusable secret storage.
 
-The main purpose of creating a new DID method is to make it a first-class citizen of the Midnight blockchain and solve the following challenges:
-- provide a W3C DID Core specification-compliant method that is compatible with other DID methods and Self-Sovereign Identity platforms.
-- support Midnight platform cryptography (JubJub + Poseidon hash)
-- enable DID resolution via the Midnight JS library and smart contract.
-- support signing and signature verification both within and outside smart contracts.
+## Workspace Components
 
-## Repository structure
+| Component | Package | Responsibility |
+|---|---|---|
+| [`contract`](contract/README.md) | `@midnight-ntwrk/midnight-did-contract` | On-ledger DID state and circuit rules |
+| [`domain`](domain/README.md) | `@midnight-ntwrk/midnight-did-domain` | DID schemas, validation, canonicalization |
+| [`did`](did/README.md) | `@midnight-ntwrk/midnight-did` | Ledger ↔ domain mapping and resolver helpers |
+| [`api`](api/README.md) | `@midnight-ntwrk/midnight-did-api` | Programmatic DID operations and orchestration |
+| [`secret-storage`](secret-storage/README.md) | `@midnight-ntwrk/midnight-did-secret-storage` | Encrypted key storage + sign/verify/HD derivation |
+| [`cli`](cli/README.md) | `@midnight-ntwrk/midnight-did-cli` | User-facing shell + state-machine-guided flows |
+| [`did-resolver-service`](did-resolver-service/README.md) | `@midnight-ntwrk/midnight-did-resolver-service` | REST/Swagger/UI DID resolver service |
 
-- w3c-spec - the Midnight DID method specification
-- contract - smart-contract implementation of the Midnight DID
-- domain - common classes, interfaces, and implementations for DID, DIDDocument, and DIDResolver
-- did - conversion helpers between the domain model and contract-managed ledger
-- api - programmatic API to create, update, resolve Midnight DIDs (unit + integration tests)
-- cli - Node.js console application to manage the Midnight DID
-
-## Package Dependency Diagram
+## Architecture
 
 ```mermaid
 graph TD
-  subgraph Workspace
-    domain["domain (\@midnight-ntwrk/midnight-did-domain)"]
-    contract["contract (\@midnight-ntwrk/midnight-did-contract)"]
-    did["did (\@midnight-ntwrk/midnight-did)"]
-    api["api (\@midnight-ntwrk/midnight-did-api)"]
-    cli["cli (\@midnight-ntwrk/midnight-did-cli)"]
-  end
+  U[User / Integrator]
 
-  domain --> did
-  domain --> api
-  domain --> cli
-  contract --> did
-  contract --> api
-  contract --> cli
-  did --> api
-  did --> cli
-  api --> cli
+  CLI[CLI]
+  API[API]
+  ResolverSvc[Resolver Service]
+  DidPkg[DID package]
+  Domain[Domain]
+  Contract[Contract]
+  Secrets[Secret Storage]
+
+  Indexer[(Indexer)]
+  Node[(Midnight Node)]
+  Proof[(Proof Server)]
+
+  U --> CLI
+  U --> API
+  U --> ResolverSvc
+
+  CLI --> API
+  CLI --> Secrets
+
+  API --> DidPkg
+  API --> Domain
+  API --> Contract
+
+  ResolverSvc --> DidPkg
+  ResolverSvc --> Domain
+
+  DidPkg --> Domain
+  DidPkg --> Contract
+
+  API --> Indexer
+  API --> Node
+  API --> Proof
+  ResolverSvc --> Indexer
 ```
 
-Why these dependencies
-- domain is the source of truth for DID schemas and codecs (shared by others)
-- contract depends on domain for types and codecs
-- did links domain types with contract-managed types
-- api uses both contract and domain to provide a high-level interface; tests and infra live here
-- cli is a thin wrapper over api and does not reimplement logic
+## DID Update and Resolution Sequence
 
-## Development
+```mermaid
+sequenceDiagram
+  participant User
+  participant CLI as CLI / App
+  participant API
+  participant Contract
+  participant Indexer
+  participant Resolver
 
-- Node 24 is required (see `.nvmrc`); npm >= 10
-- Recommended: `nvm use` before running scripts
-- One-shot pipeline: `./run.sh` (builds, lints, tests, coverage)
-- Circuit compilation uses the [`@midnight-ntwrk/compact`](https://github.com/midnightntwrk/compact) CLI via `compact compile`; the workspace scripts invoke it automatically.
-- `./run.sh` automatically patches `@midnight-ntwrk/onchain-runtime` with a CommonJS shim (see `docs/runtime-shim.md`) so contract tooling continues to work until upstream ships a CJS entrypoint.
+  User->>CLI: add verification method (from keyRef)
+  CLI->>API: validate command + current state
+  API->>Contract: submit addVerificationMethod circuit
+  Contract-->>API: tx accepted
+  API->>Indexer: wait/read updated ledger state
+  API-->>CLI: operation result + hints
 
-### Testing
+  User->>Resolver: DID Resolution request (GET /resolve/{did})
+  Resolver->>Indexer: read latest ledger state
+  Resolver-->>User: DID Resolution Result
+```
 
-- Prerequisite: Docker Desktop (or Docker Engine) must be running for integration tests.
-- Install dependencies once: `npm ci`
+## DID Lifecycle State Machine
 
-- API tests:
-  - Unit/integration suite: `npm run test -w api`
-  - API-only integration target: `npm run test-api -w api`
+```mermaid
+stateDiagram-v2
+  [*] --> NoContract
+  NoContract --> DidActive : deploy/join
+  DidActive --> DidActive : add/update/remove methods, services, aliases, relations
+  DidActive --> DidDeactivated : deactivate
+  DidDeactivated --> [*]
+```
 
-- Resolver tests:
-  - Unit suite: `npm run test -w did-resolver-service`
-  - Integration suite: `npm run test:integration -w did-resolver-service`
+## Running
 
-- Run both API and resolver tests:
-  - `npm run test -w api && npm run test -w did-resolver-service && npm run test:integration -w did-resolver-service`
-  - Full repository pipeline (recommended): `./run.sh`
+Prerequisites:
+- Node 24+
+- npm 10+
+- Docker (for integration tests)
 
+Install:
+- `npm ci`
 
-### LICENSE
+Pipelines:
+- Full workspace: `./run.sh`
+- API only: `./run-api.sh`
+- CLI only: `./run-cli.sh`
+- Resolver only: `./run-resolver.sh`
 
-Apache 2.0.
+## Notes
 
-### README.md
+- Compact circuits are compiled via workspace scripts in `contract`.
+- Integration tests use Testcontainers and docker-compose based topologies.
+- Teardown logic now performs best-effort `docker compose down --volumes --remove-orphans` to reduce leaked resources.
+- DID Resolution responses follow the DID Core shape:
+  - `didDocument`
+  - `didResolutionMetadata`
+  - `didDocumentMetadata`
 
-Provides a brief description for users and developers who want to understand the purpose, setup, and usage of the repository.
+## License
 
-### SECURITY.md
-
-Provides a brief description of the Midnight Foundation's security policy and how to properly disclose security issues.
-
-### CONTRIBUTING.md
-
-Provides guidelines for how people can contribute to the Midnight project.
-
-### CODEOWNERS
-
-Defines repository ownership rules.
-
-### ISSUE_TEMPLATE
-
-Provides templates for reporting various types of issues, such as: bug report, documentation improvement and feature request.
-
-### PULL_REQUEST_TEMPLATE
-
-Provides a template for a pull request.
-
-### CLA Assistant
-
-The Midnight Foundation appreciates contributions, and like many other open source projects asks contributors to sign a contributor
-License Agreement before accepting contributions. We use CLA assistant (https://github.com/cla-assistant/cla-assistant) to streamline the CLA
-signing process, enabling contributors to sign our CLAs directly within a GitHub pull request.
-
-### Dependabot
-
-The Midnight Foundation uses GitHub Dependabot feature to keep our projects dependencies up-to-date and address potential security vulnerabilities. 
-
-### Checkmarx
-
-The Midnight Foundation uses Checkmarx for application security (AppSec) to identify and fix security vulnerabilities.
-All repositories are scanned with Checkmarx's suite of tools including: Static Application Security Testing (SAST), Infrastructure as Code (IaC), Software Composition Analysis (SCA), API Security, Container Security and Supply Chain Scans (SCS).
-
-### Unito
-
-Facilitates two-way data synchronization, automated workflows, and streamlined processes between: Jira, GitHub issues and Github project Kanban board. 
-
-# TODO - New Repo Owner
-
-### Software Package Data Exchange (SPDX)
-Include the following Software Package Data Exchange (SPDX) short-form identifier in a comment at the top headers of each source code file.
+Apache-2.0

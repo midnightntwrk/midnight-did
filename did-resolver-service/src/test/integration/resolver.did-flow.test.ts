@@ -21,7 +21,10 @@ import {
 } from "testcontainers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { waitForMappedPort } from "./docker-compose-utils.js";
+import {
+  cleanupComposeProject,
+  waitForMappedPort,
+} from "./docker-compose-utils.js";
 
 const GENESIS_MINT_WALLET_SEED =
   "0000000000000000000000000000000000000000000000000000000000000001";
@@ -267,11 +270,19 @@ describeDidFlow("did-resolver-service e2e DID lifecycle", () => {
 
   afterAll(
     async () => {
-      if (walletCtx !== undefined) {
-        await walletCtx.wallet.stop();
-      }
-      if (env !== undefined) {
-        await env.down({ removeVolumes: true, timeout: 30 });
+      try {
+        if (walletCtx !== undefined) {
+          await walletCtx.wallet.stop();
+        }
+        if (env !== undefined) {
+          await env.down({ removeVolumes: true, timeout: 30 });
+        }
+      } finally {
+        cleanupComposeProject({
+          cwd: resolverDir,
+          composeFile: "compose.e2e.yml",
+          projectName,
+        });
       }
     },
     1000 * 60 * 10,

@@ -1,3 +1,5 @@
+import { spawnSync } from "node:child_process";
+
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v7";
 import type { Logger } from "pino";
 import * as Rx from "rxjs";
@@ -91,10 +93,11 @@ export function parseArgs(required: string[]): TestConfiguration {
 export class TestEnvironment {
   private readonly logger: Logger;
   private env: StartedDockerComposeEnvironment | undefined;
-  private dockerEnv: DockerComposeEnvironment | undefined;
   private container: StartedTestContainer | undefined;
   private walletCtx: api.MidnightDIDWalletContext | undefined;
   private testConfig: TestConfiguration;
+  private composeFile = "standalone.yml";
+  private composeProjectName = "";
 
   constructor(logger: Logger) {
     this.logger = logger;
@@ -116,9 +119,14 @@ export class TestEnvironment {
     } else {
       this.testConfig = new LocalTestConfig();
       this.logger.info("Test containers starting...");
-      const composeFile = process.env.COMPOSE_FILE ?? "standalone.yml";
-      this.logger.info(`Using compose file: ${composeFile}`);
-      this.dockerEnv = new DockerComposeEnvironment(currentDir, composeFile)
+      this.composeFile = process.env.COMPOSE_FILE ?? "standalone.yml";
+      this.composeProjectName = `did-api-test-${Date.now()}`;
+      this.logger.info(`Using compose file: ${this.composeFile}`);
+      const dockerEnv = new DockerComposeEnvironment(
+        currentDir,
+        this.composeFile,
+      )
+        .withProjectName(this.composeProjectName)
         .withWaitStrategy(
           "did-proof-server",
           Wait.forLogMessage(
@@ -130,7 +138,7 @@ export class TestEnvironment {
           "did-indexer",
           Wait.forHealthCheck().withStartupTimeout(180000),
         );
-      this.env = await this.dockerEnv.up();
+      this.env = await dockerEnv.up();
 
       this.testConfig.dappConfig = {
         ...this.testConfig.dappConfig,
@@ -186,16 +194,53 @@ export class TestEnvironment {
       .start();
 
   shutdown = async () => {
-    if (this.walletCtx !== undefined) {
-      await this.walletCtx.wallet.stop();
-    }
-    if (this.env !== undefined) {
-      this.logger.info("Test containers closing");
-      await this.env.down({ removeVolumes: true, timeout: 30 });
-    }
-    if (this.container !== undefined) {
-      this.logger.info("Test container closing");
-      await this.container.stop();
+    try {
+      if (this.walletCtx !== undefined) {
+        await this.walletCtx.wallet.stop();
+      }
+      if (this.env !== undefined) {
+        this.logger.info("Test containers closing");
+        await this.env.down({ removeVolumes: true, timeout: 30 });
+      }
+      if (this.container !== undefined) {
+        this.logger.info("Test container closing");
+        await this.container.stop();
+      }
+    } finally {
+      if (this.composeProjectName !== "") {
+        const result = spawnSync(
+          "docker",
+          [
+            "compose",
+            "-p",
+            this.composeProjectName,
+            "-f",
+            this.composeFile,
+            "down",
+            "--volumes",
+            "--remove-orphans",
+          ],
+          {
+            cwd: currentDir,
+            encoding: "utf8",
+            timeout: 30_000,
+            killSignal: "SIGKILL",
+          },
+        );
+        if (result.status !== 0) {
+          this.logger.warn(
+            {
+              projectName: this.composeProjectName,
+              composeFile: this.composeFile,
+              status: result.status,
+              error: result.error?.message,
+              stderr: result.stderr,
+              stdout: result.stdout,
+            },
+            "Best-effort docker compose cleanup failed",
+          );
+        }
+      }
     }
   };
 

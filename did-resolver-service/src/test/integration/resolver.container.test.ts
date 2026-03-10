@@ -7,7 +7,10 @@ import {
 } from "testcontainers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { waitForMappedPort } from "./docker-compose-utils.js";
+import {
+  cleanupComposeProject,
+  waitForMappedPort,
+} from "./docker-compose-utils.js";
 
 const resolverDir = path.resolve(
   new URL(import.meta.url).pathname,
@@ -71,8 +74,16 @@ describeIntegration("did-resolver-service docker integration", () => {
   });
 
   afterAll(async () => {
-    if (env !== undefined) {
-      await env.down({ removeVolumes: true, timeout: 30 });
+    try {
+      if (env !== undefined) {
+        await env.down({ removeVolumes: true, timeout: 30 });
+      }
+    } finally {
+      cleanupComposeProject({
+        cwd: resolverDir,
+        composeFile: "compose.integration.yml",
+        projectName,
+      });
     }
   });
 

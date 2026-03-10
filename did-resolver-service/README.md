@@ -1,58 +1,93 @@
-@midnight-ntwrk/midnight-did-resolver-service
+# @midnight-ntwrk/midnight-did-resolver-service
 
-Purpose
-- Node.js backend for Midnight DID resolution.
-- Exposes Swagger/OpenAPI endpoints and a minimal browser UI.
+Standalone DID resolver service with REST API, Swagger UI, and a minimal web UI.
 
-Routes
+## Responsibilities
+
+- Resolve `did:midnight` into DID Resolution Results
+- Return DID Resolution Results as defined by DID Core:
+  - `didDocument`
+  - `didResolutionMetadata`
+  - `didDocumentMetadata`
+- Expose HTTP endpoints for resolution and health checks
+- Support runtime-configurable indexer endpoints
+
+## Architecture
+
+```mermaid
+graph TD
+  Client[Browser / API Client]
+  Fastify[Fastify Resolver Service]
+  DidPkg[DID package]
+  Domain[Domain package]
+  Indexer[(Midnight Indexer)]
+
+  Client --> Fastify
+  Fastify --> DidPkg
+  Fastify --> Domain
+  Fastify --> Indexer
+```
+
+## DID Resolution Sequence
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant Resolver as Resolver Service
+  participant Indexer
+  participant Mapper as DID/domain mapping
+
+  User->>Resolver: DID Resolution input (GET /resolve/{did})
+  Resolver->>Resolver: validate DID + network policy
+  Resolver->>Indexer: query ledger state
+  Indexer-->>Resolver: contract state snapshot
+  Resolver->>Mapper: convert to domain DID document
+  Mapper-->>Resolver: canonical DID document model
+  Resolver-->>User: DID Resolution Result JSON
+```
+
+## Service State (request lifecycle)
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Validating : incoming DID Resolution request
+  Validating --> Resolving : valid DID
+  Validating --> Rejected : invalid DID/network
+  Resolving --> Responded : success or notFound/internalError
+  Rejected --> Responded
+  Responded --> Idle
+```
+
+## Endpoints
+
 - `GET /health`
-- `GET /resolve/:did` (optional query: `indexerUrl`, `indexerWsUrl`)
-- `POST /resolve` with JSON body `{ "did": "did:midnight:...", "indexerUrl"?: "...", "indexerWsUrl"?: "..." }`
+- `GET /resolve/:did` (DID Resolution)
+- `POST /resolve` with `{ "did": "did:midnight:..." }` (DID Resolution)
 - `GET /docs` (Swagger UI)
-- `GET /` (simple resolver UI)
+- `GET /` (simple HTML UI)
 
-Environment Variables
+## Configuration
+
 - `RESOLVER_HOST` (default `127.0.0.1`)
 - `RESOLVER_PORT` (default `3001`)
-- `MIDNIGHT_INDEXER_HTTP_URL` (default `http://127.0.0.1:8088/api/v3/graphql`)
-- `MIDNIGHT_INDEXER_WS_URL` (default `ws://127.0.0.1:8088/api/v3/graphql/ws`)
-- `MIDNIGHT_NETWORK` (optional strict network filter: `undeployed|devnet|testnet|mainnet|preview|preprod`)
-- `RESOLVER_DEBUG` (optional: `true` to print underlying resolve errors to stderr)
+- `MIDNIGHT_INDEXER_HTTP_URL`
+- `MIDNIGHT_INDEXER_WS_URL`
+- `MIDNIGHT_NETWORK` (`undeployed|devnet|testnet|mainnet|preview|preprod`)
+- `RESOLVER_DEBUG=true` (optional verbose errors)
 
-Run
-- `npm run build -w did-resolver-service`
-- `npm run start -w did-resolver-service`
+## Run
 
-Development
-- `npm run dev -w did-resolver-service`
-- `npm run test -w did-resolver-service`
-- `npm run test:integration -w did-resolver-service` (builds/starts Docker image via Testcontainers)
+- Build: `npm run build -w did-resolver-service`
+- Dev: `npm run dev -w did-resolver-service`
+- Start: `npm run start -w did-resolver-service`
+- Unit tests: `npm run test -w did-resolver-service`
+- Integration tests: `npm run test:integration -w did-resolver-service`
 
-Run Locally (No Docker)
-- Prerequisites:
-  - Node.js `>=24`
-  - npm `>=10`
-  - A reachable Midnight indexer endpoint (local or remote)
-- Install dependencies at repo root:
-  - `npm install`
-- Configure resolver environment (example values):
-  - `export RESOLVER_HOST=127.0.0.1`
-  - `export RESOLVER_PORT=3001`
-  - `export MIDNIGHT_INDEXER_HTTP_URL=http://127.0.0.1:8088/api/v3/graphql`
-  - `export MIDNIGHT_INDEXER_WS_URL=ws://127.0.0.1:8088/api/v3/graphql/ws`
-  - Optional network guard:
-  - `export MIDNIGHT_NETWORK=undeployed`
-- Start in development mode:
-  - `npm run dev -w did-resolver-service`
-- Or run compiled mode:
-  - `npm run build -w did-resolver-service`
-  - `npm run start -w did-resolver-service`
-- Verify service:
-  - `curl http://127.0.0.1:3001/health`
-  - Open `http://127.0.0.1:3001/` (UI) or `http://127.0.0.1:3001/docs` (Swagger)
+## Docker Integration Tests
 
-Docker
-- Build image manually:
-  - `docker build -f did-resolver-service/Dockerfile -t midnight-did-resolver:local .`
-- Run image:
-  - `docker run --rm -p 3001:3001 -e RESOLVER_HOST=0.0.0.0 midnight-did-resolver:local`
+Integration tests use compose + Testcontainers and now enforce cleanup via:
+- `env.down({ removeVolumes: true })`
+- fallback `docker compose down --volumes --remove-orphans`
+
+This reduces dangling containers/volumes after failures.

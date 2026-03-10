@@ -67,9 +67,11 @@ managed/
 
 # Submodules and examples
 .gitsubmodules
-.gitmodules
 example-counter
-midnight-did-resolver/
+research/identity-examples/**/node_modules/
+research/identity-examples/**/dist/
+research/identity-examples/**/build/
+research/identity-examples/**/.env
 
 # Local assistant workspace
 .cloude

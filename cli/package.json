@@ -9,7 +9,7 @@
     "npm": ">=10"
   },
   "scripts": {
-    "prebuild": "npm --prefix ../contract run build && npm --prefix ../api run build",
+    "prebuild": "npm --prefix ../contract run build && npm --prefix ../api run build && npm --prefix ../secret-storage run build",
     "testnet-remote": "node --experimental-specifier-resolution=node --loader ts-node/esm src/testnet-remote.ts",
     "testnet-remote-ps": "cp -r proof-server-testnet.yml ./dist/ && node --experimental-specifier-resolution=node --loader ts-node/esm src/testnet-remote-start-proof-server.ts",
     "testnet-local": "node --experimental-specifier-resolution=node --loader ts-node/esm src/testnet-local.ts",
@@ -20,6 +20,7 @@
     "preprod-ps": "docker compose -f proof-server.yml pull && node --experimental-specifier-resolution=node --loader ts-node/esm src/preprod-start-proof-server.ts",
     "pretest-api": "npm --prefix ../contract run build && npm --prefix ../api run build",
     "test-api": "DEBUG='testcontainers' vitest run",
+    "test:cli-api": "vitest run src/test/cli-api.state-machine.unit.test.ts src/test/cli-api.service.unit.test.ts src/test/secrets.file-store.unit.test.ts --pool=threads",
     "coverage": "DEBUG='testcontainers' vitest run --coverage",
     "test-against-testnet": "RUN_ENV_TESTS=true TEST_ENV=testnet TEST_WALLET_SEED=1dec0dd58fbe4d3206ef960aebff95a77e09dffbd19f3e9439d23fe6de4fcdd1 vitest run",
     "build": "rm -rf dist && tsc --project tsconfig.build.json",
@@ -36,6 +37,7 @@
     "@midnight-ntwrk/midnight-did-api": "*",
     "@midnight-ntwrk/midnight-did": "*",
     "@midnight-ntwrk/midnight-did-domain": "*",
+    "@midnight-ntwrk/midnight-did-secret-storage": "*",
     "pino": "^9.7.0"
   }
 }

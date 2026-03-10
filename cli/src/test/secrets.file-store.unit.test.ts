@@ -1,15 +1,14 @@
+import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 
 import { DIDContract } from '@midnight-ntwrk/midnight-did-contract';
 import { FileSecretStore } from '@midnight-ntwrk/midnight-did-secret-storage';
 import { afterEach, describe, expect, it } from 'vitest';
 
 describe('FileSecretStore', () => {
-  const JUBJUB_FIELD_MODULUS =
-    6554484396890773809930967563523245729705921265872317281365359162392183254199n;
+  const JUBJUB_FIELD_MODULUS = 6554484396890773809930967563523245729705921265872317281365359162392183254199n;
   const tmpDirs: string[] = [];
 
   const createStore = async () => {
@@ -64,9 +63,7 @@ describe('FileSecretStore', () => {
     return hashToJubjubScalar(challengeInput);
   };
 
-  const decodeCompactJubjubSignature = (
-    signature: Uint8Array,
-  ): { r: { x: bigint; y: bigint }; s: bigint } => {
+  const decodeCompactJubjubSignature = (signature: Uint8Array): { r: { x: bigint; y: bigint }; s: bigint } => {
     if (signature.length !== 96) {
       throw new Error(`Expected 96-byte Jubjub signature, got ${signature.length}`);
     }

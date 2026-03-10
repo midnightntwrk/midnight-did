@@ -83,8 +83,10 @@ const pointToBigints = (
 const pointFromBigints = (point: {
   x: bigint;
   y: bigint;
-}): [Uint8Array, Uint8Array] =>
-  [bigIntToValue(point.x)[0], bigIntToValue(point.y)[0]];
+}): [Uint8Array, Uint8Array] => [
+  bigIntToValue(point.x)[0],
+  bigIntToValue(point.y)[0],
+];
 
 const hashToJubjubScalar = (input: Uint8Array): bigint => {
   const digest = createHash("sha256").update(input).digest();

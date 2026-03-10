@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+node ./scripts/ensure-node-24.mjs
+node ./scripts/ensure-onchain-runtime-cjs.mjs
+node ./scripts/ensure-rollup-native.mjs
+
+echo "[api] Build dependencies"
+npm run build -w contract
+npm run build -w domain
+npm run build -w did
+
+echo "[api] Build API"
+npm run build -w api
+
+echo "[api] Run API unit tests"
+npm run test -w api
+
+echo "[api] Run API integration tests"
+npm run test-api -w api
+
+echo "[api] Done"

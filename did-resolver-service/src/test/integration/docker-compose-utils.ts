@@ -62,3 +62,41 @@ export const waitForMappedPort = async (
     `Cannot get mapped port for service '${serviceName}' (${internalPort})`,
   );
 };
+
+export const cleanupComposeProject = (options: {
+  cwd: string;
+  composeFile: string;
+  projectName: string;
+}): void => {
+  const { cwd, composeFile, projectName } = options;
+  if (!projectName) return;
+  const result = spawnSync(
+    "docker",
+    [
+      "compose",
+      "-p",
+      projectName,
+      "-f",
+      composeFile,
+      "down",
+      "--volumes",
+      "--remove-orphans",
+    ],
+    {
+      cwd,
+      encoding: "utf8",
+      timeout: 30_000,
+      killSignal: "SIGKILL",
+    },
+  );
+  if (result.status !== 0) {
+    console.warn("[resolver-e2e] best-effort compose cleanup failed", {
+      projectName,
+      composeFile,
+      status: result.status,
+      error: result.error?.message,
+      stderr: result.stderr,
+      stdout: result.stdout,
+    });
+  }
+};

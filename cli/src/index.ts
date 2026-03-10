@@ -15,3 +15,18 @@
 
 export * from './api';
 export * from './cli';
+export { CliDidService } from './cli-api/service';
+export { type ActionHint, CliDidState, type CommandResult, type StateContext } from './cli-api/types';
+export {
+  type DeriveKeyFromSeedInput,
+  FileSecretStore,
+  type GenerateKeyInput,
+  type ImportKeyInput,
+  type MidnightCurve,
+  type MidnightKeyType,
+  type PublicJwk,
+  type SecretStorage,
+  SigningNotSupportedError,
+  type StoredKeyMeta,
+  VeramoSecretStore,
+} from '@midnight-ntwrk/midnight-did-secret-storage';
