@@ -60,27 +60,55 @@ const resolveDidWithOptions = async (
 
 export const createApp = async (
   resolverService: ResolverService,
-  options?: { logger?: Logger },
+  options?: { logger?: Logger; enableDocs?: boolean },
 ): Promise<FastifyInstance> => {
   const fastifyOptions: FastifyServerOptions = options?.logger
-    ? { loggerInstance: options.logger }
-    : { logger: true };
+    ? {
+        loggerInstance: options.logger,
+        bodyLimit: 64 * 1024,
+        requestTimeout: 15_000,
+        connectionTimeout: 10_000,
+        keepAliveTimeout: 5_000,
+        routerOptions: {
+          maxParamLength: 1024,
+        },
+      }
+    : {
+        logger: true,
+        bodyLimit: 64 * 1024,
+        requestTimeout: 15_000,
+        connectionTimeout: 10_000,
+        keepAliveTimeout: 5_000,
+        routerOptions: {
+          maxParamLength: 1024,
+        },
+      };
   const app = Fastify(fastifyOptions);
 
-  await app.register(swagger, {
-    openapi: {
-      info: {
-        title: "Midnight DID Resolver API",
-        description:
-          "Resolve did:midnight identifiers to DID Resolution output.",
-        version: "0.1.0",
-      },
-    },
+  app.addHook("onSend", async (_request, reply, payload) => {
+    reply.header("X-Content-Type-Options", "nosniff");
+    reply.header("X-Frame-Options", "DENY");
+    reply.header("Referrer-Policy", "no-referrer");
+    reply.header("Cross-Origin-Resource-Policy", "same-origin");
+    return payload;
   });
 
-  await app.register(swaggerUi, {
-    routePrefix: "/docs",
-  });
+  if (options?.enableDocs ?? true) {
+    await app.register(swagger, {
+      openapi: {
+        info: {
+          title: "Midnight DID Resolver API",
+          description:
+            "Resolve did:midnight identifiers to DID Resolution output.",
+          version: "0.1.0",
+        },
+      },
+    });
+
+    await app.register(swaggerUi, {
+      routePrefix: "/docs",
+    });
+  }
 
   app.get("/", async (_request, reply) => {
     reply.type("text/html").send(resolverPage);
@@ -106,6 +134,25 @@ export const createApp = async (
   );
 
   app.get(
+    "/ready",
+    {
+      schema: {
+        tags: ["System"],
+        response: {
+          200: {
+            type: "object",
+            required: ["status"],
+            properties: {
+              status: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    async () => ({ status: "ready" }),
+  );
+
+  app.get(
     "/resolve/:did",
     {
       schema: {
@@ -113,15 +160,17 @@ export const createApp = async (
         params: {
           type: "object",
           required: ["did"],
+          additionalProperties: false,
           properties: {
-            did: { type: "string" },
+            did: { type: "string", minLength: 1, maxLength: 512 },
           },
         },
         querystring: {
           type: "object",
+          additionalProperties: false,
           properties: {
-            indexerUrl: { type: "string" },
-            indexerWsUrl: { type: "string" },
+            indexerUrl: { type: "string", maxLength: 2048 },
+            indexerWsUrl: { type: "string", maxLength: 2048 },
           },
         },
         response: resolveResponseSchema,
@@ -151,10 +200,11 @@ export const createApp = async (
         body: {
           type: "object",
           required: ["did"],
+          additionalProperties: false,
           properties: {
-            did: { type: "string" },
-            indexerUrl: { type: "string" },
-            indexerWsUrl: { type: "string" },
+            did: { type: "string", minLength: 1, maxLength: 512 },
+            indexerUrl: { type: "string", maxLength: 2048 },
+            indexerWsUrl: { type: "string", maxLength: 2048 },
           },
         },
         response: resolveResponseSchema,

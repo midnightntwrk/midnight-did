@@ -45,9 +45,11 @@ export type ResolverServiceOptions = {
   expectedNetwork?: MidnightNetwork;
   debug?: boolean;
   logger?: ResolverLogger;
+  resolveTimeoutMs?: number;
 };
 
 export const RESOLVER_CACHE_MAX_SIZE = 64;
+const DEFAULT_RESOLVE_TIMEOUT_MS = 15_000;
 
 export type ResolverLogger = {
   error: (message: string, context?: Record<string, unknown>) => void;
@@ -74,12 +76,15 @@ export class ResolverService {
   private readonly endpointPolicy: IndexerEndpointPolicy;
   private readonly debug: boolean;
   private readonly logger: ResolverLogger;
+  private readonly resolveTimeoutMs: number;
   private readonly resolverCache = new Map<string, MidnightDIDResolver>();
 
   constructor(options: ResolverServiceOptions) {
     this.expectedNetwork = options.expectedNetwork;
     this.debug = options.debug ?? false;
     this.logger = options.logger ?? defaultLogger;
+    this.resolveTimeoutMs =
+      options.resolveTimeoutMs ?? DEFAULT_RESOLVE_TIMEOUT_MS;
     this.endpointPolicy = new IndexerEndpointPolicy({
       indexerHttpUrl: options.indexerHttpUrl,
       indexerWsUrl: options.indexerWsUrl,
@@ -151,7 +156,28 @@ export class ResolverService {
     options?: ResolveRequestOptions,
   ): Promise<ResolveResponse> {
     try {
-      const result = await this.resolverFor(options).resolveResult(did);
+      const result = await new Promise<
+        Awaited<ReturnType<MidnightDIDResolver["resolveResult"]>>
+      >((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(
+            new Error(
+              `Resolution timed out after ${this.resolveTimeoutMs}ms for DID: ${did}`,
+            ),
+          );
+        }, this.resolveTimeoutMs);
+
+        this.resolverFor(options)
+          .resolveResult(did)
+          .then((value) => {
+            clearTimeout(timer);
+            resolve(value);
+          })
+          .catch((error) => {
+            clearTimeout(timer);
+            reject(error);
+          });
+      });
       if (result === null) {
         return {
           statusCode: 404,

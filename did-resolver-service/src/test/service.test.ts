@@ -210,4 +210,19 @@ describe("did-resolver-service service", () => {
       }),
     );
   });
+
+  it("times out slow resolutions and returns internalError", async () => {
+    resolveResultMock.mockImplementation(
+      () => new Promise(() => undefined) as Promise<never>,
+    );
+    const service = new ResolverService({
+      indexerHttpUrl: "http://indexer.example/api/v3/graphql",
+      indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
+      resolveTimeoutMs: 5,
+    });
+
+    const result = await service.resolve("did:midnight:devnet:abc");
+    expect(result.statusCode).toBe(500);
+    expect(result.payload.didResolutionMetadata.error).toBe("internalError");
+  });
 });

@@ -21,6 +21,19 @@ describe("did-resolver-service app", () => {
     await app.close();
   });
 
+  it("returns readiness endpoint", async () => {
+    const service = {
+      resolve: vi.fn(),
+    } as unknown as ResolverService;
+    const app = await createApp(service);
+    const response = await app.inject({ method: "GET", url: "/ready" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ status: "ready" });
+
+    await app.close();
+  });
+
   it("resolves DID over GET endpoint", async () => {
     const service = {
       resolve: vi.fn().mockResolvedValue({
@@ -109,6 +122,18 @@ describe("did-resolver-service app", () => {
       indexerUrl: "http://127.0.0.1:8088/api/v3/graphql",
       indexerWsUrl: "ws://127.0.0.1:8088/api/v3/graphql/ws",
     });
+
+    await app.close();
+  });
+
+  it("can disable Swagger docs route", async () => {
+    const service = {
+      resolve: vi.fn(),
+    } as unknown as ResolverService;
+    const app = await createApp(service, { enableDocs: false });
+    const response = await app.inject({ method: "GET", url: "/docs" });
+
+    expect(response.statusCode).toBe(404);
 
     await app.close();
   });

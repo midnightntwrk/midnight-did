@@ -13,6 +13,8 @@ describe("did-resolver-service config", () => {
       indexerWsUrl: "ws://127.0.0.1:8088/api/v3/graphql/ws",
       expectedNetwork: null,
       debug: false,
+      enableDocs: true,
+      resolveTimeoutMs: 15000,
     });
   });
 
@@ -24,6 +26,8 @@ describe("did-resolver-service config", () => {
       MIDNIGHT_INDEXER_WS_URL: "wss://indexer.example/api/v3/graphql/ws",
       MIDNIGHT_NETWORK: "PreProd",
       RESOLVER_DEBUG: "true",
+      RESOLVER_ENABLE_DOCS: "false",
+      RESOLVER_TIMEOUT_MS: "4500",
     });
 
     expect(cfg.host).toBe("0.0.0.0");
@@ -32,6 +36,8 @@ describe("did-resolver-service config", () => {
     expect(cfg.indexerWsUrl).toBe("wss://indexer.example/api/v3/graphql/ws");
     expect(cfg.expectedNetwork).toBe(MidnightNetwork.Preprod);
     expect(cfg.debug).toBe(true);
+    expect(cfg.enableDocs).toBe(false);
+    expect(cfg.resolveTimeoutMs).toBe(4500);
   });
 
   it("fails on unsupported network", () => {
@@ -48,6 +54,14 @@ describe("did-resolver-service config", () => {
         RESOLVER_PORT: "70000",
       }),
     ).toThrow("Invalid RESOLVER_PORT value");
+  });
+
+  it("fails on invalid resolver timeout", () => {
+    expect(() =>
+      loadConfig({
+        RESOLVER_TIMEOUT_MS: "0",
+      }),
+    ).toThrow("Invalid RESOLVER_TIMEOUT_MS value");
   });
 
   it("fails on invalid indexer urls", () => {

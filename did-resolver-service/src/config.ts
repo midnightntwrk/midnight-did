@@ -26,16 +26,44 @@ export type ResolverServiceConfig = {
   indexerWsUrl: string;
   expectedNetwork: MidnightNetwork | null;
   debug: boolean;
+  enableDocs: boolean;
+  resolveTimeoutMs: number;
 };
 
 const parseBoolean = (value: string | undefined): boolean =>
   value?.trim().toLowerCase() === "true";
+
+const parseOptionalBoolean = (
+  value: string | undefined,
+  fallback: boolean,
+): boolean => {
+  if (value === undefined) return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  throw new Error(
+    `Invalid boolean value: ${value}. Expected one of true|false`,
+  );
+};
 
 const parsePort = (value: string | undefined): number => {
   const raw = value ?? "3001";
   const parsed = Number(raw);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
     throw new Error(`Invalid RESOLVER_PORT value: ${raw}`);
+  }
+  return parsed;
+};
+
+const parsePositiveInt = (
+  value: string | undefined,
+  fallback: number,
+  envName: string,
+): number => {
+  const raw = value ?? String(fallback);
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`Invalid ${envName} value: ${raw}`);
   }
   return parsed;
 };
@@ -73,4 +101,10 @@ export const loadConfig = (
   ),
   expectedNetwork: parseNetwork(env.MIDNIGHT_NETWORK),
   debug: parseBoolean(env.RESOLVER_DEBUG),
+  enableDocs: parseOptionalBoolean(env.RESOLVER_ENABLE_DOCS, true),
+  resolveTimeoutMs: parsePositiveInt(
+    env.RESOLVER_TIMEOUT_MS,
+    15_000,
+    "RESOLVER_TIMEOUT_MS",
+  ),
 });

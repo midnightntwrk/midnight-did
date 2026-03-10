@@ -39,8 +39,10 @@ describe("did-resolver-service startup", () => {
       indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
       expectedNetwork: "preprod",
       debug: true,
+      enableDocs: true,
+      resolveTimeoutMs: 15000,
     });
-    createAppMock.mockResolvedValue({ listen: listenMock });
+    createAppMock.mockResolvedValue({ listen: listenMock, close: vi.fn() });
     listenMock.mockResolvedValue(undefined);
 
     await start();
@@ -50,6 +52,7 @@ describe("did-resolver-service startup", () => {
       indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
       expectedNetwork: "preprod",
       debug: true,
+      resolveTimeoutMs: 15000,
       logger: expect.objectContaining({
         error: expect.any(Function),
       }),
@@ -57,6 +60,10 @@ describe("did-resolver-service startup", () => {
     expect(listenMock).toHaveBeenCalledWith({
       host: "0.0.0.0",
       port: 13001,
+    });
+    expect(createAppMock).toHaveBeenCalledWith(expect.anything(), {
+      logger: expect.anything(),
+      enableDocs: true,
     });
   });
 });

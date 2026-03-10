@@ -62,9 +62,10 @@ stateDiagram-v2
 ## Endpoints
 
 - `GET /health`
+- `GET /ready`
 - `GET /resolve/:did` (DID Resolution)
 - `POST /resolve` with `{ "did": "did:midnight:..." }` (DID Resolution)
-- `GET /docs` (Swagger UI)
+- `GET /docs` (Swagger UI, optional)
 - `GET /` (simple HTML UI)
 
 ## Configuration
@@ -75,6 +76,25 @@ stateDiagram-v2
 - `MIDNIGHT_INDEXER_WS_URL`
 - `MIDNIGHT_NETWORK` (`undeployed|devnet|testnet|mainnet|preview|preprod`)
 - `RESOLVER_DEBUG=true` (optional verbose errors)
+- `RESOLVER_ENABLE_DOCS=true|false` (default `true`)
+- `RESOLVER_TIMEOUT_MS` (default `15000`)
+
+## Production Defaults
+
+- Request hardening:
+  - body limit: `64KB`
+  - request timeout: `15s`
+  - connection timeout: `10s`
+  - keep-alive timeout: `5s`
+  - max param length: `1024`
+- Response security headers:
+  - `X-Content-Type-Options: nosniff`
+  - `X-Frame-Options: DENY`
+  - `Referrer-Policy: no-referrer`
+  - `Cross-Origin-Resource-Policy: same-origin`
+- Graceful shutdown:
+  - handles `SIGINT` and `SIGTERM`
+  - closes Fastify app before exit
 
 ## Run
 
