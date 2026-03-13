@@ -22,8 +22,8 @@
   "scripts": {
     "build": "rm -rf dist && tsc -b tsconfig.build.json --force",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "coverage": "vitest run --coverage",
+    "test": "vitest run -c vitest.config.ts --passWithNoTests",
+    "coverage": "vitest run -c vitest.config.ts --coverage",
     "clean": "rm -rf dist && rm -rf coverage",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix"

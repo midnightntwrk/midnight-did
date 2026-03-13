@@ -13,6 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { randomBytes } from 'node:crypto';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { stdin as input, stdout as output } from 'node:process';
 import { createInterface, type Interface } from 'node:readline/promises';
 
@@ -33,6 +36,55 @@ let logger: Logger;
  */
 const GENESIS_MINT_WALLET_SEED = '0000000000000000000000000000000000000000000000000000000000000001';
 const DEFAULT_SECRET_STORE_PATH = `${process.env.HOME ?? process.cwd()}/.midnight-did/cli-secrets.json`;
+const DEFAULT_SESSION_STORE_PATH = `${process.env.HOME ?? process.cwd()}/.midnight-did/cli-session.json`;
+
+type CliSessionEntry = {
+  seed: string;
+  contractAddress?: string;
+  updatedAt: string;
+};
+
+type CliSessionStore = {
+  version: 1;
+  profiles: Record<string, CliSessionEntry>;
+};
+
+const profileIdForConfig = (config: Config): string => {
+  const networkTag = config.constructor.name.replace(/Config$/, '').toLowerCase() || 'default';
+  return `${networkTag}:${config.node}`;
+};
+
+const readSessionStore = async (location: string): Promise<CliSessionStore> => {
+  try {
+    const raw = await readFile(location, 'utf8');
+    const parsed = JSON.parse(raw) as Partial<CliSessionStore>;
+    if (parsed.version !== 1 || typeof parsed.profiles !== 'object' || parsed.profiles === null) {
+      return { version: 1, profiles: {} };
+    }
+    return { version: 1, profiles: parsed.profiles as Record<string, CliSessionEntry> };
+  } catch {
+    return { version: 1, profiles: {} };
+  }
+};
+
+const writeSessionStore = async (location: string, store: CliSessionStore): Promise<void> => {
+  await mkdir(path.dirname(location), { recursive: true });
+  await writeFile(location, JSON.stringify(store, null, 2), 'utf8');
+};
+
+const upsertSessionEntry = async (
+  location: string,
+  profileId: string,
+  update: { seed: string; contractAddress?: string },
+): Promise<void> => {
+  const store = await readSessionStore(location);
+  store.profiles[profileId] = {
+    seed: update.seed,
+    contractAddress: update.contractAddress,
+    updatedAt: new Date().toISOString(),
+  };
+  await writeSessionStore(location, store);
+};
 
 // ─── Display Helpers ────────────────────────────────────────────────────────
 
@@ -49,16 +101,6 @@ const BANNER = `
 const DIVIDER = '──────────────────────────────────────────────────────────────';
 
 // ─── Menu Helpers ──────────────────────────────────────────────────────────
-
-const WALLET_MENU = `
-${DIVIDER}
-  Wallet Setup
-${DIVIDER}
-  [1] Create a new wallet
-  [2] Restore wallet from seed
-  [3] Exit
-${'─'.repeat(62)}
-> `;
 
 /** Build the contract actions menu, showing current DUST balance in the header. */
 const contractMenu = (dustBalance: string) => `
@@ -103,37 +145,7 @@ ${'─'.repeat(62)}
 
 // ─── Wallet Setup ───────────────────────────────────────────────────────────
 
-/** Prompt the user for a seed phrase and restore a wallet from it. */
-const buildWalletFromSeed = async (config: Config, rli: Interface): Promise<WalletContext> => {
-  const seed = await rli.question('Enter your wallet seed: ');
-  return await api.buildWalletAndWaitForFunds(config, seed);
-};
-
-/**
- * Wallet creation flow.
- * - Standalone configs skip the menu and use the genesis seed automatically.
- * - All other configs present a menu to create or restore a wallet.
- */
-const buildWallet = async (config: Config, rli: Interface): Promise<WalletContext | null> => {
-  // Standalone mode: use the pre-funded genesis wallet
-  if (config instanceof StandaloneConfig) {
-    return await api.buildWalletAndWaitForFunds(config, GENESIS_MINT_WALLET_SEED);
-  }
-
-  while (true) {
-    const choice = await rli.question(WALLET_MENU);
-    switch (choice.trim()) {
-      case '1':
-        return await api.buildFreshWallet(config);
-      case '2':
-        return await buildWalletFromSeed(config, rli);
-      case '3':
-        return null;
-      default:
-        logger.error(`Invalid choice: ${choice}`);
-    }
-  }
-};
+const generateSeedHex = (): string => randomBytes(32).toString('hex');
 
 // ─── Contract Interaction ───────────────────────────────────────────────────
 
@@ -480,6 +492,11 @@ export const run = async (config: Config, _logger: Logger, dockerEnv?: DockerCom
 
   const rli = createInterface({ input, output, terminal: true });
   let env: StartedDockerComposeEnvironment | undefined;
+  const sessionStorePath = process.env.CLI_SESSION_FILE_PATH ?? DEFAULT_SESSION_STORE_PATH;
+  const profileId = profileIdForConfig(config);
+  const sessionStore = await readSessionStore(sessionStorePath);
+  const existingSession = sessionStore.profiles[profileId];
+  let activeSeed: string | null = null;
 
   try {
     // Step 1: Start Docker environment if provided (e.g. local proof server)
@@ -495,10 +512,63 @@ export const run = async (config: Config, _logger: Logger, dockerEnv?: DockerCom
       }
     }
 
-    // Step 2: Build wallet (create new or restore from seed)
-    const walletCtx = await buildWallet(config, rli);
-    if (walletCtx === null) {
-      return;
+    // Step 2: Build wallet (create new, restore, or reuse stored seed)
+    let walletCtx: WalletContext | null = null;
+    let shouldRestoreContract = false;
+    if (config instanceof StandaloneConfig) {
+      activeSeed = GENESIS_MINT_WALLET_SEED;
+      walletCtx = await api.buildWalletAndWaitForFunds(config, activeSeed);
+      await upsertSessionEntry(sessionStorePath, profileId, {
+        seed: activeSeed,
+        contractAddress: existingSession?.contractAddress,
+      });
+    } else if (existingSession?.seed) {
+      const resumeChoice = await rli.question(
+        `${DIVIDER}\n  Stored session found for ${profileId}\n${DIVIDER}\n  [1] Reuse stored wallet seed\n  [2] Create a new wallet\n  [3] Restore wallet from another seed\n  [4] Exit\n${'─'.repeat(62)}\n> `,
+      );
+      if (resumeChoice.trim() === '1') {
+        activeSeed = existingSession.seed;
+        shouldRestoreContract = true;
+        walletCtx = await api.buildWalletAndWaitForFunds(config, activeSeed);
+      } else if (resumeChoice.trim() === '2') {
+        activeSeed = generateSeedHex();
+        console.log(`\n  Generated wallet seed: ${activeSeed}\n`);
+        walletCtx = await api.buildWalletAndWaitForFunds(config, activeSeed);
+      } else if (resumeChoice.trim() === '3') {
+        activeSeed = (await rli.question('Enter your wallet seed: ')).trim();
+        walletCtx = await api.buildWalletAndWaitForFunds(config, activeSeed);
+      } else {
+        return;
+      }
+    } else {
+      while (true) {
+        const choice = await rli.question(
+          `${DIVIDER}\n  Wallet Setup\n${DIVIDER}\n  [1] Create a new wallet\n  [2] Restore wallet from seed\n  [3] Exit\n${'─'.repeat(62)}\n> `,
+        );
+        if (choice.trim() === '1') {
+          activeSeed = generateSeedHex();
+          console.log(`\n  Generated wallet seed: ${activeSeed}\n`);
+          walletCtx = await api.buildWalletAndWaitForFunds(config, activeSeed);
+          break;
+        }
+        if (choice.trim() === '2') {
+          activeSeed = (await rli.question('Enter your wallet seed: ')).trim();
+          walletCtx = await api.buildWalletAndWaitForFunds(config, activeSeed);
+          break;
+        }
+        if (choice.trim() === '3') {
+          return;
+        }
+        console.log(`  Invalid choice: ${choice}`);
+      }
+    }
+
+    if (walletCtx === null) return;
+    if (activeSeed !== null) {
+      await upsertSessionEntry(sessionStorePath, profileId, {
+        seed: activeSeed,
+        contractAddress: shouldRestoreContract ? existingSession?.contractAddress : undefined,
+      });
     }
 
     try {
@@ -517,8 +587,30 @@ export const run = async (config: Config, _logger: Logger, dockerEnv?: DockerCom
       });
       console.log('');
 
+      // Restore last joined/deployed contract if session has one.
+      if (shouldRestoreContract && existingSession?.contractAddress) {
+        try {
+          await api.withStatus('Restoring previous DID contract session', () =>
+            service.joinDid({ contractAddress: existingSession.contractAddress! }),
+          );
+          console.log(`  ✓ Restored DID contract: ${existingSession.contractAddress}\n`);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          console.log(`  ⚠ Failed to restore previous contract (${existingSession.contractAddress}): ${msg}\n`);
+        }
+      }
+
       // Step 4: Enter the contract interaction loop
       await mainLoop(service, providers, walletCtx, rli);
+
+      // Persist latest session state for resume.
+      const contractAddress = service.getDidContract()?.deployTxData.public.contractAddress;
+      if (activeSeed !== null || existingSession?.seed) {
+        await upsertSessionEntry(sessionStorePath, profileId, {
+          seed: activeSeed ?? existingSession!.seed,
+          contractAddress: contractAddress ?? existingSession?.contractAddress,
+        });
+      }
     } catch (e) {
       if (e instanceof Error) {
         logger.error(`Error: ${e.message}`);

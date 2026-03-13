@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { decryptJson, type EncryptedPayload, encryptJson } from "./crypto";
+import { decryptJson, type EncryptedPayload, encryptJson } from "./crypto.js";
 import {
   generateCurveKey,
   importCurveKey,
@@ -10,13 +10,13 @@ import {
   signWithCurveKey,
   type StoredPrivateRecord,
   verifyWithPublicJwk,
-} from "./curve-support";
+} from "./curve-support.js";
 import {
   SecretNotFoundError,
   SecretStoreInitError,
   SecretStoreLockedError,
-} from "./errors";
-import { deriveCurvePrivateFromSeed } from "./hd-derivation";
+} from "./errors.js";
+import { deriveCurvePrivateFromSeed } from "./hd-derivation.js";
 import type {
   DeriveKeyFromSeedInput,
   GenerateKeyInput,
@@ -25,7 +25,7 @@ import type {
   SecretStorage,
   StoredKeyMeta,
   VerifyInput,
-} from "./types";
+} from "./types.js";
 
 type StoredEntry = {
   meta: StoredKeyMeta;
@@ -142,15 +142,28 @@ export class FileSecretStore implements SecretStorage {
   async deriveKeyFromSeed(
     params: DeriveKeyFromSeedInput,
   ): Promise<{ keyRef: string; publicJwk: PublicJwk }> {
-    const derived = deriveCurvePrivateFromSeed(params);
-    return this.importKey({
-      id: params.id,
-      privateKey: derived.privateKey,
-      kty: derived.kty,
-      crv: derived.crv,
-      did: params.did,
-      purpose: params.purpose,
-    });
+    for (let candidate = 0; candidate < 512; candidate += 1) {
+      try {
+        const derived = deriveCurvePrivateFromSeed(params, candidate);
+        return await this.importKey({
+          id: params.id,
+          privateKey: derived.privateKey,
+          kty: derived.kty,
+          crv: derived.crv,
+          did: params.did,
+          purpose: params.purpose,
+        });
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.includes("not representable in Midnight Compact fields")
+        ) {
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw new Error("Failed to derive a ledger-compatible key from seed");
   }
 
   async getPublicKey(keyRef: string): Promise<PublicJwk> {

@@ -5,6 +5,10 @@ node ./scripts/ensure-node-24.mjs
 node ./scripts/ensure-onchain-runtime-cjs.mjs
 node ./scripts/ensure-rollup-native.mjs
 
+if [[ "${SKIP_LONG_RUNNING:-0}" == "1" ]]; then
+  echo "[run] Fast mode enabled: long-running integration/UI targets will be skipped"
+fi
+
 echo "[core] Lint (fix)"
 npm run lint:fix || true
 
@@ -40,5 +44,8 @@ echo "[all] CLI pipeline"
 
 echo "[all] Resolver pipeline"
 ./run-resolver.sh
+
+echo "[all] DID manager pipeline"
+./run-manager.sh
 
 echo "All steps completed successfully."

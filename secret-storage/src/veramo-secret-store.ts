@@ -1,4 +1,4 @@
-import { SigningNotSupportedError, UnsupportedCurveError } from "./errors";
+import { SigningNotSupportedError, UnsupportedCurveError } from "./errors.js";
 import type {
   DeriveKeyFromSeedInput,
   GenerateKeyInput,
@@ -7,7 +7,7 @@ import type {
   SecretStorage,
   StoredKeyMeta,
   VerifyInput,
-} from "./types";
+} from "./types.js";
 
 type VeramoLikeAgent = {
   keyManagerCreate?: (

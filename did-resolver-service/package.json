@@ -20,8 +20,8 @@
     "coverage": "vitest run -c vitest.unit.config.ts --coverage",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "start": "node dist/index.js",
-    "dev": "ts-node --esm src/index.ts"
+    "start": "node --experimental-specifier-resolution=node dist/index.js",
+    "dev": "node --experimental-specifier-resolution=node --loader ts-node/esm src/index.ts"
   },
   "dependencies": {
     "@fastify/swagger": "^9.6.1",

@@ -14,7 +14,11 @@ logs
 *.log
 logs/*.log
 midnight-level-db
+**/midnight-level-db/
+**/did-manager-service.log
 coverage
+playwright-report/
+test-results/
 
 # Test reports
 **/reports
@@ -44,6 +48,13 @@ contract/.npm-cache
 
 # dotenv environment variables file
 .env
+.env.local
+.env.*.local
+
+# Local app state and secrets
+.midnight-did/
+**/manager-session.json
+**/manager-secrets.json
 
 # MacOS
 .DS_Store

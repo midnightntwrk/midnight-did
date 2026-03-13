@@ -92,6 +92,11 @@ export class CliDidService {
     return this.secretStorage.importKey(input);
   }
 
+  async deleteKey(input: { keyRef: string }) {
+    await this.secretStorage.deleteKey(input.keyRef);
+    return { status: 'ok' as const, message: 'Key deleted' };
+  }
+
   async deployDid(): Promise<CommandResult<{ contractAddress: string }>> {
     const ctx = await this.refreshContext();
     const guard = guardTransition(ctx.state, 'DeployContract');

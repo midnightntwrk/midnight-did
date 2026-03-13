@@ -1,6 +1,6 @@
 import type { ImpureCircuitId } from "@midnight-ntwrk/compact-js";
 import * as ledger from "@midnight-ntwrk/ledger-v7";
-import { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
+import type { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
 import {
   DIDContract,
   type DIDPrivateState,
@@ -40,11 +40,11 @@ export interface MidnightDIDWalletContext {
   unshieldedKeystore: UnshieldedKeystore;
 }
 
-export const NetworkMapping: Record<NetworkId, MidnightNetwork> = {
-  undeployed: MidnightNetwork.Undeployed,
-  devnet: MidnightNetwork.DevNet,
-  testnet: MidnightNetwork.Testnet,
-  mainnet: MidnightNetwork.Mainnet,
-  preview: MidnightNetwork.Preview,
-  preprod: MidnightNetwork.Preprod,
-};
+export const NetworkMapping = Object.freeze({
+  undeployed: "Undeployed",
+  devnet: "DevNet",
+  testnet: "Testnet",
+  mainnet: "Mainnet",
+  preview: "Preview",
+  preprod: "Preprod",
+}) as Record<NetworkId, MidnightNetwork>;

@@ -17,7 +17,11 @@ npm run build -w did-resolver-service
 echo "[resolver] Run resolver unit tests"
 npm run test -w did-resolver-service
 
-echo "[resolver] Run resolver integration tests"
-npm run test:integration -w did-resolver-service
+if [[ "${SKIP_LONG_RUNNING:-0}" == "1" ]]; then
+  echo "[resolver] Skip resolver integration tests (SKIP_LONG_RUNNING=1)"
+else
+  echo "[resolver] Run resolver integration tests"
+  npm run test:integration -w did-resolver-service
+fi
 
 echo "[resolver] Done"

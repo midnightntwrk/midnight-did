@@ -16,7 +16,11 @@ npm run build -w api
 echo "[api] Run API unit tests"
 npm run test -w api
 
-echo "[api] Run API integration tests"
-npm run test-api -w api
+if [[ "${SKIP_LONG_RUNNING:-0}" == "1" ]]; then
+  echo "[api] Skip API integration tests (SKIP_LONG_RUNNING=1)"
+else
+  echo "[api] Run API integration tests"
+  npm run test-api -w api
+fi
 
 echo "[api] Done"

@@ -3,11 +3,13 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+import { maxField } from '@midnight-ntwrk/ledger-v7';
 import { DIDContract } from '@midnight-ntwrk/midnight-did-contract';
-import { FileSecretStore } from '@midnight-ntwrk/midnight-did-secret-storage';
+import { FileSecretStore, normalizePublicForLedger } from '@midnight-ntwrk/midnight-did-secret-storage';
 import { afterEach, describe, expect, it } from 'vitest';
 
 describe('FileSecretStore', () => {
+  const ledgerMaxField = maxField();
   const JUBJUB_FIELD_MODULUS = 6554484396890773809930967563523245729705921265872317281365359162392183254199n;
   const tmpDirs: string[] = [];
 
@@ -97,6 +99,9 @@ describe('FileSecretStore', () => {
     if (params.kty === 'EC') {
       expect(generated.publicJwk.y).toBeDefined();
     }
+    const ledgerKey = normalizePublicForLedger(generated.publicJwk);
+    expect(ledgerKey.x).toBeLessThanOrEqual(ledgerMaxField);
+    expect(ledgerKey.y).toBeLessThanOrEqual(ledgerMaxField);
 
     const signed = await store.sign({ keyRef: generated.keyRef, payload });
     expect(signed.signature.length).toBeGreaterThan(0);
@@ -146,6 +151,9 @@ describe('FileSecretStore', () => {
     });
 
     expect(first.publicJwk).toEqual(second.publicJwk);
+    const ledgerKey = normalizePublicForLedger(first.publicJwk);
+    expect(ledgerKey.x).toBeLessThanOrEqual(ledgerMaxField);
+    expect(ledgerKey.y).toBeLessThanOrEqual(ledgerMaxField);
 
     const differentPath = await store.deriveKeyFromSeed({
       id: `${params.id}-3`,
@@ -180,6 +188,7 @@ describe('FileSecretStore', () => {
     const generated = await store.generateKey({ id: 'auth-main', kty: 'OKP', crv: 'Ed25519' });
 
     expect(generated.keyRef).toBeTruthy();
+    expect(() => normalizePublicForLedger(generated.publicJwk)).not.toThrow();
     const listed = await store.listKeys();
     expect(listed).toHaveLength(1);
     expect(listed[0]?.id).toBe('auth-main');

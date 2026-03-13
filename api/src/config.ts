@@ -25,6 +25,7 @@ export interface Config {
   readonly indexerWS: string;
   readonly node: string;
   readonly proofServer: string;
+  readonly midnightDbName?: string;
 }
 
 export class TestnetLocalConfig implements Config {

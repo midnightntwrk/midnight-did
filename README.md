@@ -14,6 +14,7 @@ This repository contains the smart contract, domain model, resolver/conversion l
 | [`secret-storage`](secret-storage/README.md) | `@midnight-ntwrk/midnight-did-secret-storage` | Encrypted key storage + sign/verify/HD derivation |
 | [`cli`](cli/README.md) | `@midnight-ntwrk/midnight-did-cli` | User-facing shell + state-machine-guided flows |
 | [`did-resolver-service`](did-resolver-service/README.md) | `@midnight-ntwrk/midnight-did-resolver-service` | REST/Swagger/UI DID resolver service |
+| [`did-manager-service`](did-manager-service/README.md) | `@midnight-ntwrk/midnight-did-manager-service` | Web DID management backend + minimal UI |
 
 ## Architecture
 
@@ -105,6 +106,7 @@ Pipelines:
 - API only: `./run-api.sh`
 - CLI only: `./run-cli.sh`
 - Resolver only: `./run-resolver.sh`
+- DID manager only: `./run-manager.sh`
 
 ## Notes
 

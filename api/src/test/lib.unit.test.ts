@@ -5,10 +5,10 @@ import { describe, expect, it } from "vitest";
 import {
   hashProverKey,
   randomBytes,
-  setLogger,
+  setLightweightLogger,
   waitForFunds,
   waitForSync,
-} from "../lib";
+} from "../lightweight";
 
 const logger = {
   info: () => undefined,
@@ -29,7 +29,7 @@ describe("lib lightweight unit helpers", () => {
   });
 
   it("waitForSync resolves when wallet state is synced", async () => {
-    setLogger(logger);
+    setLightweightLogger(logger);
     const wallet = {
       state: () => Rx.of({ isSynced: true }),
     } as any;
@@ -39,7 +39,7 @@ describe("lib lightweight unit helpers", () => {
   });
 
   it("waitForFunds resolves to positive unshielded balance", async () => {
-    setLogger(logger);
+    setLightweightLogger(logger);
     const token = unshieldedToken().raw;
     const wallet = {
       state: () =>

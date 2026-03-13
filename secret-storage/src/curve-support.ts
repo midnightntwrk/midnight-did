@@ -12,11 +12,12 @@ import {
   ecAdd,
   ecMul,
   ecMulGenerator,
+  maxField,
   valueToBigInt,
 } from "@midnight-ntwrk/ledger-v7";
 
-import { UnsupportedCurveError } from "./errors";
-import type { ImportKeyInput, MidnightCurve, PublicJwk } from "./types";
+import { UnsupportedCurveError } from "./errors.js";
+import type { ImportKeyInput, MidnightCurve, PublicJwk } from "./types.js";
 
 type PrivateRecord = {
   kty: "OKP" | "EC";
@@ -35,6 +36,7 @@ type LocalJsonWebKey = {
 
 const JUBJUB_FIELD_MODULUS =
   6554484396890773809930967563523245729705921265872317281365359162392183254199n;
+const LEDGER_MAX_FIELD = maxField();
 
 const base64urlToBuffer = (value: string): Buffer => {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
@@ -148,6 +150,30 @@ const curveFromJwk = (jwk: LocalJsonWebKey): PublicJwk => {
   };
 };
 
+const publicJwkToLedgerBigints = (
+  publicJwk: PublicJwk,
+): { x: bigint; y: bigint } => ({
+  x: bufferToBigint(base64urlToBuffer(publicJwk.x)),
+  y: publicJwk.y ? bufferToBigint(base64urlToBuffer(publicJwk.y)) : 0n,
+});
+
+export const isPublicJwkLedgerCompatible = (publicJwk: PublicJwk): boolean => {
+  const { x, y } = publicJwkToLedgerBigints(publicJwk);
+  return x >= 0n && x <= LEDGER_MAX_FIELD && y >= 0n && y <= LEDGER_MAX_FIELD;
+};
+
+const assertPublicJwkLedgerCompatible = (
+  publicJwk: PublicJwk,
+  context: string,
+): void => {
+  if (isPublicJwkLedgerCompatible(publicJwk)) {
+    return;
+  }
+  throw new Error(
+    `${context} is not representable in Midnight Compact fields; regenerate or derive another key`,
+  );
+};
+
 const deriveJubjubPublic = async (
   privateKey: Buffer,
 ): Promise<{ x: bigint; y: bigint }> => {
@@ -189,42 +215,56 @@ export const generateCurveKey = async (
   crv: MidnightCurve,
 ): Promise<{ record: PrivateRecord; publicJwk: PublicJwk }> => {
   if (kty === "OKP" && crv === "Ed25519") {
-    const pair = generateKeyPairSync("ed25519");
-    const privateDer = pair.privateKey.export({
-      type: "pkcs8",
-      format: "der",
-    }) as Buffer;
-    const publicJwk = curveFromJwk(
-      pair.publicKey.export({ format: "jwk" }) as LocalJsonWebKey,
+    for (let attempt = 0; attempt < 512; attempt += 1) {
+      const pair = generateKeyPairSync("ed25519");
+      const privateDer = pair.privateKey.export({
+        type: "pkcs8",
+        format: "der",
+      }) as Buffer;
+      const publicJwk = curveFromJwk(
+        pair.publicKey.export({ format: "jwk" }) as LocalJsonWebKey,
+      );
+      if (!isPublicJwkLedgerCompatible(publicJwk)) {
+        continue;
+      }
+      return {
+        record: {
+          kty,
+          crv,
+          privateKey: privateDer.toString("base64"),
+          encoding: "pkcs8-der",
+        },
+        publicJwk,
+      };
+    }
+    throw new Error(
+      "Failed to generate a ledger-compatible Ed25519 public key",
     );
-    return {
-      record: {
-        kty,
-        crv,
-        privateKey: privateDer.toString("base64"),
-        encoding: "pkcs8-der",
-      },
-      publicJwk,
-    };
   }
   if (kty === "EC" && crv === "P-256") {
-    const pair = generateKeyPairSync("ec", { namedCurve: "P-256" });
-    const privateDer = pair.privateKey.export({
-      type: "pkcs8",
-      format: "der",
-    }) as Buffer;
-    const publicJwk = curveFromJwk(
-      pair.publicKey.export({ format: "jwk" }) as LocalJsonWebKey,
-    );
-    return {
-      record: {
-        kty,
-        crv,
-        privateKey: privateDer.toString("base64"),
-        encoding: "pkcs8-der",
-      },
-      publicJwk,
-    };
+    for (let attempt = 0; attempt < 512; attempt += 1) {
+      const pair = generateKeyPairSync("ec", { namedCurve: "P-256" });
+      const privateDer = pair.privateKey.export({
+        type: "pkcs8",
+        format: "der",
+      }) as Buffer;
+      const publicJwk = curveFromJwk(
+        pair.publicKey.export({ format: "jwk" }) as LocalJsonWebKey,
+      );
+      if (!isPublicJwkLedgerCompatible(publicJwk)) {
+        continue;
+      }
+      return {
+        record: {
+          kty,
+          crv,
+          privateKey: privateDer.toString("base64"),
+          encoding: "pkcs8-der",
+        },
+        publicJwk,
+      };
+    }
+    throw new Error("Failed to generate a ledger-compatible P-256 public key");
   }
   if (kty === "EC" && crv === "Jubjub") {
     const privateKey = generateKeyPairSync("ed25519").privateKey.export({
@@ -235,6 +275,13 @@ export const generateCurveKey = async (
         ? base64urlToBuffer(privateKey.d)
         : Buffer.alloc(32, 1);
     const pub = await deriveJubjubPublic(seed);
+    const publicJwk = {
+      kty,
+      crv,
+      x: bigintToBase64url(pub.x),
+      y: bigintToBase64url(pub.y),
+    };
+    assertPublicJwkLedgerCompatible(publicJwk, "Generated Jubjub public key");
     return {
       record: {
         kty,
@@ -242,12 +289,7 @@ export const generateCurveKey = async (
         privateKey: seed.toString("base64"),
         encoding: "raw32",
       },
-      publicJwk: {
-        kty,
-        crv,
-        x: bigintToBase64url(pub.x),
-        y: bigintToBase64url(pub.y),
-      },
+      publicJwk,
     };
   }
   throw new UnsupportedCurveError(`${kty}/${crv}`);
@@ -268,7 +310,7 @@ export const importCurveKey = async (
     const publicJwk = curveFromJwk(
       createPublicKey(privateKey).export({ format: "jwk" }) as LocalJsonWebKey,
     );
-    return {
+    const result: { record: PrivateRecord; publicJwk: PublicJwk } = {
       record: {
         kty: params.kty,
         crv: params.crv,
@@ -277,6 +319,11 @@ export const importCurveKey = async (
       },
       publicJwk,
     };
+    assertPublicJwkLedgerCompatible(
+      result.publicJwk,
+      "Imported Ed25519 public key",
+    );
+    return result;
   }
   if (params.kty === "EC" && params.crv === "P-256") {
     const privateDer = keyBuf.length === 32 ? createP256Pkcs8(keyBuf) : keyBuf;
@@ -288,7 +335,7 @@ export const importCurveKey = async (
     const publicJwk = curveFromJwk(
       createPublicKey(privateKey).export({ format: "jwk" }) as LocalJsonWebKey,
     );
-    return {
+    const result: { record: PrivateRecord; publicJwk: PublicJwk } = {
       record: {
         kty: params.kty,
         crv: params.crv,
@@ -297,12 +344,17 @@ export const importCurveKey = async (
       },
       publicJwk,
     };
+    assertPublicJwkLedgerCompatible(
+      result.publicJwk,
+      "Imported P-256 public key",
+    );
+    return result;
   }
   if (params.kty === "EC" && params.crv === "Jubjub") {
     const raw = keyBuf.length > 32 ? keyBuf.subarray(0, 32) : keyBuf;
     const normalized = ensure32Bytes(raw);
     const pub = await deriveJubjubPublic(normalized);
-    return {
+    const result: { record: PrivateRecord; publicJwk: PublicJwk } = {
       record: {
         kty: params.kty,
         crv: params.crv,
@@ -316,6 +368,11 @@ export const importCurveKey = async (
         y: bigintToBase64url(pub.y),
       },
     };
+    assertPublicJwkLedgerCompatible(
+      result.publicJwk,
+      "Imported Jubjub public key",
+    );
+    return result;
   }
   throw new UnsupportedCurveError(`${params.kty}/${params.crv}`);
 };
@@ -406,8 +463,8 @@ export const verifyWithPublicJwk = async (
 export const normalizePublicForLedger = (
   publicJwk: PublicJwk,
 ): { kty: "EC" | "OKP"; crv: MidnightCurve; x: bigint; y: bigint } => {
-  const x = bufferToBigint(base64urlToBuffer(publicJwk.x));
-  const y = publicJwk.y ? bufferToBigint(base64urlToBuffer(publicJwk.y)) : 0n;
+  assertPublicJwkLedgerCompatible(publicJwk, "Public key");
+  const { x, y } = publicJwkToLedgerBigints(publicJwk);
   return {
     kty: publicJwk.kty,
     crv: publicJwk.crv,

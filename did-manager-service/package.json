@@ -1,0 +1,42 @@
+{
+  "name": "@midnight-ntwrk/midnight-did-manager-service",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24",
+    "npm": ">=10"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc -b tsconfig.build.json --force",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "pretest:e2e": "npm --prefix ../contract run build && npm --prefix ../api run build && npm --prefix ../secret-storage run build && npm run build",
+    "test:e2e": "playwright test",
+    "test:e2e:standalone": "playwright test src/e2e/manager.spec.ts",
+    "test:e2e:preprod": "playwright test src/e2e/preprod-funding.spec.ts",
+    "playwright:install": "playwright install chromium",
+    "coverage": "vitest run --coverage",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "start": "node --experimental-specifier-resolution=node dist/index.js",
+    "dev": "node --experimental-specifier-resolution=node --loader ts-node/esm src/index.ts"
+  },
+  "dependencies": {
+    "@fastify/swagger": "^9.6.1",
+    "@fastify/swagger-ui": "^5.2.3",
+    "@midnight-ntwrk/midnight-did-api": "*",
+    "@midnight-ntwrk/midnight-did-secret-storage": "*",
+    "@midnight-ntwrk/midnight-js-network-id": "3.0.0",
+    "fastify": "^5.6.1",
+    "pino": "^9.7.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}

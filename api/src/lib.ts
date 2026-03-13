@@ -1,5 +1,3 @@
-import { webcrypto } from "node:crypto";
-
 import { CompiledContract } from "@midnight-ntwrk/compact-js";
 import * as ledger from "@midnight-ntwrk/ledger-v7";
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v7";
@@ -65,11 +63,17 @@ import { Buffer } from "buffer";
 import { type Logger } from "pino";
 import * as Rx from "rxjs";
 import { WebSocket } from "ws";
-import { z } from "zod/v4-mini";
 
-import { type Config, contractConfig } from "./config";
-import { BigIntReplacer } from "./logger-utils";
-import { RuntimeToDomain } from "./runtime-to-domain";
+import { type Config, contractConfig } from "./config.js";
+import {
+  hashProverKey,
+  randomBytes,
+  setLightweightLogger,
+  waitForFunds,
+  waitForSync,
+} from "./lightweight.js";
+import { BigIntReplacer } from "./logger-utils.js";
+import { RuntimeToDomain } from "./runtime-to-domain.js";
 import {
   type DeployedMidnightDIDContract,
   type MidnightDIDCircuits,
@@ -77,7 +81,7 @@ import {
   MidnightDIDPrivateStateId,
   type MidnightDIDProviders,
   type MidnightDIDWalletContext,
-} from "./types";
+} from "./types.js";
 
 let logger: Logger;
 // @ts-expect-error assign for apollo/ws
@@ -98,6 +102,13 @@ const deriveKeysFromSeed = (seed: string) => {
   }
   hdWallet.hdWallet.clear();
   return derivationResult.keys;
+};
+
+export const deriveUnshieldedAddressFromSeed = (seed: string): string => {
+  const keys = deriveKeysFromSeed(seed);
+  return createKeystore(keys[Roles.NightExternal], getNetworkId())
+    .getBech32Address()
+    .toString();
 };
 
 // Build wallet configurations
@@ -205,13 +216,6 @@ export const getMidnightDIDLedgerState = async (
 
 export const midnightDIDContractInstance: MidnightDIDContract =
   new DIDContract.Contract(witnesses);
-
-export async function hashProverKey(
-  proverKey: Uint8Array,
-): Promise<Uint8Array> {
-  const hash = await webcrypto.subtle.digest("SHA-256", proverKey);
-  return new Uint8Array(hash);
-}
 
 export async function initPrivateState(
   providers: MidnightDIDProviders,
@@ -741,31 +745,6 @@ export const createWalletAndMidnightProvider = async (
   };
 };
 
-export const waitForSync = (wallet: WalletFacade) =>
-  Rx.firstValueFrom(
-    wallet.state().pipe(
-      Rx.throttleTime(5_000),
-      Rx.tap((state) => {
-        logger.info(`Waiting for sync... isSynced=${state.isSynced}`);
-      }),
-      Rx.filter((state) => state.isSynced),
-    ),
-  );
-
-export const waitForFunds = (wallet: WalletFacade): Promise<bigint> =>
-  Rx.firstValueFrom(
-    wallet.state().pipe(
-      Rx.throttleTime(10_000),
-      Rx.tap((state) => {
-        const balance = state.unshielded.balances[unshieldedToken().raw] ?? 0n;
-        logger.info(`Waiting for funds... balance=${balance}`);
-      }),
-      Rx.filter((state) => state.isSynced),
-      Rx.map((s) => s.unshielded.balances[unshieldedToken().raw] ?? 0n),
-      Rx.filter((balance) => balance > 0n),
-    ),
-  );
-
 export const buildWalletAndWaitForFunds = async (
   config: Config,
   seed: string,
@@ -876,12 +855,6 @@ export const registerForDustGeneration = async (
   logger.info("Dust generation complete");
 };
 
-export const randomBytes = (length: number): Uint8Array => {
-  const bytes = new Uint8Array(length);
-  webcrypto.getRandomValues(bytes);
-  return bytes;
-};
-
 export const buildFreshWallet = async (
   config: Config,
 ): Promise<MidnightDIDWalletContext> =>
@@ -898,6 +871,7 @@ export const configureProviders = async (
 
   return {
     privateStateProvider: levelPrivateStateProvider({
+      midnightDbName: config.midnightDbName,
       privateStateStoreName: contractConfig.privateStateStoreName,
       walletProvider: walletAndMidnightProvider,
     }),
@@ -917,4 +891,5 @@ export const configureProviders = async (
 
 export function setLogger(_logger: Logger) {
   logger = _logger;
+  setLightweightLogger(_logger);
 }

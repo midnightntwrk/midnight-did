@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { fileURLToPath } from 'node:url';
+
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -42,6 +44,11 @@ export default defineConfig({
     reporters: ['verbose', ['junit', { outputFile: 'reports/report.xml' }]],
   },
   resolve: {
+    alias: {
+      '@midnight-ntwrk/midnight-did-secret-storage': fileURLToPath(
+        new URL('../secret-storage/src/index.ts', import.meta.url),
+      ),
+    },
     extensions: ['.ts', '.js'],
     conditions: ['import', 'node', 'default'],
   },

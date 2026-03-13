@@ -2,8 +2,8 @@ import { hkdfSync } from "node:crypto";
 
 import { HDWallet, Roles } from "@midnight-ntwrk/wallet-sdk-hd";
 
-import { UnsupportedCurveError } from "./errors";
-import type { DeriveKeyFromSeedInput, ImportKeyInput } from "./types";
+import { UnsupportedCurveError } from "./errors.js";
+import type { DeriveKeyFromSeedInput, ImportKeyInput } from "./types.js";
 
 const P256_ORDER = BigInt(
   "0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551",
@@ -56,16 +56,19 @@ const deriveMetadataKey = (
 
 export const deriveCurvePrivateFromSeed = (
   params: DeriveKeyFromSeedInput,
+  candidate = 0,
 ): Pick<ImportKeyInput, "privateKey" | "kty" | "crv"> => {
   const account = params.account ?? 0;
   const index = params.index ?? 0;
-  if (account < 0 || index < 0) {
-    throw new Error("account and index must be non-negative integers");
+  if (account < 0 || index < 0 || candidate < 0) {
+    throw new Error(
+      "account, index, and candidate must be non-negative integers",
+    );
   }
 
   const metadataKey = deriveMetadataKey(params.seedHex, account, index);
   const info = Buffer.from(
-    `midnight-did:key:v1:${params.kty}:${params.crv}:${account}:${index}`,
+    `midnight-did:key:v1:${params.kty}:${params.crv}:${account}:${index}:${candidate}`,
     "utf8",
   );
   const derived = Buffer.from(
