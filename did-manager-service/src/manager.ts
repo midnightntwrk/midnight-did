@@ -17,6 +17,7 @@ import {
   type GenerateKeyInput,
   type ImportKeyInput,
   normalizePublicForLedger,
+  parseSeed,
   type PublicJwk,
 } from '@midnight-ntwrk/midnight-did-secret-storage';
 import { getNetworkId, setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
@@ -67,9 +68,11 @@ export class DidManagerService {
   private profileIndex: {
     version: 1;
     selectedProfiles: Partial<Record<NetworkProfile, string>>;
+    legacyMigrationCompleted: Partial<Record<NetworkProfile, boolean>>;
   } = {
     version: 1 as const,
     selectedProfiles: {},
+    legacyMigrationCompleted: {},
   };
   private session: SessionStore = {
     version: 1,
@@ -130,11 +133,25 @@ export class DidManagerService {
     const sessionPath = this.profileSessionFilePath();
     if (this.sessionLoaded && this.loadedSessionPath === sessionPath) return;
 
-    await migrateLegacyProfileFile(this.profileLegacySessionFilePath(), sessionPath);
-    await migrateLegacyProfileFile(this.profileLegacySecretFilePath(), this.profileSecretStorePath());
+    await this.ensureLegacyProfileMigrated();
     this.session = await readSessionStore(sessionPath, this.cfg.rememberUnlockedSessionDefault);
     this.loadedSessionPath = sessionPath;
     this.sessionLoaded = true;
+  }
+
+  private async ensureLegacyProfileMigrated(): Promise<void> {
+    const profile = this.setupProfile();
+    if (this.profileIndex.legacyMigrationCompleted[profile]) return;
+
+    const profilesRoot = path.join(this.baseDataDir(), 'profiles', profile);
+    const existingProfiles = await listProfileNames(profilesRoot);
+    if (existingProfiles.length === 0) {
+      await migrateLegacyProfileFile(this.profileLegacySessionFilePath(), this.profileSessionFilePath());
+      await migrateLegacyProfileFile(this.profileLegacySecretFilePath(), this.profileSecretStorePath());
+    }
+
+    this.profileIndex.legacyMigrationCompleted[profile] = true;
+    await writeProfileIndex(this.profileIndexFilePath(), this.profileIndex);
   }
 
   private setupProfile(): SetupProfile {
@@ -272,14 +289,14 @@ export class DidManagerService {
       if (!profileState?.seed) {
         throw new Error(`No stored seed found for profile '${profile}'.`);
       }
-      return { seed: profileState.seed };
+      return { seed: parseSeed(profileState.seed) };
     }
 
     if (input.seedMode === 'provided') {
       if (!input.seed || input.seed.trim() === '') {
         throw new Error('Seed is required when seedMode=provided.');
       }
-      return { seed: input.seed.trim() };
+      return { seed: parseSeed(input.seed) };
     }
 
     const generatedSeed = generateSeedHex();

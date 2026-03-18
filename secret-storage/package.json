@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@midnight-ntwrk/wallet-sdk-hd": "3.0.0",
-    "circomlibjs": "^0.1.7"
+    "circomlibjs": "^0.1.7",
+    "zod": "^4.1.0"
   }
 }

@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -104,5 +104,47 @@ describe('DidManagerService', () => {
     expect(api.initPrivateState).toHaveBeenCalledWith(providers);
     expect(api.createDID).toHaveBeenCalledWith(providers, privateState);
     expect(result).toEqual({ contractAddress: 'f'.repeat(64) });
+  });
+
+  it('migrates legacy session data only once and keeps new profiles isolated', async () => {
+    const manager = new DidManagerService(createConfig(dataDir), pino({ enabled: false }));
+    const legacySession = {
+      version: 1,
+      rememberUnlockedSession: true,
+      lastProfile: 'preprod',
+      profiles: {
+        preprod: {
+          seed: 'a'.repeat(64),
+          unshieldedAddress: 'mn_addr_preprod1test',
+          contractAddress: 'f'.repeat(64),
+          contractAddresses: ['f'.repeat(64)],
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    };
+
+    await writeFile(
+      path.join(dataDir, 'manager-session.json'),
+      JSON.stringify(legacySession, null, 2),
+      'utf8',
+    );
+    await writeFile(path.join(dataDir, 'manager-secrets.json'), '{"version":1}', 'utf8');
+
+    const defaultStatus = await manager.getSessionStatus();
+    expect(defaultStatus.profileName).toBe('default');
+    expect(defaultStatus.seedAvailable).toBe(true);
+
+    const isolatedStatus = await manager.selectProfile({ name: 'isolated' });
+    expect(isolatedStatus.profileName).toBe('isolated');
+    expect(isolatedStatus.seedAvailable).toBe(false);
+    expect(isolatedStatus.knownContractAddresses).toEqual([]);
+
+    const defaultProfileSession = JSON.parse(
+      await readFile(
+        path.join(dataDir, 'profiles', 'preprod', 'default', 'manager-session.json'),
+        'utf8',
+      ),
+    );
+    expect(defaultProfileSession.profiles.preprod.seed).toBe('a'.repeat(64));
   });
 });

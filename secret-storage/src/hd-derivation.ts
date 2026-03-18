@@ -3,6 +3,7 @@ import { hkdfSync } from "node:crypto";
 import { HDWallet, Roles } from "@midnight-ntwrk/wallet-sdk-hd";
 
 import { UnsupportedCurveError } from "./errors.js";
+import { seedToBuffer } from "./seed.js";
 import type { DeriveKeyFromSeedInput, ImportKeyInput } from "./types.js";
 
 const P256_ORDER = BigInt(
@@ -10,14 +11,6 @@ const P256_ORDER = BigInt(
 );
 
 const HKDF_SALT = Buffer.from("midnight-did-secret-storage-v1", "utf8");
-
-const assertHexSeed = (seedHex: string): Buffer => {
-  const normalized = seedHex.trim().toLowerCase();
-  if (!/^[0-9a-f]+$/u.test(normalized) || normalized.length % 2 !== 0) {
-    throw new Error("seedHex must be a valid even-length hex string");
-  }
-  return Buffer.from(normalized, "hex");
-};
 
 const bigintTo32Be = (value: bigint): Buffer => {
   const hex = value.toString(16).padStart(64, "0");
@@ -35,7 +28,7 @@ const deriveMetadataKey = (
   account: number,
   index: number,
 ): Uint8Array => {
-  const hdWalletResult = HDWallet.fromSeed(assertHexSeed(seedHex));
+  const hdWalletResult = HDWallet.fromSeed(seedToBuffer(seedHex));
   if (hdWalletResult.type !== "seedOk") {
     throw new Error("Failed to initialize HD wallet from seed");
   }

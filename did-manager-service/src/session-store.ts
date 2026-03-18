@@ -6,11 +6,13 @@ import type { NetworkProfile, SessionStore } from './types.js';
 type ProfileIndex = {
   version: 1;
   selectedProfiles: Partial<Record<NetworkProfile, string>>;
+  legacyMigrationCompleted: Partial<Record<NetworkProfile, boolean>>;
 };
 
 const defaultProfileIndex = (): ProfileIndex => ({
   version: 1,
   selectedProfiles: {},
+  legacyMigrationCompleted: {},
 });
 
 export const defaultSessionStore = (rememberUnlockedSession: boolean): SessionStore => ({
@@ -73,6 +75,8 @@ export const readProfileIndex = async (filePath: string): Promise<ProfileIndex> 
     return {
       version: 1,
       selectedProfiles: parsed.selectedProfiles,
+      legacyMigrationCompleted:
+        parsed.legacyMigrationCompleted ?? defaultProfileIndex().legacyMigrationCompleted,
     };
   } catch {
     return defaultProfileIndex();
@@ -96,16 +100,18 @@ export const listProfileNames = async (profilesRootDir: string): Promise<string[
   }
 };
 
-export const migrateLegacyProfileFile = async (legacyPath: string, targetPath: string): Promise<void> => {
+export const migrateLegacyProfileFile = async (legacyPath: string, targetPath: string): Promise<boolean> => {
   try {
     const raw = await readFile(targetPath, 'utf8');
-    if (raw.length > 0) return;
+    if (raw.length > 0) return false;
   } catch {
     try {
       await mkdir(path.dirname(targetPath), { recursive: true });
       await copyFile(legacyPath, targetPath);
+      return true;
     } catch {
       // ignore missing legacy files or copy failures; a fresh profile will be created on demand
     }
   }
+  return false;
 };

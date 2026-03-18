@@ -51,6 +51,8 @@ describe("package index", () => {
     expect(secretStorage.VeramoSecretStore).toBeDefined();
     expect(secretStorage.generateCurveKey).toBeDefined();
     expect(secretStorage.deriveCurvePrivateFromSeed).toBeDefined();
+    expect(secretStorage.SeedSchema).toBeDefined();
+    expect(secretStorage.parseSeed).toBeDefined();
     expect(secretStorage.SecretStoreLockedError).toBeDefined();
   });
 });

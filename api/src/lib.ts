@@ -30,6 +30,7 @@ import {
   VerificationMethodRelationType,
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
+import { parseSeed } from "@midnight-ntwrk/midnight-did-secret-storage";
 import {
   deployContract,
   findDeployedContract,
@@ -69,8 +70,6 @@ import {
   hashProverKey,
   randomBytes,
   setLightweightLogger,
-  waitForFunds,
-  waitForSync,
 } from "./lightweight.js";
 import { BigIntReplacer } from "./logger-utils.js";
 import { RuntimeToDomain } from "./runtime-to-domain.js";
@@ -89,7 +88,7 @@ globalThis.WebSocket = WebSocket;
 
 // HD key derivation from seed
 const deriveKeysFromSeed = (seed: string) => {
-  const hdWallet = HDWallet.fromSeed(Buffer.from(seed, "hex"));
+  const hdWallet = HDWallet.fromSeed(Buffer.from(parseSeed(seed), "hex"));
   if (hdWallet.type !== "seedOk") {
     throw new Error("Failed to initialize HDWallet from seed");
   }

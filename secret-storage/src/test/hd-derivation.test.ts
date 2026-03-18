@@ -56,7 +56,7 @@ describe("deriveCurvePrivateFromSeed", () => {
         kty: "OKP",
         crv: "Ed25519",
       }),
-    ).toThrow("seedHex must be a valid even-length hex string");
+    ).toThrow("Seed must contain only hexadecimal characters");
 
     expect(() =>
       deriveCurvePrivateFromSeed({

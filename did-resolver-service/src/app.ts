@@ -7,6 +7,11 @@ import Fastify, {
 } from "fastify";
 import { type Logger } from "pino";
 
+import {
+  classifyResolutionError,
+  type ResolutionErrorCode,
+  statusCodeForResolutionError,
+} from "./resolution-errors.js";
 import { type ResolverService } from "./service.js";
 import { type ResolveRequestOptions } from "./types.js";
 import { resolverPage } from "./ui.js";
@@ -58,6 +63,20 @@ const resolveDidWithOptions = async (
   options: ResolveQuery,
 ) => resolverService.resolve(did, options);
 
+const errorPayload = (error: ResolutionErrorCode) => ({
+  didDocument: null,
+  didDocumentMetadata: {},
+  didResolutionMetadata: {
+    contentType: null,
+    error,
+  },
+});
+
+const hasValidationErrors = (
+  error: unknown,
+): error is { validation: unknown[] } =>
+  typeof error === "object" && error !== null && "validation" in error;
+
 export const createApp = async (
   resolverService: ResolverService,
   options?: { logger?: Logger; enableDocs?: boolean },
@@ -84,6 +103,27 @@ export const createApp = async (
         },
       };
   const app = Fastify(fastifyOptions);
+
+  app.setErrorHandler((error, request, reply) => {
+    app.log.error({ err: error }, "Request failed");
+
+    if (request.url.startsWith("/resolve")) {
+      const resolutionError = hasValidationErrors(error)
+        ? "invalidDid"
+        : classifyResolutionError(error);
+      return reply
+        .code(statusCodeForResolutionError(resolutionError))
+        .send(
+          errorPayload(
+            resolutionError === "notFound" ? "internalError" : resolutionError,
+          ),
+        );
+    }
+
+    const message =
+      error instanceof Error ? error.message : "Unexpected resolver error";
+    return reply.code(500).send({ error: message });
+  });
 
   app.addHook("onSend", async (_request, reply, payload) => {
     reply.header("X-Content-Type-Options", "nosniff");

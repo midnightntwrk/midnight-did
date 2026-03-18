@@ -102,4 +102,41 @@ describe('did-manager-service app', () => {
 
     await app.close();
   });
+
+  it('maps invalid seed input to a structured 400 response', async () => {
+    const manager = {
+      getSetupStatus: vi.fn().mockReturnValue({
+        profile: 'standalone',
+        faucetUrl: null,
+        endpoints: {
+          node: 'http://127.0.0.1:9944',
+          indexer: 'http://127.0.0.1:8088/api/v3/graphql',
+          proofServer: 'http://127.0.0.1:6300',
+        },
+      }),
+      listProfiles: vi.fn().mockResolvedValue({
+        profile: 'standalone',
+        activeProfileName: 'default',
+        availableProfileNames: ['default'],
+      }),
+      getSessionStatus: vi.fn(),
+      prepareFunding: vi.fn().mockRejectedValue(new Error('Seed must contain only hexadecimal characters')),
+    } as any;
+
+    const app = await createApp(manager);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/session/prepare-funding',
+      payload: { seedMode: 'provided', seed: 'zz' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      ok: false,
+      error: 'Seed must contain only hexadecimal characters',
+      errorCode: 'invalidSeed',
+    });
+
+    await app.close();
+  });
 });

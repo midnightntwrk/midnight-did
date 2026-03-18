@@ -137,4 +137,28 @@ describe("did-resolver-service app", () => {
 
     await app.close();
   });
+
+  it("normalizes validation failures on resolve routes", async () => {
+    const service = {
+      resolve: vi.fn(),
+    } as unknown as ResolverService;
+    const app = await createApp(service, { enableDocs: false });
+    const response = await app.inject({
+      method: "POST",
+      url: "/resolve",
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      didDocument: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: {
+        contentType: null,
+        error: "invalidDid",
+      },
+    });
+
+    await app.close();
+  });
 });

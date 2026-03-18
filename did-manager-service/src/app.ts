@@ -5,6 +5,7 @@ import type { GenerateKeyInput, ImportKeyInput } from '@midnight-ntwrk/midnight-
 import Fastify from 'fastify';
 import type { Logger } from 'pino';
 
+import { classifyManagerHttpError } from './errors.js';
 import { DidManagerService } from './manager.js';
 import type { PrepareFundingRequest, UnlockRequest } from './types.js';
 import { didPage, walletPage } from './ui.js';
@@ -101,9 +102,13 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
   });
 
   app.setErrorHandler((error, _request, reply) => {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const failure = classifyManagerHttpError(error);
     app.log.error({ err: error }, 'Request failed');
-    return reply.code(400).send({ ok: false, error: message });
+    return reply.code(failure.statusCode).send({
+      ok: false,
+      error: failure.message,
+      errorCode: failure.errorCode,
+    });
   });
 
   await app.register(swagger, {
