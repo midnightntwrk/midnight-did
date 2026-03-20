@@ -19,7 +19,7 @@ import {
 import { UnsupportedCurveError } from "./errors.js";
 import type { ImportKeyInput, MidnightCurve, PublicJwk } from "./types.js";
 
-type PrivateRecord = {
+export type StoredPrivateRecord = {
   kty: "OKP" | "EC";
   crv: MidnightCurve;
   privateKey: string; // base64
@@ -203,7 +203,7 @@ const createP256Pkcs8 = (privateKey: Buffer): Buffer => {
   ]);
 };
 
-const createDerPrivateKey = (record: PrivateRecord) =>
+const createDerPrivateKey = (record: StoredPrivateRecord) =>
   createPrivateKey({
     key: Buffer.from(record.privateKey, "base64"),
     format: "der",
@@ -213,7 +213,7 @@ const createDerPrivateKey = (record: PrivateRecord) =>
 export const generateCurveKey = async (
   kty: "OKP" | "EC",
   crv: MidnightCurve,
-): Promise<{ record: PrivateRecord; publicJwk: PublicJwk }> => {
+): Promise<{ record: StoredPrivateRecord; publicJwk: PublicJwk }> => {
   if (kty === "OKP" && crv === "Ed25519") {
     for (let attempt = 0; attempt < 512; attempt += 1) {
       const pair = generateKeyPairSync("ed25519");
@@ -297,7 +297,7 @@ export const generateCurveKey = async (
 
 export const importCurveKey = async (
   params: Pick<ImportKeyInput, "kty" | "crv" | "privateKey">,
-): Promise<{ record: PrivateRecord; publicJwk: PublicJwk }> => {
+): Promise<{ record: StoredPrivateRecord; publicJwk: PublicJwk }> => {
   const keyBuf = Buffer.from(params.privateKey);
   if (params.kty === "OKP" && params.crv === "Ed25519") {
     const privateDer =
@@ -310,7 +310,7 @@ export const importCurveKey = async (
     const publicJwk = curveFromJwk(
       createPublicKey(privateKey).export({ format: "jwk" }) as LocalJsonWebKey,
     );
-    const result: { record: PrivateRecord; publicJwk: PublicJwk } = {
+    const result: { record: StoredPrivateRecord; publicJwk: PublicJwk } = {
       record: {
         kty: params.kty,
         crv: params.crv,
@@ -335,7 +335,7 @@ export const importCurveKey = async (
     const publicJwk = curveFromJwk(
       createPublicKey(privateKey).export({ format: "jwk" }) as LocalJsonWebKey,
     );
-    const result: { record: PrivateRecord; publicJwk: PublicJwk } = {
+    const result: { record: StoredPrivateRecord; publicJwk: PublicJwk } = {
       record: {
         kty: params.kty,
         crv: params.crv,
@@ -354,7 +354,7 @@ export const importCurveKey = async (
     const raw = keyBuf.length > 32 ? keyBuf.subarray(0, 32) : keyBuf;
     const normalized = ensure32Bytes(raw);
     const pub = await deriveJubjubPublic(normalized);
-    const result: { record: PrivateRecord; publicJwk: PublicJwk } = {
+    const result: { record: StoredPrivateRecord; publicJwk: PublicJwk } = {
       record: {
         kty: params.kty,
         crv: params.crv,
@@ -378,7 +378,7 @@ export const importCurveKey = async (
 };
 
 export const signWithCurveKey = async (
-  record: PrivateRecord,
+  record: StoredPrivateRecord,
   payload: Uint8Array,
 ): Promise<Uint8Array> => {
   if (record.kty === "OKP" && record.crv === "Ed25519") {
@@ -472,5 +472,3 @@ export const normalizePublicForLedger = (
     y,
   };
 };
-
-export type StoredPrivateRecord = PrivateRecord;

@@ -83,14 +83,14 @@ export type VerificationMethod = DIDContract.VerificationMethod;
 export type Service = DIDContract.Service;
 export type Ledger = DIDContract.Ledger;
 export const { VerificationMethodType, VerificationMethodRelation, KeyType, CurveType } = DIDContract;
-type RelationName =
+export type RelationName =
   | 'Authentication'
   | 'AssertionMethod'
   | 'KeyAgreement'
   | 'CapabilityInvocation'
   | 'CapabilityDelegation';
 
-type ServiceEndpointInput = string | Record<string, unknown> | Array<string | Record<string, unknown>>;
+export type ServiceEndpointInput = string | Record<string, unknown> | Array<string | Record<string, unknown>>;
 const LedgerKeyTypeMap = {
   EC: KeyType.EC,
   RSA: KeyType.RSA,

@@ -16,7 +16,12 @@
     "pack:contract": "npm_config_cache=.npm-cache bash -lc 'cd contract && npm pack'",
     "pack:cli": "npm_config_cache=.npm-cache bash -lc 'cd cli && npm pack'",
     "pack:all": "npm run pack:contract && npm run pack:cli && echo 'Artifacts:' && ls -1 *.tgz || true && ls -1 contract/*.tgz cli/*.tgz || true",
-    "checkdeps": "bash scripts/check-deps.sh"
+    "checkdeps": "bash scripts/check-deps.sh",
+    "docs:sync-source": "npm run docs:sync-source -w docs-site",
+    "docs:api": "npm run docs:api -w docs-site",
+    "docs:dev": "npm run docs:dev -w docs-site",
+    "docs:build": "npm run docs:build -w docs-site",
+    "docs:preview": "npm run docs:preview -w docs-site"
   },
   "private": true,
   "packageManager": "npm@10.8.2",
@@ -29,7 +34,8 @@
     "secret-storage",
     "cli",
     "did-resolver-service",
-    "did-manager-service"
+    "did-manager-service",
+    "docs-site"
   ],
   "devDependencies": {
     "@eslint/js": "^9.28.0",

@@ -10,6 +10,12 @@ Programmatic API for creating, updating, deactivating, and resolving Midnight DI
 - Provide integration test topology and helpers
 - Return DID Resolution Result objects (`didDocument`, `didResolutionMetadata`, `didDocumentMetadata`)
 
+## Use It When
+
+- you need programmatic DID deployment or mutation flows
+- you need provider bootstrap for standalone or preprod
+- you are building a higher-level application and do not want to manage raw contract/runtime wiring
+
 ## Architecture
 
 ```mermaid
@@ -62,6 +68,13 @@ API enforces lifecycle rules around:
 - Build: `npm run build -w api`
 - Unit tests: `npm run test -w api`
 - Integration tests: `npm run test-api -w api`
+
+## Main Source Files
+
+- `src/index.ts`
+- `src/lib.ts`
+- `src/types.ts`
+- `src/test/`
 
 ## Integration Teardown
 

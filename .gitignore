@@ -87,3 +87,9 @@ research/identity-examples/**/.env
 # Local assistant workspace
 .cloude
 .claude
+
+docs-site/.vitepress/.temp/
+docs-site/.vitepress/dist/
+docs-site/.vitepress/cache/
+docs-site/api/reference/
+docs-site/source/

@@ -9,11 +9,11 @@ import { LedgerToDomain } from "./ledger-to-domain.js";
 import { MidnightNetwork } from "./midnight.js";
 import { type MidnightDIDDocument } from "./midnight-did-document.js";
 
-type Ledger = DIDContract.Ledger;
+export type MidnightLedgerState = DIDContract.Ledger;
 
 export type MidnightLedgerReader = (
   contractAddress: string,
-) => Promise<Ledger | null>;
+) => Promise<MidnightLedgerState | null>;
 
 export type MidnightDIDResolverOptions = {
   ledgerReader: MidnightLedgerReader;

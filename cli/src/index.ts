@@ -16,7 +16,24 @@
 export * from './api';
 export * from './cli';
 export { CliDidService } from './cli-api/service';
-export { type ActionHint, CliDidState, type CommandResult, type StateContext } from './cli-api/types';
+export {
+  type ActionHint,
+  type AddMethodFromKeyInput,
+  type AddRelationInput,
+  type AddServiceInput,
+  type AliasInput,
+  CliDidState,
+  type CliServiceOptions,
+  type CommandResult,
+  type GuardResult,
+  type LedgerSnapshot,
+  type RemoveRelationInput,
+  type RemoveServiceInput,
+  type StateContext,
+  type UpdateMethodFromKeyInput,
+  type UpdateServiceInput,
+} from './cli-api/types';
+export * from './config';
 export {
   type DeriveKeyFromSeedInput,
   FileSecretStore,

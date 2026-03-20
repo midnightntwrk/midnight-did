@@ -2,12 +2,45 @@
 
 Single-user web backend + minimal UI for managing Midnight DID lifecycle operations.
 
-## Scope (v1)
+## Responsibilities
 
-- Profiles: `standalone`, `preprod`
-- Seed modes: `reuse`, `provided`, `generated`
-- Backend encrypted secret store (file)
-- Session persistence (seed + active contract)
+- Prepare a Midnight wallet funding address from a shared seed
+- Persist local profiles and per-profile DID state
+- Unlock the wallet/runtime and execute DID lifecycle operations
+- Manage verification methods, relations, services, aliases, and deactivation
+- Expose a browser UI and a service API over the same orchestration layer
+
+## UI Structure
+
+- `/wallet`
+  - setup notice
+  - local profile selection
+  - seed handling
+  - funding preparation
+  - unlock/session state
+- `/did`
+  - deploy/join DID contract
+  - update DID state
+  - inspect current DID document and metadata
+
+## Data Model
+
+- runtime setup is backend-controlled: `standalone` or `preprod`
+- local profiles are user-selectable inside the configured setup
+- seed modes:
+  - `reuse`
+  - `provided`
+  - `generated`
+- default secret backend:
+  - encrypted file store via `secret-storage`
+
+Persisted state includes:
+
+- shared seed
+- funding address
+- known contract addresses
+- current joined/deployed contract
+- profile-specific Midnight private-state storage
 
 ## Run
 
@@ -23,18 +56,26 @@ Open:
 - UI: `http://127.0.0.1:3010/`
 - API docs: `http://127.0.0.1:3010/docs`
 
+Standalone helper:
+- `./run-manager.sh`
+
+Preprod helper:
+- `./run-manager-preprod.sh`
+
 ## Preprod flow
 
-1. Select `preprod`.
-2. Choose a seed mode:
+1. Start `./run-manager-preprod.sh`.
+2. Open `/wallet`.
+3. Choose a seed mode:
    - `reuse` to use a previously stored seed
    - `provided` to paste an existing seed
    - `generated` to create a new seed for funding
-3. Click `Prepare funding`.
-4. Copy the `Prepared funding address` from the UI.
-5. If the response includes `generatedSeed`, keep it and reuse it for unlock. The UI copies it into the seed field, switches the mode to `provided`, and stores the shared seed + wallet address in the manager session file.
-6. Top up the address with `tNight`.
-7. After funds arrive, click `Unlock`.
+4. Click `Prepare funding`.
+5. Copy the `Prepared funding address` from the UI.
+6. If the response includes `generatedSeed`, keep it and reuse it for unlock. The UI copies it into the seed field, switches the mode to `provided`, and stores the shared seed + wallet address in the manager session file.
+7. Top up the address with `tNight`.
+8. After funds arrive, click `Unlock`.
+9. Move to `/did` and deploy or join a DID contract.
 
 For preprod faucet funding:
 - `https://faucet.preprod.midnight.network/`
@@ -48,3 +89,13 @@ For preprod faucet funding:
 - `DID_MANAGER_SECRET_FILE`
 - `DID_MANAGER_SECRET_PASSPHRASE`
 - `DID_MANAGER_REMEMBER_UNLOCKED` (`true|false`)
+- `DID_MANAGER_SETUP` (`standalone|preprod`)
+- `DID_MANAGER_LOG_FILE`
+
+## Main Source Files
+
+- `src/index.ts`
+- `src/app.ts`
+- `src/manager.ts`
+- `src/ui.ts`
+- `src/session-store.ts`

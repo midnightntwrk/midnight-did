@@ -107,12 +107,41 @@ Pipelines:
 - CLI only: `./run-cli.sh`
 - Resolver only: `./run-resolver.sh`
 - DID manager only: `./run-manager.sh`
+- Docs pipeline: `./run-docs.sh`
+- Docs dev server: `./start-docs.sh`
+
+Docs site local URL:
+- `http://127.0.0.1:4173`
+
+## Developer Entry Points
+
+If you are new to the repository, start here:
+
+1. `./start-docs.sh`
+2. `SKIP_LONG_RUNNING=1 ./run.sh`
+3. the component-specific runner for the area you are changing
+
+Docs helpers:
+
+- `./run-docs.sh` runs the full docs preparation and build workflow
+- `./start-docs.sh` starts the local VitePress site
+
+When you need direct package/service documentation:
+
+- `api/README.md`
+- `cli/README.md`
+- `domain/README.md`
+- `did/README.md`
+- `secret-storage/README.md`
+- `did-resolver-service/README.md`
+- `did-manager-service/README.md`
 
 ## Notes
 
 - Compact circuits are compiled via workspace scripts in `contract`.
 - Integration tests use Testcontainers and docker-compose based topologies.
 - Teardown logic now performs best-effort `docker compose down --volumes --remove-orphans` to reduce leaked resources.
+- HD seed derivation for `Ed25519`, `Jubjub`, and `P-256` is documented in [`secret-storage/README.md`](secret-storage/README.md).
 - DID Resolution responses follow the DID Core shape:
   - `didDocument`
   - `didResolutionMetadata`

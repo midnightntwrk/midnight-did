@@ -2,6 +2,12 @@
 
 Standalone DID resolver service with REST API, Swagger UI, and a minimal web UI.
 
+## Use It When
+
+- you need DID Resolution Result responses over HTTP
+- you want a browser-accessible resolver for manual inspection
+- you want a service boundary separate from the CLI and manager applications
+
 ## Responsibilities
 
 - Resolve `did:midnight` into DID Resolution Results
@@ -79,6 +85,11 @@ stateDiagram-v2
 - `RESOLVER_ENABLE_DOCS=true|false` (default `true`)
 - `RESOLVER_TIMEOUT_MS` (default `15000`)
 
+## Runtime Profiles
+
+- standalone via `./run-resolver.sh`
+- preprod via `./run-resolver-preprod.sh`
+
 ## Production Defaults
 
 - Request hardening:
@@ -103,6 +114,9 @@ stateDiagram-v2
 - Start: `npm run start -w did-resolver-service`
 - Unit tests: `npm run test -w did-resolver-service`
 - Integration tests: `npm run test:integration -w did-resolver-service`
+
+Default local URL:
+- `http://127.0.0.1:3001`
 
 ## Docker Integration Tests
 

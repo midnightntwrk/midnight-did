@@ -9,7 +9,7 @@ export enum MidnightNetwork {
   Preprod = "Preprod",
 }
 
-const ContractAddressHexSchema = z
+export const ContractAddressHexSchema = z
   .string()
   .check(
     z.regex(/^[0-9a-fA-F]+$/),

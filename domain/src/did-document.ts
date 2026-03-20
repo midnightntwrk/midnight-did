@@ -189,14 +189,18 @@ export const URIStringSchema = z
   .check(z.refine(isUri, "Invalid URI (must conform to RFC3986)"));
 export type URIString = z.infer<typeof URIStringSchema>;
 
-const ServiceEndpointObjectSchema = z.record(z.string(), z.unknown());
+export const ServiceEndpointObjectSchema = z.record(z.string(), z.unknown());
 
-type ServiceEndpointObject = z.infer<typeof ServiceEndpointObjectSchema>;
+export type ServiceEndpointObject = z.infer<typeof ServiceEndpointObjectSchema>;
 
-const ServiceEndpointArrayEntrySchema = z.union([
+export const ServiceEndpointArrayEntrySchema = z.union([
   URIStringSchema,
   ServiceEndpointObjectSchema,
 ]);
+
+export type ServiceEndpointArrayEntry = z.infer<
+  typeof ServiceEndpointArrayEntrySchema
+>;
 
 export const ServiceEndpointSchema = z.union([
   URIStringSchema,
@@ -206,7 +210,7 @@ export const ServiceEndpointSchema = z.union([
 export type ServiceEndpoint =
   | z.infer<typeof URIStringSchema>
   | ServiceEndpointObject
-  | Array<z.infer<typeof ServiceEndpointArrayEntrySchema>>;
+  | Array<ServiceEndpointArrayEntry>;
 
 const isDefaultPort = (protocol: string, port: string) =>
   (protocol === "http:" && port === "80") ||

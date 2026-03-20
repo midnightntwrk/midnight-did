@@ -9,7 +9,7 @@ import type {
   VerifyInput,
 } from "./types.js";
 
-type VeramoLikeAgent = {
+export type VeramoLikeAgent = {
   keyManagerCreate?: (
     args: Record<string, unknown>,
   ) => Promise<Record<string, unknown>>;

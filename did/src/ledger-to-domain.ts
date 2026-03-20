@@ -50,20 +50,23 @@ type LedgerPublicKeyJwk = DIDContract.PublicKeyJwk;
 type LedgerService = DIDContract.Service;
 
 export class LedgerToDomain {
-  static readonly KeyTypeMap: Record<LedgerKeyTypeValue, KeyType> = {
+  private static readonly KeyTypeMap: Record<LedgerKeyTypeValue, KeyType> = {
     [LedgerKeyType.EC]: KeyType.EC,
     [LedgerKeyType.RSA]: KeyType.RSA,
     [LedgerKeyType.oct]: KeyType.oct,
     [LedgerKeyType.OKP]: KeyType.OKP,
   };
 
-  static readonly CurveTypeMap: Record<LedgerCurveTypeValue, CurveType> = {
+  private static readonly CurveTypeMap: Record<
+    LedgerCurveTypeValue,
+    CurveType
+  > = {
     [LedgerCurveType.Ed25519]: CurveType.Ed25519,
     [LedgerCurveType.Jubjub]: CurveType.Jubjub,
     [LedgerCurveType.P256]: CurveType.P256,
   };
 
-  static readonly VerificationMethodTypeMap: Record<
+  private static readonly VerificationMethodTypeMap: Record<
     LedgerVerificationMethodTypeValue,
     VerificationMethodType
   > = {
@@ -72,7 +75,7 @@ export class LedgerToDomain {
       VerificationMethodType.JsonWebKey,
   };
 
-  static readonly VerificationMethodRelationMap: Record<
+  private static readonly VerificationMethodRelationMap: Record<
     LedgerVerificationMethodRelationValue,
     VerificationMethodRelationType
   > = {
