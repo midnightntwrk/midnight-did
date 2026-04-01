@@ -24,6 +24,31 @@ const clickAndWaitForJsonResponse = async <T>(
   return await response.json() as T;
 };
 
+const waitForOperation = async <T>(
+  page: import('@playwright/test').Page,
+  baseUrl: string,
+  operationId: string,
+): Promise<T> => {
+  const deadline = Date.now() + 120_000;
+  let lastPayload: unknown;
+
+  while (Date.now() < deadline) {
+    const response = await page.request.get(`${baseUrl}/api/operations/${operationId}`);
+    expect(response.ok()).toBe(true);
+    lastPayload = await response.json();
+    const operation = (lastPayload as { data?: { status?: string; result?: T; error?: { message?: string } } }).data;
+    if (operation?.status === 'succeeded') {
+      return operation.result as T;
+    }
+    if (operation?.status === 'failed') {
+      throw new Error(`Operation ${operationId} failed: ${operation.error?.message ?? 'unknown error'}`);
+    }
+    await page.waitForTimeout(1000);
+  }
+
+  throw new Error(`Timed out waiting for operation ${operationId}.\nLast payload:\n${JSON.stringify(lastPayload, null, 2)}`);
+};
+
 test.describe.serial('did-manager-service preprod funding', () => {
   test.setTimeout(120_000);
 
@@ -42,17 +67,17 @@ test.describe.serial('did-manager-service preprod funding', () => {
 
     await page.goto(`${env.baseUrl}/wallet`);
     await page.selectOption('#seedMode', 'generated');
-    const prepared = await clickAndWaitForJsonResponse<any>(page, '#prepareFunding', (url, method) => {
+    const preparedAccepted = await clickAndWaitForJsonResponse<any>(page, '#prepareFunding', (url, method) => {
       return method === 'POST' && url.pathname === '/api/session/prepare-funding';
     });
-    expect(prepared.ok).toBe(true);
-    expect(prepared.data.profile).toBe('preprod');
-    expect(prepared.data.generatedSeed).toMatch(/^[0-9a-f]{64}$/);
-    expect(prepared.data.unshieldedAddress.length).toBeGreaterThan(10);
-    expect(prepared.data.faucetUrl).toBe('https://faucet.preprod.midnight.network/');
+    const prepared = await waitForOperation<any>(page, env.baseUrl, preparedAccepted.data.id);
+    expect(prepared.profile).toBe('preprod');
+    expect(prepared.generatedSeed).toMatch(/^[0-9a-f]{64}$/);
+    expect(prepared.unshieldedAddress.length).toBeGreaterThan(10);
+    expect(prepared.faucetUrl).toBe('https://faucet.preprod.midnight.network/');
 
-    const generatedSeed = prepared.data.generatedSeed as string;
-    const preparedAddress = prepared.data.unshieldedAddress as string;
+    const generatedSeed = prepared.generatedSeed as string;
+    const preparedAddress = prepared.unshieldedAddress as string;
 
     await expect(page.locator('#seed')).toHaveValue(generatedSeed);
     await expect(page.locator('#seedMode')).toHaveValue('provided');
@@ -72,11 +97,11 @@ test.describe.serial('did-manager-service preprod funding', () => {
     expect(status.data.unshieldedAddress).toBe(preparedAddress);
 
     await page.selectOption('#seedMode', 'reuse');
-    const reused = await clickAndWaitForJsonResponse<any>(page, '#prepareFunding', (url, method) => {
+    const reusedAccepted = await clickAndWaitForJsonResponse<any>(page, '#prepareFunding', (url, method) => {
       return method === 'POST' && url.pathname === '/api/session/prepare-funding';
     });
-    expect(reused.ok).toBe(true);
-    expect(reused.data.generatedSeed).toBeUndefined();
-    expect(reused.data.unshieldedAddress).toBe(preparedAddress);
+    const reused = await waitForOperation<any>(page, env.baseUrl, reusedAccepted.data.id);
+    expect(reused.generatedSeed).toBeUndefined();
+    expect(reused.unshieldedAddress).toBe(preparedAddress);
   });
 });

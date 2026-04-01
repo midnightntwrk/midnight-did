@@ -6,9 +6,16 @@ import Fastify from 'fastify';
 import type { Logger } from 'pino';
 
 import { classifyManagerHttpError } from './errors.js';
+import { OperationStore } from './http/operation-store.js';
+import {
+  keyRefParamSchema,
+  methodIdParamSchema,
+  routeSchemas,
+  serviceIdParamSchema,
+} from './http/schemas.js';
 import { DidManagerService } from './manager.js';
 import type { PrepareFundingRequest, UnlockRequest } from './types.js';
-import { didPage, walletPage } from './ui.js';
+import { didPage, secretStoragePage, walletPage } from './ui.js';
 
 const baseHeaders = {
   'X-Content-Type-Options': 'nosniff',
@@ -17,57 +24,8 @@ const baseHeaders = {
   'Cross-Origin-Resource-Policy': 'same-origin',
 } as const;
 
-const seedModes = ['reuse', 'provided', 'generated'] as const;
-const keyTypes = ['OKP', 'EC'] as const;
-const keyCurves = ['Ed25519', 'Jubjub', 'P-256'] as const;
-const relationTypes = [
-  'Authentication',
-  'AssertionMethod',
-  'KeyAgreement',
-  'CapabilityInvocation',
-  'CapabilityDelegation',
-] as const;
-
-const stringRequired = { type: 'string', minLength: 1 } as const;
-const keyRefParamSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['keyRef'],
-  properties: {
-    keyRef: stringRequired,
-  },
-} as const;
-const methodIdParamSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['methodId'],
-  properties: {
-    methodId: stringRequired,
-  },
-} as const;
-const serviceIdParamSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['id'],
-  properties: {
-    id: stringRequired,
-  },
-} as const;
-const serviceEndpointSchema = {
-  anyOf: [
-    { type: 'string', minLength: 1 },
-    { type: 'object' },
-    {
-      type: 'array',
-      minItems: 1,
-      items: {
-        oneOf: [{ type: 'string', minLength: 1 }, { type: 'object' }],
-      },
-    },
-  ],
-} as const;
-
 const wrap = <T>(data: T) => ({ ok: true as const, data });
+const sleep = async (ms: number): Promise<void> => new Promise((resolve) => globalThis.setTimeout(resolve, ms));
 
 type KeyParams = { keyRef: string };
 type MethodParams = { methodId: string };
@@ -122,9 +80,41 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
   });
   await app.register(swaggerUi, { routePrefix: '/docs' });
 
+  const operations = new OperationStore();
+
+  const acceptOperation = (
+    reply: { code: (statusCode: number) => unknown },
+    operation: ReturnType<OperationStore['start']>,
+  ) => {
+    reply.code(202);
+    return wrap(operation);
+  };
+
+  const waitForUnlockTerminalState = async (
+    input: UnlockRequest,
+  ): Promise<{ status: Awaited<ReturnType<DidManagerService['getSessionStatus']>>; generatedSeed?: string }> => {
+    const accepted = await manager.unlock(input);
+    while (true) {
+      const status = await manager.getSessionStatus();
+      if (status.connection.phase === 'ready') {
+        return {
+          status,
+          generatedSeed: accepted.generatedSeed,
+        };
+      }
+      if (status.connection.phase === 'error') {
+        throw new Error(status.connection.lastError ?? 'Unlock failed');
+      }
+      await sleep(1_000);
+    }
+  };
+
   app.get('/', async (_req, reply) => reply.redirect('/wallet'));
   app.get('/wallet', async (_req, reply) => {
     reply.type('text/html').send(walletPage);
+  });
+  app.get('/secret-storage', async (_req, reply) => {
+    reply.type('text/html').send(secretStoragePage);
   });
   app.get('/did', async (_req, reply) => {
     reply.type('text/html').send(didPage);
@@ -134,17 +124,37 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
   app.get('/ready', async () => ({ status: 'ready' }));
   app.get('/api/setup', async () => wrap(manager.getSetupStatus()));
   app.get('/api/profiles', async () => wrap(await manager.listProfiles()));
+  app.get('/api/contracts', async () => wrap(await manager.listStoredContracts()));
+  app.get('/api/operations', async () => wrap(operations.list()));
+  app.get('/api/operations/current', async () => wrap(operations.current()));
+  app.get<{ Params: { id: string } }>(
+    '/api/operations/:id',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id'],
+          properties: {
+            ...routeSchemas.operationIdParams.properties,
+          },
+        },
+      },
+    },
+    async (req) => {
+      const operation = operations.get(req.params.id);
+      if (operation === undefined) {
+        throw new Error(`Operation not found: ${req.params.id}`);
+      }
+      return wrap(operation);
+    },
+  );
   app.post<{ Body: SelectProfileBody }>(
     '/api/profiles/select',
     {
       schema: {
         body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['name'],
-          properties: {
-            name: stringRequired,
-          },
+          ...routeSchemas.selectProfileBody,
         },
       },
     },
@@ -158,19 +168,11 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
     {
       schema: {
         body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['seedMode'],
-          properties: {
-            seedMode: { type: 'string', enum: seedModes },
-            seed: { type: 'string' },
-            passphrase: { type: 'string' },
-            rememberUnlockedSession: { type: 'boolean' },
-          },
+          ...routeSchemas.unlockBody,
         },
       },
     },
-    async (req) => wrap(await manager.unlock(req.body)),
+    async (req, reply) => acceptOperation(reply, operations.start('unlock', () => waitForUnlockTerminalState(req.body))),
   );
 
   app.post<{ Body: PrepareFundingRequest }>(
@@ -178,59 +180,43 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
     {
       schema: {
         body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['seedMode'],
-          properties: {
-            seedMode: { type: 'string', enum: seedModes },
-            seed: { type: 'string' },
-          },
+          ...routeSchemas.prepareFundingBody,
         },
       },
     },
-    async (req) => wrap(await manager.prepareFunding(req.body)),
+    async (req, reply) => acceptOperation(reply, operations.start('prepareFunding', () => manager.prepareFunding(req.body))),
   );
 
-  app.post('/api/session/lock', async () => wrap(await manager.lock()));
+  app.post('/api/session/lock', async (_req, reply) => acceptOperation(reply, operations.start('lock', () => manager.lock())));
 
   app.post<{ Body: UpdatePreferencesBody }>(
     '/api/session/preferences',
     {
       schema: {
         body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['rememberUnlockedSession'],
-          properties: {
-            rememberUnlockedSession: { type: 'boolean' },
-          },
+          ...routeSchemas.preferencesBody,
         },
       },
     },
-    async (req) => wrap(await manager.updatePreferences(req.body)),
+    async (req, reply) => acceptOperation(reply, operations.start('updatePreferences', () => manager.updatePreferences(req.body))),
   );
 
-  app.post('/api/did/deploy', async () => wrap(await manager.deployDid()));
+  app.post('/api/did/deploy', async (_req, reply) => acceptOperation(reply, operations.start('deployDid', () => manager.deployDid())));
   app.post<{ Body: JoinDidBody }>(
     '/api/did/join',
     {
       schema: {
         body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['contractAddress'],
-          properties: {
-            contractAddress: { type: 'string', minLength: 64, maxLength: 66 },
-          },
+          ...routeSchemas.joinDidBody,
         },
       },
     },
-    async (req) => wrap(await manager.joinDid(req.body)),
+    async (req, reply) => acceptOperation(reply, operations.start('joinDid', () => manager.joinDid(req.body))),
   );
 
   app.get('/api/did/state', async () => wrap(await manager.getDidState()));
   app.get('/api/did/document', async () => wrap(await manager.getDidDocument()));
-  app.post('/api/did/deactivate', async () => wrap(await manager.deactivateDid()));
+  app.post('/api/did/deactivate', async (_req, reply) => acceptOperation(reply, operations.start('deactivateDid', () => manager.deactivateDid())));
 
   app.get('/api/keys', async () => wrap(await manager.listKeys()));
   app.post<{ Body: GenerateKeyInput }>(
@@ -238,45 +224,22 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
     {
       schema: {
         body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['id', 'kty', 'crv'],
-          properties: {
-            id: stringRequired,
-            kty: { type: 'string', enum: keyTypes },
-            crv: { type: 'string', enum: keyCurves },
-            did: { type: 'string' },
-            purpose: { type: 'string' },
-          },
+          ...routeSchemas.generateKeyBody,
         },
       },
     },
-    async (req) => wrap(await manager.generateKey(req.body)),
+    async (req, reply) => acceptOperation(reply, operations.start('generateKey', () => manager.generateKey(req.body))),
   );
   app.post<{ Body: Omit<ImportKeyInput, 'privateKey'> & { privateKey: number[] } }>(
     '/api/keys/import',
     {
       schema: {
         body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['id', 'privateKey', 'kty', 'crv'],
-          properties: {
-            id: stringRequired,
-            privateKey: {
-              type: 'array',
-              minItems: 1,
-              items: { type: 'integer', minimum: 0, maximum: 255 },
-            },
-            kty: { type: 'string', enum: keyTypes },
-            crv: { type: 'string', enum: keyCurves },
-            did: { type: 'string' },
-            purpose: { type: 'string' },
-          },
+          ...routeSchemas.importKeyBody,
         },
       },
     },
-    async (req) => {
+    async (req, reply) => {
       const payload: ImportKeyInput = {
         id: req.body.id,
         privateKey: Uint8Array.from(req.body.privateKey),
@@ -285,30 +248,28 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
         did: req.body.did,
         purpose: req.body.purpose,
       };
-      return wrap(await manager.importKey(payload));
+      return acceptOperation(reply, operations.start('importKey', () => manager.importKey(payload)));
     },
   );
-  app.delete<{ Params: KeyParams }>('/api/keys/:keyRef', { schema: { params: keyRefParamSchema } }, async (req) => {
-    await manager.deleteKey(req.params);
-    return wrap({ deleted: true });
-  });
+  app.delete<{ Params: KeyParams }>(
+    '/api/keys/:keyRef',
+    { schema: { params: keyRefParamSchema } },
+    async (req, reply) => acceptOperation(reply, operations.start('deleteKey', async () => {
+      await manager.deleteKey(req.params);
+      return { deleted: true };
+    })),
+  );
 
   app.post<{ Body: VerificationMethodBody }>(
     '/api/did/verification-methods',
     {
       schema: {
         body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['methodId', 'keyRef'],
-          properties: {
-            methodId: stringRequired,
-            keyRef: stringRequired,
-          },
+          ...routeSchemas.verificationMethodBody,
         },
       },
     },
-    async (req) => wrap(await manager.addVerificationMethod(req.body)),
+    async (req, reply) => acceptOperation(reply, operations.start('addVerificationMethod', () => manager.addVerificationMethod(req.body))),
   );
   app.put<{ Params: MethodParams; Body: VerificationMethodUpdateBody }>(
     '/api/did/verification-methods/:methodId',
@@ -316,21 +277,25 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
       schema: {
         params: methodIdParamSchema,
         body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['keyRef'],
-          properties: {
-            keyRef: stringRequired,
-          },
+          ...routeSchemas.verificationMethodUpdateBody,
         },
       },
     },
-    async (req) => wrap(await manager.updateVerificationMethod({ methodId: req.params.methodId, keyRef: req.body.keyRef })),
+    async (req, reply) =>
+      acceptOperation(
+        reply,
+        operations.start('updateVerificationMethod', () =>
+          manager.updateVerificationMethod({ methodId: req.params.methodId, keyRef: req.body.keyRef })),
+      ),
   );
   app.delete<{ Params: MethodParams }>(
     '/api/did/verification-methods/:methodId',
     { schema: { params: methodIdParamSchema } },
-    async (req) => wrap(await manager.removeVerificationMethod({ methodId: req.params.methodId })),
+    async (req, reply) =>
+      acceptOperation(
+        reply,
+        operations.start('removeVerificationMethod', () => manager.removeVerificationMethod({ methodId: req.params.methodId })),
+      ),
   );
 
   app.post<{ Body: RelationBody }>(
@@ -338,34 +303,22 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
     {
       schema: {
         body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['methodId', 'relation'],
-          properties: {
-            methodId: stringRequired,
-            relation: { type: 'string', enum: relationTypes },
-          },
+          ...routeSchemas.relationBody,
         },
       },
     },
-    async (req) => wrap(await manager.addRelation(req.body)),
+    async (req, reply) => acceptOperation(reply, operations.start('addRelation', () => manager.addRelation(req.body))),
   );
   app.delete<{ Body: RelationBody }>(
     '/api/did/relations',
     {
       schema: {
         body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['methodId', 'relation'],
-          properties: {
-            methodId: stringRequired,
-            relation: { type: 'string', enum: relationTypes },
-          },
+          ...routeSchemas.relationBody,
         },
       },
     },
-    async (req) => wrap(await manager.removeRelation(req.body)),
+    async (req, reply) => acceptOperation(reply, operations.start('removeRelation', () => manager.removeRelation(req.body))),
   );
 
   app.post<{ Body: ServiceBody }>(
@@ -373,18 +326,11 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
     {
       schema: {
         body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['id', 'type', 'serviceEndpoint'],
-          properties: {
-            id: stringRequired,
-            type: stringRequired,
-            serviceEndpoint: serviceEndpointSchema,
-          },
+          ...routeSchemas.serviceBody,
         },
       },
     },
-    async (req) => wrap(await manager.addService(req.body)),
+    async (req, reply) => acceptOperation(reply, operations.start('addService', () => manager.addService(req.body))),
   );
   app.put<{ Params: ServiceParams; Body: ServiceUpdateBody }>(
     '/api/did/services/:id',
@@ -392,22 +338,21 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
       schema: {
         params: serviceIdParamSchema,
         body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['type', 'serviceEndpoint'],
-          properties: {
-            type: stringRequired,
-            serviceEndpoint: serviceEndpointSchema,
-          },
+          ...routeSchemas.serviceUpdateBody,
         },
       },
     },
-    async (req) => wrap(await manager.updateService({ id: req.params.id, type: req.body.type, serviceEndpoint: req.body.serviceEndpoint })),
+    async (req, reply) =>
+      acceptOperation(
+        reply,
+        operations.start('updateService', () => manager.updateService({ id: req.params.id, type: req.body.type, serviceEndpoint: req.body.serviceEndpoint })),
+      ),
   );
   app.delete<{ Params: ServiceParams }>(
     '/api/did/services/:id',
     { schema: { params: serviceIdParamSchema } },
-    async (req) => wrap(await manager.removeService({ id: req.params.id })),
+    async (req, reply) =>
+      acceptOperation(reply, operations.start('removeService', () => manager.removeService({ id: req.params.id }))),
   );
 
   app.post<{ Body: AlsoKnownAsBody }>(
@@ -415,32 +360,22 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
     {
       schema: {
         body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['value'],
-          properties: {
-            value: stringRequired,
-          },
+          ...routeSchemas.alsoKnownAsBody,
         },
       },
     },
-    async (req) => wrap(await manager.addAlsoKnownAs(req.body)),
+    async (req, reply) => acceptOperation(reply, operations.start('addAlsoKnownAs', () => manager.addAlsoKnownAs(req.body))),
   );
   app.delete<{ Body: AlsoKnownAsBody }>(
     '/api/did/also-known-as',
     {
       schema: {
         body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['value'],
-          properties: {
-            value: stringRequired,
-          },
+          ...routeSchemas.alsoKnownAsBody,
         },
       },
     },
-    async (req) => wrap(await manager.removeAlsoKnownAs(req.body)),
+    async (req, reply) => acceptOperation(reply, operations.start('removeAlsoKnownAs', () => manager.removeAlsoKnownAs(req.body))),
   );
 
   return app;

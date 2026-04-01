@@ -108,6 +108,8 @@ Pipelines:
 - Resolver only: `./run-resolver.sh`
 - DID manager only: `./run-manager.sh`
 - Docs pipeline: `./run-docs.sh`
+- Manager app: `./start-manager.sh [--standalone|--preprod]`
+- Resolver app: `./start-resolver.sh [--standalone|--preprod]`
 - Docs dev server: `./start-docs.sh`
 
 Docs site local URL:

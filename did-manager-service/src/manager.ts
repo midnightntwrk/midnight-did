@@ -1,157 +1,169 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { stat } from 'node:fs/promises';
 import path from 'node:path';
 
-import { createMidnightDIDString, LedgerToDomain, MidnightNetwork, parseContractAddress } from '@midnight-ntwrk/midnight-did';
 import * as api from '@midnight-ntwrk/midnight-did-api';
 import {
-  createService,
-  createVerificationMethod,
-  type CurveType,
-  KeyType,
   type ServiceEndpoint,
   type VerificationMethodRelationType,
-  VerificationMethodType,
 } from '@midnight-ntwrk/midnight-did-domain';
 import {
-  FileSecretStore,
+  type FileSecretStore,
   type GenerateKeyInput,
   type ImportKeyInput,
-  normalizePublicForLedger,
-  parseSeed,
-  type PublicJwk,
 } from '@midnight-ntwrk/midnight-did-secret-storage';
-import { getNetworkId, setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import type { Logger } from 'pino';
 
 import type { ManagerConfig, SetupProfile } from './config.js';
 import {
-  listProfileNames,
-  migrateLegacyProfileFile,
-  readProfileIndex,
-  readSessionStore,
-  writeProfileIndex,
-  writeSessionStore,
-} from './session-store.js';
+  addAlsoKnownAs as addDidAlsoKnownAs,
+  addRelation as addDidRelation,
+  addService as addDidService,
+  addVerificationMethod as addDidVerificationMethod,
+  buildNormalizedVerificationMethod,
+  deactivateDid as deactivateDidContract,
+  deployDidContract,
+  getDidDocument as getDidDocumentFromLedger,
+  getDidState as getDidStateFromLedger,
+  listStoredContracts as listStoredContractsOnNetwork,
+  removeAlsoKnownAs as removeDidAlsoKnownAs,
+  removeRelation as removeDidRelation,
+  removeService as removeDidService,
+  removeVerificationMethod as removeDidVerificationMethod,
+  updateService as updateDidService,
+  updateVerificationMethod as updateDidVerificationMethod,
+} from './manager/did-lifecycle-service.js';
+import {
+  buildProfileConfig,
+  buildVerificationMethod,
+  createSecretStore,
+  faucetUrl,
+  joinExistingContract,
+  midnightDbPath,
+  profileNamePattern,
+} from './manager/helpers.js';
+import { ManagerProfileStore } from './manager/profile-store.js';
+import { ManagerRuntimeState } from './manager/runtime-state.js';
+import {
+  buildSessionStatus,
+  buildSetupStatus,
+  deriveUnshieldedAddress,
+  resolveSeedInput,
+} from './manager/wallet-session-service.js';
 import type {
   DidDocumentResponse,
   DidStateResponse,
   FundingPreparation,
-  NetworkProfile,
   PrepareFundingRequest,
   ProfileSelection,
+  SessionProfileState,
   SessionStatus,
-  SessionStore,
   SetupStatus,
+  StoredContractStatus,
   UnlockRequest,
 } from './types.js';
-
-const nowIso = (): string => new Date().toISOString();
-const generateSeedHex = (): string => randomBytes(32).toString('hex');
-const profileNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
-const runtimeNetworkMap: Record<ReturnType<typeof getNetworkId>, MidnightNetwork> = {
-  undeployed: MidnightNetwork.Undeployed,
-  devnet: MidnightNetwork.DevNet,
-  testnet: MidnightNetwork.Testnet,
-  mainnet: MidnightNetwork.Mainnet,
-  preview: MidnightNetwork.Preview,
-  preprod: MidnightNetwork.Preprod,
-};
+import {
+  backupDirectoryIfExists,
+  privateStateDbSeedHash,
+  readWalletState,
+  seedHashPrefix,
+  walletStateDir,
+  writeWalletState,
+} from './wallet-state-store.js';
 
 export class DidManagerService {
   private readonly cfg: ManagerConfig;
   private readonly logger: Logger;
-
-  private sessionLoaded = false;
-  private profileIndexLoaded = false;
-  private loadedSessionPath: string | null = null;
-  private selectedProfileName = 'default';
-  private profileIndex: {
-    version: 1;
-    selectedProfiles: Partial<Record<NetworkProfile, string>>;
-    legacyMigrationCompleted: Partial<Record<NetworkProfile, boolean>>;
-  } = {
-    version: 1 as const,
-    selectedProfiles: {},
-    legacyMigrationCompleted: {},
-  };
-  private session: SessionStore = {
-    version: 1,
-    rememberUnlockedSession: true,
-    lastProfile: null,
-    profiles: {},
-  };
-
-  private unlocked = false;
-  private walletCtx: api.MidnightDIDWalletContext | null = null;
-  private providers: api.MidnightDIDProviders | null = null;
-  private didContract: api.DeployedMidnightDIDContract | null = null;
-  private secretStore: FileSecretStore | null = null;
+  private readonly profileStore: ManagerProfileStore;
+  private readonly runtime: ManagerRuntimeState;
 
   constructor(cfg: ManagerConfig, logger: Logger) {
     this.cfg = cfg;
     this.logger = logger;
+    this.profileStore = new ManagerProfileStore(cfg, () => this.setupProfile());
+    this.runtime = new ManagerRuntimeState(logger, cfg.sessionIdleMs, async () => {
+      await this.lock();
+    });
     api.setLogger(this.logger.child({ component: 'midnight-did-api' }));
   }
 
   private baseDataDir(): string {
-    return path.dirname(this.cfg.sessionFilePath);
+    return this.profileStore.baseDataDir();
   }
 
-  private profileIndexFilePath(): string {
-    return path.join(this.baseDataDir(), 'manager-profiles.json');
+  private selectedProfileName(): string {
+    return this.profileStore.selectedProfileName();
   }
 
-  private profileRootDir(profileName = this.selectedProfileName): string {
-    return path.join(this.baseDataDir(), 'profiles', this.setupProfile(), profileName);
+  private profileRootDir(profileName = this.selectedProfileName()): string {
+    return this.profileStore.profileRootDir(profileName);
   }
 
-  private profileSessionFilePath(profileName = this.selectedProfileName): string {
-    return path.join(this.profileRootDir(profileName), 'manager-session.json');
+  private profileSecretStorePath(profileName = this.selectedProfileName()): string {
+    return this.profileStore.profileSecretStorePath(profileName);
   }
 
-  private profileSecretStorePath(profileName = this.selectedProfileName): string {
-    return path.join(this.profileRootDir(profileName), 'manager-secrets.json');
+  private walletStateRootDir(profileName = this.selectedProfileName()): string {
+    return this.profileStore.walletStateRootDir(profileName);
   }
 
-  private profileLegacySessionFilePath(): string {
-    return this.cfg.sessionFilePath;
+  private walletStateKey(seedHash = this.runtime.getActiveSeedHash()): string | null {
+    if (seedHash === null) return null;
+    return `${this.setupProfile()}/${this.selectedProfileName()}/${seedHash}`;
   }
 
-  private profileLegacySecretFilePath(): string {
-    return this.cfg.secretStorePath;
+  private shouldPersistWalletState(): boolean {
+    return this.setupProfile() !== 'standalone';
   }
 
-  private async ensureProfileIndexLoaded(): Promise<void> {
-    if (this.profileIndexLoaded) return;
-    this.profileIndex = await readProfileIndex(this.profileIndexFilePath());
-    this.selectedProfileName = this.profileIndex.selectedProfiles[this.setupProfile()] ?? 'default';
-    this.profileIndexLoaded = true;
+  private setConnectionState(
+    phase: SessionStatus['connection']['phase'],
+    options: {
+      lastError?: string | null;
+      reusedPersistedState?: boolean;
+      seedHash?: string | null;
+    } = {},
+  ): void {
+    this.runtime.setConnectionState(phase, options);
+  }
+
+  private touchSessionActivity(): void {
+    this.runtime.touchSessionActivity();
+  }
+
+  private async stopRuntimeSessionInternal(): Promise<void> {
+    await this.runtime.stopRuntimeSession(
+      this.shouldPersistWalletState()
+        ? async (seedHash) => await this.persistWalletSnapshot(seedHash)
+        : undefined,
+    );
+  }
+
+  private async joinExistingContract(
+    providers: api.MidnightDIDProviders,
+    contractAddress: string,
+  ): Promise<api.DeployedMidnightDIDContract> {
+    return await joinExistingContract(providers, contractAddress, this.setupProfile());
+  }
+
+  private persistWalletStateBackupRoot(): string {
+    return path.join(this.baseDataDir(), 'backup', 'wallet-state', this.setupProfile(), this.selectedProfileName());
+  }
+
+  private async persistWalletSnapshot(seedHash = this.runtime.getActiveSeedHash()): Promise<void> {
+    const walletCtx = this.runtime.getWalletContext();
+    if (!this.shouldPersistWalletState() || walletCtx === null || seedHash === null) return;
+    const snapshot = await api.serializeWalletState(walletCtx);
+    await writeWalletState(
+      this.baseDataDir(),
+      this.setupProfile(),
+      this.selectedProfileName(),
+      seedHash,
+      snapshot,
+    );
   }
 
   private async ensureSessionLoaded(): Promise<void> {
-    await this.ensureProfileIndexLoaded();
-    const sessionPath = this.profileSessionFilePath();
-    if (this.sessionLoaded && this.loadedSessionPath === sessionPath) return;
-
-    await this.ensureLegacyProfileMigrated();
-    this.session = await readSessionStore(sessionPath, this.cfg.rememberUnlockedSessionDefault);
-    this.loadedSessionPath = sessionPath;
-    this.sessionLoaded = true;
-  }
-
-  private async ensureLegacyProfileMigrated(): Promise<void> {
-    const profile = this.setupProfile();
-    if (this.profileIndex.legacyMigrationCompleted[profile]) return;
-
-    const profilesRoot = path.join(this.baseDataDir(), 'profiles', profile);
-    const existingProfiles = await listProfileNames(profilesRoot);
-    if (existingProfiles.length === 0) {
-      await migrateLegacyProfileFile(this.profileLegacySessionFilePath(), this.profileSessionFilePath());
-      await migrateLegacyProfileFile(this.profileLegacySecretFilePath(), this.profileSecretStorePath());
-    }
-
-    this.profileIndex.legacyMigrationCompleted[profile] = true;
-    await writeProfileIndex(this.profileIndexFilePath(), this.profileIndex);
+    await this.profileStore.ensureLoaded();
   }
 
   private setupProfile(): SetupProfile {
@@ -159,36 +171,11 @@ export class DidManagerService {
   }
 
   private profileConfig(): api.Config {
-    const profile = this.setupProfile();
-    const baseLogDir = path.resolve(process.cwd(), 'logs', 'did-manager-service', profile);
-    if (profile === 'standalone') {
-      setNetworkId('undeployed');
-      return {
-        logDir: `${baseLogDir}/${nowIso()}.log`,
-        indexer: this.cfg.standalone.indexer,
-        indexerWS: this.cfg.standalone.indexerWS,
-        node: this.cfg.standalone.node,
-        proofServer: this.cfg.standalone.proofServer,
-      };
-    }
-
-    setNetworkId('preprod');
-    return {
-      logDir: `${baseLogDir}/${nowIso()}.log`,
-      indexer: this.cfg.preprod.indexer,
-      indexerWS: this.cfg.preprod.indexerWS,
-      node: this.cfg.preprod.node,
-      proofServer: this.cfg.preprod.proofServer,
-    };
+    return buildProfileConfig(this.cfg, this.setupProfile());
   }
 
   private midnightDbPath(seed: string): string {
-    const seedHash = createHash('sha256').update(seed).digest('hex').slice(0, 16);
-    return path.join(
-      this.profileRootDir(),
-      'midnight-level-db',
-      seedHash,
-    );
+    return midnightDbPath(this.profileRootDir(), privateStateDbSeedHash(seed));
   }
 
   private requireUnlocked(): {
@@ -196,72 +183,33 @@ export class DidManagerService {
     didContract: api.DeployedMidnightDIDContract;
     secretStore: FileSecretStore;
   } {
-    if (!this.unlocked || this.providers === null || this.didContract === null || this.secretStore === null) {
-      throw new Error('Session is locked or DID contract is not selected.');
-    }
-    return { providers: this.providers, didContract: this.didContract, secretStore: this.secretStore };
+    return this.runtime.requireUnlocked();
   }
 
   private requireUnlockedNoContract(): { providers: api.MidnightDIDProviders; secretStore: FileSecretStore } {
-    if (!this.unlocked || this.providers === null || this.secretStore === null) {
-      throw new Error('Session is locked. Unlock session first.');
-    }
-    return { providers: this.providers, secretStore: this.secretStore };
+    return this.runtime.requireUnlockedNoContract();
   }
 
   private currentContractAddress(): string | null {
-    return this.didContract?.deployTxData.public.contractAddress ?? null;
+    return this.runtime.currentContractAddress();
   }
 
   private currentProfileState() {
-    return this.session.profiles[this.setupProfile()];
-  }
-
-  private mergeContractAddresses(existing: string[] | undefined, next?: string | null): string[] {
-    const values = Array.isArray(existing) ? existing.filter((value) => value.length > 0) : [];
-    if (typeof next !== 'string' || next.length === 0) return values;
-    return [next, ...values.filter((value) => value !== next)];
+    return this.profileStore.currentProfileState();
   }
 
   private async saveCurrentProfileState(
-    next: Partial<NonNullable<SessionStore['profiles'][NetworkProfile]>>,
+    next: Partial<SessionProfileState>,
   ): Promise<void> {
-    await this.ensureSessionLoaded();
-    const profile = this.setupProfile();
-    const current = this.currentProfileState();
-    const contractAddress = next.contractAddress ?? current?.contractAddress;
-
-    this.session.lastProfile = profile;
-    this.session.profiles[profile] = {
-      seed: next.seed ?? current?.seed ?? '',
-      unshieldedAddress: next.unshieldedAddress ?? current?.unshieldedAddress,
-      contractAddress,
-      contractAddresses: this.mergeContractAddresses(
-        next.contractAddresses ?? current?.contractAddresses,
-        contractAddress,
-      ),
-      updatedAt: next.updatedAt ?? nowIso(),
-    };
-    await writeSessionStore(this.profileSessionFilePath(), this.session);
+    await this.profileStore.saveCurrentProfileState(next);
   }
 
-  private buildVerificationMethod(methodId: string, publicJwk: PublicJwk) {
-    if (this.didContract === null) {
+  private buildVerificationMethod(methodId: string, publicJwk: Awaited<ReturnType<FileSecretStore['getPublicKey']>>) {
+    const didContract = this.runtime.getDidContract();
+    if (didContract === null) {
       throw new Error('Session is locked or DID contract is not selected.');
     }
-    const contractAddress = parseContractAddress(this.didContract.deployTxData.public.contractAddress);
-    const didSubject = createMidnightDIDString(contractAddress, runtimeNetworkMap[getNetworkId()]);
-    return createVerificationMethod({
-      id: methodId,
-      type: VerificationMethodType.JsonWebKey,
-      controller: didSubject,
-      publicKeyJwk: {
-        kty: publicJwk.kty === 'EC' ? KeyType.EC : KeyType.OKP,
-        crv: publicJwk.crv as CurveType,
-        x: publicJwk.x,
-        y: publicJwk.y,
-      },
-    });
+    return buildVerificationMethod(didContract, methodId, publicJwk);
   }
 
   private async persistRuntimeSession(): Promise<void> {
@@ -273,106 +221,63 @@ export class DidManagerService {
       unshieldedAddress: profile.unshieldedAddress,
       contractAddress: this.currentContractAddress() ?? profile.contractAddress,
     });
-  }
-
-  private faucetUrl(profile: SetupProfile = this.setupProfile()): string | null {
-    return profile === 'preprod' ? 'https://faucet.preprod.midnight.network/' : null;
-  }
-
-  private resolveSeedInput(
-    input: { seedMode: 'reuse' | 'provided' | 'generated'; seed?: string },
-  ): { seed: string; generatedSeed?: string } {
-    const profile = this.setupProfile();
-    const profileState = this.session.profiles[profile];
-
-    if (input.seedMode === 'reuse') {
-      if (!profileState?.seed) {
-        throw new Error(`No stored seed found for profile '${profile}'.`);
-      }
-      return { seed: parseSeed(profileState.seed) };
-    }
-
-    if (input.seedMode === 'provided') {
-      if (!input.seed || input.seed.trim() === '') {
-        throw new Error('Seed is required when seedMode=provided.');
-      }
-      return { seed: parseSeed(input.seed) };
-    }
-
-    const generatedSeed = generateSeedHex();
-    return { seed: generatedSeed, generatedSeed };
+    await this.persistWalletSnapshot();
+    this.touchSessionActivity();
   }
 
   getSetupStatus(): SetupStatus {
-    const profile = this.setupProfile();
-    const endpoints = profile === 'standalone'
-      ? {
-          node: this.cfg.standalone.node,
-          indexer: this.cfg.standalone.indexer,
-          proofServer: this.cfg.standalone.proofServer,
-        }
-      : {
-          node: this.cfg.preprod.node,
-          indexer: this.cfg.preprod.indexer,
-          proofServer: this.cfg.preprod.proofServer,
-        };
-
-    return {
-      profile,
-      faucetUrl: this.faucetUrl(profile),
-      endpoints,
-    };
+    return buildSetupStatus(this.cfg, this.setupProfile());
   }
 
   async getSessionStatus(): Promise<SessionStatus> {
     await this.ensureSessionLoaded();
-    const profile = this.setupProfile();
     const profileState = this.currentProfileState();
-    return {
-      unlocked: this.unlocked,
-      profile,
-      profileName: this.selectedProfileName,
-      rememberUnlockedSession: this.session.rememberUnlockedSession,
-      contractAddress: this.currentContractAddress() ?? profileState?.contractAddress ?? null,
-      knownContractAddresses: profileState?.contractAddresses ?? [],
-      seedAvailable: Boolean(profileState?.seed),
-      unshieldedAddress: profileState?.unshieldedAddress ?? null,
-      faucetUrl: this.faucetUrl(profile),
+    const connection: SessionStatus['connection'] = {
+      ...this.runtime.getConnection(),
+      walletStateKey: this.walletStateKey(),
     };
+    const did = this.runtime.getDid(profileState?.contractAddress);
+    return buildSessionStatus(
+      this.setupProfile(),
+      this.selectedProfileName(),
+      this.profileStore.rememberUnlockedSession(),
+      profileState,
+      this.currentContractAddress(),
+      connection,
+      did,
+      this.runtime.isUnlocked(),
+    );
   }
 
   async listProfiles(): Promise<ProfileSelection> {
-    await this.ensureProfileIndexLoaded();
-    const availableProfileNames = Array.from(new Set(['default', ...await listProfileNames(path.join(this.baseDataDir(), 'profiles', this.setupProfile()))]));
-    return {
+    return await this.profileStore.listProfiles();
+  }
+
+  async listStoredContracts(): Promise<StoredContractStatus[]> {
+    await this.ensureSessionLoaded();
+    return await listStoredContractsOnNetwork({
+      addresses: this.currentProfileState()?.contractAddresses ?? [],
+      selectedAddress: this.currentContractAddress(),
+      unlocked: this.runtime.isUnlocked(),
+      providers: this.runtime.getProviders(),
       profile: this.setupProfile(),
-      activeProfileName: this.selectedProfileName,
-      availableProfileNames,
-    };
+    });
   }
 
   async selectProfile(input: { name: string }): Promise<SessionStatus> {
-    await this.ensureProfileIndexLoaded();
     const nextProfileName = input.name.trim();
     if (!profileNamePattern.test(nextProfileName)) {
       throw new Error('Profile name must start with an alphanumeric character and contain only letters, numbers, dot, underscore, or dash.');
     }
-    if (this.unlocked) {
+    if (this.runtime.isUnlocked()) {
       await this.lock();
     }
-    this.selectedProfileName = nextProfileName;
-    this.profileIndex.selectedProfiles[this.setupProfile()] = nextProfileName;
-    await writeProfileIndex(this.profileIndexFilePath(), this.profileIndex);
-    this.sessionLoaded = false;
-    this.loadedSessionPath = null;
-    await this.ensureSessionLoaded();
+    await this.profileStore.selectProfile(nextProfileName);
     return this.getSessionStatus();
   }
 
   async updatePreferences(input: { rememberUnlockedSession: boolean }): Promise<SessionStatus> {
-    await this.ensureSessionLoaded();
-    this.session.rememberUnlockedSession = input.rememberUnlockedSession;
-    await writeSessionStore(this.profileSessionFilePath(), this.session);
+    await this.profileStore.updateRememberUnlockedSession(input.rememberUnlockedSession);
     return this.getSessionStatus();
   }
 
@@ -380,9 +285,9 @@ export class DidManagerService {
     await this.ensureSessionLoaded();
 
     const profile = this.setupProfile();
-    const { seed, generatedSeed } = this.resolveSeedInput(input);
+    const { seed, generatedSeed } = resolveSeedInput(this.setupProfile(), this.currentProfileState(), input);
     this.profileConfig();
-    const unshieldedAddress = api.deriveUnshieldedAddressFromSeed(seed);
+    const unshieldedAddress = deriveUnshieldedAddress(seed);
 
     await this.saveCurrentProfileState({
       seed,
@@ -392,63 +297,192 @@ export class DidManagerService {
     return {
       profile,
       unshieldedAddress,
-      faucetUrl: this.faucetUrl(profile),
+      faucetUrl: faucetUrl(profile),
       generatedSeed,
     };
   }
 
-  async unlock(input: UnlockRequest): Promise<{ status: SessionStatus; generatedSeed?: string }> {
-    await this.ensureSessionLoaded();
+  private async createSecretStore(passphrase?: string): Promise<FileSecretStore> {
+    return await createSecretStore(
+      this.profileSecretStorePath(),
+      passphrase,
+      this.cfg.defaultSecretPassphrase,
+    );
+  }
 
-    if (this.unlocked) {
-      await this.lock();
+  private async restorePersistedWalletState(seedHash: string) {
+    if (!this.shouldPersistWalletState()) return null;
+    return await readWalletState(
+      this.baseDataDir(),
+      this.setupProfile(),
+      this.selectedProfileName(),
+      seedHash,
+    );
+  }
+
+  private async ensureWalletStateBackupRoot(seedHash: string): Promise<void> {
+    if (!this.shouldPersistWalletState()) return;
+    const rootDir = this.walletStateRootDir();
+    const targetDir = walletStateDir(
+      this.baseDataDir(),
+      this.setupProfile(),
+      this.selectedProfileName(),
+      seedHash,
+    );
+    try {
+      await stat(targetDir);
+      return;
+    } catch {
+      const existingBackup = await backupDirectoryIfExists(rootDir, this.persistWalletStateBackupRoot());
+      if (existingBackup !== null) {
+        this.logger.info({ backupDir: existingBackup }, 'Backed up existing wallet-state directory before migration');
+      }
     }
+  }
 
-    const profile = this.setupProfile();
+  private startWalletStateTracking(generation: number): void {
+    this.runtime.startWalletStateTracking(generation);
+  }
+
+  private async runUnlockSession(
+    generation: number,
+    seed: string,
+    input: UnlockRequest,
+  ): Promise<void> {
     const profileState = this.currentProfileState();
-    const { seed, generatedSeed } = this.resolveSeedInput(input);
-
     const config = this.profileConfig();
+    const seedHash = seedHashPrefix(seed);
     const providerConfig: api.Config = {
       ...config,
       midnightDbName: this.midnightDbPath(seed),
     };
     this.logger.info(
-      { profile, midnightDbName: providerConfig.midnightDbName },
+      { profile: this.setupProfile(), profileName: this.selectedProfileName(), midnightDbName: providerConfig.midnightDbName },
       'Using isolated Midnight private state store',
     );
-    const walletCtx = await api.buildWalletAndWaitForFunds(config, seed);
-    const providers = await api.configureProviders(walletCtx, providerConfig);
-    const secretStore = new FileSecretStore();
-    await secretStore.initialize({
-      location: this.profileSecretStorePath(),
-      passphrase: input.passphrase ?? this.cfg.defaultSecretPassphrase,
-    });
 
-    let didContract: api.DeployedMidnightDIDContract | null = null;
-    if (input.seedMode === 'reuse' && profileState?.contractAddress) {
-      try {
-        didContract = await api.joinContract(providers, profileState.contractAddress);
-      } catch (error) {
-        this.logger.warn({ err: error }, 'Failed to auto-join stored contract');
+    const persistedWalletState = await this.restorePersistedWalletState(seedHash);
+    this.setConnectionState(
+      persistedWalletState === null ? 'starting' : 'restoring',
+      { lastError: null, reusedPersistedState: persistedWalletState !== null, seedHash },
+    );
+
+    let walletCtx: api.MidnightDIDWalletContext | null = null;
+    try {
+      walletCtx = persistedWalletState === null
+        ? await api.buildWallet(config, seed)
+        : await api.restoreWalletFromState(config, seed, persistedWalletState);
+
+      if (generation !== this.runtime.getUnlockGeneration()) {
+        await walletCtx.wallet.stop().catch(() => undefined);
+        return;
       }
+
+      this.runtime.attachWalletContext(walletCtx);
+      this.startWalletStateTracking(generation);
+      this.setConnectionState(
+        persistedWalletState === null ? 'syncing' : 'restoring',
+        { lastError: null, reusedPersistedState: persistedWalletState !== null, seedHash },
+      );
+
+      await api.waitForWalletSync(walletCtx);
+      if (generation !== this.runtime.getUnlockGeneration()) return;
+
+      if (this.shouldPersistWalletState()) {
+        await this.ensureWalletStateBackupRoot(seedHash);
+        await this.persistWalletSnapshot(seedHash);
+      }
+
+      this.setConnectionState('waitingForFunds', {
+        lastError: null,
+        reusedPersistedState: persistedWalletState !== null,
+        seedHash,
+      });
+      await api.waitForWalletFunds(walletCtx);
+      if (generation !== this.runtime.getUnlockGeneration()) return;
+
+      if (this.shouldPersistWalletState()) {
+        await this.persistWalletSnapshot(seedHash);
+      }
+
+      this.setConnectionState('configuringProviders', {
+        lastError: null,
+        reusedPersistedState: persistedWalletState !== null,
+        seedHash,
+      });
+      this.logger.info(
+        { profile: this.setupProfile(), profileName: this.selectedProfileName(), seedHash },
+        'Wallet ready, configuring providers',
+      );
+      const providers = await api.configureProviders(walletCtx, providerConfig);
+      const secretStore = await this.createSecretStore(input.passphrase);
+
+      if (generation !== this.runtime.getUnlockGeneration()) return;
+
+      this.runtime.attachReadySession({
+        walletCtx,
+        providers,
+        secretStore,
+        seedHash,
+        reusedPersistedState: persistedWalletState !== null,
+      });
+      this.logger.info(
+        {
+          storedContractAddress: profileState?.contractAddress ?? null,
+          reusedPersistedState: persistedWalletState !== null,
+          walletStateKey: this.walletStateKey(seedHash),
+        },
+        'Manager session is ready',
+      );
+
+      await this.saveCurrentProfileState({
+        seed,
+        unshieldedAddress: profileState?.unshieldedAddress ?? deriveUnshieldedAddress(seed),
+        contractAddress: profileState?.contractAddress,
+      });
+    } catch (error) {
+      this.logger.error({ err: error }, 'Unlock session failed');
+      if (walletCtx !== null) {
+        await walletCtx.wallet.stop().catch(() => undefined);
+      }
+      this.runtime.markUnlockFailed(error);
+      throw error;
     }
+  }
 
-    this.unlocked = true;
-    this.walletCtx = walletCtx;
-    this.providers = providers;
-    this.secretStore = secretStore;
-    this.didContract = didContract;
-
-    await this.saveCurrentProfileState({
-      seed,
-      unshieldedAddress: profileState?.unshieldedAddress ?? api.deriveUnshieldedAddressFromSeed(seed),
-      contractAddress: didContract?.deployTxData.public.contractAddress ?? profileState?.contractAddress,
-    });
+  async unlock(input: UnlockRequest): Promise<{ status: SessionStatus; generatedSeed?: string }> {
+    await this.ensureSessionLoaded();
+    const { seed, generatedSeed } = resolveSeedInput(this.setupProfile(), this.currentProfileState(), input);
     if (typeof input.rememberUnlockedSession === 'boolean') {
-      this.session.rememberUnlockedSession = input.rememberUnlockedSession;
-      await writeSessionStore(this.profileSessionFilePath(), this.session);
+      await this.profileStore.updateRememberUnlockedSession(input.rememberUnlockedSession);
     }
+
+    const requestedSeedHash = seedHashPrefix(seed);
+    if (this.runtime.isReadyForSeed(requestedSeedHash)) {
+      this.touchSessionActivity();
+      return {
+        status: await this.getSessionStatus(),
+        generatedSeed,
+      };
+    }
+
+    if (this.runtime.getUnlockTask() !== null) {
+      return {
+        status: await this.getSessionStatus(),
+        generatedSeed,
+      };
+    }
+
+    await this.stopRuntimeSessionInternal();
+    const generation = this.runtime.nextUnlockGeneration();
+    this.setConnectionState('starting', {
+      lastError: null,
+      reusedPersistedState: false,
+      seedHash: requestedSeedHash,
+    });
+    this.runtime.setUnlockTask(this.runUnlockSession(generation, seed, input).finally(() => {
+      this.runtime.clearUnlockTaskIfCurrent(generation);
+    }));
 
     return {
       status: await this.getSessionStatus(),
@@ -457,58 +491,53 @@ export class DidManagerService {
   }
 
   async lock(): Promise<SessionStatus> {
-    if (this.walletCtx !== null) {
-      await this.walletCtx.wallet.stop();
-    }
-    this.unlocked = false;
-    this.walletCtx = null;
-    this.providers = null;
-    this.didContract = null;
-    this.secretStore = null;
+    this.runtime.nextUnlockGeneration();
+    this.runtime.setUnlockTask(null);
+    await this.stopRuntimeSessionInternal();
     return this.getSessionStatus();
   }
 
   async deployDid(): Promise<unknown> {
     const { providers } = this.requireUnlockedNoContract();
-    if (this.walletCtx === null) {
+    const walletCtx = this.runtime.getWalletContext();
+    if (walletCtx === null) {
       throw new Error('Session is locked. Unlock session first.');
     }
-    this.logger.info('Ensuring dust is available before DID deployment');
-    await api.registerForDustGeneration(
-      this.walletCtx.wallet,
-      this.walletCtx.unshieldedKeystore,
-    );
-    this.logger.info('Deploying Midnight DID contract');
-    const privateState = await api.initPrivateState(providers);
-    this.didContract = await api.createDID(providers, privateState);
-    this.logger.info(
-      { contractAddress: this.currentContractAddress() },
-      'Midnight DID contract deployed',
-    );
-    await this.persistRuntimeSession();
-    return { contractAddress: this.currentContractAddress() };
+    const result = await deployDidContract({
+      logger: this.logger,
+      walletCtx,
+      providers,
+      onDidContract: (contract) => {
+        this.runtime.setDidContract(contract);
+        this.runtime.setDidLastError(null);
+      },
+      onPersist: async () => await this.persistRuntimeSession(),
+    });
+    this.runtime.setDidLastError(null);
+    return result;
   }
 
   async joinDid(input: { contractAddress: string }): Promise<unknown> {
     const { providers } = this.requireUnlockedNoContract();
-    this.didContract = await api.joinContract(providers, input.contractAddress);
+    try {
+      this.runtime.setDidContract(await this.joinExistingContract(providers, input.contractAddress));
+      this.runtime.setDidLastError(null);
+    } catch (error) {
+      this.runtime.setDidLastError(error instanceof Error ? error.message : 'DID contract join failed');
+      throw error;
+    }
     await this.persistRuntimeSession();
     return { contractAddress: this.currentContractAddress() };
   }
 
   async getDidState(): Promise<DidStateResponse | null> {
     const { providers, didContract } = this.requireUnlocked();
-    const contractAddress = parseContractAddress(didContract.deployTxData.public.contractAddress);
-    const didState = await api.getMidnightDIDLedgerState(providers, contractAddress);
-    return {
-      contractAddress: didContract.deployTxData.public.contractAddress,
-      didState: didState === null ? null : LedgerToDomain.toJSON(didState),
-    };
+    return await getDidStateFromLedger(providers, didContract);
   }
 
   async getDidDocument(): Promise<DidDocumentResponse> {
     const { providers, didContract } = this.requireUnlocked();
-    return api.resolve(providers, didContract);
+    return await getDidDocumentFromLedger(providers, didContract);
   }
 
   async listKeys(): Promise<unknown> {
@@ -533,74 +562,87 @@ export class DidManagerService {
 
   async addVerificationMethod(input: { methodId: string; keyRef: string }): Promise<unknown> {
     const { didContract, secretStore } = this.requireUnlocked();
-    const publicJwk = await secretStore.getPublicKey(input.keyRef);
-    normalizePublicForLedger(publicJwk);
-    const method = this.buildVerificationMethod(input.methodId, publicJwk);
-    await api.addVerificationMethod(didContract, method);
-    await this.persistRuntimeSession();
-    return { updated: true };
+    const { method } = await buildNormalizedVerificationMethod(
+      didContract,
+      secretStore,
+      input.keyRef,
+      input.methodId,
+      (methodId, publicJwk) => this.buildVerificationMethod(methodId, publicJwk),
+    );
+    return await addDidVerificationMethod(didContract, method, async () => await this.persistRuntimeSession());
   }
 
   async updateVerificationMethod(input: { methodId: string; keyRef: string }): Promise<unknown> {
     const { didContract, secretStore } = this.requireUnlocked();
-    const publicJwk = await secretStore.getPublicKey(input.keyRef);
-    normalizePublicForLedger(publicJwk);
-    const method = this.buildVerificationMethod(input.methodId, publicJwk);
-    await api.updateVerificationMethod(didContract, method);
-    return { updated: true };
+    const { method } = await buildNormalizedVerificationMethod(
+      didContract,
+      secretStore,
+      input.keyRef,
+      input.methodId,
+      (methodId, publicJwk) => this.buildVerificationMethod(methodId, publicJwk),
+    );
+    return await updateDidVerificationMethod(didContract, method, async () => await this.persistRuntimeSession());
   }
 
   async removeVerificationMethod(input: { methodId: string }): Promise<unknown> {
     const { didContract, providers } = this.requireUnlocked();
-    await api.removeVerificationMethod(didContract, providers, input.methodId);
-    return { removed: true };
+    return await removeDidVerificationMethod(
+      didContract,
+      providers,
+      input.methodId,
+      async () => await this.persistRuntimeSession(),
+    );
   }
 
   async addRelation(input: { methodId: string; relation: VerificationMethodRelationType }): Promise<unknown> {
     const { didContract, providers } = this.requireUnlocked();
-    await api.addVerificationMethodRelation(didContract, providers, input.relation, input.methodId);
-    return { updated: true };
+    return await addDidRelation(
+      didContract,
+      providers,
+      input.relation,
+      input.methodId,
+      async () => await this.persistRuntimeSession(),
+    );
   }
 
   async removeRelation(input: { methodId: string; relation: VerificationMethodRelationType }): Promise<unknown> {
     const { didContract, providers } = this.requireUnlocked();
-    await api.removeVerificationMethodRelation(didContract, providers, input.relation, input.methodId);
-    return { removed: true };
+    return await removeDidRelation(
+      didContract,
+      providers,
+      input.relation,
+      input.methodId,
+      async () => await this.persistRuntimeSession(),
+    );
   }
 
   async addService(input: { id: string; type: string; serviceEndpoint: ServiceEndpoint }): Promise<unknown> {
     const { didContract } = this.requireUnlocked();
-    await api.addService(didContract, createService({ id: input.id, type: input.type, serviceEndpoint: input.serviceEndpoint }));
-    return { updated: true };
+    return await addDidService(didContract, input, async () => await this.persistRuntimeSession());
   }
 
   async updateService(input: { id: string; type: string; serviceEndpoint: ServiceEndpoint }): Promise<unknown> {
     const { didContract } = this.requireUnlocked();
-    await api.updateService(didContract, createService({ id: input.id, type: input.type, serviceEndpoint: input.serviceEndpoint }));
-    return { updated: true };
+    return await updateDidService(didContract, input, async () => await this.persistRuntimeSession());
   }
 
   async removeService(input: { id: string }): Promise<unknown> {
     const { didContract } = this.requireUnlocked();
-    await api.removeService(didContract, input.id);
-    return { removed: true };
+    return await removeDidService(didContract, input.id, async () => await this.persistRuntimeSession());
   }
 
   async addAlsoKnownAs(input: { value: string }): Promise<unknown> {
     const { didContract } = this.requireUnlocked();
-    await api.addAlsoKnownAs(didContract, input.value);
-    return { updated: true };
+    return await addDidAlsoKnownAs(didContract, input.value, async () => await this.persistRuntimeSession());
   }
 
   async removeAlsoKnownAs(input: { value: string }): Promise<unknown> {
     const { didContract } = this.requireUnlocked();
-    await api.removeAlsoKnownAs(didContract, input.value);
-    return { removed: true };
+    return await removeDidAlsoKnownAs(didContract, input.value, async () => await this.persistRuntimeSession());
   }
 
   async deactivateDid(): Promise<unknown> {
     const { didContract } = this.requireUnlocked();
-    await api.deactivate(didContract);
-    return { deactivated: true };
+    return await deactivateDidContract(didContract, async () => await this.persistRuntimeSession());
   }
 }

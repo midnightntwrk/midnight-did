@@ -11,8 +11,14 @@ import type {
 } from "@midnight-ntwrk/midnight-js-contracts";
 import type { NetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import type { MidnightProviders } from "@midnight-ntwrk/midnight-js-types";
+import type { DustWallet } from "@midnight-ntwrk/wallet-sdk-dust-wallet";
 import type { WalletFacade } from "@midnight-ntwrk/wallet-sdk-facade";
-import type { UnshieldedKeystore } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
+import type { ShieldedWallet } from "@midnight-ntwrk/wallet-sdk-shielded";
+import type {
+  InMemoryTransactionHistoryStorage,
+  UnshieldedKeystore,
+  UnshieldedWallet,
+} from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
 export type MidnightDIDPrivateState = DIDPrivateState;
 
 export type MidnightDIDCircuits = ImpureCircuitId<
@@ -35,9 +41,20 @@ export type DeployedMidnightDIDContract =
 
 export interface MidnightDIDWalletContext {
   wallet: WalletFacade;
+  shieldedWallet: ShieldedWallet;
+  unshieldedWallet: UnshieldedWallet;
+  dustWallet: DustWallet;
+  unshieldedHistoryStorage: InMemoryTransactionHistoryStorage;
   shieldedSecretKeys: ledger.ZswapSecretKeys;
   dustSecretKey: ledger.DustSecretKey;
   unshieldedKeystore: UnshieldedKeystore;
+}
+
+export interface MidnightWalletStateSnapshot {
+  shieldedState: string;
+  unshieldedState: string;
+  dustState: string;
+  unshieldedHistory?: string;
 }
 
 export const NetworkMapping = Object.freeze({

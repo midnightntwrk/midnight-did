@@ -58,10 +58,12 @@ graph TD
 - [ADR: Shared Seed and Local Profiles](/architecture/adr-shared-seed-and-profiles)
 - [ADR: SDK and Contract Boundary](/architecture/adr-sdk-contract-boundary)
 - [ADR: Resolver vs Manager Service Split](/architecture/adr-service-split)
+- [DID Manager Architecture](/architecture/did-manager-service)
 
 ## Reading path
 
 1. read this overview
-2. read the ADR pages for tradeoff context
-3. use the package and service pages for implementation details
-4. use the generated API reference for exact exports and signatures
+2. read the DID Manager architecture page for runtime/state-flow detail
+3. read the ADR pages for tradeoff context
+4. use the package and service pages for implementation details
+5. use the generated API reference for exact exports and signatures

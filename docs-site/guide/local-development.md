@@ -19,15 +19,15 @@ Targeted runners:
 ```bash
 ./run-api.sh
 ./run-cli.sh
-./run-resolver.sh
-./run-manager.sh
+./start-resolver.sh
+./start-manager.sh
 ```
 
 Preprod helpers:
 
 ```bash
-./run-resolver-preprod.sh
-./run-manager-preprod.sh
+./start-resolver.sh --preprod
+./start-manager.sh --preprod
 ```
 
 ## Developer workflow
@@ -42,8 +42,8 @@ Then run the specific component you are changing:
 
 - `./run-api.sh`
 - `./run-cli.sh`
-- `./run-resolver.sh`
-- `./run-manager.sh`
+- `./start-resolver.sh`
+- `./start-manager.sh`
 
 Use the preprod helpers only when you are intentionally exercising preprod-specific flows such as funding and long-lived profiles.
 

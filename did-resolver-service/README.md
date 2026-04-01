@@ -87,8 +87,8 @@ stateDiagram-v2
 
 ## Runtime Profiles
 
-- standalone via `./run-resolver.sh`
-- preprod via `./run-resolver-preprod.sh`
+- standalone via `./start-resolver.sh`
+- preprod via `./start-resolver.sh --preprod`
 
 ## Production Defaults
 

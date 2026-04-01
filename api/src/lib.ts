@@ -50,7 +50,10 @@ import {
   toHex,
 } from "@midnight-ntwrk/midnight-js-utils";
 import { DustWallet } from "@midnight-ntwrk/wallet-sdk-dust-wallet";
-import { WalletFacade } from "@midnight-ntwrk/wallet-sdk-facade";
+import {
+  type FacadeState,
+  WalletFacade,
+} from "@midnight-ntwrk/wallet-sdk-facade";
 import { HDWallet, Roles } from "@midnight-ntwrk/wallet-sdk-hd";
 import { ShieldedWallet } from "@midnight-ntwrk/wallet-sdk-shielded";
 import {
@@ -80,6 +83,7 @@ import {
   MidnightDIDPrivateStateId,
   type MidnightDIDProviders,
   type MidnightDIDWalletContext,
+  type MidnightWalletStateSnapshot,
 } from "./types.js";
 
 let logger: Logger;
@@ -123,10 +127,13 @@ const buildShieldedConfig = ({
   relayURL: new URL(node.replace(/^http/, "ws")),
 });
 
-const buildUnshieldedConfig = ({ indexer, indexerWS }: Config) => ({
+const buildUnshieldedConfig = (
+  { indexer, indexerWS }: Config,
+  txHistoryStorage: InMemoryTransactionHistoryStorage,
+) => ({
   networkId: getNetworkId(),
   indexerClientConnection: { indexerHttpUrl: indexer, indexerWsUrl: indexerWS },
-  txHistoryStorage: new InMemoryTransactionHistoryStorage(),
+  txHistoryStorage,
 });
 
 const buildDustConfig = ({
@@ -744,13 +751,17 @@ export const createWalletAndMidnightProvider = async (
   };
 };
 
-export const buildWalletAndWaitForFunds = async (
+const createWalletContext = async (
   config: Config,
   seed: string,
+  snapshot?: MidnightWalletStateSnapshot,
 ): Promise<MidnightDIDWalletContext> => {
-  logger.info("Building wallet from seed");
+  logger.info(
+    snapshot
+      ? "Restoring wallet from serialized state"
+      : "Building wallet from seed",
+  );
 
-  // Derive HD keys
   const keys = deriveKeysFromSeed(seed);
   const shieldedSecretKeys = ledger.ZswapSecretKeys.fromSeed(keys[Roles.Zswap]);
   const dustSecretKey = ledger.DustSecretKey.fromSeed(keys[Roles.Dust]);
@@ -759,44 +770,106 @@ export const buildWalletAndWaitForFunds = async (
     getNetworkId(),
   );
 
-  // Create three sub-wallets
-  const shieldedWallet = ShieldedWallet(
-    buildShieldedConfig(config),
-  ).startWithSecretKeys(shieldedSecretKeys as any);
-  const unshieldedWallet = UnshieldedWallet(
-    buildUnshieldedConfig(config),
-  ).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore));
-  const dustWallet = DustWallet(buildDustConfig(config)).startWithSecretKey(
-    dustSecretKey as any,
-    ledger.LedgerParameters.initialParameters().dust,
-  );
+  const unshieldedHistoryStorage =
+    snapshot?.unshieldedHistory !== undefined
+      ? InMemoryTransactionHistoryStorage.fromSerialized(
+          snapshot.unshieldedHistory,
+        )
+      : new InMemoryTransactionHistoryStorage();
 
-  // Compose into facade
+  const shieldedWallet =
+    snapshot?.shieldedState !== undefined
+      ? ShieldedWallet(buildShieldedConfig(config)).restore(
+          snapshot.shieldedState,
+        )
+      : ShieldedWallet(buildShieldedConfig(config)).startWithSecretKeys(
+          shieldedSecretKeys as any,
+        );
+  const unshieldedWallet =
+    snapshot?.unshieldedState !== undefined
+      ? UnshieldedWallet(
+          buildUnshieldedConfig(config, unshieldedHistoryStorage),
+        ).restore(snapshot.unshieldedState)
+      : UnshieldedWallet(
+          buildUnshieldedConfig(config, unshieldedHistoryStorage),
+        ).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore));
+  const dustWallet =
+    snapshot?.dustState !== undefined
+      ? DustWallet(buildDustConfig(config)).restore(snapshot.dustState)
+      : DustWallet(buildDustConfig(config)).startWithSecretKey(
+          dustSecretKey as any,
+          ledger.LedgerParameters.initialParameters().dust,
+        );
+
   const wallet = new WalletFacade(shieldedWallet, unshieldedWallet, dustWallet);
   await wallet.start(shieldedSecretKeys as any, dustSecretKey as any);
 
-  // Wait for sync
-  logger.info("Waiting for wallet sync...");
-  await Rx.firstValueFrom(
-    wallet.state().pipe(
-      Rx.throttleTime(5_000),
-      Rx.filter((state) => state.isSynced),
-    ),
-  );
+  return {
+    wallet,
+    shieldedWallet,
+    unshieldedWallet,
+    dustWallet,
+    unshieldedHistoryStorage,
+    shieldedSecretKeys,
+    dustSecretKey,
+    unshieldedKeystore,
+  };
+};
 
-  // Wait for funds
+export const serializeWalletState = async (
+  ctx: MidnightDIDWalletContext,
+): Promise<MidnightWalletStateSnapshot> => ({
+  shieldedState: await ctx.shieldedWallet.serializeState(),
+  unshieldedState: await ctx.unshieldedWallet.serializeState(),
+  dustState: await ctx.dustWallet.serializeState(),
+  unshieldedHistory: ctx.unshieldedHistoryStorage.serialize(),
+});
+
+export const waitForWalletSync = async (
+  ctx: MidnightDIDWalletContext,
+): Promise<FacadeState> => {
+  logger.info("Waiting for wallet sync...");
+  return await ctx.wallet.waitForSyncedState();
+};
+
+export const waitForWalletFunds = async (
+  ctx: MidnightDIDWalletContext,
+): Promise<bigint> => {
   logger.info("Waiting for funds...");
   const balance = await Rx.firstValueFrom(
-    wallet.state().pipe(
+    ctx.wallet.state().pipe(
       Rx.throttleTime(10_000),
       Rx.filter((state) => state.isSynced),
       Rx.map((s) => s.unshielded.balances[unshieldedToken().raw] ?? 0n),
-      Rx.filter((balance) => balance > 0n),
+      Rx.filter((currentBalance) => currentBalance > 0n),
     ),
   );
   logger.info(`Wallet balance: ${balance}`);
+  return balance;
+};
 
-  return { wallet, shieldedSecretKeys, dustSecretKey, unshieldedKeystore };
+export const buildWallet = async (
+  config: Config,
+  seed: string,
+  snapshot?: MidnightWalletStateSnapshot,
+): Promise<MidnightDIDWalletContext> =>
+  await createWalletContext(config, seed, snapshot);
+
+export const restoreWalletFromState = async (
+  config: Config,
+  seed: string,
+  snapshot: MidnightWalletStateSnapshot,
+): Promise<MidnightDIDWalletContext> =>
+  await createWalletContext(config, seed, snapshot);
+
+export const buildWalletAndWaitForFunds = async (
+  config: Config,
+  seed: string,
+): Promise<MidnightDIDWalletContext> => {
+  const walletContext = await buildWallet(config, seed);
+  await waitForWalletSync(walletContext);
+  await waitForWalletFunds(walletContext);
+  return walletContext;
 };
 
 export const registerForDustGeneration = async (

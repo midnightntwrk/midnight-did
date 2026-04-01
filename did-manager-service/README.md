@@ -18,6 +18,10 @@ Single-user web backend + minimal UI for managing Midnight DID lifecycle operati
   - seed handling
   - funding preparation
   - unlock/session state
+- `/secret-storage`
+  - local key generation
+  - key import and deletion
+  - key inventory
 - `/did`
   - deploy/join DID contract
   - update DID state
@@ -56,15 +60,14 @@ Open:
 - UI: `http://127.0.0.1:3010/`
 - API docs: `http://127.0.0.1:3010/docs`
 
-Standalone helper:
-- `./run-manager.sh`
-
-Preprod helper:
-- `./run-manager-preprod.sh`
+Helpers:
+- `./start-manager.sh`
+- `./start-manager.sh --standalone`
+- `./start-manager.sh --preprod`
 
 ## Preprod flow
 
-1. Start `./run-manager-preprod.sh`.
+1. Start `./start-manager.sh --preprod`.
 2. Open `/wallet`.
 3. Choose a seed mode:
    - `reuse` to use a previously stored seed
@@ -97,5 +100,14 @@ For preprod faucet funding:
 - `src/index.ts`
 - `src/app.ts`
 - `src/manager.ts`
-- `src/ui.ts`
-- `src/session-store.ts`
+- `src/manager/`
+- `src/http/`
+- `src/ui/`
+- `src/wallet-state-store.ts`
+
+## Related docs
+
+- docs site service page:
+  - `/services/did-manager-service`
+- docs site architecture page:
+  - `/architecture/did-manager-service`

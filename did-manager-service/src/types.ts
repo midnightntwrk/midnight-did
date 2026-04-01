@@ -37,12 +37,77 @@ export type SessionStatus = {
   seedAvailable: boolean;
   unshieldedAddress: string | null;
   faucetUrl: string | null;
+  connection: {
+    phase:
+      | 'locked'
+      | 'starting'
+      | 'restoring'
+      | 'syncing'
+      | 'waitingForFunds'
+      | 'configuringProviders'
+      | 'joiningContract'
+      | 'ready'
+      | 'error';
+    reusedPersistedState: boolean;
+    walletStateKey: string | null;
+    lastError: string | null;
+  };
+  did: {
+    phase: 'none' | 'stored' | 'joined';
+    lastError: string | null;
+  };
+};
+
+export type ManagerOperationType =
+  | 'prepareFunding'
+  | 'unlock'
+  | 'lock'
+  | 'updatePreferences'
+  | 'deployDid'
+  | 'joinDid'
+  | 'deactivateDid'
+  | 'generateKey'
+  | 'importKey'
+  | 'deleteKey'
+  | 'addVerificationMethod'
+  | 'updateVerificationMethod'
+  | 'removeVerificationMethod'
+  | 'addRelation'
+  | 'removeRelation'
+  | 'addService'
+  | 'updateService'
+  | 'removeService'
+  | 'addAlsoKnownAs'
+  | 'removeAlsoKnownAs';
+
+export type ManagerOperationStatus = {
+  id: string;
+  type: ManagerOperationType;
+  status: 'running' | 'succeeded' | 'failed';
+  submittedAt: string;
+  completedAt: string | null;
+  result: unknown | null;
+  error: {
+    message: string;
+    errorCode: string;
+    statusCode: number;
+  } | null;
 };
 
 export type ProfileSelection = {
   profile: NetworkProfile;
   activeProfileName: string;
   availableProfileNames: string[];
+};
+
+export type StoredContractStatus = {
+  address: string;
+  selected: boolean;
+  available: boolean | null;
+  deactivated: boolean | null;
+  version: number | null;
+  operationCount: number | null;
+  message: string | null;
 };
 
 export type SetupStatus = {

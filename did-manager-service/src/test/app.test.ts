@@ -19,6 +19,26 @@ describe('did-manager-service app', () => {
         activeProfileName: 'default',
         availableProfileNames: ['default'],
       }),
+      listStoredContracts: vi.fn().mockResolvedValue([
+        {
+          address: 'a'.repeat(64),
+          selected: false,
+          available: true,
+          deactivated: false,
+          version: 1,
+          operationCount: 1,
+          message: null,
+        },
+        {
+          address: 'b'.repeat(64),
+          selected: false,
+          available: false,
+          deactivated: null,
+          version: null,
+          operationCount: null,
+          message: 'Missing',
+        },
+      ]),
       selectProfile: vi.fn(),
       getSessionStatus: vi.fn().mockResolvedValue({
         unlocked: false,
@@ -30,6 +50,16 @@ describe('did-manager-service app', () => {
         seedAvailable: false,
         unshieldedAddress: null,
         faucetUrl: null,
+        connection: {
+          phase: 'locked',
+          reusedPersistedState: false,
+          walletStateKey: null,
+          lastError: null,
+        },
+        did: {
+          phase: 'none',
+          lastError: null,
+        },
       }),
       prepareFunding: vi.fn().mockResolvedValue({ unshieldedAddress: 'mn_test1...', faucetUrl: null }),
       unlock: vi.fn(),
@@ -64,6 +94,8 @@ describe('did-manager-service app', () => {
 
     const wallet = await app.inject({ method: 'GET', url: '/wallet' });
     expect(wallet.statusCode).toBe(200);
+    const secretStorage = await app.inject({ method: 'GET', url: '/secret-storage' });
+    expect(secretStorage.statusCode).toBe(200);
 
     const health = await app.inject({ method: 'GET', url: '/health' });
     expect(health.statusCode).toBe(200);
@@ -97,7 +129,50 @@ describe('did-manager-service app', () => {
         seedAvailable: false,
         unshieldedAddress: null,
         faucetUrl: null,
+        connection: {
+          phase: 'locked',
+          reusedPersistedState: false,
+          walletStateKey: null,
+          lastError: null,
+        },
+        did: {
+          phase: 'none',
+          lastError: null,
+        },
       },
+    });
+
+    const contracts = await app.inject({ method: 'GET', url: '/api/contracts' });
+    expect(contracts.statusCode).toBe(200);
+    expect(contracts.json()).toEqual({
+      ok: true,
+      data: [
+        {
+          address: 'a'.repeat(64),
+          selected: false,
+          available: true,
+          deactivated: false,
+          version: 1,
+          operationCount: 1,
+          message: null,
+        },
+        {
+          address: 'b'.repeat(64),
+          selected: false,
+          available: false,
+          deactivated: null,
+          version: null,
+          operationCount: null,
+          message: 'Missing',
+        },
+      ],
+    });
+
+    const operations = await app.inject({ method: 'GET', url: '/api/operations' });
+    expect(operations.statusCode).toBe(200);
+    expect(operations.json()).toEqual({
+      ok: true,
+      data: [],
     });
 
     await app.close();
@@ -119,6 +194,7 @@ describe('did-manager-service app', () => {
         activeProfileName: 'default',
         availableProfileNames: ['default'],
       }),
+      listStoredContracts: vi.fn().mockResolvedValue([]),
       getSessionStatus: vi.fn(),
       prepareFunding: vi.fn().mockRejectedValue(new Error('Seed must contain only hexadecimal characters')),
     } as any;
@@ -130,11 +206,32 @@ describe('did-manager-service app', () => {
       payload: { seedMode: 'provided', seed: 'zz' },
     });
 
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toEqual({
-      ok: false,
-      error: 'Seed must contain only hexadecimal characters',
-      errorCode: 'invalidSeed',
+    expect(response.statusCode).toBe(202);
+    const operation = response.json();
+    expect(operation.ok).toBe(true);
+    expect(operation.data.type).toBe('prepareFunding');
+    expect(['running', 'failed']).toContain(operation.data.status);
+
+    const status = await app.inject({
+      method: 'GET',
+      url: `/api/operations/${operation.data.id}`,
+    });
+    expect(status.statusCode).toBe(200);
+    expect(status.json()).toEqual({
+      ok: true,
+      data: {
+        id: operation.data.id,
+        type: 'prepareFunding',
+        status: 'failed',
+        submittedAt: expect.any(String),
+        completedAt: expect.any(String),
+        result: null,
+        error: {
+          message: 'Seed must contain only hexadecimal characters',
+          errorCode: 'invalidSeed',
+          statusCode: 400,
+        },
+      },
     });
 
     await app.close();

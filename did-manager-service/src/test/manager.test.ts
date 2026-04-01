@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -14,6 +14,13 @@ vi.mock('@midnight-ntwrk/midnight-did-api', async () => {
   return {
     ...actual,
     setLogger: vi.fn(),
+    buildWallet: vi.fn(),
+    restoreWalletFromState: vi.fn(),
+    waitForWalletSync: vi.fn(),
+    waitForWalletFunds: vi.fn(),
+    configureProviders: vi.fn(),
+    getMidnightDIDLedgerState: vi.fn(),
+    joinContract: vi.fn(),
     registerForDustGeneration: vi.fn(),
     initPrivateState: vi.fn(),
     createDID: vi.fn(),
@@ -26,6 +33,7 @@ const createConfig = (dataDir: string): ManagerConfig => ({
   setupProfile: 'preprod',
   sessionFilePath: path.join(dataDir, 'manager-session.json'),
   secretStorePath: path.join(dataDir, 'manager-secrets.json'),
+  sessionIdleMs: 60_000,
   defaultSecretPassphrase: 'midnight-dev-passphrase',
   rememberUnlockedSessionDefault: true,
   standalone: {
@@ -70,29 +78,38 @@ describe('DidManagerService', () => {
       },
     };
 
-    (manager as any).unlocked = true;
-    (manager as any).walletCtx = {
+    const walletCtx = {
       wallet,
       unshieldedKeystore,
       shieldedSecretKeys: {} as never,
       dustSecretKey: {} as never,
-    };
-    (manager as any).providers = providers;
-    (manager as any).secretStore = secretStore;
-    (manager as any).sessionLoaded = true;
-    (manager as any).session = {
-      version: 1,
-      rememberUnlockedSession: true,
-      lastProfile: 'preprod',
-      profiles: {
-        preprod: {
-          seed: 'a'.repeat(64),
-          unshieldedAddress: 'mn_addr_preprod1test',
-          contractAddresses: [],
-          updatedAt: new Date().toISOString(),
+    } as any;
+    (manager as any).runtime.attachReadySession({
+      walletCtx,
+      providers,
+      secretStore,
+      seedHash: 'aaaaaa',
+      reusedPersistedState: false,
+    });
+
+    await mkdir(path.join(dataDir, 'profiles', 'preprod', 'default'), { recursive: true });
+    await writeFile(
+      path.join(dataDir, 'profiles', 'preprod', 'default', 'manager-session.json'),
+      JSON.stringify({
+        version: 1,
+        rememberUnlockedSession: true,
+        lastProfile: 'preprod',
+        profiles: {
+          preprod: {
+            seed: 'a'.repeat(64),
+            unshieldedAddress: 'mn_addr_preprod1test',
+            contractAddresses: [],
+            updatedAt: new Date().toISOString(),
+          },
         },
-      },
-    };
+      }, null, 2),
+      'utf8',
+    );
 
     vi.mocked(api.registerForDustGeneration).mockResolvedValue(undefined);
     vi.mocked(api.initPrivateState).mockResolvedValue(privateState as never);
@@ -146,5 +163,71 @@ describe('DidManagerService', () => {
       ),
     );
     expect(defaultProfileSession.profiles.preprod.seed).toBe('a'.repeat(64));
+  });
+
+  it('keeps the wallet unlocked and leaves stored DID selection for an explicit join', async () => {
+    const manager = new DidManagerService(createConfig(dataDir), pino({ enabled: false }));
+    const walletCtx = {
+      wallet: {
+        stop: vi.fn().mockResolvedValue(undefined),
+        state: () => ({
+          subscribe: () => ({
+            unsubscribe() {
+              return undefined;
+            },
+          }),
+        }),
+      },
+      unshieldedKeystore: { key: 'keystore' },
+      shieldedSecretKeys: {} as never,
+      dustSecretKey: {} as never,
+      shieldedWallet: { serializeState: vi.fn().mockResolvedValue('shielded') },
+      unshieldedWallet: { serializeState: vi.fn().mockResolvedValue('unshielded') },
+      dustWallet: { serializeState: vi.fn().mockResolvedValue('dust') },
+      unshieldedHistoryStorage: { serialize: vi.fn().mockReturnValue('history') },
+    } as unknown as api.MidnightDIDWalletContext;
+
+    const profileDir = path.join(dataDir, 'profiles', 'preprod', 'default');
+    await mkdir(profileDir, { recursive: true });
+    await writeFile(
+      path.join(profileDir, 'manager-session.json'),
+      JSON.stringify({
+        version: 1,
+        rememberUnlockedSession: true,
+        lastProfile: 'preprod',
+        profiles: {
+          preprod: {
+            seed: 'a'.repeat(64),
+            unshieldedAddress: 'mn_addr_preprod1test',
+            contractAddress: 'f'.repeat(64),
+            contractAddresses: ['f'.repeat(64)],
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      }, null, 2),
+      'utf8',
+    );
+
+    vi.mocked(api.buildWallet).mockResolvedValue(walletCtx);
+    vi.mocked(api.waitForWalletSync).mockResolvedValue({ isSynced: true } as never);
+    vi.mocked(api.waitForWalletFunds).mockResolvedValue(1n);
+    vi.mocked(api.configureProviders).mockResolvedValue({ id: 'providers' } as never);
+    const accepted = await manager.unlock({ seedMode: 'reuse' });
+    expect(accepted.status.connection.phase).toBe('starting');
+
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const status = await manager.getSessionStatus();
+      if (status.connection.phase === 'ready') {
+        expect(status.unlocked).toBe(true);
+        expect(status.did.phase).toBe('stored');
+        expect(status.did.lastError).toBeNull();
+        expect(api.getMidnightDIDLedgerState).not.toHaveBeenCalled();
+        expect(api.joinContract).not.toHaveBeenCalled();
+        return;
+      }
+      await new Promise((resolve) => globalThis.setTimeout(resolve, 10));
+    }
+
+    throw new Error('manager did not reach ready state');
   });
 });

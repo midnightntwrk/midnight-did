@@ -50,7 +50,7 @@ sequenceDiagram
 
 ```bash
 npm run dev -w did-resolver-service
-./run-resolver-preprod.sh
+./start-resolver.sh --preprod
 ```
 
 ## Main repository paths

@@ -9,14 +9,6 @@ let env: ManagerE2EEnv;
 const matchesReference = (value: string | undefined, suffix: string): boolean =>
   typeof value === 'string' && (value === suffix || value.endsWith(suffix));
 
-const readJson = async (page: Page, selector: string): Promise<unknown> => {
-  const text = await page.locator(selector).textContent();
-  if (text === null || text.trim() === '') {
-    throw new Error(`No JSON content in ${selector}`);
-  }
-  return JSON.parse(text);
-};
-
 const clickAndWaitForJsonResponse = async <T>(
   page: Page,
   triggerSelector: string,
@@ -32,8 +24,63 @@ const clickAndWaitForJsonResponse = async <T>(
   return await response.json() as T;
 };
 
-const refreshDid = async (page: Page): Promise<void> => {
-  await page.locator('#refreshDid').click();
+const waitForOperation = async <T>(
+  page: Page,
+  operationId: string,
+): Promise<T> => {
+  const deadline = Date.now() + 300_000;
+  let lastPayload: unknown;
+
+  while (Date.now() < deadline) {
+    const response = await page.request.get(`${env.baseUrl}/api/operations/${operationId}`);
+    expect(response.ok()).toBe(true);
+    lastPayload = await response.json();
+    const operation = (lastPayload as { data?: { status?: string; result?: T; error?: { message?: string } } }).data;
+    if (operation?.status === 'succeeded') {
+      return operation.result as T;
+    }
+    if (operation?.status === 'failed') {
+      throw new Error(`Operation ${operationId} failed: ${operation.error?.message ?? 'unknown error'}`);
+    }
+    await delay(1_500);
+  }
+
+  throw new Error(`Timed out waiting for operation ${operationId}.\nLast payload:\n${JSON.stringify(lastPayload, null, 2)}`);
+};
+
+const clickAndWaitForOperationResult = async <T>(
+  page: Page,
+  triggerSelector: string,
+  predicate: (url: URL, method: string) => boolean,
+): Promise<T> => {
+  const accepted = await clickAndWaitForJsonResponse<{ data: { id: string } }>(page, triggerSelector, predicate);
+  return await waitForOperation<T>(page, accepted.data.id);
+};
+
+const clickAndWaitForOperationResultWithRetry = async <T>(
+  page: Page,
+  triggerSelector: string,
+  predicate: (url: URL, method: string) => boolean,
+  options: {
+    retries: number;
+    retryOnMessage: RegExp;
+    delayMs?: number;
+  },
+): Promise<T> => {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= options.retries; attempt += 1) {
+    try {
+      return await clickAndWaitForOperationResult<T>(page, triggerSelector, predicate);
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      if (attempt === options.retries || !options.retryOnMessage.test(message)) {
+        throw error;
+      }
+      await delay(options.delayMs ?? 5_000);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 };
 
 const waitForDidDocument = async (
@@ -44,8 +91,9 @@ const waitForDidDocument = async (
   let lastPayload: any;
 
   while (Date.now() < deadline) {
-    await refreshDid(page);
-    lastPayload = await readJson(page, '#didDocument');
+    const response = await page.request.get(`${env.baseUrl}/api/did/document`);
+    expect(response.ok()).toBe(true);
+    lastPayload = await response.json();
     if (predicate(lastPayload)) return lastPayload;
     await delay(2_000);
   }
@@ -69,6 +117,7 @@ test.describe.serial('did-manager-service UI', () => {
 
   test('unlocks, deploys, updates, resolves and deactivates a DID', async ({ page }) => {
     await page.goto(`${env.baseUrl}/wallet`);
+    await expect(page.getByRole('link', { name: 'Wallet Setup' })).toHaveAttribute('aria-current', 'page');
     await page.fill('#profileName', standaloneProfileName);
     const profileSelected = await clickAndWaitForJsonResponse<any>(page, '#selectProfile', (url, method) => {
       return method === 'POST' && url.pathname === '/api/profiles/select';
@@ -84,23 +133,30 @@ test.describe.serial('did-manager-service UI', () => {
     await page.fill('#seed', env.fundedSeed);
     await page.fill('#passphrase', 'midnight-dev-passphrase');
     await page.selectOption('#remember', 'true');
-    const unlocked = await clickAndWaitForJsonResponse<any>(page, '#unlock', (url, method) => {
+    const unlocked = await clickAndWaitForOperationResult<any>(page, '#unlock', (url, method) => {
       return method === 'POST' && url.pathname === '/api/session/unlock';
     });
     expect(unlocked).toMatchObject({
-      ok: true,
-      data: {
-        status: {
-          unlocked: true,
-          profile: 'standalone',
-        },
+      status: {
+        unlocked: true,
+        profile: 'standalone',
       },
     });
 
     await page.goto(`${env.baseUrl}/did`);
+    await expect(page.getByRole('link', { name: 'DID Management' })).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('#tabDidDocument')).toHaveClass(/active/);
+    await page.locator('#tabDidSummary').click();
+    await expect(page.locator('#tabDidSummary')).toHaveClass(/active/);
+    await page.locator('#tabDidDocument').click();
+    await expect(page.locator('#tabDidDocument')).toHaveClass(/active/);
 
-    await clickAndWaitForJsonResponse(page, '#deploy', (url, method) => {
+    await clickAndWaitForOperationResultWithRetry(page, '#deploy', (url, method) => {
       return method === 'POST' && url.pathname === '/api/did/deploy';
+    }, {
+      retries: 2,
+      retryOnMessage: /Not enough Dust generated to pay the fee/i,
+      delayMs: 8_000,
     });
 
     const deployed = await waitForDidDocument(page, (payload) => {
@@ -109,27 +165,30 @@ test.describe.serial('did-manager-service UI', () => {
     const did = deployed.data.didDocument.id as string;
     expect(did).toMatch(/^did:midnight:undeployed:[0-9a-f]{64}$/);
 
+    await page.goto(`${env.baseUrl}/secret-storage`);
+    await expect(page.getByRole('link', { name: 'Secret Storage' })).toHaveAttribute('aria-current', 'page');
+
     await page.fill('#keyId', 'auth-main');
     await page.selectOption('#keyCrv', 'Ed25519');
-    const keyGeneration = await clickAndWaitForJsonResponse<any>(page, '#keyGenerate', (url, method) => {
+    const keyGeneration = await clickAndWaitForOperationResult<any>(page, '#keyGenerate', (url, method) => {
       return method === 'POST' && url.pathname === '/api/keys/generate';
     });
     expect(keyGeneration).toMatchObject({
-      ok: true,
-      data: {
-        publicJwk: {
-          kty: 'OKP',
-          crv: 'Ed25519',
-        },
+      publicJwk: {
+        kty: 'OKP',
+        crv: 'Ed25519',
       },
     });
 
-    const keyRef = keyGeneration.data.keyRef as string;
+    const keyRef = keyGeneration.keyRef as string;
     expect(keyRef.length).toBeGreaterThan(10);
+
+    await page.goto(`${env.baseUrl}/did`);
+    await expect(page.getByRole('link', { name: 'DID Management' })).toHaveAttribute('aria-current', 'page');
 
     await page.fill('#vmMethodId', '#auth-main');
     await page.fill('#vmKeyRef', keyRef);
-    await clickAndWaitForJsonResponse(page, '#vmAdd', (url, method) => {
+    await clickAndWaitForOperationResult(page, '#vmAdd', (url, method) => {
       return method === 'POST' && url.pathname === '/api/did/verification-methods';
     });
 
@@ -141,7 +200,7 @@ test.describe.serial('did-manager-service UI', () => {
 
     await page.fill('#relMethodId', '#auth-main');
     await page.selectOption('#vmRelation', 'Authentication');
-    await clickAndWaitForJsonResponse(page, '#relAdd', (url, method) => {
+    await clickAndWaitForOperationResult(page, '#relAdd', (url, method) => {
       return method === 'POST' && url.pathname === '/api/did/relations';
     });
 
@@ -154,7 +213,7 @@ test.describe.serial('did-manager-service UI', () => {
     await page.fill('#svcId', '#profile');
     await page.fill('#svcType', 'LinkedDomains');
     await page.fill('#svcEndpoint', '"https://example.com/profile"');
-    await clickAndWaitForJsonResponse(page, '#svcAdd', (url, method) => {
+    await clickAndWaitForOperationResult(page, '#svcAdd', (url, method) => {
       return method === 'POST' && url.pathname === '/api/did/services';
     });
 
@@ -165,7 +224,7 @@ test.describe.serial('did-manager-service UI', () => {
     expect(withService.data.didDocument.service[0].serviceEndpoint).toBe('https://example.com/profile');
 
     await page.fill('#akaValue', 'https://example.org/profile/alice');
-    await clickAndWaitForJsonResponse(page, '#akaAdd', (url, method) => {
+    await clickAndWaitForOperationResult(page, '#akaAdd', (url, method) => {
       return method === 'POST' && url.pathname === '/api/did/also-known-as';
     });
 
@@ -175,7 +234,7 @@ test.describe.serial('did-manager-service UI', () => {
     });
     expect(withAlias.data.didDocument.alsoKnownAs).toContain('https://example.org/profile/alice');
 
-    await clickAndWaitForJsonResponse(page, '#deactivate', (url, method) => {
+    await clickAndWaitForOperationResult(page, '#deactivate', (url, method) => {
       return method === 'POST' && url.pathname === '/api/did/deactivate';
     });
 

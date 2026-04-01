@@ -131,6 +131,7 @@ export default defineConfig({
           text: "Architecture",
           items: [
             { text: "Overview", link: "/architecture/" },
+            { text: "DID Manager Architecture", link: "/architecture/did-manager-service" },
             { text: "ADR: Shared Seed and Local Profiles", link: "/architecture/adr-shared-seed-and-profiles" },
             { text: "ADR: SDK and Contract Boundary", link: "/architecture/adr-sdk-contract-boundary" },
             { text: "ADR: Resolver vs Manager Service Split", link: "/architecture/adr-service-split" },

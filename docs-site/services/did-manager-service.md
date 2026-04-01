@@ -6,12 +6,14 @@ The DID manager is a single-user Node.js web application for wallet preparation 
 
 - prepare funding using the same shared seed used for DID ownership
 - unlock and persist local profiles
+- manage local secret storage independently from DID publication
 - deploy or join a DID contract
 - manage verification methods, relations, services, aliases, and deactivation
 
 ## Main pages
 
 - `/wallet`
+- `/secret-storage`
 - `/did`
 - `/docs`
 
@@ -22,7 +24,9 @@ stateDiagram-v2
   [*] --> Wallet
   Wallet --> FundingPrepared : prepare funding
   FundingPrepared --> Unlocked : unlock
+  Unlocked --> SecretStorage : open /secret-storage
   Unlocked --> DidPage : open /did
+  SecretStorage --> DidPage : select local key for DID operation
   DidPage --> DidPage : deploy/join/update
   DidPage --> Deactivated : deactivate
 ```
@@ -44,8 +48,8 @@ stateDiagram-v2
 
 ```bash
 npm run dev -w did-manager-service
-./run-manager.sh
-./run-manager-preprod.sh
+./start-manager.sh
+./start-manager.sh --preprod
 ```
 
 ## Main repository paths
@@ -53,7 +57,16 @@ npm run dev -w did-manager-service
 - `did-manager-service/src/index.ts`
 - `did-manager-service/src/app.ts`
 - `did-manager-service/src/manager.ts`
+- `did-manager-service/src/manager/`
+- `did-manager-service/src/http/`
+- `did-manager-service/src/ui/`
 - `did-manager-service/README.md`
+
+## Architecture
+
+- [DID Manager Architecture](/architecture/did-manager-service)
+- [ADR: Shared Seed and Local Profiles](/architecture/adr-shared-seed-and-profiles)
+- [ADR: Resolver vs Manager Service Split](/architecture/adr-service-split)
 
 ## Full source doc
 

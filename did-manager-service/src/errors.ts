@@ -98,6 +98,22 @@ export const classifyManagerHttpError = (error: unknown): ManagerHttpError => {
     };
   }
 
+  if (message.startsWith("Another operation is already running")) {
+    return {
+      statusCode: 409,
+      errorCode: "operationBusy",
+      message,
+    };
+  }
+
+  if (message.startsWith("Operation not found:")) {
+    return {
+      statusCode: 404,
+      errorCode: "operationNotFound",
+      message,
+    };
+  }
+
   if (
     message.includes("Profile name") ||
     message.includes("No stored seed") ||
@@ -108,6 +124,14 @@ export const classifyManagerHttpError = (error: unknown): ManagerHttpError => {
     return {
       statusCode: 400,
       errorCode: "invalidRequest",
+      message,
+    };
+  }
+
+  if (message.includes("was not found on")) {
+    return {
+      statusCode: 404,
+      errorCode: "contractNotFound",
       message,
     };
   }

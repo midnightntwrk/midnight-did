@@ -8,6 +8,7 @@ export type ManagerConfig = {
   setupProfile: SetupProfile;
   sessionFilePath: string;
   secretStorePath: string;
+  sessionIdleMs: number;
   defaultSecretPassphrase: string;
   rememberUnlockedSessionDefault: boolean;
   standalone: {
@@ -31,6 +32,15 @@ const parsePort = (value: string | undefined): number => {
     throw new Error(`Invalid DID_MANAGER_PORT value: ${raw}`);
   }
   return parsed;
+};
+
+const parsePositiveMs = (value: string | undefined, fallback: number): number => {
+  if (value === undefined) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`Invalid positive millisecond value: ${value}`);
+  }
+  return Math.floor(parsed);
 };
 
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
@@ -60,6 +70,7 @@ export const loadConfig = (env: Record<string, string | undefined> = process.env
     setupProfile: parseSetupProfile(env.DID_MANAGER_SETUP),
     sessionFilePath,
     secretStorePath,
+    sessionIdleMs: parsePositiveMs(env.DID_MANAGER_SESSION_IDLE_MS, 5 * 60 * 1000),
     defaultSecretPassphrase: env.DID_MANAGER_SECRET_PASSPHRASE ?? 'midnight-dev-passphrase',
     rememberUnlockedSessionDefault: parseBoolean(env.DID_MANAGER_REMEMBER_UNLOCKED, true),
     standalone: {

@@ -145,13 +145,22 @@ const stopProcess = async (child: ChildProcessWithoutNullStreams | null): Promis
   if (child === null || child.exitCode !== null) return;
 
   await new Promise<void>((resolve) => {
+    let finished = false;
+    const finalize = (): void => {
+      if (finished) return;
+      finished = true;
+      child.stdout.destroy();
+      child.stderr.destroy();
+      resolve();
+    };
     const timeout = globalThis.setTimeout(() => {
       if (child.exitCode === null) child.kill('SIGKILL');
+      finalize();
     }, 10_000);
 
     child.once('exit', () => {
       globalThis.clearTimeout(timeout);
-      resolve();
+      finalize();
     });
 
     child.kill('SIGINT');
