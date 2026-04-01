@@ -53,6 +53,31 @@ const nodeMajor = Number.parseInt(
 );
 const describeDidFlow = nodeMajor >= 24 ? describeIntegration : describe.skip;
 
+const createDidWithDustRetry = async (
+  providers: api.MidnightDIDProviders,
+  privateState: api.MidnightDIDPrivateState,
+  retries = 2,
+  delayMs = 8_000,
+): Promise<api.DeployedMidnightDIDContract> => {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await api.createDID(providers, privateState);
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      if (
+        attempt === retries ||
+        !/Not enough Dust generated to pay the fee/i.test(message)
+      ) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+};
+
 describeDidFlow("did-resolver-service e2e DID lifecycle", () => {
   let env: StartedDockerComposeEnvironment;
   let projectName = "";
@@ -258,7 +283,7 @@ describeDidFlow("did-resolver-service e2e DID lifecycle", () => {
       providers = await api.configureProviders(walletCtx, cfg);
 
       const privateState = await api.initPrivateState(providers);
-      contract = await api.createDID(providers, privateState);
+      contract = await createDidWithDustRetry(providers, privateState);
       const contractAddress = parseContractAddress(
         contract.deployTxData.public.contractAddress,
       );

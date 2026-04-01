@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+cleanup() {
+  ./scripts/cleanup-test-infra.sh || true
+}
+
+cleanup
+trap cleanup EXIT INT TERM
+
 node ./scripts/ensure-node-24.mjs
 
 export DID_MANAGER_SETUP="${DID_MANAGER_SETUP:-standalone}"
