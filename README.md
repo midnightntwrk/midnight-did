@@ -60,18 +60,18 @@ graph TD
 ```mermaid
 sequenceDiagram
   participant User
-  participant CLI as CLI / App
+  participant App as Manager / App
   participant API
   participant Contract
   participant Indexer
   participant Resolver
 
-  User->>CLI: add verification method (from keyRef)
-  CLI->>API: validate command + current state
+  User->>App: add verification method (from keyRef)
+  App->>API: validate command + current state
   API->>Contract: submit addVerificationMethod circuit
   Contract-->>API: tx accepted
   API->>Indexer: wait/read updated ledger state
-  API-->>CLI: operation result + hints
+  API-->>App: operation result + hints
 
   User->>Resolver: DID Resolution request (GET /resolve/{did})
   Resolver->>Indexer: read latest ledger state

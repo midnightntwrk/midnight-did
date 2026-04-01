@@ -29,6 +29,11 @@ Preprod helpers:
 ./start-manager.sh --preprod
 ```
 
+Shared runtime infrastructure:
+
+- standalone stack: `api/standalone.yml`
+- preprod proof server: `infrastructure/preprod-proof-server.yml`
+
 ## Developer workflow
 
 For quick verification, start with the fast pipeline:

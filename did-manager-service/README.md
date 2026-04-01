@@ -66,6 +66,9 @@ Helpers:
 - `./start-manager.sh --standalone`
 - `./start-manager.sh --preprod`
 
+Shared infrastructure:
+- preprod proof server compose: `infrastructure/preprod-proof-server.yml`
+
 ## Preprod flow
 
 1. Start `./start-manager.sh --preprod`.

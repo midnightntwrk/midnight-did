@@ -3,6 +3,8 @@ set -euo pipefail
 
 node ./scripts/ensure-node-24.mjs
 
+PREPROD_PROOF_SERVER_COMPOSE_FILE="infrastructure/preprod-proof-server.yml"
+
 usage() {
   cat <<'EOF'
 Usage: ./start-manager.sh [--standalone|--preprod|--preproad]
@@ -99,7 +101,7 @@ else
 
   if [[ "${START_PREPROD_PROOF_SERVER}" == "true" && "${DID_MANAGER_PREPROD_PROOF_SERVER}" == "http://127.0.0.1:6300" ]]; then
     echo "[start-manager] Starting local preprod proof server"
-    docker compose -f cli/proof-server.yml up -d proof-server
+    docker compose -f "${PREPROD_PROOF_SERVER_COMPOSE_FILE}" up -d proof-server
     wait_for_proof_server
   fi
 
