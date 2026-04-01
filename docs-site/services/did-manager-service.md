@@ -6,6 +6,7 @@ The DID manager is a single-user Node.js web application for wallet preparation 
 
 - prepare funding using the same shared seed used for DID ownership
 - unlock and persist local profiles
+- expose current NIGHT / tNIGHT and DUST balances for the active wallet session
 - manage local secret storage independently from DID publication
 - deploy or join a DID contract
 - manage verification methods, relations, services, aliases, and deactivation

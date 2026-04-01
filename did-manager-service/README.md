@@ -17,6 +17,7 @@ Single-user web backend + minimal UI for managing Midnight DID lifecycle operati
   - local profile selection
   - seed handling
   - funding preparation
+  - NIGHT / tNIGHT and DUST balance visibility
   - unlock/session state
 - `/secret-storage`
   - local key generation
@@ -78,7 +79,10 @@ Helpers:
 6. If the response includes `generatedSeed`, keep it and reuse it for unlock. The UI copies it into the seed field, switches the mode to `provided`, and stores the shared seed + wallet address in the manager session file.
 7. Top up the address with `tNight`.
 8. After funds arrive, click `Unlock`.
-9. Move to `/did` and deploy or join a DID contract.
+9. Confirm the wallet balances are visible on the wallet page:
+   - `NIGHT / tNIGHT`
+   - `DUST`
+10. Move to `/did` and deploy or join a DID contract.
 
 For preprod faucet funding:
 - `https://faucet.preprod.midnight.network/`

@@ -57,6 +57,7 @@ export const buildSessionStatus = (
   rememberUnlockedSession: boolean,
   profileState: SessionProfileState | undefined,
   currentContractAddress: string | null,
+  walletBalances: SessionStatus['walletBalances'],
   connection: SessionStatus['connection'],
   did: SessionStatus['did'],
   unlocked: boolean,
@@ -70,6 +71,7 @@ export const buildSessionStatus = (
   seedAvailable: Boolean(profileState?.seed),
   unshieldedAddress: profileState?.unshieldedAddress ?? null,
   faucetUrl: faucetUrl(profile),
+  walletBalances,
   connection,
   did,
 });

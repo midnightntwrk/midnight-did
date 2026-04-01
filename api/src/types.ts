@@ -12,7 +12,10 @@ import type {
 import type { NetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import type { MidnightProviders } from "@midnight-ntwrk/midnight-js-types";
 import type { DustWallet } from "@midnight-ntwrk/wallet-sdk-dust-wallet";
-import type { WalletFacade } from "@midnight-ntwrk/wallet-sdk-facade";
+import type {
+  FacadeState,
+  WalletFacade,
+} from "@midnight-ntwrk/wallet-sdk-facade";
 import type { ShieldedWallet } from "@midnight-ntwrk/wallet-sdk-shielded";
 import type {
   InMemoryTransactionHistoryStorage,
@@ -56,6 +59,13 @@ export interface MidnightWalletStateSnapshot {
   dustState: string;
   unshieldedHistory?: string;
 }
+
+export interface MidnightWalletBalances {
+  night: bigint | null;
+  dust: bigint | null;
+}
+
+export type MidnightWalletFacadeState = FacadeState;
 
 export const NetworkMapping = Object.freeze({
   undeployed: "Undeployed",

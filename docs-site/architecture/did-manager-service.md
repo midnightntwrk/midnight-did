@@ -75,6 +75,7 @@ Owns:
 - seed preparation and reuse
 - funding address preparation
 - wallet session unlock and lock
+- wallet balance visibility for NIGHT / tNIGHT and DUST
 - connection/session visibility
 
 ### Secret Storage

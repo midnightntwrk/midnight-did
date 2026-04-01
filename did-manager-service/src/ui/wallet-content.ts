@@ -86,6 +86,15 @@ export const walletContent = String.raw`
 
     <section class="right">
       <div class="card">
+        <h2>Wallet Balances</h2>
+        <div class="indicator-grid">
+          <div class="indicator"><strong>NIGHT / tNIGHT</strong><span id="walletNightBalance" class="mono">Unavailable</span></div>
+          <div class="indicator"><strong>DUST</strong><span id="walletDustBalance" class="mono">Unavailable</span></div>
+        </div>
+        <p class="muted">Balances become available after the wallet state is synced. Zero means the wallet is synced but currently has no spendable amount.</p>
+      </div>
+
+      <div class="card">
         <h2>Wallet Context</h2>
         <div class="value-list">
           <div class="value"><strong>Session file</strong><span class="mono">Configured on backend</span></div>

@@ -2,6 +2,7 @@ import { unshieldedToken } from "@midnight-ntwrk/ledger-v7";
 import * as Rx from "rxjs";
 import { describe, expect, it } from "vitest";
 
+import { getWalletBalances } from "../lib";
 import {
   hashProverKey,
   randomBytes,
@@ -51,5 +52,29 @@ describe("lib lightweight unit helpers", () => {
 
     const balance = await waitForFunds(wallet);
     expect(balance).toBe(42n);
+  });
+
+  it("getWalletBalances distinguishes unavailable and zero balances", () => {
+    const token = unshieldedToken().raw;
+
+    expect(
+      getWalletBalances({
+        isSynced: false,
+      } as any),
+    ).toEqual({
+      night: null,
+      dust: null,
+    });
+
+    expect(
+      getWalletBalances({
+        isSynced: true,
+        unshielded: { balances: { [token]: 0n } },
+        dust: { walletBalance: () => 5n },
+      } as any),
+    ).toEqual({
+      night: 0n,
+      dust: 5n,
+    });
   });
 });

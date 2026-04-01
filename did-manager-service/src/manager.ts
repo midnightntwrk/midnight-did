@@ -243,6 +243,7 @@ export class DidManagerService {
       this.profileStore.rememberUnlockedSession(),
       profileState,
       this.currentContractAddress(),
+      this.runtime.getWalletBalances(),
       connection,
       did,
       this.runtime.isUnlocked(),
@@ -385,7 +386,8 @@ export class DidManagerService {
         { lastError: null, reusedPersistedState: persistedWalletState !== null, seedHash },
       );
 
-      await api.waitForWalletSync(walletCtx);
+      const syncedState = await api.waitForWalletSync(walletCtx);
+      this.runtime.setWalletBalances(api.getWalletBalances(syncedState));
       if (generation !== this.runtime.getUnlockGeneration()) return;
 
       if (this.shouldPersistWalletState()) {

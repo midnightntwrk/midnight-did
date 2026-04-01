@@ -142,6 +142,8 @@ test.describe.serial('did-manager-service UI', () => {
         profile: 'standalone',
       },
     });
+    await expect(page.locator('#walletNightBalance')).not.toHaveText('Unavailable');
+    await expect(page.locator('#walletDustBalance')).not.toHaveText('Unavailable');
 
     await page.goto(`${env.baseUrl}/did`);
     await expect(page.getByRole('link', { name: 'DID Management' })).toHaveAttribute('aria-current', 'page');

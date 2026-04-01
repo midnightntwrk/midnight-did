@@ -10,15 +10,21 @@ import type { ManagerConfig } from '../config.js';
 import { DidManagerService } from '../manager.js';
 
 vi.mock('@midnight-ntwrk/midnight-did-api', async () => {
-  const actual = await vi.importActual<typeof import('@midnight-ntwrk/midnight-did-api')>('@midnight-ntwrk/midnight-did-api');
   return {
-    ...actual,
     setLogger: vi.fn(),
+    deriveUnshieldedAddressFromSeed: vi.fn(() => 'mn_addr_preprod1derived'),
     buildWallet: vi.fn(),
     restoreWalletFromState: vi.fn(),
     waitForWalletSync: vi.fn(),
     waitForWalletFunds: vi.fn(),
     configureProviders: vi.fn(),
+    serializeWalletState: vi.fn().mockResolvedValue({
+      shieldedState: 'shielded',
+      unshieldedState: 'unshielded',
+      dustState: 'dust',
+      unshieldedHistory: 'history',
+    }),
+    getWalletBalances: vi.fn((state: any) => (state?.isSynced ? { night: 7n, dust: 2n } : { night: null, dust: null })),
     getMidnightDIDLedgerState: vi.fn(),
     joinContract: vi.fn(),
     registerForDustGeneration: vi.fn(),
@@ -171,11 +177,18 @@ describe('DidManagerService', () => {
       wallet: {
         stop: vi.fn().mockResolvedValue(undefined),
         state: () => ({
-          subscribe: () => ({
-            unsubscribe() {
-              return undefined;
-            },
-          }),
+          subscribe: ({ next }: { next: (state: unknown) => void }) => {
+            next({
+              isSynced: true,
+              unshielded: { balances: {} },
+              dust: { walletBalance: () => 0n },
+            });
+            return {
+              unsubscribe() {
+                return undefined;
+              },
+            };
+          },
         }),
       },
       unshieldedKeystore: { key: 'keystore' },
@@ -221,6 +234,10 @@ describe('DidManagerService', () => {
         expect(status.unlocked).toBe(true);
         expect(status.did.phase).toBe('stored');
         expect(status.did.lastError).toBeNull();
+        expect(status.walletBalances).toEqual({
+          night: '7',
+          dust: '2',
+        });
         expect(api.getMidnightDIDLedgerState).not.toHaveBeenCalled();
         expect(api.joinContract).not.toHaveBeenCalled();
         return;

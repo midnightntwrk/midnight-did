@@ -50,6 +50,10 @@ describe('did-manager-service app', () => {
         seedAvailable: false,
         unshieldedAddress: null,
         faucetUrl: null,
+        walletBalances: {
+          night: null,
+          dust: null,
+        },
         connection: {
           phase: 'locked',
           reusedPersistedState: false,
@@ -129,6 +133,10 @@ describe('did-manager-service app', () => {
         seedAvailable: false,
         unshieldedAddress: null,
         faucetUrl: null,
+        walletBalances: {
+          night: null,
+          dust: null,
+        },
         connection: {
           phase: 'locked',
           reusedPersistedState: false,

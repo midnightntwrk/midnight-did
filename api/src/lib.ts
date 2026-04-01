@@ -83,6 +83,8 @@ import {
   MidnightDIDPrivateStateId,
   type MidnightDIDProviders,
   type MidnightDIDWalletContext,
+  type MidnightWalletBalances,
+  type MidnightWalletFacadeState,
   type MidnightWalletStateSnapshot,
 } from "./types.js";
 
@@ -832,6 +834,22 @@ export const waitForWalletSync = async (
   return await ctx.wallet.waitForSyncedState();
 };
 
+export const getWalletBalances = (
+  state: MidnightWalletFacadeState,
+): MidnightWalletBalances => {
+  if (!state.isSynced) {
+    return {
+      night: null,
+      dust: null,
+    };
+  }
+
+  return {
+    night: state.unshielded.balances[unshieldedToken().raw] ?? 0n,
+    dust: state.dust.walletBalance(new Date()),
+  };
+};
+
 export const waitForWalletFunds = async (
   ctx: MidnightDIDWalletContext,
 ): Promise<bigint> => {
@@ -839,8 +857,8 @@ export const waitForWalletFunds = async (
   const balance = await Rx.firstValueFrom(
     ctx.wallet.state().pipe(
       Rx.throttleTime(10_000),
-      Rx.filter((state) => state.isSynced),
-      Rx.map((s) => s.unshielded.balances[unshieldedToken().raw] ?? 0n),
+      Rx.map(getWalletBalances),
+      Rx.map((balances) => balances.night ?? 0n),
       Rx.filter((currentBalance) => currentBalance > 0n),
     ),
   );

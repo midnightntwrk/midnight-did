@@ -57,6 +57,14 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
     };
     const formatContracts = (values) =>
       Array.isArray(values) && values.length > 0 ? values.join(', ') : '-';
+    const formatBalance = (value) => {
+      if (value === null || value === undefined || value === '') return 'Unavailable';
+      try {
+        return BigInt(value).toLocaleString();
+      } catch {
+        return String(value);
+      }
+    };
     const formatWalletSessionState = (data) => {
       const connectionPhase = data?.connection?.phase || 'locked';
       if (data?.unlocked) return 'Ready';
@@ -332,6 +340,8 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       setText('setupProfileName', data?.profileName || '-');
       setText('setupFundingAddress', data?.unshieldedAddress || '-');
       setText('walletKnownContracts', formatContracts(data?.knownContractAddresses));
+      setText('walletNightBalance', formatBalance(data?.walletBalances?.night));
+      setText('walletDustBalance', formatBalance(data?.walletBalances?.dust));
       setText('profileBadgeText', data?.profileName ? data.profile + ' / ' + data.profileName : data?.profile || '-');
       setText('profileAvatar', (data?.profileName || data?.profile || '-').slice(0, 2).toUpperCase());
       const knownContractsSummary = document.getElementById('knownContractsSummary');
