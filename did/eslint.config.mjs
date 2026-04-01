@@ -45,11 +45,9 @@ export default [
         {
           paths: [
             '@midnight-ntwrk/midnight-did-api',
-            '@midnight-ntwrk/midnight-did-cli',
           ],
         },
       ],
     },
   },
 ];
-

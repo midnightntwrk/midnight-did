@@ -8,7 +8,6 @@ Generated API reference is published for the main reusable TypeScript packages.
 - [DID API](/api/reference/did/)
 - [API Package API](/api/reference/api/)
 - [Secret Storage API](/api/reference/secret-storage/)
-- [CLI API](/api/reference/cli/)
 
 ## Notes
 

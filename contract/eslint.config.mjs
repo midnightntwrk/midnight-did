@@ -56,7 +56,6 @@ export default [
             '@midnight-ntwrk/midnight-did-domain',
             '@midnight-ntwrk/midnight-did',
             '@midnight-ntwrk/midnight-did-api',
-            '@midnight-ntwrk/midnight-did-cli',
           ],
         },
       ],

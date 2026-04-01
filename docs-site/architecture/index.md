@@ -14,11 +14,9 @@ The Midnight DID repository is organized into reusable TypeScript packages, a Co
    runtime integration with node, indexer, proof server, and contract deployment/update flows.
 5. `secret-storage/`
    reusable encrypted secret store and HD derivation logic.
-6. `cli/`
-   shell-facing state machine and service orchestration.
-7. `did-resolver-service/`
+6. `did-resolver-service/`
    resolver HTTP service and browser UI.
-8. `did-manager-service/`
+7. `did-manager-service/`
    manager HTTP service and browser UI.
 
 ## Runtime relationships
@@ -30,7 +28,6 @@ graph TD
   DidPkg[did]
   API[api]
   Secrets[secret-storage]
-  CLI[cli]
   Resolver[did-resolver-service]
   Manager[did-manager-service]
 
@@ -38,8 +35,6 @@ graph TD
   Domain --> DidPkg
   Domain --> API
   DidPkg --> API
-  Secrets --> CLI
-  API --> CLI
   DidPkg --> Resolver
   Domain --> Resolver
   API --> Manager

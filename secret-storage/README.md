@@ -258,4 +258,4 @@ const derived = deriveCurvePrivateFromSeed({
 - Lint: `npm run lint -w secret-storage`
 - Typecheck: `npm run typecheck -w secret-storage`
 - Tests are currently exercised via CLI suite:
-  - `npm run test:cli-api -w cli`
+  - consume the package through the DID manager or direct package tests

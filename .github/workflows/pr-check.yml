@@ -36,7 +36,6 @@ jobs:
             revert
           scopes: |
             api
-            cli
             contract
             domain
             did

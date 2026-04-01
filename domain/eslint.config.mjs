@@ -39,7 +39,7 @@ export default [
       'no-duplicate-imports': 'error',
       'simple-import-sort/imports': 'error',
       'simple-import-sort/exports': 'error',
-      // Enforce dependency boundaries: domain must not import from app/cli/contract SDKs
+      // Enforce dependency boundaries: domain must not import from app/contract SDKs
       'no-restricted-imports': [
         'error',
         {
@@ -47,11 +47,9 @@ export default [
             '@midnight-ntwrk/midnight-did',
             '@midnight-ntwrk/midnight-did-contract',
             '@midnight-ntwrk/midnight-did-api',
-            '@midnight-ntwrk/midnight-did-cli',
           ],
         },
       ],
     },
   },
 ];
-

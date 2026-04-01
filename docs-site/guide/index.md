@@ -21,7 +21,6 @@ The docs site is the publication layer. The source material is also mirrored int
 
 - [Repository README](/source/repository-overview)
 - [API README](/source/api-readme)
-- [CLI README](/source/cli-readme)
 - [Domain README](/source/domain-readme)
 - [DID README](/source/did-readme)
 - [Secret Storage README](/source/secret-storage-readme)

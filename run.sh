@@ -46,9 +46,6 @@ npm run coverage -w secret-storage || true
 echo "[all] API pipeline"
 ./run-api.sh
 
-echo "[all] CLI pipeline"
-./run-cli.sh
-
 echo "[all] Resolver pipeline"
 ./run-resolver.sh
 

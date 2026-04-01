@@ -18,7 +18,6 @@ Targeted runners:
 
 ```bash
 ./run-api.sh
-./run-cli.sh
 ./start-resolver.sh
 ./start-manager.sh
 ```
@@ -41,7 +40,6 @@ SKIP_LONG_RUNNING=1 ./run.sh
 Then run the specific component you are changing:
 
 - `./run-api.sh`
-- `./run-cli.sh`
 - `./start-resolver.sh`
 - `./start-manager.sh`
 
@@ -105,6 +103,5 @@ npm run docs:sync-source
 | `did/` | Ledger-to-domain mapping and resolver helpers |
 | `api/` | Runtime orchestration over node, indexer, proof server, and contract |
 | `secret-storage/` | Reusable encrypted key storage and HD derivation |
-| `cli/` | Shell-facing application flow and state machine |
 | `did-resolver-service/` | Resolver HTTP service and UI |
 | `did-manager-service/` | Wallet/DID management HTTP service and UI |

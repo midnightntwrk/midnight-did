@@ -17,7 +17,6 @@ This is the quickest way to catch build, lint, unit-test, and workspace integrat
 Use these when you are working on one area:
 
 - `./run-api.sh`
-- `./run-cli.sh`
 - `./run-resolver.sh`
 - `./run-manager.sh`
 

@@ -32,12 +32,6 @@ const packages = [
     entryPoint: resolve(repoRoot, "secret-storage", "src", "index.ts"),
     tsconfig: resolve(repoRoot, "secret-storage", "tsconfig.build.json"),
   },
-  {
-    slug: "cli",
-    displayName: "@midnight-ntwrk/midnight-did-cli",
-    entryPoint: resolve(repoRoot, "cli", "src", "index.ts"),
-    tsconfig: resolve(repoRoot, "cli", "tsconfig.build.json"),
-  },
 ];
 
 const rewriteReadmeLinks = async (rootDir) => {
@@ -63,6 +57,20 @@ const rewriteReadmeLinks = async (rootDir) => {
 };
 
 mkdirSync(outputRoot, { recursive: true });
+
+const buildWorkspaces = ["contract", "domain", "did", "secret-storage", "api"];
+
+for (const workspace of buildWorkspaces) {
+  execFileSync(
+    process.platform === "win32" ? "npm.cmd" : "npm",
+    ["run", "build", "-w", workspace],
+    {
+      cwd: repoRoot,
+      stdio: "inherit",
+      env: process.env,
+    },
+  );
+}
 
 for (const entry of readdirSync(outputRoot)) {
   const target = join(outputRoot, entry);

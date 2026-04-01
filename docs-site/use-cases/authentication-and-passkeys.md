@@ -26,7 +26,7 @@ That is enough to use Midnight DID as the public trust anchor for passkey-backed
 
 - DID document storage and resolution for `P-256`
 - local key lifecycle support in `secret-storage`
-- manager and CLI workflows for key publication
+- manager workflows for key publication
 - resolver service for relying-party lookups
 
 ## What still needs to be built outside this repo
@@ -38,6 +38,5 @@ That is enough to use Midnight DID as the public trust anchor for passkey-backed
 ## Main implementation anchors
 
 - `secret-storage/`
-- `cli/`
 - `did-manager-service/`
 - `did-resolver-service/`

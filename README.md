@@ -1,7 +1,7 @@
 # Midnight DID
 
 Midnight DID is a reference implementation of the `did:midnight` method.
-This repository contains the smart contract, domain model, resolver/conversion logic, API, CLI, and reusable secret storage.
+This repository contains the smart contract, domain model, resolver/conversion logic, API, web services, and reusable secret storage.
 
 ## Workspace Components
 
@@ -12,7 +12,6 @@ This repository contains the smart contract, domain model, resolver/conversion l
 | [`did`](did/README.md) | `@midnight-ntwrk/midnight-did` | Ledger ↔ domain mapping and resolver helpers |
 | [`api`](api/README.md) | `@midnight-ntwrk/midnight-did-api` | Programmatic DID operations and orchestration |
 | [`secret-storage`](secret-storage/README.md) | `@midnight-ntwrk/midnight-did-secret-storage` | Encrypted key storage + sign/verify/HD derivation |
-| [`cli`](cli/README.md) | `@midnight-ntwrk/midnight-did-cli` | User-facing shell + state-machine-guided flows |
 | [`did-resolver-service`](did-resolver-service/README.md) | `@midnight-ntwrk/midnight-did-resolver-service` | REST/Swagger/UI DID resolver service |
 | [`did-manager-service`](did-manager-service/README.md) | `@midnight-ntwrk/midnight-did-manager-service` | Web DID management backend + minimal UI |
 
@@ -22,9 +21,9 @@ This repository contains the smart contract, domain model, resolver/conversion l
 graph TD
   U[User / Integrator]
 
-  CLI[CLI]
   API[API]
   ResolverSvc[Resolver Service]
+  ManagerSvc[Manager Service]
   DidPkg[DID package]
   Domain[Domain]
   Contract[Contract]
@@ -34,12 +33,9 @@ graph TD
   Node[(Midnight Node)]
   Proof[(Proof Server)]
 
-  U --> CLI
   U --> API
   U --> ResolverSvc
-
-  CLI --> API
-  CLI --> Secrets
+  U --> ManagerSvc
 
   API --> DidPkg
   API --> Domain
@@ -47,6 +43,8 @@ graph TD
 
   ResolverSvc --> DidPkg
   ResolverSvc --> Domain
+  ManagerSvc --> API
+  ManagerSvc --> Secrets
 
   DidPkg --> Domain
   DidPkg --> Contract
@@ -104,7 +102,6 @@ Install:
 Pipelines:
 - Full workspace: `./run.sh`
 - API only: `./run-api.sh`
-- CLI only: `./run-cli.sh`
 - Resolver only: `./run-resolver.sh`
 - DID manager only: `./run-manager.sh`
 - Docs pipeline: `./run-docs.sh`
@@ -131,7 +128,6 @@ Docs helpers:
 When you need direct package/service documentation:
 
 - `api/README.md`
-- `cli/README.md`
 - `domain/README.md`
 - `did/README.md`
 - `secret-storage/README.md`

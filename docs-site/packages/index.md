@@ -10,7 +10,6 @@ The Midnight DID workspace is split into reusable TypeScript packages.
 | `@midnight-ntwrk/midnight-did` | Ledger/domain mapping and resolver helpers | `did/README.md` |
 | `@midnight-ntwrk/midnight-did-api` | Programmatic DID operations and runtime orchestration | `api/README.md` |
 | `@midnight-ntwrk/midnight-did-secret-storage` | Secret storage, signing, verification, HD derivation | `secret-storage/README.md` |
-| `@midnight-ntwrk/midnight-did-cli` | Shell UX and CLI API/state machine | `cli/README.md` |
 
 ## How to read this section
 
@@ -18,7 +17,6 @@ The Midnight DID workspace is split into reusable TypeScript packages.
 - `did` maps ledger state into DID Core-compatible domain objects.
 - `api` is the runtime facade over providers, contract operations, and resolution flows.
 - `secret-storage` owns seed parsing, key storage, derivation, signing, and verification.
-- `cli` is the shell-oriented application layer built on top of `api` and `secret-storage`.
 
 This section is also the future target for generated API reference pages.
 
@@ -30,4 +28,3 @@ Each package also has an example page with copyable usage patterns:
 - [DID Examples](/packages/did-examples)
 - [API Examples](/packages/api-examples)
 - [Secret Storage Examples](/packages/secret-storage-examples)
-- [CLI Examples](/packages/cli-examples)

@@ -13,7 +13,7 @@ Compact smart-contract implementation for Midnight DID ledger state.
 
 ```mermaid
 graph TD
-  API[API / CLI]
+  API[API]
   Contract[did.compact circuits]
   Ledger[(On-chain DID state)]
 

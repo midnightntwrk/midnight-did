@@ -10,7 +10,6 @@ const docs = [
   { source: "README.md", slug: "repository-overview", title: "Repository Overview Source" },
   { source: "contract/README.md", slug: "contract-readme", title: "Contract README Source" },
   { source: "api/README.md", slug: "api-readme", title: "API README Source" },
-  { source: "cli/README.md", slug: "cli-readme", title: "CLI README Source" },
   { source: "domain/README.md", slug: "domain-readme", title: "Domain README Source" },
   { source: "did/README.md", slug: "did-readme", title: "DID README Source" },
   { source: "secret-storage/README.md", slug: "secret-storage-readme", title: "Secret Storage README Source" },
