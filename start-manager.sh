@@ -57,6 +57,11 @@ wait_for_proof_server() {
   done
 }
 
+is_local_proof_server_url() {
+  local proof_server_url="$1"
+  [[ "${proof_server_url}" == "http://127.0.0.1:6300" || "${proof_server_url}" == "http://localhost:6300" ]]
+}
+
 profile="standalone"
 if [[ $# -gt 1 ]]; then
   usage >&2
@@ -113,7 +118,7 @@ elif [[ "${profile}" == "preprod" ]]; then
   export DID_MANAGER_PREPROD_PROOF_SERVER="${DID_MANAGER_PREPROD_PROOF_SERVER:-$LOCAL_PROOF_SERVER_DEFAULT}"
   export START_PREPROD_PROOF_SERVER="${START_PREPROD_PROOF_SERVER:-true}"
 
-  if [[ "${START_PREPROD_PROOF_SERVER}" == "true" && "${DID_MANAGER_PREPROD_PROOF_SERVER}" == "$LOCAL_PROOF_SERVER_DEFAULT" ]]; then
+  if [[ "${START_PREPROD_PROOF_SERVER}" == "true" ]] && is_local_proof_server_url "${DID_MANAGER_PREPROD_PROOF_SERVER}"; then
     echo "[start-manager] Starting local preprod proof server"
     docker compose -f "${PREPROD_PROOF_SERVER_COMPOSE_FILE}" up -d proof-server
     wait_for_proof_server "${DID_MANAGER_PREPROD_PROOF_SERVER}"
@@ -131,7 +136,7 @@ else
   export DID_MANAGER_MAINNET_PROOF_SERVER="${DID_MANAGER_MAINNET_PROOF_SERVER:-$LOCAL_PROOF_SERVER_DEFAULT}"
   export START_MAINNET_PROOF_SERVER="${START_MAINNET_PROOF_SERVER:-true}"
 
-  if [[ "${START_MAINNET_PROOF_SERVER}" == "true" && "${DID_MANAGER_MAINNET_PROOF_SERVER}" == "$LOCAL_PROOF_SERVER_DEFAULT" ]]; then
+  if [[ "${START_MAINNET_PROOF_SERVER}" == "true" ]] && is_local_proof_server_url "${DID_MANAGER_MAINNET_PROOF_SERVER}"; then
     echo "[start-manager] Starting local mainnet proof server"
     docker compose -f "${PREPROD_PROOF_SERVER_COMPOSE_FILE}" up -d proof-server
     wait_for_proof_server "${DID_MANAGER_MAINNET_PROOF_SERVER}"
