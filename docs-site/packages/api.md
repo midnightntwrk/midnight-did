@@ -1,6 +1,6 @@
 # API Package
 
-`@midnight-ntwrk/midnight-did-api` is the runtime orchestration package used by CLI, tests, and service applications.
+`@midnight-ntwrk/midnight-did-api` is the runtime orchestration package used by manager, tests, and service applications.
 
 ## Focus
 
@@ -28,7 +28,7 @@
 
 ## Typical callers
 
-- CLI application flow
+- DID manager application flow
 - DID manager service
 - integration tests
 - custom automation using funded Midnight wallets

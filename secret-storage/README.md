@@ -8,7 +8,7 @@ Reusable encrypted secret storage for Midnight DID key lifecycle operations.
 |---|---|---|
 | Package | `@midnight-ntwrk/midnight-did-secret-storage` | Reusable library package |
 | Runtime target | Node.js 24+ | Uses Node crypto APIs and filesystem-backed storage |
-| Primary use case | Local key custody for Midnight DID flows | CLI, web backends, automation, test harnesses |
+| Primary use case | Local key custody for Midnight DID flows | DID manager service, web backends, automation, test harnesses |
 | Storage model | Encrypted file backend or adapter-backed backend | File backend is the default implementation |
 | Key reference model | `keyRef` first | Callers keep opaque key references instead of raw secret material |
 | Output format | Public JWK + raw signature bytes | Fits the rest of the Midnight DID stack |
@@ -47,7 +47,7 @@ Reusable encrypted secret storage for Midnight DID key lifecycle operations.
 | Library | Used for | Why it matters |
 |---|---|---|
 | `@midnight-ntwrk/wallet-sdk-hd` | Seed-to-HD derivation | Provides Midnight-compatible account/role/index key derivation primitives |
-| `@midnight-ntwrk/ledger-v7` | Jubjub math and field constraints | Used for Jubjub-compatible signing/verification and ledger representability checks |
+| `@midnight-ntwrk/ledger-v8` | Jubjub math and field constraints | Used for Jubjub-compatible signing/verification and ledger representability checks |
 
 ## External Libraries Used
 
@@ -69,13 +69,13 @@ Reusable encrypted secret storage for Midnight DID key lifecycle operations.
 
 ```mermaid
 graph TD
-  CLI[CLI / Services]
+  Applications[Manager / Services / Automation]
   API[SecretStorage interface]
   FileStore[Encrypted file backend]
   Veramo[Veramo adapter]
   Crypto[crypto + derivation helpers]
 
-  CLI --> API
+  Applications --> API
   API --> FileStore
   API --> Veramo
   FileStore --> Crypto
@@ -204,6 +204,18 @@ Primary entry points:
 - `deriveCurvePrivateFromSeed({ seedHex, kty, crv, account?, index? }, candidate?)`
 - `FileSecretStore.deriveKeyFromSeed(...)`
 
+### Implementation map (functions + packages)
+
+| Step | Function(s) | Package / primitive | Source file |
+|---|---|---|---|
+| Seed validation and parsing | `SeedSchema`, `parseSeed`, `seedToBuffer` | `zod`, Node buffer handling | `src/seed.ts` |
+| HD metadata derivation | `deriveMetadataKey` | `@midnight-ntwrk/wallet-sdk-hd` (`HDWallet`, `Roles.Metadata`) | `src/hd-derivation.ts` |
+| Deterministic expansion | `hkdfSync` with salt/info contract | Node `crypto` HKDF | `src/hd-derivation.ts` |
+| Curve-specific private shaping | `deriveCurvePrivateFromSeed`, `normalizeP256Private` | bigint math + curve rules | `src/hd-derivation.ts` |
+| Key import/materialization | `importCurveKey` | Node crypto + Jubjub logic | `src/curve-support.ts` |
+| Ledger representability checks | `isPublicJwkLedgerCompatible` | `@midnight-ntwrk/ledger-v8` field constraints | `src/curve-support.ts` |
+| Retry for representable key | `FileSecretStore.deriveKeyFromSeed` candidate loop | File store orchestration | `src/file-secret-store.ts` |
+
 ### Examples
 
 Derive an Ed25519 key:
@@ -245,6 +257,149 @@ const derived = deriveCurvePrivateFromSeed({
 });
 ```
 
+### Account / index convention examples
+
+Use `account` for logical separation and `index` for deterministic key slots (including rotation).
+
+Suggested convention (example):
+
+| account | purpose domain | index usage |
+|---|---|---|
+| `0` | DID authentication / assertion keys | `0` main, `1+` rotations |
+| `1` | passkeys / app login keys | `0` main, `1+` per-application variants |
+| `2` | service encryption / agreement keys | `0` main, `1+` rotations |
+
+This convention is not enforced by the package; it is an application policy.
+
+Derive multiple keys for one account by index:
+
+```ts
+const authMain = await store.deriveKeyFromSeed({
+  id: "auth-main",
+  seedHex,
+  kty: "OKP",
+  crv: "Ed25519",
+  account: 0,
+  index: 0,
+  purpose: "authentication",
+});
+
+const authRotated = await store.deriveKeyFromSeed({
+  id: "auth-rotated-1",
+  seedHex,
+  kty: "OKP",
+  crv: "Ed25519",
+  account: 0,
+  index: 1,
+  purpose: "authentication",
+});
+```
+
+Separate operational domains by account:
+
+```ts
+const didAuth = await store.deriveKeyFromSeed({
+  id: "did-auth-main",
+  seedHex,
+  kty: "OKP",
+  crv: "Ed25519",
+  account: 0,
+  index: 0,
+  did: "did:midnight:undeployed:...",
+  purpose: "authentication",
+});
+
+const appPasskey = await store.deriveKeyFromSeed({
+  id: "passkey-main",
+  seedHex,
+  kty: "EC",
+  crv: "P-256",
+  account: 1,
+  index: 0,
+  purpose: "app-login",
+});
+```
+
+### Determinism and metadata usage
+
+The tuple `(seedHex, kty, crv, account, index, candidate)` defines the derived private key deterministically.
+
+Re-deriving with the same tuple yields the same private key bytes:
+
+```ts
+const d1 = deriveCurvePrivateFromSeed({
+  id: "check-main",
+  seedHex,
+  kty: "EC",
+  crv: "P-256",
+  account: 3,
+  index: 7,
+});
+
+const d2 = deriveCurvePrivateFromSeed({
+  id: "check-main",
+  seedHex,
+  kty: "EC",
+  crv: "P-256",
+  account: 3,
+  index: 7,
+});
+
+// true
+const same = Buffer.from(d1.privateKey).equals(Buffer.from(d2.privateKey));
+```
+
+`id`, `did`, and `purpose` are metadata stored with the key entry:
+
+```ts
+await store.deriveKeyFromSeed({
+  id: "issuer-assertion-main",
+  seedHex,
+  kty: "OKP",
+  crv: "Ed25519",
+  account: 0,
+  index: 2,
+  did: "did:midnight:undeployed:...",
+  purpose: "assertionMethod",
+});
+
+const didKeys = await store.listKeys({ did: "did:midnight:undeployed:..." });
+```
+
+### Candidate example (low-level)
+
+`candidate` is primarily used internally by `FileSecretStore.deriveKeyFromSeed(...)` during ledger-compatibility retry.
+You can call it explicitly at low level:
+
+```ts
+const c0 = deriveCurvePrivateFromSeed(
+  {
+    id: "zk-main",
+    seedHex,
+    kty: "EC",
+    crv: "Jubjub",
+    account: 0,
+    index: 0,
+  },
+  0,
+);
+
+const c1 = deriveCurvePrivateFromSeed(
+  {
+    id: "zk-main",
+    seedHex,
+    kty: "EC",
+    crv: "Jubjub",
+    account: 0,
+    index: 0,
+  },
+  1,
+);
+
+// usually false; candidate changes HKDF info and output
+const equal = Buffer.from(c0.privateKey).equals(Buffer.from(c1.privateKey));
+```
+
 ## Security Model (file backend)
 
 - encrypted JSON envelope
@@ -257,5 +412,5 @@ const derived = deriveCurvePrivateFromSeed({
 - Build: `npm run build -w secret-storage`
 - Lint: `npm run lint -w secret-storage`
 - Typecheck: `npm run typecheck -w secret-storage`
-- Tests are currently exercised via CLI suite:
+- Tests are currently exercised via manager and integration suites:
   - consume the package through the DID manager or direct package tests

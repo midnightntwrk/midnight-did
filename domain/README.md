@@ -13,7 +13,7 @@ Domain model and validation layer for Midnight DID documents and metadata.
 
 ```mermaid
 graph TD
-  Inputs[API / CLI / Resolver inputs]
+  Inputs[API / Manager / Resolver inputs]
   Domain[Domain schemas + normalization]
   Outputs[Canonical DID document model]
 
@@ -55,4 +55,4 @@ stateDiagram-v2
 ## Notes
 
 - Domain is pure TypeScript and intentionally runtime-agnostic.
-- API/CLI/Resolver depend on this package for consistent behavior.
+- API/Manager/Resolver depend on this package for consistent behavior.

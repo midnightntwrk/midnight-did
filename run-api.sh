@@ -12,10 +12,16 @@ node ./scripts/ensure-node-24.mjs
 node ./scripts/ensure-onchain-runtime-cjs.mjs
 node ./scripts/ensure-rollup-native.mjs
 
+if [[ ! -f "contract/src/managed/did/contract/index.js" ]]; then
+  echo "[api] Generate contract managed artifacts"
+  npm run contract -w contract
+fi
+
 echo "[api] Build dependencies"
 npm run build -w contract
 npm run build -w domain
 npm run build -w did
+npm run build -w secret-storage
 
 echo "[api] Build API"
 npm run build -w api

@@ -39,7 +39,28 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
     };
     const setValue = (id, value) => {
       const el = document.getElementById(id);
-      if (el) el.value = value ?? '';
+      if (!el) return;
+      if ('value' in el) {
+        el.value = value ?? '';
+        return;
+      }
+      if (el.tagName === 'A') {
+        const anchor = el;
+        const url = typeof value === 'string' ? value.trim() : '';
+        if (url) {
+          anchor.href = url;
+          anchor.textContent = url;
+          anchor.classList.remove('disabled');
+        } else {
+          anchor.removeAttribute('href');
+          anchor.textContent = 'Unavailable for this setup';
+          anchor.classList.add('disabled');
+        }
+      }
+    };
+    const setChecked = (id, checked) => {
+      const el = document.getElementById(id);
+      if (el && 'checked' in el) el.checked = Boolean(checked);
     };
     const parseMaybeJson = (value) => {
       const trimmed = (value || '').trim();
@@ -57,6 +78,14 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
     };
     const formatContracts = (values) =>
       Array.isArray(values) && values.length > 0 ? values.join(', ') : '-';
+    const formatBalance = (value) => {
+      if (value === null || value === undefined || value === '') return 'Unavailable';
+      try {
+        return BigInt(value).toLocaleString();
+      } catch {
+        return String(value);
+      }
+    };
     const formatWalletSessionState = (data) => {
       const connectionPhase = data?.connection?.phase || 'locked';
       if (data?.unlocked) return 'Ready';
@@ -126,6 +155,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       return value && typeof value === 'object' && !Array.isArray(value);
     };
     const readTrimmed = (id) => (document.getElementById(id)?.value || '').trim();
+    const readChecked = (id) => Boolean(document.getElementById(id)?.checked);
     const request = async (url, init = {}, options = {}) => {
       const res = await fetch(url, init);
       const body = await res.json().catch(() => ({}));
@@ -295,6 +325,40 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       setDiagnosticsSummary();
     };
 
+    const setDisabled = (id, disabled) => {
+      const el = document.getElementById(id);
+      if (el && 'disabled' in el) {
+        el.disabled = Boolean(disabled);
+      }
+    };
+
+    const updateWalletActionState = () => {
+      const session = lastSessionPayload?.data?.status || lastSessionPayload?.data || lastSessionPayload;
+      const operation = lastOperationPayload?.data || lastOperationPayload;
+      const running = operation?.status === 'running';
+      const unlocked = Boolean(session?.unlocked);
+      const seedMode = seedModeEl?.value || 'reuse';
+      const seedValue = readTrimmed('seed');
+      const hasFundingAddress = Boolean((fundingAddressEl?.value || '').trim());
+      const hasPreparedSeed =
+        seedMode === 'generated'
+          || (seedMode === 'provided' ? seedValue.length > 0 : Boolean(session?.seedAvailable));
+
+      setDisabled('prepareFunding', running || (seedMode === 'provided' && seedValue.length === 0));
+      setDisabled('unlock', running || unlocked || !hasPreparedSeed);
+      setDisabled('lock', running || !unlocked);
+      setDisabled('copyFundingAddress', !hasFundingAddress);
+      setDisabled('selectProfile', running || unlocked);
+      setDisabled('refreshProfiles', running || unlocked);
+      setDisabled('profileSelect', running || unlocked);
+      setDisabled('profileName', running || unlocked);
+      setDisabled('seedMode', running || unlocked);
+      setDisabled('seed', running || unlocked);
+      setDisabled('passphrase', running || unlocked);
+      setDisabled('remember', running || unlocked);
+      setDisabled('status', running);
+    };
+
     const setSetupState = (payload) => {
       const data = payload?.data || payload;
       setText('setupProfile', data?.profile || '-');
@@ -303,7 +367,12 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       setText('setupIndexer', data?.endpoints?.indexer || '-');
       setText('setupProofServer', data?.endpoints?.proofServer || '-');
       setText('profileBadgeText', data?.profile || '-');
-      if (faucetUrlEl && !faucetUrlEl.value) faucetUrlEl.value = data?.faucetUrl || '';
+      if (faucetUrlEl) {
+        const currentFaucetText = faucetUrlEl.textContent || '';
+        if (!currentFaucetText || currentFaucetText === 'Unavailable for this setup') {
+          setValue('faucetUrl', data?.faucetUrl || '');
+        }
+      }
     };
 
     const setProfilesState = (payload) => {
@@ -321,6 +390,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
         const profileNameEl = document.getElementById('profileName');
         if (profileNameEl && !profileNameEl.value) profileNameEl.value = data.activeProfileName;
       }
+      updateWalletActionState();
     };
 
     const setSessionState = (payload) => {
@@ -328,10 +398,13 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       const data = payload?.data?.status || payload?.data || payload;
       setValue('fundingAddress', data?.unshieldedAddress || '');
       setValue('faucetUrl', data?.faucetUrl || '');
+      setChecked('remember', data?.rememberUnlockedSession ?? true);
       const connectionPhase = data?.connection?.phase || 'locked';
       setText('setupProfileName', data?.profileName || '-');
       setText('setupFundingAddress', data?.unshieldedAddress || '-');
       setText('walletKnownContracts', formatContracts(data?.knownContractAddresses));
+      setText('walletNightBalance', formatBalance(data?.walletBalances?.night));
+      setText('walletDustBalance', formatBalance(data?.walletBalances?.dust));
       setText('profileBadgeText', data?.profileName ? data.profile + ' / ' + data.profileName : data?.profile || '-');
       setText('profileAvatar', (data?.profileName || data?.profile || '-').slice(0, 2).toUpperCase());
       const knownContractsSummary = document.getElementById('knownContractsSummary');
@@ -346,10 +419,6 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
           ? 'Stored shared seed is available and can be reused for wallet + DID.'
           : 'No shared seed prepared yet. Generate or provide one first.',
       );
-
-      if (seedModeEl && data?.seedAvailable && !data?.unlocked && !seedEl?.value) {
-        seedModeEl.value = 'reuse';
-      }
 
       if (didActionsEl) {
         didActionsEl.disabled = !data?.unlocked;
@@ -407,6 +476,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       }
       renderNextActions();
       setBackendIndicators();
+      updateWalletActionState();
     };
 
     const setStoredContractsState = (payload) => {
@@ -621,6 +691,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
         setBanner(formatted.level, formatted.message);
       }
       setBackendIndicators();
+      updateWalletActionState();
     };
 
     const setOperationsState = (payload) => {
@@ -720,6 +791,24 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
     };
 
     const attachWalletHandlers = () => {
+      if (seedModeEl) {
+        seedModeEl.addEventListener('change', () => {
+          updateWalletActionState();
+        });
+      }
+      seedEl?.addEventListener('input', updateWalletActionState);
+      document.getElementById('remember')?.addEventListener('change', updateWalletActionState);
+
+      const applyGeneratedSeedResult = (generatedSeed) => {
+        if (!generatedSeed) return;
+        if (seedEl) seedEl.value = generatedSeed;
+        if (seedModeEl) {
+          seedModeEl.value = 'provided';
+        }
+        setBanner('info', 'Generated seed captured and switched to provided mode for consistent unlock.');
+        updateWalletActionState();
+      };
+
       const selectProfile = document.getElementById('selectProfile');
       if (selectProfile) {
         selectProfile.onclick = async () => {
@@ -765,14 +854,11 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
             seedMode: document.getElementById('seedMode').value,
             seed: document.getElementById('seed').value || undefined,
             passphrase: document.getElementById('passphrase').value || undefined,
-            rememberUnlockedSession: document.getElementById('remember').value === 'true',
+            rememberUnlockedSession: readChecked('remember'),
           }));
           if (response.body?.data?.id) {
             await pollOperation(response.body.data.id, (operation) => {
-              if (operation?.result?.generatedSeed) {
-                document.getElementById('seed').value = operation.result.generatedSeed;
-                document.getElementById('seedMode').value = 'provided';
-              }
+              applyGeneratedSeedResult(operation?.result?.generatedSeed);
             });
           } else {
             setSessionState(response.body);
@@ -789,10 +875,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
           }));
           if (response.body?.data?.id) {
             await pollOperation(response.body.data.id, (operation) => {
-              if (operation?.result?.generatedSeed) {
-                document.getElementById('seed').value = operation.result.generatedSeed;
-                document.getElementById('seedMode').value = 'provided';
-              }
+              applyGeneratedSeedResult(operation?.result?.generatedSeed);
             });
           } else {
             setSessionState(response.body);

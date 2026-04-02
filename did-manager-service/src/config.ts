@@ -1,6 +1,13 @@
 import path from 'node:path';
 
-export type SetupProfile = 'standalone' | 'preprod';
+export type SetupProfile = 'standalone' | 'preprod' | 'mainnet';
+
+type SetupEndpoints = {
+  indexer: string;
+  indexerWS: string;
+  node: string;
+  proofServer: string;
+};
 
 export type ManagerConfig = {
   host: string;
@@ -11,18 +18,9 @@ export type ManagerConfig = {
   sessionIdleMs: number;
   defaultSecretPassphrase: string;
   rememberUnlockedSessionDefault: boolean;
-  standalone: {
-    indexer: string;
-    indexerWS: string;
-    node: string;
-    proofServer: string;
-  };
-  preprod: {
-    indexer: string;
-    indexerWS: string;
-    node: string;
-    proofServer: string;
-  };
+  standalone: SetupEndpoints;
+  preprod: SetupEndpoints;
+  mainnet: SetupEndpoints;
 };
 
 const parsePort = (value: string | undefined): number => {
@@ -55,11 +53,20 @@ const defaultDataDir = `${process.env.HOME ?? process.cwd()}/.midnight-did`;
 
 const parseSetupProfile = (value: string | undefined): SetupProfile => {
   const raw = value?.trim() || 'standalone';
-  if (raw === 'standalone' || raw === 'preprod') return raw;
+  if (raw === 'standalone' || raw === 'preprod' || raw === 'mainnet') return raw;
   throw new Error(`Invalid DID_MANAGER_SETUP value: ${raw}`);
 };
 
+const requireUrl = (value: string | undefined, envName: string): string => {
+  const raw = value?.trim();
+  if (!raw) {
+    throw new Error(`Missing required ${envName} value.`);
+  }
+  return raw;
+};
+
 export const loadConfig = (env: Record<string, string | undefined> = process.env): ManagerConfig => {
+  const setupProfile = parseSetupProfile(env.DID_MANAGER_SETUP);
   const dataDir = env.DID_MANAGER_DATA_DIR?.trim() || defaultDataDir;
   const sessionFilePath = env.DID_MANAGER_SESSION_FILE?.trim() || path.join(dataDir, 'manager-session.json');
   const secretStorePath = env.DID_MANAGER_SECRET_FILE?.trim() || path.join(dataDir, 'manager-secrets.json');
@@ -67,7 +74,7 @@ export const loadConfig = (env: Record<string, string | undefined> = process.env
   return {
     host: env.DID_MANAGER_HOST ?? '127.0.0.1',
     port: parsePort(env.DID_MANAGER_PORT),
-    setupProfile: parseSetupProfile(env.DID_MANAGER_SETUP),
+    setupProfile,
     sessionFilePath,
     secretStorePath,
     sessionIdleMs: parsePositiveMs(env.DID_MANAGER_SESSION_IDLE_MS, 5 * 60 * 1000),
@@ -84,6 +91,24 @@ export const loadConfig = (env: Record<string, string | undefined> = process.env
       indexerWS: env.DID_MANAGER_PREPROD_INDEXER_WS ?? 'wss://indexer.preprod.midnight.network/api/v3/graphql/ws',
       node: env.DID_MANAGER_PREPROD_NODE ?? 'https://rpc.preprod.midnight.network',
       proofServer: env.DID_MANAGER_PREPROD_PROOF_SERVER ?? 'http://127.0.0.1:6300',
+    },
+    mainnet: {
+      indexer:
+        setupProfile === 'mainnet'
+          ? requireUrl(env.DID_MANAGER_MAINNET_INDEXER, 'DID_MANAGER_MAINNET_INDEXER')
+          : (env.DID_MANAGER_MAINNET_INDEXER ?? 'https://example.invalid/api/v3/graphql'),
+      indexerWS:
+        setupProfile === 'mainnet'
+          ? requireUrl(env.DID_MANAGER_MAINNET_INDEXER_WS, 'DID_MANAGER_MAINNET_INDEXER_WS')
+          : (env.DID_MANAGER_MAINNET_INDEXER_WS ?? 'wss://example.invalid/api/v3/graphql/ws'),
+      node:
+        setupProfile === 'mainnet'
+          ? requireUrl(env.DID_MANAGER_MAINNET_NODE, 'DID_MANAGER_MAINNET_NODE')
+          : (env.DID_MANAGER_MAINNET_NODE ?? 'https://example.invalid'),
+      proofServer:
+        setupProfile === 'mainnet'
+          ? requireUrl(env.DID_MANAGER_MAINNET_PROOF_SERVER, 'DID_MANAGER_MAINNET_PROOF_SERVER')
+          : (env.DID_MANAGER_MAINNET_PROOF_SERVER ?? 'http://127.0.0.1:6300'),
     },
   };
 };

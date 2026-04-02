@@ -40,13 +40,24 @@ export const buildProfileConfig = (cfg: ManagerConfig, profile: SetupProfile): a
     };
   }
 
-  setNetworkId('preprod');
+  if (profile === 'preprod') {
+    setNetworkId('preprod');
+    return {
+      logDir: `${baseLogDir}/${nowIso()}.log`,
+      indexer: cfg.preprod.indexer,
+      indexerWS: cfg.preprod.indexerWS,
+      node: cfg.preprod.node,
+      proofServer: cfg.preprod.proofServer,
+    };
+  }
+
+  setNetworkId('mainnet');
   return {
     logDir: `${baseLogDir}/${nowIso()}.log`,
-    indexer: cfg.preprod.indexer,
-    indexerWS: cfg.preprod.indexerWS,
-    node: cfg.preprod.node,
-    proofServer: cfg.preprod.proofServer,
+    indexer: cfg.mainnet.indexer,
+    indexerWS: cfg.mainnet.indexerWS,
+    node: cfg.mainnet.node,
+    proofServer: cfg.mainnet.proofServer,
   };
 };
 

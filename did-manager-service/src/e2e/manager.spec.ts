@@ -132,7 +132,7 @@ test.describe.serial('did-manager-service UI', () => {
     await page.selectOption('#seedMode', 'provided');
     await page.fill('#seed', env.fundedSeed);
     await page.fill('#passphrase', 'midnight-dev-passphrase');
-    await page.selectOption('#remember', 'true');
+    await page.locator('#remember').check();
     const unlocked = await clickAndWaitForOperationResult<any>(page, '#unlock', (url, method) => {
       return method === 'POST' && url.pathname === '/api/session/unlock';
     });
@@ -142,6 +142,8 @@ test.describe.serial('did-manager-service UI', () => {
         profile: 'standalone',
       },
     });
+    await expect(page.locator('#walletNightBalance')).not.toHaveText('Unavailable');
+    await expect(page.locator('#walletDustBalance')).not.toHaveText('Unavailable');
 
     await page.goto(`${env.baseUrl}/did`);
     await expect(page.getByRole('link', { name: 'DID Management' })).toHaveAttribute('aria-current', 'page');
@@ -155,7 +157,7 @@ test.describe.serial('did-manager-service UI', () => {
       return method === 'POST' && url.pathname === '/api/did/deploy';
     }, {
       retries: 2,
-      retryOnMessage: /Not enough Dust generated to pay the fee/i,
+      retryOnMessage: /Not enough Dust generated to pay the fee|could not balance dust/i,
       delayMs: 8_000,
     });
 

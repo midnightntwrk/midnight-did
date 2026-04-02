@@ -36,19 +36,24 @@ export const walletContent = String.raw`
       </div>
 
       <div class="card">
-        <h2>Profile</h2>
+        <div class="card-header">
+          <h2>Profile</h2>
+          <button id="refreshProfiles" class="icon-button" type="button" aria-label="Refresh profiles" title="Refresh profiles">↻</button>
+        </div>
         <label>Active profile</label>
         <select id="profileSelect"></select>
         <label>Create or switch profile</label>
         <input id="profileName" placeholder="default" />
         <div class="row" style="margin-top:8px;">
           <button id="selectProfile">Use profile</button>
-          <button id="refreshProfiles">Refresh profiles</button>
         </div>
       </div>
 
       <div class="card">
-        <h2>Seed</h2>
+        <div class="card-header">
+          <h2>Seed</h2>
+          <button id="status" class="icon-button" type="button" aria-label="Refresh status" title="Refresh status">↻</button>
+        </div>
         <label>Seed mode</label>
         <select id="seedMode">
           <option value="reuse">reuse</option>
@@ -59,32 +64,42 @@ export const walletContent = String.raw`
         <input id="seed" class="mono" placeholder="hex seed" />
         <label>Secret passphrase</label>
         <input id="passphrase" placeholder="optional override" />
-        <label>Remember unlocked</label>
-        <select id="remember"><option value="true">true</option><option value="false">false</option></select>
+        <label class="check-row">
+          <input id="remember" type="checkbox" checked />
+          <span>Remember unlocked session</span>
+        </label>
         <div class="row" style="margin-top:8px;">
           <button id="prepareFunding">Prepare funding</button>
           <button id="unlock" class="primary">Unlock</button>
         </div>
         <div class="row" style="margin-top:8px;">
           <button id="lock">Lock</button>
-          <button id="status">Refresh status</button>
         </div>
       </div>
 
       <div class="card">
-        <h2>Funding</h2>
+        <div class="card-header">
+          <h2>Funding</h2>
+          <button id="copyFundingAddress" class="icon-button" type="button" aria-label="Copy funding address" title="Copy funding address">⧉</button>
+        </div>
         <label>Prepared funding address</label>
         <input id="fundingAddress" class="mono" readonly placeholder="prepare funding to populate" />
-        <div class="row" style="margin-top:8px;">
-          <button id="copyFundingAddress">Copy address</button>
-        </div>
         <label>Faucet</label>
-        <input id="faucetUrl" readonly placeholder="available for preprod" />
+        <a id="faucetUrl" class="link-field mono disabled" target="_blank" rel="noopener noreferrer">Unavailable for this setup</a>
         <p class="muted">The same seed is used for the Midnight wallet and the Midnight DID lifecycle.</p>
       </div>
     </section>
 
     <section class="right">
+      <div class="card">
+        <h2>Wallet Balances</h2>
+        <div class="indicator-grid">
+          <div class="indicator"><strong>NIGHT / tNIGHT</strong><span id="walletNightBalance" class="mono">Unavailable</span></div>
+          <div class="indicator"><strong>DUST</strong><span id="walletDustBalance" class="mono">Unavailable</span></div>
+        </div>
+        <p class="muted">Balances become available after the wallet state is synced. Zero means the wallet is synced but currently has no spendable amount.</p>
+      </div>
+
       <div class="card">
         <h2>Wallet Context</h2>
         <div class="value-list">

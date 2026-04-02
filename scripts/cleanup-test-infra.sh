@@ -67,13 +67,13 @@ remove_ryuk_containers() {
 
 main() {
   run_compose_down "$ROOT_DIR/api" "standalone.yml"
-  run_compose_down "$ROOT_DIR/cli" "proof-server.yml"
+  run_compose_down "$ROOT_DIR" "infrastructure/preprod-proof-server.yml"
 
   remove_named_containers \
     "did-node" \
     "did-indexer" \
     "did-proof-server" \
-    "cli-proof-server-1"
+    "did-preprod-proof-server"
 
   remove_compose_project_containers
   remove_ryuk_containers

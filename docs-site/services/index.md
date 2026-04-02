@@ -18,3 +18,9 @@ The workspace currently includes two service-style applications.
 
 - [Extending Resolver](/services/did-resolver-extension)
 - [Extending Manager](/services/did-manager-extension)
+
+## DID Manager workspaces
+
+- [Wallet Setup workspace](/services/wallet-setup)
+- [Secret Storage workspace](/services/secret-storage-workspace)
+- [DID Management workspace](/services/did-management-workspace)

@@ -3,7 +3,6 @@ import {
   DIDDocument,
   DIDDocumentSchema,
   DIDKeyID,
-  DIDString,
   KeyType,
   Service,
   URIString,

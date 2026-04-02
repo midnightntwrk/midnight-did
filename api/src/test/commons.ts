@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 
-import { unshieldedToken } from "@midnight-ntwrk/ledger-v7";
+import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import type { Logger } from "pino";
 import * as Rx from "rxjs";
 import {
@@ -23,7 +23,7 @@ import {
 const GENESIS_MINT_WALLET_SEED =
   "0000000000000000000000000000000000000000000000000000000000000001";
 const PROOF_SERVER_IMAGE =
-  process.env.PROOF_SERVER_IMAGE ?? "midnightntwrk/proof-server:7.0.0";
+  process.env.PROOF_SERVER_IMAGE ?? "midnightntwrk/proof-server:8.0.3";
 
 export interface TestConfiguration {
   seed: string;
@@ -129,10 +129,7 @@ export class TestEnvironment {
         .withProjectName(this.composeProjectName)
         .withWaitStrategy(
           "did-proof-server",
-          Wait.forLogMessage(
-            "Actix runtime found; starting in Actix runtime",
-            1,
-          ),
+          Wait.forHttp("/version", 6300).withStartupTimeout(180000),
         )
         .withWaitStrategy(
           "did-indexer",
@@ -186,10 +183,7 @@ export class TestEnvironment {
       .withCommand([`midnight-proof-server --network ${env}`])
       .withEnvironment({ RUST_BACKTRACE: "full" })
       .withWaitStrategy(
-        Wait.forLogMessage(
-          "Actix runtime found; starting in Actix runtime",
-          1000000,
-        ),
+        Wait.forHttp("/version", 6300).withStartupTimeout(180000),
       )
       .start();
 

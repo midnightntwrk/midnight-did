@@ -83,7 +83,7 @@ export struct Service {
 }
 
 export struct JubjubSignature {
-  r: NativePoint,
+  r: JubjubPoint,
   s: Field,
 }
 
@@ -105,13 +105,13 @@ export circuit publicKey(sk: Bytes<32>): Bytes<32> {
 }
 
 export circuit verifyJubjubSignature(
-  pk: NativePoint,
+  pk: JubjubPoint,
   signature: JubjubSignature,
   challenge: Field
 ): Boolean {
-  const leftSide: NativePoint = ecMulGenerator(signature.s);
-  const cPk: NativePoint = ecMul(pk, challenge);
-  const rightSide: NativePoint = ecAdd(signature.r, cPk);
+  const leftSide: JubjubPoint = ecMulGenerator(signature.s);
+  const cPk: JubjubPoint = ecMul(pk, challenge);
+  const rightSide: JubjubPoint = ecAdd(signature.r, cPk);
   assert(leftSide == rightSide, "Jubjub signature verification failed");
   return leftSide == rightSide;
 }

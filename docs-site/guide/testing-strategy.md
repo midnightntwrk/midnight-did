@@ -12,6 +12,12 @@ SKIP_LONG_RUNNING=1 ./run.sh
 
 This is the quickest way to catch build, lint, unit-test, and workspace integration drift.
 
+For CI-parity core checks (without mutating files with auto-fixes):
+
+```bash
+SKIP_LINT_FIX=1 ./run-core.sh
+```
+
 ## Component runners
 
 Use these when you are working on one area:
@@ -19,6 +25,21 @@ Use these when you are working on one area:
 - `./run-api.sh`
 - `./run-resolver.sh`
 - `./run-manager.sh`
+
+Each runner includes infra cleanup traps and explicit dependency preparation to make clean, per-job execution reproducible.
+
+## CI graph
+
+GitHub Actions runs these in a parallel graph:
+
+1. `core` (lint + contract/domain/did/secret-storage pipeline)
+2. service matrix in parallel:
+   - API pipeline (`./run-api.sh`)
+   - resolver pipeline (`./run-resolver.sh`)
+   - DID manager pipeline (`./run-manager.sh`)
+3. final aggregation job
+
+This reduces total CI wall-clock time versus a fully sequential pipeline.
 
 ## Long-running paths
 

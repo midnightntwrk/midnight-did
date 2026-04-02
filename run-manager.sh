@@ -12,14 +12,22 @@ node ./scripts/ensure-node-24.mjs
 
 export DID_MANAGER_SETUP="${DID_MANAGER_SETUP:-standalone}"
 
+if [[ ! -f "contract/src/managed/did/contract/index.js" ]]; then
+  echo "[manager] Generate contract managed artifacts"
+  npm run contract -w contract
+fi
+
+echo "[manager] Build dependency packages (once)"
+npm run prepare:deps -w did-manager-service
+
 echo "[manager] Lint"
 npm run lint -w did-manager-service
 
 echo "[manager] Build"
-npm run build -w did-manager-service
+npm --ignore-scripts run build -w did-manager-service
 
 echo "[manager] Test"
-npm run test -w did-manager-service
+npm --ignore-scripts run test -w did-manager-service
 
 if [[ "${SKIP_LONG_RUNNING:-0}" == "1" ]]; then
   echo "[manager] Skip Playwright E2E (SKIP_LONG_RUNNING=1)"

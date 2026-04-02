@@ -21,15 +21,15 @@ Now you need to replace the default image of the proof-server with your newly cr
 This repository supports overriding the proof-server image with `PROOF_SERVER_IMAGE`.
 By default, all local compose files and test helpers use:
 
-`midnightntwrk/proof-server:7.0.0`
+`midnightntwrk/proof-server:8.0.3`
 
 To run locally with the bootstrapped image created by `bootstrap.py`:
 
 ```bash
-export PROOF_SERVER_IMAGE=proof-server-bootstrap:7.0.0
+export PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3
 ```
 
-Then run your normal local workflows (for example `docker compose` or local API/CLI tests).
+Then run your normal local workflows (for example `docker compose` or local API/service tests).
 The override is local to your shell session.
 
 To switch back to the default image:

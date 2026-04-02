@@ -7,7 +7,8 @@ import type { MidnightWalletStateSnapshot } from '@midnight-ntwrk/midnight-did-a
 import type { NetworkProfile } from './types.js';
 
 export type WalletStateMeta = {
-  version: 1;
+  version: 2;
+  walletSchema: 'ledger8';
   profile: NetworkProfile;
   profileName: string;
   seedHash: string;
@@ -53,7 +54,13 @@ export const readWalletState = async (
     ]);
     const meta = JSON.parse(metaRaw) as WalletStateMeta;
     const unshieldedHistory = await readFile(historyFilePath(dir), 'utf8').catch(() => undefined);
-    if (meta.version !== 1 || meta.profile !== network || meta.profileName !== profileName || meta.seedHash !== seedHash) {
+    if (
+      meta.version !== 2
+      || meta.walletSchema !== 'ledger8'
+      || meta.profile !== network
+      || meta.profileName !== profileName
+      || meta.seedHash !== seedHash
+    ) {
       return null;
     }
     return {
@@ -78,7 +85,8 @@ export const writeWalletState = async (
   const dir = walletStateDir(baseDir, network, profileName, seedHash);
   await mkdir(dir, { recursive: true });
   const meta: WalletStateMeta = {
-    version: 1,
+    version: 2,
+    walletSchema: 'ledger8',
     profile: network,
     profileName,
     seedHash,

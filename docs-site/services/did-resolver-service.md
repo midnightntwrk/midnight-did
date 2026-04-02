@@ -5,8 +5,12 @@ The DID resolver is a standalone Node.js service that resolves Midnight DIDs thr
 ## Scope
 
 - resolve DID documents and resolution metadata
-- support standalone and preprod runtime profiles
+- support standalone, preprod, and mainnet runtime profiles
 - provide a simple UI for manual resolution checks
+
+Quick start:
+
+- [DID Resolver Getting Started](/guide/getting-started-did-resolver)
 
 ## Main endpoints
 
@@ -51,7 +55,10 @@ sequenceDiagram
 ```bash
 npm run dev -w did-resolver-service
 ./start-resolver.sh --preprod
+./start-resolver.sh --mainnet
 ```
+
+`--mainnet` requires explicit `MIDNIGHT_INDEXER_HTTP_URL` and `MIDNIGHT_INDEXER_WS_URL` values.
 
 ## Main repository paths
 

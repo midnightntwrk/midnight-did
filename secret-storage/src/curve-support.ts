@@ -14,7 +14,7 @@ import {
   ecMulGenerator,
   maxField,
   valueToBigInt,
-} from "@midnight-ntwrk/ledger-v7";
+} from "@midnight-ntwrk/ledger-v8";
 
 import { UnsupportedCurveError } from "./errors.js";
 import type { ImportKeyInput, MidnightCurve, PublicJwk } from "./types.js";

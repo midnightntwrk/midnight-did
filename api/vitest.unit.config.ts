@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
+const contractEntry = path.resolve(rootDir, '..', 'contract', 'dist', 'index.js');
 
 export default defineConfig({
   mode: 'node',
@@ -34,6 +35,9 @@ export default defineConfig({
     },
   },
   resolve: {
+    alias: {
+      '@midnight-ntwrk/midnight-did-contract': contractEntry,
+    },
     extensions: ['.ts', '.js'],
     conditions: ['import', 'node', 'default'],
   },

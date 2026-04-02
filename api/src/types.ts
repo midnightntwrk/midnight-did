@@ -1,5 +1,5 @@
-import type { ImpureCircuitId } from "@midnight-ntwrk/compact-js";
-import * as ledger from "@midnight-ntwrk/ledger-v7";
+import type { ProvableCircuitId } from "@midnight-ntwrk/compact-js";
+import * as ledger from "@midnight-ntwrk/ledger-v8";
 import type { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
 import {
   DIDContract,
@@ -12,7 +12,10 @@ import type {
 import type { NetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import type { MidnightProviders } from "@midnight-ntwrk/midnight-js-types";
 import type { DustWallet } from "@midnight-ntwrk/wallet-sdk-dust-wallet";
-import type { WalletFacade } from "@midnight-ntwrk/wallet-sdk-facade";
+import type {
+  FacadeState,
+  WalletFacade,
+} from "@midnight-ntwrk/wallet-sdk-facade";
 import type { ShieldedWallet } from "@midnight-ntwrk/wallet-sdk-shielded";
 import type {
   InMemoryTransactionHistoryStorage,
@@ -21,9 +24,13 @@ import type {
 } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
 export type MidnightDIDPrivateState = DIDPrivateState;
 
-export type MidnightDIDCircuits = ImpureCircuitId<
-  DIDContract.Contract<MidnightDIDPrivateState>
->;
+type MidnightDIDProvableContract =
+  DIDContract.Contract<MidnightDIDPrivateState> & {
+    provableCircuits: DIDContract.ImpureCircuits<MidnightDIDPrivateState>;
+  };
+
+export type MidnightDIDCircuits =
+  ProvableCircuitId<MidnightDIDProvableContract>;
 
 export const MidnightDIDPrivateStateId = "midnightDIDPrivateState";
 
@@ -33,7 +40,7 @@ export type MidnightDIDProviders = MidnightProviders<
   MidnightDIDPrivateState
 >;
 
-export type MidnightDIDContract = DIDContract.Contract<MidnightDIDPrivateState>;
+export type MidnightDIDContract = MidnightDIDProvableContract;
 
 export type DeployedMidnightDIDContract =
   | DeployedContract<MidnightDIDContract>
@@ -56,6 +63,13 @@ export interface MidnightWalletStateSnapshot {
   dustState: string;
   unshieldedHistory?: string;
 }
+
+export interface MidnightWalletBalances {
+  night: bigint | null;
+  dust: bigint | null;
+}
+
+export type MidnightWalletFacadeState = FacadeState;
 
 export const NetworkMapping = Object.freeze({
   undeployed: "Undeployed",

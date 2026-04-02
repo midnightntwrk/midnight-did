@@ -17,6 +17,7 @@ Single-user web backend + minimal UI for managing Midnight DID lifecycle operati
   - local profile selection
   - seed handling
   - funding preparation
+  - NIGHT / tNIGHT and DUST balance visibility
   - unlock/session state
 - `/secret-storage`
   - local key generation
@@ -29,7 +30,7 @@ Single-user web backend + minimal UI for managing Midnight DID lifecycle operati
 
 ## Data Model
 
-- runtime setup is backend-controlled: `standalone` or `preprod`
+- runtime setup is backend-controlled: `standalone`, `preprod`, or `mainnet`
 - local profiles are user-selectable inside the configured setup
 - seed modes:
   - `reuse`
@@ -64,6 +65,10 @@ Helpers:
 - `./start-manager.sh`
 - `./start-manager.sh --standalone`
 - `./start-manager.sh --preprod`
+- `./start-manager.sh --mainnet`
+
+Shared infrastructure:
+- preprod proof server compose: `infrastructure/preprod-proof-server.yml`
 
 ## Preprod flow
 
@@ -78,10 +83,46 @@ Helpers:
 6. If the response includes `generatedSeed`, keep it and reuse it for unlock. The UI copies it into the seed field, switches the mode to `provided`, and stores the shared seed + wallet address in the manager session file.
 7. Top up the address with `tNight`.
 8. After funds arrive, click `Unlock`.
-9. Move to `/did` and deploy or join a DID contract.
+9. Confirm the wallet balances are visible on the wallet page:
+   - `NIGHT / tNIGHT`
+   - `DUST`
+10. Move to `/did` and deploy or join a DID contract.
 
 For preprod faucet funding:
 - `https://faucet.preprod.midnight.network/`
+
+Mainnet note:
+- `--mainnet` requires explicit `DID_MANAGER_MAINNET_INDEXER`, `DID_MANAGER_MAINNET_INDEXER_WS`, `DID_MANAGER_MAINNET_NODE`, and `DID_MANAGER_MAINNET_PROOF_SERVER` values. No defaults are hard-coded.
+
+## Local data directory (`~/.midnight-did`)
+
+Default manager storage root:
+
+- `~/.midnight-did` (override with `DID_MANAGER_DATA_DIR`)
+
+Structure (simplified):
+
+```text
+~/.midnight-did/
+├─ did-manager-service.log
+├─ manager-profiles.json
+├─ profiles/<network>/<profile>/
+│  ├─ manager-session.json
+│  ├─ manager-secrets.json
+│  ├─ wallet-state/<seedHash6>/
+│  └─ midnight-level-db/<seedHash16>/
+└─ backup/wallet-state/<network>/<profile>/<timestamp>/
+```
+
+Stored data:
+
+- profile/session metadata (seed presence, funding address, contract addresses)
+- encrypted secret-store data (`manager-secrets.json`)
+- persisted wallet snapshots for reusable networks
+- Midnight private state DB scoped by network/profile/seed
+- migration/restore backups of wallet snapshots
+
+Treat this directory as sensitive local state and do not commit it.
 
 ## Main env vars
 
@@ -92,7 +133,7 @@ For preprod faucet funding:
 - `DID_MANAGER_SECRET_FILE`
 - `DID_MANAGER_SECRET_PASSPHRASE`
 - `DID_MANAGER_REMEMBER_UNLOCKED` (`true|false`)
-- `DID_MANAGER_SETUP` (`standalone|preprod`)
+- `DID_MANAGER_SETUP` (`standalone|preprod|mainnet`)
 - `DID_MANAGER_LOG_FILE`
 
 ## Main Source Files

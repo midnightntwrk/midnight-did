@@ -25,6 +25,10 @@ export class ManagerRuntimeState {
   private reusedPersistedState = false;
   private activeSeedHash: string | null = null;
   private didLastError: string | null = null;
+  private walletBalances: SessionStatus['walletBalances'] = {
+    night: null,
+    dust: null,
+  };
 
   constructor(
     private readonly logger: Logger,
@@ -66,6 +70,12 @@ export class ManagerRuntimeState {
       reusedPersistedState: this.reusedPersistedState,
       walletStateKey: null,
       lastError: this.connectionLastError,
+    };
+  }
+
+  getWalletBalances(): SessionStatus['walletBalances'] {
+    return {
+      ...this.walletBalances,
     };
   }
 
@@ -113,6 +123,13 @@ export class ManagerRuntimeState {
 
   setDidLastError(error: string | null): void {
     this.didLastError = error;
+  }
+
+  setWalletBalances(balances: api.MidnightWalletBalances): void {
+    this.walletBalances = {
+      night: balances.night?.toString() ?? null,
+      dust: balances.dust?.toString() ?? null,
+    };
   }
 
   setConnectionState(
@@ -190,6 +207,7 @@ export class ManagerRuntimeState {
     this.walletSubscription = this.walletCtx.wallet.state().subscribe({
       next: (state) => {
         if (generation !== this.unlockGeneration) return;
+        this.setWalletBalances(api.getWalletBalances(state));
         if (this.connectionPhase === 'ready' || this.connectionPhase === 'error' || this.connectionPhase === 'locked') {
           return;
         }
@@ -233,6 +251,7 @@ export class ManagerRuntimeState {
     this.activeSeedHash = null;
     this.reusedPersistedState = false;
     this.didLastError = null;
+    this.walletBalances = { night: null, dust: null };
     this.setConnectionState('locked', { lastError: null, reusedPersistedState: false, seedHash: null });
   }
 
@@ -244,6 +263,7 @@ export class ManagerRuntimeState {
     this.providers = null;
     this.secretStore = null;
     this.didContract = null;
+    this.walletBalances = { night: null, dust: null };
   }
 
   private clearWalletSubscription(): void {

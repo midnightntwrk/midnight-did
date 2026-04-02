@@ -5,7 +5,7 @@ node ./scripts/ensure-node-24.mjs
 
 usage() {
   cat <<'EOF'
-Usage: ./start-resolver.sh [--standalone|--preprod|--preproad]
+Usage: ./start-resolver.sh [--standalone|--preprod|--preproad|--mainnet]
 
 Starts did-resolver-service in the selected network profile.
 
@@ -13,6 +13,7 @@ Options:
   --standalone   Use local standalone Docker infra (default)
   --preprod      Use preprod indexer
   --preproad     Alias for --preprod
+  --mainnet      Use explicit mainnet indexer env vars
   --help         Show this help
 EOF
 }
@@ -47,6 +48,9 @@ if [[ $# -eq 1 ]]; then
     --preprod|--preproad)
       profile="preprod"
       ;;
+    --mainnet)
+      profile="mainnet"
+      ;;
     --help|-h)
       usage
       exit 0
@@ -72,12 +76,18 @@ if [[ "${profile}" == "standalone" ]]; then
   export MIDNIGHT_INDEXER_WS_URL="${MIDNIGHT_INDEXER_WS_URL:-ws://127.0.0.1:${INDEXER_PORT}/api/v3/graphql/ws}"
 
   echo "[start-resolver] Starting did-resolver-service in standalone mode"
-else
+elif [[ "${profile}" == "preprod" ]]; then
   export MIDNIGHT_NETWORK="${MIDNIGHT_NETWORK:-preprod}"
   export MIDNIGHT_INDEXER_HTTP_URL="${MIDNIGHT_INDEXER_HTTP_URL:-https://indexer.preprod.midnight.network/api/v3/graphql}"
   export MIDNIGHT_INDEXER_WS_URL="${MIDNIGHT_INDEXER_WS_URL:-wss://indexer.preprod.midnight.network/api/v3/graphql/ws}"
 
   echo "[start-resolver] Starting did-resolver-service in preprod mode"
+else
+  export MIDNIGHT_NETWORK="${MIDNIGHT_NETWORK:-mainnet}"
+  : "${MIDNIGHT_INDEXER_HTTP_URL:?Set MIDNIGHT_INDEXER_HTTP_URL for --mainnet}"
+  : "${MIDNIGHT_INDEXER_WS_URL:?Set MIDNIGHT_INDEXER_WS_URL for --mainnet}"
+
+  echo "[start-resolver] Starting did-resolver-service in mainnet mode"
 fi
 
 echo "[start-resolver] Network: ${MIDNIGHT_NETWORK}"

@@ -3,9 +3,11 @@ set -euo pipefail
 
 node ./scripts/ensure-node-24.mjs
 
+PREPROD_PROOF_SERVER_COMPOSE_FILE="infrastructure/preprod-proof-server.yml"
+
 usage() {
   cat <<'EOF'
-Usage: ./start-manager.sh [--standalone|--preprod|--preproad]
+Usage: ./start-manager.sh [--standalone|--preprod|--preproad|--mainnet]
 
 Starts did-manager-service in the selected network profile.
 
@@ -13,6 +15,7 @@ Options:
   --standalone   Use local standalone Docker infra (default)
   --preprod      Use preprod indexer/node and local proof server
   --preproad     Alias for --preprod
+  --mainnet      Use explicit mainnet endpoints and proof server env vars
   --help         Show this help
 EOF
 }
@@ -58,6 +61,9 @@ if [[ $# -eq 1 ]]; then
     --preprod|--preproad)
       profile="preprod"
       ;;
+    --mainnet)
+      profile="mainnet"
+      ;;
     --help|-h)
       usage
       exit 0
@@ -90,7 +96,7 @@ if [[ "${profile}" == "standalone" ]]; then
   echo "[start-manager] Indexer WS: ${DID_MANAGER_STANDALONE_INDEXER_WS}"
   echo "[start-manager] Proof server: ${DID_MANAGER_STANDALONE_PROOF_SERVER}"
   echo "[start-manager] Open http://${DID_MANAGER_HOST}:${DID_MANAGER_PORT}/wallet"
-else
+elif [[ "${profile}" == "preprod" ]]; then
   export DID_MANAGER_PREPROD_INDEXER="${DID_MANAGER_PREPROD_INDEXER:-https://indexer.preprod.midnight.network/api/v3/graphql}"
   export DID_MANAGER_PREPROD_INDEXER_WS="${DID_MANAGER_PREPROD_INDEXER_WS:-wss://indexer.preprod.midnight.network/api/v3/graphql/ws}"
   export DID_MANAGER_PREPROD_NODE="${DID_MANAGER_PREPROD_NODE:-https://rpc.preprod.midnight.network}"
@@ -99,7 +105,7 @@ else
 
   if [[ "${START_PREPROD_PROOF_SERVER}" == "true" && "${DID_MANAGER_PREPROD_PROOF_SERVER}" == "http://127.0.0.1:6300" ]]; then
     echo "[start-manager] Starting local preprod proof server"
-    docker compose -f cli/proof-server.yml up -d proof-server
+    docker compose -f "${PREPROD_PROOF_SERVER_COMPOSE_FILE}" up -d proof-server
     wait_for_proof_server
   fi
 
@@ -107,6 +113,17 @@ else
   echo "[start-manager] Preprod indexer: ${DID_MANAGER_PREPROD_INDEXER}"
   echo "[start-manager] Preprod node: ${DID_MANAGER_PREPROD_NODE}"
   echo "[start-manager] Proof server: ${DID_MANAGER_PREPROD_PROOF_SERVER}"
+  echo "[start-manager] Open http://${DID_MANAGER_HOST}:${DID_MANAGER_PORT}/wallet"
+else
+  : "${DID_MANAGER_MAINNET_INDEXER:?Set DID_MANAGER_MAINNET_INDEXER for --mainnet}"
+  : "${DID_MANAGER_MAINNET_INDEXER_WS:?Set DID_MANAGER_MAINNET_INDEXER_WS for --mainnet}"
+  : "${DID_MANAGER_MAINNET_NODE:?Set DID_MANAGER_MAINNET_NODE for --mainnet}"
+  : "${DID_MANAGER_MAINNET_PROOF_SERVER:?Set DID_MANAGER_MAINNET_PROOF_SERVER for --mainnet}"
+
+  echo "[start-manager] Starting did-manager-service in mainnet mode"
+  echo "[start-manager] Mainnet indexer: ${DID_MANAGER_MAINNET_INDEXER}"
+  echo "[start-manager] Mainnet node: ${DID_MANAGER_MAINNET_NODE}"
+  echo "[start-manager] Proof server: ${DID_MANAGER_MAINNET_PROOF_SERVER}"
   echo "[start-manager] Open http://${DID_MANAGER_HOST}:${DID_MANAGER_PORT}/wallet"
 fi
 

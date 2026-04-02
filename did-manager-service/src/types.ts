@@ -1,4 +1,4 @@
-export type NetworkProfile = 'standalone' | 'preprod';
+export type NetworkProfile = 'standalone' | 'preprod' | 'mainnet';
 
 export type SessionProfileState = {
   seed: string;
@@ -37,6 +37,10 @@ export type SessionStatus = {
   seedAvailable: boolean;
   unshieldedAddress: string | null;
   faucetUrl: string | null;
+  walletBalances: {
+    night: string | null;
+    dust: string | null;
+  };
   connection: {
     phase:
       | 'locked'

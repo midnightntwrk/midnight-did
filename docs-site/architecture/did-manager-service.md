@@ -17,7 +17,7 @@ The manager is designed around these constraints:
 3. the same seed anchors wallet continuity and DID continuity
 4. wallet/session readiness is different from DID contract readiness
 5. long-running actions are asynchronous and observable
-6. preprod state can be reused safely between runs
+6. remote-network state can be reused safely between runs
 
 ## Runtime Boundaries
 
@@ -75,6 +75,7 @@ Owns:
 - seed preparation and reuse
 - funding address preparation
 - wallet session unlock and lock
+- wallet balance visibility for NIGHT / tNIGHT and DUST
 - connection/session visibility
 
 ### Secret Storage
