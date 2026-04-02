@@ -157,7 +157,7 @@ test.describe.serial('did-manager-service UI', () => {
       return method === 'POST' && url.pathname === '/api/did/deploy';
     }, {
       retries: 2,
-      retryOnMessage: /Not enough Dust generated to pay the fee/i,
+      retryOnMessage: /Not enough Dust generated to pay the fee|could not balance dust/i,
       delayMs: 8_000,
     });
 
