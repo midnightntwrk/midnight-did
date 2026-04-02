@@ -12,8 +12,12 @@ node ./scripts/ensure-node-24.mjs
 node ./scripts/ensure-onchain-runtime-cjs.mjs
 node ./scripts/ensure-rollup-native.mjs
 
-echo "[core] Lint (fix)"
-npm run lint:fix || true
+if [[ "${SKIP_LINT_FIX:-0}" == "1" ]]; then
+  echo "[core] Skip lint auto-fix (SKIP_LINT_FIX=1)"
+else
+  echo "[core] Lint (fix)"
+  npm run lint:fix || true
+fi
 
 echo "[core] Lint"
 npm run lint

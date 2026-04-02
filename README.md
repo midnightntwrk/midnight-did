@@ -103,6 +103,7 @@ Install:
 
 Pipelines:
 - Full workspace: `./run.sh`
+- Core pipeline only: `SKIP_LINT_FIX=1 ./run-core.sh`
 - API only: `./run-api.sh`
 - Resolver only: `./run-resolver.sh`
 - DID manager only: `./run-manager.sh`
@@ -111,8 +112,15 @@ Pipelines:
 - Resolver app: `./start-resolver.sh [--standalone|--preprod|--mainnet]`
 - Docs dev server: `./start-docs.sh`
 
+Fast mode:
+- Skip long-running integration/e2e targets: `SKIP_LONG_RUNNING=1 ./run.sh`
+
 Docs site local URL:
 - `http://127.0.0.1:4173`
+
+Bootstrapped proof server image (faster Docker-backed runs):
+- `export PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3`
+- used by standalone/preprod compose flows and CI (when configured as a repo variable)
 
 ## Developer Entry Points
 
@@ -141,6 +149,9 @@ When you need direct package/service documentation:
 - Compact circuits are compiled via workspace scripts in `contract`.
 - Integration tests use Testcontainers and docker-compose based topologies.
 - Teardown logic now performs best-effort `docker compose down --volumes --remove-orphans` to reduce leaked resources.
+- CI is split into one `core` job and a parallel service matrix (`run-api.sh`, `run-resolver.sh`, `run-manager.sh`) to reduce wall-clock duration.
+- CI uses cache layers for npm, Compact toolchain, and Playwright browsers (manager pipeline).
+- Service runners now prepare missing generated artifacts/dependencies explicitly so standalone service jobs are reproducible.
 - HD seed derivation for `Ed25519`, `Jubjub`, and `P-256` is documented in [`secret-storage/README.md`](secret-storage/README.md).
 - DID Resolution responses follow the DID Core shape:
   - `didDocument`

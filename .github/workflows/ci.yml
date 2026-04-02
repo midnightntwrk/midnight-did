@@ -13,6 +13,10 @@ permissions:
   contents: read
   pull-requests: read
 
+env:
+  NPM_CONFIG_AUDIT: "false"
+  NPM_CONFIG_FUND: "false"
+
 concurrency:
   group: did-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -44,10 +48,10 @@ jobs:
         run: compact compile --version
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline
 
       - name: Run core workflow
-        run: bash ./run-core.sh
+        run: SKIP_LINT_FIX=1 bash ./run-core.sh
 
   services:
     name: ${{ matrix.name }}
@@ -57,14 +61,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: API pipeline
+          - id: api
+            name: API pipeline
             script: ./run-api.sh
-          - name: Resolver pipeline
+          - id: resolver
+            name: Resolver pipeline
             script: ./run-resolver.sh
-          - name: DID manager pipeline
+          - id: manager
+            name: DID manager pipeline
             script: ./run-manager.sh
     env:
       COMPACT_COMPILER_VERSION: 0.30.0
+      PLAYWRIGHT_BROWSERS_PATH: ~/.cache/ms-playwright
       # Optional optimization: point this repository variable to a pre-bootstrapped proof-server image
       # (for example ghcr.io/<org>/<image>:<tag>) to reduce cold-start time in Docker-based tests.
       PROOF_SERVER_IMAGE: ${{ vars.PROOF_SERVER_IMAGE != '' && vars.PROOF_SERVER_IMAGE || 'midnightntwrk/proof-server:8.0.3' }}
@@ -87,8 +95,17 @@ jobs:
       - name: Verify Compact installation
         run: compact compile --version
 
+      - name: Cache Playwright browsers
+        if: matrix.id == 'manager'
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # ratchet:actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline
 
       - name: Prepare contract generated artifacts
         run: npm run contract -w contract

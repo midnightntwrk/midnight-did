@@ -16,10 +16,18 @@ Fast verification:
 SKIP_LONG_RUNNING=1 ./run.sh
 ```
 
+CI-aligned core verification (skip auto-fix pass):
+
+```bash
+SKIP_LINT_FIX=1 ./run-core.sh
+```
+
 Targeted runners:
 
 ```bash
 ./run-api.sh
+./run-resolver.sh
+./run-manager.sh
 ./start-resolver.sh
 ./start-manager.sh
 ```
@@ -80,6 +88,7 @@ This env var is already consumed by:
 - `api/standalone.yml`
 - `api/standalone-latest.yml`
 - `infrastructure/preprod-proof-server.yml`
+- CI service jobs (when repository variable `PROOF_SERVER_IMAGE` is set)
 
 ### Revert to default image
 
@@ -159,6 +168,22 @@ Then run the specific component you are changing:
 - `./start-manager.sh`
 
 Use the preprod helpers only when you are intentionally exercising preprod-specific flows such as funding and long-lived profiles.
+
+## GitHub Actions CI topology
+
+The CI workflow is split to reduce wall-clock time:
+
+1. `core` job: lint, contract/domain/did/secret-storage build/tests/coverage
+2. `services` matrix: `run-api.sh`, `run-resolver.sh`, and `run-manager.sh` in parallel
+3. final aggregation job that fails if any dependency job fails
+
+Performance behavior:
+
+- npm package cache is enabled through `actions/setup-node`
+- Compact toolchain is cached via `setup-compact-action`
+- Playwright browser binaries are cached for manager e2e
+- manager runner prepares shared dependencies once, then runs build/test without repeating `prepare:deps`
+- service runners guard against missing generated managed contract artifacts in clean CI checkouts
 
 ## Running this docs site
 
