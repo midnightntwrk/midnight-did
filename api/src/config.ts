@@ -19,6 +19,9 @@ export const contractConfig = {
   ),
 };
 
+const midnightDbPath = (profile: string): string =>
+  path.resolve(currentDir, ".midnight-db", profile);
+
 export interface Config {
   readonly logDir: string;
   readonly indexer: string;
@@ -39,6 +42,7 @@ export class TestnetLocalConfig implements Config {
   indexerWS = "ws://127.0.0.1:8088/api/v3/graphql/ws";
   node = "http://127.0.0.1:9944";
   proofServer = "http://127.0.0.1:6300";
+  midnightDbName = midnightDbPath("testnet-local");
   constructor() {
     setNetworkId("testnet");
   }
@@ -55,6 +59,7 @@ export class StandaloneConfig implements Config {
   indexerWS = "ws://127.0.0.1:8088/api/v3/graphql/ws";
   node = "http://127.0.0.1:9944";
   proofServer = "http://127.0.0.1:6300";
+  midnightDbName = midnightDbPath("standalone");
   constructor() {
     setNetworkId("undeployed");
   }
@@ -71,7 +76,53 @@ export class TestnetRemoteConfig implements Config {
   indexerWS = "wss://indexer.testnet-02.midnight.network/api/v3/graphql/ws";
   node = "https://rpc.testnet-02.midnight.network";
   proofServer = "http://127.0.0.1:6300";
+  midnightDbName = midnightDbPath("testnet-remote");
   constructor() {
     setNetworkId("testnet");
+  }
+}
+
+export class PreprodConfig implements Config {
+  logDir = path.resolve(
+    currentDir,
+    "logs",
+    "preprod",
+    `${new Date().toISOString()}.log`,
+  );
+  indexer = "https://indexer.preprod.midnight.network/api/v3/graphql";
+  indexerWS = "wss://indexer.preprod.midnight.network/api/v3/graphql/ws";
+  node = "https://rpc.preprod.midnight.network";
+  proofServer = "http://127.0.0.1:6300";
+  midnightDbName = midnightDbPath("preprod");
+  constructor() {
+    setNetworkId("preprod");
+  }
+}
+
+export class MainnetConfig implements Config {
+  readonly logDir = path.resolve(
+    currentDir,
+    "logs",
+    "mainnet",
+    `${new Date().toISOString()}.log`,
+  );
+  readonly indexer: string;
+  readonly indexerWS: string;
+  readonly node: string;
+  readonly proofServer: string;
+  readonly midnightDbName: string;
+
+  constructor(input: {
+    indexer: string;
+    indexerWS: string;
+    node: string;
+    proofServer: string;
+  }) {
+    this.indexer = input.indexer;
+    this.indexerWS = input.indexerWS;
+    this.node = input.node;
+    this.proofServer = input.proofServer;
+    this.midnightDbName = midnightDbPath("mainnet");
+    setNetworkId("mainnet");
   }
 }

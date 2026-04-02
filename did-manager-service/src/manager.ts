@@ -65,6 +65,7 @@ import {
   backupDirectoryIfExists,
   privateStateDbSeedHash,
   readWalletState,
+  removeWalletStateDir,
   seedHashPrefix,
   walletStateDir,
   writeWalletState,
@@ -341,6 +342,33 @@ export class DidManagerService {
     }
   }
 
+  private async backupAndResetIncompatibleWalletState(seedHash: string, error: unknown): Promise<void> {
+    if (!this.shouldPersistWalletState()) return;
+    const sourceDir = walletStateDir(
+      this.baseDataDir(),
+      this.setupProfile(),
+      this.selectedProfileName(),
+      seedHash,
+    );
+    const backupDir = await backupDirectoryIfExists(sourceDir, this.persistWalletStateBackupRoot());
+    await removeWalletStateDir(
+      this.baseDataDir(),
+      this.setupProfile(),
+      this.selectedProfileName(),
+      seedHash,
+    );
+    this.logger.warn(
+      {
+        err: error,
+        profile: this.setupProfile(),
+        profileName: this.selectedProfileName(),
+        seedHash,
+        backupDir,
+      },
+      'Persisted wallet state is incompatible. Falling back to fresh wallet sync',
+    );
+  }
+
   private startWalletStateTracking(generation: number): void {
     this.runtime.startWalletStateTracking(generation);
   }
@@ -362,17 +390,28 @@ export class DidManagerService {
       'Using isolated Midnight private state store',
     );
 
-    const persistedWalletState = await this.restorePersistedWalletState(seedHash);
+    let persistedWalletState = await this.restorePersistedWalletState(seedHash);
+    let reusedPersistedState = persistedWalletState !== null;
     this.setConnectionState(
       persistedWalletState === null ? 'starting' : 'restoring',
-      { lastError: null, reusedPersistedState: persistedWalletState !== null, seedHash },
+      { lastError: null, reusedPersistedState, seedHash },
     );
 
     let walletCtx: api.MidnightDIDWalletContext | null = null;
     try {
-      walletCtx = persistedWalletState === null
-        ? await api.buildWallet(config, seed)
-        : await api.restoreWalletFromState(config, seed, persistedWalletState);
+      if (persistedWalletState === null) {
+        walletCtx = await api.buildWallet(config, seed);
+      } else {
+        try {
+          walletCtx = await api.restoreWalletFromState(config, seed, persistedWalletState);
+        } catch (restoreError) {
+          await this.backupAndResetIncompatibleWalletState(seedHash, restoreError);
+          persistedWalletState = null;
+          reusedPersistedState = false;
+          this.setConnectionState('starting', { lastError: null, reusedPersistedState, seedHash });
+          walletCtx = await api.buildWallet(config, seed);
+        }
+      }
 
       if (generation !== this.runtime.getUnlockGeneration()) {
         await walletCtx.wallet.stop().catch(() => undefined);
@@ -383,7 +422,7 @@ export class DidManagerService {
       this.startWalletStateTracking(generation);
       this.setConnectionState(
         persistedWalletState === null ? 'syncing' : 'restoring',
-        { lastError: null, reusedPersistedState: persistedWalletState !== null, seedHash },
+        { lastError: null, reusedPersistedState, seedHash },
       );
 
       const syncedState = await api.waitForWalletSync(walletCtx);
@@ -397,7 +436,7 @@ export class DidManagerService {
 
       this.setConnectionState('waitingForFunds', {
         lastError: null,
-        reusedPersistedState: persistedWalletState !== null,
+        reusedPersistedState,
         seedHash,
       });
       await api.waitForWalletFunds(walletCtx);
@@ -409,7 +448,7 @@ export class DidManagerService {
 
       this.setConnectionState('configuringProviders', {
         lastError: null,
-        reusedPersistedState: persistedWalletState !== null,
+        reusedPersistedState,
         seedHash,
       });
       this.logger.info(
@@ -426,12 +465,12 @@ export class DidManagerService {
         providers,
         secretStore,
         seedHash,
-        reusedPersistedState: persistedWalletState !== null,
+        reusedPersistedState,
       });
       this.logger.info(
         {
           storedContractAddress: profileState?.contractAddress ?? null,
-          reusedPersistedState: persistedWalletState !== null,
+          reusedPersistedState,
           walletStateKey: this.walletStateKey(seedHash),
         },
         'Manager session is ready',

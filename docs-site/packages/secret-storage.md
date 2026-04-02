@@ -1,6 +1,6 @@
 # Secret Storage Package
 
-`@midnight-ntwrk/midnight-did-secret-storage` is the key custody and derivation layer used by CLI and service-side flows.
+`@midnight-ntwrk/midnight-did-secret-storage` is the key custody and derivation layer used by manager, backend, and service-side flows.
 
 ## Focus
 
@@ -37,3 +37,7 @@
 ## API reference
 
 - [Generated secret-storage API](/api/reference/secret-storage/)
+
+## Architecture decision
+
+- [ADR: HD Key Derivation and Ledger Compatibility](/architecture/adr-hd-key-derivation-and-ledger-compatibility)

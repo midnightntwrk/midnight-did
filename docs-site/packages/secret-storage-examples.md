@@ -48,6 +48,10 @@ const verified = await store.verify({ keyRef, payload, signature });
 
 ## When to use this package
 
-- CLI and backend secret management
+- manager and backend secret management
 - shared-seed workflows
 - reusable key lifecycle logic outside any single app
+
+## Read next
+
+- [ADR: HD Key Derivation and Ledger Compatibility](/architecture/adr-hd-key-derivation-and-ledger-compatibility)

@@ -32,17 +32,24 @@ export const buildSetupStatus = (
   cfg: ManagerConfig,
   profile: SetupProfile,
 ): SetupStatus => {
-  const endpoints = profile === 'standalone'
-    ? {
-        node: cfg.standalone.node,
-        indexer: cfg.standalone.indexer,
-        proofServer: cfg.standalone.proofServer,
-      }
-    : {
-        node: cfg.preprod.node,
-        indexer: cfg.preprod.indexer,
-        proofServer: cfg.preprod.proofServer,
-      };
+  const endpoints =
+    profile === 'standalone'
+      ? {
+          node: cfg.standalone.node,
+          indexer: cfg.standalone.indexer,
+          proofServer: cfg.standalone.proofServer,
+        }
+      : profile === 'preprod'
+        ? {
+            node: cfg.preprod.node,
+            indexer: cfg.preprod.indexer,
+            proofServer: cfg.preprod.proofServer,
+          }
+        : {
+            node: cfg.mainnet.node,
+            indexer: cfg.mainnet.indexer,
+            proofServer: cfg.mainnet.proofServer,
+          };
 
   return {
     profile,

@@ -132,7 +132,7 @@ test.describe.serial('did-manager-service UI', () => {
     await page.selectOption('#seedMode', 'provided');
     await page.fill('#seed', env.fundedSeed);
     await page.fill('#passphrase', 'midnight-dev-passphrase');
-    await page.selectOption('#remember', 'true');
+    await page.locator('#remember').check();
     const unlocked = await clickAndWaitForOperationResult<any>(page, '#unlock', (url, method) => {
       return method === 'POST' && url.pathname === '/api/session/unlock';
     });

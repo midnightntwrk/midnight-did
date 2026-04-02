@@ -95,9 +95,11 @@ Prerequisites:
 - Node 24+
 - npm 10+
 - Docker (for integration tests)
+- Compact devtools `0.4.x` with toolchain `0.30.0`
 
 Install:
 - `npm ci`
+- `compact update 0.30.0`
 
 Pipelines:
 - Full workspace: `./run.sh`
@@ -105,8 +107,8 @@ Pipelines:
 - Resolver only: `./run-resolver.sh`
 - DID manager only: `./run-manager.sh`
 - Docs pipeline: `./run-docs.sh`
-- Manager app: `./start-manager.sh [--standalone|--preprod]`
-- Resolver app: `./start-resolver.sh [--standalone|--preprod]`
+- Manager app: `./start-manager.sh [--standalone|--preprod|--mainnet]`
+- Resolver app: `./start-resolver.sh [--standalone|--preprod|--mainnet]`
 - Docs dev server: `./start-docs.sh`
 
 Docs site local URL:

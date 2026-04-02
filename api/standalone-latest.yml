@@ -1,16 +1,22 @@
 services:
   proof-server:
     container_name: 'did-proof-server'
-    image: '${PROOF_SERVER_IMAGE:-midnightntwrk/proof-server:7.0.0}'
+    image: '${PROOF_SERVER_IMAGE:-midnightntwrk/proof-server:8.0.3}'
     command: ['midnight-proof-server -v']
     ports:
       - '6300'
     environment:
       RUST_BACKTRACE: 'full'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:6300/version']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
 
   indexer:
     container_name: 'did-indexer'
-    image: 'midnightntwrk/indexer-standalone:3.0.0'
+    image: 'midnightntwrk/indexer-standalone:4.0.0'
     env_file: standalone.env.example
     ports:
       - '0:8088'
@@ -28,7 +34,7 @@ services:
         condition: service_healthy
 
   node:
-    image: 'midnightntwrk/midnight-node:0.20.0'
+    image: 'midnightntwrk/midnight-node:0.22.3'
     container_name: 'did-node'
     ports:
       - '9944'

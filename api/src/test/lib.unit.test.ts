@@ -1,4 +1,4 @@
-import { unshieldedToken } from "@midnight-ntwrk/ledger-v7";
+import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import * as Rx from "rxjs";
 import { describe, expect, it } from "vitest";
 
@@ -70,7 +70,7 @@ describe("lib lightweight unit helpers", () => {
       getWalletBalances({
         isSynced: true,
         unshielded: { balances: { [token]: 0n } },
-        dust: { walletBalance: () => 5n },
+        dust: { balance: () => 5n },
       } as any),
     ).toEqual({
       night: 0n,

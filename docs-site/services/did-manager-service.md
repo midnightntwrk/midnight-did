@@ -18,6 +18,13 @@ The DID manager is a single-user Node.js web application for wallet preparation 
 - `/did`
 - `/docs`
 
+Detailed workspace docs:
+
+- [Wallet Setup workspace](/services/wallet-setup)
+- [Secret Storage workspace](/services/secret-storage-workspace)
+- [DID Management workspace](/services/did-management-workspace)
+- [Getting started guide](/guide/getting-started-did-manager)
+
 ## User flow
 
 ```mermaid
@@ -36,7 +43,7 @@ stateDiagram-v2
 
 | Variable | Purpose |
 |---|---|
-| `DID_MANAGER_SETUP` | Runtime setup: `standalone` or `preprod` |
+| `DID_MANAGER_SETUP` | Runtime setup: `standalone`, `preprod`, or `mainnet` |
 | `DID_MANAGER_HOST` | Bind host |
 | `DID_MANAGER_PORT` | Bind port |
 | `DID_MANAGER_DATA_DIR` | Persistent local data directory |
@@ -51,7 +58,10 @@ stateDiagram-v2
 npm run dev -w did-manager-service
 ./start-manager.sh
 ./start-manager.sh --preprod
+./start-manager.sh --mainnet
 ```
+
+`--mainnet` requires explicit `DID_MANAGER_MAINNET_INDEXER`, `DID_MANAGER_MAINNET_INDEXER_WS`, `DID_MANAGER_MAINNET_NODE`, and `DID_MANAGER_MAINNET_PROOF_SERVER` values.
 
 ## Main repository paths
 

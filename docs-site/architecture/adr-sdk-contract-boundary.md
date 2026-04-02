@@ -28,7 +28,7 @@ Split responsibilities:
 
 - contract logic stays bounded and realistic
 - DID Core conformance lives where document semantics can actually be expressed
-- CLI, resolver, and manager all consume the same normalized behavior
+- API consumers, resolver, and manager all consume the same normalized behavior
 
 ### Negative
 

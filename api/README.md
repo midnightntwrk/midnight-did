@@ -13,14 +13,14 @@ Programmatic API for creating, updating, deactivating, and resolving Midnight DI
 ## Use It When
 
 - you need programmatic DID deployment or mutation flows
-- you need provider bootstrap for standalone or preprod
+- you need provider bootstrap for standalone, preprod, or env-driven mainnet
 - you are building a higher-level application and do not want to manage raw contract/runtime wiring
 
 ## Architecture
 
 ```mermaid
 graph TD
-  App[CLI / Tests / Integrator]
+  App[Manager / Tests / Integrator]
   API[API facade]
   Domain[Domain validation]
   DidPkg[DID mapper]
@@ -68,6 +68,14 @@ API enforces lifecycle rules around:
 - Build: `npm run build -w api`
 - Unit tests: `npm run test -w api`
 - Integration tests: `npm run test-api -w api`
+
+## Runtime Profiles
+
+- `StandaloneConfig`
+- `PreprodConfig`
+- `MainnetConfig` with explicit endpoints
+
+`MainnetConfig` intentionally does not hard-code endpoint defaults. Supply verified mainnet indexer, websocket, node, and proof-server values from your deployment environment.
 
 ## Main Source Files
 

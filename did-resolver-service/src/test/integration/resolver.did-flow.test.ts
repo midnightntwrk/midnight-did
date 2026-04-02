@@ -68,7 +68,9 @@ const createDidWithDustRetry = async (
       const message = error instanceof Error ? error.message : String(error);
       if (
         attempt === retries ||
-        !/Not enough Dust generated to pay the fee/i.test(message)
+        !/Not enough Dust generated to pay the fee|could not balance dust/i.test(
+          message,
+        )
       ) {
         throw error;
       }
@@ -287,7 +289,7 @@ describeDidFlow("did-resolver-service e2e DID lifecycle", () => {
       const contractAddress = parseContractAddress(
         contract.deployTxData.public.contractAddress,
       );
-      did = createMidnightDIDString(contractAddress, api.midnightNetwork);
+      did = createMidnightDIDString(contractAddress, api.getMidnightNetwork());
       printResolverHint(did);
     },
     1000 * 60 * 45,

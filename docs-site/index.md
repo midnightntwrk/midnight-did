@@ -18,7 +18,7 @@ hero:
 
 features:
   - title: Package-first
-    details: Domain, DID, API, secret-storage, and CLI documentation aligned with the actual workspace boundaries.
+    details: Domain, DID, API, and secret-storage documentation aligned with the actual workspace boundaries.
   - title: Service-ready
     details: Resolver and DID manager docs focus on how to run, test, configure, and extend the applications.
   - title: Spec-aware

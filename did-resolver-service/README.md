@@ -6,7 +6,7 @@ Standalone DID resolver service with REST API, Swagger UI, and a minimal web UI.
 
 - you need DID Resolution Result responses over HTTP
 - you want a browser-accessible resolver for manual inspection
-- you want a service boundary separate from the CLI and manager applications
+- you want a service boundary separate from DID mutation workflows in the manager
 
 ## Responsibilities
 
@@ -89,6 +89,7 @@ stateDiagram-v2
 
 - standalone via `./start-resolver.sh`
 - preprod via `./start-resolver.sh --preprod`
+- mainnet via `./start-resolver.sh --mainnet` with explicit `MIDNIGHT_INDEXER_HTTP_URL` and `MIDNIGHT_INDEXER_WS_URL`
 
 ## Production Defaults
 

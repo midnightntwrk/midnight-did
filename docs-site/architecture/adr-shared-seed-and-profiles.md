@@ -8,7 +8,7 @@ Accepted
 
 The repository now supports:
 
-- CLI secret storage
+- local secret storage workflows
 - DID manager local profiles
 - standalone and preprod flows
 - session resume between runs

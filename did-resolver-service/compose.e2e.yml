@@ -1,6 +1,6 @@
 services:
   proof-server:
-    image: "${PROOF_SERVER_IMAGE:-proof-server-bootstrap:7.0.0}"
+    image: "${PROOF_SERVER_IMAGE:-midnightntwrk/proof-server:8.0.3}"
     command: ["midnight-proof-server -v"]
     ports:
       - "0:6300"
@@ -14,7 +14,7 @@ services:
       start_period: 10s
 
   indexer:
-    image: "midnightntwrk/indexer-standalone:3.0.0"
+    image: "midnightntwrk/indexer-standalone:4.0.0"
     env_file: ../api/standalone.env.example
     ports:
       - "0:8088"
@@ -32,7 +32,7 @@ services:
         condition: service_healthy
 
   node:
-    image: "midnightntwrk/midnight-node:0.20.0"
+    image: "midnightntwrk/midnight-node:0.22.3"
     ports:
       - "0:9944"
     healthcheck:

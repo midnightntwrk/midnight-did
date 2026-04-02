@@ -82,7 +82,7 @@ test.describe.serial('did-manager-service preprod funding', () => {
     await expect(page.locator('#seed')).toHaveValue(generatedSeed);
     await expect(page.locator('#seedMode')).toHaveValue('provided');
     await expect(page.locator('#fundingAddress')).toHaveValue(preparedAddress);
-    await expect(page.locator('#faucetUrl')).toHaveValue('https://faucet.preprod.midnight.network/');
+    await expect(page.locator('#faucetUrl')).toHaveAttribute('href', 'https://faucet.preprod.midnight.network/');
 
     await env.stop();
     env = await startManagerPreprodFundingEnv(dataDir);

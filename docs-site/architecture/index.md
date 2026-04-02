@@ -51,6 +51,7 @@ graph TD
 ## Architecture decisions
 
 - [ADR: Shared Seed and Local Profiles](/architecture/adr-shared-seed-and-profiles)
+- [ADR: HD Key Derivation and Ledger Compatibility](/architecture/adr-hd-key-derivation-and-ledger-compatibility)
 - [ADR: SDK and Contract Boundary](/architecture/adr-sdk-contract-boundary)
 - [ADR: Resolver vs Manager Service Split](/architecture/adr-service-split)
 - [DID Manager Architecture](/architecture/did-manager-service)

@@ -7,13 +7,15 @@ Use this section for local setup, runner selection, and understanding how the wo
 ## Start path
 
 1. Read [Local Development](/guide/local-development) for installation and runner commands.
-2. Read [Testing Strategy](/guide/testing-strategy) to choose the right runner depth.
-3. Use [Packages](/packages/) when you need library-level responsibilities and integration points.
-4. Use [Services](/services/) when you need runtime entry points.
-5. Use [Use Cases](/use-cases/) when you need product-facing scenarios grounded in the current implementation.
-6. Use [Architecture](/architecture/) when you need the system view.
-7. Use [Specification](/spec/) when you need the DID method and traits context.
-8. Use [Source Documents](/source/) when you want to read the mirrored repository markdown without leaving the site.
+2. Read [DID Manager Getting Started](/guide/getting-started-did-manager) for a full UI operator path.
+3. Read [DID Resolver Getting Started](/guide/getting-started-did-resolver) for a complete resolver run/validate flow.
+4. Read [Testing Strategy](/guide/testing-strategy) to choose the right runner depth.
+5. Use [Packages](/packages/) when you need library-level responsibilities and integration points.
+6. Use [Services](/services/) when you need runtime entry points.
+7. Use [Use Cases](/use-cases/) when you need product-facing scenarios grounded in the current implementation.
+8. Use [Architecture](/architecture/) when you need the system view.
+9. Use [Specification](/spec/) when you need the DID method and traits context.
+10. Use [Source Documents](/source/) when you want to read the mirrored repository markdown without leaving the site.
 
 ## Source documents already in the repository
 

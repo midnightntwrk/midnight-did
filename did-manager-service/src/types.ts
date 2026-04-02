@@ -1,4 +1,4 @@
-export type NetworkProfile = 'standalone' | 'preprod';
+export type NetworkProfile = 'standalone' | 'preprod' | 'mainnet';
 
 export type SessionProfileState = {
   seed: string;

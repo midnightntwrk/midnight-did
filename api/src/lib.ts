@@ -1,6 +1,6 @@
 import { CompiledContract } from "@midnight-ntwrk/compact-js";
-import * as ledger from "@midnight-ntwrk/ledger-v7";
-import { unshieldedToken } from "@midnight-ntwrk/ledger-v7";
+import * as ledger from "@midnight-ntwrk/ledger-v8";
+import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import {
   type ContractAddress,
   createMidnightDIDString,
@@ -201,9 +201,11 @@ const signTransactionIntents = (
 // Pre-compile contract with assets
 const midnightDIDCompiledContract = CompiledContract.make(
   "did",
-  DIDContract.Contract,
+  DIDContract.Contract as unknown as new (
+    ...args: any[]
+  ) => MidnightDIDContract,
 ).pipe(
-  CompiledContract.withWitnesses(witnesses),
+  CompiledContract.withWitnesses(witnesses as never),
   CompiledContract.withCompiledFileAssets(contractConfig.zkConfigPath),
 );
 
@@ -223,7 +225,9 @@ export const getMidnightDIDLedgerState = async (
 };
 
 export const midnightDIDContractInstance: MidnightDIDContract =
-  new DIDContract.Contract(witnesses);
+  new (DIDContract.Contract as unknown as new (
+    ...args: any[]
+  ) => MidnightDIDContract)(witnesses);
 
 export async function initPrivateState(
   providers: MidnightDIDProviders,
@@ -233,9 +237,22 @@ export async function initPrivateState(
       getProverKey: (circuitName: string) => Promise<Uint8Array>;
     };
   };
-  const providedPrivateState = await providers.privateStateProvider.get(
-    MidnightDIDPrivateStateId,
-  );
+  let providedPrivateState: MidnightDIDPrivateState | null = null;
+  try {
+    providedPrivateState = await providers.privateStateProvider.get(
+      MidnightDIDPrivateStateId,
+    );
+  } catch (error: unknown) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes("Contract address not set")
+    ) {
+      throw error;
+    }
+    logger.info(
+      "Private state restore skipped (contract address not set yet).",
+    );
+  }
   if (
     providedPrivateState != null &&
     providedPrivateState.secretKey != null &&
@@ -669,7 +686,7 @@ export const deactivate = async (
   return result.public;
 };
 
-export const midnightNetwork: MidnightNetwork =
+export const getMidnightNetwork = (): MidnightNetwork =>
   RuntimeToDomain.NetworkMap[getNetworkId()];
 
 export const resolve = async (
@@ -803,7 +820,16 @@ const createWalletContext = async (
           ledger.LedgerParameters.initialParameters().dust,
         );
 
-  const wallet = new WalletFacade(shieldedWallet, unshieldedWallet, dustWallet);
+  const wallet = await WalletFacade.init({
+    configuration: {
+      ...buildShieldedConfig(config),
+      ...buildUnshieldedConfig(config, unshieldedHistoryStorage),
+      ...buildDustConfig(config),
+    },
+    shielded: async () => shieldedWallet,
+    unshielded: async () => unshieldedWallet,
+    dust: async () => dustWallet,
+  });
   await wallet.start(shieldedSecretKeys as any, dustSecretKey as any);
 
   return {
@@ -846,7 +872,7 @@ export const getWalletBalances = (
 
   return {
     night: state.unshielded.balances[unshieldedToken().raw] ?? 0n,
-    dust: state.dust.walletBalance(new Date()),
+    dust: state.dust.balance(new Date()),
   };
 };
 
@@ -900,7 +926,7 @@ export const registerForDustGeneration = async (
 
   // Check if dust already available
   if (state.dust.availableCoins.length > 0) {
-    const dustBal = state.dust.walletBalance(new Date());
+    const dustBal = state.dust.balance(new Date());
     logger.info(`Dust already available: ${dustBal}`);
     return;
   }
@@ -915,7 +941,7 @@ export const registerForDustGeneration = async (
     await Rx.firstValueFrom(
       wallet.state().pipe(
         Rx.throttleTime(5_000),
-        Rx.filter((s) => s.dust.walletBalance(new Date()) > 0n),
+        Rx.filter((s) => s.dust.balance(new Date()) > 0n),
       ),
     );
     return;
@@ -938,7 +964,7 @@ export const registerForDustGeneration = async (
   await Rx.firstValueFrom(
     wallet.state().pipe(
       Rx.throttleTime(5_000),
-      Rx.filter((s) => s.dust.walletBalance(new Date()) > 0n),
+      Rx.filter((s) => s.dust.balance(new Date()) > 0n),
     ),
   );
 
@@ -958,12 +984,17 @@ export const configureProviders = async (
   const zkConfigProvider = new NodeZkConfigProvider<MidnightDIDCircuits>(
     contractConfig.zkConfigPath,
   );
+  const accountId = walletAndMidnightProvider.getCoinPublicKey();
+  const storagePassword = `${toHex(
+    Buffer.from(ctx.unshieldedKeystore.getSecretKey()),
+  )}!A`;
 
   return {
     privateStateProvider: levelPrivateStateProvider({
       midnightDbName: config.midnightDbName,
       privateStateStoreName: contractConfig.privateStateStoreName,
-      walletProvider: walletAndMidnightProvider,
+      accountId,
+      privateStoragePasswordProvider: () => storagePassword,
     }),
     publicDataProvider: indexerPublicDataProvider(
       config.indexer,

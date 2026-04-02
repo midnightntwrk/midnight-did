@@ -64,7 +64,9 @@ const createDidWithDustRetry = async (
       const message = error instanceof Error ? error.message : String(error);
       if (
         attempt === retries ||
-        !/Not enough Dust generated to pay the fee/i.test(message)
+        !/Not enough Dust generated to pay the fee|could not balance dust/i.test(
+          message,
+        )
       ) {
         throw error;
       }
@@ -149,7 +151,10 @@ describeApi("Midnight DID method API", () => {
     contractAddress = parseContractAddress(
       contract.deployTxData.public.contractAddress,
     );
-    didString = createMidnightDIDString(contractAddress, api.midnightNetwork);
+    didString = createMidnightDIDString(
+      contractAddress,
+      api.getMidnightNetwork(),
+    );
     didAsDid = DIDStringSchema.parse(didString);
 
     const didLedger = await api.getMidnightDIDLedgerState(
@@ -188,7 +193,7 @@ describeApi("Midnight DID method API", () => {
     const midnightDIDString = parseMidnightDIDString(didDoc!.id);
     const midnightDID = parseMidnightDID(midnightDIDString);
 
-    expect(midnightDID.network).toBe(api.midnightNetwork.toString());
+    expect(midnightDID.network).toBe(api.getMidnightNetwork().toString());
     expect(midnightDID.id).toBe(contractAddress);
   });
 

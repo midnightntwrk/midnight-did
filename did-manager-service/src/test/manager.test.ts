@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ManagerConfig } from '../config.js';
 import { DidManagerService } from '../manager.js';
+import { seedHashPrefix } from '../wallet-state-store.js';
 
 vi.mock('@midnight-ntwrk/midnight-did-api', async () => {
   return {
@@ -53,6 +54,12 @@ const createConfig = (dataDir: string): ManagerConfig => ({
     indexerWS: 'wss://indexer.preprod.midnight.network/api/v3/graphql/ws',
     node: 'https://rpc.preprod.midnight.network',
     proofServer: 'http://127.0.0.1:6300',
+  },
+  mainnet: {
+    indexer: 'https://indexer.mainnet.example/api/v3/graphql',
+    indexerWS: 'wss://indexer.mainnet.example/api/v3/graphql/ws',
+    node: 'https://rpc.mainnet.example',
+    proofServer: 'https://proof.mainnet.example',
   },
 });
 
@@ -246,5 +253,99 @@ describe('DidManagerService', () => {
     }
 
     throw new Error('manager did not reach ready state');
+  });
+
+  it('falls back to fresh wallet sync when persisted wallet state is incompatible', async () => {
+    const manager = new DidManagerService(createConfig(dataDir), pino({ enabled: false }));
+    const seed = 'a'.repeat(64);
+    const seedHash = seedHashPrefix(seed);
+    const walletCtx = {
+      wallet: {
+        stop: vi.fn().mockResolvedValue(undefined),
+        state: () => ({
+          subscribe: ({ next }: { next: (state: unknown) => void }) => {
+            next({
+              isSynced: true,
+              unshielded: { balances: {} },
+              dust: { walletBalance: () => 0n },
+            });
+            return {
+              unsubscribe() {
+                return undefined;
+              },
+            };
+          },
+        }),
+      },
+      unshieldedKeystore: { key: 'keystore' },
+      shieldedSecretKeys: {} as never,
+      dustSecretKey: {} as never,
+      shieldedWallet: { serializeState: vi.fn().mockResolvedValue('shielded') },
+      unshieldedWallet: { serializeState: vi.fn().mockResolvedValue('unshielded') },
+      dustWallet: { serializeState: vi.fn().mockResolvedValue('dust') },
+      unshieldedHistoryStorage: { serialize: vi.fn().mockReturnValue('history') },
+    } as unknown as api.MidnightDIDWalletContext;
+
+    const profileDir = path.join(dataDir, 'profiles', 'preprod', 'default');
+    await mkdir(profileDir, { recursive: true });
+    await writeFile(
+      path.join(profileDir, 'manager-session.json'),
+      JSON.stringify({
+        version: 1,
+        rememberUnlockedSession: true,
+        lastProfile: 'preprod',
+        profiles: {
+          preprod: {
+            seed,
+            unshieldedAddress: 'mn_addr_preprod1test',
+            contractAddress: 'f'.repeat(64),
+            contractAddresses: ['f'.repeat(64)],
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      }, null, 2),
+      'utf8',
+    );
+
+    const walletStateDir = path.join(profileDir, 'wallet-state', seedHash);
+    await mkdir(walletStateDir, { recursive: true });
+    await Promise.all([
+      writeFile(path.join(walletStateDir, 'meta.json'), JSON.stringify({
+        version: 2,
+        walletSchema: 'ledger8',
+        profile: 'preprod',
+        profileName: 'default',
+        seedHash,
+        updatedAt: new Date().toISOString(),
+      }, null, 2), 'utf8'),
+      writeFile(path.join(walletStateDir, 'shielded.json'), 'shielded', 'utf8'),
+      writeFile(path.join(walletStateDir, 'unshielded.json'), 'unshielded', 'utf8'),
+      writeFile(path.join(walletStateDir, 'dust.json'), 'dust', 'utf8'),
+      writeFile(path.join(walletStateDir, 'unshielded-history.json'), 'history', 'utf8'),
+    ]);
+
+    vi.mocked(api.restoreWalletFromState).mockRejectedValue(new Error('Failed to decode transaction history: createdUtxos is missing'));
+    vi.mocked(api.buildWallet).mockResolvedValue(walletCtx);
+    vi.mocked(api.waitForWalletSync).mockResolvedValue({ isSynced: true } as never);
+    vi.mocked(api.waitForWalletFunds).mockResolvedValue(1n);
+    vi.mocked(api.configureProviders).mockResolvedValue({ id: 'providers' } as never);
+
+    await manager.unlock({ seedMode: 'reuse' });
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const status = await manager.getSessionStatus();
+      if (status.connection.phase === 'ready') {
+        expect(status.connection.reusedPersistedState).toBe(false);
+        break;
+      }
+      await new Promise((resolve) => globalThis.setTimeout(resolve, 10));
+      if (attempt === 99) {
+        throw new Error('manager did not reach ready state');
+      }
+    }
+
+    expect(api.restoreWalletFromState).toHaveBeenCalledTimes(1);
+    expect(api.buildWallet).toHaveBeenCalledTimes(1);
+    const backupRoot = path.join(dataDir, 'backup', 'wallet-state', 'preprod', 'default');
+    expect((await readdir(backupRoot)).length).toBeGreaterThan(0);
   });
 });
