@@ -18,8 +18,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  run-pipeline:
-    name: Build, Lint, Test, and Coverage
+  core:
+    name: Core (Lint + Contract/Domain/DID/Secret Storage)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -46,5 +46,60 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run project workflow
-        run: bash ./run.sh
+      - name: Run core workflow
+        run: bash ./run-core.sh
+
+  services:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: API pipeline
+            script: ./run-api.sh
+          - name: Resolver pipeline
+            script: ./run-resolver.sh
+          - name: DID manager pipeline
+            script: ./run-manager.sh
+    env:
+      # Optional optimization: point this repository variable to a pre-bootstrapped proof-server image
+      # (for example ghcr.io/<org>/<image>:<tag>) to reduce cold-start time in Docker-based tests.
+      PROOF_SERVER_IMAGE: ${{ vars.PROOF_SERVER_IMAGE != '' && vars.PROOF_SERVER_IMAGE || 'midnightntwrk/proof-server:8.0.3' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # ratchet:actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run service workflow
+        run: bash ${{ matrix.script }}
+
+  run-pipeline:
+    name: Build, Lint, Test, and Coverage
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - core
+      - services
+    steps:
+      - name: Check dependency jobs
+        run: |
+          echo "core: ${{ needs.core.result }}"
+          echo "services: ${{ needs.services.result }}"
+
+          if [[ "${{ needs.core.result }}" != "success" || "${{ needs.services.result }}" != "success" ]]; then
+            echo "One or more CI jobs failed."
+            exit 1
+          fi
+
+          echo "All CI jobs passed."
