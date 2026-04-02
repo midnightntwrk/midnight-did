@@ -64,6 +64,7 @@ jobs:
           - name: DID manager pipeline
             script: ./run-manager.sh
     env:
+      COMPACT_COMPILER_VERSION: 0.30.0
       # Optional optimization: point this repository variable to a pre-bootstrapped proof-server image
       # (for example ghcr.io/<org>/<image>:<tag>) to reduce cold-start time in Docker-based tests.
       PROOF_SERVER_IMAGE: ${{ vars.PROOF_SERVER_IMAGE != '' && vars.PROOF_SERVER_IMAGE || 'midnightntwrk/proof-server:8.0.3' }}
@@ -78,8 +79,19 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
+      - name: Set up Compact toolchain
+        uses: midnightntwrk/setup-compact-action@v1
+        with:
+          compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
+
+      - name: Verify Compact installation
+        run: compact compile --version
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Prepare contract generated artifacts
+        run: npm run contract -w contract
 
       - name: Run service workflow
         run: bash ${{ matrix.script }}
