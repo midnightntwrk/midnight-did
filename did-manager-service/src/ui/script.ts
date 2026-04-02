@@ -6,6 +6,8 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
     const didDocEl = document.getElementById('didDocument');
     const fundingAddressEl = document.getElementById('fundingAddress');
     const faucetUrlEl = document.getElementById('faucetUrl');
+    const faucetRowEl = document.getElementById('faucetRow');
+    const fundingGuidanceEl = document.getElementById('fundingGuidance');
     const didActionsEl = document.getElementById('didActions');
     const didGateMessageEl = document.getElementById('didGateMessage');
     const seedModeEl = document.getElementById('seedMode');
@@ -84,6 +86,24 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
         return BigInt(value).toLocaleString();
       } catch {
         return String(value);
+      }
+    };
+    const setFundingUiForProfile = (profile) => {
+      const normalized = String(profile || '').toLowerCase();
+      if (faucetRowEl) {
+        faucetRowEl.style.display = normalized === 'mainnet' ? 'none' : '';
+      }
+      if (fundingGuidanceEl) {
+        if (normalized === 'mainnet') {
+          fundingGuidanceEl.textContent =
+            'Mainnet has no faucet. Use the same seed as your funded Midnight Wallet, then unlock this session.';
+        } else if (normalized === 'preprod') {
+          fundingGuidanceEl.textContent =
+            'Use the same seed for the Midnight wallet and DID lifecycle. Preprod can be funded via faucet.';
+        } else {
+          fundingGuidanceEl.textContent =
+            'Use the same seed for the Midnight wallet and DID lifecycle in this standalone environment.';
+        }
       }
     };
     const formatWalletSessionState = (data) => {
@@ -373,6 +393,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
           setValue('faucetUrl', data?.faucetUrl || '');
         }
       }
+      setFundingUiForProfile(data?.profile);
     };
 
     const setProfilesState = (payload) => {
@@ -398,6 +419,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       const data = payload?.data?.status || payload?.data || payload;
       setValue('fundingAddress', data?.unshieldedAddress || '');
       setValue('faucetUrl', data?.faucetUrl || '');
+      setFundingUiForProfile(data?.profile);
       setChecked('remember', data?.rememberUnlockedSession ?? true);
       const connectionPhase = data?.connection?.phase || 'locked';
       setText('setupProfileName', data?.profileName || '-');

@@ -62,10 +62,10 @@ describe("config", () => {
   it("builds preprod defaults and network id", () => {
     const config = new PreprodConfig();
     expect(config.indexer).toBe(
-      "https://indexer.preprod.midnight.network/api/v3/graphql",
+      "https://indexer.preprod.midnight.network/api/v4/graphql",
     );
     expect(config.indexerWS).toBe(
-      "wss://indexer.preprod.midnight.network/api/v3/graphql/ws",
+      "wss://indexer.preprod.midnight.network/api/v4/graphql/ws",
     );
     expect(config.node).toBe("https://rpc.preprod.midnight.network");
     expect(config.proofServer).toBe("http://127.0.0.1:6300");
@@ -73,18 +73,29 @@ describe("config", () => {
     expect(getNetworkId()).toBe("preprod");
   });
 
-  it("builds mainnet from explicit endpoints", () => {
+  it("builds mainnet defaults and supports explicit overrides", () => {
+    const defaults = new MainnetConfig();
+    expect(defaults.indexer).toBe(
+      "https://indexer.mainnet.midnight.network/api/v4/graphql",
+    );
+    expect(defaults.indexerWS).toBe(
+      "wss://indexer.mainnet.midnight.network/api/v4/graphql/ws",
+    );
+    expect(defaults.node).toBe("https://rpc.mainnet.midnight.network");
+    expect(defaults.proofServer).toBe("http://127.0.0.1:6300");
+    expect(getNetworkId()).toBe("mainnet");
+
     const config = new MainnetConfig({
-      indexer: "https://indexer.mainnet.example/api/v3/graphql",
-      indexerWS: "wss://indexer.mainnet.example/api/v3/graphql/ws",
+      indexer: "https://indexer.mainnet.example/api/v4/graphql",
+      indexerWS: "wss://indexer.mainnet.example/api/v4/graphql/ws",
       node: "https://rpc.mainnet.example",
       proofServer: "https://proof.mainnet.example",
     });
     expect(config.indexer).toBe(
-      "https://indexer.mainnet.example/api/v3/graphql",
+      "https://indexer.mainnet.example/api/v4/graphql",
     );
     expect(config.indexerWS).toBe(
-      "wss://indexer.mainnet.example/api/v3/graphql/ws",
+      "wss://indexer.mainnet.example/api/v4/graphql/ws",
     );
     expect(config.node).toBe("https://rpc.mainnet.example");
     expect(config.proofServer).toBe("https://proof.mainnet.example");

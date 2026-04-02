@@ -89,7 +89,11 @@ stateDiagram-v2
 
 - standalone via `./start-resolver.sh`
 - preprod via `./start-resolver.sh --preprod`
-- mainnet via `./start-resolver.sh --mainnet` with explicit `MIDNIGHT_INDEXER_HTTP_URL` and `MIDNIGHT_INDEXER_WS_URL`
+- mainnet via `./start-resolver.sh --mainnet`
+  - defaults:
+    - `MIDNIGHT_INDEXER_HTTP_URL=https://indexer.mainnet.midnight.network/api/v4/graphql`
+    - `MIDNIGHT_INDEXER_WS_URL=wss://indexer.mainnet.midnight.network/api/v4/graphql/ws`
+  - defaults are overridable via env vars
 
 ## Production Defaults
 

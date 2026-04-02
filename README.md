@@ -112,6 +112,11 @@ Pipelines:
 - Resolver app: `./start-resolver.sh [--standalone|--preprod|--mainnet]`
 - Docs dev server: `./start-docs.sh`
 
+Network defaults:
+- `standalone` uses local Docker indexer endpoints (`/api/v3/graphql`)
+- `preprod` and `mainnet` use public indexer v4 endpoints (`/api/v4/graphql`)
+- manager `--mainnet` defaults to local proof server (`http://127.0.0.1:6300`) and expects a funded seed (no faucet)
+
 Fast mode:
 - Skip long-running integration/e2e targets: `SKIP_LONG_RUNNING=1 ./run.sh`
 

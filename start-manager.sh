@@ -5,6 +5,15 @@ node ./scripts/ensure-node-24.mjs
 
 PREPROD_PROOF_SERVER_COMPOSE_FILE="infrastructure/preprod-proof-server.yml"
 
+PREPROD_INDEXER_DEFAULT="https://indexer.preprod.midnight.network/api/v4/graphql"
+PREPROD_INDEXER_WS_DEFAULT="wss://indexer.preprod.midnight.network/api/v4/graphql/ws"
+PREPROD_NODE_DEFAULT="https://rpc.preprod.midnight.network"
+LOCAL_PROOF_SERVER_DEFAULT="http://127.0.0.1:6300"
+
+MAINNET_INDEXER_DEFAULT="https://indexer.mainnet.midnight.network/api/v4/graphql"
+MAINNET_INDEXER_WS_DEFAULT="wss://indexer.mainnet.midnight.network/api/v4/graphql/ws"
+MAINNET_NODE_DEFAULT="https://rpc.mainnet.midnight.network"
+
 usage() {
   cat <<'EOF'
 Usage: ./start-manager.sh [--standalone|--preprod|--preproad|--mainnet]
@@ -15,7 +24,7 @@ Options:
   --standalone   Use local standalone Docker infra (default)
   --preprod      Use preprod indexer/node and local proof server
   --preproad     Alias for --preprod
-  --mainnet      Use explicit mainnet endpoints and proof server env vars
+  --mainnet      Use mainnet indexer/node defaults and local proof server
   --help         Show this help
 EOF
 }
@@ -37,10 +46,11 @@ container_port() {
 }
 
 wait_for_proof_server() {
+  local proof_server_url="$1"
   local deadline=$((SECONDS + 180))
-  until curl -fsS "${DID_MANAGER_PREPROD_PROOF_SERVER}/version" >/dev/null 2>&1; do
+  until curl -fsS "${proof_server_url}/version" >/dev/null 2>&1; do
     if (( SECONDS >= deadline )); then
-      echo "[start-manager] Proof server did not become ready at ${DID_MANAGER_PREPROD_PROOF_SERVER}" >&2
+      echo "[start-manager] Proof server did not become ready at ${proof_server_url}" >&2
       exit 1
     fi
     sleep 2
@@ -97,16 +107,16 @@ if [[ "${profile}" == "standalone" ]]; then
   echo "[start-manager] Proof server: ${DID_MANAGER_STANDALONE_PROOF_SERVER}"
   echo "[start-manager] Open http://${DID_MANAGER_HOST}:${DID_MANAGER_PORT}/wallet"
 elif [[ "${profile}" == "preprod" ]]; then
-  export DID_MANAGER_PREPROD_INDEXER="${DID_MANAGER_PREPROD_INDEXER:-https://indexer.preprod.midnight.network/api/v3/graphql}"
-  export DID_MANAGER_PREPROD_INDEXER_WS="${DID_MANAGER_PREPROD_INDEXER_WS:-wss://indexer.preprod.midnight.network/api/v3/graphql/ws}"
-  export DID_MANAGER_PREPROD_NODE="${DID_MANAGER_PREPROD_NODE:-https://rpc.preprod.midnight.network}"
-  export DID_MANAGER_PREPROD_PROOF_SERVER="${DID_MANAGER_PREPROD_PROOF_SERVER:-http://127.0.0.1:6300}"
+  export DID_MANAGER_PREPROD_INDEXER="${DID_MANAGER_PREPROD_INDEXER:-$PREPROD_INDEXER_DEFAULT}"
+  export DID_MANAGER_PREPROD_INDEXER_WS="${DID_MANAGER_PREPROD_INDEXER_WS:-$PREPROD_INDEXER_WS_DEFAULT}"
+  export DID_MANAGER_PREPROD_NODE="${DID_MANAGER_PREPROD_NODE:-$PREPROD_NODE_DEFAULT}"
+  export DID_MANAGER_PREPROD_PROOF_SERVER="${DID_MANAGER_PREPROD_PROOF_SERVER:-$LOCAL_PROOF_SERVER_DEFAULT}"
   export START_PREPROD_PROOF_SERVER="${START_PREPROD_PROOF_SERVER:-true}"
 
-  if [[ "${START_PREPROD_PROOF_SERVER}" == "true" && "${DID_MANAGER_PREPROD_PROOF_SERVER}" == "http://127.0.0.1:6300" ]]; then
+  if [[ "${START_PREPROD_PROOF_SERVER}" == "true" && "${DID_MANAGER_PREPROD_PROOF_SERVER}" == "$LOCAL_PROOF_SERVER_DEFAULT" ]]; then
     echo "[start-manager] Starting local preprod proof server"
     docker compose -f "${PREPROD_PROOF_SERVER_COMPOSE_FILE}" up -d proof-server
-    wait_for_proof_server
+    wait_for_proof_server "${DID_MANAGER_PREPROD_PROOF_SERVER}"
   fi
 
   echo "[start-manager] Starting did-manager-service in preprod mode"
@@ -115,10 +125,17 @@ elif [[ "${profile}" == "preprod" ]]; then
   echo "[start-manager] Proof server: ${DID_MANAGER_PREPROD_PROOF_SERVER}"
   echo "[start-manager] Open http://${DID_MANAGER_HOST}:${DID_MANAGER_PORT}/wallet"
 else
-  : "${DID_MANAGER_MAINNET_INDEXER:?Set DID_MANAGER_MAINNET_INDEXER for --mainnet}"
-  : "${DID_MANAGER_MAINNET_INDEXER_WS:?Set DID_MANAGER_MAINNET_INDEXER_WS for --mainnet}"
-  : "${DID_MANAGER_MAINNET_NODE:?Set DID_MANAGER_MAINNET_NODE for --mainnet}"
-  : "${DID_MANAGER_MAINNET_PROOF_SERVER:?Set DID_MANAGER_MAINNET_PROOF_SERVER for --mainnet}"
+  export DID_MANAGER_MAINNET_INDEXER="${DID_MANAGER_MAINNET_INDEXER:-$MAINNET_INDEXER_DEFAULT}"
+  export DID_MANAGER_MAINNET_INDEXER_WS="${DID_MANAGER_MAINNET_INDEXER_WS:-$MAINNET_INDEXER_WS_DEFAULT}"
+  export DID_MANAGER_MAINNET_NODE="${DID_MANAGER_MAINNET_NODE:-$MAINNET_NODE_DEFAULT}"
+  export DID_MANAGER_MAINNET_PROOF_SERVER="${DID_MANAGER_MAINNET_PROOF_SERVER:-$LOCAL_PROOF_SERVER_DEFAULT}"
+  export START_MAINNET_PROOF_SERVER="${START_MAINNET_PROOF_SERVER:-true}"
+
+  if [[ "${START_MAINNET_PROOF_SERVER}" == "true" && "${DID_MANAGER_MAINNET_PROOF_SERVER}" == "$LOCAL_PROOF_SERVER_DEFAULT" ]]; then
+    echo "[start-manager] Starting local mainnet proof server"
+    docker compose -f "${PREPROD_PROOF_SERVER_COMPOSE_FILE}" up -d proof-server
+    wait_for_proof_server "${DID_MANAGER_MAINNET_PROOF_SERVER}"
+  fi
 
   echo "[start-manager] Starting did-manager-service in mainnet mode"
   echo "[start-manager] Mainnet indexer: ${DID_MANAGER_MAINNET_INDEXER}"

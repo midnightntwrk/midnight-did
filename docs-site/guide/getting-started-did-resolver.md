@@ -29,9 +29,9 @@ docker compose -f api/standalone.yml up -d
 | --- | --- | --- |
 | Standalone | `./start-resolver.sh --standalone` | Uses local Docker indexer and network `undeployed` |
 | Preprod | `./start-resolver.sh --preprod` | Uses preprod indexer endpoints |
-| Mainnet | `./start-resolver.sh --mainnet` | Requires explicit indexer env vars |
+| Mainnet | `./start-resolver.sh --mainnet` | Uses mainnet indexer v4 defaults (overridable via env vars) |
 
-Mainnet requires:
+Optional mainnet overrides:
 
 ```bash
 MIDNIGHT_INDEXER_HTTP_URL=https://... \

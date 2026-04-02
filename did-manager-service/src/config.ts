@@ -57,14 +57,6 @@ const parseSetupProfile = (value: string | undefined): SetupProfile => {
   throw new Error(`Invalid DID_MANAGER_SETUP value: ${raw}`);
 };
 
-const requireUrl = (value: string | undefined, envName: string): string => {
-  const raw = value?.trim();
-  if (!raw) {
-    throw new Error(`Missing required ${envName} value.`);
-  }
-  return raw;
-};
-
 export const loadConfig = (env: Record<string, string | undefined> = process.env): ManagerConfig => {
   const setupProfile = parseSetupProfile(env.DID_MANAGER_SETUP);
   const dataDir = env.DID_MANAGER_DATA_DIR?.trim() || defaultDataDir;
@@ -87,28 +79,16 @@ export const loadConfig = (env: Record<string, string | undefined> = process.env
       proofServer: env.DID_MANAGER_STANDALONE_PROOF_SERVER ?? 'http://127.0.0.1:6300',
     },
     preprod: {
-      indexer: env.DID_MANAGER_PREPROD_INDEXER ?? 'https://indexer.preprod.midnight.network/api/v3/graphql',
-      indexerWS: env.DID_MANAGER_PREPROD_INDEXER_WS ?? 'wss://indexer.preprod.midnight.network/api/v3/graphql/ws',
+      indexer: env.DID_MANAGER_PREPROD_INDEXER ?? 'https://indexer.preprod.midnight.network/api/v4/graphql',
+      indexerWS: env.DID_MANAGER_PREPROD_INDEXER_WS ?? 'wss://indexer.preprod.midnight.network/api/v4/graphql/ws',
       node: env.DID_MANAGER_PREPROD_NODE ?? 'https://rpc.preprod.midnight.network',
       proofServer: env.DID_MANAGER_PREPROD_PROOF_SERVER ?? 'http://127.0.0.1:6300',
     },
     mainnet: {
-      indexer:
-        setupProfile === 'mainnet'
-          ? requireUrl(env.DID_MANAGER_MAINNET_INDEXER, 'DID_MANAGER_MAINNET_INDEXER')
-          : (env.DID_MANAGER_MAINNET_INDEXER ?? 'https://example.invalid/api/v3/graphql'),
-      indexerWS:
-        setupProfile === 'mainnet'
-          ? requireUrl(env.DID_MANAGER_MAINNET_INDEXER_WS, 'DID_MANAGER_MAINNET_INDEXER_WS')
-          : (env.DID_MANAGER_MAINNET_INDEXER_WS ?? 'wss://example.invalid/api/v3/graphql/ws'),
-      node:
-        setupProfile === 'mainnet'
-          ? requireUrl(env.DID_MANAGER_MAINNET_NODE, 'DID_MANAGER_MAINNET_NODE')
-          : (env.DID_MANAGER_MAINNET_NODE ?? 'https://example.invalid'),
-      proofServer:
-        setupProfile === 'mainnet'
-          ? requireUrl(env.DID_MANAGER_MAINNET_PROOF_SERVER, 'DID_MANAGER_MAINNET_PROOF_SERVER')
-          : (env.DID_MANAGER_MAINNET_PROOF_SERVER ?? 'http://127.0.0.1:6300'),
+      indexer: env.DID_MANAGER_MAINNET_INDEXER ?? 'https://indexer.mainnet.midnight.network/api/v4/graphql',
+      indexerWS: env.DID_MANAGER_MAINNET_INDEXER_WS ?? 'wss://indexer.mainnet.midnight.network/api/v4/graphql/ws',
+      node: env.DID_MANAGER_MAINNET_NODE ?? 'https://rpc.mainnet.midnight.network',
+      proofServer: env.DID_MANAGER_MAINNET_PROOF_SERVER ?? 'http://127.0.0.1:6300',
     },
   };
 };

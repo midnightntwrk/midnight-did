@@ -84,9 +84,11 @@ export const walletContent = String.raw`
         </div>
         <label>Prepared funding address</label>
         <input id="fundingAddress" class="mono" readonly placeholder="prepare funding to populate" />
-        <label>Faucet</label>
-        <a id="faucetUrl" class="link-field mono disabled" target="_blank" rel="noopener noreferrer">Unavailable for this setup</a>
-        <p class="muted">The same seed is used for the Midnight wallet and the Midnight DID lifecycle.</p>
+        <div id="faucetRow">
+          <label>Faucet</label>
+          <a id="faucetUrl" class="link-field mono disabled" target="_blank" rel="noopener noreferrer">Unavailable for this setup</a>
+        </div>
+        <p id="fundingGuidance" class="muted">The same seed is used for the Midnight wallet and the Midnight DID lifecycle.</p>
       </div>
     </section>
 

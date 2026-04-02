@@ -13,7 +13,7 @@ Options:
   --standalone   Use local standalone Docker infra (default)
   --preprod      Use preprod indexer
   --preproad     Alias for --preprod
-  --mainnet      Use explicit mainnet indexer env vars
+  --mainnet      Use mainnet indexer defaults (overridable via env vars)
   --help         Show this help
 EOF
 }
@@ -78,14 +78,14 @@ if [[ "${profile}" == "standalone" ]]; then
   echo "[start-resolver] Starting did-resolver-service in standalone mode"
 elif [[ "${profile}" == "preprod" ]]; then
   export MIDNIGHT_NETWORK="${MIDNIGHT_NETWORK:-preprod}"
-  export MIDNIGHT_INDEXER_HTTP_URL="${MIDNIGHT_INDEXER_HTTP_URL:-https://indexer.preprod.midnight.network/api/v3/graphql}"
-  export MIDNIGHT_INDEXER_WS_URL="${MIDNIGHT_INDEXER_WS_URL:-wss://indexer.preprod.midnight.network/api/v3/graphql/ws}"
+  export MIDNIGHT_INDEXER_HTTP_URL="${MIDNIGHT_INDEXER_HTTP_URL:-https://indexer.preprod.midnight.network/api/v4/graphql}"
+  export MIDNIGHT_INDEXER_WS_URL="${MIDNIGHT_INDEXER_WS_URL:-wss://indexer.preprod.midnight.network/api/v4/graphql/ws}"
 
   echo "[start-resolver] Starting did-resolver-service in preprod mode"
 else
   export MIDNIGHT_NETWORK="${MIDNIGHT_NETWORK:-mainnet}"
-  : "${MIDNIGHT_INDEXER_HTTP_URL:?Set MIDNIGHT_INDEXER_HTTP_URL for --mainnet}"
-  : "${MIDNIGHT_INDEXER_WS_URL:?Set MIDNIGHT_INDEXER_WS_URL for --mainnet}"
+  export MIDNIGHT_INDEXER_HTTP_URL="${MIDNIGHT_INDEXER_HTTP_URL:-https://indexer.mainnet.midnight.network/api/v4/graphql}"
+  export MIDNIGHT_INDEXER_WS_URL="${MIDNIGHT_INDEXER_WS_URL:-wss://indexer.mainnet.midnight.network/api/v4/graphql/ws}"
 
   echo "[start-resolver] Starting did-resolver-service in mainnet mode"
 fi
