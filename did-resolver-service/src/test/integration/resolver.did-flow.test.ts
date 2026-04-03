@@ -195,10 +195,9 @@ describeDidFlow("did-resolver-service e2e DID lifecycle", () => {
           .withProjectName(projectName)
           .withWaitStrategy(
             "proof-server",
-            Wait.forLogMessage(
-              "Actix runtime found; starting in Actix runtime",
-              1,
-            ),
+            // Proof server startup time varies by host/image cache state.
+            // Wait on compose healthcheck with an explicit long timeout.
+            Wait.forHealthCheck().withStartupTimeout(180000),
           )
           .withWaitStrategy(
             "indexer",
