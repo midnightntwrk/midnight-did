@@ -102,8 +102,11 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
           generatedSeed: accepted.generatedSeed,
         };
       }
+      if (!status.unlocked && status.connection.phase === 'locked') {
+        throw new Error('Session is closed. Start session was cancelled.');
+      }
       if (status.connection.phase === 'error') {
-        throw new Error(status.connection.lastError ?? 'Unlock failed');
+        throw new Error(status.connection.lastError ?? 'Start session failed');
       }
       await sleep(1_000);
     }
@@ -164,6 +167,18 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
   app.get('/api/session', async () => wrap(await manager.getSessionStatus()));
 
   app.post<{ Body: UnlockRequest }>(
+    '/api/session/start',
+    {
+      schema: {
+        body: {
+          ...routeSchemas.unlockBody,
+        },
+      },
+    },
+    async (req, reply) => acceptOperation(reply, operations.start('unlock', () => waitForUnlockTerminalState(req.body))),
+  );
+
+  app.post<{ Body: UnlockRequest }>(
     '/api/session/unlock',
     {
       schema: {
@@ -188,6 +203,7 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
   );
 
   app.post('/api/session/lock', async (_req, reply) => acceptOperation(reply, operations.start('lock', () => manager.lock())));
+  app.post('/api/session/close', async () => wrap(await manager.closeSession()));
 
   app.post<{ Body: UpdatePreferencesBody }>(
     '/api/session/preferences',

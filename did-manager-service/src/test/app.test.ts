@@ -4,6 +4,31 @@ import { createApp } from '../app.js';
 
 describe('did-manager-service app', () => {
   it('serves health and session status', async () => {
+    const defaultSessionStatus = {
+      unlocked: false,
+      profile: 'standalone',
+      profileName: 'default',
+      rememberUnlockedSession: true,
+      contractAddress: null,
+      knownContractAddresses: [],
+      seedAvailable: false,
+      unshieldedAddress: null,
+      faucetUrl: null,
+      walletBalances: {
+        night: null,
+        dust: null,
+      },
+      connection: {
+        phase: 'locked',
+        reusedPersistedState: false,
+        walletStateKey: null,
+        lastError: null,
+      },
+      did: {
+        phase: 'none',
+        lastError: null,
+      },
+    } as const;
     const manager = {
       getSetupStatus: vi.fn().mockReturnValue({
         profile: 'standalone',
@@ -40,34 +65,11 @@ describe('did-manager-service app', () => {
         },
       ]),
       selectProfile: vi.fn(),
-      getSessionStatus: vi.fn().mockResolvedValue({
-        unlocked: false,
-        profile: 'standalone',
-        profileName: 'default',
-        rememberUnlockedSession: true,
-        contractAddress: null,
-        knownContractAddresses: [],
-        seedAvailable: false,
-        unshieldedAddress: null,
-        faucetUrl: null,
-        walletBalances: {
-          night: null,
-          dust: null,
-        },
-        connection: {
-          phase: 'locked',
-          reusedPersistedState: false,
-          walletStateKey: null,
-          lastError: null,
-        },
-        did: {
-          phase: 'none',
-          lastError: null,
-        },
-      }),
+      getSessionStatus: vi.fn().mockResolvedValue(defaultSessionStatus),
       prepareFunding: vi.fn().mockResolvedValue({ unshieldedAddress: 'mn_test1...', faucetUrl: null }),
       unlock: vi.fn(),
       lock: vi.fn(),
+      closeSession: vi.fn().mockResolvedValue(defaultSessionStatus),
       updatePreferences: vi.fn(),
       deployDid: vi.fn(),
       joinDid: vi.fn(),
@@ -123,32 +125,13 @@ describe('did-manager-service app', () => {
     expect(session.statusCode).toBe(200);
     expect(session.json()).toEqual({
       ok: true,
-      data: {
-        unlocked: false,
-        profile: 'standalone',
-        profileName: 'default',
-        rememberUnlockedSession: true,
-        contractAddress: null,
-        knownContractAddresses: [],
-        seedAvailable: false,
-        unshieldedAddress: null,
-        faucetUrl: null,
-        walletBalances: {
-          night: null,
-          dust: null,
-        },
-        connection: {
-          phase: 'locked',
-          reusedPersistedState: false,
-          walletStateKey: null,
-          lastError: null,
-        },
-        did: {
-          phase: 'none',
-          lastError: null,
-        },
-      },
+      data: defaultSessionStatus,
     });
+
+    const close = await app.inject({ method: 'POST', url: '/api/session/close' });
+    expect(close.statusCode).toBe(200);
+    expect(close.json()).toEqual({ ok: true, data: defaultSessionStatus });
+    expect(manager.closeSession).toHaveBeenCalledTimes(1);
 
     const contracts = await app.inject({ method: 'GET', url: '/api/contracts' });
     expect(contracts.statusCode).toBe(200);
@@ -242,6 +225,116 @@ describe('did-manager-service app', () => {
       },
     });
 
+    await app.close();
+  });
+
+  it('marks unlock operation as failed when session is closed during unlock', async () => {
+    const manager = {
+      unlock: vi.fn().mockResolvedValue({
+        status: {
+          unlocked: false,
+          connection: { phase: 'starting' },
+        },
+      }),
+      getSessionStatus: vi.fn().mockResolvedValue({
+        unlocked: false,
+        profile: 'standalone',
+        profileName: 'default',
+        rememberUnlockedSession: true,
+        contractAddress: null,
+        knownContractAddresses: [],
+        seedAvailable: false,
+        unshieldedAddress: null,
+        faucetUrl: null,
+        walletBalances: { night: null, dust: null },
+        connection: {
+          phase: 'locked',
+          reusedPersistedState: false,
+          walletStateKey: null,
+          lastError: null,
+        },
+        did: {
+          phase: 'none',
+          lastError: null,
+        },
+      }),
+      getSetupStatus: vi.fn().mockReturnValue({
+        profile: 'standalone',
+        faucetUrl: null,
+        endpoints: {
+          node: 'http://127.0.0.1:9944',
+          indexer: 'http://127.0.0.1:8088/api/v3/graphql',
+          proofServer: 'http://127.0.0.1:6300',
+        },
+      }),
+      listProfiles: vi.fn().mockResolvedValue({
+        profile: 'standalone',
+        activeProfileName: 'default',
+        availableProfileNames: ['default'],
+      }),
+      listStoredContracts: vi.fn().mockResolvedValue([]),
+      prepareFunding: vi.fn(),
+      lock: vi.fn(),
+      closeSession: vi.fn(),
+      updatePreferences: vi.fn(),
+      deployDid: vi.fn(),
+      joinDid: vi.fn(),
+      getDidState: vi.fn(),
+      getDidDocument: vi.fn(),
+      deactivateDid: vi.fn(),
+      listKeys: vi.fn(),
+      generateKey: vi.fn(),
+      importKey: vi.fn(),
+      deleteKey: vi.fn(),
+      addVerificationMethod: vi.fn(),
+      updateVerificationMethod: vi.fn(),
+      removeVerificationMethod: vi.fn(),
+      addRelation: vi.fn(),
+      removeRelation: vi.fn(),
+      addService: vi.fn(),
+      updateService: vi.fn(),
+      removeService: vi.fn(),
+      addAlsoKnownAs: vi.fn(),
+      removeAlsoKnownAs: vi.fn(),
+      selectProfile: vi.fn(),
+    } as any;
+
+    const app = await createApp(manager);
+    const unlock = await app.inject({
+      method: 'POST',
+      url: '/api/session/start',
+      payload: { seedMode: 'generated' },
+    });
+    expect(unlock.statusCode).toBe(202);
+    const operationId = unlock.json().data.id as string;
+
+    let payload: any;
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const status = await app.inject({
+        method: 'GET',
+        url: `/api/operations/${operationId}`,
+      });
+      expect(status.statusCode).toBe(200);
+      payload = status.json();
+      if (payload.data.status === 'failed') break;
+      await new Promise((resolve) => globalThis.setTimeout(resolve, 20));
+    }
+    expect(payload).toEqual({
+      ok: true,
+      data: {
+        id: operationId,
+        type: 'unlock',
+        status: 'failed',
+        submittedAt: expect.any(String),
+        completedAt: expect.any(String),
+        result: null,
+        error: {
+          message: 'Session is closed. Start session was cancelled.',
+          errorCode: 'sessionLocked',
+          statusCode: 409,
+        },
+      },
+    });
     await app.close();
   });
 });

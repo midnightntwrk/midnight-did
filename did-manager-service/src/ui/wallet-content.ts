@@ -4,7 +4,7 @@ export const walletContent = String.raw`
       <div id="walletBanner" class="banner info"></div>
       <div class="card notice">
         <h2>Wallet Setup</h2>
-        <p>Prepare the Midnight wallet first. DID operations stay unavailable until the wallet is unlocked for the current setup.</p>
+        <p>Prepare the Midnight wallet first. DID operations stay unavailable until the session is started for the current setup.</p>
         <div class="status warn" id="walletStatusBadge">Loading wallet status...</div>
       </div>
 
@@ -28,8 +28,8 @@ export const walletContent = String.raw`
           <div class="step" id="stepUnlock">
             <span class="step-index">3</span>
             <div>
-              <strong>Unlock the session</strong>
-              <p>Once the funds are available, unlock the wallet and continue to DID management.</p>
+              <strong>Start session</strong>
+              <p>Once the funds are available, start the session and continue to DID management.</p>
             </div>
           </div>
         </div>
@@ -66,14 +66,12 @@ export const walletContent = String.raw`
         <input id="passphrase" placeholder="optional override" />
         <label class="check-row">
           <input id="remember" type="checkbox" checked />
-          <span>Remember unlocked session</span>
+          <span>Remember started session</span>
         </label>
         <div class="row" style="margin-top:8px;">
           <button id="prepareFunding">Prepare funding</button>
-          <button id="unlock" class="primary">Unlock</button>
-        </div>
-        <div class="row" style="margin-top:8px;">
-          <button id="lock">Lock</button>
+          <button id="startSession" class="primary">Start Session</button>
+          <button id="closeSession" class="danger">Close session</button>
         </div>
       </div>
 

@@ -23,7 +23,7 @@ It isolates DID lifecycle from wallet bootstrap and local key custody:
 
 | Field | Purpose | Notes |
 | --- | --- | --- |
-| `Deploy DID Contract` | Deploy new contract | Requires unlocked wallet |
+| `Deploy DID Contract` | Deploy new contract | Requires an active wallet session |
 | `Stored contracts` | Select known/available contract | Validated against network |
 | `Join contract address` | Explicit contract input | Must be lowercase 64-char hex |
 | `Join DID Contract` | Join selected/manual contract | Enables DID CRUD |

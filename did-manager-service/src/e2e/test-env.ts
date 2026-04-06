@@ -1,4 +1,4 @@
-import { type ChildProcessWithoutNullStreams, execFile, spawn } from 'node:child_process';
+import { type ChildProcess, execFile, spawn } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import net from 'node:net';
 import os from 'node:os';
@@ -141,7 +141,7 @@ const waitForHttp = async (
   throw new Error(`Timed out waiting for ${label} at ${url}`);
 };
 
-const stopProcess = async (child: ChildProcessWithoutNullStreams | null): Promise<void> => {
+const stopProcess = async (child: ChildProcess | null): Promise<void> => {
   if (child === null || child.exitCode !== null) return;
 
   await new Promise<void>((resolve) => {
@@ -149,8 +149,8 @@ const stopProcess = async (child: ChildProcessWithoutNullStreams | null): Promis
     const finalize = (): void => {
       if (finished) return;
       finished = true;
-      child.stdout.destroy();
-      child.stderr.destroy();
+      child.stdout?.destroy();
+      child.stderr?.destroy();
       resolve();
     };
     const timeout = globalThis.setTimeout(() => {

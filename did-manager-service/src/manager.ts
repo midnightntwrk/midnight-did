@@ -208,7 +208,7 @@ export class DidManagerService {
   private buildVerificationMethod(methodId: string, publicJwk: Awaited<ReturnType<FileSecretStore['getPublicKey']>>) {
     const didContract = this.runtime.getDidContract();
     if (didContract === null) {
-      throw new Error('Session is locked or DID contract is not selected.');
+      throw new Error('Session is closed or DID contract is not selected.');
     }
     return buildVerificationMethod(didContract, methodId, publicJwk);
   }
@@ -478,25 +478,37 @@ export class DidManagerService {
 
       await this.saveCurrentProfileState({
         seed,
-        unshieldedAddress: profileState?.unshieldedAddress ?? deriveUnshieldedAddress(seed),
+        unshieldedAddress: deriveUnshieldedAddress(seed),
         contractAddress: profileState?.contractAddress,
       });
     } catch (error) {
-      this.logger.error({ err: error }, 'Unlock session failed');
+      const cancelled = generation !== this.runtime.getUnlockGeneration();
+      if (cancelled) {
+        this.logger.info({ err: error }, 'Start session was cancelled');
+      } else {
+        this.logger.error({ err: error }, 'Start session failed');
+      }
       if (walletCtx !== null) {
         await walletCtx.wallet.stop().catch(() => undefined);
       }
-      this.runtime.markUnlockFailed(error);
-      throw error;
+      if (!cancelled) {
+        this.runtime.markUnlockFailed(error);
+      }
     }
   }
 
   async unlock(input: UnlockRequest): Promise<{ status: SessionStatus; generatedSeed?: string }> {
     await this.ensureSessionLoaded();
     const { seed, generatedSeed } = resolveSeedInput(this.setupProfile(), this.currentProfileState(), input);
+    this.profileConfig();
     if (typeof input.rememberUnlockedSession === 'boolean') {
       await this.profileStore.updateRememberUnlockedSession(input.rememberUnlockedSession);
     }
+    await this.saveCurrentProfileState({
+      seed,
+      unshieldedAddress: deriveUnshieldedAddress(seed),
+      contractAddress: this.currentProfileState()?.contractAddress,
+    });
 
     const requestedSeedHash = seedHashPrefix(seed);
     if (this.runtime.isReadyForSeed(requestedSeedHash)) {
@@ -538,11 +550,15 @@ export class DidManagerService {
     return this.getSessionStatus();
   }
 
+  async closeSession(): Promise<SessionStatus> {
+    return this.lock();
+  }
+
   async deployDid(): Promise<unknown> {
     const { providers } = this.requireUnlockedNoContract();
     const walletCtx = this.runtime.getWalletContext();
     if (walletCtx === null) {
-      throw new Error('Session is locked. Unlock session first.');
+      throw new Error('Session is closed. Start session first.');
     }
     const result = await deployDidContract({
       logger: this.logger,

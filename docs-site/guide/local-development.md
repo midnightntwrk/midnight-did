@@ -145,7 +145,7 @@ You can override this with `DID_MANAGER_DATA_DIR`.
 |---|---|---|
 | `did-manager-service.log` | service logs | defaults to this location unless `DID_MANAGER_LOG_FILE` is set |
 | `manager-profiles.json` | selected profile per network + migration flags | profile index metadata |
-| `profiles/<network>/<profile>/manager-session.json` | profile session state | includes seed, unshielded address, known/current contract addresses, remember-unlocked preference |
+| `profiles/<network>/<profile>/manager-session.json` | profile session state | includes seed, unshielded address, known/current contract addresses, remember-started-session preference |
 | `profiles/<network>/<profile>/manager-secrets.json` | encrypted local secret store | key metadata + encrypted private key material |
 | `profiles/<network>/<profile>/wallet-state/<seedHash6>/...` | serialized wallet snapshot | used for fast restore on reusable networks (for example preprod) |
 | `profiles/<network>/<profile>/midnight-level-db/<seedHash16>/` | Midnight private state DB | network/profile/seed-isolated private contract state |

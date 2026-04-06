@@ -17,7 +17,7 @@ The manager service is intentionally a single-user demo-style application. Exten
 
 - better status polling and background sync
 - stronger observability and error reporting
-- improved UI flows for funding, unlock, and contract selection
+- improved UI flows for funding, session start, and contract selection
 - additional validation around user-entered DID updates
 
 ## Changes to avoid casually

@@ -13,6 +13,9 @@ import { seedHashPrefix } from '../wallet-state-store.js';
 vi.mock('@midnight-ntwrk/midnight-did-api', async () => {
   return {
     setLogger: vi.fn(),
+    StandaloneConfig: class StandaloneConfig {},
+    PreprodConfig: class PreprodConfig {},
+    MainnetConfig: class MainnetConfig {},
     deriveUnshieldedAddressFromSeed: vi.fn(() => 'mn_addr_preprod1derived'),
     buildWallet: vi.fn(),
     restoreWalletFromState: vi.fn(),
@@ -253,6 +256,62 @@ describe('DidManagerService', () => {
     }
 
     throw new Error('manager did not reach ready state');
+  });
+
+  it('does not surface unhandled rejection when start session fails in background task', async () => {
+    const manager = new DidManagerService(createConfig(dataDir), pino({ enabled: false }));
+    vi.mocked(api.buildWallet).mockRejectedValueOnce(new Error('simulated wallet bootstrap failure'));
+
+    const accepted = await manager.unlock({
+      seedMode: 'provided',
+      seed: 'a'.repeat(64),
+    });
+    expect(accepted.status.connection.phase).toBe('starting');
+
+    const unlockTask = (manager as any).runtime.getUnlockTask() as Promise<void> | null;
+    expect(unlockTask).not.toBeNull();
+    await expect(unlockTask).resolves.toBeUndefined();
+
+    const status = await manager.getSessionStatus();
+    expect(status.unlocked).toBe(false);
+    expect(status.connection.phase).toBe('error');
+    expect(status.connection.lastError).toContain('simulated wallet bootstrap failure');
+  });
+
+  it('persists generated seed and funding address immediately when unlock is accepted', async () => {
+    const manager = new DidManagerService(createConfig(dataDir), pino({ enabled: false }));
+    const walletCtx = {
+      wallet: {
+        stop: vi.fn().mockResolvedValue(undefined),
+        state: () => ({
+          subscribe: () => ({
+            unsubscribe() {
+              return undefined;
+            },
+          }),
+        }),
+      },
+      unshieldedKeystore: { key: 'keystore' },
+      shieldedSecretKeys: {} as never,
+      dustSecretKey: {} as never,
+    } as unknown as api.MidnightDIDWalletContext;
+
+    vi.mocked(api.buildWallet).mockResolvedValue(walletCtx);
+    vi.mocked(api.waitForWalletSync).mockReturnValue(new Promise(() => undefined) as never);
+
+    const accepted = await manager.unlock({ seedMode: 'generated' });
+    expect(accepted.generatedSeed).toMatch(/^[0-9a-f]{64}$/);
+    expect(accepted.status.seedAvailable).toBe(true);
+    expect(accepted.status.unshieldedAddress).toBe('mn_addr_preprod1derived');
+
+    const stored = JSON.parse(await readFile(
+      path.join(dataDir, 'profiles', 'preprod', 'default', 'manager-session.json'),
+      'utf8',
+    ));
+    expect(stored.profiles.preprod.seed).toBe(accepted.generatedSeed);
+    expect(stored.profiles.preprod.unshieldedAddress).toBe('mn_addr_preprod1derived');
+
+    await manager.lock();
   });
 
   it('falls back to fresh wallet sync when persisted wallet state is incompatible', async () => {

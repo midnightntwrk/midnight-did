@@ -90,7 +90,7 @@ export const classifyManagerHttpError = (error: unknown): ManagerHttpError => {
     };
   }
 
-  if (message.includes("Session is locked")) {
+  if (message.includes("Session is locked") || message.includes("Session is closed")) {
     return {
       statusCode: 409,
       errorCode: "sessionLocked",
