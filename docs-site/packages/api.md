@@ -12,7 +12,7 @@
 ## Use it when
 
 - you need to deploy or update Midnight DID contracts
-- you need provider bootstrap for standalone or preprod flows
+- you need provider bootstrap for standalone, preprod, or mainnet flows
 - you want the highest-level reusable programmatic API in this repository
 
 ## Main repository paths

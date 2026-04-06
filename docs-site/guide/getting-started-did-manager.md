@@ -10,6 +10,8 @@ This guide walks through the complete DID Manager flow and links each step to th
 ./start-manager.sh --standalone
 # or
 ./start-manager.sh --preprod
+# or
+./start-manager.sh --mainnet
 ```
 
 2. Open the UI at `http://127.0.0.1:3010/wallet`.
@@ -49,6 +51,10 @@ When `generated` is used for `Prepare funding`, the UI stores the generated seed
 3. Confirm funding address exists before opening faucet.
 4. Confirm wallet session phase reaches `Ready` before DID operations.
 5. Confirm DID contract is `Joined` before mutating DID document.
+
+Mainnet funding note:
+- Wallet Setup intentionally hides faucet for `mainnet`.
+- Use the same seed as an already funded Midnight Wallet account.
 
 ## Troubleshooting
 

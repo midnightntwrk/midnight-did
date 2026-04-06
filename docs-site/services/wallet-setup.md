@@ -48,7 +48,8 @@ This workspace isolates wallet/runtime concerns from DID mutation concerns:
 | --- | --- | --- |
 | `Prepared funding address` | Unshielded address derived from seed | Copyable |
 | `Copy` icon | Copy funding address to clipboard | Disabled when empty |
-| `Faucet` | Open setup faucet URL | Clickable link, opens in new tab |
+| `Faucet` | Open setup faucet URL | Clickable link (preprod only), opens in new tab |
+| `Funding guidance` | Explain how to fund for active setup | Mainnet guidance explains seed-based funded wallet usage |
 
 ## State model
 

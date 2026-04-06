@@ -89,8 +89,8 @@ export class PreprodConfig implements Config {
     "preprod",
     `${new Date().toISOString()}.log`,
   );
-  indexer = "https://indexer.preprod.midnight.network/api/v3/graphql";
-  indexerWS = "wss://indexer.preprod.midnight.network/api/v3/graphql/ws";
+  indexer = "https://indexer.preprod.midnight.network/api/v4/graphql";
+  indexerWS = "wss://indexer.preprod.midnight.network/api/v4/graphql/ws";
   node = "https://rpc.preprod.midnight.network";
   proofServer = "http://127.0.0.1:6300";
   midnightDbName = midnightDbPath("preprod");
@@ -112,16 +112,22 @@ export class MainnetConfig implements Config {
   readonly proofServer: string;
   readonly midnightDbName: string;
 
-  constructor(input: {
-    indexer: string;
-    indexerWS: string;
-    node: string;
-    proofServer: string;
-  }) {
-    this.indexer = input.indexer;
-    this.indexerWS = input.indexerWS;
-    this.node = input.node;
-    this.proofServer = input.proofServer;
+  constructor(
+    input: Partial<{
+      indexer: string;
+      indexerWS: string;
+      node: string;
+      proofServer: string;
+    }> = {},
+  ) {
+    this.indexer =
+      input.indexer ??
+      "https://indexer.mainnet.midnight.network/api/v4/graphql";
+    this.indexerWS =
+      input.indexerWS ??
+      "wss://indexer.mainnet.midnight.network/api/v4/graphql/ws";
+    this.node = input.node ?? "https://rpc.mainnet.midnight.network";
+    this.proofServer = input.proofServer ?? "http://127.0.0.1:6300";
     this.midnightDbName = midnightDbPath("mainnet");
     setNetworkId("mainnet");
   }

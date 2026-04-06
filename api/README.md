@@ -73,9 +73,13 @@ API enforces lifecycle rules around:
 
 - `StandaloneConfig`
 - `PreprodConfig`
-- `MainnetConfig` with explicit endpoints
+- `MainnetConfig`
 
-`MainnetConfig` intentionally does not hard-code endpoint defaults. Supply verified mainnet indexer, websocket, node, and proof-server values from your deployment environment.
+Defaults:
+- `PreprodConfig` and `MainnetConfig` use public indexer v4 endpoints (`/api/v4/graphql` + `/ws`).
+- `MainnetConfig` defaults to local proof server (`http://127.0.0.1:6300`) so it can be used with local proving while targeting mainnet indexer/node.
+
+You can still override `MainnetConfig` endpoints explicitly when needed.
 
 ## Main Source Files
 

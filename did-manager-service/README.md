@@ -92,7 +92,13 @@ For preprod faucet funding:
 - `https://faucet.preprod.midnight.network/`
 
 Mainnet note:
-- `--mainnet` requires explicit `DID_MANAGER_MAINNET_INDEXER`, `DID_MANAGER_MAINNET_INDEXER_WS`, `DID_MANAGER_MAINNET_NODE`, and `DID_MANAGER_MAINNET_PROOF_SERVER` values. No defaults are hard-coded.
+- `--mainnet` now ships with defaults:
+  - indexer HTTP: `https://indexer.mainnet.midnight.network/api/v4/graphql`
+  - indexer WS: `wss://indexer.mainnet.midnight.network/api/v4/graphql/ws`
+  - node: `https://rpc.mainnet.midnight.network`
+  - proof server: `http://127.0.0.1:6300` (local)
+- Mainnet has no faucet. Use the same seed as the funded Midnight Wallet account you intend to operate with.
+- You can still override defaults through `DID_MANAGER_MAINNET_*` environment variables.
 
 ## Local data directory (`~/.midnight-did`)
 

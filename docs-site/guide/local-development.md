@@ -39,19 +39,27 @@ Preprod helpers:
 ./start-manager.sh --preprod
 ```
 
-Mainnet launchers require explicit env vars:
+Mainnet launchers use sane defaults and can be overridden if needed:
 
 ```bash
-MIDNIGHT_INDEXER_HTTP_URL=https://... \
-MIDNIGHT_INDEXER_WS_URL=wss://... \
 ./start-resolver.sh --mainnet
 
-DID_MANAGER_MAINNET_INDEXER=https://... \
-DID_MANAGER_MAINNET_INDEXER_WS=wss://... \
-DID_MANAGER_MAINNET_NODE=https://... \
-DID_MANAGER_MAINNET_PROOF_SERVER=https://... \
 ./start-manager.sh --mainnet
 ```
+
+Resolver defaults:
+- `MIDNIGHT_INDEXER_HTTP_URL=https://indexer.mainnet.midnight.network/api/v4/graphql`
+- `MIDNIGHT_INDEXER_WS_URL=wss://indexer.mainnet.midnight.network/api/v4/graphql/ws`
+
+Manager defaults:
+- `DID_MANAGER_MAINNET_INDEXER=https://indexer.mainnet.midnight.network/api/v4/graphql`
+- `DID_MANAGER_MAINNET_INDEXER_WS=wss://indexer.mainnet.midnight.network/api/v4/graphql/ws`
+- `DID_MANAGER_MAINNET_NODE=https://rpc.mainnet.midnight.network`
+- `DID_MANAGER_MAINNET_PROOF_SERVER=http://127.0.0.1:6300` (local)
+
+Mainnet note:
+- no faucet is shown in Wallet Setup
+- use the same seed as a funded Midnight Wallet
 
 Shared runtime infrastructure:
 

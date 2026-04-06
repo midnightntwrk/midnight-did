@@ -12,6 +12,11 @@ node ./scripts/ensure-node-24.mjs
 node ./scripts/ensure-onchain-runtime-cjs.mjs
 node ./scripts/ensure-rollup-native.mjs
 
+if [[ -z "${PROOF_SERVER_IMAGE:-}" ]] && docker image inspect proof-server-bootstrap:8.0.3 >/dev/null 2>&1; then
+  export PROOF_SERVER_IMAGE="proof-server-bootstrap:8.0.3"
+  echo "[run] Using local bootstrapped proof server image: ${PROOF_SERVER_IMAGE}"
+fi
+
 if [[ "${SKIP_LONG_RUNNING:-0}" == "1" ]]; then
   echo "[run] Fast mode enabled: long-running integration/UI targets will be skipped"
 fi

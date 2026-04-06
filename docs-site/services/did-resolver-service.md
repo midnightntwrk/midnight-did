@@ -58,7 +58,11 @@ npm run dev -w did-resolver-service
 ./start-resolver.sh --mainnet
 ```
 
-`--mainnet` requires explicit `MIDNIGHT_INDEXER_HTTP_URL` and `MIDNIGHT_INDEXER_WS_URL` values.
+`--mainnet` now uses default endpoints:
+- `https://indexer.mainnet.midnight.network/api/v4/graphql`
+- `wss://indexer.mainnet.midnight.network/api/v4/graphql/ws`
+
+You can override both with `MIDNIGHT_INDEXER_HTTP_URL` and `MIDNIGHT_INDEXER_WS_URL`.
 
 ## Main repository paths
 

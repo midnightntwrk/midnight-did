@@ -61,7 +61,8 @@ npm run dev -w did-manager-service
 ./start-manager.sh --mainnet
 ```
 
-`--mainnet` requires explicit `DID_MANAGER_MAINNET_INDEXER`, `DID_MANAGER_MAINNET_INDEXER_WS`, `DID_MANAGER_MAINNET_NODE`, and `DID_MANAGER_MAINNET_PROOF_SERVER` values.
+`--preprod` and `--mainnet` default to public `/api/v4/graphql` indexers.
+`--mainnet` defaults to local proof server (`http://127.0.0.1:6300`) and has no faucet; operators should use the funded Midnight Wallet seed.
 
 ## Main repository paths
 
