@@ -38,11 +38,13 @@ The manager intentionally uses one shared seed for wallet continuity and DID con
 
 | Seed mode | Meaning | Typical usage |
 | --- | --- | --- |
-| `reuse` | Use stored seed from active profile | Daily operation with known profile |
+| `reuse` | Use stored seed from active profile | Enabled only after `Prepare funding` has stored a seed for this profile |
 | `provided` | Paste explicit seed | Recover known wallet/profile |
 | `generated` | Create new seed | New profile bootstrap |
 
-When `generated` is used for `Prepare funding`, the UI stores the generated seed in the seed field and switches to `provided` mode so start-session uses the same seed deterministically.
+For a brand new profile, `reuse` is intentionally disabled until `Prepare funding` succeeds.
+
+When `generated` is used for `Prepare funding`, the UI stores the generated seed in the seed field and switches to `provided` mode so `Start Session` uses the same seed deterministically.
 
 ## Common operator checklist
 

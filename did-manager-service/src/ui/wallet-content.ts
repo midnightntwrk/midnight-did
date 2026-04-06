@@ -60,6 +60,7 @@ export const walletContent = String.raw`
           <option value="generated">generated</option>
           <option value="provided">provided</option>
         </select>
+        <p id="seedModeHint" class="muted">For a new profile, start with generated or provided and click Prepare funding.</p>
         <label>Seed (provided mode)</label>
         <input id="seed" class="mono" placeholder="hex seed" />
         <label>Secret passphrase</label>

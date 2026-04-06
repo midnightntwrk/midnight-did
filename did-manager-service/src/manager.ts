@@ -10,6 +10,7 @@ import {
   type FileSecretStore,
   type GenerateKeyInput,
   type ImportKeyInput,
+  parseSeed,
 } from '@midnight-ntwrk/midnight-did-secret-storage';
 import type { Logger } from 'pino';
 
@@ -499,15 +500,32 @@ export class DidManagerService {
 
   async unlock(input: UnlockRequest): Promise<{ status: SessionStatus; generatedSeed?: string }> {
     await this.ensureSessionLoaded();
-    const { seed, generatedSeed } = resolveSeedInput(this.setupProfile(), this.currentProfileState(), input);
+    const profileState = this.currentProfileState();
+    if (!profileState?.seed || !profileState.unshieldedAddress) {
+      throw new Error('Funding is not prepared for this profile. Click Prepare funding first.');
+    }
+    if (input.seedMode === 'generated') {
+      throw new Error('Seed mode generated is not allowed for Start session. Click Prepare funding first.');
+    }
+
+    const { seed, generatedSeed } = resolveSeedInput(this.setupProfile(), profileState, input);
+    const preparedSeed = parseSeed(profileState.seed);
+    if (preparedSeed !== seed) {
+      throw new Error('Provided seed does not match the prepared funding seed for this profile. Click Prepare funding again.');
+    }
+    const expectedUnshieldedAddress = deriveUnshieldedAddress(seed);
+    if (profileState.unshieldedAddress !== expectedUnshieldedAddress) {
+      throw new Error('Prepared funding state is inconsistent for this profile. Click Prepare funding again.');
+    }
+
     this.profileConfig();
     if (typeof input.rememberUnlockedSession === 'boolean') {
       await this.profileStore.updateRememberUnlockedSession(input.rememberUnlockedSession);
     }
     await this.saveCurrentProfileState({
       seed,
-      unshieldedAddress: deriveUnshieldedAddress(seed),
-      contractAddress: this.currentProfileState()?.contractAddress,
+      unshieldedAddress: profileState.unshieldedAddress,
+      contractAddress: profileState.contractAddress,
     });
 
     const requestedSeedHash = seedHashPrefix(seed);

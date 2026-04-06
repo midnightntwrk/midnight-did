@@ -117,6 +117,10 @@ export const classifyManagerHttpError = (error: unknown): ManagerHttpError => {
   if (
     message.includes("Profile name") ||
     message.includes("No stored seed") ||
+    message.includes("Funding is not prepared") ||
+    message.includes("does not match the prepared funding seed") ||
+    message.includes("Prepared funding state is inconsistent") ||
+    message.includes("Seed mode generated is not allowed for Start session") ||
     message.includes("verificationMethod") ||
     message.includes("serviceEndpoint") ||
     message.includes("relation ")

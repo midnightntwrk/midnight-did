@@ -12,6 +12,7 @@ describe('did-manager-service app', () => {
       contractAddress: null,
       knownContractAddresses: [],
       seedAvailable: false,
+      fundingPrepared: false,
       unshieldedAddress: null,
       faucetUrl: null,
       walletBalances: {

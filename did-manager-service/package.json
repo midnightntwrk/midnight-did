@@ -20,6 +20,8 @@
     "prebuild": "npm run prepare:deps",
     "pretest": "npm run prepare:deps",
     "pretest:e2e": "npm run build",
+    "pretest:e2e:standalone": "npm run build",
+    "pretest:e2e:preprod": "npm run build",
     "test:e2e": "playwright test",
     "test:e2e:standalone": "playwright test src/e2e/manager.spec.ts",
     "test:e2e:preprod": "playwright test src/e2e/preprod-funding.spec.ts",

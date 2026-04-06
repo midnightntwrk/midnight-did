@@ -367,6 +367,28 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       }
     };
 
+    const updateSeedModeAvailability = () => {
+      if (!seedModeEl) return;
+      const session = lastSessionPayload?.data?.status || lastSessionPayload?.data || lastSessionPayload;
+      const canReuse = Boolean(session?.seedAvailable);
+      const reuseOption = seedModeEl.querySelector('option[value="reuse"]');
+      if (reuseOption) {
+        reuseOption.disabled = !canReuse;
+        reuseOption.title = canReuse
+          ? 'Reuse the stored profile seed.'
+          : 'Available after this profile has a prepared seed.';
+      }
+      if (!canReuse && seedModeEl.value === 'reuse') {
+        seedModeEl.value = 'generated';
+      }
+      const seedModeHintEl = document.getElementById('seedModeHint');
+      if (seedModeHintEl) {
+        seedModeHintEl.textContent = canReuse
+          ? 'Reuse is available for this profile because a shared seed is stored.'
+          : 'This profile is new. Choose generated or provided, then click Prepare funding.';
+      }
+    };
+
     const updateWalletActionState = () => {
       const session = lastSessionPayload?.data?.status || lastSessionPayload?.data || lastSessionPayload;
       const operation = lastOperationPayload?.data || lastOperationPayload;
@@ -375,12 +397,10 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       const seedMode = seedModeEl?.value || 'reuse';
       const seedValue = readTrimmed('seed');
       const hasFundingAddress = Boolean((fundingAddressEl?.value || '').trim());
-      const hasPreparedSeed =
-        seedMode === 'generated'
-          || (seedMode === 'provided' ? seedValue.length > 0 : Boolean(session?.seedAvailable));
+      const fundingPrepared = Boolean(session?.fundingPrepared);
 
       setDisabled('prepareFunding', running || (seedMode === 'provided' && seedValue.length === 0));
-      setDisabled('startSession', running || unlocked || !hasPreparedSeed);
+      setDisabled('startSession', running || unlocked || !fundingPrepared);
       setDisabled('closeSession', !running && !unlocked);
       setDisabled('copyFundingAddress', !hasFundingAddress);
       setDisabled('selectProfile', running || unlocked);
@@ -422,6 +442,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
     };
 
     const updateActionState = () => {
+      updateSeedModeAvailability();
       updateWalletActionState();
       updateSecretStorageActionState();
       updateDidActionState();
@@ -485,9 +506,11 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       }
       setText(
         'walletSeedContinuity',
-        data?.seedAvailable
-          ? 'Stored shared seed is available and can be reused for wallet + DID.'
-          : 'No shared seed prepared yet. Generate or provide one first.',
+        data?.fundingPrepared
+          ? 'Shared seed and prepared funding address are available for this profile.'
+          : data?.seedAvailable
+            ? 'A shared seed is stored, but funding is not prepared. Click Prepare funding.'
+            : 'No shared seed prepared yet. Generate or provide one first.',
       );
 
       updateDidActionState();
@@ -508,8 +531,10 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
             ? 'Wallet session failed: ' + (data?.connection?.lastError || 'check session status')
             : isTransitionalConnectionPhase(connectionPhase)
                 ? 'Wallet session is ' + formatWalletSessionState(data).toLowerCase()
+                : data?.fundingPrepared
+                ? 'Funding prepared, start-session pending'
                 : data?.seedAvailable
-                ? 'Seed prepared, funding/start-session pending'
+                ? 'Seed selected, prepare-funding pending'
                 : 'No wallet prepared yet';
         badge.className = data?.unlocked ? 'status ok' : 'status warn';
       }
@@ -522,9 +547,13 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
         setStepState('stepPrepare', 'done');
         setStepState('stepFund', 'done');
         setStepState('stepUnlock', 'active');
-      } else if (data?.seedAvailable) {
+      } else if (data?.fundingPrepared) {
         setStepState('stepPrepare', 'done');
         setStepState('stepFund', 'active');
+        setStepState('stepUnlock', '');
+      } else if (data?.seedAvailable) {
+        setStepState('stepPrepare', 'active');
+        setStepState('stepFund', '');
         setStepState('stepUnlock', '');
       } else {
         setStepState('stepPrepare', 'active');
