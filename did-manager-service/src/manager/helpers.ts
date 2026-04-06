@@ -30,6 +30,8 @@ const runtimeNetworkMap: Record<ReturnType<typeof getNetworkId>, MidnightNetwork
 export const buildProfileConfig = (cfg: ManagerConfig, profile: SetupProfile): api.Config => {
   const baseLogDir = path.resolve(process.cwd(), 'logs', 'did-manager-service', profile);
   if (profile === 'standalone') {
+    // Initialize network id inside the API package runtime as well.
+    void new api.StandaloneConfig();
     setNetworkId('undeployed');
     return {
       logDir: `${baseLogDir}/${nowIso()}.log`,
@@ -41,6 +43,8 @@ export const buildProfileConfig = (cfg: ManagerConfig, profile: SetupProfile): a
   }
 
   if (profile === 'preprod') {
+    // Initialize network id inside the API package runtime as well.
+    void new api.PreprodConfig();
     setNetworkId('preprod');
     return {
       logDir: `${baseLogDir}/${nowIso()}.log`,
@@ -51,6 +55,13 @@ export const buildProfileConfig = (cfg: ManagerConfig, profile: SetupProfile): a
     };
   }
 
+  // Initialize network id inside the API package runtime as well.
+  void new api.MainnetConfig({
+    indexer: cfg.mainnet.indexer,
+    indexerWS: cfg.mainnet.indexerWS,
+    node: cfg.mainnet.node,
+    proofServer: cfg.mainnet.proofServer,
+  });
   setNetworkId('mainnet');
   return {
     logDir: `${baseLogDir}/${nowIso()}.log`,

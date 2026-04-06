@@ -158,7 +158,7 @@ export class ManagerRuntimeState {
     secretStore: FileSecretStore;
   } {
     if (!this.unlocked || this.providers === null || this.didContract === null || this.secretStore === null) {
-      throw new Error('Session is locked or DID contract is not selected.');
+      throw new Error('Session is closed or DID contract is not selected.');
     }
     this.touchSessionActivity();
     return {
@@ -170,7 +170,7 @@ export class ManagerRuntimeState {
 
   requireUnlockedNoContract(): UnlockedRuntime {
     if (!this.unlocked || this.providers === null || this.secretStore === null) {
-      throw new Error('Session is locked. Unlock session first.');
+      throw new Error('Session is closed. Start session first.');
     }
     this.touchSessionActivity();
     return { providers: this.providers, secretStore: this.secretStore };
@@ -256,7 +256,7 @@ export class ManagerRuntimeState {
   }
 
   markUnlockFailed(error: unknown): void {
-    this.connectionLastError = error instanceof Error ? error.message : 'Unlock failed';
+    this.connectionLastError = error instanceof Error ? error.message : 'Start session failed';
     this.connectionPhase = 'error';
     this.unlocked = false;
     this.walletCtx = null;

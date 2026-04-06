@@ -115,9 +115,13 @@ test.describe.serial('did-manager-service UI', () => {
     }
   });
 
-  test('unlocks, deploys, updates, resolves and deactivates a DID', async ({ page }) => {
+  test('starts session, deploys, updates, resolves and deactivates a DID', async ({ page }) => {
     await page.goto(`${env.baseUrl}/wallet`);
     await expect(page.getByRole('link', { name: 'Wallet Setup' })).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('#startSession')).toBeDisabled();
+    await expect(page.locator('#closeSession')).toBeDisabled();
+    await expect(page.locator('#profileSelect')).toBeEnabled();
+    await expect(page.locator('#profileName')).toBeEnabled();
     await page.fill('#profileName', standaloneProfileName);
     const profileSelected = await clickAndWaitForJsonResponse<any>(page, '#selectProfile', (url, method) => {
       return method === 'POST' && url.pathname === '/api/profiles/select';
@@ -131,10 +135,11 @@ test.describe.serial('did-manager-service UI', () => {
 
     await page.selectOption('#seedMode', 'provided');
     await page.fill('#seed', env.fundedSeed);
+    await expect(page.locator('#startSession')).toBeEnabled();
     await page.fill('#passphrase', 'midnight-dev-passphrase');
     await page.locator('#remember').check();
-    const unlocked = await clickAndWaitForOperationResult<any>(page, '#unlock', (url, method) => {
-      return method === 'POST' && url.pathname === '/api/session/unlock';
+    const unlocked = await clickAndWaitForOperationResult<any>(page, '#startSession', (url, method) => {
+      return method === 'POST' && url.pathname === '/api/session/start';
     });
     expect(unlocked).toMatchObject({
       status: {
@@ -142,6 +147,10 @@ test.describe.serial('did-manager-service UI', () => {
         profile: 'standalone',
       },
     });
+    await expect(page.locator('#startSession')).toBeDisabled();
+    await expect(page.locator('#closeSession')).toBeEnabled();
+    await expect(page.locator('#profileSelect')).toBeDisabled();
+    await expect(page.locator('#profileName')).toBeDisabled();
     await expect(page.locator('#walletNightBalance')).not.toHaveText('Unavailable');
     await expect(page.locator('#walletDustBalance')).not.toHaveText('Unavailable');
 
@@ -244,5 +253,14 @@ test.describe.serial('did-manager-service UI', () => {
       return payload?.data?.didDocumentMetadata?.deactivated === true;
     });
     expect(deactivated.data.didDocumentMetadata.deactivated).toBe(true);
+
+    await page.goto(`${env.baseUrl}/wallet`);
+    await clickAndWaitForJsonResponse<any>(page, '#closeSession', (url, method) => {
+      return method === 'POST' && url.pathname === '/api/session/close';
+    });
+    await expect(page.locator('#startSession')).toBeEnabled();
+    await expect(page.locator('#closeSession')).toBeDisabled();
+    await expect(page.locator('#profileSelect')).toBeEnabled();
+    await expect(page.locator('#profileName')).toBeEnabled();
   });
 });

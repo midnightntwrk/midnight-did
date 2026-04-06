@@ -6,7 +6,7 @@ Single-user web backend + minimal UI for managing Midnight DID lifecycle operati
 
 - Prepare a Midnight wallet funding address from a shared seed
 - Persist local profiles and per-profile DID state
-- Unlock the wallet/runtime and execute DID lifecycle operations
+- Start a wallet session/runtime and execute DID lifecycle operations
 - Manage verification methods, relations, services, aliases, and deactivation
 - Expose a browser UI and a service API over the same orchestration layer
 
@@ -18,7 +18,7 @@ Single-user web backend + minimal UI for managing Midnight DID lifecycle operati
   - seed handling
   - funding preparation
   - NIGHT / tNIGHT and DUST balance visibility
-  - unlock/session state
+  - start/close session state
 - `/secret-storage`
   - local key generation
   - key import and deletion
@@ -80,9 +80,9 @@ Shared infrastructure:
    - `generated` to create a new seed for funding
 4. Click `Prepare funding`.
 5. Copy the `Prepared funding address` from the UI.
-6. If the response includes `generatedSeed`, keep it and reuse it for unlock. The UI copies it into the seed field, switches the mode to `provided`, and stores the shared seed + wallet address in the manager session file.
+6. If the response includes `generatedSeed`, keep it and reuse it to start the session. The UI copies it into the seed field, switches the mode to `provided`, and stores the shared seed + wallet address in the manager session file.
 7. Top up the address with `tNight`.
-8. After funds arrive, click `Unlock`.
+8. After funds arrive, click `Start Session`.
 9. Confirm the wallet balances are visible on the wallet page:
    - `NIGHT / tNIGHT`
    - `DUST`

@@ -66,7 +66,7 @@ export const walletPage = renderPage(
 export const didPage = renderPage(
   'did',
   'Midnight DID Manager | DID',
-  'Manage the DID only after the wallet has been prepared and unlocked for the configured backend setup.',
+  'Manage the DID only after the wallet has been prepared and the session is started for the configured backend setup.',
   didContent,
 );
 

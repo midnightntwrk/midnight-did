@@ -21,7 +21,7 @@ This guide walks through the complete DID Manager flow and links each step to th
 
 1. Configure profile and seed on **Wallet Setup**.
 2. Prepare funding and fund the unshielded address.
-3. Unlock wallet session and wait for `Ready`.
+3. Start the wallet session and wait for `Ready`.
 4. Open **Secret Storage** and create/import a key.
 5. Open **DID Management** and deploy/join a DID contract.
 6. Publish and update methods/services/aliases.
@@ -42,7 +42,7 @@ The manager intentionally uses one shared seed for wallet continuity and DID con
 | `provided` | Paste explicit seed | Recover known wallet/profile |
 | `generated` | Create new seed | New profile bootstrap |
 
-When `generated` is used for `Prepare funding`, the UI stores the generated seed in the seed field and switches to `provided` mode so unlock uses the same seed deterministically.
+When `generated` is used for `Prepare funding`, the UI stores the generated seed in the seed field and switches to `provided` mode so start-session uses the same seed deterministically.
 
 ## Common operator checklist
 
@@ -51,6 +51,7 @@ When `generated` is used for `Prepare funding`, the UI stores the generated seed
 3. Confirm funding address exists before opening faucet.
 4. Confirm wallet session phase reaches `Ready` before DID operations.
 5. Confirm DID contract is `Joined` before mutating DID document.
+6. Use `Close session` when you want to explicitly release backend resources and start from a clean session-closed state.
 
 Mainnet funding note:
 - Wallet Setup intentionally hides faucet for `mainnet`.
@@ -65,12 +66,13 @@ Mainnet funding note:
 - Confirm you clicked `Use profile` if you typed a new profile name.
 - On preprod, ensure endpoint/proof server reachability.
 
-### Unlock remains in sync/funding states
+### Start Session remains in sync/funding states
 
 - Check wallet balance panel (`NIGHT / tNIGHT`, `DUST`).
 - Check faucet funding actually reached the prepared address.
 - Check backend state panel for phase and last error.
+- Use `Close session` to abort current runtime activity, then restart from `Prepare funding` or `Start Session`.
 
 ### Seed mode changes after generated flow
 
-This is expected after successful generated prepare/unlock: generated seed is copied into the seed field and mode switches to `provided` to preserve continuity for the next action.
+This is expected after successful generated prepare/start-session: generated seed is copied into the seed field and mode switches to `provided` to preserve continuity for the next action.

@@ -96,7 +96,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       if (fundingGuidanceEl) {
         if (normalized === 'mainnet') {
           fundingGuidanceEl.textContent =
-            'Mainnet has no faucet. Use the same seed as your funded Midnight Wallet, then unlock this session.';
+            'Mainnet has no faucet. Use the same seed as your funded Midnight Wallet, then start the session.';
         } else if (normalized === 'preprod') {
           fundingGuidanceEl.textContent =
             'Use the same seed for the Midnight wallet and DID lifecycle. Preprod can be funded via faucet.';
@@ -125,7 +125,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
         case 'error':
           return 'Failed';
         default:
-          return 'Locked';
+          return 'Session closed';
       }
     };
     const ensure = (condition, message) => {
@@ -219,6 +219,15 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       if (state === 'active') el.classList.add('active');
     };
     const nowLabel = () => new Date().toLocaleTimeString();
+    const formatEventTimestamp = (value) => new Date(value).toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
     const setBanner = (level, message) => {
       const banner = document.getElementById(currentPage === 'did' ? 'didBanner' : 'walletBanner');
       if (!banner || !message) return;
@@ -238,7 +247,13 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       const result = operation?.result || {};
       switch (type) {
         case 'unlock':
-          return { level: 'success', title: 'unlock', message: result?.status?.connection?.reusedPersistedState ? 'Wallet restored from persisted state.' : 'Wallet unlocked.' };
+          return {
+            level: 'success',
+            title: 'Start session',
+            message: result?.status?.connection?.reusedPersistedState
+              ? 'Session restored from persisted state.'
+              : 'Session started.',
+          };
         case 'deployDid':
           return { level: 'success', title: 'deployDid', message: result?.contractAddress ? 'DID contract deployed: ' + result.contractAddress : 'DID contract deployed.' };
         case 'joinDid':
@@ -290,7 +305,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
           '<div class="op-log-item">'
             + '<strong>' + entry.title + '</strong>'
             + '<p>' + entry.message + '</p>'
-            + '<small>' + new Date(entry.at).toLocaleString() + '</small>'
+            + '<small>' + formatEventTimestamp(entry.at) + '</small>'
           + '</div>'
         )).join('');
     };
@@ -365,8 +380,8 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
           || (seedMode === 'provided' ? seedValue.length > 0 : Boolean(session?.seedAvailable));
 
       setDisabled('prepareFunding', running || (seedMode === 'provided' && seedValue.length === 0));
-      setDisabled('unlock', running || unlocked || !hasPreparedSeed);
-      setDisabled('lock', running || !unlocked);
+      setDisabled('startSession', running || unlocked || !hasPreparedSeed);
+      setDisabled('closeSession', !running && !unlocked);
       setDisabled('copyFundingAddress', !hasFundingAddress);
       setDisabled('selectProfile', running || unlocked);
       setDisabled('refreshProfiles', running || unlocked);
@@ -377,6 +392,39 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       setDisabled('passphrase', running || unlocked);
       setDisabled('remember', running || unlocked);
       setDisabled('status', running);
+    };
+
+    const updateSecretStorageActionState = () => {
+      const session = lastSessionPayload?.data?.status || lastSessionPayload?.data || lastSessionPayload;
+      const operation = lastOperationPayload?.data || lastOperationPayload;
+      const running = operation?.status === 'running';
+      const unlocked = Boolean(session?.unlocked);
+      const disabled = running || !unlocked;
+      setDisabled('keyId', disabled);
+      setDisabled('keyCrv', disabled);
+      setDisabled('keyPrivate', disabled);
+      setDisabled('keyRefDelete', disabled);
+      setDisabled('keyGenerate', disabled);
+      setDisabled('keyImport', disabled);
+      setDisabled('keyDelete', disabled);
+      setDisabled('keyList', disabled);
+    };
+
+    const updateDidActionState = () => {
+      const session = lastSessionPayload?.data?.status || lastSessionPayload?.data || lastSessionPayload;
+      const operation = lastOperationPayload?.data || lastOperationPayload;
+      const running = operation?.status === 'running';
+      const unlocked = Boolean(session?.unlocked);
+      if (didActionsEl) {
+        didActionsEl.disabled = !unlocked || running;
+        didActionsEl.classList.toggle('gated', !unlocked || running);
+      }
+    };
+
+    const updateActionState = () => {
+      updateWalletActionState();
+      updateSecretStorageActionState();
+      updateDidActionState();
     };
 
     const setSetupState = (payload) => {
@@ -442,14 +490,15 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
           : 'No shared seed prepared yet. Generate or provide one first.',
       );
 
-      if (didActionsEl) {
-        didActionsEl.disabled = !data?.unlocked;
-        didActionsEl.classList.toggle('gated', !data?.unlocked);
-      }
+      updateDidActionState();
       if (didGateMessageEl) {
-        didGateMessageEl.textContent = data?.unlocked
-          ? 'Wallet is unlocked. DID management is available for the current setup.'
-          : 'Wallet is not unlocked for the current setup. Go to Wallet Setup first.';
+        const operation = lastOperationPayload?.data || lastOperationPayload;
+        const running = operation?.status === 'running';
+        didGateMessageEl.textContent = !data?.unlocked
+          ? 'Session is not started for the current setup. Go to Wallet Setup first.'
+          : running
+            ? 'A backend operation is running. DID controls are temporarily read-only.'
+            : 'Session is started. DID management is available for the current setup.';
       }
       const badge = document.getElementById('walletStatusBadge');
       if (badge) {
@@ -458,9 +507,9 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
           : connectionPhase === 'error'
             ? 'Wallet session failed: ' + (data?.connection?.lastError || 'check session status')
             : isTransitionalConnectionPhase(connectionPhase)
-              ? 'Wallet session is ' + formatWalletSessionState(data).toLowerCase()
-              : data?.seedAvailable
-                ? 'Seed prepared, funding/unlock pending'
+                ? 'Wallet session is ' + formatWalletSessionState(data).toLowerCase()
+                : data?.seedAvailable
+                ? 'Seed prepared, funding/start-session pending'
                 : 'No wallet prepared yet';
         badge.className = data?.unlocked ? 'status ok' : 'status warn';
       }
@@ -498,7 +547,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       }
       renderNextActions();
       setBackendIndicators();
-      updateWalletActionState();
+      updateActionState();
     };
 
     const setStoredContractsState = (payload) => {
@@ -612,7 +661,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       const actions = [];
 
       if (!session?.unlocked) {
-        actions.push({ title: 'Unlock wallet', rationale: 'DID operations remain unavailable until the wallet session is ready.', action: 'goto-wallet' });
+        actions.push({ title: 'Start session', rationale: 'DID operations remain unavailable until the wallet session is ready.', action: 'goto-wallet' });
       } else if (session?.connection?.phase !== 'ready') {
         actions.push({ title: 'Wait for connection', rationale: 'The wallet session is not fully ready yet: ' + (session?.connection?.phase || 'unknown') + '.' });
       }
@@ -713,7 +762,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
         setBanner(formatted.level, formatted.message);
       }
       setBackendIndicators();
-      updateWalletActionState();
+      updateActionState();
     };
 
     const setOperationsState = (payload) => {
@@ -815,11 +864,11 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
     const attachWalletHandlers = () => {
       if (seedModeEl) {
         seedModeEl.addEventListener('change', () => {
-          updateWalletActionState();
+          updateActionState();
         });
       }
-      seedEl?.addEventListener('input', updateWalletActionState);
-      document.getElementById('remember')?.addEventListener('change', updateWalletActionState);
+      seedEl?.addEventListener('input', updateActionState);
+      document.getElementById('remember')?.addEventListener('change', updateActionState);
 
       const applyGeneratedSeedResult = (generatedSeed) => {
         if (!generatedSeed) return;
@@ -827,8 +876,8 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
         if (seedModeEl) {
           seedModeEl.value = 'provided';
         }
-        setBanner('info', 'Generated seed captured and switched to provided mode for consistent unlock.');
-        updateWalletActionState();
+        setBanner('info', 'Generated seed captured and switched to provided mode for consistent session start.');
+        updateActionState();
       };
 
       const selectProfile = document.getElementById('selectProfile');
@@ -869,10 +918,10 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       });
       popoverBackdrop?.addEventListener('click', () => togglePopover(false));
 
-      const unlock = document.getElementById('unlock');
-      if (unlock) {
-        unlock.onclick = async () => {
-          const response = await request('/api/session/unlock', body({
+      const startSession = document.getElementById('startSession');
+      if (startSession) {
+        startSession.onclick = async () => {
+          const response = await request('/api/session/start', body({
             seedMode: document.getElementById('seedMode').value,
             seed: document.getElementById('seed').value || undefined,
             passphrase: document.getElementById('passphrase').value || undefined,
@@ -905,15 +954,16 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
         };
       }
 
-      const lock = document.getElementById('lock');
-      if (lock) {
-        lock.onclick = async () => {
-          const response = await request('/api/session/lock', { method: 'POST' });
-          if (response.body?.data?.id) {
-            await pollOperation(response.body.data.id);
-          } else {
-            setSessionState(response.body);
-          }
+      const closeSession = document.getElementById('closeSession');
+      if (closeSession) {
+        closeSession.onclick = async () => {
+          const response = await request('/api/session/close', { method: 'POST' });
+          setSessionState(response.body);
+          const operation = await request('/api/operations/current', {}, { silent: true });
+          setOperationState(operation.body);
+          const operations = await request('/api/operations', {}, { silent: true });
+          setOperationsState(operations.body);
+          setBanner('info', 'Session closed. Backend resources were released.');
         };
       }
 

@@ -35,7 +35,7 @@ export const listStoredContracts = async (input: {
       deactivated: null,
       version: null,
       operationCount: null,
-      message: 'Unlock the wallet to validate stored contracts on the current network.',
+      message: 'Start a wallet session to validate stored contracts on the current network.',
     }));
   }
 

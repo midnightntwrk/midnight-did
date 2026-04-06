@@ -74,7 +74,7 @@ Owns:
 - profile selection
 - seed preparation and reuse
 - funding address preparation
-- wallet session unlock and lock
+- wallet session start and close
 - wallet balance visibility for NIGHT / tNIGHT and DUST
 - connection/session visibility
 
@@ -113,8 +113,8 @@ This loop controls which local profile is active and whether a shared seed has b
 stateDiagram-v2
     [*] --> NoSeed
     NoSeed --> SeedPrepared: prepare funding
-    SeedPrepared --> WalletSessionReady: unlock
-    WalletSessionReady --> SeedPrepared: lock
+    SeedPrepared --> WalletSessionReady: start session
+    WalletSessionReady --> SeedPrepared: close session
     SeedPrepared --> NoSeed: switch to empty profile
     WalletSessionReady --> NoSeed: switch profile
 ```
@@ -138,7 +138,7 @@ This loop models the lifecycle of wallet readiness.
 ```mermaid
 stateDiagram-v2
     [*] --> Locked
-    Locked --> Starting: unlock
+    Locked --> Starting: start session
     Starting --> Restoring: persisted wallet snapshot exists
     Starting --> Syncing: cold wallet build
     Restoring --> Syncing: catch-up required
@@ -151,14 +151,14 @@ stateDiagram-v2
     Syncing --> Failed: sync failure
     WaitingForFunds --> Failed: funding/provider failure
     ConfiguringProviders --> Failed: provider setup failure
-    Ready --> Locked: lock or idle timeout
+    Ready --> Locked: close session or idle timeout
     Failed --> Locked: retry
 ```
 
 | State | Meaning |
 | --- | --- |
 | `Locked` | No active runtime session exists. |
-| `Starting` | Unlock has been accepted and seed/profile resolution is in progress. |
+| `Starting` | Start Session has been accepted and seed/profile resolution is in progress. |
 | `Restoring` | Persisted wallet state is being restored. |
 | `Syncing` | The wallet is catching up with network state. |
 | `WaitingForFunds` | The wallet is synchronized but not yet considered spendable. |
@@ -188,7 +188,7 @@ stateDiagram-v2
     Stored --> Joined: explicit join succeeds
     Stored --> Stored: join fails
     Joined --> Joined: DID CRUD operations
-    Joined --> None: lock
+    Joined --> None: close session
 ```
 
 | State | Meaning |
@@ -199,7 +199,7 @@ stateDiagram-v2
 
 ### Design rule
 
-Unlocking the wallet does not implicitly join a stored contract.
+Starting a wallet session does not implicitly join a stored contract.
 
 That keeps:
 
@@ -293,7 +293,7 @@ That separation avoids collisions between:
 
 ## Request and Data Flows
 
-## Unlock Flow
+## Start Session Flow
 
 ```mermaid
 sequenceDiagram
@@ -304,8 +304,8 @@ sequenceDiagram
   participant A as API package
   participant N as Network
 
-  UI->>HTTP: POST /api/session/unlock
-  HTTP->>M: start unlock operation
+  UI->>HTTP: POST /api/session/start
+  HTTP->>M: start session operation
   M->>S: load profile + wallet snapshot
   M->>A: build or restore wallet context
   A->>N: connect and catch up

@@ -5,7 +5,8 @@ The DID manager is a single-user Node.js web application for wallet preparation 
 ## Scope
 
 - prepare funding using the same shared seed used for DID ownership
-- unlock and persist local profiles
+- start sessions and persist local profiles
+- explicitly close wallet/runtime sessions to release resources before profile or flow changes
 - expose current NIGHT / tNIGHT and DUST balances for the active wallet session
 - manage local secret storage independently from DID publication
 - deploy or join a DID contract
@@ -31,9 +32,10 @@ Detailed workspace docs:
 stateDiagram-v2
   [*] --> Wallet
   Wallet --> FundingPrepared : prepare funding
-  FundingPrepared --> Unlocked : unlock
-  Unlocked --> SecretStorage : open /secret-storage
-  Unlocked --> DidPage : open /did
+  FundingPrepared --> SessionReady : start session
+  SessionReady --> Wallet : close session
+  SessionReady --> SecretStorage : open /secret-storage
+  SessionReady --> DidPage : open /did
   SecretStorage --> DidPage : select local key for DID operation
   DidPage --> DidPage : deploy/join/update
   DidPage --> Deactivated : deactivate
