@@ -39,6 +39,7 @@ jobs:
             contract
             domain
             did
+            manager
             docs
             deps
             config
