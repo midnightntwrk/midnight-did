@@ -1,26 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cleanup() {
-  ./scripts/cleanup-test-infra.sh || true
-}
+source ./scripts/run-common.sh
 
-cleanup
-trap cleanup EXIT INT TERM
-
-node ./scripts/ensure-node-24.mjs
-node ./scripts/ensure-onchain-runtime-cjs.mjs
-node ./scripts/ensure-rollup-native.mjs
-
-if [[ -z "${PROOF_SERVER_IMAGE:-}" ]] && docker image inspect proof-server-bootstrap:8.0.3 >/dev/null 2>&1; then
-  export PROOF_SERVER_IMAGE="proof-server-bootstrap:8.0.3"
-  echo "[resolver] Using local bootstrapped proof server image: ${PROOF_SERVER_IMAGE}"
-fi
-
-if [[ ! -f "contract/src/managed/did/contract/index.js" ]]; then
-  echo "[resolver] Generate contract managed artifacts"
-  npm run contract -w contract
-fi
+run_common_setup_cleanup_trap
+run_common_ensure_node
+run_common_ensure_runtime_helpers
+run_common_auto_proof_server_image "resolver"
+run_common_ensure_contract_artifacts "resolver"
 
 echo "[resolver] Build dependencies"
 npm run build -w contract

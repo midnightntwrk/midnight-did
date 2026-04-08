@@ -1,21 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cleanup() {
-  ./scripts/cleanup-test-infra.sh || true
-}
+source ./scripts/run-common.sh
 
-cleanup
-trap cleanup EXIT INT TERM
-
-node ./scripts/ensure-node-24.mjs
+run_common_setup_cleanup_trap
+run_common_ensure_node
+run_common_auto_proof_server_image "manager"
 
 export DID_MANAGER_SETUP="${DID_MANAGER_SETUP:-standalone}"
 
-if [[ ! -f "contract/src/managed/did/contract/index.js" ]]; then
-  echo "[manager] Generate contract managed artifacts"
-  npm run contract -w contract
-fi
+run_common_ensure_contract_artifacts "manager"
 
 echo "[manager] Build dependency packages (once)"
 npm run prepare:deps -w did-manager-service

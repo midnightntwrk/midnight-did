@@ -1,52 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cleanup() {
-  ./scripts/cleanup-test-infra.sh || true
-}
+source ./scripts/run-common.sh
 
-cleanup
-trap cleanup EXIT INT TERM
-
-node ./scripts/ensure-node-24.mjs
-node ./scripts/ensure-onchain-runtime-cjs.mjs
-node ./scripts/ensure-rollup-native.mjs
-
-if [[ -z "${PROOF_SERVER_IMAGE:-}" ]] && docker image inspect proof-server-bootstrap:8.0.3 >/dev/null 2>&1; then
-  export PROOF_SERVER_IMAGE="proof-server-bootstrap:8.0.3"
-  echo "[run] Using local bootstrapped proof server image: ${PROOF_SERVER_IMAGE}"
-fi
+run_common_setup_cleanup_trap
+run_common_ensure_node
+run_common_ensure_runtime_helpers
+run_common_auto_proof_server_image "run"
 
 if [[ "${SKIP_LONG_RUNNING:-0}" == "1" ]]; then
   echo "[run] Fast mode enabled: long-running integration/UI targets will be skipped"
 fi
 
-echo "[core] Lint (fix)"
-npm run lint:fix || true
-
-echo "[core] Lint"
-npm run lint
-
-echo "[core] Contract build/test"
-npm run contract -w contract
-npm run build -w contract
-SKIP_RUNTIME_TESTS=1 npm run test:ci -w contract || SKIP_RUNTIME_TESTS=1 npm run test -w contract
-npm run coverage -w contract || true
-
-echo "[core] Domain build/test"
-npm run build -w domain
-npm run test -w domain
-npm run coverage -w domain || true
-
-echo "[core] DID build/test"
-npm run build -w did
-npm run test -w did -- --pool=threads
-npm run coverage -w did || true
-
-echo "[core] Secret storage build/test"
-npm run build -w secret-storage
-npm run test -w secret-storage
-npm run coverage -w secret-storage || true
+echo "[all] Core pipeline"
+./run-core.sh
 
 echo "[all] API pipeline"
 ./run-api.sh

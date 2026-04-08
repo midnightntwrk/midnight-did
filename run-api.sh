@@ -1,21 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cleanup() {
-  ./scripts/cleanup-test-infra.sh || true
-}
+source ./scripts/run-common.sh
 
-cleanup
-trap cleanup EXIT INT TERM
-
-node ./scripts/ensure-node-24.mjs
-node ./scripts/ensure-onchain-runtime-cjs.mjs
-node ./scripts/ensure-rollup-native.mjs
-
-if [[ ! -f "contract/src/managed/did/contract/index.js" ]]; then
-  echo "[api] Generate contract managed artifacts"
-  npm run contract -w contract
-fi
+run_common_setup_cleanup_trap
+run_common_ensure_node
+run_common_ensure_runtime_helpers
+run_common_ensure_contract_artifacts "api"
 
 echo "[api] Build dependencies"
 npm run build -w contract
