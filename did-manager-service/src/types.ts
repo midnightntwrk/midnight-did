@@ -35,6 +35,7 @@ export type SessionStatus = {
   contractAddress: string | null;
   knownContractAddresses: string[];
   seedAvailable: boolean;
+  fundingPrepared: boolean;
   unshieldedAddress: string | null;
   faucetUrl: string | null;
   walletBalances: {

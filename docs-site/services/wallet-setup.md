@@ -33,12 +33,12 @@ This workspace isolates wallet/runtime concerns from DID mutation concerns:
 
 | Field | Purpose | Notes |
 | --- | --- | --- |
-| `Seed mode` | Choose seed source | `reuse`, `provided`, `generated` |
+| `Seed mode` | Choose seed source | `reuse`, `provided`, `generated` (`reuse` is disabled for brand new profiles) |
 | `Seed` | Manual seed input | Used only in `provided` mode |
 | `Secret passphrase` | Override secret-store passphrase | Optional |
 | `Remember started session` | Persist session preference | Checkbox |
 | `Prepare funding` | Resolve seed and derive funding address | Stores seed+address in profile |
-| `Start Session` | Start wallet session | Async operation |
+| `Start Session` | Start wallet session | Async operation; enabled only after `Prepare funding` succeeds |
 | `Close session` | Hard stop current runtime session | Explicitly releases backend resources and clears in-memory runtime state |
 | `Refresh status` | Force immediate status pull | Icon button in panel header |
 

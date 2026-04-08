@@ -118,7 +118,7 @@ describe('DidManagerService', () => {
         profiles: {
           preprod: {
             seed: 'a'.repeat(64),
-            unshieldedAddress: 'mn_addr_preprod1test',
+            unshieldedAddress: 'mn_addr_preprod1derived',
             contractAddresses: [],
             updatedAt: new Date().toISOString(),
           },
@@ -148,7 +148,7 @@ describe('DidManagerService', () => {
       profiles: {
         preprod: {
           seed: 'a'.repeat(64),
-          unshieldedAddress: 'mn_addr_preprod1test',
+          unshieldedAddress: 'mn_addr_preprod1derived',
           contractAddress: 'f'.repeat(64),
           contractAddresses: ['f'.repeat(64)],
           updatedAt: new Date().toISOString(),
@@ -221,7 +221,7 @@ describe('DidManagerService', () => {
         profiles: {
           preprod: {
             seed: 'a'.repeat(64),
-            unshieldedAddress: 'mn_addr_preprod1test',
+            unshieldedAddress: 'mn_addr_preprod1derived',
             contractAddress: 'f'.repeat(64),
             contractAddresses: ['f'.repeat(64)],
             updatedAt: new Date().toISOString(),
@@ -262,9 +262,13 @@ describe('DidManagerService', () => {
     const manager = new DidManagerService(createConfig(dataDir), pino({ enabled: false }));
     vi.mocked(api.buildWallet).mockRejectedValueOnce(new Error('simulated wallet bootstrap failure'));
 
-    const accepted = await manager.unlock({
+    await manager.prepareFunding({
       seedMode: 'provided',
       seed: 'a'.repeat(64),
+    });
+
+    const accepted = await manager.unlock({
+      seedMode: 'reuse',
     });
     expect(accepted.status.connection.phase).toBe('starting');
 
@@ -278,40 +282,26 @@ describe('DidManagerService', () => {
     expect(status.connection.lastError).toContain('simulated wallet bootstrap failure');
   });
 
-  it('persists generated seed and funding address immediately when unlock is accepted', async () => {
+  it('prepares generated funding and rejects start session when seedMode=generated', async () => {
     const manager = new DidManagerService(createConfig(dataDir), pino({ enabled: false }));
-    const walletCtx = {
-      wallet: {
-        stop: vi.fn().mockResolvedValue(undefined),
-        state: () => ({
-          subscribe: () => ({
-            unsubscribe() {
-              return undefined;
-            },
-          }),
-        }),
-      },
-      unshieldedKeystore: { key: 'keystore' },
-      shieldedSecretKeys: {} as never,
-      dustSecretKey: {} as never,
-    } as unknown as api.MidnightDIDWalletContext;
+    const prepared = await manager.prepareFunding({ seedMode: 'generated' });
+    expect(prepared.generatedSeed).toMatch(/^[0-9a-f]{64}$/);
+    expect(prepared.unshieldedAddress).toBe('mn_addr_preprod1derived');
 
-    vi.mocked(api.buildWallet).mockResolvedValue(walletCtx);
-    vi.mocked(api.waitForWalletSync).mockReturnValue(new Promise(() => undefined) as never);
-
-    const accepted = await manager.unlock({ seedMode: 'generated' });
-    expect(accepted.generatedSeed).toMatch(/^[0-9a-f]{64}$/);
-    expect(accepted.status.seedAvailable).toBe(true);
-    expect(accepted.status.unshieldedAddress).toBe('mn_addr_preprod1derived');
+    const status = await manager.getSessionStatus();
+    expect(status.seedAvailable).toBe(true);
+    expect(status.fundingPrepared).toBe(true);
+    expect(status.unshieldedAddress).toBe('mn_addr_preprod1derived');
 
     const stored = JSON.parse(await readFile(
       path.join(dataDir, 'profiles', 'preprod', 'default', 'manager-session.json'),
       'utf8',
     ));
-    expect(stored.profiles.preprod.seed).toBe(accepted.generatedSeed);
+    expect(stored.profiles.preprod.seed).toBe(prepared.generatedSeed);
     expect(stored.profiles.preprod.unshieldedAddress).toBe('mn_addr_preprod1derived');
-
-    await manager.lock();
+    await expect(manager.unlock({ seedMode: 'generated' })).rejects.toThrow(
+      'Seed mode generated is not allowed for Start session. Click Prepare funding first.',
+    );
   });
 
   it('falls back to fresh wallet sync when persisted wallet state is incompatible', async () => {
@@ -356,7 +346,7 @@ describe('DidManagerService', () => {
         profiles: {
           preprod: {
             seed,
-            unshieldedAddress: 'mn_addr_preprod1test',
+            unshieldedAddress: 'mn_addr_preprod1derived',
             contractAddress: 'f'.repeat(64),
             contractAddresses: ['f'.repeat(64)],
             updatedAt: new Date().toISOString(),

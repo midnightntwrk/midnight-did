@@ -132,9 +132,19 @@ test.describe.serial('did-manager-service UI', () => {
         profileName: standaloneProfileName,
       },
     });
+    await expect(page.locator('#seedMode option[value="reuse"]')).toBeDisabled();
 
     await page.selectOption('#seedMode', 'provided');
     await page.fill('#seed', env.fundedSeed);
+    await expect(page.locator('#startSession')).toBeDisabled();
+    const prepared = await clickAndWaitForOperationResult<any>(page, '#prepareFunding', (url, method) => {
+      return method === 'POST' && url.pathname === '/api/session/prepare-funding';
+    });
+    expect(prepared).toMatchObject({
+      profile: 'standalone',
+    });
+    expect(prepared.unshieldedAddress).toMatch(/^mn_/);
+    await expect(page.locator('#fundingAddress')).not.toHaveValue('');
     await expect(page.locator('#startSession')).toBeEnabled();
     await page.fill('#passphrase', 'midnight-dev-passphrase');
     await page.locator('#remember').check();
