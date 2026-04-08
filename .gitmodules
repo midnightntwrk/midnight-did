@@ -1,6 +1,3 @@
-[submodule "midnight-did-resolver"]
-	path = midnight-did-resolver
-	url = https://github.com/midnightntwrk/midnight-did-resolver.git
 [submodule "research/identity-examples/midnight-identity-solution-examples"]
 	path = research/identity-examples/midnight-identity-solution-examples
 	url = https://github.com/midnightntwrk/midnight-identity-solution-examples.git
