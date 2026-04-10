@@ -50,6 +50,11 @@ import {
   deriveUnshieldedAddress,
   resolveSeedInput,
 } from './manager/wallet-session-service.js';
+import { createDidVerificationMethodResolver } from './signatures/did-resolution.js';
+import {
+  signPayload as signDetachedPayload,
+  verifyPayload as verifyDetachedPayload,
+} from './signatures/signature-service.js';
 import type {
   DidDocumentResponse,
   DidStateResponse,
@@ -59,8 +64,12 @@ import type {
   SessionProfileState,
   SessionStatus,
   SetupStatus,
+  SignPayloadRequest,
+  SignPayloadResponse,
   StoredContractStatus,
   UnlockRequest,
+  VerifyPayloadRequest,
+  VerifyPayloadResponse,
 } from './types.js';
 import {
   backupDirectoryIfExists,
@@ -77,6 +86,9 @@ export class DidManagerService {
   private readonly logger: Logger;
   private readonly profileStore: ManagerProfileStore;
   private readonly runtime: ManagerRuntimeState;
+  private readonly resolveVerificationMethod: ReturnType<
+    typeof createDidVerificationMethodResolver
+  >;
 
   constructor(cfg: ManagerConfig, logger: Logger) {
     this.cfg = cfg;
@@ -84,6 +96,12 @@ export class DidManagerService {
     this.profileStore = new ManagerProfileStore(cfg, () => this.setupProfile());
     this.runtime = new ManagerRuntimeState(logger, cfg.sessionIdleMs, async () => {
       await this.lock();
+    });
+    const endpoints = cfg[cfg.setupProfile];
+    this.resolveVerificationMethod = createDidVerificationMethodResolver({
+      setupProfile: cfg.setupProfile,
+      indexerUrl: endpoints.indexer,
+      indexerWsUrl: endpoints.indexerWS,
     });
     api.setLogger(this.logger.child({ component: 'midnight-did-api' }));
   }
@@ -613,6 +631,32 @@ export class DidManagerService {
   async getDidDocument(): Promise<DidDocumentResponse> {
     const { providers, didContract } = this.requireUnlocked();
     return await getDidDocumentFromLedger(providers, didContract);
+  }
+
+  async signPayload(input: SignPayloadRequest): Promise<SignPayloadResponse> {
+    const { providers, didContract, secretStore } = this.requireUnlocked();
+    const resolution = await api.resolve(providers, didContract);
+    if (resolution === null) {
+      throw new Error('Active DID contract could not be resolved on the current network.');
+    }
+    return await signDetachedPayload({
+      secretStore,
+      didDocument: resolution.didDocument,
+      request: input,
+    });
+  }
+
+  async verifyPayload(input: VerifyPayloadRequest): Promise<VerifyPayloadResponse> {
+    const secretStore =
+      input.keyRef === undefined ? undefined : this.requireUnlockedNoContract().secretStore;
+    return await verifyDetachedPayload({
+      secretStore,
+      request: input,
+      resolveVerificationMethod:
+        input.verificationMethodId === undefined
+          ? undefined
+          : this.resolveVerificationMethod,
+    });
   }
 
   async listKeys(): Promise<unknown> {
