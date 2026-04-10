@@ -259,6 +259,69 @@ test.describe.serial('did-manager-service UI', () => {
         source: 'didDocument',
       },
     });
+    expect(verifiedPayload.data.canonicalText).toBe('hello midnight');
+
+    await page.selectOption('#signPayloadType', 'json');
+    await page.fill('#signPayload', '{"z":1,"a":2}');
+    const signedJsonPayload = await clickAndWaitForJsonResponse<any>(page, '#signPayloadButton', (url, method) => {
+      return method === 'POST' && url.pathname === '/api/signatures/sign';
+    });
+    expect(signedJsonPayload).toMatchObject({
+      ok: true,
+      data: {
+        payloadType: 'json',
+        canonicalText: '{"a":2,"z":1}',
+      },
+    });
+
+    await page.selectOption('#verifySource', 'publicJwk');
+    await page.fill('#verifyPublicJwk', JSON.stringify(signedJsonPayload.data.publicJwk, null, 2));
+    await page.selectOption('#verifyPayloadType', 'json');
+    await page.fill('#verifyPayload', '{"a":2,"z":1}');
+    await page.fill('#verifySignatureBase64Url', String(signedJsonPayload.data.signatureBase64Url));
+    const verifiedJsonPayload = await clickAndWaitForJsonResponse<any>(page, '#verifyPayloadButton', (url, method) => {
+      return method === 'POST' && url.pathname === '/api/signatures/verify';
+    });
+    expect(verifiedJsonPayload).toMatchObject({
+      ok: true,
+      data: {
+        verified: true,
+        source: 'publicJwk',
+        payloadType: 'json',
+        canonicalText: '{"a":2,"z":1}',
+      },
+    });
+
+    await page.selectOption('#signPayloadType', 'bytes');
+    await page.fill('#signPayload', '68656c6c6f');
+    const signedBytesPayload = await clickAndWaitForJsonResponse<any>(page, '#signPayloadButton', (url, method) => {
+      return method === 'POST' && url.pathname === '/api/signatures/sign';
+    });
+    expect(signedBytesPayload).toMatchObject({
+      ok: true,
+      data: {
+        payloadType: 'bytes',
+        canonicalHex: '68656c6c6f',
+      },
+    });
+
+    await page.selectOption('#verifySource', 'localKey');
+    await page.fill('#verifyKeyRef', keyRef);
+    await page.selectOption('#verifyPayloadType', 'bytes');
+    await page.fill('#verifyPayload', '68656c6c6f');
+    await page.fill('#verifySignatureBase64Url', String(signedBytesPayload.data.signatureBase64Url));
+    const verifiedBytesPayload = await clickAndWaitForJsonResponse<any>(page, '#verifyPayloadButton', (url, method) => {
+      return method === 'POST' && url.pathname === '/api/signatures/verify';
+    });
+    expect(verifiedBytesPayload).toMatchObject({
+      ok: true,
+      data: {
+        verified: true,
+        source: 'localKey',
+        payloadType: 'bytes',
+        canonicalHex: '68656c6c6f',
+      },
+    });
 
     await page.goto(`${env.baseUrl}/did`);
     await expect(page.getByRole('link', { name: 'DID Management' })).toHaveAttribute('aria-current', 'page');
