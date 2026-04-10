@@ -231,6 +231,38 @@ test.describe.serial('did-manager-service UI', () => {
     });
     expect(withRelation.data.didDocument.authentication.some((value: string) => matchesReference(value, '#auth-main'))).toBe(true);
 
+    await page.goto(`${env.baseUrl}/signatures`);
+    await expect(page.getByRole('link', { name: 'Sign & Verify' })).toHaveAttribute('aria-current', 'page');
+    await page.fill('#signKeyRef', keyRef);
+    await page.selectOption('#signPayloadType', 'string');
+    await page.fill('#signPayload', 'hello midnight');
+    const signedPayload = await clickAndWaitForJsonResponse<any>(page, '#signPayloadButton', (url, method) => {
+      return method === 'POST' && url.pathname === '/api/signatures/sign';
+    });
+    expect(signedPayload).toMatchObject({
+      ok: true,
+      data: {
+        keyRef,
+        payloadType: 'string',
+      },
+    });
+    expect(String(signedPayload.data.verificationMethodId)).toContain('#auth-main');
+    await page.locator('#copySignToVerify').click();
+    await expect(page.locator('#verifyVerificationMethodId')).toHaveValue(String(signedPayload.data.verificationMethodId));
+    const verifiedPayload = await clickAndWaitForJsonResponse<any>(page, '#verifyPayloadButton', (url, method) => {
+      return method === 'POST' && url.pathname === '/api/signatures/verify';
+    });
+    expect(verifiedPayload).toMatchObject({
+      ok: true,
+      data: {
+        verified: true,
+        source: 'didDocument',
+      },
+    });
+
+    await page.goto(`${env.baseUrl}/did`);
+    await expect(page.getByRole('link', { name: 'DID Management' })).toHaveAttribute('aria-current', 'page');
+
     await page.fill('#svcId', '#profile');
     await page.fill('#svcType', 'LinkedDomains');
     await page.fill('#svcEndpoint', '"https://example.com/profile"');

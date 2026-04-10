@@ -110,6 +110,7 @@ export default defineConfig({
             { text: "Manager Service", link: "/services/did-manager-service" },
             { text: "Wallet Setup workspace", link: "/services/wallet-setup" },
             { text: "Secret Storage workspace", link: "/services/secret-storage-workspace" },
+            { text: "Sign & Verify workspace", link: "/services/sign-verify-workspace" },
             { text: "DID Management workspace", link: "/services/did-management-workspace" },
             { text: "Extending Manager", link: "/services/did-manager-extension" },
           ],

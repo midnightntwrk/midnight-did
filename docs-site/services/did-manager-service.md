@@ -9,6 +9,7 @@ The DID manager is a single-user Node.js web application for wallet preparation 
 - explicitly close wallet/runtime sessions to release resources before profile or flow changes
 - expose current NIGHT / tNIGHT and DUST balances for the active wallet session
 - manage local secret storage independently from DID publication
+- sign and verify detached payloads against Midnight DID verification methods
 - deploy or join a DID contract
 - manage verification methods, relations, services, aliases, and deactivation
 
@@ -16,6 +17,7 @@ The DID manager is a single-user Node.js web application for wallet preparation 
 
 - `/wallet`
 - `/secret-storage`
+- `/signatures`
 - `/did`
 - `/docs`
 
@@ -23,6 +25,7 @@ Detailed workspace docs:
 
 - [Wallet Setup workspace](/services/wallet-setup)
 - [Secret Storage workspace](/services/secret-storage-workspace)
+- [Sign & Verify workspace](/services/sign-verify-workspace)
 - [DID Management workspace](/services/did-management-workspace)
 - [Getting started guide](/guide/getting-started-did-manager)
 
@@ -35,8 +38,10 @@ stateDiagram-v2
   FundingPrepared --> SessionReady : start session
   SessionReady --> Wallet : close session
   SessionReady --> SecretStorage : open /secret-storage
+  SecretStorage --> Signatures : open /signatures
   SessionReady --> DidPage : open /did
   SecretStorage --> DidPage : select local key for DID operation
+  DidPage --> Signatures : verify with DID method
   DidPage --> DidPage : deploy/join/update
   DidPage --> Deactivated : deactivate
 ```
