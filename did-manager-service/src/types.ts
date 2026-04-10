@@ -1,4 +1,9 @@
+import type { PublicJwk } from '@midnight-ntwrk/midnight-did-secret-storage';
+
 export type NetworkProfile = 'standalone' | 'preprod' | 'mainnet';
+export type PayloadType = 'bytes' | 'string' | 'json';
+export type SignatureFormat = 'ed25519-raw' | 'jubjub-raw-96' | 'ecdsa-der';
+export type VerificationSource = 'localKey' | 'publicJwk' | 'didDocument';
 
 export type SessionProfileState = {
   seed: string;
@@ -138,3 +143,47 @@ export type DidStateResponse = {
 };
 
 export type DidDocumentResponse = unknown;
+
+export type SignPayloadRequest = {
+  keyRef: string;
+  payloadType: PayloadType;
+  payload: string;
+};
+
+export type SignPayloadResponse = {
+  did: string;
+  verificationMethodId: string;
+  keyRef: string;
+  algorithm: Pick<PublicJwk, 'kty' | 'crv'>;
+  payloadType: PayloadType;
+  canonicalText: string | null;
+  canonicalHex: string;
+  canonicalPayloadBase64Url: string;
+  signatureBase64Url: string;
+  signatureFormat: SignatureFormat;
+  publicJwk: PublicJwk;
+};
+
+export type VerifyPayloadRequest = {
+  payloadType: PayloadType;
+  payload: string;
+  signatureBase64Url: string;
+  keyRef?: string;
+  publicJwk?: PublicJwk;
+  verificationMethodId?: string;
+};
+
+export type VerifyPayloadResponse = {
+  verified: boolean;
+  source: VerificationSource;
+  did: string | null;
+  verificationMethodId: string | null;
+  algorithm: Pick<PublicJwk, 'kty' | 'crv'>;
+  payloadType: PayloadType;
+  canonicalText: string | null;
+  canonicalHex: string;
+  canonicalPayloadBase64Url: string;
+  signatureBase64Url: string;
+  signatureFormat: SignatureFormat;
+  publicJwk: PublicJwk;
+};

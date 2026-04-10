@@ -14,7 +14,12 @@ import {
   serviceIdParamSchema,
 } from './http/schemas.js';
 import { DidManagerService } from './manager.js';
-import type { PrepareFundingRequest, UnlockRequest } from './types.js';
+import type {
+  PrepareFundingRequest,
+  SignPayloadRequest,
+  UnlockRequest,
+  VerifyPayloadRequest,
+} from './types.js';
 import { didPage, secretStoragePage, walletPage } from './ui.js';
 
 const baseHeaders = {
@@ -204,6 +209,30 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
 
   app.post('/api/session/lock', async (_req, reply) => acceptOperation(reply, operations.start('lock', () => manager.lock())));
   app.post('/api/session/close', async () => wrap(await manager.closeSession()));
+
+  app.post<{ Body: SignPayloadRequest }>(
+    '/api/signatures/sign',
+    {
+      schema: {
+        body: {
+          ...routeSchemas.signPayloadBody,
+        },
+      },
+    },
+    async (req) => wrap(await manager.signPayload(req.body)),
+  );
+
+  app.post<{ Body: VerifyPayloadRequest }>(
+    '/api/signatures/verify',
+    {
+      schema: {
+        body: {
+          ...routeSchemas.verifyPayloadBody,
+        },
+      },
+    },
+    async (req) => wrap(await manager.verifyPayload(req.body)),
+  );
 
   app.post<{ Body: UpdatePreferencesBody }>(
     '/api/session/preferences',

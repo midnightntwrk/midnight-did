@@ -1,6 +1,7 @@
 const seedModes = ['reuse', 'provided', 'generated'] as const;
 const keyTypes = ['OKP', 'EC'] as const;
 const keyCurves = ['Ed25519', 'Jubjub', 'P-256'] as const;
+const payloadTypes = ['bytes', 'string', 'json'] as const;
 const relationTypes = [
   'Authentication',
   'AssertionMethod',
@@ -40,6 +41,17 @@ export const serviceEndpointSchema = {
       },
     },
   ],
+} as const;
+export const publicJwkSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['kty', 'crv', 'x'],
+  properties: {
+    kty: { type: 'string', enum: keyTypes },
+    crv: { type: 'string', enum: keyCurves },
+    x: stringRequired,
+    y: { type: 'string' },
+  },
 } as const;
 
 export const routeSchemas = {
@@ -114,6 +126,32 @@ export const routeSchemas = {
       crv: { type: 'string', enum: keyCurves },
       did: { type: 'string' },
       purpose: { type: 'string' },
+    },
+  },
+  publicJwkBody: {
+    ...publicJwkSchema,
+  },
+  signPayloadBody: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['keyRef', 'payloadType', 'payload'],
+    properties: {
+      keyRef: stringRequired,
+      payloadType: { type: 'string', enum: payloadTypes },
+      payload: { type: 'string' },
+    },
+  },
+  verifyPayloadBody: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['payloadType', 'payload', 'signatureBase64Url'],
+    properties: {
+      payloadType: { type: 'string', enum: payloadTypes },
+      payload: { type: 'string' },
+      signatureBase64Url: stringRequired,
+      keyRef: { type: 'string', minLength: 1 },
+      publicJwk: publicJwkSchema,
+      verificationMethodId: { type: 'string', minLength: 1 },
     },
   },
   verificationMethodBody: {
