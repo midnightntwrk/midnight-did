@@ -35,9 +35,12 @@
   "dependencies": {
     "@fastify/swagger": "^9.6.1",
     "@fastify/swagger-ui": "^5.2.3",
+    "@midnight-ntwrk/midnight-did": "^0.1.0",
     "@midnight-ntwrk/midnight-did-api": "*",
     "@midnight-ntwrk/midnight-did-secret-storage": "*",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "^4.0.2",
     "@midnight-ntwrk/midnight-js-network-id": "^4.0.0",
+    "canonicalize": "^3.0.0",
     "fastify": "^5.6.1",
     "pino": "^9.7.0"
   },
