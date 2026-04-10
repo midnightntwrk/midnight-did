@@ -153,6 +153,27 @@ describe('signature-service', () => {
     ).rejects.toThrow('Selected key is associated with');
   });
 
+  it('allows signing when the key has no stored DID but is published in the active DID document', async () => {
+    const generated = await secretStore.generateKey({
+      id: 'no-stored-did',
+      kty: 'OKP',
+      crv: 'Ed25519',
+    });
+
+    const signed = await signPayload({
+      secretStore,
+      didDocument: makeDidDocument(generated.publicJwk, `${did}#auth-1`),
+      request: {
+        keyRef: generated.keyRef,
+        payloadType: 'string',
+        payload: 'hello midnight',
+      },
+    });
+
+    expect(signed.verificationMethodId).toBe(`${did}#auth-1`);
+    expect(signed.keyRef).toBe(generated.keyRef);
+  });
+
   it('rejects verification when multiple key sources are provided', async () => {
     const generated = await secretStore.generateKey({
       id: 'dup-source',

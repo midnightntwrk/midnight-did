@@ -23,4 +23,5 @@ The workspace currently includes two service-style applications.
 
 - [Wallet Setup workspace](/services/wallet-setup)
 - [Secret Storage workspace](/services/secret-storage-workspace)
+- [Sign & Verify workspace](/services/sign-verify-workspace)
 - [DID Management workspace](/services/did-management-workspace)

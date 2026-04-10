@@ -130,6 +130,9 @@ describe('did-manager-service app', () => {
     expect(wallet.statusCode).toBe(200);
     const secretStorage = await app.inject({ method: 'GET', url: '/secret-storage' });
     expect(secretStorage.statusCode).toBe(200);
+    const signatures = await app.inject({ method: 'GET', url: '/signatures' });
+    expect(signatures.statusCode).toBe(200);
+    expect(signatures.body).toContain('Sign & Verify');
     const signed = await app.inject({
       method: 'POST',
       url: '/api/signatures/sign',

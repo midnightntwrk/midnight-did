@@ -20,7 +20,7 @@ import type {
   UnlockRequest,
   VerifyPayloadRequest,
 } from './types.js';
-import { didPage, secretStoragePage, walletPage } from './ui.js';
+import { didPage, secretStoragePage, signaturesPage, walletPage } from './ui.js';
 
 const baseHeaders = {
   'X-Content-Type-Options': 'nosniff',
@@ -123,6 +123,9 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
   });
   app.get('/secret-storage', async (_req, reply) => {
     reply.type('text/html').send(secretStoragePage);
+  });
+  app.get('/signatures', async (_req, reply) => {
+    reply.type('text/html').send(signaturesPage);
   });
   app.get('/did', async (_req, reply) => {
     reply.type('text/html').send(didPage);

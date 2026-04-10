@@ -1,9 +1,11 @@
-export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string => String.raw`
+export const sharedScript = (page: 'wallet' | 'secret-storage' | 'signatures' | 'did'): string => String.raw`
   <script>
     const currentPage = ${JSON.stringify(page)};
     const resultEl = document.getElementById('result');
     const didStateEl = document.getElementById('didState');
     const didDocEl = document.getElementById('didDocument');
+    const signResultEl = document.getElementById('signResult');
+    const verifyResultEl = document.getElementById('verifyResult');
     const fundingAddressEl = document.getElementById('fundingAddress');
     const faucetUrlEl = document.getElementById('faucetUrl');
     const faucetRowEl = document.getElementById('faucetRow');
@@ -24,6 +26,9 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
     let lastDidStatePayload = null;
     let lastDidDocumentPayload = null;
     let lastKeysPayload = null;
+    let lastSignPayload = null;
+    let lastVerifyPayload = null;
+    let lastSignRequest = null;
     let lastStoredContractsSignature = null;
     let selectedStoredContractAddress = '';
     let lastDidRefreshAt = null;
@@ -229,7 +234,12 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       hour12: false,
     });
     const setBanner = (level, message) => {
-      const banner = document.getElementById(currentPage === 'did' ? 'didBanner' : 'walletBanner');
+      const bannerId = currentPage === 'did'
+        ? 'didBanner'
+        : currentPage === 'signatures'
+          ? 'signaturesBanner'
+          : 'walletBanner';
+      const banner = document.getElementById(bannerId);
       if (!banner || !message) return;
       banner.className = 'banner open ' + level;
       banner.textContent = message;
@@ -333,6 +343,68 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       }
       for (const panel of document.querySelectorAll('.tab-panel[data-tab-group="' + groupName + '"]')) {
         panel.classList.toggle('active', panel.dataset.tabPanel === tabName);
+      }
+    };
+    const isDidContextPage = () => currentPage === 'did' || currentPage === 'signatures';
+    const setSignatureSourcePanels = () => {
+      const source = document.getElementById('verifySource')?.value || 'didDocument';
+      const visibility = {
+        verifySourceDidPanel: source === 'didDocument',
+        verifySourceLocalPanel: source === 'localKey',
+        verifySourceJwkPanel: source === 'publicJwk',
+      };
+      for (const [id, visible] of Object.entries(visibility)) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = visible ? '' : 'none';
+      }
+    };
+    const setSignaturePageState = () => {
+      const doc = lastDidDocumentPayload?.data?.didDocument;
+      const methods = Array.isArray(doc?.verificationMethod) ? doc.verificationMethod : [];
+      const keys = Array.isArray(lastKeysPayload?.data) ? lastKeysPayload.data : [];
+      setText('signatureActiveDid', doc?.id || '-');
+      setText('signaturePublishedMethodCount', String(methods.length));
+      setText('signatureLocalKeyCount', String(keys.length));
+      const listEl = document.getElementById('signaturePublishedMethods');
+      if (listEl) {
+        listEl.innerHTML = methods.length === 0
+          ? '<div class="op-log-item"><strong>No published verification methods</strong><p>Publish a verification method on the DID Management tab before signing with it.</p></div>'
+          : methods.map((entry) => (
+            '<div class="op-log-item">'
+              + '<strong class="mono">' + (entry.id || 'unknown') + '</strong>'
+              + '<div class="contract-meta">'
+              + ['kty=' + (entry.publicKeyJwk?.kty || '?'), 'curve=' + (entry.publicKeyJwk?.crv || '?')]
+                .map((value) => '<span>' + value + '</span>')
+                .join('')
+              + '</div>'
+            + '</div>'
+          )).join('');
+      }
+      const session = lastSessionPayload?.data?.status || lastSessionPayload?.data || lastSessionPayload;
+      const signPanel = document.getElementById('signatureSignPanel');
+      const signReady = Boolean(session?.unlocked && session?.did?.phase === 'joined' && methods.length > 0);
+      if (signPanel) {
+        signPanel.disabled = !signReady;
+        signPanel.classList.toggle('gated', !signReady);
+      }
+      const gateEl = document.getElementById('signaturesGateMessage');
+      if (gateEl) {
+        gateEl.textContent = signReady
+          ? 'The active DID can sign with any local key that is already published as a verification method.'
+          : !session?.unlocked
+            ? 'Start a session first. Verification by DID document remains available without a local signing session.'
+            : session?.did?.phase !== 'joined'
+              ? 'Deploy or join a DID contract before signing with DID-associated keys.'
+              : 'Publish at least one verification method before signing.';
+      }
+    };
+    const setSignatureResultState = (kind, payload) => {
+      if (kind === 'sign') {
+        lastSignPayload = payload;
+        setJson(signResultEl, payload?.data || payload);
+      } else {
+        lastVerifyPayload = payload;
+        setJson(verifyResultEl, payload?.data || payload);
       }
     };
     const setBackendIndicators = () => {
@@ -441,11 +513,47 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       }
     };
 
+    const updateSignatureActionState = () => {
+      const session = lastSessionPayload?.data?.status || lastSessionPayload?.data || lastSessionPayload;
+      const operation = lastOperationPayload?.data || lastOperationPayload;
+      const running = operation?.status === 'running';
+      const verifySource = document.getElementById('verifySource')?.value || 'didDocument';
+      const signReady = Boolean(session?.unlocked && session?.did?.phase === 'joined');
+      const hasSignInput = readTrimmed('signKeyRef').length > 0 && document.getElementById('signPayload')?.value.length > 0;
+      const hasVerifyCommonInput = document.getElementById('verifyPayload')?.value.length > 0
+        && readTrimmed('verifySignatureBase64Url').length > 0;
+      const hasVerifySourceInput =
+        (verifySource === 'localKey' && readTrimmed('verifyKeyRef').length > 0 && Boolean(session?.unlocked)) ||
+        (verifySource === 'publicJwk' && readTrimmed('verifyPublicJwk').length > 0) ||
+        (verifySource === 'didDocument' && readTrimmed('verifyVerificationMethodId').length > 0);
+
+      setDisabled('signKeyRefSelect', running || !signReady);
+      setDisabled('signKeyRef', running || !signReady);
+      setDisabled('signPayloadType', running || !signReady);
+      setDisabled('signPayload', running || !signReady);
+      setDisabled('signPayloadButton', running || !signReady || !hasSignInput);
+      setDisabled('copySignToVerify', !lastSignPayload?.data && !lastSignPayload);
+
+      setDisabled('verifySource', running);
+      setDisabled('verifyVerificationMethodSelect', running || verifySource !== 'didDocument');
+      setDisabled('verifyVerificationMethodId', running || verifySource !== 'didDocument');
+      setDisabled('verifyKeyRefSelect', running || verifySource !== 'localKey' || !session?.unlocked);
+      setDisabled('verifyKeyRef', running || verifySource !== 'localKey' || !session?.unlocked);
+      setDisabled('verifyPublicJwk', running || verifySource !== 'publicJwk');
+      setDisabled('verifyPayloadType', running);
+      setDisabled('verifyPayload', running);
+      setDisabled('verifySignatureBase64Url', running);
+      setDisabled('verifyPayloadButton', running || !hasVerifyCommonInput || !hasVerifySourceInput);
+
+      setSignatureSourcePanels();
+    };
+
     const updateActionState = () => {
       updateSeedModeAvailability();
       updateWalletActionState();
       updateSecretStorageActionState();
       updateDidActionState();
+      updateSignatureActionState();
     };
 
     const setSetupState = (payload) => {
@@ -575,6 +683,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
         setBanner('info', 'Wallet session restored from persisted state.');
       }
       renderNextActions();
+      setSignaturePageState();
       setBackendIndicators();
       updateActionState();
     };
@@ -650,6 +759,8 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       const keys = payload?.data || [];
       const keyRefs = keys.map((entry) => entry.keyRef).filter(Boolean);
       setOptions('vmKeyRefSelect', keyRefs, 'Enter manually');
+      setOptions('signKeyRefSelect', keyRefs, 'Enter manually');
+      setOptions('verifyKeyRefSelect', keyRefs, 'Enter manually');
       const keyListEl = document.getElementById('secretStorageKeyList');
       if (keyListEl) {
         keyListEl.innerHTML = keys.length === 0
@@ -666,6 +777,8 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
             + '</div>'
           )).join('');
       }
+      setSignaturePageState();
+      updateActionState();
     };
 
     const syncDidSelectors = () => {
@@ -677,8 +790,11 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       const serviceIds = services.map((entry) => entry.id).filter(Boolean);
       setOptions('vmMethodSelect', methodIds, 'Enter manually');
       setOptions('relMethodSelect', methodIds, 'Select a verification method');
+      setOptions('verifyVerificationMethodSelect', methodIds, 'Enter manually');
       setOptions('svcSelect', serviceIds, 'Enter manually');
       setOptions('akaSelect', aliases, 'Enter manually');
+      setSignaturePageState();
+      updateActionState();
     };
 
     const renderNextActions = () => {
@@ -766,8 +882,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       renderNextActions();
     };
 
-    const refreshDidViews = async () => {
-      if (!didStateEl || !didDocEl) return;
+    const refreshDidContext = async () => {
       const state = await request('/api/did/state', {}, { silent: true });
       setJson(didStateEl, state.body);
       setDidSummary(state.body);
@@ -781,6 +896,8 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       setStoredContractsState(contracts.body);
       lastDidRefreshAt = nowLabel();
       setBackendIndicators();
+      setSignaturePageState();
+      updateActionState();
     };
 
     const setOperationState = (payload) => {
@@ -802,7 +919,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
 
     const shouldRefreshDidState = () => {
       const session = lastSessionPayload?.data?.status || lastSessionPayload?.data || lastSessionPayload;
-      if (currentPage !== 'did') return false;
+      if (!isDidContextPage()) return false;
       if (!session?.unlocked) return false;
       if (session?.did?.phase === 'joined') return true;
       return false;
@@ -813,7 +930,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       if (!shouldRefreshDidState()) return;
       postOperationRefreshTimer = setInterval(async () => {
         postOperationRefreshCount += 1;
-        await refreshDidViews().catch(() => undefined);
+        await refreshDidContext().catch(() => undefined);
         if (postOperationRefreshCount >= 10) {
           stopPostOperationRefresh();
         }
@@ -832,10 +949,18 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
         setKeysState(keys.body);
       }
       if (shouldRefreshDidState()) {
-        await refreshDidViews().catch(() => undefined);
+        await refreshDidContext().catch(() => undefined);
       } else if (currentPage === 'did') {
         const contracts = await request('/api/contracts', {}, { silent: true });
         setStoredContractsState(contracts.body);
+      } else if (currentPage === 'signatures') {
+        const sessionData = session.body?.data?.status || session.body?.data || session.body;
+        if (sessionData?.unlocked) {
+          const keys = await request('/api/keys', {}, { silent: true });
+          setKeysState(keys.body);
+        } else {
+          setSignaturePageState();
+        }
       }
     };
 
@@ -859,8 +984,8 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       stopOperationPolling();
       const session = await request('/api/session', {}, { silent: true });
       setSessionState(session.body);
-        if (currentPage === 'did') {
-          await refreshDidViews().catch(() => undefined);
+        if (isDidContextPage()) {
+          await refreshDidContext().catch(() => undefined);
           startPostOperationRefresh();
         }
         if (typeof onComplete === 'function') onComplete(operation);
@@ -883,6 +1008,15 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       if (currentPage === 'secret-storage') {
         const keys = await request('/api/keys', {}, { silent: true });
         setKeysState(keys.body);
+      }
+      if (currentPage === 'signatures') {
+        const sessionData = session.body?.data?.status || session.body?.data || session.body;
+        if (sessionData?.unlocked) {
+          const keys = await request('/api/keys', {}, { silent: true });
+          setKeysState(keys.body);
+        } else {
+          setSignaturePageState();
+        }
       }
       if (operation.body?.data?.status === 'running') {
         await pollOperation(operation.body.data.id);
@@ -1054,6 +1188,89 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       };
     };
 
+    const attachSignatureHandlers = () => {
+      if (!document.getElementById('signPayloadButton')) return;
+
+      const syncSelectToInput = (selectId, inputId) => {
+        document.getElementById(selectId)?.addEventListener('change', (event) => {
+          const value = event.target.value || '';
+          if (value) document.getElementById(inputId).value = value;
+          updateActionState();
+        });
+      };
+
+      syncSelectToInput('signKeyRefSelect', 'signKeyRef');
+      syncSelectToInput('verifyKeyRefSelect', 'verifyKeyRef');
+      syncSelectToInput('verifyVerificationMethodSelect', 'verifyVerificationMethodId');
+
+      document.getElementById('verifySource')?.addEventListener('change', () => {
+        setSignatureSourcePanels();
+        updateActionState();
+      });
+      [
+        'signKeyRef',
+        'signPayloadType',
+        'signPayload',
+        'verifyKeyRef',
+        'verifyVerificationMethodId',
+        'verifyPublicJwk',
+        'verifyPayloadType',
+        'verifyPayload',
+        'verifySignatureBase64Url',
+      ].forEach((id) => {
+        document.getElementById(id)?.addEventListener('input', updateActionState);
+        document.getElementById(id)?.addEventListener('change', updateActionState);
+      });
+
+      document.getElementById('signPayloadButton').onclick = async () => {
+        const requestPayload = {
+          keyRef: readTrimmed('signKeyRef'),
+          payloadType: document.getElementById('signPayloadType').value,
+          payload: document.getElementById('signPayload').value,
+        };
+        const response = await request('/api/signatures/sign', body(requestPayload));
+        lastSignRequest = requestPayload;
+        setSignatureResultState('sign', response.body);
+        activateTab('signatures-result', 'sign');
+      };
+
+      document.getElementById('copySignToVerify').onclick = async () => {
+        const signed = lastSignPayload?.data || lastSignPayload;
+        if (!signed || !lastSignRequest) return;
+        document.getElementById('verifySource').value = 'didDocument';
+        document.getElementById('verifyVerificationMethodId').value = signed.verificationMethodId || '';
+        document.getElementById('verifyPayloadType').value = lastSignRequest.payloadType;
+        document.getElementById('verifyPayload').value = lastSignRequest.payload;
+        document.getElementById('verifySignatureBase64Url').value = signed.signatureBase64Url || '';
+        document.getElementById('verifyPublicJwk').value = JSON.stringify(signed.publicJwk || {}, null, 2);
+        setSignatureSourcePanels();
+        activateTab('signatures-result', 'verify');
+        updateActionState();
+      };
+
+      document.getElementById('verifyPayloadButton').onclick = async () => {
+        const verifySource = document.getElementById('verifySource').value;
+        const requestPayload = {
+          payloadType: document.getElementById('verifyPayloadType').value,
+          payload: document.getElementById('verifyPayload').value,
+          signatureBase64Url: readTrimmed('verifySignatureBase64Url'),
+        };
+        if (verifySource === 'localKey') {
+          requestPayload.keyRef = readTrimmed('verifyKeyRef');
+        } else if (verifySource === 'publicJwk') {
+          requestPayload.publicJwk = parseMaybeJson(document.getElementById('verifyPublicJwk').value);
+        } else {
+          requestPayload.verificationMethodId = readTrimmed('verifyVerificationMethodId');
+        }
+        const response = await request('/api/signatures/verify', body(requestPayload));
+        setSignatureResultState('verify', response.body);
+        activateTab('signatures-result', 'verify');
+      };
+
+      setSignatureSourcePanels();
+      updateActionState();
+    };
+
     const attachTabHandlers = () => {
       document.querySelectorAll('.tab').forEach((button) => {
         button.addEventListener('click', () => activateTab(button.dataset.tabGroup, button.dataset.tab));
@@ -1163,7 +1380,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
         }
         const session = await request('/api/session', {}, { silent: true });
         setSessionState(session.body);
-        await refreshDidViews();
+        await refreshDidContext();
       };
       document.getElementById('deploy').onclick = async () => clickDid('/api/did/deploy', { method: 'POST' });
       document.getElementById('join').onclick = async () => {
@@ -1171,7 +1388,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
         ensure(contractAddressPattern.test(contractAddress), 'Join contract address must be a 64-character lowercase hex string.');
         await clickDid('/api/did/join', body({ contractAddress }));
       };
-      document.getElementById('refreshDid').onclick = refreshDidViews;
+      document.getElementById('refreshDid').onclick = refreshDidContext;
       document.getElementById('deactivate').onclick = async () => clickDid('/api/did/deactivate', { method: 'POST' });
 
       document.getElementById('vmAdd').onclick = async () => {
@@ -1253,9 +1470,12 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'did'): string 
       attachWalletHandlers();
       attachTabHandlers();
       attachKeyHandlers();
+      attachSignatureHandlers();
       if (currentPage === 'did') {
         attachDidHandlers();
-        await refreshDidViews().catch(() => undefined);
+      }
+      if (isDidContextPage()) {
+        await refreshDidContext().catch(() => undefined);
       }
     });
   </script>

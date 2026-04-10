@@ -1,9 +1,10 @@
 # DID Manager Architecture
 
-The DID Manager is a single-user operational service for managing Midnight wallet state, local secret storage, and Midnight DID contract interactions through one backend and three UI workspaces:
+The DID Manager is a single-user operational service for managing Midnight wallet state, local secret storage, detached payload proofs, and Midnight DID contract interactions through one backend and four UI workspaces:
 
 - `Wallet Setup`
 - `Secret Storage`
+- `Sign & Verify`
 - `DID Management`
 
 This page describes the current architecture as an intentional model, not as a migration story.
@@ -60,11 +61,14 @@ The UI is intentionally split into three concerns:
 flowchart LR
   Wallet[Wallet Setup]
   SecretStorage[Secret Storage]
+  Signatures[Sign & Verify]
   DID[DID Management]
 
   Wallet --> SecretStorage
   Wallet --> DID
   SecretStorage --> DID
+  SecretStorage --> Signatures
+  DID --> Signatures
 ```
 
 ### Wallet Setup
@@ -86,6 +90,15 @@ Owns:
 - key import
 - key deletion
 - local key inventory
+
+### Sign & Verify
+
+Owns:
+
+- payload normalization by type
+- detached signing with DID-associated local keys
+- detached verification by local key, direct public JWK, or DID-resolved verification method
+- cross-profile verification where the public key is resolved from the DID document
 
 ### DID Management
 

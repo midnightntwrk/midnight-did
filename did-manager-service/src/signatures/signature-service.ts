@@ -74,7 +74,7 @@ export const signPayload = async (input: {
 }): Promise<SignPayloadResponse> => {
   const { secretStore, didDocument, request } = input;
   const key = await findStoredKey(secretStore, request.keyRef);
-  if (key.did !== didDocument.id) {
+  if (key.did !== undefined && key.did !== null && key.did !== didDocument.id) {
     throw new Error(
       `Selected key is associated with ${key.did ?? 'no DID'}, not the active DID ${didDocument.id}.`,
     );
