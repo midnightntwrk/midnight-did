@@ -102,8 +102,9 @@ const waitForDidDocument = async (
 };
 
 test.describe.serial('did-manager-service UI', () => {
-  test.setTimeout(300_000);
+  test.setTimeout(600_000);
   const standaloneProfileName = 'standalone-e2e';
+  const standaloneVerifyProfileName = 'standalone-e2e-verify';
 
   test.beforeAll(async () => {
     env = await startManagerE2EEnv();
@@ -204,6 +205,34 @@ test.describe.serial('did-manager-service UI', () => {
     const keyRef = keyGeneration.keyRef as string;
     expect(keyRef.length).toBeGreaterThan(10);
 
+    await page.fill('#keyId', 'jub-main');
+    await page.selectOption('#keyCrv', 'Jubjub');
+    const jubjubKeyGeneration = await clickAndWaitForOperationResult<any>(page, '#keyGenerate', (url, method) => {
+      return method === 'POST' && url.pathname === '/api/keys/generate';
+    });
+    expect(jubjubKeyGeneration).toMatchObject({
+      publicJwk: {
+        kty: 'EC',
+        crv: 'Jubjub',
+      },
+    });
+    const jubjubKeyRef = jubjubKeyGeneration.keyRef as string;
+    expect(jubjubKeyRef.length).toBeGreaterThan(10);
+
+    await page.fill('#keyId', 'p256-main');
+    await page.selectOption('#keyCrv', 'P-256');
+    const p256KeyGeneration = await clickAndWaitForOperationResult<any>(page, '#keyGenerate', (url, method) => {
+      return method === 'POST' && url.pathname === '/api/keys/generate';
+    });
+    expect(p256KeyGeneration).toMatchObject({
+      publicJwk: {
+        kty: 'EC',
+        crv: 'P-256',
+      },
+    });
+    const p256KeyRef = p256KeyGeneration.keyRef as string;
+    expect(p256KeyRef.length).toBeGreaterThan(10);
+
     await page.goto(`${env.baseUrl}/did`);
     await expect(page.getByRole('link', { name: 'DID Management' })).toHaveAttribute('aria-current', 'page');
 
@@ -218,6 +247,28 @@ test.describe.serial('did-manager-service UI', () => {
       return Array.isArray(methods) && methods.some((method: { id?: string }) => matchesReference(method.id, '#auth-main'));
     });
     expect(withVerificationMethod.data.didDocument.verificationMethod).toHaveLength(1);
+
+    await page.fill('#vmMethodId', '#jub-main');
+    await page.fill('#vmKeyRef', jubjubKeyRef);
+    await clickAndWaitForOperationResult(page, '#vmAdd', (url, method) => {
+      return method === 'POST' && url.pathname === '/api/did/verification-methods';
+    });
+    const withJubjubMethod = await waitForDidDocument(page, (payload) => {
+      const methods = payload?.data?.didDocument?.verificationMethod;
+      return Array.isArray(methods) && methods.some((method: { id?: string }) => matchesReference(method.id, '#jub-main'));
+    });
+    expect(withJubjubMethod.data.didDocument.verificationMethod.some((method: { id?: string }) => matchesReference(method.id, '#jub-main'))).toBe(true);
+
+    await page.fill('#vmMethodId', '#p256-main');
+    await page.fill('#vmKeyRef', p256KeyRef);
+    await clickAndWaitForOperationResult(page, '#vmAdd', (url, method) => {
+      return method === 'POST' && url.pathname === '/api/did/verification-methods';
+    });
+    const withP256Method = await waitForDidDocument(page, (payload) => {
+      const methods = payload?.data?.didDocument?.verificationMethod;
+      return Array.isArray(methods) && methods.some((method: { id?: string }) => matchesReference(method.id, '#p256-main'));
+    });
+    expect(withP256Method.data.didDocument.verificationMethod.some((method: { id?: string }) => matchesReference(method.id, '#p256-main'))).toBe(true);
 
     await page.fill('#relMethodId', '#auth-main');
     await page.selectOption('#vmRelation', 'Authentication');
@@ -260,7 +311,9 @@ test.describe.serial('did-manager-service UI', () => {
       },
     });
     expect(verifiedPayload.data.canonicalText).toBe('hello midnight');
+    const edVerificationMethodId = String(signedPayload.data.verificationMethodId);
 
+    await page.fill('#signKeyRef', jubjubKeyRef);
     await page.selectOption('#signPayloadType', 'json');
     await page.fill('#signPayload', '{"z":1,"a":2}');
     const signedJsonPayload = await clickAndWaitForJsonResponse<any>(page, '#signPayloadButton', (url, method) => {
@@ -273,6 +326,7 @@ test.describe.serial('did-manager-service UI', () => {
         canonicalText: '{"a":2,"z":1}',
       },
     });
+    expect(String(signedJsonPayload.data.verificationMethodId)).toContain('#jub-main');
 
     await page.selectOption('#verifySource', 'publicJwk');
     await page.fill('#verifyPublicJwk', JSON.stringify(signedJsonPayload.data.publicJwk, null, 2));
@@ -292,6 +346,7 @@ test.describe.serial('did-manager-service UI', () => {
       },
     });
 
+    await page.fill('#signKeyRef', p256KeyRef);
     await page.selectOption('#signPayloadType', 'bytes');
     await page.fill('#signPayload', '68656c6c6f');
     const signedBytesPayload = await clickAndWaitForJsonResponse<any>(page, '#signPayloadButton', (url, method) => {
@@ -304,9 +359,10 @@ test.describe.serial('did-manager-service UI', () => {
         canonicalHex: '68656c6c6f',
       },
     });
+    expect(String(signedBytesPayload.data.verificationMethodId)).toContain('#p256-main');
 
     await page.selectOption('#verifySource', 'localKey');
-    await page.fill('#verifyKeyRef', keyRef);
+    await page.fill('#verifyKeyRef', p256KeyRef);
     await page.selectOption('#verifyPayloadType', 'bytes');
     await page.fill('#verifyPayload', '68656c6c6f');
     await page.fill('#verifySignatureBase64Url', String(signedBytesPayload.data.signatureBase64Url));
@@ -368,5 +424,32 @@ test.describe.serial('did-manager-service UI', () => {
     await expect(page.locator('#closeSession')).toBeDisabled();
     await expect(page.locator('#profileSelect')).toBeEnabled();
     await expect(page.locator('#profileName')).toBeEnabled();
+
+    await page.fill('#profileName', standaloneVerifyProfileName);
+    await clickAndWaitForJsonResponse<any>(page, '#selectProfile', (url, method) => {
+      return method === 'POST' && url.pathname === '/api/profiles/select';
+    });
+    await expect(page.locator('#profileBadgeText')).toContainText(`${standaloneVerifyProfileName}`);
+
+    await page.goto(`${env.baseUrl}/signatures`);
+    await expect(page.getByRole('link', { name: 'Sign & Verify' })).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('#signatureActiveDid')).toHaveText('-');
+    await expect(page.locator('#signPayloadButton')).toBeDisabled();
+    await page.selectOption('#verifySource', 'didDocument');
+    await page.fill('#verifyVerificationMethodId', edVerificationMethodId);
+    await page.selectOption('#verifyPayloadType', 'string');
+    await page.fill('#verifyPayload', 'hello midnight');
+    await page.fill('#verifySignatureBase64Url', String(signedPayload.data.signatureBase64Url));
+    const crossProfileVerify = await clickAndWaitForJsonResponse<any>(page, '#verifyPayloadButton', (url, method) => {
+      return method === 'POST' && url.pathname === '/api/signatures/verify';
+    });
+    expect(crossProfileVerify).toMatchObject({
+      ok: true,
+      data: {
+        verified: true,
+        source: 'didDocument',
+        verificationMethodId: edVerificationMethodId,
+      },
+    });
   });
 });
