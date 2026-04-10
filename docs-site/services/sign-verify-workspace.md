@@ -6,6 +6,7 @@ Sign & Verify is the cryptographic workspace for detached payload signing and ve
 
 - Sign `string`, `json`, or `bytes` payloads with a local private key.
 - Require that the signing key is already published in the active DID document.
+- Use all supported key curves: `Ed25519`, `Jubjub`, and `P-256`.
 - Verify with one of three sources:
   - local `keyRef`
   - explicit `publicJwk`
@@ -42,6 +43,14 @@ It separates payload-proof workflows from DID CRUD:
 | `Payload type` | Select `string`, `json`, or `bytes` | Must match the signed payload |
 | `Signature (base64url)` | Detached signature input | Output from sign step |
 
+## Supported key types
+
+| Curve | Key type | Signature format | Typical verify source |
+| --- | --- | --- | --- |
+| `Ed25519` | `OKP` | raw Ed25519 signature | DID document |
+| `Jubjub` | `EC` | raw 96-byte signature | public JWK |
+| `P-256` | `EC` | DER-encoded ECDSA signature | local key or DID document |
+
 ## Normalization rules
 
 | Payload type | Normalization |
@@ -58,6 +67,19 @@ This means equivalent JSON objects verify even if field order differs, but `stri
 2. Signing requires a joined DID contract.
 3. The signing key must already appear in the active DID document as a verification method.
 4. DID-document verification works across profiles as long as the verification method id belongs to the active network setup.
+
+## Cross-profile verification
+
+Cross-profile verification is intentional:
+
+1. Sign a payload in profile A.
+2. Copy the detached signature, payload, and absolute `verificationMethodId`.
+3. Close the session or switch to profile B.
+4. Open `Sign & Verify`.
+5. Choose `Midnight DID verification method`.
+6. Verify with the same payload and signature.
+
+This works because the public key is resolved from the Midnight DID document, not from the original local key store.
 
 ## Related docs
 
