@@ -1,1 +1,1 @@
-export { didPage, secretStoragePage, walletPage } from './ui/index.js';
+export { didPage, secretStoragePage, signaturesPage, walletPage } from './ui/index.js';
