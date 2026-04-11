@@ -217,6 +217,10 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
     '/api/signatures/sign',
     {
       schema: {
+        tags: ['signatures'],
+        summary: 'Sign a detached payload with a DID-associated local key',
+        description:
+          'Uses a local secret-store key to sign bytes, strings, or canonicalized JSON. The key must already be published in the active DID document.',
         body: {
           ...routeSchemas.signPayloadBody,
         },
@@ -229,6 +233,10 @@ export const createApp = async (manager: DidManagerService, logger?: Logger) => 
     '/api/signatures/verify',
     {
       schema: {
+        tags: ['signatures'],
+        summary: 'Verify a detached payload signature',
+        description:
+          'Verifies a detached signature using exactly one source: active local keyRef, explicit publicJwk, or an absolute Midnight DID verificationMethodId.',
         body: {
           ...routeSchemas.verifyPayloadBody,
         },

@@ -81,6 +81,51 @@ Cross-profile verification is intentional:
 
 This works because the public key is resolved from the Midnight DID document, not from the original local key store.
 
+## API examples
+
+### Sign a JSON payload
+
+```bash
+curl -X POST http://127.0.0.1:3010/api/signatures/sign \
+  -H 'content-type: application/json' \
+  -d '{
+    "keyRef": "961fe66b-39c6-4e39-b890-0f4e3ea18ed6",
+    "payloadType": "json",
+    "payload": "{\"z\":1,\"a\":2}"
+  }'
+```
+
+### Verify with a Midnight DID verification method
+
+```bash
+curl -X POST http://127.0.0.1:3010/api/signatures/verify \
+  -H 'content-type: application/json' \
+  -d '{
+    "payloadType": "string",
+    "payload": "hello midnight",
+    "signatureBase64Url": "<signature>",
+    "verificationMethodId": "did:midnight:preprod:<contract>#auth-main"
+  }'
+```
+
+### Verify with an explicit public JWK
+
+```bash
+curl -X POST http://127.0.0.1:3010/api/signatures/verify \
+  -H 'content-type: application/json' \
+  -d '{
+    "payloadType": "json",
+    "payload": "{\"a\":2,\"z\":1}",
+    "signatureBase64Url": "<signature>",
+    "publicJwk": {
+      "kty": "EC",
+      "crv": "Jubjub",
+      "x": "<x-coordinate>",
+      "y": "<y-coordinate>"
+    }
+  }'
+```
+
 ## Related docs
 
 - [DID Manager Getting Started](/guide/getting-started-did-manager)
