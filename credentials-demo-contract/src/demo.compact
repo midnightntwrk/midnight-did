@@ -1,0 +1,153 @@
+pragma language_version >= 0.20;
+
+import CompactStandardLibrary;
+
+include "../../credentials/src/credentials";
+
+export ledger contractVersion: Uint<32>;
+export ledger issuedCredentialCount: Counter;
+export ledger verifiedPresentationCount: Counter;
+export ledger issuedCredentialClaimRoots: Map<Bytes<32>, Bytes<32>>;
+export ledger issuedCredentialIssuerDids: Map<Bytes<32>, Bytes<32>>;
+export ledger issuedCredentialIssuerMethodIndexes: Map<Bytes<32>, Uint<16>>;
+export ledger issuedCredentialIssuerPublicKeys: Map<Bytes<32>, JubjubPoint>;
+export ledger issuedCredentialHolderDids: Map<Bytes<32>, Bytes<32>>;
+export ledger issuedCredentialHolderMethodIndexes: Map<Bytes<32>, Uint<16>>;
+export ledger issuedCredentialHolderPublicKeys: Map<Bytes<32>, JubjubPoint>;
+export ledger issuedCredentialIssuedAt: Map<Bytes<32>, Uint<64>>;
+export ledger issuedCredentialHasExpiration: Map<Bytes<32>, Boolean>;
+export ledger issuedCredentialExpiresAt: Map<Bytes<32>, Uint<64>>;
+export ledger lastVerifiedCredentialRoot: Bytes<32>;
+export ledger lastVerifiedCurrentDay: Uint<32>;
+export ledger lastVerifiedThresholdYears: Uint<8>;
+
+witness holderBirthDateDays(): Uint<32>;
+witness holderBirthDateOpening(): Bytes<32>;
+
+constructor() {
+  contractVersion = 1;
+  lastVerifiedCredentialRoot = pad(32, "vc-demo:none");
+  lastVerifiedCurrentDay = 0;
+  lastVerifiedThresholdYears = 0;
+}
+
+export circuit issueBirthCredential(
+  credential: BirthCredential,
+  credentialProof: JubjubCredentialProof,
+  holderPublicKey: JubjubPoint
+): [] {
+  const credentialRoot = disclose(birthCredentialBodyRoot(credential));
+
+  assertValidBirthCredential(credential, credentialProof);
+  assert(
+    !issuedCredentialClaimRoots.member(credentialRoot),
+    "Credential has already been issued into the demo contract"
+  );
+
+  issuedCredentialClaimRoots.insert(credentialRoot, disclose(credential.claimRoot));
+  issuedCredentialIssuerDids.insert(
+    credentialRoot,
+    disclose(credential.issuerVerificationMethodId.didContractAddress.bytes)
+  );
+  issuedCredentialIssuerMethodIndexes.insert(
+    credentialRoot,
+    disclose(credential.issuerVerificationMethodId.methodIndex)
+  );
+  issuedCredentialIssuerPublicKeys.insert(credentialRoot, disclose(credentialProof.publicKey));
+  issuedCredentialHolderDids.insert(
+    credentialRoot,
+    disclose(credential.holderBinding.holderVerificationMethodId.didContractAddress.bytes)
+  );
+  issuedCredentialHolderMethodIndexes.insert(
+    credentialRoot,
+    disclose(credential.holderBinding.holderVerificationMethodId.methodIndex)
+  );
+  issuedCredentialHolderPublicKeys.insert(credentialRoot, disclose(holderPublicKey));
+  issuedCredentialIssuedAt.insert(credentialRoot, disclose(credential.issuedAt));
+  issuedCredentialHasExpiration.insert(credentialRoot, disclose(credential.hasExpiration));
+  issuedCredentialExpiresAt.insert(credentialRoot, disclose(credential.expiresAt));
+
+  issuedCredentialCount.increment(1);
+}
+
+export circuit verifyBirthPresentation(
+  credential: BirthCredential,
+  credentialProof: JubjubCredentialProof,
+  presentation: BirthCredentialPresentation,
+  presentationProof: JubjubCredentialProof,
+  currentDay: Uint<32>
+): [] {
+  const credentialRoot = disclose(birthCredentialBodyRoot(credential));
+  const disclosedCredentialProofPublicKey = disclose(credentialProof.publicKey);
+  const disclosedPresentationProofPublicKey = disclose(presentationProof.publicKey);
+
+  assertValidBirthCredentialPresentation(
+    credential,
+    credentialProof,
+    presentation,
+    presentationProof
+  );
+  assert(
+    issuedCredentialClaimRoots.member(credentialRoot),
+    "Credential was not issued by the demo contract"
+  );
+
+  assert(
+    issuedCredentialClaimRoots.lookup(credentialRoot) == credential.claimRoot,
+    "Issued credential claim root does not match the supplied credential"
+  );
+  assert(
+    issuedCredentialIssuerDids.lookup(credentialRoot)
+      == credential.issuerVerificationMethodId.didContractAddress.bytes,
+    "Issued credential issuer DID does not match the supplied credential"
+  );
+  assert(
+    issuedCredentialIssuerMethodIndexes.lookup(credentialRoot)
+      == credential.issuerVerificationMethodId.methodIndex,
+    "Issued credential issuer method index does not match the supplied credential"
+  );
+  assert(
+    jubjubPointX(issuedCredentialIssuerPublicKeys.lookup(credentialRoot))
+      == jubjubPointX(disclosedCredentialProofPublicKey)
+      && jubjubPointY(issuedCredentialIssuerPublicKeys.lookup(credentialRoot))
+      == jubjubPointY(disclosedCredentialProofPublicKey),
+    "Issued credential issuer key does not match the supplied proof"
+  );
+  assert(
+    issuedCredentialHolderDids.lookup(credentialRoot)
+      == credential.holderBinding.holderVerificationMethodId.didContractAddress.bytes,
+    "Issued credential holder DID does not match the supplied credential"
+  );
+  assert(
+    issuedCredentialHolderMethodIndexes.lookup(credentialRoot)
+      == credential.holderBinding.holderVerificationMethodId.methodIndex,
+    "Issued credential holder method index does not match the supplied credential"
+  );
+  assert(
+    jubjubPointX(issuedCredentialHolderPublicKeys.lookup(credentialRoot))
+      == jubjubPointX(disclosedPresentationProofPublicKey)
+      && jubjubPointY(issuedCredentialHolderPublicKeys.lookup(credentialRoot))
+      == jubjubPointY(disclosedPresentationProofPublicKey),
+    "Issued credential holder key does not match the supplied presentation proof"
+  );
+
+  if (issuedCredentialHasExpiration.lookup(credentialRoot)) {
+    assert(
+      currentDay <= issuedCredentialExpiresAt.lookup(credentialRoot),
+      "Credential has expired for the supplied verification day"
+    );
+  }
+
+  assertValidBirthCredentialAgePredicate(
+    credential,
+    presentation,
+    currentDay,
+    holderBirthDateDays(),
+    holderBirthDateOpening()
+  );
+
+  lastVerifiedCredentialRoot = credentialRoot;
+  lastVerifiedCurrentDay = disclose(currentDay);
+  lastVerifiedThresholdYears = disclose(presentation.disclosed.ageThresholdYears);
+  verifiedPresentationCount.increment(1);
+}
