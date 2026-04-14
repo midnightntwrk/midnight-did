@@ -2,7 +2,7 @@ pragma language_version >= 0.20;
 
 import CompactStandardLibrary;
 
-include "../../credentials/src/credentials";
+include "../../credentials-birth/src/birth-credential";
 
 export ledger contractVersion: Uint<32>;
 export ledger issuedCredentialCount: Counter;
@@ -20,6 +20,7 @@ export ledger issuedCredentialExpiresAt: Map<Bytes<32>, Uint<64>>;
 export ledger lastVerifiedCredentialRoot: Bytes<32>;
 export ledger lastVerifiedCurrentDay: Uint<32>;
 export ledger lastVerifiedThresholdYears: Uint<8>;
+export ledger lastVerifiedRequestChallenge: Bytes<32>;
 
 witness holderBirthDateDays(): Uint<32>;
 witness holderBirthDateOpening(): Bytes<32>;
@@ -29,11 +30,12 @@ constructor() {
   lastVerifiedCredentialRoot = pad(32, "vc-demo:none");
   lastVerifiedCurrentDay = 0;
   lastVerifiedThresholdYears = 0;
+  lastVerifiedRequestChallenge = pad(32, "vc-demo:no-request");
 }
 
 export circuit issueBirthCredential(
   credential: BirthCredential,
-  credentialProof: JubjubCredentialProof,
+  credentialProof: Proof,
   holderPublicKey: JubjubPoint
 ): [] {
   const credentialRoot = disclose(birthCredentialBodyRoot(credential));
@@ -72,9 +74,9 @@ export circuit issueBirthCredential(
 
 export circuit verifyBirthPresentation(
   credential: BirthCredential,
-  credentialProof: JubjubCredentialProof,
+  credentialProof: Proof,
   presentation: BirthCredentialPresentation,
-  presentationProof: JubjubCredentialProof,
+  presentationProof: Proof,
   currentDay: Uint<32>
 ): [] {
   const credentialRoot = disclose(birthCredentialBodyRoot(credential));
@@ -150,4 +152,30 @@ export circuit verifyBirthPresentation(
   lastVerifiedCurrentDay = disclose(currentDay);
   lastVerifiedThresholdYears = disclose(presentation.disclosed.ageThresholdYears);
   verifiedPresentationCount.increment(1);
+}
+
+export circuit verifyBirthPresentationForRequest(
+  credential: BirthCredential,
+  credentialProof: Proof,
+  request: BirthCredentialPresentationRequest,
+  presentation: BirthCredentialPresentation,
+  presentationProof: Proof,
+  currentDay: Uint<32>
+): [] {
+  verifyBirthPresentation(
+    credential,
+    credentialProof,
+    presentation,
+    presentationProof,
+    currentDay
+  );
+
+  assertBirthPresentationSatisfiesRequest(
+    credential,
+    request,
+    presentation,
+    presentationProof
+  );
+
+  lastVerifiedRequestChallenge = disclose(request.verifierChallengeHash);
 }

@@ -10,10 +10,11 @@ import {
 import {
   type BirthCredential,
   type BirthCredentialPresentation,
+  type BirthCredentialPresentationRequest,
   Contract,
-  type JubjubCredentialProof,
   type Ledger,
   ledger,
+  type Proof,
 } from "../managed/demo/contract/index.js";
 import {
   type CredentialsDemoPrivateState,
@@ -79,7 +80,7 @@ export class CredentialsDemoSimulator {
 
   public issueBirthCredential(
     credential: BirthCredential,
-    credentialProof: JubjubCredentialProof,
+    credentialProof: Proof,
     holderPublicKey: JubjubPoint,
   ): void {
     this.executeCircuit(() =>
@@ -94,9 +95,9 @@ export class CredentialsDemoSimulator {
 
   public verifyBirthPresentation(
     credential: BirthCredential,
-    credentialProof: JubjubCredentialProof,
+    credentialProof: Proof,
     presentation: BirthCredentialPresentation,
-    presentationProof: JubjubCredentialProof,
+    presentationProof: Proof,
     currentDay: bigint,
   ): void {
     this.executeCircuit(() =>
@@ -104,6 +105,27 @@ export class CredentialsDemoSimulator {
         this.circuitContext,
         credential,
         credentialProof,
+        presentation,
+        presentationProof,
+        currentDay,
+      ),
+    );
+  }
+
+  public verifyBirthPresentationForRequest(
+    credential: BirthCredential,
+    credentialProof: Proof,
+    request: BirthCredentialPresentationRequest,
+    presentation: BirthCredentialPresentation,
+    presentationProof: Proof,
+    currentDay: bigint,
+  ): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.verifyBirthPresentationForRequest(
+        this.circuitContext,
+        credential,
+        credentialProof,
+        request,
         presentation,
         presentationProof,
         currentDay,

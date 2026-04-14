@@ -1,38 +1,40 @@
 import { createHash } from "node:crypto";
 import { TextEncoder } from "node:util";
 
-import {
-  ecMulGenerator,
-  type JubjubPoint,
-} from "@midnight-ntwrk/compact-runtime";
+import { ecMulGenerator, type JubjubPoint } from "@midnight-ntwrk/compact-runtime";
 
+import {
+  type Proof,
+  pureCircuits as genericPureCircuits,
+  type VerificationMethodId,
+} from "../../../credentials/src/managed/credentials/contract/index.js";
 import {
   type BirthCredential,
   type BirthCredentialPresentation,
-  CredentialProofPurpose,
-  CredentialTypeId,
-  type JubjubCredentialProof,
+  type BirthCredentialPresentationRequest,
   pureCircuits,
-  type VerificationMethodId,
-} from "../managed/demo/contract/index.js";
+} from "../../../credentials-birth/src/managed/birth-credential/contract/index.js";
 
 const JUBJUB_FIELD_MODULUS =
   6554484396890773809930967563523245729705921265872317281365359162392183254199n;
 
-export type JubjubSigner = {
+export type Signer = {
   readonly label: string;
   readonly secretKey: bigint;
   readonly publicKey: JubjubPoint;
   readonly verificationMethodId: VerificationMethodId;
 };
 
+export type ProofContext = "issuance" | "presentation";
+
 export type BirthCredentialFixture = {
-  readonly issuer: JubjubSigner;
-  readonly holder: JubjubSigner;
+  readonly issuer: Signer;
+  readonly holder: Signer;
   readonly credential: BirthCredential;
-  readonly credentialProof: JubjubCredentialProof;
+  readonly credentialProof: Proof;
+  readonly presentationRequest: BirthCredentialPresentationRequest;
   readonly presentation: BirthCredentialPresentation;
-  readonly presentationProof: JubjubCredentialProof;
+  readonly presentationProof: Proof;
   readonly witness: {
     readonly subjectId: Uint8Array;
     readonly subjectOpening: Uint8Array;
@@ -68,11 +70,11 @@ const contractAddress = (label: string): { bytes: Uint8Array } => ({
   bytes: sha256(`contract:${label}`),
 });
 
-export const createJubjubSigner = (
+export const createSigner = (
   label: string,
   secretKey: bigint,
   methodIndex: bigint,
-): JubjubSigner => ({
+): Signer => ({
   label,
   secretKey,
   publicKey: ecMulGenerator(secretKey),
@@ -82,23 +84,31 @@ export const createJubjubSigner = (
   },
 });
 
-export const signCredentialProof = ({
+const deriveProofChallenge = (
+  bodyRoot: Uint8Array,
+  proof: Proof,
+  context: ProofContext,
+): bigint =>
+  context === "issuance"
+    ? genericPureCircuits.issuanceProofChallenge(bodyRoot, proof)
+    : genericPureCircuits.presentationProofChallenge(bodyRoot, proof);
+
+export const signProof = ({
   bodyRoot,
-  purpose,
+  context,
   signer,
   createdAt,
   challengeHash,
   nonceScalar,
 }: {
   readonly bodyRoot: Uint8Array;
-  readonly purpose: CredentialProofPurpose;
-  readonly signer: JubjubSigner;
+  readonly context: ProofContext;
+  readonly signer: Signer;
   readonly createdAt: bigint;
   readonly challengeHash: Uint8Array;
   readonly nonceScalar: bigint;
-}): JubjubCredentialProof => {
-  const proof: JubjubCredentialProof = {
-    purpose,
+}): Proof => {
+  const proof: Proof = {
     signerVerificationMethodId: signer.verificationMethodId,
     createdAt,
     challengeHash,
@@ -108,7 +118,7 @@ export const signCredentialProof = ({
       s: 0n,
     },
   };
-  const challenge = pureCircuits.jubjubProofChallenge(bodyRoot, proof);
+  const challenge = deriveProofChallenge(bodyRoot, proof, context);
   return {
     ...proof,
     signature: {
@@ -119,8 +129,8 @@ export const signCredentialProof = ({
 };
 
 export const createBirthCredentialFixture = (): BirthCredentialFixture => {
-  const issuer = createJubjubSigner("issuer", 123456789n, 1n);
-  const holder = createJubjubSigner("holder", 987654321n, 1n);
+  const issuer = createSigner("issuer", 123456789n, 1n);
+  const holder = createSigner("holder", 987654321n, 1n);
 
   const witness = {
     subjectId: sha256("subject:alice"),
@@ -155,9 +165,8 @@ export const createBirthCredentialFixture = (): BirthCredentialFixture => {
 
   const credential: BirthCredential = {
     version: 1n,
-    credentialType: CredentialTypeId.BirthCredential,
     schema: {
-      packageId: padText("midnight-did:vc"),
+      packageId: padText("midnight-did:vc:birth"),
       schemaId: padText("birth-credential:v1"),
       majorVersion: 1n,
       minorVersion: 0n,
@@ -173,18 +182,28 @@ export const createBirthCredentialFixture = (): BirthCredentialFixture => {
     claimRoot: pureCircuits.birthCredentialClaimRoot(claims),
   };
 
-  const credentialProof = signCredentialProof({
+  const credentialProof = signProof({
     bodyRoot: pureCircuits.birthCredentialBodyRoot(credential),
-    purpose: CredentialProofPurpose.CredentialIssuance,
+    context: "issuance",
     signer: issuer,
     createdAt: 10_001n,
     challengeHash: sha256("challenge:issuance"),
     nonceScalar: 11n,
   });
 
+  const presentationRequest: BirthCredentialPresentationRequest = {
+    version: 1n,
+    schema: credential.schema,
+    issuerVerificationMethodId: credential.issuerVerificationMethodId,
+    requireSubjectIdCommitmentDisclosure: false,
+    requireBirthCountryDisclosure: true,
+    requireAgeOverThreshold: true,
+    requestedAgeThresholdYears: 18n,
+    verifierChallengeHash: sha256("challenge:verifier"),
+  };
+
   const presentation: BirthCredentialPresentation = {
     version: 1n,
-    credentialType: CredentialTypeId.BirthCredentialPresentation,
     schema: credential.schema,
     credentialClaimRoot: credential.claimRoot,
     issuerVerificationMethodId: credential.issuerVerificationMethodId,
@@ -200,12 +219,12 @@ export const createBirthCredentialFixture = (): BirthCredentialFixture => {
     },
   };
 
-  const presentationProof = signCredentialProof({
+  const presentationProof = signProof({
     bodyRoot: pureCircuits.birthCredentialPresentationBodyRoot(presentation),
-    purpose: CredentialProofPurpose.PresentationAuthentication,
+    context: "presentation",
     signer: holder,
     createdAt: 10_100n,
-    challengeHash: sha256("challenge:verifier"),
+    challengeHash: presentationRequest.verifierChallengeHash,
     nonceScalar: 17n,
   });
 
@@ -214,6 +233,7 @@ export const createBirthCredentialFixture = (): BirthCredentialFixture => {
     holder,
     credential,
     credentialProof,
+    presentationRequest,
     presentation,
     presentationProof,
     witness,

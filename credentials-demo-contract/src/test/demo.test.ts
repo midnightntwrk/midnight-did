@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 import { pureCircuits } from "../managed/demo/contract/index.js";
 import {
   createBirthCredentialFixture,
-  createJubjubSigner,
-  signCredentialProof,
+  createSigner,
+  signProof,
 } from "./demo-fixtures.js";
 import { CredentialsDemoSimulator } from "./demo-simulator.js";
 
@@ -25,9 +25,10 @@ describe("credentials demo contract", () => {
       fixture.witness.birthDateDays,
       fixture.witness.birthDateOpening,
     );
-    simulator.verifyBirthPresentation(
+    simulator.verifyBirthPresentationForRequest(
       fixture.credential,
       fixture.credentialProof,
+      fixture.presentationRequest,
       fixture.presentation,
       fixture.presentationProof,
       fixture.witness.currentDay,
@@ -43,6 +44,9 @@ describe("credentials demo contract", () => {
     expect(state.lastVerifiedCurrentDay).toEqual(fixture.witness.currentDay);
     expect(state.lastVerifiedThresholdYears).toEqual(
       fixture.presentation.disclosed.ageThresholdYears,
+    );
+    expect(state.lastVerifiedRequestChallenge).toEqual(
+      fixture.presentationRequest.verifierChallengeHash,
     );
   });
 
@@ -69,10 +73,10 @@ describe("credentials demo contract", () => {
   it("rejects presentation verification when the holder proof key does not match the issued binding", () => {
     const fixture = createBirthCredentialFixture();
     const simulator = new CredentialsDemoSimulator();
-    const attacker = createJubjubSigner("attacker", 111111111n, 1n);
-    const attackerProof = signCredentialProof({
+    const attacker = createSigner("attacker", 111111111n, 1n);
+    const attackerProof = signProof({
       bodyRoot: pureCircuits.birthCredentialPresentationBodyRoot(fixture.presentation),
-      purpose: fixture.presentationProof.purpose,
+      context: "presentation",
       signer: attacker,
       createdAt: fixture.presentationProof.createdAt + 1n,
       challengeHash: fixture.presentationProof.challengeHash,
@@ -123,5 +127,35 @@ describe("credentials demo contract", () => {
         fixture.witness.currentDay,
       ),
     ).toThrow(/Birth-date witness does not match credential commitment|Age predicate does not satisfy the requested threshold/);
+  });
+
+  it("rejects verification when the presentation does not satisfy the verifier request", () => {
+    const fixture = createBirthCredentialFixture();
+    const simulator = new CredentialsDemoSimulator();
+    const stricterRequest = {
+      ...fixture.presentationRequest,
+      requireSubjectIdCommitmentDisclosure: true,
+    };
+
+    simulator.issueBirthCredential(
+      fixture.credential,
+      fixture.credentialProof,
+      fixture.holder.publicKey,
+    );
+    simulator.setAgeWitness(
+      fixture.witness.birthDateDays,
+      fixture.witness.birthDateOpening,
+    );
+
+    expect(() =>
+      simulator.verifyBirthPresentationForRequest(
+        fixture.credential,
+        fixture.credentialProof,
+        stricterRequest,
+        fixture.presentation,
+        fixture.presentationProof,
+        fixture.witness.currentDay,
+      ),
+    ).toThrow(/Presentation request requires the subject-id commitment disclosure/);
   });
 });

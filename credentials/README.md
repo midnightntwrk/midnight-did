@@ -1,215 +1,129 @@
 # @midnight-ntwrk/midnight-did-credentials
 
-Compact-first playground package for modeling Verifiable Credentials and Verifiable Presentations for Midnight.
+Generic Midnight VC/VP core for Compact-first credential families.
 
 ## Purpose
 
-This package is intentionally a research and PoC package, not a production credential standard.
+This package is the reusable envelope and proof layer for credential families that will be modeled in separate specialization packages.
 
-It exists to force the VC/VP design through Compact constraints first:
+It owns the generic pieces that should be shared across many credential families:
 
-- fixed-size types
-- bounded disclosure layouts
-- Compact-native verification method identifiers
-- algorithm-specific proofs
-- schema-specific credential and presentation shapes
-- circuit-friendly selective disclosure and predicate verification
+- `SchemaRef`
+- `VerificationMethodId`
+- `HolderBinding`
+- `Proof`
+- generic VC/VP envelope types through `VC<TClaims, TDisclosures>`
+- generic body-root helpers
+- generic credential/presentation linking rules
+- generic issuer and holder proof-binding rules
 
-## Current model
+It intentionally does not own schema-specific business logic such as:
 
-The current iteration contains:
+- claim commitment layouts
+- schema identifiers for a concrete family
+- disclosure rules for a concrete family
+- predicate circuits such as age, residency, or membership checks
 
-- shared Compact types for schema references and verification method identifiers
-- a bounded `JubjubCredentialProof`
-- one concrete credential schema: `BirthCredential`
-- one concrete presentation schema: `BirthCredentialPresentation`
-- helper circuits for:
-  - VC body roots
-  - VP body roots
-  - issuer and holder proof binding
-  - claim commitments
-  - selective-disclosure checks for the birth-country claim
-  - age-predicate verification against a committed birth date
-- an executable demo business flow in
-  [`../credentials-demo-contract/README.md`](../credentials-demo-contract/README.md)
+Those belong in specialization packages such as
+[`../credentials-birth`](../credentials-birth).
 
-## Why `BirthCredential` and not `AgeCredential`
+## Generic model
 
-The PoC used to model an age-oriented credential. That was the wrong abstraction.
+The reusable Compact module is `VC<TClaims, TDisclosures>`.
 
-The canonical credential should contain source claims that an issuer can actually attest to, such as:
+It defines two generic envelope types:
 
-- subject identifier commitment
-- legal name commitment
-- birth-date commitment
-- birth-country commitment
+- `Credential`
+- `Presentation`
 
-`age >= threshold` is then a derived presentation-time predicate over the committed birth date.
+A specialization package provides:
 
-This is more defensible for SSI because:
+- a concrete `TClaims` struct
+- a concrete `TDisclosures` struct
+- a claim-root helper for that claim set
+- schema-specific validators
+- disclosure validators
+- any family-specific predicate circuits
 
-- the issuer attests to a real-world fact, not a moving computed attribute
-- the holder can present different age thresholds over time without reissuance
-- the verifier receives the minimum claim needed for the use case
-- the Compact circuit remains aligned with selective disclosure and ZK proof design
+## What the generic core validates
 
-## Data model
+The generic core can validate:
 
-### Credential body
+- credential version and claim-root consistency
+- issuance proof binding to the issuer verification method
+- presentation version and linkage to the credential claim root
+- presentation issuer and holder binding consistency
+- presentation proof binding to the holder verification method
+- proof verification over a derived in-circuit challenge
 
-`BirthCredential` is the semantic issuer-signed body.
+## Naming choices
 
-| Field | Purpose |
-| --- | --- |
-| `version` | schema version for the credential body |
-| `credentialType` | fixed type discriminator |
-| `schema` | Compact schema identity |
-| `issuerVerificationMethodId` | Compact-native DID method reference for the issuer |
-| `holderBinding` | required DID method reference for the holder |
-| `issuedAt` / `expiresAt` | validity window |
-| `claims` | per-claim commitments |
-| `claimRoot` | root over the ordered commitment set |
+The generic core now uses:
 
-### Claim commitments
+- `Proof` instead of `JubjubCredentialProof`
+- `issuanceProofChallenge(...)` and `presentationProofChallenge(...)` instead of a stored purpose enum
 
-The current `BirthCredential` does not carry raw claims in its public body. It carries commitments:
+This is intentionally shorter because the same proof container is reused for both VC and VP flows.
 
-- `subjectIdCommitment`
-- `legalNameCommitment`
-- `birthDateCommitment`
-- `birthCountryCodeCommitment`
+## Canonical proof suite
 
-Those commitments are anchored into `claimRoot` through `birthCredentialClaimRoot(...)`.
+The current Midnight VC/VP profile is explicitly Jubjub-based.
 
-This gives the credential one stable commitment root while preserving circuit-friendly access to individual claim commitments.
+That means:
 
-### Presentation body
+- `Proof` is still a Jubjub proof
+- `Signature` is still a Jubjub signature
+- `verifySignature(...)` still verifies a Jubjub signature
 
-`BirthCredentialPresentation` is the semantic holder-authenticated body.
+The API omits the curve name on purpose because the spec fixes the canonical proof suite for this profile.
 
-The current disclosure model supports:
+## Why stored `purpose` was removed
 
-- optional disclosure of the subject identifier commitment
-- optional disclosure of the birth-country value together with its opening
-- an age-over-threshold predicate request
+We considered keeping a `purpose` field inside `Proof`, but it turned out to be redundant state.
 
-Important detail: the birth-country disclosure includes both the padded value and the commitment opening. Without the opening, the verifier could not bind the disclosed value back to the committed claim.
+The verifier already knows whether it is validating:
 
-### Proof model
+- an issuance proof over a credential body
+- a presentation proof over a presentation body
 
-The proof is separate from the VC or VP body.
+So the current design removes the stored enum and keeps the important property instead:
 
-`JubjubCredentialProof` contains:
+- explicit domain separation in the challenge derivation
 
-- `purpose`
-- `signerVerificationMethodId`
-- `createdAt`
-- `challengeHash`
-- `publicKey`
-- `signature`
+That domain separation now comes from dedicated helpers:
 
-The verifier derives the Jubjub signing challenge in-circuit from:
+- `issuanceProofChallenge(...)`
+- `presentationProofChallenge(...)`
 
-1. the VC or VP body root
-2. proof metadata (`purpose`, signer method id, `createdAt`, `challengeHash`)
-3. the signer public key
-4. the nonce point `r`
+This keeps the proof shape smaller and easier to adopt while still preventing accidental cross-context proof reuse.
 
-The proof does not store a redundant `signatureChallenge` field.
+## Why this split exists
 
-## SSI capabilities used in this PoC
+We expect multiple credential families.
 
-| SSI capability | How the PoC uses it |
-| --- | --- |
-| Issuer authentication and authorization | issuer proof is bound to `issuerVerificationMethodId`; this is the DID `assertionMethod` equivalent for credential issuance |
-| Holder authentication | presentation proof is bound to `holderBinding.holderVerificationMethodId`; this is the DID `authentication` equivalent for presentation submission |
-| Holder binding | the credential is explicitly holder-bound from issuance time |
-| Selective disclosure | presentation can disclose selected claim material instead of the full claim set |
-| Privacy-preserving predicates | age is verified from the committed birth date without disclosing the birth date |
-| Anti-replay | `challengeHash` binds issuance and presentation proofs to a concrete interaction |
-| Schema-bound validation | credential and presentation validation use fixed Compact schema identifiers and bounded layouts |
+So the architecture should not force every family to duplicate:
 
-## Design decisions
+- proof container types
+- proof challenge derivation
+- issuer proof binding
+- holder proof binding
+- generic VC/VP envelope rules
 
-### No network identifier in the VC/VP core
+At the same time, the generic package should not decide:
 
-The VC/VP core types do not carry network metadata.
+- what the claims are
+- how a family computes its claim root
+- what disclosures are legal
+- what domain-specific predicates exist
 
-Reasoning:
-
-- the verification method already points to a Midnight DID contract address plus method index
-- network selection is an integration concern for resolver and transport layers
-- keeping network out of the canonical VC/VP core makes the schema smaller and less environment-specific
-
-### Holder binding is required
-
-`BirthCredential` requires `holderBinding`.
-
-Reasoning:
-
-- it makes issuance semantics explicit from day one
-- it avoids mixing bearer-style and holder-bound semantics in the first model
-- it gives the presentation flow a clear expected authenticator
-
-### No constructor and no business ledger in this package
-
-This package is a shared schema and validation package, not an issuing business contract.
-
-Reasoning:
-
-- all SSI participants should be able to include and reuse these type definitions
-- issuance, trust policy, and registries belong in higher-level contracts or services
-- keeping this package pure makes it easier to reuse and test
-
-That split is exercised by the demo contract package:
-
-- [`src/credentials.compact`](src/credentials.compact) contains shared types and pure circuits
-- [`../credentials-demo-contract/src/demo.compact`](../credentials-demo-contract/src/demo.compact) contains the executable issuer, holder, and verifier flow
-
-## Standards alignment
-
-The detailed standards review lives in
-[`../research/midnight-vc-vp-frd-adr.md`](../research/midnight-vc-vp-frd-adr.md).
-
-At a high level, the current PoC is aligned with the general direction of DID Core, VC Data Integrity, and VCDM 2.0 in these areas:
-
-- issuer proofs and holder proofs use distinct purposes
-- DID verification methods are central to proof verification
-- verifier challenge binding is explicit
-- selective disclosure is supported
-- the holder can prove a predicate over a hidden source claim
-
-The main deliberate deviations are:
-
-- the canonical representation is Compact-native, not JSON-LD or JWT-native
-- the model currently has no revocation/status mechanism
-- the proof model has `challengeHash` but no explicit `domain` binding yet
-
-## Executable flow
-
-The current PoC implements this shape:
-
-1. Issuer prepares a `BirthCredential` with committed claims.
-2. Issuer signs the credential body plus issuance challenge through `JubjubCredentialProof`.
-3. Demo contract records the issued credential root and the expected holder binding.
-4. Holder prepares a `BirthCredentialPresentation` with an age threshold and optional disclosures.
-5. Holder signs the presentation body plus verifier challenge.
-6. Demo contract verifies:
-   - credential proof is bound to the credential body
-   - presentation proof is bound to the presentation body
-   - issued credential root exists on-ledger
-   - disclosed birth-country data matches the committed claim when disclosure is requested
-   - holder witness matches the committed birth-date claim
-   - `age >= threshold` without disclosing the birth date
+That balance is the point of this refactor.
 
 ## Build
 
 - Compile Compact artifacts: `npm run contract -w credentials`
 - Build TS exports: `npm run build -w credentials`
 - Run tests: `npm test -w credentials`
-- Type-check: `npm run typecheck -w credentials`
 
-## Notes
+## Note
 
-- The package is a design probe. It is meant to expose where the VC/VP model must become more concrete to work in Compact.
-- TypeScript in this package is generated around Compact artifacts, not the other way around.
+Generic modules in Compact can be specialized by business packages, but top-level generic circuits are not directly exportable as package API. That is why this package exposes shared top-level proof helpers and a generic Compact module intended to be specialized by downstream packages.

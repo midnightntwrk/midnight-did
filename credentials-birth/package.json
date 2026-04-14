@@ -1,5 +1,5 @@
 {
-  "name": "@midnight-ntwrk/midnight-did-credentials-demo-contract",
+  "name": "@midnight-ntwrk/midnight-did-credentials-birth",
   "version": "0.1.0",
   "license": "Apache-2.0",
   "private": true,
@@ -21,12 +21,12 @@
   },
   "scripts": {
     "contract": "npm run compact",
-    "compact": "compact compile src/demo.compact src/managed/demo && node ./scripts/align-runtime-version.mjs && node ./scripts/strip-managed-sourcemaps.mjs",
+    "compact": "compact compile src/birth-credential.compact src/managed/birth-credential && node ./scripts/align-runtime-version.mjs && node ./scripts/strip-managed-sourcemaps.mjs",
     "test": "vitest run",
     "test:ci": "vitest run",
     "prepack": "npm run build",
     "clean": "rm -rf dist && rm -rf coverage && rm -rf reports",
-    "build": "rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/demo.compact ./dist",
+    "build": "rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/birth-credential.compact ./dist",
     "lint": "eslint src --ignore-pattern 'src/managed/**'",
     "lint:fix": "eslint src --fix --ignore-pattern 'src/managed/**'",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -34,7 +34,6 @@
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "*",
-    "@midnight-ntwrk/midnight-did-credentials": "*",
-    "@midnight-ntwrk/midnight-did-credentials-birth": "*"
+    "@midnight-ntwrk/midnight-did-credentials": "*"
   }
 }

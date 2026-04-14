@@ -2,129 +2,47 @@ import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import { describe, expect, it } from "vitest";
 
 import { pureCircuits } from "../managed/credentials/contract/index.js";
-import {
-  createBirthCredentialFixture,
-  signCredentialProof,
-} from "./credential-fixtures.js";
+import { createProofFixture } from "./proof-fixtures.js";
 
 setNetworkId("undeployed");
 
-describe("credentials compact flows", () => {
-  it("binds the issuer proof to the credential body", () => {
-    const fixture = createBirthCredentialFixture();
+describe("generic credentials proof helpers", () => {
+  it("verifies a proof against the supplied body root", () => {
+    const fixture = createProofFixture();
 
     expect(() =>
-      pureCircuits.assertValidBirthCredential(
-        fixture.credential,
-        fixture.credentialProof,
+      pureCircuits.assertValidIssuanceContextProof(
+        fixture.bodyRoot,
+        fixture.proof,
       ),
     ).not.toThrow();
+  });
 
-    const tamperedCredential = {
-      ...fixture.credential,
-      issuedAt: fixture.credential.issuedAt + 1n,
+  it("rejects the proof when the body root changes", () => {
+    const fixture = createProofFixture();
+    const tamperedBodyRoot = new Uint8Array(fixture.bodyRoot);
+    tamperedBodyRoot[0] ^= 0xff;
+
+    expect(() =>
+      pureCircuits.assertValidIssuanceContextProof(
+        tamperedBodyRoot,
+        fixture.proof,
+      ),
+    ).toThrow(/Signature verification failed/);
+  });
+
+  it("rejects the proof when the challenge binding changes", () => {
+    const fixture = createProofFixture();
+    const tamperedProof = {
+      ...fixture.proof,
+      challengeHash: new Uint8Array(32).fill(7),
     };
 
     expect(() =>
-      pureCircuits.assertValidBirthCredential(
-        tamperedCredential,
-        fixture.credentialProof,
+      pureCircuits.assertValidIssuanceContextProof(
+        fixture.bodyRoot,
+        tamperedProof,
       ),
-    ).toThrow(/Jubjub signature verification failed/);
-  });
-
-  it("binds the holder proof to the presentation body", () => {
-    const fixture = createBirthCredentialFixture();
-
-    expect(() =>
-      pureCircuits.assertValidBirthCredentialPresentation(
-        fixture.credential,
-        fixture.credentialProof,
-        fixture.presentation,
-        fixture.presentationProof,
-      ),
-    ).not.toThrow();
-
-    const tamperedPresentation = {
-      ...fixture.presentation,
-      disclosed: {
-        ...fixture.presentation.disclosed,
-        ageThresholdYears:
-          fixture.presentation.disclosed.ageThresholdYears + 1n,
-      },
-    };
-
-    expect(() =>
-      pureCircuits.assertValidBirthCredentialPresentation(
-        fixture.credential,
-        fixture.credentialProof,
-        tamperedPresentation,
-        fixture.presentationProof,
-      ),
-    ).toThrow(/Jubjub signature verification failed/);
-  });
-
-  it("checks the private age witness against the committed birth date", () => {
-    const fixture = createBirthCredentialFixture();
-
-    expect(() =>
-      pureCircuits.assertValidBirthCredentialAgePredicate(
-        fixture.credential,
-        fixture.presentation,
-        fixture.witness.currentDay,
-        fixture.witness.birthDateDays,
-        fixture.witness.birthDateOpening,
-      ),
-    ).not.toThrow();
-
-    expect(() =>
-      pureCircuits.assertValidBirthCredentialAgePredicate(
-        fixture.credential,
-        fixture.presentation,
-        fixture.witness.currentDay,
-        fixture.witness.birthDateDays,
-        new Uint8Array(32).fill(1),
-      ),
-    ).toThrow(/Birth-date witness does not match credential commitment/);
-  });
-
-  it("rejects a predicate proof when the holder is below the requested threshold", () => {
-    const fixture = createBirthCredentialFixture();
-
-    const strictPresentation = {
-      ...fixture.presentation,
-      disclosed: {
-        ...fixture.presentation.disclosed,
-        ageThresholdYears: 30n,
-      },
-    };
-    const strictPresentationProof = signCredentialProof({
-      bodyRoot:
-        pureCircuits.birthCredentialPresentationBodyRoot(strictPresentation),
-      purpose: fixture.presentationProof.purpose,
-      signer: fixture.holder,
-      createdAt: fixture.presentationProof.createdAt + 1n,
-      challengeHash: fixture.presentationProof.challengeHash,
-      nonceScalar: 23n,
-    });
-
-    expect(() =>
-      pureCircuits.assertValidBirthCredentialPresentation(
-        fixture.credential,
-        fixture.credentialProof,
-        strictPresentation,
-        strictPresentationProof,
-      ),
-    ).not.toThrow();
-
-    expect(() =>
-      pureCircuits.assertValidBirthCredentialAgePredicate(
-        fixture.credential,
-        strictPresentation,
-        fixture.witness.currentDay,
-        fixture.witness.birthDateDays,
-        fixture.witness.birthDateOpening,
-      ),
-    ).toThrow(/Age predicate does not satisfy the requested threshold/);
+    ).toThrow(/Signature verification failed/);
   });
 });
