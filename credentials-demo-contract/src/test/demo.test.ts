@@ -1,6 +1,7 @@
 import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import { describe, expect, it } from "vitest";
 
+import { AccessDecision } from "../managed/demo/contract/index.js";
 import { pureCircuits } from "../managed/demo/contract/index.js";
 import {
   createBirthCredentialFixture,
@@ -157,5 +158,84 @@ describe("credentials demo contract", () => {
         fixture.witness.currentDay,
       ),
     ).toThrow(/Presentation request requires the subject-id commitment disclosure/);
+  });
+
+  it("exposes a typed age-gate requirement and issues a reusable capability after successful verification", () => {
+    const fixture = createBirthCredentialFixture();
+    const simulator = new CredentialsDemoSimulator();
+    const request = simulator.ageGateRequest(
+      fixture.credential.issuerVerificationMethodId,
+      fixture.presentationRequest.verifierChallengeHash,
+    );
+
+    expect(request.requireBirthCountryDisclosure).toEqual(true);
+    expect(request.requireAgeOverThreshold).toEqual(true);
+    expect(request.requestedAgeThresholdYears).toEqual(18n);
+    expect(request.verifierChallengeHash).toEqual(
+      fixture.presentationRequest.verifierChallengeHash,
+    );
+
+    simulator.issueBirthCredential(
+      fixture.credential,
+      fixture.credentialProof,
+      fixture.holder.publicKey,
+    );
+    simulator.setAgeWitness(
+      fixture.witness.birthDateDays,
+      fixture.witness.birthDateOpening,
+    );
+
+    const capability = simulator.issueAgeGateCapability(
+      fixture.credential,
+      fixture.credentialProof,
+      fixture.presentation,
+      fixture.presentationProof,
+      fixture.presentationRequest.verifierChallengeHash,
+      fixture.witness.currentDay,
+    );
+
+    const state = simulator.getLedger();
+    expect(state.issuedAccessCapabilityCount).toEqual(1n);
+    expect(state.activeAccessCapabilities.member(capability)).toEqual(true);
+    expect(state.lastIssuedAccessCapability).toEqual(capability);
+    expect(state.lastBusinessDecision).toEqual(AccessDecision.approved);
+  });
+
+  it("supports a soft business denial when a capability is unknown or already consumed", () => {
+    const fixture = createBirthCredentialFixture();
+    const simulator = new CredentialsDemoSimulator();
+
+    simulator.issueBirthCredential(
+      fixture.credential,
+      fixture.credentialProof,
+      fixture.holder.publicKey,
+    );
+    simulator.setAgeWitness(
+      fixture.witness.birthDateDays,
+      fixture.witness.birthDateOpening,
+    );
+
+    const capability = simulator.issueAgeGateCapability(
+      fixture.credential,
+      fixture.credentialProof,
+      fixture.presentation,
+      fixture.presentationProof,
+      fixture.presentationRequest.verifierChallengeHash,
+      fixture.witness.currentDay,
+    );
+
+    const firstClaim = simulator.claimAgeGateCapability(capability);
+    const secondClaim = simulator.claimAgeGateCapability(capability);
+    const unknownClaim = simulator.claimAgeGateCapability(new Uint8Array(32).fill(42));
+
+    const state = simulator.getLedger();
+
+    expect(firstClaim).toEqual(AccessDecision.approved);
+    expect(secondClaim).toEqual(AccessDecision.alreadyConsumed);
+    expect(unknownClaim).toEqual(AccessDecision.unknownCapability);
+    expect(state.consumedAccessCapabilityCount).toEqual(1n);
+    expect(state.activeAccessCapabilities.member(capability)).toEqual(false);
+    expect(state.consumedAccessCapabilities.member(capability)).toEqual(true);
+    expect(state.lastBusinessDecision).toEqual(AccessDecision.unknownCapability);
   });
 });

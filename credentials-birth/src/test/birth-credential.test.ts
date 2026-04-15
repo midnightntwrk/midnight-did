@@ -172,4 +172,94 @@ describe("birth credential specialization", () => {
       ),
     ).toThrow(/Age predicate does not satisfy the requested threshold/);
   });
+
+  describe("capability composition use cases", () => {
+    it("supports the simplest birth certificate credential as an issuer-attested source claim", () => {
+      const fixture = createBirthCredentialFixture();
+
+      expect(() =>
+        pureCircuits.assertValidBirthCredential(
+          fixture.credential,
+          fixture.credentialProof,
+        ),
+      ).not.toThrow();
+    });
+
+    it("supports an operational verifier flow with explicit holder binding and a selective disclosure request", () => {
+      const fixture = createBirthCredentialFixture();
+      const request = {
+        ...fixture.presentationRequest,
+        requireBirthCountryDisclosure: true,
+        requireAgeOverThreshold: false,
+        requestedAgeThresholdYears: 0n,
+      };
+      const presentation = {
+        ...fixture.presentation,
+        disclosed: {
+          ...fixture.presentation.disclosed,
+          revealBirthCountryCode: true,
+          proveAgeOverThreshold: false,
+          ageThresholdYears: 0n,
+        },
+      };
+      const presentationProof = signProof({
+        bodyRoot: pureCircuits.birthCredentialPresentationBodyRoot(presentation),
+        context: "presentation",
+        signer: fixture.holder,
+        createdAt: fixture.presentationProof.createdAt + 2n,
+        challengeHash: request.verifierChallengeHash,
+        nonceScalar: 29n,
+      });
+
+      expect(() =>
+        pureCircuits.assertValidBirthCredentialPresentation(
+          fixture.credential,
+          fixture.credentialProof,
+          presentation,
+          presentationProof,
+        ),
+      ).not.toThrow();
+
+      expect(() =>
+        pureCircuits.assertBirthPresentationSatisfiesRequest(
+          fixture.credential,
+          request,
+          presentation,
+          presentationProof,
+        ),
+      ).not.toThrow();
+    });
+
+    it("supports a stronger operational flow with explicit holder binding, selective disclosure, and an age predicate", () => {
+      const fixture = createBirthCredentialFixture();
+
+      expect(() =>
+        pureCircuits.assertValidBirthCredentialPresentation(
+          fixture.credential,
+          fixture.credentialProof,
+          fixture.presentation,
+          fixture.presentationProof,
+        ),
+      ).not.toThrow();
+
+      expect(() =>
+        pureCircuits.assertBirthPresentationSatisfiesRequest(
+          fixture.credential,
+          fixture.presentationRequest,
+          fixture.presentation,
+          fixture.presentationProof,
+        ),
+      ).not.toThrow();
+
+      expect(() =>
+        pureCircuits.assertValidBirthCredentialAgePredicate(
+          fixture.credential,
+          fixture.presentation,
+          fixture.witness.currentDay,
+          fixture.witness.birthDateDays,
+          fixture.witness.birthDateOpening,
+        ),
+      ).not.toThrow();
+    });
+  });
 });

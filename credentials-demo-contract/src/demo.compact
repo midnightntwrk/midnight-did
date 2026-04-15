@@ -4,9 +4,18 @@ import CompactStandardLibrary;
 
 include "../../credentials-birth/src/birth-credential";
 
+export enum AccessDecision {
+  noDecision,
+  approved,
+  unknownCapability,
+  alreadyConsumed
+}
+
 export ledger contractVersion: Uint<32>;
 export ledger issuedCredentialCount: Counter;
 export ledger verifiedPresentationCount: Counter;
+export sealed ledger minimumAccessAgeYears: Uint<8>;
+export sealed ledger ageGateRequiresBirthCountryDisclosure: Boolean;
 export ledger issuedCredentialClaimRoots: Map<Bytes<32>, Bytes<32>>;
 export ledger issuedCredentialIssuerDids: Map<Bytes<32>, Bytes<32>>;
 export ledger issuedCredentialIssuerMethodIndexes: Map<Bytes<32>, Uint<16>>;
@@ -21,16 +30,60 @@ export ledger lastVerifiedCredentialRoot: Bytes<32>;
 export ledger lastVerifiedCurrentDay: Uint<32>;
 export ledger lastVerifiedThresholdYears: Uint<8>;
 export ledger lastVerifiedRequestChallenge: Bytes<32>;
+export ledger issuedAccessCapabilityCount: Counter;
+export ledger consumedAccessCapabilityCount: Counter;
+export ledger activeAccessCapabilities: Set<Bytes<32>>;
+export ledger consumedAccessCapabilities: Set<Bytes<32>>;
+export ledger lastIssuedAccessCapability: Bytes<32>;
+export ledger lastBusinessDecision: AccessDecision;
 
 witness holderBirthDateDays(): Uint<32>;
 witness holderBirthDateOpening(): Bytes<32>;
 
 constructor() {
   contractVersion = 1;
+  minimumAccessAgeYears = 18;
+  ageGateRequiresBirthCountryDisclosure = true;
   lastVerifiedCredentialRoot = pad(32, "vc-demo:none");
   lastVerifiedCurrentDay = 0;
   lastVerifiedThresholdYears = 0;
   lastVerifiedRequestChallenge = pad(32, "vc-demo:no-request");
+  lastIssuedAccessCapability = pad(32, "vc-demo:no-capability");
+  lastBusinessDecision = AccessDecision.noDecision;
+}
+
+export circuit ageGateRequest(
+  issuerVerificationMethodId: VerificationMethodId,
+  verifierChallengeHash: Bytes<32>
+): BirthCredentialPresentationRequest {
+  return BirthCredentialPresentationRequest {
+    version: 1,
+    schema: SchemaRef {
+      packageId: pad(32, "midnight-did:vc:birth"),
+      schemaId: pad(32, "birth-credential:v1"),
+      majorVersion: 1,
+      minorVersion: 0,
+    },
+    issuerVerificationMethodId: issuerVerificationMethodId,
+    requireSubjectIdCommitmentDisclosure: false,
+    requireBirthCountryDisclosure: ageGateRequiresBirthCountryDisclosure,
+    requireAgeOverThreshold: true,
+    requestedAgeThresholdYears: minimumAccessAgeYears,
+    verifierChallengeHash: verifierChallengeHash,
+  };
+}
+
+pure circuit ageGateCapability(
+  credentialRoot: Bytes<32>,
+  verifierChallengeHash: Bytes<32>,
+  issuanceIndex: Uint<64>
+): Bytes<32> {
+  return persistentHash<Vector<4, Bytes<32>>>([
+    pad(32, "vc-demo:age-gate"),
+    credentialRoot,
+    verifierChallengeHash,
+    ((issuanceIndex as Field) as Bytes<32>)
+  ]);
 }
 
 export circuit issueBirthCredential(
@@ -178,4 +231,59 @@ export circuit verifyBirthPresentationForRequest(
   );
 
   lastVerifiedRequestChallenge = disclose(request.verifierChallengeHash);
+}
+
+export circuit issueAgeGateCapability(
+  credential: BirthCredential,
+  credentialProof: Proof,
+  presentation: BirthCredentialPresentation,
+  presentationProof: Proof,
+  verifierChallengeHash: Bytes<32>,
+  currentDay: Uint<32>
+): Bytes<32> {
+  const request = ageGateRequest(
+    credential.issuerVerificationMethodId,
+    verifierChallengeHash
+  );
+  const capability = disclose(ageGateCapability(
+    birthCredentialBodyRoot(credential),
+    verifierChallengeHash,
+    issuedAccessCapabilityCount.read()
+  ));
+
+  verifyBirthPresentationForRequest(
+    credential,
+    credentialProof,
+    request,
+    presentation,
+    presentationProof,
+    currentDay
+  );
+
+  activeAccessCapabilities.insert(capability);
+  issuedAccessCapabilityCount.increment(1);
+  lastIssuedAccessCapability = capability;
+  lastBusinessDecision = AccessDecision.approved;
+  return capability;
+}
+
+export circuit claimAgeGateCapability(
+  capability: Bytes<32>
+): AccessDecision {
+  const disclosedCapability = disclose(capability);
+
+  if (activeAccessCapabilities.member(disclosedCapability)) {
+    activeAccessCapabilities.remove(disclosedCapability);
+    consumedAccessCapabilities.insert(disclosedCapability);
+    consumedAccessCapabilityCount.increment(1);
+    lastBusinessDecision = AccessDecision.approved;
+    return AccessDecision.approved;
+  }
+  if (consumedAccessCapabilities.member(disclosedCapability)) {
+    lastBusinessDecision = AccessDecision.alreadyConsumed;
+    return AccessDecision.alreadyConsumed;
+  }
+
+  lastBusinessDecision = AccessDecision.unknownCapability;
+  return AccessDecision.unknownCapability;
 }

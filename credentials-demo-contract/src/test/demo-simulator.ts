@@ -8,6 +8,7 @@ import {
 } from "@midnight-ntwrk/compact-runtime";
 
 import {
+  type AccessDecision,
   type BirthCredential,
   type BirthCredentialPresentation,
   type BirthCredentialPresentationRequest,
@@ -129,6 +130,51 @@ export class CredentialsDemoSimulator {
         presentation,
         presentationProof,
         currentDay,
+      ),
+    );
+  }
+
+  public ageGateRequest(
+    issuerVerificationMethodId: BirthCredential["issuerVerificationMethodId"],
+    verifierChallengeHash: Uint8Array,
+  ): BirthCredentialPresentationRequest {
+    return this.executeCircuit(() =>
+      this.contract.impureCircuits.ageGateRequest(
+        this.circuitContext,
+        issuerVerificationMethodId,
+        verifierChallengeHash,
+      ),
+    );
+  }
+
+  public issueAgeGateCapability(
+    credential: BirthCredential,
+    credentialProof: Proof,
+    presentation: BirthCredentialPresentation,
+    presentationProof: Proof,
+    verifierChallengeHash: Uint8Array,
+    currentDay: bigint,
+  ): Uint8Array {
+    return this.executeCircuit(() =>
+      this.contract.impureCircuits.issueAgeGateCapability(
+        this.circuitContext,
+        credential,
+        credentialProof,
+        presentation,
+        presentationProof,
+        verifierChallengeHash,
+        currentDay,
+      ),
+    );
+  }
+
+  public claimAgeGateCapability(
+    capability: Uint8Array,
+  ): AccessDecision {
+    return this.executeCircuit(() =>
+      this.contract.impureCircuits.claimAgeGateCapability(
+        this.circuitContext,
+        capability,
       ),
     );
   }

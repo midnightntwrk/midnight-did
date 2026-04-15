@@ -130,4 +130,104 @@ describe("secret holder-binding birth credential specialization", () => {
       ),
     ).not.toThrow();
   });
+
+  describe("capability composition use cases", () => {
+    it("supports a minimal privacy-preserving birth certificate flow with hidden holder binding only", () => {
+      const fixture = createSecretBirthCredentialFixture();
+      const request = {
+        ...fixture.presentationRequest,
+        requireBirthCountryDisclosure: false,
+        requireVerifierScopedPseudonym: false,
+        requireAgeOverThreshold: false,
+        requestedAgeThresholdYears: 0n,
+      };
+      const presentation = {
+        ...fixture.presentation,
+        disclosed: {
+          ...fixture.presentation.disclosed,
+          revealBirthCountryCode: false,
+          revealVerifierScopedPseudonym: false,
+          proveAgeOverThreshold: false,
+          ageThresholdYears: 0n,
+        },
+      };
+
+      expect(() =>
+        pureCircuits.assertSecretBirthPresentationSatisfiesRequest(
+          fixture.credential,
+          fixture.credentialProof,
+          request,
+          presentation,
+          fixture.witness.holderSecret,
+          fixture.witness.holderSecretOpening,
+          fixture.witness.holderBindingBlindingFactor,
+        ),
+      ).not.toThrow();
+    });
+
+    it("supports a privacy-preserving flow with hidden holder binding and an age predicate", () => {
+      const fixture = createSecretBirthCredentialFixture();
+      const request = {
+        ...fixture.presentationRequest,
+        requireBirthCountryDisclosure: false,
+        requireVerifierScopedPseudonym: false,
+      };
+      const presentation = {
+        ...fixture.presentation,
+        disclosed: {
+          ...fixture.presentation.disclosed,
+          revealBirthCountryCode: false,
+          revealVerifierScopedPseudonym: false,
+        },
+      };
+
+      expect(() =>
+        pureCircuits.assertSecretBirthPresentationSatisfiesRequest(
+          fixture.credential,
+          fixture.credentialProof,
+          request,
+          presentation,
+          fixture.witness.holderSecret,
+          fixture.witness.holderSecretOpening,
+          fixture.witness.holderBindingBlindingFactor,
+        ),
+      ).not.toThrow();
+
+      expect(() =>
+        pureCircuits.assertValidSecretBirthCredentialAgePredicate(
+          fixture.credential,
+          presentation,
+          fixture.witness.currentDay,
+          fixture.witness.birthDateDays,
+          fixture.witness.birthDateOpening,
+        ),
+      ).not.toThrow();
+    });
+
+    it("supports the most advanced current birth certificate flow with blinded holder binding, verifier-domain pseudonym, selective disclosure, and age predicate", () => {
+      const fixture = createSecretBirthCredentialFixture();
+
+      expect(() =>
+        pureCircuits.assertSecretBirthPresentationSatisfiesRequest(
+          fixture.credential,
+          fixture.credentialProof,
+          fixture.presentationRequest,
+          fixture.presentation,
+          fixture.witness.holderSecret,
+          fixture.witness.holderSecretOpening,
+          fixture.witness.holderBindingBlindingFactor,
+        ),
+      ).not.toThrow();
+
+      expect(() =>
+        pureCircuits.assertValidSecretBirthCredentialAgePredicate(
+          fixture.credential,
+          fixture.presentation,
+          fixture.witness.currentDay,
+          fixture.witness.birthDateDays,
+          fixture.witness.birthDateOpening,
+        ),
+      ).not.toThrow();
+    });
+  });
 });

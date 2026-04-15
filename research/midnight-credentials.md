@@ -275,6 +275,31 @@ The intended separation is:
 
 This fourth layer is especially useful until richer contract composability is available.
 
+#### Prototype capability profiles
+
+The current prototype is intentionally exercised through a small set of capability
+profiles rather than one monolithic "full SSI" flow.
+
+That is the right shape for Midnight, because concrete business contracts can
+compose only the capabilities they actually need.
+
+| Profile | Layer 2 composition | Layer 3 business outcome | Current prototype coverage |
+| --- | --- | --- | --- |
+| Minimal issuer-attested credential | explicit holder binding, issuer proof, no extra disclosure requirements | accept a simple issuer-attested credential as a typed source record | `credentials-birth` tests |
+| Operational disclosure flow | explicit holder binding, typed presentation request, selective disclosure | verify a presentation against a verifier-defined request | `credentials-birth` tests |
+| Predicate-based access flow | explicit holder binding, age predicate, typed verifier challenge | verify eligibility without disclosing the birth date itself | `credentials-birth` and `credentials-demo-contract` tests |
+| Hidden-holder flow | secret holder binding, issuer proof, holder witness verification | avoid a stable public holder DID in the verifier-facing flow | `credentials-birth-secret` tests |
+| Advanced privacy flow | secret holder binding, blinded holder anchor, verifier-domain pseudonym, selective disclosure, age predicate | support stronger privacy controls while still proving business eligibility | `credentials-birth-secret` tests |
+| Contract-native gated access flow | typed presentation request plus reusable capability issuance | issue a contract-level capability and consume it later with soft business denial states | `credentials-demo-contract` tests |
+
+This profile matrix is deliberate.
+
+It lets Midnight credential families evolve incrementally:
+
+1. start with the smallest credential family that proves the domain model
+2. add privacy capabilities only when a verifier contract actually needs them
+3. keep the business contract readable by composing typed helpers instead of duplicating credential logic
+
 ## Data Model
 ### Generic Credential Envelope
 The generic `VC<TClaims, TDisclosures, THolderBinding>.Credential` envelope contains:
