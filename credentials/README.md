@@ -10,12 +10,14 @@ It owns the generic pieces that should be shared across many credential families
 
 - `SchemaRef`
 - `VerificationMethodId`
-- `HolderBinding`
+- `ExplicitHolderBinding`
+- `SecretHolderBinding`
 - `Proof`
-- generic VC/VP envelope types through `VC<TClaims, TDisclosures>`
+- generic VC/VP envelope types through `VC<TClaims, TDisclosures, THolderBinding>`
 - generic body-root helpers
 - generic credential/presentation linking rules
-- generic issuer and holder proof-binding rules
+- generic issuer proof-binding rules
+- reusable holder-binding helper circuits for explicit and secret profiles
 
 It intentionally does not own schema-specific business logic such as:
 
@@ -24,12 +26,14 @@ It intentionally does not own schema-specific business logic such as:
 - disclosure rules for a concrete family
 - predicate circuits such as age, residency, or membership checks
 
-Those belong in specialization packages such as
-[`../credentials-birth`](../credentials-birth).
+Those belong in specialization packages such as:
+
+- [`../credentials-birth`](../credentials-birth): explicit DID-bound holder profile
+- [`../credentials-birth-secret`](../credentials-birth-secret): hidden holder-secret profile
 
 ## Generic model
 
-The reusable Compact module is `VC<TClaims, TDisclosures>`.
+The reusable Compact module is `VC<TClaims, TDisclosures, THolderBinding>`.
 
 It defines two generic envelope types:
 
@@ -40,6 +44,7 @@ A specialization package provides:
 
 - a concrete `TClaims` struct
 - a concrete `TDisclosures` struct
+- a concrete `THolderBinding` struct
 - a claim-root helper for that claim set
 - schema-specific validators
 - disclosure validators
@@ -52,9 +57,25 @@ The generic core can validate:
 - credential version and claim-root consistency
 - issuance proof binding to the issuer verification method
 - presentation version and linkage to the credential claim root
-- presentation issuer and holder binding consistency
-- presentation proof binding to the holder verification method
+- presentation issuer consistency
 - proof verification over a derived in-circuit challenge
+
+The generic core intentionally does not force one holder-binding model.
+That is delegated to specialization packages.
+
+Current reusable holder-binding helper sets are:
+
+- explicit DID-bound holder binding:
+  - `assertValidExplicitHolderBinding(...)`
+  - `assertMatchingExplicitHolderBindings(...)`
+  - `assertProofMatchesExplicitHolderBinding(...)`
+- hidden holder-secret binding:
+  - `secretHolderBindingCommitment(...)`
+  - `secretHolderBindingChallengeResponse(...)`
+  - `assertValidSecretHolderCredentialBinding(...)`
+  - `assertValidSecretHolderPresentationBinding(...)`
+  - `assertMatchingSecretHolderBindings(...)`
+  - `assertSecretHolderBindingWitness(...)`
 
 ## Naming choices
 

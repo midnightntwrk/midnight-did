@@ -74,23 +74,25 @@ The current implementation lives in:
 
 - [`../credentials/src/credentials.compact`](../credentials/src/credentials.compact)
 - [`../credentials-birth/src/birth-credential.compact`](../credentials-birth/src/birth-credential.compact)
+- [`../credentials-birth-secret/src/secret-birth-credential.compact`](../credentials-birth-secret/src/secret-birth-credential.compact)
 - [`../credentials-demo-contract/src/demo.compact`](../credentials-demo-contract/src/demo.compact)
 
 The package split is now intentional:
 
 - `credentials` owns the generic VC/VP envelope and proof core
-- `credentials-birth` owns the birth-credential specialization
+- `credentials-birth` owns the explicit DID-bound birth-credential specialization
+- `credentials-birth-secret` owns the hidden holder-secret birth-credential specialization
 - `credentials-demo-contract` owns the executable issuer, holder, verifier flow
 
 ### Generic credential body
-The generic `VC<TClaims, TDisclosures>.Credential` envelope contains:
+The generic `VC<TClaims, TDisclosures, THolderBinding>.Credential` envelope contains:
 
 | Field | Meaning |
 | --- | --- |
 | `version` | schema version for the credential body |
 | `schema` | package and schema identity |
 | `issuerVerificationMethodId` | issuer DID method reference in Compact-native form |
-| `holderBinding` | required holder DID method reference |
+| `holderBinding` | specialization-defined holder binding, such as an explicit DID method or a hidden holder-secret commitment |
 | `issuedAt` / `expiresAt` | validity window |
 | `claims` | schema-specific claim payload |
 | `claimRoot` | root commitment over the schema-defined claim commitments |
@@ -110,7 +112,7 @@ The current claim set is:
 The credential body carries commitments, not raw claim values.
 
 ### Generic presentation body
-The generic `VC<TClaims, TDisclosures>.Presentation` envelope contains:
+The generic `VC<TClaims, TDisclosures, THolderBinding>.Presentation` envelope contains:
 
 | Field | Meaning |
 | --- | --- |
@@ -118,7 +120,7 @@ The generic `VC<TClaims, TDisclosures>.Presentation` envelope contains:
 | `schema` | schema identity matching the credential |
 | `credentialClaimRoot` | anchor back to the issued credential claim set |
 | `issuerVerificationMethodId` | issuer DID method reference copied for verification context |
-| `holderBinding` | expected holder DID method reference |
+| `holderBinding` | specialization-defined holder binding carried forward into the presentation |
 | `disclosed` | schema-specific bounded disclosure and predicate-request layout |
 
 For the birth specialization, the current `disclosed` layout supports:
@@ -233,8 +235,8 @@ The goal is to make each circuit understandable in terms of:
 | --- | --- | --- | --- | --- |
 | `credentialBodyRoot(credential)` | Produce the canonical digest for a credential body | hashes the entire typed credential envelope with `persistentHash` | deterministic and circuit-native; no JSON canonicalization or RDF normalization step | only works for Compact-native typed payloads; not interoperable with JSON-LD or JWT proof inputs |
 | `presentationBodyRoot(presentation)` | Produce the canonical digest for a presentation body | hashes the typed presentation envelope with `persistentHash` | same determinism and boundedness benefits as the credential root | same serialization lock-in as above |
-| `assertValidCredentialEnvelope(credential, expectedClaimRoot)` | Validate generic credential invariants before schema-specific business rules | checks version, checks that `claimRoot` matches the schema-provided expected root, validates holder binding index, checks expiration ordering | pushes core consistency checks into the reusable layer; easier to audit than ad hoc verifier logic | versioning is intentionally rigid; evolution requires explicit schema/version updates instead of looser web-style extension |
-| `assertValidPresentationEnvelope(credential, presentation)` | Validate that a presentation is anchored to a credential envelope | checks presentation version, references the credential `claimRoot`, matches issuer method, matches holder binding | stronger contract-time anchoring than many web verifiers perform by default; removes ambiguity about which credential the VP is about | tighter coupling reduces flexibility for transformed or derived presentation formats unless modeled explicitly |
+| `assertValidCredentialEnvelope(credential, expectedClaimRoot)` | Validate generic credential invariants before schema-specific business rules | checks version, checks that `claimRoot` matches the schema-provided expected root, checks expiration ordering | pushes core consistency checks into the reusable layer; easier to audit than ad hoc verifier logic | versioning is intentionally rigid; evolution requires explicit schema/version updates instead of looser web-style extension |
+| `assertValidPresentationEnvelope(credential, presentation)` | Validate that a presentation is anchored to a credential envelope | checks presentation version, references the credential `claimRoot`, matches issuer method | stronger contract-time anchoring than many web verifiers perform by default; removes ambiguity about which credential the VP is about | holder binding is no longer hardcoded here, so each profile must add its own binding checks explicitly |
 
 ### Proof-verification circuits
 
@@ -242,9 +244,24 @@ The goal is to make each circuit understandable in terms of:
 | --- | --- | --- | --- | --- |
 | `verifySignature(pk, signature, challenge)` | Verify the canonical Midnight VC/VP signature primitive | checks the Jubjub signature equation in-circuit | native to Midnight proving model; no external verifier dependency | intentionally not proof-suite agnostic; unlike W3C ecosystems, suite negotiation is outside the generic core |
 | `assertValidCredentialProof(credential, proof)` | Enforce issuer-side proof binding for a credential | checks signer DID method equals `issuerVerificationMethodId`, then validates an issuance-context proof over `credentialBodyRoot` | makes issuer authorization explicit and mandatory in reusable logic | assumes the issuer method reference is already the right DID verification relationship; DID-document-level policy enforcement sits outside this package |
-| `assertValidPresentationProof(presentation, presentationProof)` | Enforce holder-side proof binding for a presentation | checks signer DID method equals `holderBinding`, then validates a presentation-context proof over `presentationBodyRoot` | explicit wallet-bound holder authentication is stronger than many transferable W3C VC flows | mandatory holder binding reduces transferability and can increase cross-verifier correlation if the same holder method is reused |
 | `assertValidIssuanceContextProof(bodyRoot, proof)` | Verify a proof under issuance semantics | derives issuance-specific challenge domain and verifies signature | keeps issuance/presentation separation without redundant proof state | the distinction is Compact-native, not a serializable `proofPurpose` field |
 | `assertValidPresentationContextProof(bodyRoot, proof)` | Verify a proof under presentation semantics | derives presentation-specific challenge domain and verifies signature | same explicit domain separation benefit | same trade-off as above |
+
+### Holder-binding helper circuits
+
+The generic core now exposes two reusable holder-binding helper sets instead of hardcoding one profile into the envelope validators.
+
+| Circuit | Purpose | Logic | Pros vs W3C VC/VP | Cons / trade-offs |
+| --- | --- | --- | --- | --- |
+| `assertValidExplicitHolderBinding(binding)` | Validate the explicit DID-bound holder profile | checks the holder verification method index is set | very simple and auditable for DID-bound operational flows | explicit holder DID references are more correlatable across verifiers |
+| `assertMatchingExplicitHolderBindings(credentialBinding, presentationBinding)` | Ensure the presentation reuses the issued explicit holder binding | compares DID contract address and method index | straightforward DID-authenticated holder model | intentionally not privacy-preserving |
+| `assertProofMatchesExplicitHolderBinding(binding, presentationProof)` | Bind a presentation proof to the explicit holder DID method | checks the proof signer matches the explicit holder binding | maps cleanly to DID-authenticated holder control | requires a stable holder DID verification method in the presentation |
+| `secretHolderBindingCommitment(holderSecret, opening)` | Commit to a hidden holder secret at issuance time | creates a commitment over the holder secret and opening | closer to AnonCreds-style hidden holder binding | still a simple commitment, not full blind issuance |
+| `secretHolderBindingChallengeResponse(holderSecret, verifierChallengeHash)` | Produce a verifier-challenge-bound response from the hidden holder secret | hashes the secret together with the verifier challenge | demonstrates holder knowledge without revealing an explicit DID method | current prototype is single-credential and does not yet provide pairwise pseudonyms |
+| `assertValidSecretHolderCredentialBinding(binding)` | Validate the issuance-time secret holder binding shape | requires the credential copy to carry a sentinel instead of a request response | keeps issuance and presentation semantics distinct | relies on convention rather than a richer issuance protocol |
+| `assertValidSecretHolderPresentationBinding(binding)` | Validate the presentation-time secret holder binding shape | requires a real request-bound response value | makes the verifier challenge mandatory in the presentation flow | still assumes the verifier challenge is supplied out-of-band or by request object |
+| `assertMatchingSecretHolderBindings(credentialBinding, presentationBinding)` | Ensure the presentation stays anchored to the issued hidden holder binding | compares holder-secret commitments | enables hidden holder binding without leaking a DID method | same commitment reused across verifiers can still be correlatable if exposed directly |
+| `assertSecretHolderBindingWitness(binding, verifierChallengeHash, holderSecret, opening)` | Verify the holder’s private witness against the stored commitment and request challenge | recomputes commitment and challenge response from private witness data | moves holder authentication into a ZK-friendly witness model | does not yet include blind issuance or same-holder multi-credential composition |
 
 ### Context and challenge-derivation circuits
 
