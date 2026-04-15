@@ -41,6 +41,7 @@ describe("secret holder-binding birth credential specialization", () => {
         fixture.presentation,
         fixture.witness.holderSecret,
         fixture.witness.holderSecretOpening,
+        fixture.witness.holderBindingBlindingFactor,
       ),
     ).not.toThrow();
 
@@ -52,9 +53,10 @@ describe("secret holder-binding birth credential specialization", () => {
         fixture.presentation,
         new Uint8Array(32).fill(5),
         fixture.witness.holderSecretOpening,
+        fixture.witness.holderBindingBlindingFactor,
       ),
     ).toThrow(
-      /Holder secret witness does not match the holder-binding commitment/,
+      /Blinded holder commitment does not match the hidden holder secret witness/,
     );
   });
 
@@ -73,9 +75,45 @@ describe("secret holder-binding birth credential specialization", () => {
         fixture.presentation,
         fixture.witness.holderSecret,
         fixture.witness.holderSecretOpening,
+        fixture.witness.holderBindingBlindingFactor,
       ),
     ).toThrow(
-      /Holder secret challenge response does not match the verifier challenge/,
+      /Blinded holder challenge response does not match the verifier challenge/,
+    );
+  });
+
+  it("derives a verifier-scoped pseudonym from the hidden holder secret", () => {
+    const fixture = createSecretBirthCredentialFixture();
+
+    expect(() =>
+      pureCircuits.assertSecretBirthPresentationSatisfiesRequest(
+        fixture.credential,
+        fixture.credentialProof,
+        fixture.presentationRequest,
+        fixture.presentation,
+        fixture.witness.holderSecret,
+        fixture.witness.holderSecretOpening,
+        fixture.witness.holderBindingBlindingFactor,
+      ),
+    ).not.toThrow();
+
+    const mismatchedRequest = {
+      ...fixture.presentationRequest,
+      verifierDomainHash: new Uint8Array(32).fill(3),
+    };
+
+    expect(() =>
+      pureCircuits.assertSecretBirthPresentationSatisfiesRequest(
+        fixture.credential,
+        fixture.credentialProof,
+        mismatchedRequest,
+        fixture.presentation,
+        fixture.witness.holderSecret,
+        fixture.witness.holderSecretOpening,
+        fixture.witness.holderBindingBlindingFactor,
+      ),
+    ).toThrow(
+      /Verifier-scoped pseudonym does not match the holder secret and verifier domain/,
     );
   });
 

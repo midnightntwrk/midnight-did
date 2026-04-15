@@ -37,6 +37,9 @@ export type BirthCredentialFixture = {
   readonly witness: {
     readonly holderSecret: Uint8Array;
     readonly holderSecretOpening: Uint8Array;
+    readonly holderBindingBlindingFactor: Uint8Array;
+    readonly holderBindingIssuerNonce: Uint8Array;
+    readonly verifierDomainHash: Uint8Array;
     readonly subjectId: Uint8Array;
     readonly subjectOpening: Uint8Array;
     readonly legalNamePadded: Uint8Array;
@@ -125,6 +128,9 @@ export const createSecretBirthCredentialFixture =
     const witness = {
       holderSecret: sha256("holder-secret:alice"),
       holderSecretOpening: sha256("opening:holder-secret"),
+      holderBindingBlindingFactor: sha256("blinding:holder-secret"),
+      holderBindingIssuerNonce: sha256("issuer-nonce:birth-secret"),
+      verifierDomainHash: sha256("verifier-domain:age-gateway.example"),
       subjectId: sha256("subject:alice"),
       subjectOpening: sha256("opening:subject"),
       legalNamePadded: padText("Alice Example"),
@@ -165,11 +171,16 @@ export const createSecretBirthCredentialFixture =
       },
       issuerVerificationMethodId: issuer.verificationMethodId,
       holderBinding: {
-        holderSecretCommitment:
-          genericPureCircuits.secretHolderBindingCommitment(
-            witness.holderSecret,
-            witness.holderSecretOpening,
+        blindedHolderSecretCommitment:
+          genericPureCircuits.blindedSecretHolderCommitment(
+            genericPureCircuits.secretHolderBindingCommitment(
+              witness.holderSecret,
+              witness.holderSecretOpening,
+            ),
+            witness.holderBindingIssuerNonce,
+            witness.holderBindingBlindingFactor,
           ),
+        issuerNonce: witness.holderBindingIssuerNonce,
         requestChallengeResponse:
           genericPureCircuits.noSecretHolderChallengeResponse(),
       },
@@ -194,6 +205,8 @@ export const createSecretBirthCredentialFixture =
       issuerVerificationMethodId: credential.issuerVerificationMethodId,
       requireSubjectIdCommitmentDisclosure: false,
       requireBirthCountryDisclosure: true,
+      requireVerifierScopedPseudonym: true,
+      verifierDomainHash: witness.verifierDomainHash,
       requireAgeOverThreshold: true,
       requestedAgeThresholdYears: 18n,
       verifierChallengeHash: sha256("challenge:verifier"),
@@ -205,7 +218,9 @@ export const createSecretBirthCredentialFixture =
       credentialClaimRoot: credential.claimRoot,
       issuerVerificationMethodId: credential.issuerVerificationMethodId,
       holderBinding: {
-        holderSecretCommitment: credential.holderBinding.holderSecretCommitment,
+        blindedHolderSecretCommitment:
+          credential.holderBinding.blindedHolderSecretCommitment,
+        issuerNonce: credential.holderBinding.issuerNonce,
         requestChallengeResponse:
           genericPureCircuits.secretHolderBindingChallengeResponse(
             witness.holderSecret,
@@ -218,6 +233,11 @@ export const createSecretBirthCredentialFixture =
         revealBirthCountryCode: true,
         birthCountryCodePadded: witness.birthCountryCodePadded,
         birthCountryCodeOpening: witness.birthCountryCodeOpening,
+        revealVerifierScopedPseudonym: true,
+        verifierScopedPseudonym: genericPureCircuits.verifierScopedPseudonym(
+          witness.holderSecret,
+          witness.verifierDomainHash,
+        ),
         proveAgeOverThreshold: true,
         ageThresholdYears: 18n,
       },

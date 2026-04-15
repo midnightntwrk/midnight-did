@@ -1,14 +1,41 @@
-# Midnight Verifiable Credentials and Presentations
+# Midnight Credentials
 
-## Status
-Proposed and partially prototyped in Compact.
+Version: `0.1-draft`
+
+Status: Draft specification with partial Compact prototype coverage
+
+Repository scope: `midnight-did`
+
+## Change Log
+### `0.1-draft`
+
+- establishes the Compact-first canonical model for Midnight credentials
+- defines generic VC and VP envelopes plus schema-specific specializations
+- defines explicit and secret holder-binding profiles
+- adds verifier-driven presentation requests
+- adds verifier-domain pseudonym derivation and blinded holder-binding anchors as privacy-oriented prototypes
+- records current standards alignment, transport fit, and AnonCreds comparison
+
+## Abstract
+This draft specification defines a Compact-first model for Midnight-native Verifiable Credentials and Verifiable Presentations.
+
+The current draft covers:
+
+- typed credential and presentation envelopes
+- issuer and holder binding
+- selective disclosure over committed claims
+- zero-knowledge predicates over hidden claim values
+- verifier-defined presentation requests
+- privacy-oriented holder binding through hidden secrets, verifier-domain pseudonyms, and blinded binding anchors
+
+Transport protocols and web serialization formats are explicitly out of scope as canonical representations. They may be added later as adapters around the Compact-native model.
 
 ## Scope
-This document records the current design direction for Midnight-native Verifiable Credentials (VCs) and Verifiable Presentations (VPs) in the `midnight-did` repository.
+This document defines the current specification draft for Midnight-native Verifiable Credentials (VCs) and Verifiable Presentations (VPs) in the `midnight-did` repository.
 
-It is not a production standard. It is the architecture record for the current PoC.
+It is not a final standard and should be treated as an evolving specification for the current prototype and follow-on implementation work.
 
-## Goal
+## Objectives
 Define a credential model that:
 
 - is directly consumable by Midnight Compact contracts
@@ -17,7 +44,32 @@ Define a credential model that:
 - uses Midnight DID verification methods cleanly
 - stays reasonably aligned with general SSI recommendations from DID Core, VCDM 2.0, and VC Data Integrity
 
-## Core decision
+## Non-Goals
+This draft does not attempt to provide:
+
+- full wire-format interoperability with JSON-LD, JWT, or SD-JWT VC ecosystems
+- a production-ready blind-issuance protocol
+- privacy-preserving revocation proofs
+- a generic dynamic claim map or unbounded disclosure model
+- a final transport standard for issuance or presentation exchange
+- a commitment to a single cross-ecosystem proof suite beyond the current Midnight Jubjub profile
+
+## Terminology
+
+| Term | Meaning in this specification |
+| --- | --- |
+| `VC` | A typed Midnight credential envelope plus schema-defined claims and an issuer proof |
+| `VP` | A typed Midnight presentation envelope plus bounded disclosures and a holder-side presentation proof |
+| `SchemaRef` | A Compact-native schema identifier containing package, schema, and version information |
+| `VerificationMethodId` | A Compact-native DID verification method reference: `didContractAddress + methodIndex` |
+| `Holder binding` | The mechanism that binds a credential to a specific holder or holder secret |
+| `Explicit holder binding` | Holder binding through a public DID verification method reference |
+| `Secret holder binding` | Holder binding through a hidden holder secret rather than a public DID method |
+| `Verifier-domain pseudonym` | A pairwise pseudonym derived from the hidden holder secret and a verifier-supplied domain hash |
+| `Blind issuance` | An issuance pattern where holder-bound material is signed without exposing the holder’s final secret in the clear to the issuer |
+
+## Architecture Overview
+### Canonical Representation
 Use a Midnight-native Compact representation as the canonical VC/VP model.
 
 W3C JSON-LD, JWT, SD-JWT, or other exchange representations can exist later as adapters, but they are not the source of truth for contract execution.
@@ -29,7 +81,8 @@ Reasoning:
 - schema-specific fixed layouts are easier to verify in circuits
 - selective disclosure on Midnight is a circuit problem, not just a transport-format problem
 
-## Why `BirthCredential` replaced `AgeCredential`
+### Credential Family Rationale
+#### Why `BirthCredential` replaced `AgeCredential`
 The first draft was centered on an age-style credential. That was the wrong semantic layer.
 
 A reusable SSI credential should carry an issuer-attested source fact, not a moving derived property.
@@ -49,7 +102,7 @@ From that source credential, the holder can later prove predicates such as:
 
 This is both more reusable and more privacy-preserving than issuing a separate credential for each age threshold.
 
-## Compact-first constraints
+### Compact-First Constraints
 The current design follows the Compact model rather than a web-first model.
 
 The practical constraints are:
@@ -69,7 +122,7 @@ This pushes the architecture toward:
 - typed DID method references
 - proof validation circuits that are explicit about what is signed
 
-## Current PoC model
+### Prototype Package Layout
 The current implementation lives in:
 
 - [`../credentials/src/credentials.compact`](../credentials/src/credentials.compact)
@@ -84,7 +137,8 @@ The package split is now intentional:
 - `credentials-birth-secret` owns the hidden holder-secret birth-credential specialization
 - `credentials-demo-contract` owns the executable issuer, holder, verifier flow
 
-### Generic credential body
+## Data Model
+### Generic Credential Envelope
 The generic `VC<TClaims, TDisclosures, THolderBinding>.Credential` envelope contains:
 
 | Field | Meaning |
@@ -99,7 +153,7 @@ The generic `VC<TClaims, TDisclosures, THolderBinding>.Credential` envelope cont
 
 For the birth specialization, `claims` is a struct of four claim commitments.
 
-### Claim commitments
+### Claim Commitments
 The current claim set is:
 
 | Claim | Public representation |
@@ -111,7 +165,7 @@ The current claim set is:
 
 The credential body carries commitments, not raw claim values.
 
-### Generic presentation body
+### Generic Presentation Envelope
 The generic `VC<TClaims, TDisclosures, THolderBinding>.Presentation` envelope contains:
 
 | Field | Meaning |
@@ -129,7 +183,7 @@ For the birth specialization, the current `disclosed` layout supports:
 - optional disclosure of the birth-country value together with its opening
 - an age-over-threshold predicate request
 
-### Presentation request model
+### Presentation Request Model
 
 The current birth specialization now includes a typed verifier-defined presentation request:
 
@@ -144,6 +198,8 @@ It contains:
 | `issuerVerificationMethodId` | issuer restriction for the credential to be presented |
 | `requireSubjectIdCommitmentDisclosure` | whether the subject commitment must be disclosed |
 | `requireBirthCountryDisclosure` | whether the birth-country claim must be disclosed |
+| `requireVerifierScopedPseudonym` | whether the verifier requires a stable pairwise pseudonym for its own domain |
+| `verifierDomainHash` | verifier-defined domain identifier used when deriving a pairwise pseudonym from the hidden holder secret |
 | `requireAgeOverThreshold` | whether an age predicate proof is required |
 | `requestedAgeThresholdYears` | exact requested threshold for the current profile |
 | `verifierChallengeHash` | verifier-provided anti-replay challenge |
@@ -152,11 +208,29 @@ Current design intent:
 
 - verifier policy is explicit and typed
 - the presentation proof must bind to the request challenge
+- the verifier can optionally request a verifier-domain pseudonym without learning a global holder identifier
 - the presentation must satisfy the requested disclosure and predicate policy
 
 This is the first adopted AnonCreds-inspired capability in the PoC.
 
-### Proof model
+## Security Considerations
+### Witness and Arithmetic Discipline
+
+The current model depends on private witness values for hidden claims and holder-binding proofs.
+
+That means two rules are mandatory:
+
+1. witness outputs are untrusted input until the circuit rebinds them to commitments, roots, or request values with explicit `assert(...)` checks
+2. date arithmetic should stay day-based, not second-based, for bounded and readable age predicates
+
+Practical implication for the birth-credential family:
+
+- `birthDateDays` and `currentDay` should remain day counts
+- age checks should compare day deltas against a threshold expressed in years-times-365 for the current PoC
+- if leap-year-accurate policy becomes a product requirement, it should be modeled explicitly as a later schema or predicate upgrade rather than hidden inside the current arithmetic
+
+## Proof Model
+### Proof Object
 The PoC uses a single canonical proof type: `Proof`.
 
 For the current Midnight VC/VP profile, that canonical proof suite is Jubjub.
@@ -190,7 +264,7 @@ So the current decision is:
 - keep explicit domain separation in challenge derivation
 - expose that separation through named helpers such as `issuanceProofChallenge(...)` and `presentationProofChallenge(...)`
 
-### ADR: canonical proof suite is Jubjub
+### Canonical Proof Suite
 
 The current profile fixes Jubjub as the signature suite for Midnight VC/VP.
 
@@ -206,7 +280,7 @@ This is a readability choice, not an abstraction over multiple active proof suit
 
 If the project later adds another canonical proof suite, it should do so by introducing a new profile or a new specialization rather than overloading the current generic names silently.
 
-### In-circuit proof challenge derivation
+### In-Circuit Proof Challenge Derivation
 The verifier does not trust a precomputed challenge field inside the proof.
 
 Instead, the verifier derives the signing challenge in-circuit from:
@@ -219,7 +293,7 @@ Instead, the verifier derives the signing challenge in-circuit from:
 
 This makes the proof-to-body binding explicit and removes redundant proof state.
 
-## Generic VC/VP circuit reference
+## Circuit Reference
 
 This section documents the generic circuits in [`../credentials/src/credentials.compact`](../credentials/src/credentials.compact) as the current canonical reusable VC/VP core.
 
@@ -229,7 +303,7 @@ The goal is to make each circuit understandable in terms of:
 - why it exists as a separate circuit
 - how it compares to typical W3C VC/VP verification behavior
 
-### Envelope and rooting circuits
+### Envelope and Rooting Circuits
 
 | Circuit | Purpose | Logic | Pros vs W3C VC/VP | Cons / trade-offs |
 | --- | --- | --- | --- | --- |
@@ -238,7 +312,7 @@ The goal is to make each circuit understandable in terms of:
 | `assertValidCredentialEnvelope(credential, expectedClaimRoot)` | Validate generic credential invariants before schema-specific business rules | checks version, checks that `claimRoot` matches the schema-provided expected root, checks expiration ordering | pushes core consistency checks into the reusable layer; easier to audit than ad hoc verifier logic | versioning is intentionally rigid; evolution requires explicit schema/version updates instead of looser web-style extension |
 | `assertValidPresentationEnvelope(credential, presentation)` | Validate that a presentation is anchored to a credential envelope | checks presentation version, references the credential `claimRoot`, matches issuer method | stronger contract-time anchoring than many web verifiers perform by default; removes ambiguity about which credential the VP is about | holder binding is no longer hardcoded here, so each profile must add its own binding checks explicitly |
 
-### Proof-verification circuits
+### Proof Verification Circuits
 
 | Circuit | Purpose | Logic | Pros vs W3C VC/VP | Cons / trade-offs |
 | --- | --- | --- | --- | --- |
@@ -247,7 +321,7 @@ The goal is to make each circuit understandable in terms of:
 | `assertValidIssuanceContextProof(bodyRoot, proof)` | Verify a proof under issuance semantics | derives issuance-specific challenge domain and verifies signature | keeps issuance/presentation separation without redundant proof state | the distinction is Compact-native, not a serializable `proofPurpose` field |
 | `assertValidPresentationContextProof(bodyRoot, proof)` | Verify a proof under presentation semantics | derives presentation-specific challenge domain and verifies signature | same explicit domain separation benefit | same trade-off as above |
 
-### Holder-binding helper circuits
+### Holder-Binding Helper Circuits
 
 The generic core now exposes two reusable holder-binding helper sets instead of hardcoding one profile into the envelope validators.
 
@@ -258,12 +332,16 @@ The generic core now exposes two reusable holder-binding helper sets instead of 
 | `assertProofMatchesExplicitHolderBinding(binding, presentationProof)` | Bind a presentation proof to the explicit holder DID method | checks the proof signer matches the explicit holder binding | maps cleanly to DID-authenticated holder control | requires a stable holder DID verification method in the presentation |
 | `secretHolderBindingCommitment(holderSecret, opening)` | Commit to a hidden holder secret at issuance time | creates a commitment over the holder secret and opening | closer to AnonCreds-style hidden holder binding | still a simple commitment, not full blind issuance |
 | `secretHolderBindingChallengeResponse(holderSecret, verifierChallengeHash)` | Produce a verifier-challenge-bound response from the hidden holder secret | hashes the secret together with the verifier challenge | demonstrates holder knowledge without revealing an explicit DID method | current prototype is single-credential and does not yet provide pairwise pseudonyms |
+| `verifierScopedPseudonym(holderSecret, verifierDomainHash)` | Derive a stable pseudonym for one verifier domain from the hidden holder secret | hashes the hidden holder secret with a verifier-domain hash under a dedicated domain separator | provides pairwise verifier correlation without exposing a global holder identifier | stability is scoped to the chosen verifier domain and depends on domain-governance discipline |
+| `assertVerifierScopedPseudonym(pseudonym, holderSecret, verifierDomainHash)` | Check that a disclosed pairwise pseudonym really comes from the holder witness and verifier domain | recomputes the pseudonym from the hidden witness and request domain | lets a verifier request a stable local pseudonym without seeing the holder DID | only works when the verifier supplies a consistent domain hash in the presentation request |
 | `assertValidSecretHolderCredentialBinding(binding)` | Validate the issuance-time secret holder binding shape | requires the credential copy to carry a sentinel instead of a request response | keeps issuance and presentation semantics distinct | relies on convention rather than a richer issuance protocol |
 | `assertValidSecretHolderPresentationBinding(binding)` | Validate the presentation-time secret holder binding shape | requires a real request-bound response value | makes the verifier challenge mandatory in the presentation flow | still assumes the verifier challenge is supplied out-of-band or by request object |
 | `assertMatchingSecretHolderBindings(credentialBinding, presentationBinding)` | Ensure the presentation stays anchored to the issued hidden holder binding | compares holder-secret commitments | enables hidden holder binding without leaking a DID method | same commitment reused across verifiers can still be correlatable if exposed directly |
 | `assertSecretHolderBindingWitness(binding, verifierChallengeHash, holderSecret, opening)` | Verify the holder’s private witness against the stored commitment and request challenge | recomputes commitment and challenge response from private witness data | moves holder authentication into a ZK-friendly witness model | does not yet include blind issuance or same-holder multi-credential composition |
+| `blindedSecretHolderCommitment(holderSecretCommitment, issuerNonce, blindingFactor)` | Build a blinded holder-binding anchor for issuance-time privacy research | hashes the hidden holder commitment with an issuer nonce and holder blinding factor under a dedicated domain separator | gives the generic layer a place to prototype blind-issuance-style holder binding without exposing the raw commitment | this is a building block, not a full blind-signature issuance protocol |
+| `assertBlindedSecretHolderBindingWitness(binding, verifierChallengeHash, holderSecret, opening, blindingFactor)` | Verify a hidden holder witness against a blinded issuance anchor | recomputes the raw holder commitment privately, then checks the blinded commitment and request challenge response | keeps the public credential/presentation shape free of the raw holder commitment | still requires a higher-level issuance choreography before it becomes real blind issuance |
 
-### Context and challenge-derivation circuits
+### Context and Challenge-Derivation Circuits
 
 | Circuit | Purpose | Logic | Pros vs W3C VC/VP | Cons / trade-offs |
 | --- | --- | --- | --- | --- |
@@ -274,7 +352,7 @@ The generic core now exposes two reusable holder-binding helper sets instead of 
 | `issuanceProofChallenge(bodyRoot, proof)` | Derive the Fiat-Shamir challenge for issuance | hashes issuance payload root, public key, and nonce point `r`, then degrades to `Field` | verifier computes the signed challenge itself; no trust in caller-provided challenge bytes beyond `challengeHash` input | harder to map one-to-one onto web proofs that expose canonicalized bytes rather than circuit-level challenge derivation |
 | `presentationProofChallenge(bodyRoot, proof)` | Derive the Fiat-Shamir challenge for presentation | same as above, but with presentation tag | same | same |
 
-### Internal helper circuits
+### Internal Helper Circuits
 
 The following are intentionally internal building blocks, not the preferred public API:
 
@@ -284,22 +362,128 @@ The following are intentionally internal building blocks, not the preferred publ
 
 They exist to avoid duplication inside the generic core. Downstream packages should normally use the named issuance/presentation wrappers because those encode the intended VC/VP semantics directly.
 
-## Anonymity, unlinkability, and binding analysis
+## Privacy Model
+### Anonymity, Unlinkability, and Binding Analysis
 
-### What this model does well for anonymity
+#### What this model does well for anonymity
 
 - Raw claim values do not need to appear in the credential body. The credential can carry commitments only.
 - The presentation can disclose only selected fields and keep others hidden.
 - Predicate verification such as `age >= threshold` can be done from a hidden witness, which is materially stronger for privacy than plain selective disclosure.
 - The proof challenge is verifier-bound via `challengeHash`, which reduces replay and re-use of an observed presentation artifact.
 
-### Where anonymity is intentionally limited
+#### Where anonymity is intentionally limited
 
 - `holderBinding` is required in the current model. That means the credential is wallet-bound rather than bearer-style.
 - The presentation carries a holder DID verification method identifier. If the same holder method is reused across many verifiers, presentations become linkable at the identifier layer.
 - The proof also carries the public key required for verification. That is operationally convenient, but it reinforces linkability unless the holder uses pairwise or credential-specific verification methods.
 
-### Holder binding compared to W3C VC/VP
+### Holder-Binding Profiles
+
+Holder binding is the main architectural choice in this VC/VP design.
+
+The question is not just "how does the holder authenticate?" but:
+
+- how the credential is bound to a concrete holder at issuance time
+- what public or hidden material is visible to issuer and verifier
+- whether verifiers can correlate the same holder across interactions
+- whether multiple credentials can later be proven as belonging to the same holder
+
+#### Why holder binding exists at all
+
+Without holder binding, a credential becomes effectively bearer-style:
+
+- anyone who gets the VC can try to present it
+- transfer resistance depends on storage and transport rather than on the credential model
+
+For Midnight use cases that are contract-facing or wallet-bound, that is usually too weak.
+
+So the current architecture assumes:
+
+- issuer binding is mandatory
+- holder binding is also mandatory
+- the open question is which holder-binding profile is best for a given privacy posture
+
+#### Holder-binding goals
+
+The holder-binding layer should ideally support:
+
+1. non-transferability of the credential
+2. anti-replay behavior at presentation time
+3. privacy-preserving presentations
+4. optional same-holder proof across multiple credentials
+5. optional verifier-specific pseudonyms instead of a global holder identifier
+
+The current repository now supports two holder-binding profiles.
+
+#### Profile A: explicit DID-bound holder binding
+
+This is the simpler operational profile.
+
+Binding material:
+
+- the VC includes an explicit `holderVerificationMethodId`
+- the VP includes the same holder binding
+- the holder signs the presentation proof with the matching key
+
+Benefits:
+
+- easy to understand
+- easy to integrate with DID resolution and DID-authenticated apps
+- easy to audit in Compact circuits
+
+Costs:
+
+- the holder is represented by an explicit DID method reference
+- if the same holder method is reused, verifiers can correlate presentations
+- pairwise privacy depends on pairwise DIDs or pairwise keys outside the VC model
+
+Good fit for:
+
+- enterprise or managed-wallet flows
+- demos
+- operational systems where explicit holder identity is acceptable
+
+#### Profile B: secret holder-binding
+
+This is the privacy-oriented profile now prototyped in the repo.
+
+Binding material:
+
+- the VC includes a commitment to a hidden holder secret
+- the VP proves knowledge of that holder secret against a verifier challenge
+- the DID of the holder does not need to be revealed in the VC or VP
+
+Benefits:
+
+- avoids explicit holder DID disclosure
+- creates a path toward unlinkability improvements
+- aligns better with AnonCreds-style holder binding
+- gives a better basis for verifier-domain pseudonyms and same-holder proofs later
+
+Costs:
+
+- the current prototype still exposes the commitment at issuance time
+- this is not blind issuance yet
+- verifier-domain pseudonyms now exist as a request-bound prototype, but only inside the secret-holder flow
+- protocol choreography is more complex than explicit DID-bound signing
+
+Good fit for:
+
+- privacy-sensitive presentation flows
+- age and compliance proofs
+- future Midnight-native anonymous credential work
+
+#### Current recommendation
+
+Keep both profiles:
+
+1. explicit DID-bound profile for operational simplicity
+2. secret holder-binding profile for privacy-oriented evolution
+
+Do not force one profile to satisfy all use cases.
+
+#### Holder binding compared to W3C VC/VP
 
 Compared to the broader W3C ecosystem:
 
@@ -312,7 +496,7 @@ Practical implication:
 
 - if the product goal is pairwise privacy, the DID layer should issue or derive verifier-specific holder methods instead of reusing one stable holder method everywhere
 
-### Issuer binding compared to W3C VC/VP
+#### Issuer binding compared to W3C VC/VP
 
 Compared to W3C VC/VP verification:
 
@@ -320,7 +504,7 @@ Compared to W3C VC/VP verification:
 - there is less ambiguity than in web verifiers that sometimes rely on broader DID-document policy interpretation outside the proof verifier
 - the trade-off is that this Compact package does not itself resolve DID documents or inspect richer verification relationship metadata; it assumes the referenced method id is already the correct business choice
 
-### Summary of the privacy posture
+#### Summary of the privacy posture
 
 The current profile is best described as:
 
@@ -331,7 +515,7 @@ The current profile is best described as:
 
 That is a valid trade-off for Midnight contract execution, but it should be stated explicitly so adopters do not confuse selective disclosure of claims with full unlinkability of the holder.
 
-## SSI capabilities used in the PoC
+### SSI Capability Mapping
 
 | SSI capability | How it is used | Standards alignment |
 | --- | --- | --- |
@@ -343,9 +527,9 @@ That is a valid trade-off for Midnight contract execution, but it should be stat
 | Anti-replay challenge | `challengeHash` binds issuance and presentation to a concrete interaction | aligned with VC Data Integrity challenge-style guidance |
 | Schema-bound verification | the verifier checks explicit schema package and schema identifiers | aligned with strong schema governance, though implemented in Compact-native form |
 
-## Sequence diagrams
+## Operational Flows
 
-### Issuance flow
+### Issuance Flow
 
 ```mermaid
 sequenceDiagram
@@ -366,7 +550,7 @@ sequenceDiagram
     Contract-->>Issuer: Credential root anchored
 ```
 
-### Presentation and verification flow
+### Presentation and Verification Flow
 
 ```mermaid
 sequenceDiagram
@@ -391,10 +575,10 @@ sequenceDiagram
     Contract-->>Verifier: Verification succeeds without revealing birth date
 ```
 
-## Standards alignment review
+## Standards Alignment
 This section checks the current design against general SSI recommendations, not byte-for-byte format interoperability.
 
-### DID Core alignment
+### DID Core Alignment
 DID Core distinguishes verification relationships such as `assertionMethod` and `authentication`.
 
 Current mapping:
@@ -412,7 +596,7 @@ Reference:
 
 - W3C DID Core 1.0: https://www.w3.org/TR/did-1.0/
 
-### VC Data Integrity alignment
+### VC Data Integrity Alignment
 VC Data Integrity emphasizes proof verification inputs such as:
 
 - `verificationMethod`
@@ -437,7 +621,7 @@ Reference:
 
 - W3C VC Data Integrity 1.0: https://www.w3.org/TR/vc-data-integrity/
 
-### VCDM 2.0 alignment
+### VCDM 2.0 Alignment
 VCDM 2.0 expects verifiable credentials and presentations to model issuer and holder semantics clearly, and it encourages privacy-preserving use by minimizing unnecessary disclosure.
 
 Current mapping:
@@ -457,9 +641,9 @@ Reference:
 
 - W3C Verifiable Credentials Data Model 2.0: https://www.w3.org/TR/vc-data-model-2.0/
 
-## Innovations introduced by this VC type
+## Design Characteristics
 
-### 1. Source-claim credential, derived predicate presentation
+### Source-Claim Credential, Derived Predicate Presentation
 The main innovation is conceptual.
 
 The credential is not an `AgeCredential`. It is a `BirthCredential`.
@@ -472,7 +656,7 @@ That means:
 
 This is a better fit for both SSI and ZK systems.
 
-### 2. Compact-native selective disclosure
+### Compact-Native Selective Disclosure
 The disclosure model is not borrowed from web serialization formats.
 
 Instead, it is modeled directly for Compact through:
@@ -482,7 +666,7 @@ Instead, it is modeled directly for Compact through:
 - openings when a raw disclosed value must be rebound to a commitment
 - fixed predicate hooks for hidden claims
 
-### 3. DID references optimized for circuits
+### DID References Optimized for Circuits
 The credential does not rely on free-form DID URL processing in-circuit.
 
 It uses a Compact-native verification method identifier:
@@ -492,7 +676,7 @@ It uses a Compact-native verification method identifier:
 
 That is much easier to verify inside Compact while still preserving DID semantics.
 
-### 4. Shared schema package plus executable business contract
+### Shared Schema Package Plus Executable Business Contract
 The PoC cleanly separates:
 
 - reusable schema and validation logic in `credentials`
@@ -500,16 +684,17 @@ The PoC cleanly separates:
 
 This separation is important if multiple parties or applications need to share the schema package but not the same business logic.
 
-### 5. Explicit proof-to-body binding inside the circuit
+### Explicit Proof-to-Body Binding Inside the Circuit
 The proof challenge is derived inside the verifier circuit rather than treated as opaque external state.
 
 That reduces ambiguity and makes the signed payload auditable from the contract logic itself.
 
-## ADR: one proof per VC or VP
-### Decision
+## Architectural Decisions
+### One Proof Per VC or VP
+#### Decision
 Keep exactly one canonical proof per VC or VP in the base model.
 
-### Rationale
+#### Rationale
 A previous idea was to support multiple proofs on the same VC, such as Jubjub and Ed25519 together.
 
 That is not the right default for this repository.
@@ -523,7 +708,7 @@ Benefits:
 - clearer trust semantics
 - no proof-composition ambiguity in the base schema
 
-## Compliance summary
+## Conformance and Interoperability Status
 The current PoC is compliant with the general direction of SSI recommendations in the following sense:
 
 - it uses issuer and holder roles cleanly
@@ -541,7 +726,7 @@ The current PoC is not fully interoperable with general-purpose W3C VC stacks be
 
 That is an acceptable trade-off for this phase because the goal is contract-native correctness first.
 
-## Recommended next steps
+## Open Issues and Next Steps
 
 1. Add an explicit `domain` or audience binding to the proof profile.
 2. Define a revocation or status mechanism.
@@ -801,3 +986,318 @@ The parts that should remain Midnight-specific are:
 2. Compact-native verification circuits
 3. the canonical on-ledger execution model
 4. the ability to expose multiple privacy profiles rather than one universal VC format
+
+## Appendix B: External Options for Hiding the Holder DID
+
+This appendix summarizes the most relevant external patterns for avoiding disclosure of a stable holder DID in VC/VP flows and evaluates their fit for Midnight.
+
+### Option 1: pairwise DIDs
+
+The DID Core privacy guidance explicitly recommends pairwise DIDs that are unique per relationship and warns that the privacy benefit is lost if the corresponding DID documents reuse the same verification methods or bespoke service endpoints across relationships. It also notes that shared endpoints can improve herd privacy while pairwise unique endpoints can make traffic analysis easier.
+
+What this gives us:
+
+- hides the holder’s long-lived public DID from each verifier
+- keeps a DID-based trust model
+- is relatively simple to explain and implement
+
+What it does not give us:
+
+- the issuer still learns a holder DID during issuance
+- the holder is still represented by an explicit DID in the credential or presentation
+- the model is pseudonymous, not anonymous
+- correlation is still possible if keys, endpoints, or metadata are reused
+
+Fit for Midnight:
+
+- good as an operational profile for wallet-bound credentials
+- not sufficient for the privacy-oriented profile we are aiming for
+- still useful if we decide to support two explicit-DID modes later:
+  - public DID mode
+  - pairwise DID mode
+
+Source:
+
+- W3C DID Core: https://www.w3.org/TR/did/
+
+### Option 2: hidden holder secret, link secret, or blinded secret
+
+AnonCreds is the clearest deployed example of this pattern. The holder keeps a secret that is not revealed to issuer or verifier in the clear. The credential is bound to that secret, and later the holder proves possession of the bound secret during presentation.
+
+What this gives us:
+
+- avoids disclosing a holder DID in the credential or presentation
+- enables holder binding without a stable public identifier
+- creates a path toward same-holder multi-credential proofs
+- aligns with selective disclosure and predicate proofs
+
+What it does not give us by itself:
+
+- pairwise verifier-specific pseudonyms unless an additional derivation is introduced
+- full issuance privacy unless the issuance flow is blind
+
+Fit for Midnight:
+
+- this is the closest match to the secret holder-binding prototype now in the repo
+- it is the strongest near-term direction for the privacy-oriented Midnight profile
+- the next meaningful upgrade would be blind issuance rather than just a visible commitment at issuance time
+
+Current repository status:
+
+- hidden holder-secret binding is implemented in the generic `credentials` package
+- verifier-domain pseudonym derivation is now prototyped in the secret birth-credential presentation flow
+- the secret birth-credential specialization now uses blinded holder-binding anchors instead of exposing the raw holder-secret commitment
+- blinded holder-binding helpers are implemented in the generic package as blind-issuance building blocks
+- full blind issuance is still not implemented because the issuance choreography, issuer proof obligations, and transport messages are not finalized yet
+
+Sources:
+
+- Hyperledger AnonCreds repository overview: https://github.com/hyperledger/anoncreds
+- Hyperledger AnonCreds specification repository: https://github.com/hyperledger/anoncreds-spec-v2
+
+### Option 3: BBS anonymous holder binding and pseudonyms
+
+The W3C Data Integrity BBS cryptosuite goes further than simple selective disclosure. It defines:
+
+- anonymous holder binding
+- credential-bound pseudonyms
+- a combined holder-binding-and-pseudonym profile
+
+The holder generates a secret and a commitment-with-proof. The issuer performs blind issuance over that commitment. Later the holder can derive proofs that are both holder-bound and, when needed, pseudonymous for a given verifier domain.
+
+What this gives us:
+
+- hides the holder DID entirely
+- supports blind issuance
+- supports verifier-scoped pseudonyms
+- is closer to the strongest AnonCreds privacy properties than simple pairwise DIDs are
+
+What it costs:
+
+- more protocol complexity
+- more cryptographic machinery than the current Midnight PoC
+- a design that assumes a BBS signature family rather than the current canonical Jubjub suite
+
+Fit for Midnight:
+
+- strongest external design reference for a future privacy-maximal profile
+- very useful conceptually, especially for:
+  - blind issuance
+  - hidden holder binding
+  - verifier-domain pseudonyms
+- not a direct drop-in for our current Compact profile because our canonical proof suite is different
+
+Source:
+
+- W3C Data Integrity BBS Cryptosuites v1.0: https://www.w3.org/TR/vc-di-bbs/
+
+### Option 4: key binding without DID disclosure
+
+SD-JWT defines key binding so that the presenter proves possession of a private key corresponding to a public key or key reference carried with the credential. This can avoid sending a DID during presentation if the verifier only needs proof-of-possession of a bound key.
+
+What this gives us:
+
+- hides the holder DID if the presentation only discloses the bound key or key reference
+- is simpler than hidden-secret plus blind-issuance designs
+- maps reasonably well to app and wallet UX
+
+What it does not give us:
+
+- unlinkability by default
+- same-holder multi-credential proofs
+- native predicate-style ZK behavior
+- issuer- and verifier-side privacy properties comparable to AnonCreds or BBS pseudonyms
+
+Fit for Midnight:
+
+- plausible as a pragmatic intermediate profile
+- better than explicit DID disclosure when the verifier only needs proof of key possession
+- weaker than the hidden-secret direction for privacy-sensitive credentials
+
+Source:
+
+- RFC 9901 SD-JWT, key binding: https://www.ietf.org/ietf-ftp/rfc/rfc9901.pdf
+
+### Recommendation for Midnight
+
+For this repository, the strongest phased approach remains:
+
+1. keep the existing explicit DID-bound profile for demos and operational simplicity
+2. continue the hidden holder-secret profile as the main privacy-oriented path
+3. keep verifier-domain pseudonyms in the hidden holder-secret flow
+4. add full blind issuance only after the blinded-binding choreography is stable
+5. treat pairwise DIDs and key-binding-only flows as optional operational profiles, not as the end-state privacy architecture
+
+## Appendix C: Transport and Protocol Fit
+
+The credential model and the transport protocol should remain separate decisions.
+
+This repository defines the Compact-native credential model first.
+OID4VCI and DIDComm v2 should be treated as issuance and delivery protocols around that model, not as the source of truth for the VC structure itself.
+
+### OID4VCI Fit
+
+OpenID4VCI 1.0 defines an OAuth-protected issuance API in which:
+
+- the wallet acts as an OAuth client
+- the wallet obtains an access token for the Credential Endpoint
+- the protocol supports both Authorization Code Flow and Pre-Authorized Code Flow
+- the issuer may require a `c_nonce` for proof replay protection
+- credential binding is handled at the Credential Endpoint
+
+Relevant points from the spec:
+
+- the specification is format-agnostic and explicitly allows credentials of different formats
+- the issuer metadata advertises credential configurations and binding capabilities
+- the issuance protocol already has nonce and proof hooks that are useful for anti-replay
+
+Source:
+
+- OpenID4VCI 1.0 Final: https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0-final.html
+
+#### OID4VCI for explicit DID-bound Midnight VC
+
+This is the cleanest near-term path.
+
+Recommended shape:
+
+1. define a Midnight credential format profile in OID4VCI metadata
+2. expose the Midnight VC schema identifier and package reference through that profile
+3. use Pre-Authorized Code Flow for first demos because it is operationally simpler
+4. require a proof at the Credential Endpoint that binds the request to the holder key or DID method
+5. issue the Compact-native credential as the credential payload
+
+What is easy here:
+
+- transport and authorization
+- issuer metadata and credential discovery
+- wallet-to-issuer request/response choreography
+- replay protection with `c_nonce`
+
+What still needs a Midnight profile:
+
+- a Midnight-specific credential format identifier
+- a mapping from the wallet key or DID method to `holderVerificationMethodId`
+- a serialization strategy for carrying Compact-native VC data over the Credential Endpoint
+
+#### OID4VCI for secret holder-binding Midnight VC
+
+OID4VCI can still be used, but the holder-binding semantics become custom.
+
+The protocol itself can transport the interaction, but the hidden holder-binding behavior would need a Midnight profile extension such as:
+
+- `holder_secret_commitment`
+- optionally a ZK proof or blinded commitment object
+- a Midnight proof type or attachment convention if standard `jwt`, `di_vp`, or `attestation` proof types are not enough
+
+My assessment:
+
+- OID4VCI is a good transport even for the secret-holder profile
+- but blind issuance is not something OID4VCI gives us for free
+- we would need a Midnight-specific proof and request model on top of the standard issuance flow
+
+Recommended implementation order:
+
+1. implement explicit DID-bound Midnight issuance over OID4VCI first
+2. add secret holder-binding over OID4VCI with visible commitment second
+3. add blind issuance only after the Compact and circuit model is stable
+
+### DIDComm v2 Issue Credential Fit
+
+The DIDComm story is different.
+
+DIDComm gives us:
+
+- encrypted agent-to-agent messaging
+- pairwise relationship context
+- a flexible attachment model
+
+For credential issuance, the practical reference point is the Issue Credential 3.0 choreography used in the WACI DIDComm profile, with messages such as:
+
+- `propose-credential`
+- `offer-credential`
+- `request-credential`
+- `issue-credential`
+- `ack`
+
+Source:
+
+- WACI DIDComm examples using `https://didcomm.org/issue-credential/3.0/...`: https://identity.foundation/waci-didcomm/v1.0/
+- Aries Issue Credential Protocol 2.0 background: https://identity.foundation/aries-rfcs/latest/features/0453-issue-credential-v2/
+
+#### DIDComm for explicit DID-bound Midnight VC
+
+This is also a strong fit.
+
+Recommended shape:
+
+1. establish a DIDComm relationship between holder and issuer
+2. use pairwise DIDs by default
+3. send Midnight credential offers and requests as DIDComm attachments
+4. issue the Compact-native credential in the `issue-credential` message
+
+Benefits:
+
+- natural fit for agent-to-agent interaction
+- pairwise DID privacy is straightforward
+- transport encryption and message threading are already part of the protocol family
+
+Trade-off:
+
+- DIDComm helps with transport privacy and pairwise relationship management
+- but it does not itself solve hidden holder binding
+
+#### DIDComm for secret holder-binding Midnight VC
+
+DIDComm can carry the secret-holder issuance flow, but only as a Midnight-defined attachment protocol.
+
+Recommended shape:
+
+1. use the existing DIDComm message choreography
+2. carry Midnight-specific payloads in attachments:
+   - schema reference
+   - claim commitments
+   - holder secret commitment
+   - later, blinded issuance material if added
+3. keep the cryptographic semantics in the Midnight VC profile, not in DIDComm itself
+
+Benefits:
+
+- transport is flexible
+- easy to extend with custom attachment payloads
+- good for agent ecosystems and wallet apps
+
+Trade-off:
+
+- interoperability depends on documenting the Midnight attachment format
+- hidden holder binding, blind issuance, and pseudonym derivation remain Midnight-layer work
+
+### Recommendation: Which Protocol First
+
+If the next goal is fastest path to a working issuance demo:
+
+1. implement OID4VCI first for the explicit DID-bound profile
+2. implement DIDComm v2 second if agent-to-agent and pairwise relationship UX matters
+
+If the next goal is privacy-oriented issuance research:
+
+1. keep transport simple
+2. continue refining the secret holder-binding and blind-issuance model first
+3. then bind that model to either OID4VCI or DIDComm attachments
+
+### Practical Conclusion
+
+OID4VCI is the better first standard protocol for a Midnight issuer API because it already standardizes:
+
+- issuer metadata
+- authorization
+- credential offer and retrieval
+- nonce-based anti-replay
+
+DIDComm v2 is the better second protocol when we want:
+
+- agent-to-agent issuance
+- pairwise relationships
+- richer peer messaging
+
+In both cases, the hidden holder-binding logic remains a Midnight VC profile concern rather than something provided natively by the transport protocol.
