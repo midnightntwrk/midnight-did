@@ -137,6 +137,144 @@ The package split is now intentional:
 - `credentials-birth-secret` owns the hidden holder-secret birth-credential specialization
 - `credentials-demo-contract` owns the executable issuer, holder, verifier flow
 
+### Verifier-as-Contract Composition Model
+The most important Midnight-specific observation is that the verifier is often not a generic wallet or backend service. The verifier is frequently a Compact smart contract that enforces business rules directly.
+
+Examples:
+
+- a voting contract that admits only eligible voters
+- an auction contract that admits only participants satisfying jurisdictional or membership constraints
+- a gated membership or access contract that returns a capability for later use
+
+This matters because a generic multi-credential bundle abstraction is not automatically the right primary model for Midnight.
+
+In Compact, a bundle-oriented generic core introduces immediate complexity:
+
+- fixed-size bundle shapes must be chosen in advance
+- schema unions must be modeled explicitly
+- each credential family still needs its own witness and predicate logic
+- business-specific ordering and dependency rules still live outside the bundle type
+
+The result is that a generic `PresentationBundle` can easily become more abstract than useful.
+
+The current design direction is therefore:
+
+1. keep the `credentials` package focused on reusable single-credential verification primitives and holder-binding profiles
+2. let business contracts compose concrete credential-family circuits directly
+3. only introduce a generic bundle abstraction later if repeated business contracts converge on the same structure
+
+This is more idiomatic for Midnight than copying a transport-oriented VC bundle model from another ecosystem.
+
+### Architectural Layers
+
+The current Midnight Credentials solution should be understood as four layers.
+
+#### Layer 1: generic capabilities layer
+
+This is the reusable core of the Midnight Credentials library.
+
+It should contain:
+
+- generic VC and VP envelopes
+- generic proof structures and challenge derivation
+- generic holder-binding profiles
+- verifier-domain pseudonym helpers
+- blinded holder-binding helpers
+- reusable request and validation primitives that are not tied to one credential family
+- transport and protocol abstractions only when they are truly cross-family and Compact-friendly
+
+This layer should not contain:
+
+- business-specific claim semantics
+- verifier-specific policy
+- workflow rules tied to one product or contract
+
+#### Layer 2: concrete credential-family layer
+
+This layer defines concrete VC, VP, request, and predicate logic for one credential family.
+
+Examples:
+
+- birth credential
+- membership credential
+- residency credential
+- professional eligibility credential
+
+This layer usually belongs to the issuer or verifier ecosystem that defines the actual claims and capabilities that matter in business logic.
+
+It should contain:
+
+- concrete claim structures
+- concrete disclosure structures
+- concrete request structures
+- concrete predicates and witness checks
+- concrete issuer restrictions and schema checks
+
+It should not contain:
+
+- application-specific contract state
+- business process orchestration
+- application-specific payment or participation logic
+
+#### Layer 3: business logic layer
+
+This is the main smart-contract layer where layers 1 and 2 are composed into product behavior.
+
+Examples:
+
+- voting contracts
+- auction contracts
+- gated access contracts
+- issuance workflows that return a business receipt or capability
+
+This layer should own:
+
+- the business requirements model
+- the decision whether verification is atomic or staged
+- contract state mutation
+- participation or issuance payment rules
+- anti-reuse logic such as nullifiers or consumed rights
+- any application-specific receipts, tickets, or tokens
+
+This is the layer where Midnight becomes simpler than generic VC ecosystems, because the verifier is the contract and the contract can directly express what successful verification means.
+
+#### Layer 4: application orchestration layer
+
+This layer lives outside Compact, usually in TypeScript.
+
+It becomes important because smart-contract composability is not currently the primary mechanism for assembling complex application flows. When a scenario needs more than one contract or a mix of on-chain and off-chain steps, the orchestration is often cleaner at the application layer.
+
+This layer should own:
+
+- sequencing across multiple contract calls
+- coordination across issuance, verification, and business-process contracts
+- local preparation and routing of witnesses
+- aggregation of typed requirements from multiple contracts
+- retries, timeouts, and session continuity
+- off-chain resource handoff after on-chain verification
+- API, backend, and wallet coordination
+
+Typical examples:
+
+- call one contract to fetch typed requirements
+- prepare local VC and VP witnesses
+- call another contract to verify eligibility
+- call a third contract to consume the resulting capability, receipt, or token
+- use the returned artifact to unlock an HTTP or application-level resource
+
+This layer should not redefine the credential semantics already owned by layers 1 and 2. Its job is orchestration, not duplication of verification logic.
+
+#### Layering recommendation
+
+The intended separation is:
+
+1. layer 1 defines reusable generic credential capabilities
+2. layer 2 defines concrete credential families and predicates
+3. layer 3 defines contract-native business policy
+4. layer 4 coordinates multi-contract or mixed on-chain/off-chain workflows when one contract is not enough
+
+This fourth layer is especially useful until richer contract composability is available.
+
 ## Data Model
 ### Generic Credential Envelope
 The generic `VC<TClaims, TDisclosures, THolderBinding>.Credential` envelope contains:
@@ -574,6 +712,324 @@ sequenceDiagram
     Note over Contract: SSI capability: data minimization through ZK predicate verification
     Contract-->>Verifier: Verification succeeds without revealing birth date
 ```
+
+### Verifier-as-Contract Composition
+
+For Midnight, the most important verifier is often a smart contract, not a generic off-chain verifier.
+
+Representative examples:
+
+- a voting contract
+- an auction or bidding contract
+- a gated membership or access contract
+- a contract that issues an application-specific right after VC verification
+
+This changes the architecture materially.
+
+A generic multi-credential bundle model is possible in Compact, but it is not automatically the right default. In practice it introduces early complexity:
+
+- bundle sizes must be fixed in advance
+- schema combinations must be modeled explicitly
+- each credential family still carries its own witness and predicate logic
+- business-specific ordering and dependency rules still live outside the bundle type
+
+Because Compact is strict and bounded, a generic bundle abstraction can become more expensive and less readable than direct composition.
+
+### Recommended Verification Patterns
+
+#### Pattern 1: single composed verification circuit
+
+The business contract verifies all required credentials and predicates in one call.
+
+This pattern works best when:
+
+- the number of required credential families is known at compile time
+- the policy is stable
+- the workflow should be atomic
+
+Typical flow:
+
+1. the holder fetches the contract requirements
+2. the holder prepares the required VC and VP witnesses locally
+3. the holder calls one contract circuit
+4. the contract invokes schema-specific verification circuits one by one
+5. the contract applies cross-credential business assertions
+6. the contract authorizes the resulting action
+
+This is likely the best default for:
+
+- voting eligibility
+- auction admission
+- regulated participation checks
+
+#### Pattern 2: staged verification with contract-held progress
+
+The contract verifies requirements across several steps and records bounded intermediate progress.
+
+This pattern is useful when:
+
+- proofs are expensive and should be split across calls
+- the workflow is naturally sequential
+- the business process has checkpoints, approvals, or time windows
+
+Typical flow:
+
+1. verify one credential family or predicate family
+2. record a partial result in ledger state
+3. require later steps to depend on that result
+4. complete the final action only after all required stages succeed
+
+This is useful for:
+
+- pre-qualification then participation
+- stepwise onboarding
+- staged compliance checks
+
+#### Pattern 3: verification plus contract-issued receipt
+
+The contract verifies VC requirements and then returns or stores a reusable business artifact.
+
+Useful result forms:
+
+- an eligibility flag
+- a role assignment
+- a capability commitment
+- a one-time authorization ticket
+- a nullifier-like record that prevents reuse
+
+This pattern is relevant when VC verification should unlock a later on-chain or off-chain action rather than complete it immediately.
+
+### Requirement Discovery
+
+If the verifier is a business contract, the holder still needs a clear way to discover what must be presented.
+
+The Midnight-friendly model is not a universal bundle format in the first iteration. It is a typed contract-specific requirements model.
+
+The contract should expose a circuit or stable state that tells the holder:
+
+- which credential families are required
+- which issuer restrictions apply
+- which disclosures are required
+- which predicates are required
+- which holder-binding profile is expected
+- whether a verifier-domain pseudonym is required
+- whether the process is atomic or staged
+
+This keeps the holder experience simple:
+
+1. read the requirement structure
+2. gather the required local witnesses
+3. call the corresponding verification circuit or staged flow
+
+### Post-Verification Outcomes
+
+A Midnight business contract can do more than return `true`.
+
+Relevant outcomes include:
+
+#### 1. authorize an immediate action
+
+Examples:
+
+- cast a vote
+- place a bid
+- register or claim access
+
+#### 2. persist an authorization state
+
+Examples:
+
+- mark the caller as eligible
+- grant a role
+- store that compliance requirements have been met
+
+#### 3. issue a reusable capability or receipt
+
+Examples:
+
+- a capability commitment used by an HTTP gateway
+- a one-time participation ticket
+- a receipt consumed by another contract
+
+#### 4. mint or unlock an application-specific asset
+
+Examples:
+
+- an access token
+- a participation token
+- a bid-admission right
+
+#### 5. record anti-reuse state
+
+Examples:
+
+- a nullifier-like value for single-use voting
+- a consumed entitlement marker
+- a one-time claim record
+
+### Contract Call Outcome Model
+
+Using Midnight MCP and the Compact standard-library references, the main business-contract circuit can be modeled around a small number of outcome types.
+
+The important distinction is between:
+
+- hard failure through `assert(...)`
+- soft business denial encoded as a typed return value or state outcome
+
+#### Outcome 1: mutate contract state
+
+This is the default business-contract outcome.
+
+Examples:
+
+- increment participation counters
+- mark a caller as eligible
+- record a verified claim root
+- store a nullifier-like anti-reuse marker
+- record that a staged verification step has succeeded
+
+This is the simplest and most Midnight-native outcome.
+
+#### Outcome 2: mutate state and return a typed value
+
+Compact circuits can return typed values, so a business contract can both update ledger state and return a structured result.
+
+Examples:
+
+- return a capability commitment
+- return a typed receipt hash
+- return a token or coin descriptor created in the same transaction
+- return the next verification stage identifier
+
+This is useful when the caller needs an immediate artifact after successful verification.
+
+#### Outcome 3: accept or route payment
+
+The business contract can receive value and treat it as:
+
+- issuance payment
+- verification fee
+- participation fee
+- deposit
+- stake
+
+Using Compact standard-library coin primitives, this can be modeled through functions such as `receive`, `receiveShielded`, and ledger ADT coin insertion helpers such as `insertCoin`.
+
+This is relevant for:
+
+- paid issuance
+- paid admission
+- anti-spam deposits
+- refundable or slashable participation flows
+
+#### Outcome 4: send or return value
+
+The business contract can send shielded value or minted tokens to:
+
+- the current user
+- another contract
+- a burn address
+
+Midnight MCP references show explicit support for:
+
+- `send(...)`
+- `sendImmediate(...)`
+- `mintToken(...)`
+- `burnAddress(...)`
+
+This makes the contract capable of:
+
+- refunding deposits
+- paying rewards
+- issuing application-specific participation tokens
+- burning or consuming value as part of policy
+
+#### Outcome 5: business denial without circuit failure
+
+This is possible, but it should be modeled intentionally.
+
+The contract can return a typed result such as:
+
+- `Boolean`
+- `Maybe<T>`
+- `Either<ErrorCode, SuccessValue>`
+- an enum-based result code
+
+This is the right pattern for business-level rejection where the call should complete cleanly and explain why the action was denied.
+
+Examples:
+
+- eligibility requirements not met
+- wrong verification stage
+- payment below required threshold
+- verification request expired
+
+Recommendation:
+
+- use typed error codes or enums, not free-form strings, for business denials
+- reserve `assert(...)` for invariant violations, invalid witnesses, or impossible states
+
+#### Outcome 6: hard failure with an assertion message
+
+This remains necessary for:
+
+- invalid witnesses
+- broken proof binding
+- impossible state transitions
+- unauthorized access to invariant-protected actions
+
+The assertion message is useful for debugging and developer observability, but it should not be treated as the primary user-facing business response channel.
+
+#### Outcome 7: issue a reusable contract-level capability
+
+After verification, the contract can produce a reusable artifact that later gates access.
+
+Typical forms:
+
+- a capability commitment
+- a one-time ticket
+- a role-grant marker
+- a mintable or minted application token
+
+This is especially relevant when access is later enforced:
+
+- by another contract
+- by an off-chain service
+- by a staged workflow in the same application
+
+#### Outcome 8: produce a cross-contract or off-chain handoff artifact
+
+Because recipients and tokens can target contract addresses, and because circuits can return typed values, the contract can serve as a bridge between VC verification and another system.
+
+Examples:
+
+- return a commitment to be checked by an HTTP gateway
+- send a token to another contract as proof of verified admission
+- return a typed receipt that a wallet or backend can store and reuse
+- trigger a staged process where a later contract call consumes the returned artifact
+
+### Outcome Design Recommendation
+
+The recommended design split is:
+
+1. use `assert(...)` for cryptographic and state invariants
+2. use typed return values for business denials and success artifacts
+3. use ledger mutation for durable authorization state
+4. use coin or token primitives for payments, refunds, rewards, and minted rights
+
+This gives Midnight contracts a cleaner interaction model than a simple `true` or `false` verifier API.
+
+### Recommendation
+
+For Midnight, the current recommendation is:
+
+1. do not add a generic multi-credential bundle abstraction to the `credentials` core yet
+2. let business contracts compose concrete credential-family circuits directly
+3. expose typed contract-specific requirement structures to the holder
+4. support both atomic and staged verification patterns at the business-contract layer
+5. use the application orchestration layer whenever the workflow spans multiple contracts or mixes on-chain verification with off-chain resource access
+
+If repeated verifier contracts later converge on the same composition model, a shared bundle helper can be added as a secondary abstraction rather than as the starting point.
 
 ## Standards Alignment
 This section checks the current design against general SSI recommendations, not byte-for-byte format interoperability.
