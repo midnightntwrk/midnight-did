@@ -9,22 +9,14 @@ import {
 } from "../../../../credentials-birth/src/test/credential-fixtures.js";
 import { CredentialsDemoSimulator } from "../../simulator.js";
 import {
+  containerRuntimeAvailable,
   type ProtocolDidProfile,
   StandaloneProtocolEnvironment,
   verifierChallengeForProfile,
 } from "./standalone-protocol-environment.js";
 
-let containerRuntimeAvailable = true;
-try {
-  const { getContainerRuntimeClient } = await import(
-    "testcontainers/build/container-runtime/clients/client.js"
-  );
-  await getContainerRuntimeClient();
-} catch {
-  containerRuntimeAvailable = false;
-}
-
-const describeIntegration = containerRuntimeAvailable ? describe : describe.skip;
+const canRunContainers = await containerRuntimeAvailable();
+const describeIntegration = canRunContainers ? describe : describe.skip;
 
 describeIntegration("credentials protocol standalone integration", () => {
   const environment = new StandaloneProtocolEnvironment();

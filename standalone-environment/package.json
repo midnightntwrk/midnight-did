@@ -1,0 +1,23 @@
+{
+  "name": "@midnight-ntwrk/midnight-did-standalone-environment",
+  "version": "0.1.0",
+  "description": "Shared Midnight standalone environment for integration tests",
+  "type": "module",
+  "main": "src/index.ts",
+  "engines": {
+    "node": ">=24",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "*",
+    "@midnight-ntwrk/midnight-did-api": "*",
+    "@midnight-ntwrk/midnight-did-domain": "*",
+    "@midnight-ntwrk/midnight-did-contract": "*",
+    "@midnight-ntwrk/midnight-did": "*",
+    "testcontainers": "*",
+    "rxjs": "*"
+  }
+}

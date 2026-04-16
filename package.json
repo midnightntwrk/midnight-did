@@ -36,6 +36,7 @@
     "credentials-birth-secret",
     "credentials-demo-contract",
     "credentials-protocol",
+    "standalone-environment",
     "secret-storage",
     "did-resolver-service",
     "did-manager-service",

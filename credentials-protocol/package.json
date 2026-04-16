@@ -12,6 +12,7 @@
   "scripts": {
     "build": "rm -rf dist && tsc -b tsconfig.build.json --force",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "lint": "eslint src --ext .ts --ignore-pattern src/managed/**",
     "lint:fix": "eslint src --ext .ts --ignore-pattern src/managed/** --fix",
     "typecheck": "tsc --noEmit",
@@ -24,6 +25,7 @@
     "@midnight-ntwrk/midnight-did-credentials-birth": "*",
     "@midnight-ntwrk/midnight-did-credentials-birth-secret": "*",
     "@midnight-ntwrk/midnight-did-credentials-same-holder": "*",
-    "@midnight-ntwrk/midnight-did-credentials-demo-contract": "*"
+    "@midnight-ntwrk/midnight-did-credentials-demo-contract": "*",
+    "@midnight-ntwrk/midnight-did-standalone-environment": "*"
   }
 }
