@@ -5,6 +5,7 @@ import {
   pureCircuits as genericPureCircuits,
   type ProtocolMessageEnvelope,
   type VerificationMethodRef,
+  type BirthCredentialPresentationRequest as SecretBirthPresentationRequest,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
 import {
   type BirthCredential,
@@ -12,6 +13,11 @@ import {
   type BirthCredentialPresentationRequest,
   pureCircuits,
 } from "../../../credentials-birth/src/managed/birth-credential/contract/index.js";
+import {
+  type SecretBirthCredential,
+  type SecretBirthCredentialPresentation,
+  pureCircuits as secretPureCircuits,
+} from "../../../credentials-birth-secret/src/managed/secret-birth-credential/contract/index.js";
 
 import type { DIDProfile } from "./types.js";
 import type { ProtocolMessage, PartyId } from "../transport/types.js";
@@ -69,6 +75,29 @@ export type PresentationSubmissionBody = {
   readonly currentDay: bigint;
   readonly birthDateDays: bigint;
   readonly birthDateOpening: Uint8Array;
+};
+
+export type SecretPresentationRequirements = {
+  readonly issuerVerificationMethodRef: VerificationMethodRef;
+  readonly requireSubjectIdCommitmentDisclosure: boolean;
+  readonly requireBirthCountryDisclosure: boolean;
+  readonly requireVerifierScopedPseudonym: boolean;
+  readonly verifierDomainHash?: Uint8Array;
+  readonly requireAgeOverThreshold: boolean;
+  readonly requestedAgeThresholdYears: number;
+};
+
+export type SecretPresentationSubmissionBody = {
+  readonly credential: SecretBirthCredential;
+  readonly credentialProof: Proof;
+  readonly presentation: SecretBirthCredentialPresentation;
+  readonly request: SecretBirthPresentationRequest;
+  readonly currentDay: bigint;
+  readonly birthDateDays: bigint;
+  readonly birthDateOpening: Uint8Array;
+  readonly holderSecret: Uint8Array;
+  readonly holderSecretOpening: Uint8Array;
+  readonly holderBindingBlindingFactor: Uint8Array;
 };
 
 export class VerifierAgent {
@@ -155,5 +184,98 @@ export class VerifierAgent {
     }
 
     return { approved: true };
+  }
+
+  // --- Secret-holder presentation methods ---
+
+  createAndSendSecretPresentationRequest(
+    holderLabel: PartyId,
+    requirements: SecretPresentationRequirements,
+  ): void {
+    const SECRET_BIRTH_SCHEMA = {
+      packageId: padText("midnight-did:vc:birth-secret"),
+      schemaId: padText("birth-credential:v1"),
+      majorVersion: 1n,
+      minorVersion: 0n,
+    };
+
+    const request: SecretBirthPresentationRequest = {
+      version: 1n,
+      schema: SECRET_BIRTH_SCHEMA,
+      issuerVerificationMethodRef: requirements.issuerVerificationMethodRef,
+      requireSubjectIdCommitmentDisclosure:
+        requirements.requireSubjectIdCommitmentDisclosure,
+      requireBirthCountryDisclosure:
+        requirements.requireBirthCountryDisclosure,
+      requireVerifierScopedPseudonym:
+        requirements.requireVerifierScopedPseudonym,
+      verifierDomainHash:
+        requirements.verifierDomainHash ?? new Uint8Array(32),
+      requireAgeOverThreshold: requirements.requireAgeOverThreshold,
+      requestedAgeThresholdYears: BigInt(
+        requirements.requestedAgeThresholdYears,
+      ),
+      verifierChallengeHash: this.verifierChallengeHash,
+    };
+
+    this.bus.send({
+      type: "presentation:request",
+      from: this.profile.label,
+      to: holderLabel,
+      envelope: createEnvelope(
+        "secret-presentation-request",
+        "secret-birth-presentation",
+        true,
+      ),
+      body: request,
+    });
+  }
+
+  receiveSecretSubmissionAndEvaluate(
+    submission: ProtocolMessage,
+  ): { approved: boolean; pseudonym?: Uint8Array } {
+    if (submission.type !== "presentation:submission") {
+      throw new Error(
+        `Expected presentation:submission message, got ${submission.type}`,
+      );
+    }
+
+    const body = submission.body as SecretPresentationSubmissionBody;
+
+    // Validate the credential and presentation
+    secretPureCircuits.assertValidSecretBirthCredentialPresentation(
+      body.credential,
+      body.credentialProof,
+      body.presentation,
+    );
+
+    // Verify the presentation satisfies the request (requires witness for simulator)
+    secretPureCircuits.assertSecretBirthPresentationSatisfiesRequest(
+      body.credential,
+      body.credentialProof,
+      body.request,
+      body.presentation,
+      body.holderSecret,
+      body.holderSecretOpening,
+      body.holderBindingBlindingFactor,
+    );
+
+    // If an age predicate was requested, validate it
+    if (body.request.requireAgeOverThreshold) {
+      secretPureCircuits.assertValidSecretBirthCredentialAgePredicate(
+        body.credential,
+        body.presentation,
+        body.currentDay,
+        body.birthDateDays,
+        body.birthDateOpening,
+      );
+    }
+
+    // Extract pseudonym if it was disclosed
+    const pseudonym = body.presentation.disclosed.revealVerifierScopedPseudonym
+      ? body.presentation.disclosed.verifierScopedPseudonym
+      : undefined;
+
+    return { approved: true, pseudonym };
   }
 }
