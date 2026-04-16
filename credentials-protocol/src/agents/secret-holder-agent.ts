@@ -11,6 +11,7 @@ import {
 import {
   type SecretBirthCredential,
   type SecretBirthCredentialPresentation,
+  type BirthCredentialPresentationRequest as SecretBirthPresentationRequest,
 } from "../../../credentials-birth-secret/src/managed/secret-birth-credential/contract/index.js";
 
 import type { ProtocolMessage } from "../transport/types.js";
@@ -60,6 +61,23 @@ export type SecretStoredCredential = {
   readonly credential: SecretBirthCredential;
   readonly credentialProof: Proof;
   readonly holderBindingBlindingFactor: Uint8Array;
+};
+
+export type SameHolderProof = {
+  readonly firstCredential: SecretBirthCredential;
+  readonly firstCredentialProof: Proof;
+  readonly firstRequest: SecretBirthPresentationRequest;
+  readonly firstPresentation: SecretBirthCredentialPresentation;
+  readonly secondCredential: SecretBirthCredential;
+  readonly secondCredentialProof: Proof;
+  readonly secondRequest: SecretBirthPresentationRequest;
+  readonly secondPresentation: SecretBirthCredentialPresentation;
+  // Witness data for simulator
+  readonly holderSecret: Uint8Array;
+  readonly firstHolderSecretOpening: Uint8Array;
+  readonly firstHolderBindingBlindingFactor: Uint8Array;
+  readonly secondHolderSecretOpening: Uint8Array;
+  readonly secondHolderBindingBlindingFactor: Uint8Array;
 };
 
 export type SecretPresentationWitness = {
@@ -269,5 +287,117 @@ export class SecretHolderAgent {
       ),
       body: submissionBody,
     });
+  }
+
+  /**
+   * Build a same-holder proof for two stored credentials.
+   * Both presentations use the same verifier challenge hash so the
+   * verifier can confirm they share a single hidden holder secret.
+   */
+  buildSameHolderProof(
+    credentialIndices: [number, number],
+    verifierChallengeHash: Uint8Array,
+  ): SameHolderProof {
+    const first = this.getCredential(credentialIndices[0]);
+    const second = this.getCredential(credentialIndices[1]);
+
+    return this._buildSameHolderProofForPair(
+      first,
+      second,
+      verifierChallengeHash,
+    );
+  }
+
+  /**
+   * Build a same-holder proof using two arbitrary stored credentials.
+   * Useful for negative testing (e.g. mixing credentials that belong
+   * to different holder secrets).
+   */
+  buildSameHolderProofWith(
+    ownCredential: SecretStoredCredential,
+    otherCredential: SecretStoredCredential,
+    verifierChallengeHash: Uint8Array,
+  ): SameHolderProof {
+    return this._buildSameHolderProofForPair(
+      ownCredential,
+      otherCredential,
+      verifierChallengeHash,
+    );
+  }
+
+  private _buildSameHolderProofForPair(
+    first: SecretStoredCredential,
+    second: SecretStoredCredential,
+    verifierChallengeHash: Uint8Array,
+  ): SameHolderProof {
+    const buildRequest = (
+      credential: SecretBirthCredential,
+    ): SecretBirthPresentationRequest => ({
+      version: 1n,
+      schema: credential.schema,
+      issuerVerificationMethodRef: credential.issuerVerificationMethodRef,
+      requireSubjectIdCommitmentDisclosure: false,
+      requireBirthCountryDisclosure: false,
+      requireVerifierScopedPseudonym: false,
+      verifierDomainHash: new Uint8Array(32),
+      requireAgeOverThreshold: false,
+      requestedAgeThresholdYears: 0n,
+      verifierChallengeHash,
+    });
+
+    const buildPresentation = (
+      credential: SecretBirthCredential,
+      request: SecretBirthPresentationRequest,
+    ): SecretBirthCredentialPresentation => ({
+      version: 1n,
+      schema: credential.schema,
+      credentialClaimRoot: credential.claimRoot,
+      issuerVerificationMethodRef: credential.issuerVerificationMethodRef,
+      holderBinding: {
+        blindedHolderSecretCommitment:
+          credential.holderBinding.blindedHolderSecretCommitment,
+        issuerNonce: credential.holderBinding.issuerNonce,
+        requestChallengeResponse:
+          genericPureCircuits.secretHolderBindingChallengeResponse(
+            this.holderSecret,
+            request.verifierChallengeHash,
+          ),
+      },
+      disclosed: {
+        revealSubjectIdCommitment: false,
+        subjectIdCommitment: new Uint8Array(32),
+        revealBirthCountryCode: false,
+        birthCountryCodePadded: new Uint8Array(32),
+        birthCountryCodeOpening: new Uint8Array(32),
+        revealVerifierScopedPseudonym: false,
+        verifierScopedPseudonym: new Uint8Array(32),
+        proveAgeOverThreshold: false,
+        ageThresholdYears: 0n,
+      },
+    });
+
+    const firstRequest = buildRequest(first.credential);
+    const secondRequest = buildRequest(second.credential);
+    const firstPresentation = buildPresentation(first.credential, firstRequest);
+    const secondPresentation = buildPresentation(
+      second.credential,
+      secondRequest,
+    );
+
+    return {
+      firstCredential: first.credential,
+      firstCredentialProof: first.credentialProof,
+      firstRequest,
+      firstPresentation,
+      secondCredential: second.credential,
+      secondCredentialProof: second.credentialProof,
+      secondRequest,
+      secondPresentation,
+      holderSecret: this.holderSecret,
+      firstHolderSecretOpening: this.holderSecretOpening,
+      firstHolderBindingBlindingFactor: first.holderBindingBlindingFactor,
+      secondHolderSecretOpening: this.holderSecretOpening,
+      secondHolderBindingBlindingFactor: second.holderBindingBlindingFactor,
+    };
   }
 }

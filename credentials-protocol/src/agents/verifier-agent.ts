@@ -22,6 +22,7 @@ import {
 import type { DIDProfile } from "./types.js";
 import type { ProtocolMessage, PartyId } from "../transport/types.js";
 import { MessageBus } from "../transport/message-bus.js";
+import type { SameHolderProof } from "./secret-holder-agent.js";
 
 const sha256 = (value: string): Uint8Array =>
   new Uint8Array(createHash("sha256").update(value).digest());
@@ -277,5 +278,33 @@ export class VerifierAgent {
       : undefined;
 
     return { approved: true, pseudonym };
+  }
+
+  // --- Same-holder composition methods ---
+
+  generateChallenge(): Uint8Array {
+    return sha256(
+      `midnight:vc:verifier:${this.profile.label}:same-holder-challenge`,
+    );
+  }
+
+  verifySameHolderProof(proof: SameHolderProof): { sameHolder: boolean } {
+    secretPureCircuits.assertSameHolderSecretBirthPresentations(
+      proof.firstCredential,
+      proof.firstCredentialProof,
+      proof.firstRequest,
+      proof.firstPresentation,
+      proof.secondCredential,
+      proof.secondCredentialProof,
+      proof.secondRequest,
+      proof.secondPresentation,
+      proof.holderSecret,
+      proof.firstHolderSecretOpening,
+      proof.firstHolderBindingBlindingFactor,
+      proof.secondHolderSecretOpening,
+      proof.secondHolderBindingBlindingFactor,
+    );
+
+    return { sameHolder: true };
   }
 }
