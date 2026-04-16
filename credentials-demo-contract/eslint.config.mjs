@@ -12,7 +12,7 @@ export default [
     languageOptions: {
       parser: tsparser,
       parserOptions: {
-        project: "./tsconfig.json",
+        project: "./tsconfig.eslint.json",
       },
       sourceType: "module",
       ecmaVersion: "latest",
@@ -20,6 +20,8 @@ export default [
         Buffer: "readonly",
         console: "readonly",
         process: "readonly",
+        setTimeout: "readonly",
+        URL: "readonly",
       },
     },
     plugins: {

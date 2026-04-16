@@ -2,6 +2,12 @@
 
 Generic Midnight VC/VP core for Compact-first credential families.
 
+Docs entry points:
+
+- spec: [`research/midnight-credentials.md`](../research/midnight-credentials.md)
+- companion guide: [`research/midnight-credentials-for-dummies.md`](../research/midnight-credentials-for-dummies.md)
+- docs site: `docs-site/spec/midnight-credentials.md`
+
 ## Purpose
 
 This package is the reusable envelope and proof layer for credential families that will be modeled in separate specialization packages.
@@ -9,7 +15,7 @@ This package is the reusable envelope and proof layer for credential families th
 It owns the generic pieces that should be shared across many credential families:
 
 - `SchemaRef`
-- `VerificationMethodId`
+- `VerificationMethodRef`
 - `ExplicitHolderBinding`
 - `SecretHolderBinding`
 - `Proof`
@@ -30,6 +36,7 @@ Those belong in specialization packages such as:
 
 - [`../credentials-birth`](../credentials-birth): explicit DID-bound holder profile
 - [`../credentials-birth-secret`](../credentials-birth-secret): hidden holder-secret profile
+- [`../credentials-same-holder`](../credentials-same-holder): same-holder composition capability for hidden-holder profiles
 
 ## Generic model
 
@@ -76,6 +83,23 @@ Current reusable holder-binding helper sets are:
   - `assertValidSecretHolderPresentationBinding(...)`
   - `assertMatchingSecretHolderBindings(...)`
   - `assertSecretHolderBindingWitness(...)`
+
+The generic core intentionally does not own same-holder multi-credential composition.
+
+That capability now lives in a dedicated package:
+
+- [`../credentials-same-holder`](../credentials-same-holder/README.md)
+
+This keeps the generic core focused on single-credential invariants while
+allowing business contracts to import same-holder composition only when needed.
+
+## Read this first
+
+If you are new to the model, read in this order:
+
+1. [`../research/midnight-credentials-for-dummies.md`](../research/midnight-credentials-for-dummies.md)
+2. [`../research/midnight-credentials.md`](../research/midnight-credentials.md)
+3. this package README
 
 ## Naming choices
 

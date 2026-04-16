@@ -1,0 +1,74 @@
+// This file is part of midnightntwrk/midnight-did.
+// Copyright (C) 2026 Midnight Foundation
+// SPDX-License-Identifier: Apache-2.0
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+pragma language_version >= 0.20;
+
+import CompactStandardLibrary;
+
+include "../../credentials/src/credentials";
+
+// Capability package: prove that multiple holder bindings are satisfied by the
+// same hidden holder secret witness under one verifier session challenge.
+
+export circuit assertSameSecretHolderBindingWitnesses(
+  firstBinding: SecretHolderBinding,
+  secondBinding: SecretHolderBinding,
+  verifierChallengeHash: Bytes<32>,
+  holderSecret: Bytes<32>,
+  firstOpening: Bytes<32>,
+  secondOpening: Bytes<32>
+): [] {
+  assertSecretHolderBindingWitness(
+    firstBinding,
+    verifierChallengeHash,
+    holderSecret,
+    firstOpening
+  );
+  assertSecretHolderBindingWitness(
+    secondBinding,
+    verifierChallengeHash,
+    holderSecret,
+    secondOpening
+  );
+}
+
+// Same-holder composition for blinded bindings. The caller supplies the same
+// hidden holder witness together with the binding-specific opening and blinding
+// factor for each independently issued credential.
+export circuit assertSameBlindedSecretHolderBindingWitnesses(
+  firstBinding: BlindedSecretHolderBinding,
+  secondBinding: BlindedSecretHolderBinding,
+  verifierChallengeHash: Bytes<32>,
+  holderSecret: Bytes<32>,
+  firstOpening: Bytes<32>,
+  firstBlindingFactor: Bytes<32>,
+  secondOpening: Bytes<32>,
+  secondBlindingFactor: Bytes<32>
+): [] {
+  assertBlindedSecretHolderBindingWitness(
+    firstBinding,
+    verifierChallengeHash,
+    holderSecret,
+    firstOpening,
+    firstBlindingFactor
+  );
+  assertBlindedSecretHolderBindingWitness(
+    secondBinding,
+    verifierChallengeHash,
+    holderSecret,
+    secondOpening,
+    secondBlindingFactor
+  );
+}

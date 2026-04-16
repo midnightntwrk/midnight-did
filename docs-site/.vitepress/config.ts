@@ -148,6 +148,8 @@ export default defineConfig({
             { text: "Overview", link: "/spec/" },
             { text: "Midnight DID Method", link: "/spec/midnight-method" },
             { text: "Midnight DID Traits", link: "/spec/midnight-did-traits" },
+            { text: "Midnight Credentials", link: "/spec/midnight-credentials" },
+            { text: "Midnight Credentials Explained", link: "/spec/midnight-credentials-for-dummies" },
           ],
         },
       ],

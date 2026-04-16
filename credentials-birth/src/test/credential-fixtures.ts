@@ -9,12 +9,21 @@ import {
 import {
   type Proof,
   pureCircuits as genericPureCircuits,
-  type VerificationMethodId,
+  type VerificationMethodRef,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
 import {
   type BirthCredential,
+  type BirthCredentialIssuanceOffer,
+  type BirthCredentialIssuanceRequest,
+  type BirthCredentialIssuanceResult,
   type BirthCredentialPresentation,
   type BirthCredentialPresentationRequest,
+  type BirthCredentialVerificationRequest,
+  type BirthCredentialVerificationResult,
+  type BirthCredentialVerificationSubmission,
+  type CredentialProtocolFeatures,
+  HolderBindingProfile,
+  type ProtocolMessageEnvelope,
   pureCircuits,
 } from "../managed/birth-credential/contract/index.js";
 
@@ -25,7 +34,7 @@ export type Signer = {
   readonly label: string;
   readonly secretKey: bigint;
   readonly publicKey: JubjubPoint;
-  readonly verificationMethodId: VerificationMethodId;
+  readonly verificationMethodRef: VerificationMethodRef;
 };
 
 export type ProofContext = "issuance" | "presentation";
@@ -51,6 +60,16 @@ export type BirthCredentialFixture = {
   };
 };
 
+export type BirthCredentialProtocolFixture = BirthCredentialFixture & {
+  readonly features: CredentialProtocolFeatures;
+  readonly issuanceOffer: BirthCredentialIssuanceOffer;
+  readonly issuanceRequest: BirthCredentialIssuanceRequest;
+  readonly issuanceResult: BirthCredentialIssuanceResult;
+  readonly verificationRequest: BirthCredentialVerificationRequest;
+  readonly verificationSubmission: BirthCredentialVerificationSubmission;
+  readonly verificationResult: BirthCredentialVerificationResult;
+};
+
 const sha256 = (value: string): Uint8Array =>
   new Uint8Array(createHash("sha256").update(value).digest());
 
@@ -73,18 +92,50 @@ const contractAddress = (label: string): { bytes: Uint8Array } => ({
   bytes: sha256(`contract:${label}`),
 });
 
+const createProtocolEnvelope = ({
+  label,
+  threadLabel,
+  initialMessage,
+  respondsToMessageId,
+  createdAt,
+}: {
+  readonly label: string;
+  readonly threadLabel: string;
+  readonly initialMessage: boolean;
+  readonly respondsToMessageId?: Uint8Array;
+  readonly createdAt: bigint;
+}): ProtocolMessageEnvelope => ({
+  version: 1n,
+  messageId: sha256(`protocol:message:${label}`),
+  threadId: sha256(`protocol:thread:${threadLabel}`),
+  initialMessage,
+  respondsToMessageId:
+    respondsToMessageId ?? genericPureCircuits.noProtocolResponseReference(),
+  createdAt,
+  hasExpiresAt: false,
+  expiresAt: 0n,
+});
+
 export const createSigner = (
   label: string,
   secretKey: bigint,
-  methodIndex: bigint,
+  methodId = `#${label}-key-1`,
 ): Signer => ({
   label,
   secretKey,
   publicKey: ecMulGenerator(secretKey),
-  verificationMethodId: {
+  verificationMethodRef: {
     didContractAddress: contractAddress(label),
-    methodIndex,
+    methodId: padText(methodId),
   },
+});
+
+export const withVerificationMethodRef = (
+  signer: Signer,
+  verificationMethodRef: VerificationMethodRef,
+): Signer => ({
+  ...signer,
+  verificationMethodRef,
 });
 
 const deriveProofChallenge = (
@@ -112,7 +163,7 @@ export const signProof = ({
   readonly nonceScalar: bigint;
 }): Proof => {
   const proof: Proof = {
-    signerVerificationMethodId: signer.verificationMethodId,
+    signerVerificationMethodRef: signer.verificationMethodRef,
     createdAt,
     challengeHash,
     publicKey: signer.publicKey,
@@ -131,10 +182,11 @@ export const signProof = ({
   };
 };
 
-export const createBirthCredentialFixture = (): BirthCredentialFixture => {
-  const issuer = createSigner("issuer", 123456789n, 1n);
-  const holder = createSigner("holder", 987654321n, 1n);
-
+const buildBirthCredentialFixture = (
+  issuer: Signer,
+  holder: Signer,
+  verifierChallengeHash = sha256("challenge:verifier"),
+): BirthCredentialFixture => {
   const witness = {
     subjectId: sha256("subject:alice"),
     subjectOpening: sha256("opening:subject"),
@@ -174,9 +226,9 @@ export const createBirthCredentialFixture = (): BirthCredentialFixture => {
       majorVersion: 1n,
       minorVersion: 0n,
     },
-    issuerVerificationMethodId: issuer.verificationMethodId,
+    issuerVerificationMethodRef: issuer.verificationMethodRef,
     holderBinding: {
-      holderVerificationMethodId: holder.verificationMethodId,
+      holderVerificationMethodRef: holder.verificationMethodRef,
     },
     issuedAt: 10_000n,
     hasExpiration: true,
@@ -197,19 +249,19 @@ export const createBirthCredentialFixture = (): BirthCredentialFixture => {
   const presentationRequest: BirthCredentialPresentationRequest = {
     version: 1n,
     schema: credential.schema,
-    issuerVerificationMethodId: credential.issuerVerificationMethodId,
+    issuerVerificationMethodRef: credential.issuerVerificationMethodRef,
     requireSubjectIdCommitmentDisclosure: false,
     requireBirthCountryDisclosure: true,
     requireAgeOverThreshold: true,
     requestedAgeThresholdYears: 18n,
-    verifierChallengeHash: sha256("challenge:verifier"),
+    verifierChallengeHash,
   };
 
   const presentation: BirthCredentialPresentation = {
     version: 1n,
     schema: credential.schema,
     credentialClaimRoot: credential.claimRoot,
-    issuerVerificationMethodId: credential.issuerVerificationMethodId,
+    issuerVerificationMethodRef: credential.issuerVerificationMethodRef,
     holderBinding: credential.holderBinding,
     disclosed: {
       revealSubjectIdCommitment: false,
@@ -240,5 +292,188 @@ export const createBirthCredentialFixture = (): BirthCredentialFixture => {
     presentation,
     presentationProof,
     witness,
+  };
+};
+
+export const createBirthCredentialFixture = (): BirthCredentialFixture =>
+  buildBirthCredentialFixture(
+    createSigner("issuer", 123456789n),
+    createSigner("holder", 987654321n),
+  );
+
+export const createBirthCredentialFixtureForParticipants = (
+  issuer: Signer,
+  holder: Signer,
+  verifierChallengeHash?: Uint8Array,
+): BirthCredentialFixture =>
+  buildBirthCredentialFixture(issuer, holder, verifierChallengeHash);
+
+export const createBirthCredentialProtocolFixture =
+  (): BirthCredentialProtocolFixture => {
+    const fixture = createBirthCredentialFixture();
+    const features: CredentialProtocolFeatures = {
+      supportsSelectiveDisclosure: true,
+      supportsPredicateProofs: true,
+      supportsVerifierScopedPseudonym: false,
+      supportsSameHolderProof: false,
+    };
+
+    return createBirthCredentialProtocolFixtureFromFixture(fixture, features);
+  };
+
+export const createBirthCredentialProtocolFixtureForParticipants = (
+  issuer: Signer,
+  holder: Signer,
+  verifierChallengeHash?: Uint8Array,
+): BirthCredentialProtocolFixture =>
+  createBirthCredentialProtocolFixtureFromFixture(
+    createBirthCredentialFixtureForParticipants(
+      issuer,
+      holder,
+      verifierChallengeHash,
+    ),
+  );
+
+const createBirthCredentialProtocolFixtureFromFixture = (
+  fixture: BirthCredentialFixture,
+  features: CredentialProtocolFeatures = {
+    supportsSelectiveDisclosure: true,
+    supportsPredicateProofs: true,
+    supportsVerifierScopedPseudonym: false,
+    supportsSameHolderProof: false,
+  },
+): BirthCredentialProtocolFixture => {
+  const normalizedFeatures: CredentialProtocolFeatures = {
+    supportsSelectiveDisclosure: features.supportsSelectiveDisclosure,
+    supportsPredicateProofs: features.supportsPredicateProofs,
+    supportsVerifierScopedPseudonym: features.supportsVerifierScopedPseudonym,
+    supportsSameHolderProof: features.supportsSameHolderProof,
+  };
+
+  const issuanceOffer: BirthCredentialIssuanceOffer = {
+    envelope: createProtocolEnvelope({
+      label: "issuance-offer",
+      threadLabel: "birth-issuance",
+      initialMessage: true,
+      createdAt: 20_000n,
+    }),
+    schema: fixture.credential.schema,
+    issuerVerificationMethodRef: fixture.credential.issuerVerificationMethodRef,
+    holderBindingProfile: HolderBindingProfile.explicitDid,
+    features: normalizedFeatures,
+    body: {
+      supportsExpiration: true,
+      defaultExpirationDays: 365n,
+      requiresHolderPublicKey: true,
+    },
+  };
+
+  const issuanceRequest: BirthCredentialIssuanceRequest = {
+    envelope: createProtocolEnvelope({
+      label: "issuance-request",
+      threadLabel: "birth-issuance",
+      initialMessage: false,
+      respondsToMessageId: issuanceOffer.envelope.messageId,
+      createdAt: 20_010n,
+    }),
+    schema: fixture.credential.schema,
+    issuerVerificationMethodRef: fixture.credential.issuerVerificationMethodRef,
+    holderBindingProfile: HolderBindingProfile.explicitDid,
+    body: {
+      holderBinding: fixture.credential.holderBinding,
+      holderPublicKey: fixture.holder.publicKey,
+      holderChallengeHash: fixture.credentialProof.challengeHash,
+      requestExpiration: true,
+      requestedExpirationDays: 365n,
+    },
+  };
+
+  const issuanceResult: BirthCredentialIssuanceResult = {
+    envelope: createProtocolEnvelope({
+      label: "issuance-result",
+      threadLabel: "birth-issuance",
+      initialMessage: false,
+      respondsToMessageId: issuanceRequest.envelope.messageId,
+      createdAt: 20_020n,
+    }),
+    schema: fixture.credential.schema,
+    issuerVerificationMethodRef: fixture.credential.issuerVerificationMethodRef,
+    holderBindingProfile: HolderBindingProfile.explicitDid,
+    body: {
+      credential: fixture.credential,
+      credentialProof: fixture.credentialProof,
+      holderPublicKey: fixture.holder.publicKey,
+      issuanceChallengeHash: fixture.credentialProof.challengeHash,
+    },
+  };
+
+  const verificationRequest: BirthCredentialVerificationRequest = {
+    envelope: createProtocolEnvelope({
+      label: "verification-request",
+      threadLabel: "birth-verification",
+      initialMessage: true,
+      createdAt: 21_000n,
+    }),
+    schema: fixture.credential.schema,
+    issuerVerificationMethodRef: fixture.credential.issuerVerificationMethodRef,
+    holderBindingProfile: HolderBindingProfile.explicitDid,
+    features: normalizedFeatures,
+    verifierChallengeHash: fixture.presentationRequest.verifierChallengeHash,
+    body: {
+      requireSubjectIdCommitmentDisclosure:
+        fixture.presentationRequest.requireSubjectIdCommitmentDisclosure,
+      requireBirthCountryDisclosure:
+        fixture.presentationRequest.requireBirthCountryDisclosure,
+      requireAgeOverThreshold:
+        fixture.presentationRequest.requireAgeOverThreshold,
+      requestedAgeThresholdYears:
+        fixture.presentationRequest.requestedAgeThresholdYears,
+    },
+  };
+
+  const verificationSubmission: BirthCredentialVerificationSubmission = {
+    envelope: createProtocolEnvelope({
+      label: "verification-submission",
+      threadLabel: "birth-verification",
+      initialMessage: false,
+      respondsToMessageId: verificationRequest.envelope.messageId,
+      createdAt: 21_010n,
+    }),
+    schema: fixture.credential.schema,
+    issuerVerificationMethodRef: fixture.credential.issuerVerificationMethodRef,
+    holderBindingProfile: HolderBindingProfile.explicitDid,
+    challengeHash: fixture.presentationProof.challengeHash,
+    body: {
+      credential: fixture.credential,
+      credentialProof: fixture.credentialProof,
+      presentation: fixture.presentation,
+      presentationProof: fixture.presentationProof,
+    },
+  };
+
+  const verificationResult: BirthCredentialVerificationResult = {
+    envelope: createProtocolEnvelope({
+      label: "verification-result",
+      threadLabel: "birth-verification",
+      initialMessage: false,
+      respondsToMessageId: verificationSubmission.envelope.messageId,
+      createdAt: 21_020n,
+    }),
+    approved: true,
+    body: {
+      credentialRoot: pureCircuits.birthCredentialBodyRoot(fixture.credential),
+      verifiedThresholdYears: fixture.presentation.disclosed.ageThresholdYears,
+    },
+  };
+
+  return {
+    ...fixture,
+    features: normalizedFeatures,
+    issuanceOffer,
+    issuanceRequest,
+    issuanceResult,
+    verificationRequest,
+    verificationSubmission,
+    verificationResult,
   };
 };

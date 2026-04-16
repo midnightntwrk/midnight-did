@@ -74,7 +74,7 @@ describe("credentials demo contract", () => {
   it("rejects presentation verification when the holder proof key does not match the issued binding", () => {
     const fixture = createBirthCredentialFixture();
     const simulator = new CredentialsDemoSimulator();
-    const attacker = createSigner("attacker", 111111111n, 1n);
+    const attacker = createSigner("attacker", 111111111n);
     const attackerProof = signProof({
       bodyRoot: pureCircuits.birthCredentialPresentationBodyRoot(fixture.presentation),
       context: "presentation",
@@ -164,7 +164,7 @@ describe("credentials demo contract", () => {
     const fixture = createBirthCredentialFixture();
     const simulator = new CredentialsDemoSimulator();
     const request = simulator.ageGateRequest(
-      fixture.credential.issuerVerificationMethodId,
+      fixture.credential.issuerVerificationMethodRef,
       fixture.presentationRequest.verifierChallengeHash,
     );
 

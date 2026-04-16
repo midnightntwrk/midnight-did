@@ -2,6 +2,11 @@
 
 Birth-credential specialization for the generic Midnight VC/VP core.
 
+Related docs:
+
+- spec: [`../research/midnight-credentials.md`](../research/midnight-credentials.md)
+- companion guide: [`../research/midnight-credentials-for-dummies.md`](../research/midnight-credentials-for-dummies.md)
+
 ## Purpose
 
 This package defines the birth-credential family on top of the generic
@@ -35,6 +40,15 @@ This package owns:
 - `BirthCredentialPresentation`
 - birth-specific commitment helpers
 - birth-specific validation, request, and predicate circuits
+
+## Why this package exists
+
+This package is the simplest concrete credential family in the repository.
+Use it when you want to understand:
+
+- how the generic VC/VP envelope becomes a real credential family
+- how claim commitments are laid out for one schema
+- how a verifier request and an age predicate are wired in practice
 
 ## Build and test
 

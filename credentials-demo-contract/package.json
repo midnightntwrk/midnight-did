@@ -22,8 +22,9 @@
   "scripts": {
     "contract": "npm run compact",
     "compact": "compact compile src/demo.compact src/managed/demo && node ./scripts/align-runtime-version.mjs && node ./scripts/strip-managed-sourcemaps.mjs",
-    "test": "vitest run",
-    "test:ci": "vitest run",
+    "test": "vitest run --exclude src/test/integration/**/*.test.ts",
+    "test:integration": "vitest run --dir src/test/integration",
+    "test:ci": "vitest run --exclude src/test/integration/**/*.test.ts",
     "prepack": "npm run build",
     "clean": "rm -rf dist && rm -rf coverage && rm -rf reports",
     "build": "rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/demo.compact ./dist",

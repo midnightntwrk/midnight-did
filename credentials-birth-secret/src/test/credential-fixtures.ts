@@ -9,7 +9,7 @@ import {
 import {
   type Proof,
   pureCircuits as genericPureCircuits,
-  type VerificationMethodId,
+  type VerificationMethodRef,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
 import {
   type BirthCredentialPresentationRequest,
@@ -25,7 +25,7 @@ export type Signer = {
   readonly label: string;
   readonly secretKey: bigint;
   readonly publicKey: JubjubPoint;
-  readonly verificationMethodId: VerificationMethodId;
+  readonly verificationMethodRef: VerificationMethodRef;
 };
 
 export type BirthCredentialFixture = {
@@ -50,6 +50,25 @@ export type BirthCredentialFixture = {
     readonly birthCountryCodeOpening: Uint8Array;
     readonly currentDay: bigint;
   };
+};
+
+export type SecretBirthCredentialFixtureOptions = {
+  readonly issuerLabel?: string;
+  readonly issuerSecretKey?: bigint;
+  readonly holderSecret?: Uint8Array;
+  readonly holderSecretOpening?: Uint8Array;
+  readonly holderBindingBlindingFactor?: Uint8Array;
+  readonly holderBindingIssuerNonce?: Uint8Array;
+  readonly verifierDomainHash?: Uint8Array;
+  readonly subjectId?: Uint8Array;
+  readonly subjectOpening?: Uint8Array;
+  readonly legalNamePadded?: Uint8Array;
+  readonly legalNameOpening?: Uint8Array;
+  readonly birthDateDays?: bigint;
+  readonly birthDateOpening?: Uint8Array;
+  readonly birthCountryCodePadded?: Uint8Array;
+  readonly birthCountryCodeOpening?: Uint8Array;
+  readonly currentDay?: bigint;
 };
 
 const sha256 = (value: string): Uint8Array =>
@@ -77,14 +96,14 @@ const contractAddress = (label: string): { bytes: Uint8Array } => ({
 export const createSigner = (
   label: string,
   secretKey: bigint,
-  methodIndex: bigint,
+  methodId = `#${label}-key-1`,
 ): Signer => ({
   label,
   secretKey,
   publicKey: ecMulGenerator(secretKey),
-  verificationMethodId: {
+  verificationMethodRef: {
     didContractAddress: contractAddress(label),
-    methodIndex,
+    methodId: padText(methodId),
   },
 });
 
@@ -102,7 +121,7 @@ export const signProof = ({
   readonly nonceScalar: bigint;
 }): Proof => {
   const proof: Proof = {
-    signerVerificationMethodId: signer.verificationMethodId,
+    signerVerificationMethodRef: signer.verificationMethodRef,
     createdAt,
     challengeHash,
     publicKey: signer.publicKey,
@@ -121,134 +140,144 @@ export const signProof = ({
   };
 };
 
-export const createSecretBirthCredentialFixture =
-  (): BirthCredentialFixture => {
-    const issuer = createSigner("issuer", 123456789n, 1n);
+export const createSecretBirthCredentialFixture = (
+  options: SecretBirthCredentialFixtureOptions = {},
+): BirthCredentialFixture => {
+  const issuer = createSigner(
+    options.issuerLabel ?? "issuer",
+    options.issuerSecretKey ?? 123456789n,
+  );
 
-    const witness = {
-      holderSecret: sha256("holder-secret:alice"),
-      holderSecretOpening: sha256("opening:holder-secret"),
-      holderBindingBlindingFactor: sha256("blinding:holder-secret"),
-      holderBindingIssuerNonce: sha256("issuer-nonce:birth-secret"),
-      verifierDomainHash: sha256("verifier-domain:age-gateway.example"),
-      subjectId: sha256("subject:alice"),
-      subjectOpening: sha256("opening:subject"),
-      legalNamePadded: padText("Alice Example"),
-      legalNameOpening: sha256("opening:legal-name"),
-      birthDateDays: 3650n,
-      birthDateOpening: sha256("opening:birth-date"),
-      birthCountryCodePadded: padText("CAN"),
-      birthCountryCodeOpening: sha256("opening:birth-country"),
-      currentDay: 3650n + 365n * 25n,
-    };
-
-    const claims = {
-      subjectIdCommitment: pureCircuits.subjectIdCommitment(
-        witness.subjectId,
-        witness.subjectOpening,
-      ),
-      legalNameCommitment: pureCircuits.legalNameCommitment(
-        witness.legalNamePadded,
-        witness.legalNameOpening,
-      ),
-      birthDateCommitment: pureCircuits.birthDateCommitment(
-        witness.birthDateDays,
-        witness.birthDateOpening,
-      ),
-      birthCountryCodeCommitment: pureCircuits.birthCountryCodeCommitment(
-        witness.birthCountryCodePadded,
-        witness.birthCountryCodeOpening,
-      ),
-    };
-
-    const credential: SecretBirthCredential = {
-      version: 1n,
-      schema: {
-        packageId: padText("midnight-did:vc:birth-secret"),
-        schemaId: padText("birth-credential:v1"),
-        majorVersion: 1n,
-        minorVersion: 0n,
-      },
-      issuerVerificationMethodId: issuer.verificationMethodId,
-      holderBinding: {
-        blindedHolderSecretCommitment:
-          genericPureCircuits.blindedSecretHolderCommitment(
-            genericPureCircuits.secretHolderBindingCommitment(
-              witness.holderSecret,
-              witness.holderSecretOpening,
-            ),
-            witness.holderBindingIssuerNonce,
-            witness.holderBindingBlindingFactor,
-          ),
-        issuerNonce: witness.holderBindingIssuerNonce,
-        requestChallengeResponse:
-          genericPureCircuits.noSecretHolderChallengeResponse(),
-      },
-      issuedAt: 10_000n,
-      hasExpiration: true,
-      expiresAt: 20_000n,
-      claims,
-      claimRoot: pureCircuits.birthCredentialClaimRoot(claims),
-    };
-
-    const credentialProof = signProof({
-      bodyRoot: pureCircuits.secretBirthCredentialBodyRoot(credential),
-      signer: issuer,
-      createdAt: 10_001n,
-      challengeHash: sha256("challenge:issuance"),
-      nonceScalar: 11n,
-    });
-
-    const presentationRequest: BirthCredentialPresentationRequest = {
-      version: 1n,
-      schema: credential.schema,
-      issuerVerificationMethodId: credential.issuerVerificationMethodId,
-      requireSubjectIdCommitmentDisclosure: false,
-      requireBirthCountryDisclosure: true,
-      requireVerifierScopedPseudonym: true,
-      verifierDomainHash: witness.verifierDomainHash,
-      requireAgeOverThreshold: true,
-      requestedAgeThresholdYears: 18n,
-      verifierChallengeHash: sha256("challenge:verifier"),
-    };
-
-    const presentation: SecretBirthCredentialPresentation = {
-      version: 1n,
-      schema: credential.schema,
-      credentialClaimRoot: credential.claimRoot,
-      issuerVerificationMethodId: credential.issuerVerificationMethodId,
-      holderBinding: {
-        blindedHolderSecretCommitment:
-          credential.holderBinding.blindedHolderSecretCommitment,
-        issuerNonce: credential.holderBinding.issuerNonce,
-        requestChallengeResponse:
-          genericPureCircuits.secretHolderBindingChallengeResponse(
-            witness.holderSecret,
-            presentationRequest.verifierChallengeHash,
-          ),
-      },
-      disclosed: {
-        revealSubjectIdCommitment: false,
-        subjectIdCommitment: new Uint8Array(32),
-        revealBirthCountryCode: true,
-        birthCountryCodePadded: witness.birthCountryCodePadded,
-        birthCountryCodeOpening: witness.birthCountryCodeOpening,
-        revealVerifierScopedPseudonym: true,
-        verifierScopedPseudonym: genericPureCircuits.verifierScopedPseudonym(
-          witness.holderSecret,
-          witness.verifierDomainHash,
-        ),
-        proveAgeOverThreshold: true,
-        ageThresholdYears: 18n,
-      },
-    };
-
-    return {
-      issuer,
-      credential,
-      credentialProof,
-      presentationRequest,
-      presentation,
-      witness,
-    };
+  const witness = {
+    holderSecret: options.holderSecret ?? sha256("holder-secret:alice"),
+    holderSecretOpening:
+      options.holderSecretOpening ?? sha256("opening:holder-secret"),
+    holderBindingBlindingFactor:
+      options.holderBindingBlindingFactor ?? sha256("blinding:holder-secret"),
+    holderBindingIssuerNonce:
+      options.holderBindingIssuerNonce ?? sha256("issuer-nonce:birth-secret"),
+    verifierDomainHash:
+      options.verifierDomainHash ??
+      sha256("verifier-domain:age-gateway.example"),
+    subjectId: options.subjectId ?? sha256("subject:alice"),
+    subjectOpening: options.subjectOpening ?? sha256("opening:subject"),
+    legalNamePadded: options.legalNamePadded ?? padText("Alice Example"),
+    legalNameOpening: options.legalNameOpening ?? sha256("opening:legal-name"),
+    birthDateDays: options.birthDateDays ?? 3650n,
+    birthDateOpening: options.birthDateOpening ?? sha256("opening:birth-date"),
+    birthCountryCodePadded: options.birthCountryCodePadded ?? padText("CAN"),
+    birthCountryCodeOpening:
+      options.birthCountryCodeOpening ?? sha256("opening:birth-country"),
+    currentDay: options.currentDay ?? 3650n + 365n * 25n,
   };
+
+  const claims = {
+    subjectIdCommitment: pureCircuits.subjectIdCommitment(
+      witness.subjectId,
+      witness.subjectOpening,
+    ),
+    legalNameCommitment: pureCircuits.legalNameCommitment(
+      witness.legalNamePadded,
+      witness.legalNameOpening,
+    ),
+    birthDateCommitment: pureCircuits.birthDateCommitment(
+      witness.birthDateDays,
+      witness.birthDateOpening,
+    ),
+    birthCountryCodeCommitment: pureCircuits.birthCountryCodeCommitment(
+      witness.birthCountryCodePadded,
+      witness.birthCountryCodeOpening,
+    ),
+  };
+
+  const credential: SecretBirthCredential = {
+    version: 1n,
+    schema: {
+      packageId: padText("midnight-did:vc:birth-secret"),
+      schemaId: padText("birth-credential:v1"),
+      majorVersion: 1n,
+      minorVersion: 0n,
+    },
+    issuerVerificationMethodRef: issuer.verificationMethodRef,
+    holderBinding: {
+      blindedHolderSecretCommitment:
+        genericPureCircuits.blindedSecretHolderCommitment(
+          genericPureCircuits.secretHolderBindingCommitment(
+            witness.holderSecret,
+            witness.holderSecretOpening,
+          ),
+          witness.holderBindingIssuerNonce,
+          witness.holderBindingBlindingFactor,
+        ),
+      issuerNonce: witness.holderBindingIssuerNonce,
+      requestChallengeResponse:
+        genericPureCircuits.noSecretHolderChallengeResponse(),
+    },
+    issuedAt: 10_000n,
+    hasExpiration: true,
+    expiresAt: 20_000n,
+    claims,
+    claimRoot: pureCircuits.birthCredentialClaimRoot(claims),
+  };
+
+  const credentialProof = signProof({
+    bodyRoot: pureCircuits.secretBirthCredentialBodyRoot(credential),
+    signer: issuer,
+    createdAt: 10_001n,
+    challengeHash: sha256("challenge:issuance"),
+    nonceScalar: 11n,
+  });
+
+  const presentationRequest: BirthCredentialPresentationRequest = {
+    version: 1n,
+    schema: credential.schema,
+    issuerVerificationMethodRef: credential.issuerVerificationMethodRef,
+    requireSubjectIdCommitmentDisclosure: false,
+    requireBirthCountryDisclosure: true,
+    requireVerifierScopedPseudonym: true,
+    verifierDomainHash: witness.verifierDomainHash,
+    requireAgeOverThreshold: true,
+    requestedAgeThresholdYears: 18n,
+    verifierChallengeHash: sha256("challenge:verifier"),
+  };
+
+  const presentation: SecretBirthCredentialPresentation = {
+    version: 1n,
+    schema: credential.schema,
+    credentialClaimRoot: credential.claimRoot,
+    issuerVerificationMethodRef: credential.issuerVerificationMethodRef,
+    holderBinding: {
+      blindedHolderSecretCommitment:
+        credential.holderBinding.blindedHolderSecretCommitment,
+      issuerNonce: credential.holderBinding.issuerNonce,
+      requestChallengeResponse:
+        genericPureCircuits.secretHolderBindingChallengeResponse(
+          witness.holderSecret,
+          presentationRequest.verifierChallengeHash,
+        ),
+    },
+    disclosed: {
+      revealSubjectIdCommitment: false,
+      subjectIdCommitment: new Uint8Array(32),
+      revealBirthCountryCode: true,
+      birthCountryCodePadded: witness.birthCountryCodePadded,
+      birthCountryCodeOpening: witness.birthCountryCodeOpening,
+      revealVerifierScopedPseudonym: true,
+      verifierScopedPseudonym: genericPureCircuits.verifierScopedPseudonym(
+        witness.holderSecret,
+        witness.verifierDomainHash,
+      ),
+      proveAgeOverThreshold: true,
+      ageThresholdYears: 18n,
+    },
+  };
+
+  return {
+    issuer,
+    credential,
+    credentialProof,
+    presentationRequest,
+    presentation,
+    witness,
+  };
+};

@@ -1,0 +1,76 @@
+export circuit birthCredentialBodyRoot(credential: BirthCredential): Bytes<32> {
+  return credentialBodyRoot(credential);
+}
+
+export circuit birthCredentialPresentationBodyRoot(presentation: BirthCredentialPresentation): Bytes<32> {
+  return presentationBodyRoot(presentation);
+}
+
+export circuit birthCredentialPresentationRequestBodyRoot(
+  request: BirthCredentialPresentationRequest
+): Bytes<32> {
+  return persistentHash<BirthCredentialPresentationRequest>(request);
+}
+
+export circuit birthCredentialClaimRoot(claims: BirthCredentialClaims): Bytes<32> {
+  return persistentHash<Vector<5, Bytes<32>>>([
+    pad(32, "midnight:vc:birth:v1"),
+    claims.subjectIdCommitment,
+    claims.legalNameCommitment,
+    claims.birthDateCommitment,
+    claims.birthCountryCodeCommitment
+  ]);
+}
+
+export circuit subjectIdCommitment(subjectId: Bytes<32>, opening: Bytes<32>): Bytes<32> {
+  return persistentCommit<Bytes<32>>(subjectId, opening);
+}
+
+export circuit birthDateCommitment(birthDateDays: Uint<32>, opening: Bytes<32>): Bytes<32> {
+  return persistentCommit<Uint<32>>(birthDateDays, opening);
+}
+
+export circuit legalNameCommitment(legalNamePadded: Bytes<32>, opening: Bytes<32>): Bytes<32> {
+  return persistentCommit<Bytes<32>>(legalNamePadded, opening);
+}
+
+export circuit birthCountryCodeCommitment(
+  birthCountryCodePadded: Bytes<32>,
+  opening: Bytes<32>
+): Bytes<32> {
+  return persistentCommit<Bytes<32>>(birthCountryCodePadded, opening);
+}
+
+export circuit assertValidBirthSchemaRef(schema: SchemaRef): [] {
+  assert(schema.packageId == pad(32, "midnight-did:vc:birth"), "Unexpected schema package identifier");
+  assert(schema.schemaId == pad(32, "birth-credential:v1"), "Unexpected schema identifier");
+  assert(schema.majorVersion == 1, "Birth credential major version mismatch");
+}
+
+export circuit assertValidBirthCredentialPresentationRequest(
+  request: BirthCredentialPresentationRequest
+): [] {
+  assert(request.version == 1, "Presentation request version mismatch");
+  assertValidBirthSchemaRef(request.schema);
+  assertValidVerificationMethodRef(request.issuerVerificationMethodRef);
+  if (request.requireAgeOverThreshold) {
+    assert(request.requestedAgeThresholdYears > 0, "Requested age threshold must be positive");
+  } else {
+    assert(request.requestedAgeThresholdYears == 0, "Requested age threshold must be zero when disabled");
+  }
+}
+
+export circuit birthCredentialPresentationRequestFromProtocol(
+  request: BirthCredentialVerificationRequest
+): BirthCredentialPresentationRequest {
+  return BirthCredentialPresentationRequest {
+    version: request.envelope.version,
+    schema: request.schema,
+    issuerVerificationMethodRef: request.issuerVerificationMethodRef,
+    requireSubjectIdCommitmentDisclosure: request.body.requireSubjectIdCommitmentDisclosure,
+    requireBirthCountryDisclosure: request.body.requireBirthCountryDisclosure,
+    requireAgeOverThreshold: request.body.requireAgeOverThreshold,
+    requestedAgeThresholdYears: request.body.requestedAgeThresholdYears,
+    verifierChallengeHash: request.verifierChallengeHash,
+  };
+}

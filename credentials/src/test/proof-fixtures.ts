@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { TextEncoder } from "node:util";
 
 import {
   ecMulGenerator,
@@ -8,7 +9,7 @@ import {
 import {
   type Proof,
   pureCircuits,
-  type VerificationMethodId,
+  type VerificationMethodRef,
 } from "../managed/credentials/contract/index.js";
 
 const JUBJUB_FIELD_MODULUS =
@@ -18,11 +19,21 @@ export type Signer = {
   readonly label: string;
   readonly secretKey: bigint;
   readonly publicKey: JubjubPoint;
-  readonly verificationMethodId: VerificationMethodId;
+  readonly verificationMethodRef: VerificationMethodRef;
 };
 
 const sha256 = (value: string): Uint8Array =>
   new Uint8Array(createHash("sha256").update(value).digest());
+
+const padText = (value: string, length = 32): Uint8Array => {
+  const bytes = new TextEncoder().encode(value);
+  if (bytes.length >= length) {
+    return bytes.subarray(0, length);
+  }
+  const padded = new Uint8Array(length);
+  padded.set(bytes);
+  return padded;
+};
 
 const mod = (value: bigint): bigint => {
   const reduced = value % JUBJUB_FIELD_MODULUS;
@@ -36,14 +47,14 @@ const contractAddress = (label: string): { bytes: Uint8Array } => ({
 export const createSigner = (
   label: string,
   secretKey: bigint,
-  methodIndex: bigint,
+  methodId = `#${label}-key-1`,
 ): Signer => ({
   label,
   secretKey,
   publicKey: ecMulGenerator(secretKey),
-  verificationMethodId: {
+  verificationMethodRef: {
     didContractAddress: contractAddress(label),
-    methodIndex,
+    methodId: padText(methodId),
   },
 });
 
@@ -74,7 +85,7 @@ export const signProof = ({
   readonly nonceScalar: bigint;
 }): Proof => {
   const proof: Proof = {
-    signerVerificationMethodId: signer.verificationMethodId,
+    signerVerificationMethodRef: signer.verificationMethodRef,
     createdAt,
     challengeHash,
     publicKey: signer.publicKey,
@@ -94,7 +105,7 @@ export const signProof = ({
 };
 
 export const createProofFixture = () => {
-  const signer = createSigner("issuer", 123456789n, 1n);
+  const signer = createSigner("issuer", 123456789n);
   const bodyRoot = sha256("credential-body-root");
   const proof = signProof({
     bodyRoot,

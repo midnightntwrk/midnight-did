@@ -1,0 +1,39 @@
+export struct BirthCredentialIssuanceOfferBody {
+  supportsExpiration: Boolean,
+  defaultExpirationDays: Uint<16>,
+  requiresHolderPublicKey: Boolean,
+}
+
+export struct BirthCredentialIssuanceRequestBody {
+  holderBinding: ExplicitHolderBinding,
+  holderPublicKey: JubjubPoint,
+  holderChallengeHash: Bytes<32>,
+  requestExpiration: Boolean,
+  requestedExpirationDays: Uint<16>,
+}
+
+export struct BirthCredentialIssuanceResultBody {
+  credential: BirthCredential,
+  credentialProof: Proof,
+  holderPublicKey: JubjubPoint,
+  issuanceChallengeHash: Bytes<32>,
+}
+
+export struct BirthCredentialVerificationRequestBody {
+  requireSubjectIdCommitmentDisclosure: Boolean,
+  requireBirthCountryDisclosure: Boolean,
+  requireAgeOverThreshold: Boolean,
+  requestedAgeThresholdYears: Uint<8>,
+}
+
+export struct BirthCredentialVerificationSubmissionBody {
+  credential: BirthCredential,
+  credentialProof: Proof,
+  presentation: BirthCredentialPresentation,
+  presentationProof: Proof,
+}
+
+export struct BirthCredentialVerificationResultBody {
+  credentialRoot: Bytes<32>,
+  verifiedThresholdYears: Uint<8>,
+}

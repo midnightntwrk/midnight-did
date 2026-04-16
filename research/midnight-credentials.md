@@ -6,6 +6,12 @@ Status: Draft specification with partial Compact prototype coverage
 
 Repository scope: `midnight-did`
 
+Companion guide:
+
+- `research/midnight-credentials-for-dummies.md`
+- docs site entry: `/spec/midnight-credentials`
+- docs site companion: `/spec/midnight-credentials-for-dummies`
+
 ## Change Log
 ### `0.1-draft`
 
@@ -61,7 +67,7 @@ This draft does not attempt to provide:
 | `VC` | A typed Midnight credential envelope plus schema-defined claims and an issuer proof |
 | `VP` | A typed Midnight presentation envelope plus bounded disclosures and a holder-side presentation proof |
 | `SchemaRef` | A Compact-native schema identifier containing package, schema, and version information |
-| `VerificationMethodId` | A Compact-native DID verification method reference: `didContractAddress + methodIndex` |
+| `VerificationMethodRef` | A Compact-native DID verification method reference: `didContractAddress + methodId` |
 | `Holder binding` | The mechanism that binds a credential to a specific holder or holder secret |
 | `Explicit holder binding` | Holder binding through a public DID verification method reference |
 | `Secret holder binding` | Holder binding through a hidden holder secret rather than a public DID method |
@@ -167,7 +173,7 @@ This is more idiomatic for Midnight than copying a transport-oriented VC bundle 
 
 ### Architectural Layers
 
-The current Midnight Credentials solution should be understood as four layers.
+The current Midnight Credentials solution should be understood as five layers.
 
 #### Layer 1: generic capabilities layer
 
@@ -264,6 +270,30 @@ Typical examples:
 
 This layer should not redefine the credential semantics already owned by layers 1 and 2. Its job is orchestration, not duplication of verification logic.
 
+#### Layer 5: governance and trust-policy layer
+
+This layer is acknowledged now, but remains abstract in the current prototype.
+
+It is the place where an ecosystem would eventually answer questions such as:
+
+- which issuers are trusted for which credential families
+- which verifiers are allowed to request which disclosures or predicates
+- which schema identifiers and versions are approved
+- which policies apply on which Midnight networks
+- how trust anchors, accreditation, suspension, or policy evolution are represented
+
+Typical future examples:
+
+- a trust registry of issuers
+- a trust registry of verifiers
+- schema support and version policy
+- ecosystem-level issuance and verification policy
+
+This layer should not change the cryptographic meaning of the credential or presentation itself.
+Its role is to govern trust and policy around those artifacts, not to redefine Layer 1 through Layer 4 semantics.
+
+For that reason, the current work treats this layer as future scope rather than something to fold into the generic VC/VP core prematurely.
+
 #### Layering recommendation
 
 The intended separation is:
@@ -272,8 +302,10 @@ The intended separation is:
 2. layer 2 defines concrete credential families and predicates
 3. layer 3 defines contract-native business policy
 4. layer 4 coordinates multi-contract or mixed on-chain/off-chain workflows when one contract is not enough
+5. layer 5 governs trust and policy for issuers, verifiers, and schema support
 
-This fourth layer is especially useful until richer contract composability is available.
+Layer 4 is especially useful until richer contract composability is available.
+Layer 5 is intentionally left abstract until the VC core and protocol boundaries settle.
 
 #### Prototype capability profiles
 
@@ -291,6 +323,7 @@ compose only the capabilities they actually need.
 | Hidden-holder flow | secret holder binding, issuer proof, holder witness verification | avoid a stable public holder DID in the verifier-facing flow | `credentials-birth-secret` tests |
 | Advanced privacy flow | secret holder binding, blinded holder anchor, verifier-domain pseudonym, selective disclosure, age predicate | support stronger privacy controls while still proving business eligibility | `credentials-birth-secret` tests |
 | Contract-native gated access flow | typed presentation request plus reusable capability issuance | issue a contract-level capability and consume it later with soft business denial states | `credentials-demo-contract` tests |
+| Same-holder credential composition | two secret-holder credentials, one shared verifier challenge, one shared hidden holder secret witness | prove that multiple credentials belong to the same holder without revealing a stable public DID | `credentials` and `credentials-birth-secret` tests |
 
 This profile matrix is deliberate.
 
@@ -308,7 +341,7 @@ The generic `VC<TClaims, TDisclosures, THolderBinding>.Credential` envelope cont
 | --- | --- |
 | `version` | schema version for the credential body |
 | `schema` | package and schema identity |
-| `issuerVerificationMethodId` | issuer DID method reference in Compact-native form |
+| `issuerVerificationMethodRef` | issuer DID method reference in Compact-native form |
 | `holderBinding` | specialization-defined holder binding, such as an explicit DID method or a hidden holder-secret commitment |
 | `issuedAt` / `expiresAt` | validity window |
 | `claims` | schema-specific claim payload |
@@ -336,7 +369,7 @@ The generic `VC<TClaims, TDisclosures, THolderBinding>.Presentation` envelope co
 | `version` | schema version for the presentation body |
 | `schema` | schema identity matching the credential |
 | `credentialClaimRoot` | anchor back to the issued credential claim set |
-| `issuerVerificationMethodId` | issuer DID method reference copied for verification context |
+| `issuerVerificationMethodRef` | issuer DID method reference copied for verification context |
 | `holderBinding` | specialization-defined holder binding carried forward into the presentation |
 | `disclosed` | schema-specific bounded disclosure and predicate-request layout |
 
@@ -358,7 +391,7 @@ It contains:
 | --- | --- |
 | `version` | request schema version |
 | `schema` | required schema identity |
-| `issuerVerificationMethodId` | issuer restriction for the credential to be presented |
+| `issuerVerificationMethodRef` | issuer restriction for the credential to be presented |
 | `requireSubjectIdCommitmentDisclosure` | whether the subject commitment must be disclosed |
 | `requireBirthCountryDisclosure` | whether the birth-country claim must be disclosed |
 | `requireVerifierScopedPseudonym` | whether the verifier requires a stable pairwise pseudonym for its own domain |
@@ -402,7 +435,7 @@ It contains:
 
 | Field | Meaning |
 | --- | --- |
-| `signerVerificationMethodId` | DID method reference for the signer |
+| `signerVerificationMethodRef` | DID method reference for the signer |
 | `createdAt` | proof timestamp |
 | `challengeHash` | anti-replay interaction binding |
 | `publicKey` | public key needed by the Compact verifier |
@@ -480,7 +513,7 @@ The goal is to make each circuit understandable in terms of:
 | Circuit | Purpose | Logic | Pros vs W3C VC/VP | Cons / trade-offs |
 | --- | --- | --- | --- | --- |
 | `verifySignature(pk, signature, challenge)` | Verify the canonical Midnight VC/VP signature primitive | checks the Jubjub signature equation in-circuit | native to Midnight proving model; no external verifier dependency | intentionally not proof-suite agnostic; unlike W3C ecosystems, suite negotiation is outside the generic core |
-| `assertValidCredentialProof(credential, proof)` | Enforce issuer-side proof binding for a credential | checks signer DID method equals `issuerVerificationMethodId`, then validates an issuance-context proof over `credentialBodyRoot` | makes issuer authorization explicit and mandatory in reusable logic | assumes the issuer method reference is already the right DID verification relationship; DID-document-level policy enforcement sits outside this package |
+| `assertValidCredentialProof(credential, proof)` | Enforce issuer-side proof binding for a credential | checks signer DID method equals `issuerVerificationMethodRef`, then validates an issuance-context proof over `credentialBodyRoot` | makes issuer authorization explicit and mandatory in reusable logic | assumes the issuer method reference is already the right DID verification relationship; DID-document-level policy enforcement sits outside this package |
 | `assertValidIssuanceContextProof(bodyRoot, proof)` | Verify a proof under issuance semantics | derives issuance-specific challenge domain and verifies signature | keeps issuance/presentation separation without redundant proof state | the distinction is Compact-native, not a serializable `proofPurpose` field |
 | `assertValidPresentationContextProof(bodyRoot, proof)` | Verify a proof under presentation semantics | derives presentation-specific challenge domain and verifies signature | same explicit domain separation benefit | same trade-off as above |
 
@@ -490,9 +523,9 @@ The generic core now exposes two reusable holder-binding helper sets instead of 
 
 | Circuit | Purpose | Logic | Pros vs W3C VC/VP | Cons / trade-offs |
 | --- | --- | --- | --- | --- |
-| `assertValidExplicitHolderBinding(binding)` | Validate the explicit DID-bound holder profile | checks the holder verification method index is set | very simple and auditable for DID-bound operational flows | explicit holder DID references are more correlatable across verifiers |
-| `assertMatchingExplicitHolderBindings(credentialBinding, presentationBinding)` | Ensure the presentation reuses the issued explicit holder binding | compares DID contract address and method index | straightforward DID-authenticated holder model | intentionally not privacy-preserving |
-| `assertProofMatchesExplicitHolderBinding(binding, presentationProof)` | Bind a presentation proof to the explicit holder DID method | checks the proof signer matches the explicit holder binding | maps cleanly to DID-authenticated holder control | requires a stable holder DID verification method in the presentation |
+| `assertValidExplicitHolderBinding(binding)` | Validate the explicit DID-bound holder profile | checks the holder method reference is set | very simple and auditable for DID-bound operational flows | explicit holder DID references are more correlatable across verifiers |
+| `assertMatchingExplicitHolderBindings(credentialBinding, presentationBinding)` | Ensure the presentation reuses the issued explicit holder binding | compares DID contract address and method id | straightforward DID-authenticated holder model | intentionally not privacy-preserving |
+| `assertProofMatchesExplicitHolderBinding(binding, presentationProof)` | Bind a presentation proof to the explicit holder DID method | checks the proof signer matches the explicit holder method reference | maps cleanly to DID-authenticated holder control | requires a stable holder DID verification method in the presentation |
 | `secretHolderBindingCommitment(holderSecret, opening)` | Commit to a hidden holder secret at issuance time | creates a commitment over the holder secret and opening | closer to AnonCreds-style hidden holder binding | still a simple commitment, not full blind issuance |
 | `secretHolderBindingChallengeResponse(holderSecret, verifierChallengeHash)` | Produce a verifier-challenge-bound response from the hidden holder secret | hashes the secret together with the verifier challenge | demonstrates holder knowledge without revealing an explicit DID method | current prototype is single-credential and does not yet provide pairwise pseudonyms |
 | `verifierScopedPseudonym(holderSecret, verifierDomainHash)` | Derive a stable pseudonym for one verifier domain from the hidden holder secret | hashes the hidden holder secret with a verifier-domain hash under a dedicated domain separator | provides pairwise verifier correlation without exposing a global holder identifier | stability is scoped to the chosen verifier domain and depends on domain-governance discipline |
@@ -503,6 +536,67 @@ The generic core now exposes two reusable holder-binding helper sets instead of 
 | `assertSecretHolderBindingWitness(binding, verifierChallengeHash, holderSecret, opening)` | Verify the holder’s private witness against the stored commitment and request challenge | recomputes commitment and challenge response from private witness data | moves holder authentication into a ZK-friendly witness model | does not yet include blind issuance or same-holder multi-credential composition |
 | `blindedSecretHolderCommitment(holderSecretCommitment, issuerNonce, blindingFactor)` | Build a blinded holder-binding anchor for issuance-time privacy research | hashes the hidden holder commitment with an issuer nonce and holder blinding factor under a dedicated domain separator | gives the generic layer a place to prototype blind-issuance-style holder binding without exposing the raw commitment | this is a building block, not a full blind-signature issuance protocol |
 | `assertBlindedSecretHolderBindingWitness(binding, verifierChallengeHash, holderSecret, opening, blindingFactor)` | Verify a hidden holder witness against a blinded issuance anchor | recomputes the raw holder commitment privately, then checks the blinded commitment and request challenge response | keeps the public credential/presentation shape free of the raw holder commitment | still requires a higher-level issuance choreography before it becomes real blind issuance |
+| `assertSameSecretHolderBindingWitnesses(firstBinding, secondBinding, verifierChallengeHash, holderSecret, firstOpening, secondOpening)` | Prove that two secret-holder bindings are satisfied by the same hidden holder secret | validates both bindings against one shared holder secret witness and one verifier challenge | smallest reusable same-holder primitive without introducing a generic bundle abstraction | works only when the verifier intentionally coordinates a shared challenge across the composed proof |
+| `assertSameBlindedSecretHolderBindingWitnesses(firstBinding, secondBinding, verifierChallengeHash, holderSecret, firstOpening, firstBlindingFactor, secondOpening, secondBlindingFactor)` | Prove that two blinded secret-holder bindings belong to the same holder | validates both blinded bindings against one shared holder secret witness | gives the generic layer an AnonCreds-style same-holder building block while preserving hidden holder binding | still pairwise and verifier-session scoped; not a full multi-credential presentation object |
+
+The two same-holder circuits are now packaged separately in the dedicated
+`credentials-same-holder` capability package rather than living in the generic
+credentials core.
+
+That packaging decision is intentional:
+
+1. the generic core should stay focused on single-credential invariants
+2. same-holder composition is optional, not mandatory for every credential family
+3. business contracts should import this capability explicitly when they need
+   cross-credential holder correlation under one verifier challenge
+
+#### Same-holder capability package
+
+The dedicated capability package currently owns:
+
+- `assertSameSecretHolderBindingWitnesses(...)`
+- `assertSameBlindedSecretHolderBindingWitnesses(...)`
+
+##### `assertSameSecretHolderBindingWitnesses(...)`
+
+Purpose:
+- prove that two secret-holder bindings are satisfied by the same hidden holder
+  secret witness under one verifier session challenge
+
+Logic:
+- validate the first binding against the supplied secret and opening
+- validate the second binding against the same secret and its own opening
+- reuse one shared `verifierChallengeHash` for both checks
+
+When to import it:
+- when a verifier or business contract wants same-holder composition across two
+  credentials that use the plain secret-holder binding profile
+
+Why it is separated:
+- it is a composition capability, not a base credential invariant
+- most credential families will not need it on every path
+
+##### `assertSameBlindedSecretHolderBindingWitnesses(...)`
+
+Purpose:
+- prove that two blinded secret-holder bindings are satisfied by the same hidden
+  holder secret witness while preserving blinded issuance anchors
+
+Logic:
+- validate the first blinded binding against the shared secret plus its own
+  opening and blinding factor
+- validate the second blinded binding against the same secret plus its own
+  opening and blinding factor
+- reuse one shared `verifierChallengeHash` for both checks
+
+When to import it:
+- when a hidden-holder credential family uses blinded holder-binding anchors and
+  needs pairwise same-holder composition for one verifier session
+
+Why it is separated:
+- it is the first step toward multi-credential same-holder proofs, but it still
+  should remain an optional imported capability rather than part of the
+  mandatory base VC/VP envelope
 
 ### Context and Challenge-Derivation Circuits
 
@@ -585,7 +679,7 @@ This is the simpler operational profile.
 
 Binding material:
 
-- the VC includes an explicit `holderVerificationMethodId`
+- the VC includes an explicit `holderVerificationMethodRef`
 - the VP includes the same holder binding
 - the holder signs the presentation proof with the matching key
 
@@ -663,7 +757,7 @@ Practical implication:
 
 Compared to W3C VC/VP verification:
 
-- issuer binding is very explicit and compact: `issuerVerificationMethodId` plus the issuer proof must match exactly
+- issuer binding is very explicit and compact: `issuerVerificationMethodRef` plus the issuer proof must match exactly
 - there is less ambiguity than in web verifiers that sometimes rely on broader DID-document policy interpretation outside the proof verifier
 - the trade-off is that this Compact package does not itself resolve DID documents or inspect richer verification relationship metadata; it assumes the referenced method id is already the correct business choice
 
@@ -682,8 +776,8 @@ That is a valid trade-off for Midnight contract execution, but it should be stat
 
 | SSI capability | How it is used | Standards alignment |
 | --- | --- | --- |
-| DID-based issuer authorization | issuer proof is bound to `issuerVerificationMethodId` | aligned with DID Core verification relationships and VC issuer proof verification |
-| DID-based holder authentication | presentation proof is bound to `holderBinding.holderVerificationMethodId` | aligned with DID Core `authentication` semantics for proving holder control |
+| DID-based issuer authorization | issuer proof is bound to `issuerVerificationMethodRef` | aligned with DID Core verification relationships and VC issuer proof verification |
+| DID-based holder authentication | presentation proof is bound to `holderBinding.holderVerificationMethodRef` | aligned with DID Core `authentication` semantics for proving holder control |
 | Holder binding | the credential is issued to a specific holder DID method reference | stricter than generic VCDM, but valid and useful for wallet-bound credentials |
 | Selective disclosure | the presentation may reveal specific claim material instead of the full claim set | aligned with SSI privacy goals; implemented here through commitments and openings rather than web-format framing |
 | ZK predicate proof | age is checked from a hidden birth-date witness | aligned with SSI data minimization goals and Midnight's circuit model |
@@ -696,8 +790,8 @@ That is a valid trade-off for Midnight contract execution, but it should be stat
 
 ```mermaid
 sequenceDiagram
-    actor Holder
-    actor Issuer
+    actor Holder as Holder app
+    actor Issuer as Issuer app
     participant Schema as BirthCredential schema
     participant Contract as Demo contract
 
@@ -705,20 +799,20 @@ sequenceDiagram
     Holder->>Issuer: Provide issuance challenge
     Issuer->>Schema: Build BirthCredential claim commitments and claimRoot
     Note over Issuer,Schema: SSI capability: issuer attests to source claims, not derived age
-    Issuer->>Schema: Create issuer proof with issuance challenge helper
+    Issuer->>Schema: Derive issuanceProofChallenge(...) and create issuer proof
     Note over Issuer,Schema: SSI capability: DID assertion semantics
     Issuer->>Contract: issueBirthCredential(credential, issuerProof, holderPublicKey)
-    Contract->>Schema: Validate schema, claimRoot, issuer proof, holder binding
+    Contract->>Schema: assertValidBirthCredential(...)
     Note over Contract: SSI capability: holder binding is anchored at issuance time
-    Contract-->>Issuer: Credential root anchored
+    Contract-->>Issuer: Credential root anchored in contract state
 ```
 
 ### Presentation and Verification Flow
 
 ```mermaid
 sequenceDiagram
-    actor Verifier
-    actor Holder
+    actor Verifier as Verifier app
+    actor Holder as Holder app
     participant Schema as BirthCredential schema
     participant Contract as Demo contract
     
@@ -726,16 +820,15 @@ sequenceDiagram
     Verifier->>Holder: Provide typed presentation request
     Holder->>Schema: Prepare BirthCredentialPresentation
     Note over Holder,Schema: SSI capability: selective disclosure plus age predicate request
-    Holder->>Schema: Create holder proof with presentation challenge helper
+    Holder->>Schema: Derive presentationProofChallenge(...) and create holder proof
     Note over Holder,Schema: SSI capability: DID authentication semantics
     Holder->>Contract: verifyBirthPresentationForRequest(credential, issuerProof, request, presentation, holderProof, currentDay)
-    Contract->>Schema: Validate credential proof and presentation proof
-    Contract->>Schema: Enforce request challenge, issuer restriction, and disclosure/predicate policy
-    Contract->>Schema: Check disclosed birth country against commitment opening
-    Contract->>Schema: Check hidden birth date witness against commitment
-    Contract->>Schema: Verify age >= requested threshold
+    Contract->>Schema: assertValidBirthCredentialPresentation(...)
+    Contract->>Schema: assertBirthPresentationSatisfiesRequest(...)
+    Contract->>Schema: assertValidBirthCredentialAgePredicate(...)
     Note over Contract: SSI capability: data minimization through ZK predicate verification
-    Contract-->>Verifier: Verification succeeds without revealing birth date
+    Contract-->>Holder: Verification transaction succeeds
+    Holder->>Verifier: Report accepted verification outcome
 ```
 
 ### Verifier-as-Contract Composition
@@ -1066,7 +1159,7 @@ Current mapping:
 
 - issuer proof on the credential maps to assertion-style semantics
 - holder proof on the presentation maps to authentication-style semantics
-- both issuer and holder are referenced through Compact-native DID method identifiers: `{ didContractAddress, methodIndex }`
+- both issuer and holder are referenced through Compact-native DID method identifiers: `{ didContractAddress, methodId }`
 
 Assessment:
 
@@ -1087,7 +1180,7 @@ VC Data Integrity emphasizes proof verification inputs such as:
 
 Current mapping:
 
-- `signerVerificationMethodId` is the Compact-native `verificationMethod` equivalent
+- `signerVerificationMethodRef` is the Compact-native `verificationMethod` equivalent
 - `issuanceProofChallenge(...)` and `presentationProofChallenge(...)` provide the Compact-native `proofPurpose` equivalent through explicit challenge-domain separation
 - `challengeHash` is the Compact-native `challenge` equivalent
 - there is currently no explicit `domain` equivalent in the proof
@@ -1150,10 +1243,10 @@ Instead, it is modeled directly for Compact through:
 ### DID References Optimized for Circuits
 The credential does not rely on free-form DID URL processing in-circuit.
 
-It uses a Compact-native verification method identifier:
+It uses a Compact-native verification method reference:
 
 - `didContractAddress`
-- `methodIndex`
+- `methodId`
 
 That is much easier to verify inside Compact while still preserving DID semantics.
 
@@ -1259,7 +1352,7 @@ The current Midnight PoC is stronger in a different dimension:
 - the canonical representation is already shaped for Compact and on-ledger verification
 - schemas, envelopes, and proofs are strongly typed and bounded
 - verification logic is directly auditable as contract/circuit code
-- DID integration is explicit and compact through `{ didContractAddress, methodIndex }`
+- DID integration is explicit and compact through `{ didContractAddress, methodId }`
 
 So the Midnight model is currently better suited for:
 
@@ -1335,6 +1428,24 @@ Trade-off:
 #### 3. Multi-credential presentation with same-holder proof
 
 AnonCreds treats this as a first-class capability. Midnight should too if the project wants realistic SSI flows.
+
+The current prototype now includes the smallest adopted version of that idea:
+
+- the generic layer can prove that two secret-holder bindings are satisfied by the same hidden holder secret witness
+- the concrete secret birth-credential layer can compose two independently valid presentations and require one shared verifier challenge
+- the verifier still decides whether it wants a pairwise same-holder proof for one session; this is not forced into every presentation shape
+
+This is a deliberate design choice.
+
+Midnight does not yet need a single universal "bundle credential presentation" type in the core library.
+The adopted model is narrower:
+
+1. each credential family keeps its own typed request and presentation semantics
+2. the verifier coordinates a shared challenge when it wants same-holder composition
+3. the generic layer proves that the same hidden holder secret satisfies multiple holder bindings
+4. the business layer decides whether those proofs are evaluated atomically in one contract or staged across multiple calls
+
+This keeps the same-holder capability reusable without prematurely freezing the wrong universal bundle abstraction.
 
 Possible Midnight adaptation:
 
@@ -1658,7 +1769,7 @@ What is easy here:
 What still needs a Midnight profile:
 
 - a Midnight-specific credential format identifier
-- a mapping from the wallet key or DID method to `holderVerificationMethodId`
+- a mapping from the wallet key or DID method to `holderVerificationMethodRef`
 - a serialization strategy for carrying Compact-native VC data over the Credential Endpoint
 
 #### OID4VCI for secret holder-binding Midnight VC

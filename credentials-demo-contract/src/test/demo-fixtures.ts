@@ -6,7 +6,7 @@ import { ecMulGenerator, type JubjubPoint } from "@midnight-ntwrk/compact-runtim
 import {
   type Proof,
   pureCircuits as genericPureCircuits,
-  type VerificationMethodId,
+  type VerificationMethodRef,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
 import {
   type BirthCredential,
@@ -22,7 +22,7 @@ export type Signer = {
   readonly label: string;
   readonly secretKey: bigint;
   readonly publicKey: JubjubPoint;
-  readonly verificationMethodId: VerificationMethodId;
+  readonly verificationMethodRef: VerificationMethodRef;
 };
 
 export type ProofContext = "issuance" | "presentation";
@@ -73,14 +73,14 @@ const contractAddress = (label: string): { bytes: Uint8Array } => ({
 export const createSigner = (
   label: string,
   secretKey: bigint,
-  methodIndex: bigint,
+  methodId = `#${label}-key-1`,
 ): Signer => ({
   label,
   secretKey,
   publicKey: ecMulGenerator(secretKey),
-  verificationMethodId: {
+  verificationMethodRef: {
     didContractAddress: contractAddress(label),
-    methodIndex,
+    methodId: padText(methodId),
   },
 });
 
@@ -109,7 +109,7 @@ export const signProof = ({
   readonly nonceScalar: bigint;
 }): Proof => {
   const proof: Proof = {
-    signerVerificationMethodId: signer.verificationMethodId,
+    signerVerificationMethodRef: signer.verificationMethodRef,
     createdAt,
     challengeHash,
     publicKey: signer.publicKey,
@@ -129,8 +129,8 @@ export const signProof = ({
 };
 
 export const createBirthCredentialFixture = (): BirthCredentialFixture => {
-  const issuer = createSigner("issuer", 123456789n, 1n);
-  const holder = createSigner("holder", 987654321n, 1n);
+  const issuer = createSigner("issuer", 123456789n);
+  const holder = createSigner("holder", 987654321n);
 
   const witness = {
     subjectId: sha256("subject:alice"),
@@ -171,9 +171,9 @@ export const createBirthCredentialFixture = (): BirthCredentialFixture => {
       majorVersion: 1n,
       minorVersion: 0n,
     },
-    issuerVerificationMethodId: issuer.verificationMethodId,
+    issuerVerificationMethodRef: issuer.verificationMethodRef,
     holderBinding: {
-      holderVerificationMethodId: holder.verificationMethodId,
+      holderVerificationMethodRef: holder.verificationMethodRef,
     },
     issuedAt: 10_000n,
     hasExpiration: true,
@@ -194,7 +194,7 @@ export const createBirthCredentialFixture = (): BirthCredentialFixture => {
   const presentationRequest: BirthCredentialPresentationRequest = {
     version: 1n,
     schema: credential.schema,
-    issuerVerificationMethodId: credential.issuerVerificationMethodId,
+    issuerVerificationMethodRef: credential.issuerVerificationMethodRef,
     requireSubjectIdCommitmentDisclosure: false,
     requireBirthCountryDisclosure: true,
     requireAgeOverThreshold: true,
@@ -206,7 +206,7 @@ export const createBirthCredentialFixture = (): BirthCredentialFixture => {
     version: 1n,
     schema: credential.schema,
     credentialClaimRoot: credential.claimRoot,
-    issuerVerificationMethodId: credential.issuerVerificationMethodId,
+    issuerVerificationMethodRef: credential.issuerVerificationMethodRef,
     holderBinding: credential.holderBinding,
     disclosed: {
       revealSubjectIdCommitment: false,

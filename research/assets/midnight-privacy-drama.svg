@@ -1,0 +1,54 @@
+<svg width="1200" height="520" viewBox="0 0 1200 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="520" rx="28" fill="#081222"/>
+  <rect x="18" y="18" width="1164" height="484" rx="24" fill="#0D1930" stroke="#2D4E7B" stroke-width="2"/>
+
+  <text x="52" y="72" fill="#F5F8FF" font-size="38" font-family="Verdana, sans-serif" font-weight="700">Chapter 5: Alice notices the tracking problem</text>
+  <text x="52" y="104" fill="#9DB5D8" font-size="18" font-family="Verdana, sans-serif">Stable holder identifiers are operationally convenient and socially alarming.</text>
+
+  <g transform="translate(72 150)">
+    <rect width="430" height="286" rx="22" fill="#0A1527" stroke="#355B90" stroke-width="2"/>
+    <text x="26" y="36" fill="#F5F8FF" font-size="24" font-family="Verdana, sans-serif" font-weight="700">Alice, five minutes before asking Mohawk</text>
+    <circle cx="122" cy="122" r="46" fill="#FFDFC4"/>
+    <path d="M78 118C84 74 160 74 166 118" fill="#10192A"/>
+    <circle cx="105" cy="126" r="4" fill="#0B172A"/>
+    <circle cx="139" cy="126" r="4" fill="#0B172A"/>
+    <path d="M102 151C112 142 128 142 138 151" stroke="#9B4A4A" stroke-width="4" stroke-linecap="round"/>
+    <rect x="74" y="170" width="96" height="82" rx="24" fill="#548BE6"/>
+
+    <g transform="translate(238 82)">
+      <ellipse cx="64" cy="34" rx="64" ry="34" fill="#162643" stroke="#4B6FA5" stroke-width="2"/>
+      <text x="22" y="40" fill="#BBD3F5" font-size="18" font-family="Verdana, sans-serif">same DID again</text>
+    </g>
+    <g transform="translate(258 150)">
+      <ellipse cx="64" cy="34" rx="64" ry="34" fill="#162643" stroke="#4B6FA5" stroke-width="2"/>
+      <text x="25" y="40" fill="#BBD3F5" font-size="18" font-family="Verdana, sans-serif">same DID again</text>
+    </g>
+    <g transform="translate(218 192)">
+      <ellipse cx="78" cy="34" rx="78" ry="34" fill="#2B1A2A" stroke="#9A5B8A" stroke-width="2"/>
+      <text x="22" y="40" fill="#F0C6E5" font-size="18" font-family="Verdana, sans-serif">this feels trackable</text>
+    </g>
+  </g>
+
+  <g transform="translate(560 150)">
+    <rect width="566" height="286" rx="22" fill="#0A1527" stroke="#355B90" stroke-width="2"/>
+    <text x="26" y="36" fill="#F5F8FF" font-size="24" font-family="Verdana, sans-serif" font-weight="700">Mohawk's diagnosis</text>
+    <circle cx="118" cy="122" r="46" fill="#E6C5A6"/>
+    <path d="M60 126C66 78 116 54 136 60C159 66 178 88 176 126" fill="#0F2039"/>
+    <path d="M91 76L115 52L141 76" stroke="#5FA8FF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="101" cy="128" r="4" fill="#0B172A"/>
+    <circle cx="135" cy="128" r="4" fill="#0B172A"/>
+    <path d="M98 154C111 149 127 149 140 154" stroke="#9B4A4A" stroke-width="4" stroke-linecap="round"/>
+    <rect x="70" y="170" width="96" height="82" rx="24" fill="#3B5EA6"/>
+
+    <path d="M214 110C264 80 312 80 362 110" stroke="#4B6FA5" stroke-width="3" stroke-dasharray="8 8"/>
+    <path d="M214 154C264 184 312 184 362 154" stroke="#4B6FA5" stroke-width="3" stroke-dasharray="8 8"/>
+
+    <rect x="262" y="88" width="180" height="88" rx="18" fill="#13213A" stroke="#4B6FA5" stroke-width="2"/>
+    <text x="284" y="122" fill="#F5F8FF" font-size="22" font-family="Verdana, sans-serif" font-weight="700">Replace public</text>
+    <text x="284" y="149" fill="#F5F8FF" font-size="22" font-family="Verdana, sans-serif" font-weight="700">holder ID with</text>
+    <text x="284" y="176" fill="#8FC4FF" font-size="22" font-family="Verdana, sans-serif" font-weight="700">hidden secret binding</text>
+
+    <rect x="214" y="212" width="286" height="42" rx="14" fill="#1A2C4B" stroke="#4B6FA5" stroke-width="2"/>
+    <text x="230" y="239" fill="#BBD3F5" font-size="18" font-family="Verdana, sans-serif">Translation: stop handing trackers a free handle.</text>
+  </g>
+</svg>

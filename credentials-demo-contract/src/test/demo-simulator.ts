@@ -135,15 +135,15 @@ export class CredentialsDemoSimulator {
   }
 
   public ageGateRequest(
-    issuerVerificationMethodId: BirthCredential["issuerVerificationMethodId"],
+    issuerVerificationMethodRef: BirthCredential["issuerVerificationMethodRef"],
     verifierChallengeHash: Uint8Array,
   ): BirthCredentialPresentationRequest {
     return this.executeCircuit(() =>
-      this.contract.impureCircuits.ageGateRequest(
-        this.circuitContext,
-        issuerVerificationMethodId,
-        verifierChallengeHash,
-      ),
+        this.contract.impureCircuits.ageGateRequest(
+          this.circuitContext,
+          issuerVerificationMethodRef,
+          verifierChallengeHash,
+        ),
     );
   }
 

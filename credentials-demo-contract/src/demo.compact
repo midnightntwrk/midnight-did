@@ -18,10 +18,10 @@ export sealed ledger minimumAccessAgeYears: Uint<8>;
 export sealed ledger ageGateRequiresBirthCountryDisclosure: Boolean;
 export ledger issuedCredentialClaimRoots: Map<Bytes<32>, Bytes<32>>;
 export ledger issuedCredentialIssuerDids: Map<Bytes<32>, Bytes<32>>;
-export ledger issuedCredentialIssuerMethodIndexes: Map<Bytes<32>, Uint<16>>;
+export ledger issuedCredentialIssuerMethodRefs: Map<Bytes<32>, Bytes<32>>;
 export ledger issuedCredentialIssuerPublicKeys: Map<Bytes<32>, JubjubPoint>;
 export ledger issuedCredentialHolderDids: Map<Bytes<32>, Bytes<32>>;
-export ledger issuedCredentialHolderMethodIndexes: Map<Bytes<32>, Uint<16>>;
+export ledger issuedCredentialHolderMethodRefs: Map<Bytes<32>, Bytes<32>>;
 export ledger issuedCredentialHolderPublicKeys: Map<Bytes<32>, JubjubPoint>;
 export ledger issuedCredentialIssuedAt: Map<Bytes<32>, Uint<64>>;
 export ledger issuedCredentialHasExpiration: Map<Bytes<32>, Boolean>;
@@ -53,7 +53,7 @@ constructor() {
 }
 
 export circuit ageGateRequest(
-  issuerVerificationMethodId: VerificationMethodId,
+  issuerVerificationMethodRef: VerificationMethodRef,
   verifierChallengeHash: Bytes<32>
 ): BirthCredentialPresentationRequest {
   return BirthCredentialPresentationRequest {
@@ -64,7 +64,7 @@ export circuit ageGateRequest(
       majorVersion: 1,
       minorVersion: 0,
     },
-    issuerVerificationMethodId: issuerVerificationMethodId,
+    issuerVerificationMethodRef: issuerVerificationMethodRef,
     requireSubjectIdCommitmentDisclosure: false,
     requireBirthCountryDisclosure: ageGateRequiresBirthCountryDisclosure,
     requireAgeOverThreshold: true,
@@ -102,20 +102,20 @@ export circuit issueBirthCredential(
   issuedCredentialClaimRoots.insert(credentialRoot, disclose(credential.claimRoot));
   issuedCredentialIssuerDids.insert(
     credentialRoot,
-    disclose(credential.issuerVerificationMethodId.didContractAddress.bytes)
+    disclose(credential.issuerVerificationMethodRef.didContractAddress.bytes)
   );
-  issuedCredentialIssuerMethodIndexes.insert(
+  issuedCredentialIssuerMethodRefs.insert(
     credentialRoot,
-    disclose(credential.issuerVerificationMethodId.methodIndex)
+    disclose(credential.issuerVerificationMethodRef.methodId)
   );
   issuedCredentialIssuerPublicKeys.insert(credentialRoot, disclose(credentialProof.publicKey));
   issuedCredentialHolderDids.insert(
     credentialRoot,
-    disclose(credential.holderBinding.holderVerificationMethodId.didContractAddress.bytes)
+    disclose(credential.holderBinding.holderVerificationMethodRef.didContractAddress.bytes)
   );
-  issuedCredentialHolderMethodIndexes.insert(
+  issuedCredentialHolderMethodRefs.insert(
     credentialRoot,
-    disclose(credential.holderBinding.holderVerificationMethodId.methodIndex)
+    disclose(credential.holderBinding.holderVerificationMethodRef.methodId)
   );
   issuedCredentialHolderPublicKeys.insert(credentialRoot, disclose(holderPublicKey));
   issuedCredentialIssuedAt.insert(credentialRoot, disclose(credential.issuedAt));
@@ -153,13 +153,13 @@ export circuit verifyBirthPresentation(
   );
   assert(
     issuedCredentialIssuerDids.lookup(credentialRoot)
-      == credential.issuerVerificationMethodId.didContractAddress.bytes,
+      == credential.issuerVerificationMethodRef.didContractAddress.bytes,
     "Issued credential issuer DID does not match the supplied credential"
   );
   assert(
-    issuedCredentialIssuerMethodIndexes.lookup(credentialRoot)
-      == credential.issuerVerificationMethodId.methodIndex,
-    "Issued credential issuer method index does not match the supplied credential"
+    issuedCredentialIssuerMethodRefs.lookup(credentialRoot)
+      == credential.issuerVerificationMethodRef.methodId,
+    "Issued credential issuer method reference does not match the supplied credential"
   );
   assert(
     jubjubPointX(issuedCredentialIssuerPublicKeys.lookup(credentialRoot))
@@ -170,13 +170,13 @@ export circuit verifyBirthPresentation(
   );
   assert(
     issuedCredentialHolderDids.lookup(credentialRoot)
-      == credential.holderBinding.holderVerificationMethodId.didContractAddress.bytes,
+      == credential.holderBinding.holderVerificationMethodRef.didContractAddress.bytes,
     "Issued credential holder DID does not match the supplied credential"
   );
   assert(
-    issuedCredentialHolderMethodIndexes.lookup(credentialRoot)
-      == credential.holderBinding.holderVerificationMethodId.methodIndex,
-    "Issued credential holder method index does not match the supplied credential"
+    issuedCredentialHolderMethodRefs.lookup(credentialRoot)
+      == credential.holderBinding.holderVerificationMethodRef.methodId,
+    "Issued credential holder method reference does not match the supplied credential"
   );
   assert(
     jubjubPointX(issuedCredentialHolderPublicKeys.lookup(credentialRoot))
@@ -242,7 +242,7 @@ export circuit issueAgeGateCapability(
   currentDay: Uint<32>
 ): Bytes<32> {
   const request = ageGateRequest(
-    credential.issuerVerificationMethodId,
+    credential.issuerVerificationMethodRef,
     verifierChallengeHash
   );
   const capability = disclose(ageGateCapability(
