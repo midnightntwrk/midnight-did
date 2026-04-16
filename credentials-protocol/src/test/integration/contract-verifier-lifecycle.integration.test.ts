@@ -7,12 +7,12 @@ import {
   provisionDidProfile,
   StandaloneEnvironment,
 } from "../../../../standalone-environment/src/index.js";
-import { createSigner, fill } from "../helpers/did-provider.js";
-import { MessageBus } from "../../transport/message-bus.js";
-import { IssuerAgent } from "../../agents/issuer-agent.js";
-import { HolderAgent } from "../../agents/holder-agent.js";
 import { ContractVerifier } from "../../agents/contract-verifier.js";
+import { HolderAgent } from "../../agents/holder-agent.js";
+import { IssuerAgent } from "../../agents/issuer-agent.js";
 import type { DIDProfile } from "../../agents/types.js";
+import { MessageBus } from "../../transport/message-bus.js";
+import { createSigner, fill } from "../helpers/did-provider.js";
 
 const canRun = await containerRuntimeAvailable();
 const describeIntegration = canRun ? describe : describe.skip;
