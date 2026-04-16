@@ -131,17 +131,21 @@ This pushes the architecture toward:
 ### Prototype Package Layout
 The current implementation lives in:
 
-- [`../credentials/src/credentials.compact`](../credentials/src/credentials.compact)
-- [`../credentials-birth/src/birth-credential.compact`](../credentials-birth/src/birth-credential.compact)
+- [`../credentials/src/credentials.compact`](../credentials/src/credentials.compact) (entry point that includes `credentials/types`, `credentials/proofs`, `credentials/vc`, `credentials/holder-bindings`, `credentials/protocols`)
+- [`../credentials-birth/src/birth-credential.compact`](../credentials-birth/src/birth-credential.compact) (entry point that includes `birth-credential/model`, `birth-credential/protocol-model`, `birth-credential/helpers`, `birth-credential/validation`)
 - [`../credentials-birth-secret/src/secret-birth-credential.compact`](../credentials-birth-secret/src/secret-birth-credential.compact)
+- [`../credentials-same-holder/src/same-holder.compact`](../credentials-same-holder/src/same-holder.compact)
 - [`../credentials-demo-contract/src/demo.compact`](../credentials-demo-contract/src/demo.compact)
+- [`../credentials-protocol/`](../credentials-protocol/) (TypeScript protocol simulation layer)
 
 The package split is now intentional:
 
-- `credentials` owns the generic VC/VP envelope and proof core
-- `credentials-birth` owns the explicit DID-bound birth-credential specialization
+- `credentials` owns the generic VC/VP envelope, proof core, holder-binding profiles, and protocol message abstractions
+- `credentials-birth` owns the explicit DID-bound birth-credential specialization including protocol-level issuance and verification message types
 - `credentials-birth-secret` owns the hidden holder-secret birth-credential specialization
-- `credentials-demo-contract` owns the executable issuer, holder, verifier flow
+- `credentials-same-holder` owns the optional same-holder composition capability for cross-credential holder correlation
+- `credentials-demo-contract` owns the executable issuer, holder, verifier flow with contract-native gated access
+- `credentials-protocol` owns the TypeScript protocol simulation layer with party agents and in-process message transport
 
 ### Verifier-as-Contract Composition Model
 The most important Midnight-specific observation is that the verifier is often not a generic wallet or backend service. The verifier is frequently a Compact smart contract that enforces business rules directly.
@@ -270,6 +274,22 @@ Typical examples:
 
 This layer should not redefine the credential semantics already owned by layers 1 and 2. Its job is orchestration, not duplication of verification logic.
 
+##### Protocol simulation layer (`credentials-protocol`)
+
+The `credentials-protocol` package provides the concrete prototype implementation of Layer 4. It models the issuance and presentation flows as typed agent interactions over an in-process message bus.
+
+Party agents:
+
+- `IssuerAgent` and `SecretIssuerAgent` for explicit-DID and secret-holder issuance flows
+- `HolderAgent` and `SecretHolderAgent` for explicit-DID and secret-holder holder-side flows
+- `VerifierAgent` for presentation request and verification orchestration
+- `ContractVerifier` for contract-native gated access verification through the demo contract simulator
+
+Transport abstraction:
+
+- `MessageBus` provides an in-process transport with typed `ProtocolMessage` envelopes carrying `ProtocolMessageType` tags (`issuance:offer`, `issuance:request`, `issuance:result`, `presentation:request`, `presentation:submission`, `presentation:result`)
+- this is the seam where OID4VCI or DIDComm v2 transport would plug in later, replacing the in-process bus with a real network transport while preserving the agent and message type structure
+
 #### Layer 5: governance and trust-policy layer
 
 This layer is acknowledged now, but remains abstract in the current prototype.
@@ -317,13 +337,14 @@ compose only the capabilities they actually need.
 
 | Profile | Layer 2 composition | Layer 3 business outcome | Current prototype coverage |
 | --- | --- | --- | --- |
-| Minimal issuer-attested credential | explicit holder binding, issuer proof, no extra disclosure requirements | accept a simple issuer-attested credential as a typed source record | `credentials-birth` tests |
-| Operational disclosure flow | explicit holder binding, typed presentation request, selective disclosure | verify a presentation against a verifier-defined request | `credentials-birth` tests |
-| Predicate-based access flow | explicit holder binding, age predicate, typed verifier challenge | verify eligibility without disclosing the birth date itself | `credentials-birth` and `credentials-demo-contract` tests |
-| Hidden-holder flow | secret holder binding, issuer proof, holder witness verification | avoid a stable public holder DID in the verifier-facing flow | `credentials-birth-secret` tests |
-| Advanced privacy flow | secret holder binding, blinded holder anchor, verifier-domain pseudonym, selective disclosure, age predicate | support stronger privacy controls while still proving business eligibility | `credentials-birth-secret` tests |
-| Contract-native gated access flow | typed presentation request plus reusable capability issuance | issue a contract-level capability and consume it later with soft business denial states | `credentials-demo-contract` tests |
-| Same-holder credential composition | two secret-holder credentials, one shared verifier challenge, one shared hidden holder secret witness | prove that multiple credentials belong to the same holder without revealing a stable public DID | `credentials` and `credentials-birth-secret` tests |
+| Minimal issuer-attested credential | explicit holder binding, issuer proof, no extra disclosure requirements | accept a simple issuer-attested credential as a typed source record | `credentials-birth` tests, `credentials-protocol` explicit-holder issuance tests |
+| Operational disclosure flow | explicit holder binding, typed presentation request, selective disclosure | verify a presentation against a verifier-defined request | `credentials-birth` tests, `credentials-protocol` explicit-holder presentation tests |
+| Predicate-based access flow | explicit holder binding, age predicate, typed verifier challenge | verify eligibility without disclosing the birth date itself | `credentials-birth` and `credentials-demo-contract` tests, `credentials-protocol` contract-verifier age-gate tests |
+| Hidden-holder flow | secret holder binding, issuer proof, holder witness verification | avoid a stable public holder DID in the verifier-facing flow | `credentials-birth-secret` tests, `credentials-protocol` secret-holder issuance and presentation tests |
+| Advanced privacy flow | secret holder binding, blinded holder anchor, verifier-domain pseudonym, selective disclosure, age predicate | support stronger privacy controls while still proving business eligibility | `credentials-birth-secret` tests, `credentials-protocol` secret-holder pseudonym tests |
+| Contract-native gated access flow | typed presentation request plus reusable capability issuance | issue a contract-level capability and consume it later with soft business denial states | `credentials-demo-contract` tests, `credentials-protocol` contract-verifier capability-lifecycle tests |
+| Same-holder credential composition | two secret-holder credentials, one shared verifier challenge, one shared hidden holder secret witness | prove that multiple credentials belong to the same holder without revealing a stable public DID | `credentials-same-holder` and `credentials-birth-secret` tests, `credentials-protocol` secret-holder same-holder tests |
+| Full explicit-holder lifecycle | explicit holder binding, protocol-level issuance offer/request/result, presentation request/submission/result | exercise the complete issuance-to-verification lifecycle through typed protocol messages | `credentials-protocol` explicit-holder full-lifecycle tests |
 
 This profile matrix is deliberate.
 
@@ -491,7 +512,7 @@ This makes the proof-to-body binding explicit and removes redundant proof state.
 
 ## Circuit Reference
 
-This section documents the generic circuits in [`../credentials/src/credentials.compact`](../credentials/src/credentials.compact) as the current canonical reusable VC/VP core.
+This section documents the generic circuits in [`../credentials/src/credentials.compact`](../credentials/src/credentials.compact) as the current canonical reusable VC/VP core. The entry point includes the following source files: `credentials/types.compact` (types and structs), `credentials/proofs.compact` (proof verification), `credentials/vc.compact` (credential and presentation envelope logic), `credentials/holder-bindings.compact` (holder-binding profiles), and `credentials/protocols.compact` (protocol message abstractions).
 
 The goal is to make each circuit understandable in terms of:
 
@@ -535,6 +556,9 @@ The generic core now exposes two reusable holder-binding helper sets instead of 
 | `assertMatchingSecretHolderBindings(credentialBinding, presentationBinding)` | Ensure the presentation stays anchored to the issued hidden holder binding | compares holder-secret commitments | enables hidden holder binding without leaking a DID method | same commitment reused across verifiers can still be correlatable if exposed directly |
 | `assertSecretHolderBindingWitness(binding, verifierChallengeHash, holderSecret, opening)` | Verify the holder’s private witness against the stored commitment and request challenge | recomputes commitment and challenge response from private witness data | moves holder authentication into a ZK-friendly witness model | does not yet include blind issuance or same-holder multi-credential composition |
 | `blindedSecretHolderCommitment(holderSecretCommitment, issuerNonce, blindingFactor)` | Build a blinded holder-binding anchor for issuance-time privacy research | hashes the hidden holder commitment with an issuer nonce and holder blinding factor under a dedicated domain separator | gives the generic layer a place to prototype blind-issuance-style holder binding without exposing the raw commitment | this is a building block, not a full blind-signature issuance protocol |
+| `assertValidBlindedSecretHolderCredentialBinding(binding)` | Validate the issuance-time blinded secret holder binding shape | requires the credential copy to carry a sentinel instead of a request response | keeps issuance and presentation semantics distinct for the blinded profile | parallel to `assertValidSecretHolderCredentialBinding` but for `BlindedSecretHolderBinding` |
+| `assertValidBlindedSecretHolderPresentationBinding(binding)` | Validate the presentation-time blinded secret holder binding shape | requires a real request-bound response value | makes the verifier challenge mandatory for the blinded presentation flow | parallel to `assertValidSecretHolderPresentationBinding` but for `BlindedSecretHolderBinding` |
+| `assertMatchingBlindedSecretHolderBindings(credentialBinding, presentationBinding)` | Ensure the blinded presentation stays anchored to the issued blinded holder binding | compares blinded holder-secret commitments and issuer nonces | enables hidden holder binding with blinded issuance anchors without leaking the raw commitment | reuses the same blinded commitment across verifiers |
 | `assertBlindedSecretHolderBindingWitness(binding, verifierChallengeHash, holderSecret, opening, blindingFactor)` | Verify a hidden holder witness against a blinded issuance anchor | recomputes the raw holder commitment privately, then checks the blinded commitment and request challenge response | keeps the public credential/presentation shape free of the raw holder commitment | still requires a higher-level issuance choreography before it becomes real blind issuance |
 | `assertSameSecretHolderBindingWitnesses(firstBinding, secondBinding, verifierChallengeHash, holderSecret, firstOpening, secondOpening)` | Prove that two secret-holder bindings are satisfied by the same hidden holder secret | validates both bindings against one shared holder secret witness and one verifier challenge | smallest reusable same-holder primitive without introducing a generic bundle abstraction | works only when the verifier intentionally coordinates a shared challenge across the composed proof |
 | `assertSameBlindedSecretHolderBindingWitnesses(firstBinding, secondBinding, verifierChallengeHash, holderSecret, firstOpening, firstBlindingFactor, secondOpening, secondBlindingFactor)` | Prove that two blinded secret-holder bindings belong to the same holder | validates both blinded bindings against one shared holder secret witness | gives the generic layer an AnonCreds-style same-holder building block while preserving hidden holder binding | still pairwise and verifier-session scoped; not a full multi-credential presentation object |
@@ -597,6 +621,25 @@ Why it is separated:
 - it is the first step toward multi-credential same-holder proofs, but it still
   should remain an optional imported capability rather than part of the
   mandatory base VC/VP envelope
+
+### Protocol Message Circuits
+
+The generic core now includes protocol message abstractions in `credentials/src/credentials/protocols.compact` that define typed issuance and presentation protocol flows.
+
+| Circuit | Purpose | Logic |
+| --- | --- | --- |
+| `noProtocolResponseReference()` | Provide the sentinel value for unset protocol references | returns a fixed padded string tag |
+| `assertValidVerificationMethodRef(verificationMethodRef)` | Validate that a verification method reference is set | checks the method id is not empty |
+| `assertMatchingSchemaRefs(expected, actual)` | Ensure two schema references match exactly | compares package id, schema id, major version, and minor version |
+| `assertValidProtocolMessageEnvelope(envelope)` | Validate generic protocol message invariants | checks version, message id, thread id, initial-vs-response semantics, and expiration ordering |
+| `assertProtocolResponseEnvelope(requestEnvelope, responseEnvelope)` | Validate that a response envelope is correctly threaded to a request | checks thread id continuity, responds-to-message binding, and creation time ordering |
+
+The protocol layer also defines two generic modules that are instantiated per credential family:
+
+- `IssuanceProtocol<TOfferBody, TRequestBody, TResultBody>` defines `OfferMessage`, `RequestMessage`, `ResultMessage` structs and validation circuits (`assertValidOfferMessage`, `assertValidRequestMessage`, `assertOfferRequestAlignment`, `assertValidResultMessage`, `assertRequestResultAlignment`)
+- `PresentationProtocol<TRequestBody, TSubmissionBody, TResultBody>` defines `RequestMessage`, `SubmissionMessage`, `ResultMessage` structs and validation circuits (`assertValidRequestMessage`, `assertValidSubmissionMessage`, `assertRequestSubmissionAlignment`, `assertValidResultMessage`, `assertSubmissionResultAlignment`)
+
+These modules are instantiated in the birth-credential entry point as `BirthCredentialIssuance_*` and `BirthCredentialVerification_*` prefixed types and circuits.
 
 ### Context and Challenge-Derivation Circuits
 
