@@ -132,11 +132,12 @@ This pushes the architecture toward:
 The current implementation lives in:
 
 - [`../credentials/src/credentials.compact`](../credentials/src/credentials.compact) (entry point that includes `credentials/types`, `credentials/proofs`, `credentials/vc`, `credentials/holder-bindings`, `credentials/protocols`)
-- [`../credentials-birth/src/birth-credential.compact`](../credentials-birth/src/birth-credential.compact) (entry point that includes `birth-credential/model`, `birth-credential/protocol-model`, `birth-credential/helpers`, `birth-credential/validation`)
+- [`../credentials-birth/src/birth-credential.compact`](../credentials-birth/src/birth-credential.compact) (entry point that includes `birth-credential/model`, `birth-credential/protocol-model`, `birth-credential/helpers`, `birth-credential/validation`; also contains [`birth-credential/claims.compact`](../credentials-birth/src/birth-credential/claims.compact) with shared claim commitment circuits imported by both `credentials-birth` and `credentials-birth-secret`)
 - [`../credentials-birth-secret/src/secret-birth-credential.compact`](../credentials-birth-secret/src/secret-birth-credential.compact)
 - [`../credentials-same-holder/src/same-holder.compact`](../credentials-same-holder/src/same-holder.compact)
 - [`../credentials-demo-contract/src/demo.compact`](../credentials-demo-contract/src/demo.compact)
 - [`../credentials-protocol/`](../credentials-protocol/) (TypeScript protocol simulation layer)
+- [`../standalone-environment/`](../standalone-environment/) (TypeScript shared integration test infrastructure)
 
 The package split is now intentional:
 
@@ -146,6 +147,7 @@ The package split is now intentional:
 - `credentials-same-holder` owns the optional same-holder composition capability for cross-credential holder correlation
 - `credentials-demo-contract` owns the executable issuer, holder, verifier flow with contract-native gated access
 - `credentials-protocol` owns the TypeScript protocol simulation layer with party agents and in-process message transport
+- `standalone-environment` owns the shared Midnight Docker environment for integration tests, including the `StandaloneEnvironment` lifecycle class, DID profile provisioning, and wallet setup utilities
 
 ### Verifier-as-Contract Composition Model
 The most important Midnight-specific observation is that the verifier is often not a generic wallet or backend service. The verifier is frequently a Compact smart contract that enforces business rules directly.
@@ -421,6 +423,15 @@ It contains:
 | `requestedAgeThresholdYears` | exact requested threshold for the current profile |
 | `verifierChallengeHash` | verifier-provided anti-replay challenge |
 
+The secret-holder birth specialization defines a separate `SecretBirthCredentialPresentationRequest` type with two additional fields:
+
+| Field | Meaning |
+| --- | --- |
+| `requireVerifierScopedPseudonym` | whether the verifier requires a stable pairwise pseudonym for its own domain |
+| `verifierDomainHash` | verifier-defined domain identifier used when deriving a pairwise pseudonym from the hidden holder secret |
+
+All other fields match `BirthCredentialPresentationRequest`. The type separation ensures explicit-holder and secret-holder requests are not accidentally interchangeable.
+
 Current design intent:
 
 - verifier policy is explicit and typed
@@ -547,8 +558,9 @@ The generic core now exposes two reusable holder-binding helper sets instead of 
 | `assertValidExplicitHolderBinding(binding)` | Validate the explicit DID-bound holder profile | checks the holder method reference is set | very simple and auditable for DID-bound operational flows | explicit holder DID references are more correlatable across verifiers |
 | `assertMatchingExplicitHolderBindings(credentialBinding, presentationBinding)` | Ensure the presentation reuses the issued explicit holder binding | compares DID contract address and method id | straightforward DID-authenticated holder model | intentionally not privacy-preserving |
 | `assertProofMatchesExplicitHolderBinding(binding, presentationProof)` | Bind a presentation proof to the explicit holder DID method | checks the proof signer matches the explicit holder method reference | maps cleanly to DID-authenticated holder control | requires a stable holder DID verification method in the presentation |
+| `noSecretHolderChallengeResponse()` | Provide the sentinel value for an unset holder challenge response at issuance time | returns a fixed padded string tag `"midnight:vc:no-holder-response"` | makes the distinction between issuance binding (no challenge yet) and presentation binding (challenge required) explicit and type-safe | sentinel-based convention rather than a richer issuance protocol |
 | `secretHolderBindingCommitment(holderSecret, opening)` | Commit to a hidden holder secret at issuance time | creates a commitment over the holder secret and opening | closer to AnonCreds-style hidden holder binding | still a simple commitment, not full blind issuance |
-| `secretHolderBindingChallengeResponse(holderSecret, verifierChallengeHash)` | Produce a verifier-challenge-bound response from the hidden holder secret | hashes the secret together with the verifier challenge | demonstrates holder knowledge without revealing an explicit DID method | current prototype is single-credential and does not yet provide pairwise pseudonyms |
+| `secretHolderBindingChallengeResponse(holderSecret, verifierChallengeHash)` | Produce a verifier-challenge-bound response from the hidden holder secret | hashes the hidden holder secret with the verifier challenge under a dedicated domain separator | demonstrates holder knowledge without revealing an explicit DID method | current prototype is single-credential and does not yet provide pairwise pseudonyms |
 | `verifierScopedPseudonym(holderSecret, verifierDomainHash)` | Derive a stable pseudonym for one verifier domain from the hidden holder secret | hashes the hidden holder secret with a verifier-domain hash under a dedicated domain separator | provides pairwise verifier correlation without exposing a global holder identifier | stability is scoped to the chosen verifier domain and depends on domain-governance discipline |
 | `assertVerifierScopedPseudonym(pseudonym, holderSecret, verifierDomainHash)` | Check that a disclosed pairwise pseudonym really comes from the holder witness and verifier domain | recomputes the pseudonym from the hidden witness and request domain | lets a verifier request a stable local pseudonym without seeing the holder DID | only works when the verifier supplies a consistent domain hash in the presentation request |
 | `assertValidSecretHolderCredentialBinding(binding)` | Validate the issuance-time secret holder binding shape | requires the credential copy to carry a sentinel instead of a request response | keeps issuance and presentation semantics distinct | relies on convention rather than a richer issuance protocol |
