@@ -1,2 +1,11 @@
-// Protocol simulation layer for Midnight Verifiable Credentials
-// Agent and transport exports will be added as they are implemented.
+export * from "./transport/types.js";
+export * from "./transport/message-bus.js";
+export * from "./agents/types.js";
+export * from "./agents/issuer-agent.js";
+export * from "./agents/holder-agent.js";
+export * from "./agents/secret-issuer-agent.js";
+export * from "./agents/secret-holder-agent.js";
+export * from "./agents/verifier-agent.js";
+export * from "./agents/contract-verifier.js";
+export * from "./shared/crypto.js";
+export * from "./shared/envelope.js";

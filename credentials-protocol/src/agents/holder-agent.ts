@@ -1,11 +1,8 @@
-import { createHash } from "node:crypto";
-
 import { ecMulGenerator } from "@midnight-ntwrk/compact-runtime";
 
 import {
   type Proof,
   pureCircuits as genericPureCircuits,
-  type ProtocolMessageEnvelope,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
 import {
   type BirthCredential,
@@ -22,34 +19,8 @@ import type { DIDProfile } from "./types.js";
 import type { ProtocolMessage } from "../transport/types.js";
 import { MessageBus } from "../transport/message-bus.js";
 import type { PresentationSubmissionBody } from "./verifier-agent.js";
-
-const JUBJUB_FIELD_MODULUS =
-  6554484396890773809930967563523245729705921265872317281365359162392183254199n;
-
-const mod = (value: bigint): bigint => {
-  const reduced = value % JUBJUB_FIELD_MODULUS;
-  return reduced >= 0n ? reduced : reduced + JUBJUB_FIELD_MODULUS;
-};
-
-const sha256 = (value: string): Uint8Array =>
-  new Uint8Array(createHash("sha256").update(value).digest());
-
-const createEnvelope = (
-  label: string,
-  threadLabel: string,
-  initial: boolean,
-  respondsTo?: Uint8Array,
-): ProtocolMessageEnvelope => ({
-  version: 1n,
-  messageId: sha256(`protocol:message:${label}`),
-  threadId: sha256(`protocol:thread:${threadLabel}`),
-  initialMessage: initial,
-  respondsToMessageId:
-    respondsTo ?? genericPureCircuits.noProtocolResponseReference(),
-  createdAt: BigInt(Date.now()),
-  hasExpiresAt: false,
-  expiresAt: 0n,
-});
+import { mod, sha256 } from "../shared/crypto.js";
+import { createEnvelope } from "../shared/envelope.js";
 
 export type StoredCredential = {
   readonly credential: BirthCredential;
@@ -230,10 +201,6 @@ export class HolderAgent {
       credentialProof: stored.credentialProof,
       presentation,
       presentationProof,
-      request,
-      currentDay: witnessData.currentDay,
-      birthDateDays: witnessData.birthDateDays,
-      birthDateOpening: witnessData.birthDateOpening,
     };
 
     this.bus.send({

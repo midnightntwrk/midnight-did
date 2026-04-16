@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 
-import { pureCircuits as genericPureCircuits } from "../../../../credentials/src/managed/credentials/contract/index.js";
+import {
+  pureCircuits as genericPureCircuits,
+  type BirthCredentialPresentationRequest as SecretBirthPresentationRequest,
+} from "../../../../credentials/src/managed/credentials/contract/index.js";
 
 import { MessageBus } from "../../transport/message-bus.js";
 import {
@@ -11,7 +14,7 @@ import {
   SecretHolderAgent,
   type SecretPresentationWitness,
 } from "../../agents/secret-holder-agent.js";
-import { VerifierAgent } from "../../agents/verifier-agent.js";
+import { VerifierAgent, type SecretSimulatorWitness } from "../../agents/verifier-agent.js";
 import {
   createDIDProfile,
   sha256,
@@ -79,7 +82,8 @@ describe("secret-holder pseudonym", () => {
       requestedAgeThresholdYears: 18,
     });
 
-    const request = bus.receive("holder")!;
+    const requestMessage = bus.receive("holder")!;
+    const presentationRequest = requestMessage.body as SecretBirthPresentationRequest;
 
     const presentationWitness: SecretPresentationWitness = {
       credentialIndex: 0,
@@ -90,10 +94,24 @@ describe("secret-holder pseudonym", () => {
       birthCountryCodeOpening: claimWitness.birthCountryCodeOpening,
     };
 
-    holder.receiveRequestAndSendPresentation(request, presentationWitness);
+    holder.receiveRequestAndSendPresentation(requestMessage, presentationWitness);
 
     const submission = bus.receive("verifier")!;
-    const result = verifier.receiveSecretSubmissionAndEvaluate(submission);
+
+    // Simulator witness: private data passed directly to the verifier (not via bus)
+    const stored = holder.getCredential(0);
+    const { holderSecret, holderSecretOpening } = holder.secretWitness;
+    const simulatorWitness: SecretSimulatorWitness = {
+      request: presentationRequest,
+      currentDay: 3650n + 365n * 25n,
+      birthDateDays: claimWitness.birthDateDays,
+      birthDateOpening: claimWitness.birthDateOpening,
+      holderSecret,
+      holderSecretOpening,
+      holderBindingBlindingFactor: stored.holderBindingBlindingFactor,
+    };
+
+    const result = verifier.receiveSecretSubmissionAndEvaluate(submission, simulatorWitness);
 
     expect(result.approved).toBe(true);
     expect(result.pseudonym).toBeDefined();

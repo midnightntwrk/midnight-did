@@ -1,11 +1,7 @@
-import { createHash } from "node:crypto";
-
 import {
   type Proof,
   pureCircuits as genericPureCircuits,
-  type ProtocolMessageEnvelope,
   HolderBindingProfile,
-  type BlindedSecretHolderBinding,
   type BirthCredentialPresentationRequest,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
 import {
@@ -21,34 +17,8 @@ import type {
   SecretIssuanceResult,
 } from "./secret-issuer-agent.js";
 import type { SecretPresentationSubmissionBody } from "./verifier-agent.js";
-
-const sha256 = (value: string): Uint8Array =>
-  new Uint8Array(createHash("sha256").update(value).digest());
-
-const padText = (value: string, length = 32): Uint8Array => {
-  const bytes = new TextEncoder().encode(value);
-  if (bytes.length >= length) return bytes.subarray(0, length);
-  const padded = new Uint8Array(length);
-  padded.set(bytes);
-  return padded;
-};
-
-const createEnvelope = (
-  label: string,
-  threadLabel: string,
-  initial: boolean,
-  respondsTo?: Uint8Array,
-): ProtocolMessageEnvelope => ({
-  version: 1n,
-  messageId: sha256(`protocol:message:${label}`),
-  threadId: sha256(`protocol:thread:${threadLabel}`),
-  initialMessage: initial,
-  respondsToMessageId:
-    respondsTo ?? genericPureCircuits.noProtocolResponseReference(),
-  createdAt: BigInt(Date.now()),
-  hasExpiresAt: false,
-  expiresAt: 0n,
-});
+import { sha256, padText } from "../shared/crypto.js";
+import { createEnvelope } from "../shared/envelope.js";
 
 const SECRET_BIRTH_SCHEMA = {
   packageId: padText("midnight-did:vc:birth-secret"),
@@ -63,7 +33,11 @@ export type SecretStoredCredential = {
   readonly holderBindingBlindingFactor: Uint8Array;
 };
 
-export type SameHolderProof = {
+/**
+ * Protocol data for a same-holder composition proof.
+ * Contains only what would be transmitted to the verifier in a real protocol.
+ */
+export type SameHolderPresentation = {
   readonly firstCredential: SecretBirthCredential;
   readonly firstCredentialProof: Proof;
   readonly firstRequest: SecretBirthPresentationRequest;
@@ -72,12 +46,6 @@ export type SameHolderProof = {
   readonly secondCredentialProof: Proof;
   readonly secondRequest: SecretBirthPresentationRequest;
   readonly secondPresentation: SecretBirthCredentialPresentation;
-  // Witness data for simulator
-  readonly holderSecret: Uint8Array;
-  readonly firstHolderSecretOpening: Uint8Array;
-  readonly firstHolderBindingBlindingFactor: Uint8Array;
-  readonly secondHolderSecretOpening: Uint8Array;
-  readonly secondHolderBindingBlindingFactor: Uint8Array;
 };
 
 export type SecretPresentationWitness = {
@@ -266,13 +234,6 @@ export class SecretHolderAgent {
       credential: stored.credential,
       credentialProof: stored.credentialProof,
       presentation,
-      request,
-      currentDay: witnessData.currentDay,
-      birthDateDays: witnessData.birthDateDays,
-      birthDateOpening: witnessData.birthDateOpening,
-      holderSecret: this.holderSecret,
-      holderSecretOpening: this.holderSecretOpening,
-      holderBindingBlindingFactor: stored.holderBindingBlindingFactor,
     };
 
     this.bus.send({
@@ -297,7 +258,7 @@ export class SecretHolderAgent {
   buildSameHolderProof(
     credentialIndices: [number, number],
     verifierChallengeHash: Uint8Array,
-  ): SameHolderProof {
+  ): SameHolderPresentation {
     const first = this.getCredential(credentialIndices[0]);
     const second = this.getCredential(credentialIndices[1]);
 
@@ -317,7 +278,7 @@ export class SecretHolderAgent {
     ownCredential: SecretStoredCredential,
     otherCredential: SecretStoredCredential,
     verifierChallengeHash: Uint8Array,
-  ): SameHolderProof {
+  ): SameHolderPresentation {
     return this._buildSameHolderProofForPair(
       ownCredential,
       otherCredential,
@@ -329,7 +290,7 @@ export class SecretHolderAgent {
     first: SecretStoredCredential,
     second: SecretStoredCredential,
     verifierChallengeHash: Uint8Array,
-  ): SameHolderProof {
+  ): SameHolderPresentation {
     const buildRequest = (
       credential: SecretBirthCredential,
     ): SecretBirthPresentationRequest => ({
@@ -393,11 +354,6 @@ export class SecretHolderAgent {
       secondCredentialProof: second.credentialProof,
       secondRequest,
       secondPresentation,
-      holderSecret: this.holderSecret,
-      firstHolderSecretOpening: this.holderSecretOpening,
-      firstHolderBindingBlindingFactor: first.holderBindingBlindingFactor,
-      secondHolderSecretOpening: this.holderSecretOpening,
-      secondHolderBindingBlindingFactor: second.holderBindingBlindingFactor,
     };
   }
 }

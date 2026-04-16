@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import { ecMulGenerator } from "@midnight-ntwrk/compact-runtime";
 
 import {
@@ -16,42 +14,8 @@ import {
 import type { DIDProfile } from "./types.js";
 import type { ProtocolMessage, PartyId } from "../transport/types.js";
 import { MessageBus } from "../transport/message-bus.js";
-
-const JUBJUB_FIELD_MODULUS =
-  6554484396890773809930967563523245729705921265872317281365359162392183254199n;
-
-const mod = (value: bigint): bigint => {
-  const reduced = value % JUBJUB_FIELD_MODULUS;
-  return reduced >= 0n ? reduced : reduced + JUBJUB_FIELD_MODULUS;
-};
-
-const sha256 = (value: string): Uint8Array =>
-  new Uint8Array(createHash("sha256").update(value).digest());
-
-const padText = (value: string, length = 32): Uint8Array => {
-  const bytes = new TextEncoder().encode(value);
-  if (bytes.length >= length) return bytes.subarray(0, length);
-  const padded = new Uint8Array(length);
-  padded.set(bytes);
-  return padded;
-};
-
-const createEnvelope = (
-  label: string,
-  threadLabel: string,
-  initial: boolean,
-  respondsTo?: Uint8Array,
-): ProtocolMessageEnvelope => ({
-  version: 1n,
-  messageId: sha256(`protocol:message:${label}`),
-  threadId: sha256(`protocol:thread:${threadLabel}`),
-  initialMessage: initial,
-  respondsToMessageId:
-    respondsTo ?? genericPureCircuits.noProtocolResponseReference(),
-  createdAt: BigInt(Date.now()),
-  hasExpiresAt: false,
-  expiresAt: 0n,
-});
+import { mod, sha256, padText } from "../shared/crypto.js";
+import { createEnvelope } from "../shared/envelope.js";
 
 export type SecretClaimWitness = {
   readonly subjectId: Uint8Array;

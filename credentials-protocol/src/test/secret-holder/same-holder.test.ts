@@ -6,7 +6,7 @@ import {
   type SecretClaimWitness,
 } from "../../agents/secret-issuer-agent.js";
 import { SecretHolderAgent } from "../../agents/secret-holder-agent.js";
-import { VerifierAgent } from "../../agents/verifier-agent.js";
+import { VerifierAgent, type SameHolderSimulatorWitness } from "../../agents/verifier-agent.js";
 import {
   createDIDProfile,
   sha256,
@@ -88,10 +88,22 @@ describe("secret-holder same-holder composition", () => {
 
     // Build same-holder proof with the verifier's challenge
     const challenge = verifier.generateChallenge();
-    const proof = alice.buildSameHolderProof([0, 1], challenge);
+    const presentation = alice.buildSameHolderProof([0, 1], challenge);
+
+    // Build simulator witness: private data passed directly to the verifier (not via bus)
+    const { holderSecret, holderSecretOpening } = alice.secretWitness;
+    const firstStored = alice.getCredential(0);
+    const secondStored = alice.getCredential(1);
+    const simulatorWitness: SameHolderSimulatorWitness = {
+      holderSecret,
+      firstHolderSecretOpening: holderSecretOpening,
+      firstHolderBindingBlindingFactor: firstStored.holderBindingBlindingFactor,
+      secondHolderSecretOpening: holderSecretOpening,
+      secondHolderBindingBlindingFactor: secondStored.holderBindingBlindingFactor,
+    };
 
     // Verify the same-holder proof
-    const result = verifier.verifySameHolderProof(proof);
+    const result = verifier.verifySameHolderProof(presentation, simulatorWitness);
     expect(result.sameHolder).toBe(true);
   });
 
@@ -124,13 +136,24 @@ describe("secret-holder same-holder composition", () => {
     const aliceCredential = alice.getCredential(0);
     const bobCredential = bob.getCredential(0);
 
-    const proof = alice.buildSameHolderProofWith(
+    const presentation = alice.buildSameHolderProofWith(
       aliceCredential,
       bobCredential,
       challenge,
     );
 
-    expect(() => verifier.verifySameHolderProof(proof)).toThrow(
+    // Build simulator witness using Alice's secrets -- the second credential
+    // belongs to Bob, so the blinding factor comes from Bob's stored credential
+    const { holderSecret, holderSecretOpening } = alice.secretWitness;
+    const simulatorWitness: SameHolderSimulatorWitness = {
+      holderSecret,
+      firstHolderSecretOpening: holderSecretOpening,
+      firstHolderBindingBlindingFactor: aliceCredential.holderBindingBlindingFactor,
+      secondHolderSecretOpening: holderSecretOpening,
+      secondHolderBindingBlindingFactor: bobCredential.holderBindingBlindingFactor,
+    };
+
+    expect(() => verifier.verifySameHolderProof(presentation, simulatorWitness)).toThrow(
       /Blinded holder commitment does not match the hidden holder secret witness/,
     );
   });

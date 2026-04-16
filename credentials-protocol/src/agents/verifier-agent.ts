@@ -1,9 +1,5 @@
-import { createHash } from "node:crypto";
-
 import {
   type Proof,
-  pureCircuits as genericPureCircuits,
-  type ProtocolMessageEnvelope,
   type VerificationMethodRef,
   type BirthCredentialPresentationRequest as SecretBirthPresentationRequest,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
@@ -22,35 +18,9 @@ import {
 import type { DIDProfile } from "./types.js";
 import type { ProtocolMessage, PartyId } from "../transport/types.js";
 import { MessageBus } from "../transport/message-bus.js";
-import type { SameHolderProof } from "./secret-holder-agent.js";
-
-const sha256 = (value: string): Uint8Array =>
-  new Uint8Array(createHash("sha256").update(value).digest());
-
-const padText = (value: string, length = 32): Uint8Array => {
-  const bytes = new TextEncoder().encode(value);
-  if (bytes.length >= length) return bytes.subarray(0, length);
-  const padded = new Uint8Array(length);
-  padded.set(bytes);
-  return padded;
-};
-
-const createEnvelope = (
-  label: string,
-  threadLabel: string,
-  initial: boolean,
-  respondsTo?: Uint8Array,
-): ProtocolMessageEnvelope => ({
-  version: 1n,
-  messageId: sha256(`protocol:message:${label}`),
-  threadId: sha256(`protocol:thread:${threadLabel}`),
-  initialMessage: initial,
-  respondsToMessageId:
-    respondsTo ?? genericPureCircuits.noProtocolResponseReference(),
-  createdAt: BigInt(Date.now()),
-  hasExpiresAt: false,
-  expiresAt: 0n,
-});
+import type { SameHolderPresentation } from "./secret-holder-agent.js";
+import { sha256, padText } from "../shared/crypto.js";
+import { createEnvelope } from "../shared/envelope.js";
 
 export type PresentationRequirements = {
   readonly issuerVerificationMethodRef: VerificationMethodRef;
@@ -72,6 +42,15 @@ export type PresentationSubmissionBody = {
   readonly credentialProof: Proof;
   readonly presentation: BirthCredentialPresentation;
   readonly presentationProof: Proof;
+};
+
+/**
+ * Private witness data needed only by the Compact simulator to evaluate
+ * age predicates. In a real ZK deployment the verifier never sees this --
+ * the circuit proves the predicate without revealing the inputs.
+ * This type is intended for test use only.
+ */
+export type SimulatorWitness = {
   readonly request: BirthCredentialPresentationRequest;
   readonly currentDay: bigint;
   readonly birthDateDays: bigint;
@@ -92,6 +71,16 @@ export type SecretPresentationSubmissionBody = {
   readonly credential: SecretBirthCredential;
   readonly credentialProof: Proof;
   readonly presentation: SecretBirthCredentialPresentation;
+};
+
+/**
+ * Private witness data needed only by the Compact simulator to evaluate
+ * secret-holder presentations. In a real ZK deployment the verifier never
+ * sees the holder secret or its opening -- the circuit proves holder
+ * binding and age predicates without revealing these inputs.
+ * This type is intended for test use only.
+ */
+export type SecretSimulatorWitness = {
   readonly request: SecretBirthPresentationRequest;
   readonly currentDay: bigint;
   readonly birthDateDays: bigint;
@@ -99,6 +88,20 @@ export type SecretPresentationSubmissionBody = {
   readonly holderSecret: Uint8Array;
   readonly holderSecretOpening: Uint8Array;
   readonly holderBindingBlindingFactor: Uint8Array;
+};
+
+/**
+ * Private witness data needed only by the Compact simulator to verify
+ * same-holder composition proofs. In a real ZK deployment the verifier
+ * never sees the holder secret or blinding factors.
+ * This type is intended for test use only.
+ */
+export type SameHolderSimulatorWitness = {
+  readonly holderSecret: Uint8Array;
+  readonly firstHolderSecretOpening: Uint8Array;
+  readonly firstHolderBindingBlindingFactor: Uint8Array;
+  readonly secondHolderSecretOpening: Uint8Array;
+  readonly secondHolderBindingBlindingFactor: Uint8Array;
 };
 
 export class VerifierAgent {
@@ -148,6 +151,7 @@ export class VerifierAgent {
 
   receiveSubmissionAndEvaluate(
     submission: ProtocolMessage,
+    simulatorWitness: SimulatorWitness,
   ): { approved: boolean } {
     if (submission.type !== "presentation:submission") {
       throw new Error(
@@ -168,19 +172,19 @@ export class VerifierAgent {
     // Verify the presentation satisfies the request
     pureCircuits.assertBirthPresentationSatisfiesRequest(
       body.credential,
-      body.request,
+      simulatorWitness.request,
       body.presentation,
       body.presentationProof,
     );
 
     // If an age predicate was requested, validate it
-    if (body.request.requireAgeOverThreshold) {
+    if (simulatorWitness.request.requireAgeOverThreshold) {
       pureCircuits.assertValidBirthCredentialAgePredicate(
         body.credential,
         body.presentation,
-        body.currentDay,
-        body.birthDateDays,
-        body.birthDateOpening,
+        simulatorWitness.currentDay,
+        simulatorWitness.birthDateDays,
+        simulatorWitness.birthDateOpening,
       );
     }
 
@@ -234,6 +238,7 @@ export class VerifierAgent {
 
   receiveSecretSubmissionAndEvaluate(
     submission: ProtocolMessage,
+    simulatorWitness: SecretSimulatorWitness,
   ): { approved: boolean; pseudonym?: Uint8Array } {
     if (submission.type !== "presentation:submission") {
       throw new Error(
@@ -254,21 +259,21 @@ export class VerifierAgent {
     secretPureCircuits.assertSecretBirthPresentationSatisfiesRequest(
       body.credential,
       body.credentialProof,
-      body.request,
+      simulatorWitness.request,
       body.presentation,
-      body.holderSecret,
-      body.holderSecretOpening,
-      body.holderBindingBlindingFactor,
+      simulatorWitness.holderSecret,
+      simulatorWitness.holderSecretOpening,
+      simulatorWitness.holderBindingBlindingFactor,
     );
 
     // If an age predicate was requested, validate it
-    if (body.request.requireAgeOverThreshold) {
+    if (simulatorWitness.request.requireAgeOverThreshold) {
       secretPureCircuits.assertValidSecretBirthCredentialAgePredicate(
         body.credential,
         body.presentation,
-        body.currentDay,
-        body.birthDateDays,
-        body.birthDateOpening,
+        simulatorWitness.currentDay,
+        simulatorWitness.birthDateDays,
+        simulatorWitness.birthDateOpening,
       );
     }
 
@@ -288,21 +293,24 @@ export class VerifierAgent {
     );
   }
 
-  verifySameHolderProof(proof: SameHolderProof): { sameHolder: boolean } {
+  verifySameHolderProof(
+    presentation: SameHolderPresentation,
+    simulatorWitness: SameHolderSimulatorWitness,
+  ): { sameHolder: boolean } {
     secretPureCircuits.assertSameHolderSecretBirthPresentations(
-      proof.firstCredential,
-      proof.firstCredentialProof,
-      proof.firstRequest,
-      proof.firstPresentation,
-      proof.secondCredential,
-      proof.secondCredentialProof,
-      proof.secondRequest,
-      proof.secondPresentation,
-      proof.holderSecret,
-      proof.firstHolderSecretOpening,
-      proof.firstHolderBindingBlindingFactor,
-      proof.secondHolderSecretOpening,
-      proof.secondHolderBindingBlindingFactor,
+      presentation.firstCredential,
+      presentation.firstCredentialProof,
+      presentation.firstRequest,
+      presentation.firstPresentation,
+      presentation.secondCredential,
+      presentation.secondCredentialProof,
+      presentation.secondRequest,
+      presentation.secondPresentation,
+      simulatorWitness.holderSecret,
+      simulatorWitness.firstHolderSecretOpening,
+      simulatorWitness.firstHolderBindingBlindingFactor,
+      simulatorWitness.secondHolderSecretOpening,
+      simulatorWitness.secondHolderBindingBlindingFactor,
     );
 
     return { sameHolder: true };

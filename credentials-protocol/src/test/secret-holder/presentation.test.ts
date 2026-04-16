@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
 
+import type {
+  BirthCredentialPresentationRequest as SecretBirthPresentationRequest,
+} from "../../../../credentials/src/managed/credentials/contract/index.js";
+
 import { MessageBus } from "../../transport/message-bus.js";
 import {
   SecretIssuerAgent,
@@ -9,7 +13,7 @@ import {
   SecretHolderAgent,
   type SecretPresentationWitness,
 } from "../../agents/secret-holder-agent.js";
-import { VerifierAgent } from "../../agents/verifier-agent.js";
+import { VerifierAgent, type SecretSimulatorWitness } from "../../agents/verifier-agent.js";
 import {
   createDIDProfile,
   sha256,
@@ -76,9 +80,12 @@ describe("secret-holder presentation", () => {
     expect(bus.pending("holder")).toBe(1);
 
     // Step 2: Holder receives request and builds presentation
-    const request = bus.receive("holder");
-    expect(request).toBeDefined();
-    expect(request!.type).toBe("presentation:request");
+    const requestMessage = bus.receive("holder");
+    expect(requestMessage).toBeDefined();
+    expect(requestMessage!.type).toBe("presentation:request");
+
+    // Capture the request for the simulator witness
+    const presentationRequest = requestMessage!.body as SecretBirthPresentationRequest;
 
     // Alice is 25 years old: birthDateDays=3650, currentDay = 3650 + 365*25 = 12775
     const presentationWitness: SecretPresentationWitness = {
@@ -90,7 +97,7 @@ describe("secret-holder presentation", () => {
       birthCountryCodeOpening: claimWitness.birthCountryCodeOpening,
     };
 
-    holder.receiveRequestAndSendPresentation(request!, presentationWitness);
+    holder.receiveRequestAndSendPresentation(requestMessage!, presentationWitness);
     expect(bus.pending("verifier")).toBe(1);
 
     // Step 3: Verifier receives submission and evaluates
@@ -98,7 +105,20 @@ describe("secret-holder presentation", () => {
     expect(submission).toBeDefined();
     expect(submission!.type).toBe("presentation:submission");
 
-    const result = verifier.receiveSecretSubmissionAndEvaluate(submission!);
+    // Simulator witness: private data passed directly to the verifier (not via bus)
+    const stored = holder.getCredential(0);
+    const { holderSecret, holderSecretOpening } = holder.secretWitness;
+    const simulatorWitness: SecretSimulatorWitness = {
+      request: presentationRequest,
+      currentDay: 3650n + 365n * 25n,
+      birthDateDays: claimWitness.birthDateDays,
+      birthDateOpening: claimWitness.birthDateOpening,
+      holderSecret,
+      holderSecretOpening,
+      holderBindingBlindingFactor: stored.holderBindingBlindingFactor,
+    };
+
+    const result = verifier.receiveSecretSubmissionAndEvaluate(submission!, simulatorWitness);
     expect(result.approved).toBe(true);
   });
 });

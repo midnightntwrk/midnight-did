@@ -1,12 +1,14 @@
 import { describe, it, expect } from "vitest";
 
+import type { BirthCredentialPresentationRequest } from "../../../../credentials-birth/src/managed/birth-credential/contract/index.js";
+
 import { MessageBus } from "../../transport/message-bus.js";
 import { IssuerAgent, type ClaimWitness } from "../../agents/issuer-agent.js";
 import {
   HolderAgent,
   type PresentationWitness,
 } from "../../agents/holder-agent.js";
-import { VerifierAgent } from "../../agents/verifier-agent.js";
+import { VerifierAgent, type SimulatorWitness } from "../../agents/verifier-agent.js";
 import {
   createDIDProfile,
   sha256,
@@ -67,9 +69,12 @@ describe("explicit-holder presentation", () => {
     expect(bus.pending("holder")).toBe(1);
 
     // Step 2: Holder receives request and builds presentation
-    const request = bus.receive("holder");
-    expect(request).toBeDefined();
-    expect(request!.type).toBe("presentation:request");
+    const requestMessage = bus.receive("holder");
+    expect(requestMessage).toBeDefined();
+    expect(requestMessage!.type).toBe("presentation:request");
+
+    // Capture the request for the simulator witness (verifier knows this in a real protocol)
+    const presentationRequest = requestMessage!.body as BirthCredentialPresentationRequest;
 
     // Alice is 25 years old: birthDateDays=3650, currentDay = 3650 + 365*25 = 12775
     const presentationWitness: PresentationWitness = {
@@ -81,7 +86,7 @@ describe("explicit-holder presentation", () => {
       birthCountryCodeOpening: claimWitness.birthCountryCodeOpening,
     };
 
-    holder.receiveRequestAndSendPresentation(request!, presentationWitness);
+    holder.receiveRequestAndSendPresentation(requestMessage!, presentationWitness);
     expect(bus.pending("verifier")).toBe(1);
 
     // Step 3: Verifier receives submission and evaluates
@@ -89,7 +94,15 @@ describe("explicit-holder presentation", () => {
     expect(submission).toBeDefined();
     expect(submission!.type).toBe("presentation:submission");
 
-    const result = verifier.receiveSubmissionAndEvaluate(submission!);
+    // Simulator witness: private data passed directly to the verifier (not via bus)
+    const simulatorWitness: SimulatorWitness = {
+      request: presentationRequest,
+      currentDay: 3650n + 365n * 25n,
+      birthDateDays: claimWitness.birthDateDays,
+      birthDateOpening: claimWitness.birthDateOpening,
+    };
+
+    const result = verifier.receiveSubmissionAndEvaluate(submission!, simulatorWitness);
     expect(result.approved).toBe(true);
   });
 
@@ -107,7 +120,8 @@ describe("explicit-holder presentation", () => {
       requestedAgeThresholdYears: 30,
     });
 
-    const request = bus.receive("holder")!;
+    const requestMessage = bus.receive("holder")!;
+    const presentationRequest = requestMessage.body as BirthCredentialPresentationRequest;
 
     // Alice is 25 years old: currentDay = 3650 + 365*25 = 12775
     const presentationWitness: PresentationWitness = {
@@ -119,11 +133,19 @@ describe("explicit-holder presentation", () => {
       birthCountryCodeOpening: claimWitness.birthCountryCodeOpening,
     };
 
-    holder.receiveRequestAndSendPresentation(request, presentationWitness);
+    holder.receiveRequestAndSendPresentation(requestMessage, presentationWitness);
 
     const submission = bus.receive("verifier")!;
 
+    // Simulator witness: private data passed directly to the verifier (not via bus)
+    const simulatorWitness: SimulatorWitness = {
+      request: presentationRequest,
+      currentDay: 3650n + 365n * 25n,
+      birthDateDays: claimWitness.birthDateDays,
+      birthDateOpening: claimWitness.birthDateOpening,
+    };
+
     // The verifier evaluation should throw because the age predicate fails
-    expect(() => verifier.receiveSubmissionAndEvaluate(submission)).toThrow();
+    expect(() => verifier.receiveSubmissionAndEvaluate(submission, simulatorWitness)).toThrow();
   });
 });
