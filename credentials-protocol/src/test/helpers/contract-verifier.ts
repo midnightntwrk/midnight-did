@@ -7,7 +7,7 @@ import {
   type BirthCredentialPresentationRequest,
   type Proof,
 } from "../../../../credentials-demo-contract/src/managed/demo/contract/index.js";
-import { CredentialsDemoSimulator } from "../../../../credentials-demo-contract/src/simulator.js";
+import { CredentialsDemoSimulator } from "../../../../credentials-demo-contract/src/testing.js";
 
 const ACCESS_DECISION_LABELS: Record<number, string> = {
   0: "noDecision",

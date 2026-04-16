@@ -1,7 +1,9 @@
 import { describe, expect,it } from "vitest";
 
-import type {
-  SecretBirthCredentialPresentationRequest,
+import { pureCircuits as genericPureCircuits } from "../../../../credentials/src/managed/credentials/contract/index.js";
+import {
+  pureCircuits,
+  type SecretBirthCredentialPresentationRequest,
 } from "../../../../credentials-birth-secret/src/managed/secret-birth-credential/contract/index.js";
 import {
   SecretHolderAgent,
@@ -50,12 +52,26 @@ describe("secret-holder presentation", () => {
     const holder = new SecretHolderAgent(holderConfig, bus);
 
     issuer.createAndSendOffer("holder");
-    holder.receiveOfferAndSendRequest(bus.receive("holder")!);
+    const offer = bus.receive("holder")!;
+    genericPureCircuits.assertValidProtocolMessageEnvelope(offer.envelope);
+    holder.receiveOfferAndSendRequest(offer);
+    const request = bus.receive("issuer")!;
+    genericPureCircuits.assertValidProtocolMessageEnvelope(request.envelope);
+    genericPureCircuits.assertProtocolResponseEnvelope(
+      offer.envelope,
+      request.envelope,
+    );
     issuer.receiveRequestAndIssueCredential(
-      bus.receive("issuer")!,
+      request,
       claimWitness,
     );
-    holder.receiveCredentialResult(bus.receive("holder")!);
+    const result = bus.receive("holder")!;
+    genericPureCircuits.assertValidProtocolMessageEnvelope(result.envelope);
+    genericPureCircuits.assertProtocolResponseEnvelope(
+      request.envelope,
+      result.envelope,
+    );
+    holder.receiveCredentialResult(result);
 
     return holder;
   };
@@ -82,10 +98,17 @@ describe("secret-holder presentation", () => {
     const requestMessage = bus.receive("holder");
     expect(requestMessage).toBeDefined();
     expect(requestMessage!.type).toBe("presentation:request");
+    genericPureCircuits.assertValidProtocolMessageEnvelope(
+      requestMessage!.envelope,
+    );
+    const requestBody =
+      requestMessage!.body as SecretBirthCredentialPresentationRequest;
+    pureCircuits.assertValidSecretBirthCredentialPresentationRequest(
+      requestBody,
+    );
 
     // Capture the request for the simulator witness
-    const presentationRequest =
-      requestMessage!.body as SecretBirthCredentialPresentationRequest;
+    const presentationRequest = requestBody;
 
     // Alice is 25 years old: birthDateDays=3650, currentDay = 3650 + 365*25 = 12775
     const presentationWitness: SecretPresentationWitness = {
@@ -104,6 +127,11 @@ describe("secret-holder presentation", () => {
     const submission = bus.receive("verifier");
     expect(submission).toBeDefined();
     expect(submission!.type).toBe("presentation:submission");
+    genericPureCircuits.assertValidProtocolMessageEnvelope(submission!.envelope);
+    genericPureCircuits.assertProtocolResponseEnvelope(
+      requestMessage!.envelope,
+      submission!.envelope,
+    );
 
     // Simulator witness: private data passed directly to the verifier (not via bus)
     const stored = holder.getCredential(0);

@@ -11,6 +11,8 @@ import {
   type BirthCredentialIssuanceResult,
   type BirthCredentialPresentation,
   type BirthCredentialPresentationRequest,
+  type BirthCredentialVerificationRequest,
+  type BirthCredentialVerificationSubmission,
   HolderBindingProfile,
   pureCircuits,
 } from "../../../credentials-birth/src/managed/birth-credential/contract/index.js";
@@ -20,7 +22,6 @@ import { assertBodyHasFields,assertMessageType } from "../shared/validation.js";
 import type { MessageBus } from "../transport/message-bus.js";
 import type { ProtocolMessage } from "../transport/types.js";
 import type { DIDProfile } from "./types.js";
-import type { PresentationSubmissionBody } from "./verifier-agent.js";
 
 export type StoredCredential = {
   readonly credential: BirthCredential;
@@ -176,8 +177,13 @@ export class HolderAgent {
     witnessData: PresentationWitness,
   ): void {
     assertMessageType(requestMessage, "presentation:request");
-    assertBodyHasFields(requestMessage, ["version", "schema", "verifierChallengeHash"]);
-    const request = requestMessage.body as BirthCredentialPresentationRequest;
+    assertBodyHasFields(requestMessage, ["envelope", "schema", "body"]);
+    const requestMessageBody =
+      requestMessage.body as BirthCredentialVerificationRequest;
+    const request =
+      pureCircuits.birthCredentialPresentationRequestFromProtocol(
+        requestMessageBody,
+      );
     const stored = this.getCredential(witnessData.credentialIndex);
 
     const { presentation, presentationProof } =
@@ -187,24 +193,32 @@ export class HolderAgent {
         witnessData,
       );
 
-    const submissionBody: PresentationSubmissionBody = {
-      credential: stored.credential,
-      credentialProof: stored.credentialProof,
-      presentation,
-      presentationProof,
+    const submissionBody: BirthCredentialVerificationSubmission = {
+      envelope: createEnvelope(
+        "presentation-submission",
+        "birth-presentation",
+        false,
+        requestMessageBody.envelope.messageId,
+        requestMessageBody.envelope.threadId,
+      ),
+      schema: requestMessageBody.schema,
+      issuerVerificationMethodRef:
+        requestMessageBody.issuerVerificationMethodRef,
+      holderBindingProfile: requestMessageBody.holderBindingProfile,
+      challengeHash: requestMessageBody.verifierChallengeHash,
+      body: {
+        credential: stored.credential,
+        credentialProof: stored.credentialProof,
+        presentation,
+        presentationProof,
+      },
     };
 
     this.bus.send({
       type: "presentation:submission",
       from: this.profile.label,
       to: requestMessage.from,
-      envelope: createEnvelope(
-        "presentation-submission",
-        "birth-presentation",
-        false,
-        requestMessage.envelope.messageId,
-        requestMessage.envelope.threadId,
-      ),
+      envelope: submissionBody.envelope,
       body: submissionBody,
     });
   }

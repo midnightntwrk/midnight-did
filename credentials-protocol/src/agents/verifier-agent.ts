@@ -6,6 +6,10 @@ import {
   type BirthCredential,
   type BirthCredentialPresentation,
   type BirthCredentialPresentationRequest,
+  type BirthCredentialVerificationRequest,
+  type BirthCredentialVerificationResult,
+  type BirthCredentialVerificationSubmission,
+  HolderBindingProfile,
   pureCircuits,
 } from "../../../credentials-birth/src/managed/birth-credential/contract/index.js";
 import {
@@ -37,6 +41,13 @@ const BIRTH_SCHEMA = {
   minorVersion: 0n,
 };
 
+const EXPLICIT_HOLDER_FEATURES = {
+  supportsSelectiveDisclosure: true,
+  supportsPredicateProofs: true,
+  supportsVerifierScopedPseudonym: false,
+  supportsSameHolderProof: false,
+};
+
 export type PresentationSubmissionBody = {
   readonly credential: BirthCredential;
   readonly credentialProof: Proof;
@@ -51,7 +62,7 @@ export type PresentationSubmissionBody = {
  * This type is intended for test use only.
  */
 export type SimulatorWitness = {
-  readonly request: BirthCredentialPresentationRequest;
+  readonly request: BirthCredentialVerificationRequest;
   readonly currentDay: bigint;
   readonly birthDateDays: bigint;
   readonly birthDateOpening: Uint8Array;
@@ -130,30 +141,34 @@ export class VerifierAgent {
     holderLabel: PartyId,
     requirements: PresentationRequirements,
   ): void {
-    const request: BirthCredentialPresentationRequest = {
-      version: 1n,
+    const request: BirthCredentialVerificationRequest = {
+      envelope: createEnvelope(
+        "presentation-request",
+        "birth-presentation",
+        true,
+      ),
       schema: BIRTH_SCHEMA,
       issuerVerificationMethodRef: requirements.issuerVerificationMethodRef,
-      requireSubjectIdCommitmentDisclosure:
-        requirements.requireSubjectIdCommitmentDisclosure,
-      requireBirthCountryDisclosure:
-        requirements.requireBirthCountryDisclosure,
-      requireAgeOverThreshold: requirements.requireAgeOverThreshold,
-      requestedAgeThresholdYears: BigInt(
-        requirements.requestedAgeThresholdYears,
-      ),
-      verifierChallengeHash: this.verifierChallengeHash,
+      holderBindingProfile: HolderBindingProfile.explicitDid,
+      features: EXPLICIT_HOLDER_FEATURES,
+      verifierChallengeHash: this.generateChallengeHash(),
+      body: {
+        requireSubjectIdCommitmentDisclosure:
+          requirements.requireSubjectIdCommitmentDisclosure,
+        requireBirthCountryDisclosure:
+          requirements.requireBirthCountryDisclosure,
+        requireAgeOverThreshold: requirements.requireAgeOverThreshold,
+        requestedAgeThresholdYears: BigInt(
+          requirements.requestedAgeThresholdYears,
+        ),
+      },
     };
 
     this.bus.send({
       type: "presentation:request",
       from: this.profile.label,
       to: holderLabel,
-      envelope: createEnvelope(
-        "presentation-request",
-        "birth-presentation",
-        true,
-      ),
+      envelope: request.envelope,
       body: request,
     });
   }
@@ -161,10 +176,24 @@ export class VerifierAgent {
   receiveSubmissionAndEvaluate(
     submission: ProtocolMessage,
     simulatorWitness: SimulatorWitness,
-  ): { approved: boolean } {
+  ): { approved: boolean; result: BirthCredentialVerificationResult } {
     assertMessageType(submission, "presentation:submission");
-    assertBodyHasFields(submission, ["credential", "credentialProof", "presentation", "presentationProof"]);
-    const body = submission.body as PresentationSubmissionBody;
+    assertBodyHasFields(submission, ["envelope", "schema", "body"]);
+    const submissionMessage =
+      submission.body as BirthCredentialVerificationSubmission;
+    const body = submissionMessage.body;
+    const presentationRequest =
+      pureCircuits.birthCredentialPresentationRequestFromProtocol(
+        simulatorWitness.request,
+      );
+
+    pureCircuits.assertValidBirthCredentialVerificationRequestMessage(
+      simulatorWitness.request,
+    );
+    pureCircuits.assertBirthCredentialVerificationSubmissionMatchesRequest(
+      simulatorWitness.request,
+      submissionMessage,
+    );
 
     // Validate the credential and presentation signatures
     pureCircuits.assertValidBirthCredentialPresentation(
@@ -177,13 +206,13 @@ export class VerifierAgent {
     // Verify the presentation satisfies the request
     pureCircuits.assertBirthPresentationSatisfiesRequest(
       body.credential,
-      simulatorWitness.request,
+      presentationRequest,
       body.presentation,
       body.presentationProof,
     );
 
     // If an age predicate was requested, validate it
-    if (simulatorWitness.request.requireAgeOverThreshold) {
+    if (presentationRequest.requireAgeOverThreshold) {
       pureCircuits.assertValidBirthCredentialAgePredicate(
         body.credential,
         body.presentation,
@@ -193,7 +222,28 @@ export class VerifierAgent {
       );
     }
 
-    return { approved: true };
+    const result: BirthCredentialVerificationResult = {
+      envelope: createEnvelope(
+        "presentation-result",
+        "birth-presentation",
+        false,
+        submissionMessage.envelope.messageId,
+        submissionMessage.envelope.threadId,
+      ),
+      approved: true,
+      body: {
+        credentialRoot: pureCircuits.birthCredentialBodyRoot(body.credential),
+        verifiedThresholdYears:
+          presentationRequest.requestedAgeThresholdYears,
+      },
+    };
+
+    pureCircuits.assertBirthCredentialVerificationResultMatchesSubmission(
+      submissionMessage,
+      result,
+    );
+
+    return { approved: true, result };
   }
 
   // --- Secret-holder presentation methods ---

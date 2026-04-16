@@ -1,6 +1,13 @@
 import { describe, expect,it } from "vitest";
 
-import type { BirthCredentialPresentationRequest } from "../../../../credentials-birth/src/managed/birth-credential/contract/index.js";
+import {
+  type BirthCredentialIssuanceOffer,
+  type BirthCredentialIssuanceRequest,
+  type BirthCredentialIssuanceResult,
+  type BirthCredentialVerificationRequest,
+  type BirthCredentialVerificationSubmission,
+  pureCircuits,
+} from "../../../../credentials-birth/src/managed/birth-credential/contract/index.js";
 import {
   HolderAgent,
   type PresentationWitness,
@@ -40,12 +47,29 @@ describe("explicit-holder presentation", () => {
     const holder = new HolderAgent(holderProfile, bus);
 
     issuer.createAndSendOffer("holder");
-    holder.receiveOfferAndSendRequest(bus.receive("holder")!);
+    const offer = bus.receive("holder")!;
+    const offerBody = offer.body as BirthCredentialIssuanceOffer;
+    pureCircuits.assertValidBirthCredentialIssuanceOffer(offerBody);
+    holder.receiveOfferAndSendRequest(offer);
+    const request = bus.receive("issuer")!;
+    const requestBody = request.body as BirthCredentialIssuanceRequest;
+    pureCircuits.assertValidBirthCredentialIssuanceRequest(requestBody);
+    pureCircuits.assertBirthCredentialIssuanceRequestMatchesOffer(
+      offerBody,
+      requestBody,
+    );
     issuer.receiveRequestAndIssueCredential(
-      bus.receive("issuer")!,
+      request,
       claimWitness,
     );
-    holder.receiveCredentialResult(bus.receive("holder")!);
+    const result = bus.receive("holder")!;
+    const resultBody = result.body as BirthCredentialIssuanceResult;
+    pureCircuits.assertValidBirthCredentialIssuanceResult(resultBody);
+    pureCircuits.assertBirthCredentialIssuanceResultMatchesRequest(
+      requestBody,
+      resultBody,
+    );
+    holder.receiveCredentialResult(result);
 
     return holder;
   };
@@ -71,9 +95,13 @@ describe("explicit-holder presentation", () => {
     const requestMessage = bus.receive("holder");
     expect(requestMessage).toBeDefined();
     expect(requestMessage!.type).toBe("presentation:request");
+    const requestBody = requestMessage!.body as BirthCredentialVerificationRequest;
+    pureCircuits.assertValidBirthCredentialVerificationRequestMessage(
+      requestBody,
+    );
 
     // Capture the request for the simulator witness (verifier knows this in a real protocol)
-    const presentationRequest = requestMessage!.body as BirthCredentialPresentationRequest;
+    const presentationRequest = requestBody;
 
     // Alice is 25 years old: birthDateDays=3650, currentDay = 3650 + 365*25 = 12775
     const presentationWitness: PresentationWitness = {
@@ -92,6 +120,12 @@ describe("explicit-holder presentation", () => {
     const submission = bus.receive("verifier");
     expect(submission).toBeDefined();
     expect(submission!.type).toBe("presentation:submission");
+    const submissionBody =
+      submission!.body as BirthCredentialVerificationSubmission;
+    pureCircuits.assertBirthCredentialVerificationSubmissionMatchesRequest(
+      presentationRequest,
+      submissionBody,
+    );
 
     // Simulator witness: private data passed directly to the verifier (not via bus)
     const simulatorWitness: SimulatorWitness = {
@@ -103,6 +137,10 @@ describe("explicit-holder presentation", () => {
 
     const result = verifier.receiveSubmissionAndEvaluate(submission!, simulatorWitness);
     expect(result.approved).toBe(true);
+    pureCircuits.assertBirthCredentialVerificationResultMatchesSubmission(
+      submissionBody,
+      result.result,
+    );
   });
 
   it("rejects a presentation when the holder does not meet the age threshold", () => {
@@ -120,7 +158,11 @@ describe("explicit-holder presentation", () => {
     });
 
     const requestMessage = bus.receive("holder")!;
-    const presentationRequest = requestMessage.body as BirthCredentialPresentationRequest;
+    const requestBody = requestMessage.body as BirthCredentialVerificationRequest;
+    pureCircuits.assertValidBirthCredentialVerificationRequestMessage(
+      requestBody,
+    );
+    const presentationRequest = requestBody;
 
     // Alice is 25 years old: currentDay = 3650 + 365*25 = 12775
     const presentationWitness: PresentationWitness = {
@@ -135,6 +177,12 @@ describe("explicit-holder presentation", () => {
     holder.receiveRequestAndSendPresentation(requestMessage, presentationWitness);
 
     const submission = bus.receive("verifier")!;
+    const submissionBody =
+      submission.body as BirthCredentialVerificationSubmission;
+    pureCircuits.assertBirthCredentialVerificationSubmissionMatchesRequest(
+      presentationRequest,
+      submissionBody,
+    );
 
     // Simulator witness: private data passed directly to the verifier (not via bus)
     const simulatorWitness: SimulatorWitness = {

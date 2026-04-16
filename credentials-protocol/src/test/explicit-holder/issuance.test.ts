@@ -1,5 +1,11 @@
 import { describe, expect,it } from "vitest";
 
+import {
+  type BirthCredentialIssuanceOffer,
+  type BirthCredentialIssuanceRequest,
+  type BirthCredentialIssuanceResult,
+  pureCircuits,
+} from "../../../../credentials-birth/src/managed/birth-credential/contract/index.js";
 import { HolderAgent } from "../../agents/holder-agent.js";
 import { type ClaimWitness,IssuerAgent } from "../../agents/issuer-agent.js";
 import { MessageBus } from "../../transport/message-bus.js";
@@ -40,6 +46,8 @@ describe("explicit-holder issuance", () => {
     const offer = bus.receive("holder");
     expect(offer).toBeDefined();
     expect(offer!.type).toBe("issuance:offer");
+    const offerBody = offer!.body as BirthCredentialIssuanceOffer;
+    pureCircuits.assertValidBirthCredentialIssuanceOffer(offerBody);
     holder.receiveOfferAndSendRequest(offer!);
     expect(bus.pending("issuer")).toBe(1);
 
@@ -47,6 +55,12 @@ describe("explicit-holder issuance", () => {
     const request = bus.receive("issuer");
     expect(request).toBeDefined();
     expect(request!.type).toBe("issuance:request");
+    const requestBody = request!.body as BirthCredentialIssuanceRequest;
+    pureCircuits.assertValidBirthCredentialIssuanceRequest(requestBody);
+    pureCircuits.assertBirthCredentialIssuanceRequestMatchesOffer(
+      offerBody,
+      requestBody,
+    );
     issuer.receiveRequestAndIssueCredential(request!, claimWitness);
     expect(bus.pending("holder")).toBe(1);
 
@@ -54,6 +68,12 @@ describe("explicit-holder issuance", () => {
     const result = bus.receive("holder");
     expect(result).toBeDefined();
     expect(result!.type).toBe("issuance:result");
+    const resultBody = result!.body as BirthCredentialIssuanceResult;
+    pureCircuits.assertValidBirthCredentialIssuanceResult(resultBody);
+    pureCircuits.assertBirthCredentialIssuanceResultMatchesRequest(
+      requestBody,
+      resultBody,
+    );
     holder.receiveCredentialResult(result!);
 
     // Verify the credential was stored
@@ -75,12 +95,29 @@ describe("explicit-holder issuance", () => {
 
     // Run the full issuance flow
     issuer.createAndSendOffer("holder");
-    holder.receiveOfferAndSendRequest(bus.receive("holder")!);
+    const offer = bus.receive("holder")!;
+    const offerBody = offer.body as BirthCredentialIssuanceOffer;
+    pureCircuits.assertValidBirthCredentialIssuanceOffer(offerBody);
+    holder.receiveOfferAndSendRequest(offer);
+    const request = bus.receive("issuer")!;
+    const requestBody = request.body as BirthCredentialIssuanceRequest;
+    pureCircuits.assertValidBirthCredentialIssuanceRequest(requestBody);
+    pureCircuits.assertBirthCredentialIssuanceRequestMatchesOffer(
+      offerBody,
+      requestBody,
+    );
     issuer.receiveRequestAndIssueCredential(
-      bus.receive("issuer")!,
+      request,
       claimWitness,
     );
-    holder.receiveCredentialResult(bus.receive("holder")!);
+    const result = bus.receive("holder")!;
+    const resultBody = result.body as BirthCredentialIssuanceResult;
+    pureCircuits.assertValidBirthCredentialIssuanceResult(resultBody);
+    pureCircuits.assertBirthCredentialIssuanceResultMatchesRequest(
+      requestBody,
+      resultBody,
+    );
+    holder.receiveCredentialResult(result);
 
     const stored = holder.getCredential(0);
 

@@ -1,5 +1,7 @@
 import { describe, expect,it } from "vitest";
 
+import { pureCircuits as genericPureCircuits } from "../../../../credentials/src/managed/credentials/contract/index.js";
+import { pureCircuits } from "../../../../credentials-birth-secret/src/managed/secret-birth-credential/contract/index.js";
 import { SecretHolderAgent } from "../../agents/secret-holder-agent.js";
 import {
   type SecretClaimWitness,
@@ -48,6 +50,7 @@ describe("secret-holder issuance", () => {
     const offer = bus.receive("holder");
     expect(offer).toBeDefined();
     expect(offer!.type).toBe("issuance:offer");
+    genericPureCircuits.assertValidProtocolMessageEnvelope(offer!.envelope);
     holder.receiveOfferAndSendRequest(offer!);
     expect(bus.pending("issuer")).toBe(1);
 
@@ -55,6 +58,11 @@ describe("secret-holder issuance", () => {
     const request = bus.receive("issuer");
     expect(request).toBeDefined();
     expect(request!.type).toBe("issuance:request");
+    genericPureCircuits.assertValidProtocolMessageEnvelope(request!.envelope);
+    genericPureCircuits.assertProtocolResponseEnvelope(
+      offer!.envelope,
+      request!.envelope,
+    );
     issuer.receiveRequestAndIssueCredential(request!, claimWitness);
     expect(bus.pending("holder")).toBe(1);
 
@@ -62,6 +70,11 @@ describe("secret-holder issuance", () => {
     const result = bus.receive("holder");
     expect(result).toBeDefined();
     expect(result!.type).toBe("issuance:result");
+    genericPureCircuits.assertValidProtocolMessageEnvelope(result!.envelope);
+    genericPureCircuits.assertProtocolResponseEnvelope(
+      request!.envelope,
+      result!.envelope,
+    );
     holder.receiveCredentialResult(result!);
 
     // Verify the credential was stored
@@ -74,6 +87,10 @@ describe("secret-holder issuance", () => {
     expect(stored.credential.issuedAt).toBe(10_000n);
     expect(stored.credential.hasExpiration).toBe(true);
     expect(stored.credential.expiresAt).toBe(20_000n);
+    pureCircuits.assertValidSecretBirthCredential(
+      stored.credential,
+      stored.credentialProof,
+    );
 
     // Verify it has blinded secret holder binding fields
     const binding = stored.credential.holderBinding;
@@ -90,10 +107,17 @@ describe("secret-holder issuance", () => {
 
     // Run the issuance flow
     issuer.createAndSendOffer("holder");
-    holder.receiveOfferAndSendRequest(bus.receive("holder")!);
+    const offer = bus.receive("holder")!;
+    genericPureCircuits.assertValidProtocolMessageEnvelope(offer.envelope);
+    holder.receiveOfferAndSendRequest(offer);
 
     // Intercept the request message to inspect what the holder sent
     const requestMsg = bus.receive("issuer")!;
+    genericPureCircuits.assertValidProtocolMessageEnvelope(requestMsg.envelope);
+    genericPureCircuits.assertProtocolResponseEnvelope(
+      offer.envelope,
+      requestMsg.envelope,
+    );
     const requestBody = (requestMsg.body as SecretIssuanceRequest).body;
 
     // The request should contain a commitment, NOT the raw secret
@@ -109,10 +133,20 @@ describe("secret-holder issuance", () => {
 
     // Complete the issuance
     issuer.receiveRequestAndIssueCredential(requestMsg, claimWitness);
-    holder.receiveCredentialResult(bus.receive("holder")!);
+    const result = bus.receive("holder")!;
+    genericPureCircuits.assertValidProtocolMessageEnvelope(result.envelope);
+    genericPureCircuits.assertProtocolResponseEnvelope(
+      requestMsg.envelope,
+      result.envelope,
+    );
+    holder.receiveCredentialResult(result);
 
     // The credential's proof must reference the issuer's verification method
     const stored = holder.getCredential(0);
+    pureCircuits.assertValidSecretBirthCredential(
+      stored.credential,
+      stored.credentialProof,
+    );
     const proof = stored.credentialProof;
     expect(
       proof.signerVerificationMethodRef.didContractAddress.bytes,
