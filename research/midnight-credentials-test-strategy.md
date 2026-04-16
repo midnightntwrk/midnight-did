@@ -559,8 +559,8 @@ Each credential family gets the same test template, parameterized by its specifi
 
 | | Explicit DID | Blinded Secret |
 |---|---|---|
-| Birth | L2-BIRTH-* (existing) | L2-BIRTHS-* (existing) |
-| Passport | L2-PASS-* | L2-PASSS-* |
+| Birth | L2-BIRTH-* (done, 13 tests) | L2-BIRTHS-* (done, 11 tests) |
+| Passport | L2-PASS-* (done, 14 tests) | L2-PASSS-* (done, 11 tests) |
 | Driving License | L2-DL-* | L2-DLS-* |
 | National ID | L2-NID-* | L2-NIDS-* |
 | AML/KYC | L2-COMP-* | L2-COMPS-* |
@@ -618,8 +618,8 @@ Each credential family gets the same test template, parameterized by its specifi
 
 ### Phase 2: ISO Registry + Credential Families
 
-- [ ] `credentials-iso-registry` package with country, region, currency, language, gender codes
-- [ ] Passport credential family (explicit + secret variants)
+- [x] `credentials-iso-registry` package with country, region, currency, language, gender codes — 5 tests
+- [x] Passport credential family (explicit + secret variants) — 25 tests
 - [ ] Driving License credential family (explicit + secret variants)
 - [ ] National ID credential family (explicit + secret variants)
 - [ ] AML/KYC Compliance credential family (explicit + secret variants)

@@ -108,6 +108,25 @@ From that source credential, the holder can later prove predicates such as:
 
 This is both more reusable and more privacy-preserving than issuing a separate credential for each age threshold.
 
+#### Why Passport is the second credential family
+
+The passport credential extends the birth credential pattern with two new capabilities:
+- an expiry predicate (`currentDay <= expiryDate`)
+- nationality and gender disclosures using ISO numeric codes from the shared registry
+
+This makes passport the simplest expansion that validates the generic layer's reusability while adding meaningful new predicate and disclosure types.
+
+### Shared ISO Registry
+
+The `credentials-iso-registry` package provides Compact-native types for ISO-standard numeric codes:
+- `CountryCode` (ISO 3166-1 numeric, `Uint<16>`)
+- `CurrencyCode` (ISO 4217 numeric, `Uint<16>`)
+- `LanguageCode` (custom numeric mapping, `Uint<16>`)
+- `RegionCode` (ISO 3166-2, country + subdivision pair)
+- `GenderCode` (ISO 5218, `Uint<8>`)
+
+All credential families import these types rather than defining their own country or gender representations. Numeric values are preferred because they are bounded, circuit-friendly, and comparable with standard Compact operators. The presentation layer renders numeric codes to human-readable text.
+
 ### Compact-First Constraints
 The current design follows the Compact model rather than a web-first model.
 
@@ -135,6 +154,9 @@ The current implementation lives in:
 - [`../credentials-birth/src/birth-credential.compact`](../credentials-birth/src/birth-credential.compact) (entry point that includes `birth-credential/model`, `birth-credential/protocol-model`, `birth-credential/helpers`, `birth-credential/validation`; also contains [`birth-credential/claims.compact`](../credentials-birth/src/birth-credential/claims.compact) with shared claim commitment circuits imported by both `credentials-birth` and `credentials-birth-secret`)
 - [`../credentials-birth-secret/src/secret-birth-credential.compact`](../credentials-birth-secret/src/secret-birth-credential.compact)
 - [`../credentials-same-holder/src/same-holder.compact`](../credentials-same-holder/src/same-holder.compact)
+- [`../credentials-iso-registry/src/iso-registry.compact`](../credentials-iso-registry/src/iso-registry.compact) (shared ISO code types: CountryCode, CurrencyCode, LanguageCode, RegionCode, GenderCode)
+- [`../credentials-passport/src/passport-credential.compact`](../credentials-passport/src/passport-credential.compact) (explicit DID-bound passport credential with age predicate and expiry check, imports ISO registry for CountryCode and GenderCode)
+- [`../credentials-passport-secret/src/secret-passport-credential.compact`](../credentials-passport-secret/src/secret-passport-credential.compact) (hidden holder-secret passport credential with pseudonym support, same-holder composition, and expiry check)
 - [`../credentials-demo-contract/src/demo.compact`](../credentials-demo-contract/src/demo.compact)
 - [`../credentials-protocol/`](../credentials-protocol/) (TypeScript protocol simulation layer)
 - [`../standalone-environment/`](../standalone-environment/) (TypeScript shared integration test infrastructure)
@@ -145,6 +167,9 @@ The package split is now intentional:
 - `credentials-birth` owns the explicit DID-bound birth-credential specialization including protocol-level issuance and verification message types
 - `credentials-birth-secret` owns the hidden holder-secret birth-credential specialization
 - `credentials-same-holder` owns the optional same-holder composition capability for cross-credential holder correlation
+- `credentials-iso-registry` owns the shared Compact-native ISO code types (CountryCode, CurrencyCode, LanguageCode, RegionCode, GenderCode) used by all credential families
+- `credentials-passport` owns the explicit DID-bound passport credential specialization with age predicate and expiry check, importing CountryCode and GenderCode from the ISO registry
+- `credentials-passport-secret` owns the hidden holder-secret passport credential specialization with pseudonym support, same-holder composition, and expiry check
 - `credentials-demo-contract` owns the executable issuer, holder, verifier flow with contract-native gated access
 - `credentials-protocol` owns the TypeScript protocol simulation layer with party agents and in-process message transport
 - `standalone-environment` owns the shared Midnight Docker environment for integration tests, including the `StandaloneEnvironment` lifecycle class, DID profile provisioning, and wallet setup utilities
@@ -347,6 +372,12 @@ compose only the capabilities they actually need.
 | Contract-native gated access flow | typed presentation request plus reusable capability issuance | issue a contract-level capability and consume it later with soft business denial states | `credentials-demo-contract` tests, `credentials-protocol` contract-verifier capability-lifecycle tests |
 | Same-holder credential composition | two secret-holder credentials, one shared verifier challenge, one shared hidden holder secret witness | prove that multiple credentials belong to the same holder without revealing a stable public DID | `credentials-same-holder` and `credentials-birth-secret` tests, `credentials-protocol` secret-holder same-holder tests |
 | Full explicit-holder lifecycle | explicit holder binding, protocol-level issuance offer/request/result, presentation request/submission/result | exercise the complete issuance-to-verification lifecycle through typed protocol messages | `credentials-protocol` explicit-holder full-lifecycle tests |
+| Passport issuer-attested credential | explicit holder binding, issuer proof, nationality and gender disclosures | accept an issuer-attested passport credential as a typed source record | `credentials-passport` tests |
+| Passport operational disclosure flow | explicit holder binding, nationality disclosure, age predicate | verify a passport presentation with nationality disclosure and age check | `credentials-passport` tests |
+| Passport full verification flow | explicit holder binding, nationality and gender disclosure, age predicate, expiry check | verify a passport presentation against all supported disclosures and predicates | `credentials-passport` tests |
+| Passport hidden-holder flow | secret holder binding, blinded anchor, age predicate, expiry check | avoid a stable public holder DID while proving age and document validity | `credentials-passport-secret` tests |
+| Passport advanced privacy flow | secret holder binding, pseudonym, nationality and gender disclosure, age predicate, expiry check | support stronger privacy controls while proving passport-based eligibility | `credentials-passport-secret` tests |
+| Passport same-holder composition | two secret passport credentials from different issuers, shared verifier challenge, shared hidden holder secret | prove that multiple passport credentials belong to the same holder without revealing a stable public DID | `credentials-passport-secret` tests |
 
 This profile matrix is deliberate.
 

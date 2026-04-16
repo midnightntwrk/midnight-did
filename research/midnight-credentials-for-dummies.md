@@ -101,7 +101,7 @@ Midnight Credentials in the current prototype are built in five layers.
 | Layer | Purpose | Current packages or status |
 | --- | --- | --- |
 | Layer 1 | reusable generic credential capabilities | `credentials`, `credentials-same-holder` |
-| Layer 2 | concrete credential-family logic | `credentials-birth`, `credentials-birth-secret` |
+| Layer 2 | concrete credential-family logic | `credentials-birth`, `credentials-birth-secret`, `credentials-passport`, `credentials-passport-secret` |
 | Layer 3 | business smart-contract behavior | `credentials-demo-contract` |
 | Layer 4 | application orchestration outside Compact | `credentials-protocol` |
 | Layer 5 | governance and trust policy | abstract future scope for now |
@@ -142,6 +142,9 @@ So in the current work:
 | `credentials-same-holder` | optional proof that two hidden-holder presentations came from the same holder |
 | `credentials-birth` | a birth credential family using explicit DID-based holder binding |
 | `credentials-birth-secret` | the same birth family, but with hidden holder binding and better privacy |
+| `credentials-iso-registry` | shared numeric ISO code types — countries, currencies, languages, regions, and genders as circuit-friendly integers |
+| `credentials-passport` | a passport credential family using explicit DID-based holder binding, with nationality, gender, age, and expiry |
+| `credentials-passport-secret` | the same passport family, but with hidden holder binding, pseudonyms, and same-holder composition |
 | `credentials-demo-contract` | a verifier-like business contract that turns successful proof into reusable access capability |
 | `credentials-protocol` | party-boundary simulation layer with IssuerAgent, HolderAgent, VerifierAgent, and a MessageBus transport seam |
 | `standalone-environment` | shared Docker environment for integration tests — provisions real Midnight DIDs for issuer, holder, and verifier |
@@ -787,6 +790,10 @@ That is a better engineering habit because it tells you exactly what combination
 | hidden-holder flow | Alice proves control using a hidden holder secret instead of a visible DID method | `credentials-birth-secret/src/test/capability-profiles.test.ts` |
 | advanced privacy flow | Alice uses hidden holder binding, a blinded anchor, selective disclosure, verifier pseudonym, and age predicate | `credentials-birth-secret/src/test/capability-profiles.test.ts` |
 | same-holder composition | Alice proves two credentials belong to the same hidden holder | `credentials-birth-secret/src/test/same-holder-composition.test.ts` |
+| passport explicit-holder flow | Alice presents a passport with mixed public/private claims and explicit DID binding | `credentials-passport/src/test/capability-profiles.test.ts` |
+| passport predicates | Alice proves age and expiry from a passport without revealing personal data | `credentials-passport/src/test/predicates.test.ts` |
+| passport hidden-holder flow | Alice presents a passport with hidden holder binding and verifier pseudonym | `credentials-passport-secret/src/test/capability-profiles.test.ts` |
+| passport same-holder composition | Alice proves passport and another credential belong to the same hidden holder | `credentials-passport-secret/src/test/same-holder-composition.test.ts` |
 
 ### Why This Matters
 
@@ -1047,7 +1054,217 @@ So the story is not over.
 But it is no longer vague.
 And that is real progress.
 
-## Chapter 17: The Protocol Layer
+## Chapter 17: Numbers Instead of Words
+
+Mohawk is looking at the claims struct and frowning.
+
+"Why," he asks, "is Alice's nationality a string?"
+
+Nobody says anything.
+
+"Is it 'Germany'? Is it 'DE'? Is it 'DEU'? Is it 'deutschland'? Is it 'GERMANY' because someone left caps lock on?"
+
+Still silence.
+
+"String comparison in a circuit is expensive," he continues, warming to the subject. "It is variable-length. It is encoding-dependent. It is the kind of thing that works in a unit test and explodes in production when someone's locale settings disagree with yours."
+
+So the system uses numeric ISO codes instead.
+
+### The ISO Registry
+
+The `credentials-iso-registry` package provides a single source of truth for coded values used across all credential families.
+
+| Type | ISO Standard | Compact Type | Example |
+| --- | --- | --- | --- |
+| `CountryCode` | ISO 3166-1 numeric | `Uint<16>` | 276 = Germany, 840 = United States |
+| `CurrencyCode` | ISO 4217 numeric | `Uint<16>` | 978 = Euro, 840 = US Dollar |
+| `LanguageCode` | ISO 639 numeric | `Uint<16>` | language identifiers |
+| `RegionCode` | ISO 3166-2 | `Uint<16>` + `Uint<16>` | country + subdivision |
+| `GenderCode` | ISO 5218 | `Uint<8>` | 0 = not known, 1 = male, 2 = female, 9 = not applicable |
+
+Every value is a fixed-width integer. No variable-length strings. No encoding ambiguity. No locale sensitivity.
+
+276 means Germany in Berlin, in Tokyo, and inside a zero-knowledge circuit running on a proof server that has never heard of the Bundesrepublik.
+
+### Why This Matters For Circuits
+
+Comparing two `Uint<16>` values in a circuit is trivial: one equality check, one gate, done.
+
+Comparing two UTF-8 strings in a circuit is an engineering horror story involving padding, normalization, case folding, and a deep sense of regret.
+
+The registry also provides assertion circuits like `assertCountryEquals(...)` and `assertRegionCountryEquals(...)` so that verifier contracts can check coded values without reimplementing the comparison logic.
+
+### Where The Codes Land
+
+The ISO types show up in credential claims structs. The passport family uses `CountryCode` for `issuingCountry` and `GenderCode` for gender. The birth family uses `CountryCode` for `birthCountryCode`. The presentation layer — the human-facing app — is responsible for rendering 276 as "Germany" on screen. The circuit layer never needs to know the word.
+
+Mohawk considers this "the minimum acceptable encoding discipline for a system that intends to survive contact with more than one country."
+
+### Where To Look
+
+- `credentials-iso-registry/src/iso-registry/codes.compact`
+
+## Chapter 18: Alice Gets a Passport
+
+Rita is back. She has a new form, a new stamp, and a new credential family.
+
+Alice needs a passport credential. It attests to more facts than the birth credential, and it introduces two structural novelties that Mohawk has been waiting for.
+
+### What Is Different From Birth
+
+The birth credential was all commitments, all the time. Every claim was hidden behind a Pedersen commitment and revealed only through selective disclosure or predicates.
+
+The passport credential breaks that pattern.
+
+It has **mixed public and private claims**:
+
+| Claim | Type | Visibility |
+| --- | --- | --- |
+| `documentNumberCommitment` | `Bytes<32>` | committed (private) |
+| `issuingCountry` | `CountryCode` | **public** — visible in the credential body |
+| `nationalityCommitment` | `Bytes<32>` | committed (private) |
+| `givenNameCommitment` | `Bytes<32>` | committed (private) |
+| `familyNameCommitment` | `Bytes<32>` | committed (private) |
+| `birthDateCommitment` | `Bytes<32>` | committed (private) |
+| `genderCommitment` | `Bytes<32>` | committed (private) |
+| `expiryDate` | `Uint<32>` | **public** — visible in the credential body |
+
+Two fields are public: `issuingCountry` and `expiryDate`.
+
+This is a deliberate design choice. The issuing country is not sensitive — it is printed on the cover of the physical passport. The expiry date is operational metadata that verifiers routinely need. Making them public means the verifier can check them directly, without a predicate circuit, without a commitment opening, without any extra witness material.
+
+### The ISO Types In Action
+
+Look at the claims struct and you will see the ISO registry earning its keep:
+
+- `issuingCountry` is a `CountryCode` — `Uint<16>` from ISO 3166-1 numeric
+- `nationality` is committed as a `Uint<16>` — same ISO standard, but hidden
+- `gender` is committed as a `Uint<8>` — ISO 5218
+
+The commitment circuits reflect the underlying types. `nationalityCommitment(nationality: Uint<16>, opening: Bytes<32>)` commits a 16-bit integer, not a string. `genderCommitment(gender: Uint<8>, opening: Bytes<32>)` commits an 8-bit integer. Tiny, deterministic, comparison-safe.
+
+### How Rita Issues It
+
+The flow mirrors the birth credential issuance from Chapter 1:
+
+1. Rita collects Alice's passport data
+2. Rita computes commitments for the private claims
+3. Rita computes the claim root from the ordered commitment set
+4. Rita builds the credential envelope with issuer proof
+5. Alice stores the credential
+
+The claim root uses the domain separator `"midnight:vc:passport:v1"` to prevent cross-family collision.
+
+### How Vera Uses It
+
+Vera runs a service that needs three things from Alice:
+
+1. **Nationality disclosure** — reveal the committed nationality value
+2. **Age predicate** — prove age >= 18 without revealing birth date
+3. **Passport not expired** — check that the public expiry date is still valid
+
+This is the first time we see three verification conditions in one request.
+
+The interesting part: the expiry check is almost free. Because `expiryDate` is a public field, Vera can read it directly from the credential body and compare it to the current date. No commitment opening. No witness. No predicate circuit. Just a direct comparison on a `Uint<32>`.
+
+Alice's presentation reveals nationality (276 = Germany) and proves the age threshold. The verifier sees:
+
+- nationality: 276
+- age >= 18: true
+- expiry: valid
+
+The verifier does not see: document number, given name, family name, birth date, gender.
+
+Mohawk approves because: "More predicates. Same privacy. Better verification."
+
+### Tests For This Chapter
+
+- `credentials-passport/src/test/capability-profiles.test.ts`
+- `credentials-passport/src/test/predicates.test.ts`
+
+## Chapter 19: Two Use Cases Walk Into a Contract
+
+Now that we have two credential families — birth and passport — things get interesting.
+
+Real-world verifiers do not care which credential family Alice uses. They care whether the proof satisfies their requirements. So let us look at two concrete use cases from the test strategy that exercise this principle.
+
+### Use Case 1: The Nightclub Door
+
+A nightclub in Berlin needs to verify that patrons are 18 or older. The contract does not care whether the patron has a passport, a national ID, or a birth credential. It cares about one predicate: `age >= 18`.
+
+Alice decides to use her passport with secret holder binding. Here is what happens:
+
+1. Alice receives the nightclub's verification request
+2. Alice builds a presentation from her passport credential
+3. The presentation proves `age >= 18` using the committed birth date
+4. The presentation includes a verifier-scoped pseudonym for the nightclub's domain
+5. Alice submits the proof to the nightclub contract
+6. The contract verifies the predicate and issues an entry capability
+
+What the nightclub gets:
+
+- a "yes, over 18" answer
+- a pairwise pseudonym for counting unique visitors
+- a capability token for the door scanner
+
+What the nightclub does not get:
+
+- Alice's name
+- Alice's birthday
+- Alice's nationality
+- Alice's document number
+- Alice's gender
+- any identifier that works outside the nightclub's domain
+
+The pseudonym is scoped to the nightclub's verifier domain. If Alice visits a different club next week, that club gets a different pseudonym. Neither club can correlate her to the other.
+
+Mohawk: "Two different credential families. Same verifier requirement. Same answer."
+
+The nightclub contract could accept a birth credential with the exact same interface. The verifier requirement is family-agnostic. The predicate is family-agnostic. Only the witness preparation differs, and that happens on Alice's side, locally, before the proof reaches the contract.
+
+### Use Case 2: The DeFi Onboarding
+
+A DeFi lending contract is pickier. It needs two things from two different issuers:
+
+1. **Passport**: nationality disclosure (to check jurisdiction eligibility)
+2. **AML/KYC Compliance**: status disclosure + risk score predicate + freshness check
+
+And — critically — both credentials must belong to the same hidden holder.
+
+This is the first cross-family same-holder composition. Alice proves:
+
+1. Nationality from her passport (issued by the passport authority)
+2. AML compliance status from her compliance credential (issued by a KYC provider)
+3. That both credentials are bound to the same hidden holder secret
+
+The same-holder proof works exactly as described in Chapter 10. Both credential presentations share the same verifier challenge. Both holder bindings are checked against the same hidden holder secret witness. The `assertSameBlindedSecretHolderBindingWitnesses(...)` circuit from `credentials-same-holder` does the heavy lifting.
+
+What the DeFi contract gets:
+
+- nationality: 276 (Germany — eligible jurisdiction)
+- AML status: passing
+- risk score: below threshold
+- same-holder proof: verified
+- a verifier-scoped pseudonym for the DeFi domain
+
+What the DeFi contract does not get:
+
+- Alice's name
+- Alice's document number
+- Alice's birth date
+- Alice's gender
+- the identity of the KYC provider (beyond the issuer proof)
+- any cross-domain tracking handle
+
+Different issuers. Different credential types. One hidden holder secret. One verifier challenge. Zero identity leakage.
+
+Mohawk: "That is the whole point of composable credentials. Not one giant bundle. Not one universal format. Just small capabilities that compose when the verifier asks for composition."
+
+### Where These Use Cases Are Defined
+
+Both use cases are specified in `research/midnight-credentials-test-strategy.md` as UC-1 (Age-Gated Venue Access) and UC-2 (Cross-Border Financial Onboarding). The test strategy defines the full configuration dimensions — credential family, holder binding profile, disclosures, predicates, pseudonym, same-holder composition, and verifier mode — for each use case.
+
+## Chapter 20: The Protocol Layer
 
 Up to now, every test lived inside a single function scope.
 
@@ -1138,7 +1355,7 @@ With the protocol layer, the codebase now proves that the circuits remain correc
 That is a different and harder claim.
 And Mohawk is almost smiling.
 
-## Chapter 18: The Standalone Environment
+## Chapter 21: The Standalone Environment
 
 Mohawk trusts the circuits.
 He trusts the protocol layer.
@@ -1222,17 +1439,25 @@ If you want the shortest path:
    - hidden-holder profiles
 10. `credentials-birth-secret/src/test/same-holder-composition.test.ts`
    - same-holder composition in a real family
-11. `credentials-demo-contract/src/demo.compact`
+11. `credentials-iso-registry/src/iso-registry/codes.compact`
+   - shared ISO code types
+12. `credentials-passport/src/passport-credential/claims.compact`
+   - passport claims with ISO types
+13. `credentials-passport/src/test/predicates.test.ts`
+   - passport predicates: age and expiry
+14. `credentials-passport-secret/src/test/same-holder-composition.test.ts`
+   - same-holder composition with passport credentials
+15. `credentials-demo-contract/src/demo.compact`
    - business contract composition
-12. `credentials-demo-contract/src/test/demo.test.ts`
+16. `credentials-demo-contract/src/test/demo.test.ts`
    - the end-to-end business story
-13. `credentials-protocol/src/test/explicit-holder/issuance.test.ts`
+17. `credentials-protocol/src/test/explicit-holder/issuance.test.ts`
    - protocol-level issuance with party boundaries
-14. `credentials-protocol/src/test/secret-holder/same-holder.test.ts`
+18. `credentials-protocol/src/test/secret-holder/same-holder.test.ts`
    - same-holder composition through the protocol layer
-15. `credentials-protocol/src/test/contract-verifier/age-gate.test.ts`
+19. `credentials-protocol/src/test/contract-verifier/age-gate.test.ts`
    - contract verifier age-gate through the protocol layer
-16. `credentials-protocol/src/test/integration/explicit-holder-lifecycle.integration.test.ts`
+20. `credentials-protocol/src/test/integration/explicit-holder-lifecycle.integration.test.ts`
    - integration test with real Midnight DIDs (requires Docker)
 
 ## Final Mental Model
