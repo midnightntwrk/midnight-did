@@ -1,0 +1,34 @@
+export struct CountryCode {
+  value: Uint<16>
+}
+
+export struct CurrencyCode {
+  value: Uint<16>
+}
+
+export struct LanguageCode {
+  value: Uint<16>
+}
+
+export struct RegionCode {
+  country: Uint<16>,
+  subdivision: Uint<16>
+}
+
+export struct GenderCode {
+  value: Uint<8>
+}
+
+export circuit assertCountryEquals(
+  actual: CountryCode,
+  expected: Uint<16>
+): [] {
+  assert(actual.value == expected, "Country code does not match expected value");
+}
+
+export circuit assertRegionCountryEquals(
+  region: RegionCode,
+  expectedCountry: Uint<16>
+): [] {
+  assert(region.country == expectedCountry, "Region country does not match expected value");
+}

@@ -1,0 +1,5 @@
+pragma language_version >= 0.20;
+
+import CompactStandardLibrary;
+
+include "./iso-registry/codes";
