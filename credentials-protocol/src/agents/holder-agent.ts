@@ -147,6 +147,8 @@ export class HolderAgent {
 
     const bodyRoot =
       pureCircuits.birthCredentialPresentationBodyRoot(presentation);
+    // TEST ONLY: production must use cryptographically random nonces.
+    // Reusing a nonce across Schnorr signatures leaks the private key.
     const nonceScalar = 17n;
 
     const proof: Proof = {

@@ -58,7 +58,7 @@ export type SecretPresentationWitness = {
 };
 
 export class SecretHolderAgent {
-  private readonly label: string;
+  readonly label: string;
   private readonly holderSecret: Uint8Array;
   private readonly holderSecretOpening: Uint8Array;
   private readonly bus: MessageBus;
@@ -94,6 +94,7 @@ export class SecretHolderAgent {
         this.holderSecretOpening,
       );
 
+    // TEST ONLY: production must use a unique random blinding factor per issuance.
     const holderBindingBlindingFactor = sha256("blinding:holder-secret");
 
     const request = {
@@ -115,8 +116,9 @@ export class SecretHolderAgent {
       },
     };
 
-    // Store the blinding factor so we can include it in credential storage
-    this._pendingBlindingFactor = holderBindingBlindingFactor;
+    // Store the blinding factor keyed by request message ID for later retrieval
+    const requestMessageId = Buffer.from(request.envelope.messageId).toString("hex");
+    this.pendingBlindingFactors.set(requestMessageId, holderBindingBlindingFactor);
 
     this.bus.send({
       type: "issuance:request",
@@ -127,7 +129,7 @@ export class SecretHolderAgent {
     });
   }
 
-  private _pendingBlindingFactor: Uint8Array | undefined;
+  private readonly pendingBlindingFactors = new Map<string, Uint8Array>();
 
   receiveCredentialResult(result: ProtocolMessage): void {
     if (result.type !== "issuance:result") {
@@ -137,13 +139,21 @@ export class SecretHolderAgent {
     }
 
     const issuanceResult = result.body as SecretIssuanceResult;
+    const respondsToId = Buffer.from(result.envelope.respondsToMessageId).toString("hex");
+    const blindingFactor = this.pendingBlindingFactors.get(respondsToId);
+    if (!blindingFactor) {
+      throw new Error(
+        "No pending blinding factor found for this credential result. " +
+        "Ensure receiveOfferAndSendRequest was called first.",
+      );
+    }
+    this.pendingBlindingFactors.delete(respondsToId);
+
     this.credentials.push({
       credential: issuanceResult.body.credential,
       credentialProof: issuanceResult.body.credentialProof,
-      holderBindingBlindingFactor:
-        this._pendingBlindingFactor ?? sha256("blinding:holder-secret"),
+      holderBindingBlindingFactor: blindingFactor,
     });
-    this._pendingBlindingFactor = undefined;
   }
 
   get credentialCount(): number {

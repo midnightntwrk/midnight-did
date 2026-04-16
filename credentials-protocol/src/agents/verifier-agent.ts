@@ -107,14 +107,23 @@ export type SameHolderSimulatorWitness = {
 export class VerifierAgent {
   private readonly profile: DIDProfile;
   private readonly bus: MessageBus;
+  private challengeCounter = 0;
 
   constructor(profile: DIDProfile, bus: MessageBus) {
     this.profile = profile;
     this.bus = bus;
   }
 
+  /** Generate a unique challenge hash per interaction. */
+  generateChallengeHash(): Uint8Array {
+    return sha256(
+      `midnight:vc:verifier:${this.profile.label}:challenge:${this.challengeCounter++}`,
+    );
+  }
+
+  /** @deprecated Use generateChallengeHash() for unique per-interaction challenges. */
   get verifierChallengeHash(): Uint8Array {
-    return sha256(`midnight:vc:verifier:${this.profile.label}:challenge`);
+    return this.generateChallengeHash();
   }
 
   createAndSendPresentationRequest(

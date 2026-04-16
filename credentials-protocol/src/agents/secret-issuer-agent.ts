@@ -128,6 +128,7 @@ export class SecretIssuerAgent {
     const issuanceRequest = request.body as SecretIssuanceRequest;
     const requestBody = issuanceRequest.body;
 
+    // TEST ONLY: production must use a unique random nonce per issuance.
     const issuerNonce = sha256("issuer-nonce:birth-secret");
 
     const claims = {
@@ -173,6 +174,7 @@ export class SecretIssuerAgent {
 
     const bodyRoot = pureCircuits.secretBirthCredentialBodyRoot(credential);
     const challengeHash = requestBody.holderChallengeHash;
+    // TEST ONLY: production must use cryptographically random nonces.
     const nonceScalar = 11n;
 
     const proof: Proof = {

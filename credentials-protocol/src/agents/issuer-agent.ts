@@ -117,6 +117,8 @@ export class IssuerAgent {
 
     const bodyRoot = pureCircuits.birthCredentialBodyRoot(credential);
     const challengeHash = issuanceRequest.body.holderChallengeHash;
+    // TEST ONLY: production must use cryptographically random nonces.
+    // Reusing a nonce across Schnorr signatures leaks the private key.
     const nonceScalar = 11n;
 
     const proof: Proof = {
