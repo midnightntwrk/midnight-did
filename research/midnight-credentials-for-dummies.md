@@ -144,6 +144,7 @@ So in the current work:
 | `credentials-birth-secret` | the same birth family, but with hidden holder binding and better privacy |
 | `credentials-demo-contract` | a verifier-like business contract that turns successful proof into reusable access capability |
 | `credentials-protocol` | party-boundary simulation layer with IssuerAgent, HolderAgent, VerifierAgent, and a MessageBus transport seam |
+| `standalone-environment` | shared Docker environment for integration tests — provisions real Midnight DIDs for issuer, holder, and verifier |
 
 ## Chapter 1: Rita Issues A Very Boring, Very Important Credential
 
@@ -202,6 +203,8 @@ In code, this chapter is mostly about these circuits:
   - `VC<...>.assertValidCredentialProof(...)`
 - `credentials-birth/src/birth-credential.compact`
   - `assertValidBirthCredential(...)`
+
+The claim commitment circuits (`subjectIdCommitment`, `birthDateCommitment`, etc.) live in a shared module `credentials-birth/src/birth-credential/claims.compact` that is imported by both the explicit-holder and secret-holder credential families. That avoids duplicating the commitment logic across packages.
 
 ### In Plain Words
 
@@ -529,6 +532,7 @@ In `credentials/src/credentials.compact`:
 - the verifier checks that the presentation binding matches the credential binding
 - the holder supplies the secret and opening as private witness material
 - the circuit proves the holder really knows the secret without publishing it
+- the challenge response uses a dedicated domain separator (`"midnight:vc:holder-chall"`) to prevent cross-context hash collisions — consistent with how `verifierScopedPseudonym` and `blindedSecretHolderCommitment` use their own domain tags
 
 That is the important privacy jump.
 
@@ -542,6 +546,8 @@ In `credentials-birth-secret/src/secret-birth-credential.compact`:
 - `assertValidSecretBirthCredential(...)`
 - `assertValidSecretBirthCredentialPresentation(...)`
 - `assertSecretBirthPresentationSatisfiesRequest(...)`
+
+The secret-holder variant defines its own disclosure and request types — `SecretBirthCredentialDisclosures` and `SecretBirthCredentialPresentationRequest` — rather than reusing the explicit-holder types. This prevents accidental mixing of the two profiles.
 
 ### Tests For This Chapter
 
@@ -1132,6 +1138,66 @@ With the protocol layer, the codebase now proves that the circuits remain correc
 That is a different and harder claim.
 And Mohawk is almost smiling.
 
+## Chapter 18: The Standalone Environment
+
+Mohawk trusts the circuits.
+He trusts the protocol layer.
+He does not trust the universe.
+
+Specifically, he does not trust that a proof which passes the simulator will survive contact with a real Midnight node, a real indexer, and a real proof server all running at the same time.
+
+Simulator tests prove the math is right.
+Integration tests prove the stack works.
+Those are different claims.
+
+### What The Standalone Environment Provides
+
+The `standalone-environment` package spins up a Docker-based Midnight stack:
+
+- a Midnight node
+- an indexer
+- a proof server
+- wallet setup and funding
+- DID provisioning for issuer, holder, and verifier
+
+That last part matters.
+In the simulator tests, DIDs are invented on the spot.
+In the standalone environment, DIDs are provisioned on a real ledger, which means the DID resolution path is exercised end-to-end.
+
+### How It Connects To The Protocol Agents
+
+The integration tests use the same `IssuerAgent`, `HolderAgent`, and `VerifierAgent` from `credentials-protocol`.
+The only difference is the profile: real DID documents backed by on-ledger resolution instead of simulated identities.
+
+That is the whole trick.
+Same agents, same message bus, same protocol steps.
+Different trust anchor underneath.
+
+### When Docker Is Not Running
+
+The integration tests detect whether the Docker environment is available.
+If it is not, they skip gracefully.
+
+That means:
+
+- CI runs integration tests when Docker is provisioned
+- local developers can run unit and simulator tests without Docker
+- nobody gets a broken build because they forgot to start a container
+
+### Why This Chapter Exists
+
+The standalone environment is the bridge between "the circuits are correct" and "the system works".
+
+It is also the bridge to future protocol work.
+When OID4VCI or DIDComm transports arrive, this is the environment where they get tested against real infrastructure instead of polite simulations.
+
+Mohawk considers this "the minimum acceptable level of paranoia".
+
+### Tests For This Chapter
+
+- `credentials-protocol/src/test/integration/explicit-holder-lifecycle.integration.test.ts`
+- Integration tests require Docker and skip automatically when unavailable
+
 ## Where To Start In The Code
 
 If you want the shortest path:
@@ -1166,6 +1232,8 @@ If you want the shortest path:
    - same-holder composition through the protocol layer
 15. `credentials-protocol/src/test/contract-verifier/age-gate.test.ts`
    - contract verifier age-gate through the protocol layer
+16. `credentials-protocol/src/test/integration/explicit-holder-lifecycle.integration.test.ts`
+   - integration test with real Midnight DIDs (requires Docker)
 
 ## Final Mental Model
 
