@@ -103,7 +103,7 @@ Midnight Credentials in the current prototype are built in five layers.
 | Layer 1 | reusable generic credential capabilities | `credentials`, `credentials-same-holder` |
 | Layer 2 | concrete credential-family logic | `credentials-birth`, `credentials-birth-secret` |
 | Layer 3 | business smart-contract behavior | `credentials-demo-contract` |
-| Layer 4 | application orchestration outside Compact | documented, not prototyped as a package yet |
+| Layer 4 | application orchestration outside Compact | `credentials-protocol` |
 | Layer 5 | governance and trust policy | abstract future scope for now |
 
 Think of it this way:
@@ -143,6 +143,7 @@ So in the current work:
 | `credentials-birth` | a birth credential family using explicit DID-based holder binding |
 | `credentials-birth-secret` | the same birth family, but with hidden holder binding and better privacy |
 | `credentials-demo-contract` | a verifier-like business contract that turns successful proof into reusable access capability |
+| `credentials-protocol` | party-boundary simulation layer with IssuerAgent, HolderAgent, VerifierAgent, and a MessageBus transport seam |
 
 ## Chapter 1: Rita Issues A Very Boring, Very Important Credential
 
@@ -1031,7 +1032,7 @@ The current prototype still does not give us everything:
 
 - full blind issuance is not implemented
 - revocation is still out of scope
-- application orchestration is documented but not yet a reusable package
+- application orchestration is prototyped in `credentials-protocol` but not yet production-hardened
 - governance is acknowledged but intentionally abstract
 - more credential families still need to be modeled
 
@@ -1039,6 +1040,97 @@ So the story is not over.
 
 But it is no longer vague.
 And that is real progress.
+
+## Chapter 17: The Protocol Layer
+
+Up to now, every test lived inside a single function scope.
+
+Alice, Rita, and Vera shared variables like old college roommates sharing a bathroom shelf.
+That is fine for circuit testing.
+It is terrible for reasoning about who knows what.
+
+Mohawk finally loses patience.
+
+"In a real system," he says, "Alice does not get to peek inside Rita's wallet to grab the signing key.
+And Vera does not casually read Alice's private witness material.
+Party boundaries are real."
+
+### Why Party Boundaries Matter
+
+When every party lives in the same test function, it is easy to accidentally:
+
+- pass a private witness from the holder to the verifier
+- let the verifier construct something only the issuer should build
+- skip a message exchange step because the data was already in scope
+
+None of those bugs show up in the circuit layer.
+They show up in the integration layer, which is exactly where most SSI systems go wrong.
+
+### The Agent Model
+
+`credentials-protocol` introduces three agent types:
+
+| Agent | What it does |
+| --- | --- |
+| `IssuerAgent` / `SecretIssuerAgent` | creates offers, receives requests, issues credentials |
+| `HolderAgent` / `SecretHolderAgent` | receives offers, sends requests, stores credentials, builds presentations |
+| `VerifierAgent` | sends presentation requests, evaluates submissions, verifies same-holder proofs |
+
+Each agent owns its own state.
+They communicate only through a `MessageBus`.
+
+### The MessageBus
+
+The `MessageBus` is deliberately minimal:
+
+- `send(message)` pushes a typed envelope to a named party queue
+- `receive(party)` pops the next message for that party
+- `drain(party)` collects all pending messages
+
+It is not a real network.
+It is a transport seam.
+
+That means you can swap it for HTTP, DIDComm, or a blockchain-anchored channel later without touching the agent logic.
+
+### The Contract Verifier
+
+The off-chain `VerifierAgent` calls the circuit pure functions directly and evaluates the proof.
+
+The `ContractVerifier` wraps the `CredentialsDemoSimulator` and represents an on-chain verifier.
+It differs from the off-chain verifier in one important way:
+
+- the contract verifier requires credentials to be registered first (via `issueBirthCredential`)
+- the off-chain verifier only needs to see the proof and the credential
+
+That distinction matters because the contract carries state.
+The off-chain verifier is stateless.
+
+Mohawk considers this "the correct separation of concerns".
+He does not elaborate.
+
+### What The Tests Cover
+
+| Test file | What it proves |
+| --- | --- |
+| `credentials-protocol/src/test/explicit-holder/issuance.test.ts` | protocol-level issuance with party boundaries |
+| `credentials-protocol/src/test/explicit-holder/presentation.test.ts` | presentation flow through the MessageBus |
+| `credentials-protocol/src/test/explicit-holder/full-lifecycle.test.ts` | issuance through verification in one protocol run |
+| `credentials-protocol/src/test/secret-holder/issuance.test.ts` | secret-holder issuance through agents |
+| `credentials-protocol/src/test/secret-holder/presentation.test.ts` | hidden-holder presentation through agents |
+| `credentials-protocol/src/test/secret-holder/pseudonym.test.ts` | verifier-scoped pseudonym through the protocol layer |
+| `credentials-protocol/src/test/secret-holder/same-holder.test.ts` | same-holder composition through party-isolated agents |
+| `credentials-protocol/src/test/contract-verifier/age-gate.test.ts` | contract verifier age-gate with protocol-issued credentials |
+| `credentials-protocol/src/test/contract-verifier/capability-lifecycle.test.ts` | full capability lifecycle through the contract verifier |
+| `credentials-protocol/src/test/helpers/message-bus.test.ts` | MessageBus transport primitives |
+
+### Why This Chapter Exists
+
+Without the protocol layer, the codebase proved that the circuits were correct.
+
+With the protocol layer, the codebase now proves that the circuits remain correct when each party can only see its own state and messages arrive through a typed channel.
+
+That is a different and harder claim.
+And Mohawk is almost smiling.
 
 ## Where To Start In The Code
 
@@ -1068,6 +1160,12 @@ If you want the shortest path:
    - business contract composition
 12. `credentials-demo-contract/src/test/demo.test.ts`
    - the end-to-end business story
+13. `credentials-protocol/src/test/explicit-holder/issuance.test.ts`
+   - protocol-level issuance with party boundaries
+14. `credentials-protocol/src/test/secret-holder/same-holder.test.ts`
+   - same-holder composition through the protocol layer
+15. `credentials-protocol/src/test/contract-verifier/age-gate.test.ts`
+   - contract verifier age-gate through the protocol layer
 
 ## Final Mental Model
 
