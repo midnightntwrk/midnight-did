@@ -12,35 +12,6 @@ export circuit birthCredentialPresentationRequestBodyRoot(
   return persistentHash<BirthCredentialPresentationRequest>(request);
 }
 
-export circuit birthCredentialClaimRoot(claims: BirthCredentialClaims): Bytes<32> {
-  return persistentHash<Vector<5, Bytes<32>>>([
-    pad(32, "midnight:vc:birth:v1"),
-    claims.subjectIdCommitment,
-    claims.legalNameCommitment,
-    claims.birthDateCommitment,
-    claims.birthCountryCodeCommitment
-  ]);
-}
-
-export circuit subjectIdCommitment(subjectId: Bytes<32>, opening: Bytes<32>): Bytes<32> {
-  return persistentCommit<Bytes<32>>(subjectId, opening);
-}
-
-export circuit birthDateCommitment(birthDateDays: Uint<32>, opening: Bytes<32>): Bytes<32> {
-  return persistentCommit<Uint<32>>(birthDateDays, opening);
-}
-
-export circuit legalNameCommitment(legalNamePadded: Bytes<32>, opening: Bytes<32>): Bytes<32> {
-  return persistentCommit<Bytes<32>>(legalNamePadded, opening);
-}
-
-export circuit birthCountryCodeCommitment(
-  birthCountryCodePadded: Bytes<32>,
-  opening: Bytes<32>
-): Bytes<32> {
-  return persistentCommit<Bytes<32>>(birthCountryCodePadded, opening);
-}
-
 export circuit assertValidBirthSchemaRef(schema: SchemaRef): [] {
   assert(schema.packageId == pad(32, "midnight-did:vc:birth"), "Unexpected schema package identifier");
   assert(schema.schemaId == pad(32, "birth-credential:v1"), "Unexpected schema identifier");

@@ -12,7 +12,7 @@ import {
   type VerificationMethodRef,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
 import {
-  type BirthCredentialPresentationRequest,
+  type SecretBirthCredentialPresentationRequest,
   pureCircuits,
   type SecretBirthCredential,
   type SecretBirthCredentialPresentation,
@@ -32,7 +32,7 @@ export type BirthCredentialFixture = {
   readonly issuer: Signer;
   readonly credential: SecretBirthCredential;
   readonly credentialProof: Proof;
-  readonly presentationRequest: BirthCredentialPresentationRequest;
+  readonly presentationRequest: SecretBirthCredentialPresentationRequest;
   readonly presentation: SecretBirthCredentialPresentation;
   readonly witness: {
     readonly holderSecret: Uint8Array;
@@ -228,7 +228,7 @@ export const createSecretBirthCredentialFixture = (
     nonceScalar: 11n,
   });
 
-  const presentationRequest: BirthCredentialPresentationRequest = {
+  const presentationRequest: SecretBirthCredentialPresentationRequest = {
     version: 1n,
     schema: credential.schema,
     issuerVerificationMethodRef: credential.issuerVerificationMethodRef,

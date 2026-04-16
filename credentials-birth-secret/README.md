@@ -43,8 +43,8 @@ The generic package owns:
 This package owns:
 
 - `BirthCredentialClaims`
-- `BirthCredentialDisclosures`
-- `BirthCredentialPresentationRequest`
+- `SecretBirthCredentialDisclosures`
+- `SecretBirthCredentialPresentationRequest`
 - `SecretBirthCredential`
 - `SecretBirthCredentialPresentation`
 - birth-specific commitment helpers

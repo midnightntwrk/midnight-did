@@ -16,16 +16,8 @@ export ledger issuedCredentialCount: Counter;
 export ledger verifiedPresentationCount: Counter;
 export sealed ledger minimumAccessAgeYears: Uint<8>;
 export sealed ledger ageGateRequiresBirthCountryDisclosure: Boolean;
-export ledger issuedCredentialClaimRoots: Map<Bytes<32>, Bytes<32>>;
-export ledger issuedCredentialIssuerDids: Map<Bytes<32>, Bytes<32>>;
-export ledger issuedCredentialIssuerMethodRefs: Map<Bytes<32>, Bytes<32>>;
-export ledger issuedCredentialIssuerPublicKeys: Map<Bytes<32>, JubjubPoint>;
-export ledger issuedCredentialHolderDids: Map<Bytes<32>, Bytes<32>>;
-export ledger issuedCredentialHolderMethodRefs: Map<Bytes<32>, Bytes<32>>;
+export ledger issuedCredentialClaimRoots: Set<Bytes<32>>;
 export ledger issuedCredentialHolderPublicKeys: Map<Bytes<32>, JubjubPoint>;
-export ledger issuedCredentialIssuedAt: Map<Bytes<32>, Uint<64>>;
-export ledger issuedCredentialHasExpiration: Map<Bytes<32>, Boolean>;
-export ledger issuedCredentialExpiresAt: Map<Bytes<32>, Uint<64>>;
 export ledger lastVerifiedCredentialRoot: Bytes<32>;
 export ledger lastVerifiedCurrentDay: Uint<32>;
 export ledger lastVerifiedThresholdYears: Uint<8>;
@@ -99,28 +91,8 @@ export circuit issueBirthCredential(
     "Credential has already been issued into the demo contract"
   );
 
-  issuedCredentialClaimRoots.insert(credentialRoot, disclose(credential.claimRoot));
-  issuedCredentialIssuerDids.insert(
-    credentialRoot,
-    disclose(credential.issuerVerificationMethodRef.didContractAddress.bytes)
-  );
-  issuedCredentialIssuerMethodRefs.insert(
-    credentialRoot,
-    disclose(credential.issuerVerificationMethodRef.methodId)
-  );
-  issuedCredentialIssuerPublicKeys.insert(credentialRoot, disclose(credentialProof.publicKey));
-  issuedCredentialHolderDids.insert(
-    credentialRoot,
-    disclose(credential.holderBinding.holderVerificationMethodRef.didContractAddress.bytes)
-  );
-  issuedCredentialHolderMethodRefs.insert(
-    credentialRoot,
-    disclose(credential.holderBinding.holderVerificationMethodRef.methodId)
-  );
+  issuedCredentialClaimRoots.insert(credentialRoot);
   issuedCredentialHolderPublicKeys.insert(credentialRoot, disclose(holderPublicKey));
-  issuedCredentialIssuedAt.insert(credentialRoot, disclose(credential.issuedAt));
-  issuedCredentialHasExpiration.insert(credentialRoot, disclose(credential.hasExpiration));
-  issuedCredentialExpiresAt.insert(credentialRoot, disclose(credential.expiresAt));
 
   issuedCredentialCount.increment(1);
 }
@@ -137,7 +109,6 @@ export circuit verifyBirthPresentation(
   currentDay: Uint<32>
 ): [] {
   const credentialRoot = disclose(birthCredentialBodyRoot(credential));
-  const disclosedCredentialProofPublicKey = disclose(credentialProof.publicKey);
   const disclosedPresentationProofPublicKey = disclose(presentationProof.publicKey);
 
   assertValidBirthCredentialPresentation(
@@ -146,42 +117,14 @@ export circuit verifyBirthPresentation(
     presentation,
     presentationProof
   );
+  // The credential root is a hash of the entire credential body. Membership in
+  // issuedCredentialClaimRoots proves the credential was issued unchanged.
   assert(
     issuedCredentialClaimRoots.member(credentialRoot),
     "Credential was not issued by the demo contract"
   );
-
-  assert(
-    issuedCredentialClaimRoots.lookup(credentialRoot) == credential.claimRoot,
-    "Issued credential claim root does not match the supplied credential"
-  );
-  assert(
-    issuedCredentialIssuerDids.lookup(credentialRoot)
-      == credential.issuerVerificationMethodRef.didContractAddress.bytes,
-    "Issued credential issuer DID does not match the supplied credential"
-  );
-  assert(
-    issuedCredentialIssuerMethodRefs.lookup(credentialRoot)
-      == credential.issuerVerificationMethodRef.methodId,
-    "Issued credential issuer method reference does not match the supplied credential"
-  );
-  assert(
-    jubjubPointX(issuedCredentialIssuerPublicKeys.lookup(credentialRoot))
-      == jubjubPointX(disclosedCredentialProofPublicKey)
-      && jubjubPointY(issuedCredentialIssuerPublicKeys.lookup(credentialRoot))
-      == jubjubPointY(disclosedCredentialProofPublicKey),
-    "Issued credential issuer key does not match the supplied proof"
-  );
-  assert(
-    issuedCredentialHolderDids.lookup(credentialRoot)
-      == credential.holderBinding.holderVerificationMethodRef.didContractAddress.bytes,
-    "Issued credential holder DID does not match the supplied credential"
-  );
-  assert(
-    issuedCredentialHolderMethodRefs.lookup(credentialRoot)
-      == credential.holderBinding.holderVerificationMethodRef.methodId,
-    "Issued credential holder method reference does not match the supplied credential"
-  );
+  // Holder authentication: verify the presenter's key matches the key registered
+  // at issuance time. The credential root alone does not bind the holder key.
   assert(
     jubjubPointX(issuedCredentialHolderPublicKeys.lookup(credentialRoot))
       == jubjubPointX(disclosedPresentationProofPublicKey)
@@ -190,9 +133,9 @@ export circuit verifyBirthPresentation(
     "Issued credential holder key does not match the supplied presentation proof"
   );
 
-  if (issuedCredentialHasExpiration.lookup(credentialRoot)) {
+  if (credential.hasExpiration) {
     assert(
-      currentDay <= issuedCredentialExpiresAt.lookup(credentialRoot),
+      currentDay <= credential.expiresAt,
       "Credential has expired for the supplied verification day"
     );
   }
