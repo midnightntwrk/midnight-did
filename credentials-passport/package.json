@@ -1,0 +1,40 @@
+{
+  "name": "@midnight-ntwrk/midnight-did-credentials-passport",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24",
+    "npm": ">=10"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "contract": "npm run compact",
+    "compact": "compact compile src/passport-credential.compact src/managed/passport-credential && node ./scripts/align-runtime-version.mjs && node ./scripts/strip-managed-sourcemaps.mjs",
+    "test": "vitest run",
+    "test:ci": "vitest run",
+    "prepack": "npm run build",
+    "clean": "rm -rf dist && rm -rf coverage && rm -rf reports",
+    "build": "rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/passport-credential.compact ./dist && cp -Rf ./src/passport-credential ./dist/",
+    "lint": "eslint src --ignore-pattern 'src/managed/**'",
+    "lint:fix": "eslint src --fix --ignore-pattern 'src/managed/**'",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "all": "npm run compact && npm run build && npm run test:ci"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "*",
+    "@midnight-ntwrk/midnight-did-credentials": "*",
+    "@midnight-ntwrk/midnight-did-credentials-iso-registry": "*"
+  }
+}

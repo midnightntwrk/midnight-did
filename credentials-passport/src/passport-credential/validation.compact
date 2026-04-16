@@ -1,0 +1,321 @@
+export circuit assertValidPassportCredentialIssuanceOffer(
+  offer: PassportCredentialIssuanceOffer
+): [] {
+  PassportCredentialIssuance_assertValidOfferMessage(offer);
+  assertValidPassportSchemaRef(offer.schema);
+  assert(
+    offer.holderBindingProfile == HolderBindingProfile.explicitDid,
+    "Passport credential issuance offer must use explicit DID holder binding"
+  );
+  if (offer.body.supportsExpiration) {
+    assert(
+      offer.body.defaultExpirationDays > 0,
+      "Passport credential issuance offer default expiration must be positive when supported"
+    );
+  } else {
+    assert(
+      offer.body.defaultExpirationDays == 0,
+      "Passport credential issuance offer default expiration must be zero when expiration is disabled"
+    );
+  }
+}
+
+export circuit assertValidPassportCredentialIssuanceRequest(
+  request: PassportCredentialIssuanceRequest
+): [] {
+  PassportCredentialIssuance_assertValidRequestMessage(request);
+  assertValidPassportSchemaRef(request.schema);
+  assert(
+    request.holderBindingProfile == HolderBindingProfile.explicitDid,
+    "Passport credential issuance request must use explicit DID holder binding"
+  );
+  assertValidExplicitHolderBinding(request.body.holderBinding);
+  assert(
+    request.body.holderChallengeHash != noProtocolResponseReference(),
+    "Passport credential issuance request holder challenge must be set"
+  );
+  if (request.body.requestExpiration) {
+    assert(
+      request.body.requestedExpirationDays > 0,
+      "Passport credential issuance request expiration days must be positive when requested"
+    );
+  } else {
+    assert(
+      request.body.requestedExpirationDays == 0,
+      "Passport credential issuance request expiration days must be zero when disabled"
+    );
+  }
+}
+
+export circuit assertPassportCredentialIssuanceRequestMatchesOffer(
+  offer: PassportCredentialIssuanceOffer,
+  request: PassportCredentialIssuanceRequest
+): [] {
+  assertValidPassportCredentialIssuanceOffer(offer);
+  assertValidPassportCredentialIssuanceRequest(request);
+  PassportCredentialIssuance_assertOfferRequestAlignment(offer, request);
+  if (request.body.requestExpiration) {
+    assert(
+      offer.body.supportsExpiration,
+      "Passport credential issuance request cannot require expiration when the offer disables it"
+    );
+  }
+}
+
+export circuit assertValidPassportCredentialIssuanceResult(
+  result: PassportCredentialIssuanceResult
+): [] {
+  PassportCredentialIssuance_assertValidResultMessage(result);
+  assertValidPassportSchemaRef(result.schema);
+  assert(
+    result.holderBindingProfile == HolderBindingProfile.explicitDid,
+    "Passport credential issuance result must use explicit DID holder binding"
+  );
+  assertValidPassportCredential(
+    result.body.credential,
+    result.body.credentialProof
+  );
+  assert(
+    result.body.credentialProof.challengeHash == result.body.issuanceChallengeHash,
+    "Passport credential issuance result challenge must match the issuer proof challenge"
+  );
+}
+
+export circuit assertPassportCredentialIssuanceResultMatchesRequest(
+  request: PassportCredentialIssuanceRequest,
+  result: PassportCredentialIssuanceResult
+): [] {
+  assertValidPassportCredentialIssuanceRequest(request);
+  assertValidPassportCredentialIssuanceResult(result);
+  PassportCredentialIssuance_assertRequestResultAlignment(request, result);
+  assert(
+    request.body.holderChallengeHash == result.body.issuanceChallengeHash,
+    "Passport credential issuance result challenge must match the request challenge"
+  );
+  assertMatchingExplicitHolderBindings(
+    request.body.holderBinding,
+    result.body.credential.holderBinding
+  );
+  assert(
+    jubjubPointX(request.body.holderPublicKey) == jubjubPointX(result.body.holderPublicKey)
+      && jubjubPointY(request.body.holderPublicKey) == jubjubPointY(result.body.holderPublicKey),
+    "Passport credential issuance result holder public key does not match the request"
+  );
+}
+
+export circuit assertValidPassportCredentialVerificationRequestMessage(
+  request: PassportCredentialVerificationRequest
+): [] {
+  PassportCredentialVerification_assertValidRequestMessage(request);
+  assertValidPassportSchemaRef(request.schema);
+  assert(
+    request.holderBindingProfile == HolderBindingProfile.explicitDid,
+    "Passport credential verification request must use explicit DID holder binding"
+  );
+  assertValidPassportCredentialPresentationRequest(
+    passportCredentialPresentationRequestFromProtocol(request)
+  );
+}
+
+export circuit assertValidPassportCredentialVerificationSubmissionMessage(
+  submission: PassportCredentialVerificationSubmission
+): [] {
+  PassportCredentialVerification_assertValidSubmissionMessage(submission);
+  assertValidPassportSchemaRef(submission.schema);
+  assert(
+    submission.holderBindingProfile == HolderBindingProfile.explicitDid,
+    "Passport credential verification submission must use explicit DID holder binding"
+  );
+  assertValidPassportCredentialPresentation(
+    submission.body.credential,
+    submission.body.credentialProof,
+    submission.body.presentation,
+    submission.body.presentationProof
+  );
+  assert(
+    submission.body.presentationProof.challengeHash == submission.challengeHash,
+    "Passport credential verification submission challenge must match the presentation proof challenge"
+  );
+}
+
+export circuit assertPassportCredentialVerificationSubmissionMatchesRequest(
+  request: PassportCredentialVerificationRequest,
+  submission: PassportCredentialVerificationSubmission
+): [] {
+  assertValidPassportCredentialVerificationRequestMessage(request);
+  assertValidPassportCredentialVerificationSubmissionMessage(submission);
+  PassportCredentialVerification_assertRequestSubmissionAlignment(
+    request,
+    submission
+  );
+  assertPassportPresentationSatisfiesRequest(
+    submission.body.credential,
+    passportCredentialPresentationRequestFromProtocol(request),
+    submission.body.presentation,
+    submission.body.presentationProof
+  );
+}
+
+export circuit assertValidPassportCredentialVerificationResultMessage(
+  result: PassportCredentialVerificationResult
+): [] {
+  PassportCredentialVerification_assertValidResultMessage(result);
+  if (result.approved) {
+    assert(
+      result.body.credentialRoot != noProtocolResponseReference(),
+      "Passport credential verification result must include a credential root when approved"
+    );
+  }
+}
+
+export circuit assertPassportCredentialVerificationResultMatchesSubmission(
+  submission: PassportCredentialVerificationSubmission,
+  result: PassportCredentialVerificationResult
+): [] {
+  assertValidPassportCredentialVerificationSubmissionMessage(submission);
+  assertValidPassportCredentialVerificationResultMessage(result);
+  PassportCredentialVerification_assertSubmissionResultAlignment(
+    submission,
+    result
+  );
+  if (result.approved) {
+    assert(
+      result.body.credentialRoot == passportCredentialBodyRoot(submission.body.credential),
+      "Passport credential verification result credential root does not match the submission"
+    );
+  }
+}
+
+export circuit assertValidPassportCredential(
+  credential: PassportCredential,
+  proof: Proof
+): [] {
+  assertValidPassportSchemaRef(credential.schema);
+  assertValidCredentialEnvelope(credential, passportCredentialClaimRoot(credential.claims));
+  assertValidExplicitHolderBinding(credential.holderBinding);
+  assertValidCredentialProof(credential, proof);
+}
+
+export circuit assertValidPassportCredentialPresentation(
+  credential: PassportCredential,
+  credentialProof: Proof,
+  presentation: PassportCredentialPresentation,
+  presentationProof: Proof
+): [] {
+  assertValidPassportCredential(credential, credentialProof);
+  assertValidPassportSchemaRef(presentation.schema);
+  assertValidPresentationEnvelope(credential, presentation);
+  assertValidExplicitHolderBinding(presentation.holderBinding);
+  assertMatchingExplicitHolderBindings(
+    credential.holderBinding,
+    presentation.holderBinding
+  );
+
+  if (presentation.disclosed.revealNationality) {
+    assert(
+      nationalityCommitment(presentation.disclosed.nationalityValue, presentation.disclosed.nationalityOpening)
+        == credential.claims.nationalityCommitment,
+      "Passport nationality disclosure does not match the credential"
+    );
+  }
+  if (presentation.disclosed.revealGender) {
+    assert(
+      genderCommitment(presentation.disclosed.genderValue, presentation.disclosed.genderOpening)
+        == credential.claims.genderCommitment,
+      "Passport gender disclosure does not match the credential"
+    );
+  }
+  if (presentation.disclosed.proveAgeOverThreshold) {
+    assert(presentation.disclosed.ageThresholdYears > 0, "Age threshold must be positive");
+  }
+
+  assertProofMatchesExplicitHolderBinding(
+    presentation.holderBinding,
+    presentationProof
+  );
+  assertValidPresentationContextProof(
+    passportCredentialPresentationBodyRoot(presentation),
+    presentationProof
+  );
+}
+
+export circuit assertPassportPresentationSatisfiesRequest(
+  credential: PassportCredential,
+  request: PassportCredentialPresentationRequest,
+  presentation: PassportCredentialPresentation,
+  presentationProof: Proof
+): [] {
+  assertValidPassportCredentialPresentationRequest(request);
+  assertValidPassportSchemaRef(presentation.schema);
+  assertMatchingSchemaRefs(request.schema, credential.schema);
+  assertMatchingSchemaRefs(request.schema, presentation.schema);
+  assert(
+    request.issuerVerificationMethodRef.didContractAddress == credential.issuerVerificationMethodRef.didContractAddress,
+    "Presentation request issuer contract does not match the credential issuer"
+  );
+  assert(
+    request.issuerVerificationMethodRef.methodId == credential.issuerVerificationMethodRef.methodId,
+    "Presentation request issuer method reference does not match the credential issuer"
+  );
+  assert(
+    presentationProof.challengeHash == request.verifierChallengeHash,
+    "Presentation proof challenge does not match the request challenge"
+  );
+  if (request.requireNationalityDisclosure) {
+    assert(
+      presentation.disclosed.revealNationality,
+      "Presentation request requires the nationality disclosure"
+    );
+  }
+  if (request.requireGenderDisclosure) {
+    assert(
+      presentation.disclosed.revealGender,
+      "Presentation request requires the gender disclosure"
+    );
+  }
+  if (request.requireAgeOverThreshold) {
+    assert(
+      presentation.disclosed.proveAgeOverThreshold,
+      "Presentation request requires the age-over-threshold predicate"
+    );
+    assert(
+      presentation.disclosed.ageThresholdYears == request.requestedAgeThresholdYears,
+      "Presentation age threshold does not match the request"
+    );
+  }
+  if (request.requireNotExpired) {
+    assert(
+      presentation.disclosed.proveNotExpired,
+      "Presentation request requires the not-expired predicate"
+    );
+  }
+}
+
+export circuit assertValidPassportCredentialAgePredicate(
+  credential: PassportCredential,
+  presentation: PassportCredentialPresentation,
+  currentDay: Uint<32>,
+  birthDateDays: Uint<32>,
+  birthDateOpening: Bytes<32>
+): [] {
+  assert(
+    presentation.disclosed.proveAgeOverThreshold,
+    "Presentation must request the age-over-threshold predicate"
+  );
+  assert(
+    birthDateCommitment(birthDateDays, birthDateOpening) == credential.claims.birthDateCommitment,
+    "Birth-date witness does not match credential commitment"
+  );
+  assert(currentDay >= birthDateDays, "Current day must not precede the birth date witness");
+  assert(
+    currentDay - birthDateDays >= presentation.disclosed.ageThresholdYears * 365,
+    "Age predicate does not satisfy the requested threshold"
+  );
+}
+
+export circuit assertPassportNotExpired(
+  credential: PassportCredential,
+  currentDay: Uint<32>
+): [] {
+  assert(currentDay <= credential.claims.expiryDate, "Passport has expired");
+}

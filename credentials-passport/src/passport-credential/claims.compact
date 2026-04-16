@@ -1,0 +1,46 @@
+export struct PassportCredentialClaims {
+  documentNumberCommitment: Bytes<32>,
+  issuingCountry: CountryCode,
+  nationalityCommitment: Bytes<32>,
+  givenNameCommitment: Bytes<32>,
+  familyNameCommitment: Bytes<32>,
+  birthDateCommitment: Bytes<32>,
+  genderCommitment: Bytes<32>,
+  expiryDate: Uint<32>,
+}
+
+export circuit passportCredentialClaimRoot(claims: PassportCredentialClaims): Bytes<32> {
+  return persistentHash<Vector<7, Bytes<32>>>([
+    pad(32, "midnight:vc:passport:v1"),
+    claims.documentNumberCommitment,
+    claims.nationalityCommitment,
+    claims.givenNameCommitment,
+    claims.familyNameCommitment,
+    claims.birthDateCommitment,
+    claims.genderCommitment
+  ]);
+}
+
+export circuit documentNumberCommitment(documentNumber: Bytes<32>, opening: Bytes<32>): Bytes<32> {
+  return persistentCommit<Bytes<32>>(documentNumber, opening);
+}
+
+export circuit nationalityCommitment(nationality: Uint<16>, opening: Bytes<32>): Bytes<32> {
+  return persistentCommit<Uint<16>>(nationality, opening);
+}
+
+export circuit givenNameCommitment(givenNamePadded: Bytes<32>, opening: Bytes<32>): Bytes<32> {
+  return persistentCommit<Bytes<32>>(givenNamePadded, opening);
+}
+
+export circuit familyNameCommitment(familyNamePadded: Bytes<32>, opening: Bytes<32>): Bytes<32> {
+  return persistentCommit<Bytes<32>>(familyNamePadded, opening);
+}
+
+export circuit birthDateCommitment(birthDateDays: Uint<32>, opening: Bytes<32>): Bytes<32> {
+  return persistentCommit<Uint<32>>(birthDateDays, opening);
+}
+
+export circuit genderCommitment(gender: Uint<8>, opening: Bytes<32>): Bytes<32> {
+  return persistentCommit<Uint<8>>(gender, opening);
+}

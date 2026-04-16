@@ -1,0 +1,48 @@
+export circuit passportCredentialBodyRoot(credential: PassportCredential): Bytes<32> {
+  return credentialBodyRoot(credential);
+}
+
+export circuit passportCredentialPresentationBodyRoot(presentation: PassportCredentialPresentation): Bytes<32> {
+  return presentationBodyRoot(presentation);
+}
+
+export circuit passportCredentialPresentationRequestBodyRoot(
+  request: PassportCredentialPresentationRequest
+): Bytes<32> {
+  return persistentHash<PassportCredentialPresentationRequest>(request);
+}
+
+export circuit assertValidPassportSchemaRef(schema: SchemaRef): [] {
+  assert(schema.packageId == pad(32, "midnight-did:vc:passport"), "Unexpected schema package identifier");
+  assert(schema.schemaId == pad(32, "passport-credential:v1"), "Unexpected schema identifier");
+  assert(schema.majorVersion == 1, "Passport credential major version mismatch");
+}
+
+export circuit assertValidPassportCredentialPresentationRequest(
+  request: PassportCredentialPresentationRequest
+): [] {
+  assert(request.version == 1, "Presentation request version mismatch");
+  assertValidPassportSchemaRef(request.schema);
+  assertValidVerificationMethodRef(request.issuerVerificationMethodRef);
+  if (request.requireAgeOverThreshold) {
+    assert(request.requestedAgeThresholdYears > 0, "Requested age threshold must be positive");
+  } else {
+    assert(request.requestedAgeThresholdYears == 0, "Requested age threshold must be zero when disabled");
+  }
+}
+
+export circuit passportCredentialPresentationRequestFromProtocol(
+  request: PassportCredentialVerificationRequest
+): PassportCredentialPresentationRequest {
+  return PassportCredentialPresentationRequest {
+    version: request.envelope.version,
+    schema: request.schema,
+    issuerVerificationMethodRef: request.issuerVerificationMethodRef,
+    requireNationalityDisclosure: request.body.requireNationalityDisclosure,
+    requireGenderDisclosure: request.body.requireGenderDisclosure,
+    requireAgeOverThreshold: request.body.requireAgeOverThreshold,
+    requestedAgeThresholdYears: request.body.requestedAgeThresholdYears,
+    requireNotExpired: request.body.requireNotExpired,
+    verifierChallengeHash: request.verifierChallengeHash,
+  };
+}
