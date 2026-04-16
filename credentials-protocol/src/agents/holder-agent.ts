@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import { ecMulGenerator } from "@midnight-ntwrk/compact-runtime";
+
 import {
   type Proof,
   pureCircuits as genericPureCircuits,
@@ -10,12 +12,24 @@ import {
   type BirthCredentialIssuanceOffer,
   type BirthCredentialIssuanceRequest,
   type BirthCredentialIssuanceResult,
+  type BirthCredentialPresentation,
+  type BirthCredentialPresentationRequest,
   HolderBindingProfile,
+  pureCircuits,
 } from "../../../credentials-birth/src/managed/birth-credential/contract/index.js";
 
 import type { DIDProfile } from "./types.js";
 import type { ProtocolMessage } from "../transport/types.js";
 import { MessageBus } from "../transport/message-bus.js";
+import type { PresentationSubmissionBody } from "./verifier-agent.js";
+
+const JUBJUB_FIELD_MODULUS =
+  6554484396890773809930967563523245729705921265872317281365359162392183254199n;
+
+const mod = (value: bigint): bigint => {
+  const reduced = value % JUBJUB_FIELD_MODULUS;
+  return reduced >= 0n ? reduced : reduced + JUBJUB_FIELD_MODULUS;
+};
 
 const sha256 = (value: string): Uint8Array =>
   new Uint8Array(createHash("sha256").update(value).digest());
@@ -40,6 +54,15 @@ const createEnvelope = (
 export type StoredCredential = {
   readonly credential: BirthCredential;
   readonly credentialProof: Proof;
+};
+
+export type PresentationWitness = {
+  readonly credentialIndex: number;
+  readonly currentDay: bigint;
+  readonly birthDateDays: bigint;
+  readonly birthDateOpening: Uint8Array;
+  readonly birthCountryCodePadded: Uint8Array;
+  readonly birthCountryCodeOpening: Uint8Array;
 };
 
 export class HolderAgent {
@@ -118,5 +141,112 @@ export class HolderAgent {
       );
     }
     return this.credentials[index];
+  }
+
+  buildPresentationForContract(
+    credentialIndex: number,
+    request: BirthCredentialPresentationRequest,
+    witnessData: PresentationWitness,
+  ): { presentation: BirthCredentialPresentation; presentationProof: Proof } {
+    const stored = this.getCredential(credentialIndex);
+    const credential = stored.credential;
+
+    const presentation: BirthCredentialPresentation = {
+      version: 1n,
+      schema: credential.schema,
+      credentialClaimRoot: credential.claimRoot,
+      issuerVerificationMethodRef: credential.issuerVerificationMethodRef,
+      holderBinding: credential.holderBinding,
+      disclosed: {
+        revealSubjectIdCommitment: request.requireSubjectIdCommitmentDisclosure,
+        subjectIdCommitment: request.requireSubjectIdCommitmentDisclosure
+          ? credential.claims.subjectIdCommitment
+          : new Uint8Array(32),
+        revealBirthCountryCode: request.requireBirthCountryDisclosure,
+        birthCountryCodePadded: request.requireBirthCountryDisclosure
+          ? witnessData.birthCountryCodePadded
+          : new Uint8Array(32),
+        birthCountryCodeOpening: request.requireBirthCountryDisclosure
+          ? witnessData.birthCountryCodeOpening
+          : new Uint8Array(32),
+        proveAgeOverThreshold: request.requireAgeOverThreshold,
+        ageThresholdYears: request.requestedAgeThresholdYears,
+      },
+    };
+
+    const bodyRoot =
+      pureCircuits.birthCredentialPresentationBodyRoot(presentation);
+    const nonceScalar = 17n;
+
+    const proof: Proof = {
+      signerVerificationMethodRef: this.profile.signer.verificationMethodRef,
+      createdAt: BigInt(Date.now()),
+      challengeHash: request.verifierChallengeHash,
+      publicKey: this.profile.signer.publicKey,
+      signature: {
+        r: ecMulGenerator(nonceScalar),
+        s: 0n,
+      },
+    };
+
+    const challenge = genericPureCircuits.presentationProofChallenge(
+      bodyRoot,
+      proof,
+    );
+
+    const presentationProof: Proof = {
+      ...proof,
+      signature: {
+        r: proof.signature.r,
+        s: mod(nonceScalar + challenge * this.profile.signer.secretKey),
+      },
+    };
+
+    return { presentation, presentationProof };
+  }
+
+  receiveRequestAndSendPresentation(
+    requestMessage: ProtocolMessage,
+    witnessData: PresentationWitness,
+  ): void {
+    if (requestMessage.type !== "presentation:request") {
+      throw new Error(
+        `Expected presentation:request message, got ${requestMessage.type}`,
+      );
+    }
+
+    const request = requestMessage.body as BirthCredentialPresentationRequest;
+    const stored = this.getCredential(witnessData.credentialIndex);
+
+    const { presentation, presentationProof } =
+      this.buildPresentationForContract(
+        witnessData.credentialIndex,
+        request,
+        witnessData,
+      );
+
+    const submissionBody: PresentationSubmissionBody = {
+      credential: stored.credential,
+      credentialProof: stored.credentialProof,
+      presentation,
+      presentationProof,
+      request,
+      currentDay: witnessData.currentDay,
+      birthDateDays: witnessData.birthDateDays,
+      birthDateOpening: witnessData.birthDateOpening,
+    };
+
+    this.bus.send({
+      type: "presentation:submission",
+      from: this.profile.label,
+      to: requestMessage.from,
+      envelope: createEnvelope(
+        "presentation-submission",
+        "birth-presentation",
+        false,
+        requestMessage.envelope.messageId,
+      ),
+      body: submissionBody,
+    });
   }
 }
