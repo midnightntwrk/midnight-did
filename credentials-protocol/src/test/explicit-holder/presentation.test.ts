@@ -1,18 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect,it } from "vitest";
 
 import type { BirthCredentialPresentationRequest } from "../../../../credentials-birth/src/managed/birth-credential/contract/index.js";
-
-import { MessageBus } from "../../transport/message-bus.js";
-import { IssuerAgent, type ClaimWitness } from "../../agents/issuer-agent.js";
 import {
   HolderAgent,
   type PresentationWitness,
 } from "../../agents/holder-agent.js";
-import { VerifierAgent, type SimulatorWitness } from "../../agents/verifier-agent.js";
+import { type ClaimWitness,IssuerAgent } from "../../agents/issuer-agent.js";
+import { type SimulatorWitness,VerifierAgent } from "../../agents/verifier-agent.js";
+import { MessageBus } from "../../transport/message-bus.js";
 import {
   createDIDProfile,
-  sha256,
   padText,
+  sha256,
 } from "../helpers/did-provider.js";
 
 describe("explicit-holder presentation", () => {

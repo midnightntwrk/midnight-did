@@ -1,5 +1,6 @@
-import type { VerificationMethodRef } from "../../../credentials/src/managed/credentials/contract/index.js";
 import type { JubjubPoint } from "@midnight-ntwrk/compact-runtime";
+
+import type { VerificationMethodRef } from "../../../credentials/src/managed/credentials/contract/index.js";
 
 export type Signer = {
   readonly label: string;

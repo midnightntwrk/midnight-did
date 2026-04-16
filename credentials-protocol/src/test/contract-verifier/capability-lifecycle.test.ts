@@ -1,17 +1,17 @@
 import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
-import { describe, it, expect, beforeAll } from "vitest";
+import { beforeAll,describe, expect, it } from "vitest";
 
-import { MessageBus } from "../../transport/message-bus.js";
-import { IssuerAgent, type ClaimWitness } from "../../agents/issuer-agent.js";
 import { HolderAgent } from "../../agents/holder-agent.js";
+import { type ClaimWitness,IssuerAgent } from "../../agents/issuer-agent.js";
+import { MessageBus } from "../../transport/message-bus.js";
 import {
-  ContractVerifier,
   type ContractPresentationPackage,
-} from "../../agents/contract-verifier.js";
+  ContractVerifier,
+} from "../helpers/contract-verifier.js";
 import {
   createDIDProfile,
-  sha256,
   padText,
+  sha256,
 } from "../helpers/did-provider.js";
 
 describe("contract-verifier capability-lifecycle", () => {

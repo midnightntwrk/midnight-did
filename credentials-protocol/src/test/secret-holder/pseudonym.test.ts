@@ -1,24 +1,23 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect,it } from "vitest";
 
 import {
   pureCircuits as genericPureCircuits,
-  type BirthCredentialPresentationRequest as SecretBirthPresentationRequest,
-} from "../../../../credentials/src/managed/credentials/contract/index.js";
-
-import { MessageBus } from "../../transport/message-bus.js";
-import {
-  SecretIssuerAgent,
-  type SecretClaimWitness,
-} from "../../agents/secret-issuer-agent.js";
+  type SecretBirthCredentialPresentationRequest,
+} from "../../../../credentials-birth-secret/src/managed/secret-birth-credential/contract/index.js";
 import {
   SecretHolderAgent,
   type SecretPresentationWitness,
 } from "../../agents/secret-holder-agent.js";
-import { VerifierAgent, type SecretSimulatorWitness } from "../../agents/verifier-agent.js";
+import {
+  type SecretClaimWitness,
+  SecretIssuerAgent,
+} from "../../agents/secret-issuer-agent.js";
+import { type SecretSimulatorWitness,VerifierAgent } from "../../agents/verifier-agent.js";
+import { MessageBus } from "../../transport/message-bus.js";
 import {
   createDIDProfile,
-  sha256,
   padText,
+  sha256,
 } from "../helpers/did-provider.js";
 
 describe("secret-holder pseudonym", () => {
@@ -83,7 +82,8 @@ describe("secret-holder pseudonym", () => {
     });
 
     const requestMessage = bus.receive("holder")!;
-    const presentationRequest = requestMessage.body as SecretBirthPresentationRequest;
+    const presentationRequest =
+      requestMessage.body as SecretBirthCredentialPresentationRequest;
 
     const presentationWitness: SecretPresentationWitness = {
       credentialIndex: 0,

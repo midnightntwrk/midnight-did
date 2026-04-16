@@ -16,11 +16,11 @@ import {
   type Ledger,
   ledger,
   type Proof,
-} from "../managed/demo/contract/index.js";
+} from "./managed/demo/contract/index.js";
 import {
   type CredentialsDemoPrivateState,
   witnesses,
-} from "../witnesses.js";
+} from "./witnesses.js";
 
 export class CredentialsDemoSimulator {
   readonly contract: Contract<CredentialsDemoPrivateState>;

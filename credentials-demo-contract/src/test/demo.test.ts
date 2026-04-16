@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 
 import { AccessDecision } from "../managed/demo/contract/index.js";
 import { pureCircuits } from "../managed/demo/contract/index.js";
+import { CredentialsDemoSimulator } from "../simulator.js";
 import {
   createBirthCredentialFixture,
   createSigner,
   signProof,
 } from "./demo-fixtures.js";
-import { CredentialsDemoSimulator } from "./demo-simulator.js";
 
 setNetworkId("undeployed");
 

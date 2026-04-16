@@ -1,4 +1,4 @@
-import type { ProtocolMessage, PartyId } from "./types.js";
+import type { PartyId,ProtocolMessage } from "./types.js";
 
 export class MessageBus {
   private readonly queues = new Map<PartyId, ProtocolMessage[]>();

@@ -7,7 +7,7 @@ import {
   createSigner,
   withVerificationMethodRef,
 } from "../../../../credentials-birth/src/test/credential-fixtures.js";
-import { CredentialsDemoSimulator } from "../demo-simulator.js";
+import { CredentialsDemoSimulator } from "../../simulator.js";
 import {
   type ProtocolDidProfile,
   StandaloneProtocolEnvironment,

@@ -1,9 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect,it } from "vitest";
 
 import { MessageBus } from "../../transport/message-bus.js";
-import type { ProtocolMessage } from "../../transport/types.js";
+import type { ProtocolMessage, ProtocolMessageType } from "../../transport/types.js";
 
-const dummyMessage = (from: string, to: string, type = "issuance:offer" as const): ProtocolMessage => ({
+const dummyMessage = (
+  from: string,
+  to: string,
+  type: ProtocolMessageType = "issuance:offer",
+): ProtocolMessage => ({
   type,
   from,
   to,

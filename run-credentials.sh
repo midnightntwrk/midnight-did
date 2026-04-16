@@ -13,6 +13,7 @@ npm run lint -w credentials-same-holder
 npm run lint -w credentials-birth
 npm run lint -w credentials-birth-secret
 npm run lint -w credentials-demo-contract
+npm run lint -w credentials-protocol
 
 echo "[credentials] Typecheck"
 npm run typecheck -w credentials
@@ -20,6 +21,7 @@ npm run typecheck -w credentials-same-holder
 npm run typecheck -w credentials-birth
 npm run typecheck -w credentials-birth-secret
 npm run typecheck -w credentials-demo-contract
+npm run typecheck -w credentials-protocol
 
 echo "[credentials] Core credentials package"
 npm run all -w credentials
@@ -35,6 +37,9 @@ npm run all -w credentials-birth-secret
 
 echo "[credentials] Demo verifier contract"
 npm run all -w credentials-demo-contract
+
+echo "[credentials] Protocol simulation layer"
+npm run all -w credentials-protocol
 
 if docker info >/dev/null 2>&1; then
   echo "[credentials] Standalone protocol integration"

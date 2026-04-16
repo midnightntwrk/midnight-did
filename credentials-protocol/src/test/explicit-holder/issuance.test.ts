@@ -1,13 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect,it } from "vitest";
 
-import { MessageBus } from "../../transport/message-bus.js";
-import { IssuerAgent, type ClaimWitness } from "../../agents/issuer-agent.js";
 import { HolderAgent } from "../../agents/holder-agent.js";
+import { type ClaimWitness,IssuerAgent } from "../../agents/issuer-agent.js";
+import { MessageBus } from "../../transport/message-bus.js";
 import {
   createDIDProfile,
   fill,
-  sha256,
   padText,
+  sha256,
 } from "../helpers/did-provider.js";
 
 describe("explicit-holder issuance", () => {

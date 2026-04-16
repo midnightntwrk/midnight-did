@@ -1,7 +1,6 @@
 import {
   type Proof,
   type VerificationMethodRef,
-  type BirthCredentialPresentationRequest as SecretBirthPresentationRequest,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
 import {
   type BirthCredential,
@@ -10,18 +9,18 @@ import {
   pureCircuits,
 } from "../../../credentials-birth/src/managed/birth-credential/contract/index.js";
 import {
+  pureCircuits as secretPureCircuits,
   type SecretBirthCredential,
   type SecretBirthCredentialPresentation,
-  pureCircuits as secretPureCircuits,
+  type SecretBirthCredentialPresentationRequest,
 } from "../../../credentials-birth-secret/src/managed/secret-birth-credential/contract/index.js";
-
-import type { DIDProfile } from "./types.js";
-import type { ProtocolMessage, PartyId } from "../transport/types.js";
-import { MessageBus } from "../transport/message-bus.js";
-import type { SameHolderPresentation } from "./secret-holder-agent.js";
-import { assertMessageType, assertBodyHasFields } from "../shared/validation.js";
-import { sha256, padText } from "../shared/crypto.js";
+import { padText,sha256 } from "../shared/crypto.js";
 import { createEnvelope } from "../shared/envelope.js";
+import { assertBodyHasFields,assertMessageType } from "../shared/validation.js";
+import type { MessageBus } from "../transport/message-bus.js";
+import type { PartyId,ProtocolMessage } from "../transport/types.js";
+import type { SameHolderPresentation } from "./secret-holder-agent.js";
+import type { DIDProfile } from "./types.js";
 
 export type PresentationRequirements = {
   readonly issuerVerificationMethodRef: VerificationMethodRef;
@@ -82,7 +81,7 @@ export type SecretPresentationSubmissionBody = {
  * This type is intended for test use only.
  */
 export type SecretSimulatorWitness = {
-  readonly request: SecretBirthPresentationRequest;
+  readonly request: SecretBirthCredentialPresentationRequest;
   readonly currentDay: bigint;
   readonly birthDateDays: bigint;
   readonly birthDateOpening: Uint8Array;
@@ -210,7 +209,7 @@ export class VerifierAgent {
       minorVersion: 0n,
     };
 
-    const request: SecretBirthPresentationRequest = {
+    const request: SecretBirthCredentialPresentationRequest = {
       version: 1n,
       schema: SECRET_BIRTH_SCHEMA,
       issuerVerificationMethodRef: requirements.issuerVerificationMethodRef,

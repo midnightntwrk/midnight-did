@@ -12,10 +12,10 @@ import {
   type VerificationMethodRef,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
 import {
-  type SecretBirthCredentialPresentationRequest,
   pureCircuits,
   type SecretBirthCredential,
   type SecretBirthCredentialPresentation,
+  type SecretBirthCredentialPresentationRequest,
 } from "../managed/secret-birth-credential/contract/index.js";
 
 const JUBJUB_FIELD_MODULUS =

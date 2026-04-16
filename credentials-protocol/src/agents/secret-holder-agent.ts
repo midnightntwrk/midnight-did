@@ -1,25 +1,25 @@
+import { Buffer } from "node:buffer";
+
 import {
+  HolderBindingProfile,
   type Proof,
   pureCircuits as genericPureCircuits,
-  HolderBindingProfile,
-  type BirthCredentialPresentationRequest,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
 import {
   type SecretBirthCredential,
   type SecretBirthCredentialPresentation,
-  type BirthCredentialPresentationRequest as SecretBirthPresentationRequest,
+  type SecretBirthCredentialPresentationRequest,
 } from "../../../credentials-birth-secret/src/managed/secret-birth-credential/contract/index.js";
-
+import { padText,sha256 } from "../shared/crypto.js";
+import { createEnvelope } from "../shared/envelope.js";
+import { assertBodyHasFields,assertMessageType } from "../shared/validation.js";
+import type { MessageBus } from "../transport/message-bus.js";
 import type { ProtocolMessage } from "../transport/types.js";
-import { MessageBus } from "../transport/message-bus.js";
 import type {
   SecretIssuanceOffer,
   SecretIssuanceResult,
 } from "./secret-issuer-agent.js";
 import type { SecretPresentationSubmissionBody } from "./verifier-agent.js";
-import { assertMessageType, assertBodyHasFields } from "../shared/validation.js";
-import { sha256, padText } from "../shared/crypto.js";
-import { createEnvelope } from "../shared/envelope.js";
 
 const SECRET_BIRTH_SCHEMA = {
   packageId: padText("midnight-did:vc:birth-secret"),
@@ -41,11 +41,11 @@ export type SecretStoredCredential = {
 export type SameHolderPresentation = {
   readonly firstCredential: SecretBirthCredential;
   readonly firstCredentialProof: Proof;
-  readonly firstRequest: SecretBirthPresentationRequest;
+  readonly firstRequest: SecretBirthCredentialPresentationRequest;
   readonly firstPresentation: SecretBirthCredentialPresentation;
   readonly secondCredential: SecretBirthCredential;
   readonly secondCredentialProof: Proof;
-  readonly secondRequest: SecretBirthPresentationRequest;
+  readonly secondRequest: SecretBirthCredentialPresentationRequest;
   readonly secondPresentation: SecretBirthCredentialPresentation;
 };
 
@@ -101,6 +101,7 @@ export class SecretHolderAgent {
         "secret-birth-issuance",
         false,
         issuanceOffer.envelope.messageId,
+        issuanceOffer.envelope.threadId,
       ),
       schema: SECRET_BIRTH_SCHEMA,
       issuerVerificationMethodRef: issuanceOffer.issuerVerificationMethodRef,
@@ -185,7 +186,7 @@ export class SecretHolderAgent {
     assertMessageType(requestMessage, "presentation:request");
     assertBodyHasFields(requestMessage, ["version", "schema", "verifierChallengeHash"]);
     const request =
-      requestMessage.body as BirthCredentialPresentationRequest;
+      requestMessage.body as SecretBirthCredentialPresentationRequest;
     const stored = this.getCredential(witnessData.credentialIndex);
     const credential = stored.credential;
 
@@ -245,6 +246,7 @@ export class SecretHolderAgent {
         "secret-birth-presentation",
         false,
         requestMessage.envelope.messageId,
+        requestMessage.envelope.threadId,
       ),
       body: submissionBody,
     });
@@ -293,7 +295,7 @@ export class SecretHolderAgent {
   ): SameHolderPresentation {
     const buildRequest = (
       credential: SecretBirthCredential,
-    ): SecretBirthPresentationRequest => ({
+    ): SecretBirthCredentialPresentationRequest => ({
       version: 1n,
       schema: credential.schema,
       issuerVerificationMethodRef: credential.issuerVerificationMethodRef,
@@ -308,7 +310,7 @@ export class SecretHolderAgent {
 
     const buildPresentation = (
       credential: SecretBirthCredential,
-      request: SecretBirthPresentationRequest,
+      request: SecretBirthCredentialPresentationRequest,
     ): SecretBirthCredentialPresentation => ({
       version: 1n,
       schema: credential.schema,

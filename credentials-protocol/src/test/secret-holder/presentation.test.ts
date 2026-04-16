@@ -1,23 +1,22 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect,it } from "vitest";
 
 import type {
-  BirthCredentialPresentationRequest as SecretBirthPresentationRequest,
-} from "../../../../credentials/src/managed/credentials/contract/index.js";
-
-import { MessageBus } from "../../transport/message-bus.js";
-import {
-  SecretIssuerAgent,
-  type SecretClaimWitness,
-} from "../../agents/secret-issuer-agent.js";
+  SecretBirthCredentialPresentationRequest,
+} from "../../../../credentials-birth-secret/src/managed/secret-birth-credential/contract/index.js";
 import {
   SecretHolderAgent,
   type SecretPresentationWitness,
 } from "../../agents/secret-holder-agent.js";
-import { VerifierAgent, type SecretSimulatorWitness } from "../../agents/verifier-agent.js";
+import {
+  type SecretClaimWitness,
+  SecretIssuerAgent,
+} from "../../agents/secret-issuer-agent.js";
+import { type SecretSimulatorWitness,VerifierAgent } from "../../agents/verifier-agent.js";
+import { MessageBus } from "../../transport/message-bus.js";
 import {
   createDIDProfile,
-  sha256,
   padText,
+  sha256,
 } from "../helpers/did-provider.js";
 
 describe("secret-holder presentation", () => {
@@ -85,7 +84,8 @@ describe("secret-holder presentation", () => {
     expect(requestMessage!.type).toBe("presentation:request");
 
     // Capture the request for the simulator witness
-    const presentationRequest = requestMessage!.body as SecretBirthPresentationRequest;
+    const presentationRequest =
+      requestMessage!.body as SecretBirthCredentialPresentationRequest;
 
     // Alice is 25 years old: birthDateDays=3650, currentDay = 3650 + 365*25 = 12775
     const presentationWitness: SecretPresentationWitness = {

@@ -1,16 +1,16 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect,it } from "vitest";
 
-import { MessageBus } from "../../transport/message-bus.js";
-import {
-  SecretIssuerAgent,
-  type SecretClaimWitness,
-  type SecretIssuanceRequest,
-} from "../../agents/secret-issuer-agent.js";
 import { SecretHolderAgent } from "../../agents/secret-holder-agent.js";
 import {
+  type SecretClaimWitness,
+  type SecretIssuanceRequest,
+  SecretIssuerAgent,
+} from "../../agents/secret-issuer-agent.js";
+import { MessageBus } from "../../transport/message-bus.js";
+import {
   createDIDProfile,
-  sha256,
   padText,
+  sha256,
 } from "../helpers/did-provider.js";
 
 describe("secret-holder issuance", () => {

@@ -1,22 +1,21 @@
 import { ecMulGenerator } from "@midnight-ntwrk/compact-runtime";
 
 import {
-  type Proof,
-  pureCircuits as genericPureCircuits,
-  type ProtocolMessageEnvelope,
   HolderBindingProfile,
+  type Proof,
+  type ProtocolMessageEnvelope,
+  pureCircuits as genericPureCircuits,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
 import {
   pureCircuits,
   type SecretBirthCredential,
 } from "../../../credentials-birth-secret/src/managed/secret-birth-credential/contract/index.js";
-
-import type { DIDProfile } from "./types.js";
-import type { ProtocolMessage, PartyId } from "../transport/types.js";
-import { MessageBus } from "../transport/message-bus.js";
-import { assertMessageType, assertBodyHasFields } from "../shared/validation.js";
-import { mod, sha256, padText } from "../shared/crypto.js";
+import { mod, padText,sha256 } from "../shared/crypto.js";
 import { createEnvelope } from "../shared/envelope.js";
+import { assertBodyHasFields,assertMessageType } from "../shared/validation.js";
+import type { MessageBus } from "../transport/message-bus.js";
+import type { PartyId,ProtocolMessage } from "../transport/types.js";
+import type { DIDProfile } from "./types.js";
 
 export type SecretClaimWitness = {
   readonly subjectId: Uint8Array;
@@ -211,6 +210,7 @@ export class SecretIssuerAgent {
         "secret-birth-issuance",
         false,
         issuanceRequest.envelope.messageId,
+        issuanceRequest.envelope.threadId,
       ),
       schema: SECRET_BIRTH_SCHEMA,
       issuerVerificationMethodRef: this.profile.signer.verificationMethodRef,

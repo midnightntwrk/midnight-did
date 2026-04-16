@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { ecMulGenerator } from "@midnight-ntwrk/compact-runtime";
 
-import type { Signer, DIDProfile, PartyRole } from "../../agents/types.js";
+import type { DIDProfile, PartyRole,Signer } from "../../agents/types.js";
 
 const sha256 = (value: string): Uint8Array =>
   new Uint8Array(createHash("sha256").update(value).digest());
@@ -54,4 +54,4 @@ const createDIDProfile = (
 const fill = (value: number, length = 32): Uint8Array =>
   new Uint8Array(length).fill(value);
 
-export { sha256, padText, mod, createSigner, createDIDProfile, fill, JUBJUB_FIELD_MODULUS };
+export { createDIDProfile, createSigner, fill, JUBJUB_FIELD_MODULUS,mod, padText, sha256 };

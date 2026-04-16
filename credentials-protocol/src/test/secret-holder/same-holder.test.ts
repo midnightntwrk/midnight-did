@@ -1,17 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect,it } from "vitest";
 
+import { SecretHolderAgent } from "../../agents/secret-holder-agent.js";
+import {
+  type SecretClaimWitness,
+  SecretIssuerAgent,
+} from "../../agents/secret-issuer-agent.js";
+import { type SameHolderSimulatorWitness,VerifierAgent } from "../../agents/verifier-agent.js";
 import { MessageBus } from "../../transport/message-bus.js";
 import {
-  SecretIssuerAgent,
-  type SecretClaimWitness,
-} from "../../agents/secret-issuer-agent.js";
-import { SecretHolderAgent } from "../../agents/secret-holder-agent.js";
-import { VerifierAgent, type SameHolderSimulatorWitness } from "../../agents/verifier-agent.js";
-import {
   createDIDProfile,
-  sha256,
-  padText,
   fill,
+  padText,
+  sha256,
 } from "../helpers/did-provider.js";
 
 describe("secret-holder same-holder composition", () => {

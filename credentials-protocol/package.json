@@ -13,7 +13,9 @@
     "build": "rm -rf dist && tsc -b tsconfig.build.json --force",
     "test": "vitest run",
     "lint": "eslint src --ext .ts --ignore-pattern src/managed/**",
+    "lint:fix": "eslint src --ext .ts --ignore-pattern src/managed/** --fix",
     "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist && rm -rf coverage",
     "all": "npm run build && npm run test"
   },
   "dependencies": {

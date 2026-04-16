@@ -14,14 +14,13 @@ import {
   HolderBindingProfile,
   pureCircuits,
 } from "../../../credentials-birth/src/managed/birth-credential/contract/index.js";
-
-import type { DIDProfile } from "./types.js";
-import type { ProtocolMessage } from "../transport/types.js";
-import { MessageBus } from "../transport/message-bus.js";
-import type { PresentationSubmissionBody } from "./verifier-agent.js";
-import { assertMessageType, assertBodyHasFields } from "../shared/validation.js";
 import { mod, sha256 } from "../shared/crypto.js";
 import { createEnvelope } from "../shared/envelope.js";
+import { assertBodyHasFields,assertMessageType } from "../shared/validation.js";
+import type { MessageBus } from "../transport/message-bus.js";
+import type { ProtocolMessage } from "../transport/types.js";
+import type { DIDProfile } from "./types.js";
+import type { PresentationSubmissionBody } from "./verifier-agent.js";
 
 export type StoredCredential = {
   readonly credential: BirthCredential;
@@ -59,6 +58,7 @@ export class HolderAgent {
         "birth-issuance",
         false,
         issuanceOffer.envelope.messageId,
+        issuanceOffer.envelope.threadId,
       ),
       schema: issuanceOffer.schema,
       issuerVerificationMethodRef: issuanceOffer.issuerVerificationMethodRef,
@@ -203,6 +203,7 @@ export class HolderAgent {
         "birth-presentation",
         false,
         requestMessage.envelope.messageId,
+        requestMessage.envelope.threadId,
       ),
       body: submissionBody,
     });
