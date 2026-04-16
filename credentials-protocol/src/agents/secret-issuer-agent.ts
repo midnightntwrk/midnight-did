@@ -88,6 +88,7 @@ export type SecretIssuanceResult = {
 export class SecretIssuerAgent {
   private readonly profile: DIDProfile;
   private readonly bus: MessageBus;
+  private issuanceCounter = 0;
 
   constructor(profile: DIDProfile, bus: MessageBus) {
     this.profile = profile;
@@ -129,7 +130,7 @@ export class SecretIssuerAgent {
     const requestBody = issuanceRequest.body;
 
     // TEST ONLY: production must use a unique random nonce per issuance.
-    const issuerNonce = sha256("issuer-nonce:birth-secret");
+    const issuerNonce = sha256(`issuer-nonce:${this.profile.label}:${this.issuanceCounter++}`);
 
     const claims = {
       subjectIdCommitment: pureCircuits.subjectIdCommitment(

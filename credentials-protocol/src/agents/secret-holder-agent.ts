@@ -95,7 +95,8 @@ export class SecretHolderAgent {
       );
 
     // TEST ONLY: production must use a unique random blinding factor per issuance.
-    const holderBindingBlindingFactor = sha256("blinding:holder-secret");
+    const blindingIndex = this.credentials.length;
+    const holderBindingBlindingFactor = sha256(`blinding:holder-secret:${blindingIndex}`);
 
     const request = {
       envelope: createEnvelope(
