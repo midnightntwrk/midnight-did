@@ -125,6 +125,10 @@ export circuit issueBirthCredential(
   issuedCredentialCount.increment(1);
 }
 
+// TRUST BOUNDARY: currentDay is caller-supplied and not verified against an
+// on-chain time source. A malicious prover can pass an arbitrarily large value
+// to bypass age predicates. Production contracts must bound currentDay against
+// a ledger-stored timestamp or block-derived time range.
 export circuit verifyBirthPresentation(
   credential: BirthCredential,
   credentialProof: Proof,
