@@ -45,10 +45,13 @@ This package owns:
 - `BirthCredentialClaims`
 - `SecretBirthCredentialDisclosures`
 - `SecretBirthCredentialPresentationRequest`
+- `SecretBirthCredentialIssuanceOffer`, `SecretBirthCredentialIssuanceRequest`, `SecretBirthCredentialIssuanceResult`
+- `SecretBirthCredentialVerificationRequest`, `SecretBirthCredentialVerificationSubmission`, `SecretBirthCredentialVerificationResult`
 - `SecretBirthCredential`
 - `SecretBirthCredentialPresentation`
 - birth-specific commitment helpers
 - secret-holder-binding validation, request, and predicate circuits
+- generated protocol message families built on the generic issuance / presentation protocol modules
 - concrete same-holder composition for secret birth credentials by composing the dedicated same-holder capability package
 
 ## Prototype scope

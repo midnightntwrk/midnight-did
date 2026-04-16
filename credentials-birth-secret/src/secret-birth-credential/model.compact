@@ -1,0 +1,24 @@
+export struct SecretBirthCredentialDisclosures {
+  revealSubjectIdCommitment: Boolean,
+  subjectIdCommitment: Bytes<32>,
+  revealBirthCountryCode: Boolean,
+  birthCountryCodePadded: Bytes<32>,
+  birthCountryCodeOpening: Bytes<32>,
+  revealVerifierScopedPseudonym: Boolean,
+  verifierScopedPseudonym: Bytes<32>,
+  proveAgeOverThreshold: Boolean,
+  ageThresholdYears: Uint<8>,
+}
+
+export struct SecretBirthCredentialPresentationRequest {
+  version: Uint<16>,
+  schema: SchemaRef,
+  issuerVerificationMethodRef: VerificationMethodRef,
+  requireSubjectIdCommitmentDisclosure: Boolean,
+  requireBirthCountryDisclosure: Boolean,
+  requireVerifierScopedPseudonym: Boolean,
+  verifierDomainHash: Bytes<32>,
+  requireAgeOverThreshold: Boolean,
+  requestedAgeThresholdYears: Uint<8>,
+  verifierChallengeHash: Bytes<32>,
+}

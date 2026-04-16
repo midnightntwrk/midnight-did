@@ -1,0 +1,56 @@
+export circuit secretBirthCredentialBodyRoot(
+  credential: SecretBirthCredential
+): Bytes<32> {
+  return credentialBodyRoot(credential);
+}
+
+export circuit secretBirthCredentialPresentationBodyRoot(
+  presentation: SecretBirthCredentialPresentation
+): Bytes<32> {
+  return presentationBodyRoot(presentation);
+}
+
+export circuit secretBirthCredentialPresentationRequestBodyRoot(
+  request: SecretBirthCredentialPresentationRequest
+): Bytes<32> {
+  return persistentHash<SecretBirthCredentialPresentationRequest>(request);
+}
+
+export circuit assertValidSecretBirthSchemaRef(schema: SchemaRef): [] {
+  assert(
+    schema.packageId == pad(32, "midnight-did:vc:birth-secret"),
+    "Unexpected secret birth schema package identifier"
+  );
+  assert(schema.schemaId == pad(32, "birth-credential:v1"), "Unexpected schema identifier");
+  assert(schema.majorVersion == 1, "Secret birth credential major version mismatch");
+}
+
+export circuit assertValidSecretBirthCredentialPresentationRequest(
+  request: SecretBirthCredentialPresentationRequest
+): [] {
+  assert(request.version == 1, "Presentation request version mismatch");
+  assertValidSecretBirthSchemaRef(request.schema);
+  assertValidVerificationMethodRef(request.issuerVerificationMethodRef);
+  if (request.requireAgeOverThreshold) {
+    assert(request.requestedAgeThresholdYears > 0, "Requested age threshold must be positive");
+  } else {
+    assert(request.requestedAgeThresholdYears == 0, "Requested age threshold must be zero when disabled");
+  }
+}
+
+export circuit secretBirthCredentialPresentationRequestFromProtocol(
+  request: SecretBirthCredentialVerificationRequest
+): SecretBirthCredentialPresentationRequest {
+  return SecretBirthCredentialPresentationRequest {
+    version: request.envelope.version,
+    schema: request.schema,
+    issuerVerificationMethodRef: request.issuerVerificationMethodRef,
+    requireSubjectIdCommitmentDisclosure: request.body.requireSubjectIdCommitmentDisclosure,
+    requireBirthCountryDisclosure: request.body.requireBirthCountryDisclosure,
+    requireVerifierScopedPseudonym: request.body.requireVerifierScopedPseudonym,
+    verifierDomainHash: request.body.verifierDomainHash,
+    requireAgeOverThreshold: request.body.requireAgeOverThreshold,
+    requestedAgeThresholdYears: request.body.requestedAgeThresholdYears,
+    verifierChallengeHash: request.verifierChallengeHash,
+  };
+}

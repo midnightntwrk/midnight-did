@@ -28,9 +28,9 @@ describe("secret birth credential: same-holder composition", () => {
       currentDay: firstFixture.witness.currentDay,
     });
     const secondRequest = {
-      ...secondFixture.presentationRequest,
+      ...secondFixture.verificationRequest,
       verifierChallengeHash:
-        firstFixture.presentationRequest.verifierChallengeHash,
+        firstFixture.verificationRequest.verifierChallengeHash,
     };
     const secondPresentation = {
       ...secondFixture.presentation,
@@ -48,7 +48,7 @@ describe("secret birth credential: same-holder composition", () => {
       pureCircuits.assertSameHolderSecretBirthPresentations(
         firstFixture.credential,
         firstFixture.credentialProof,
-        firstFixture.presentationRequest,
+        firstFixture.verificationRequest,
         firstFixture.presentation,
         secondFixture.credential,
         secondFixture.credentialProof,
@@ -74,9 +74,9 @@ describe("secret birth credential: same-holder composition", () => {
       holderBindingIssuerNonce: new Uint8Array(32).fill(33),
     });
     const secondRequest = {
-      ...secondFixture.presentationRequest,
+      ...secondFixture.verificationRequest,
       verifierChallengeHash:
-        firstFixture.presentationRequest.verifierChallengeHash,
+        firstFixture.verificationRequest.verifierChallengeHash,
     };
     const secondPresentation = {
       ...secondFixture.presentation,
@@ -94,7 +94,7 @@ describe("secret birth credential: same-holder composition", () => {
       pureCircuits.assertSameHolderSecretBirthPresentations(
         firstFixture.credential,
         firstFixture.credentialProof,
-        firstFixture.presentationRequest,
+        firstFixture.verificationRequest,
         firstFixture.presentation,
         secondFixture.credential,
         secondFixture.credentialProof,
@@ -122,7 +122,7 @@ describe("secret birth credential: same-holder composition", () => {
       holderBindingIssuerNonce: new Uint8Array(32).fill(36),
     });
     const mismatchedSecondRequest = {
-      ...secondFixture.presentationRequest,
+      ...secondFixture.verificationRequest,
       verifierChallengeHash: new Uint8Array(32).fill(89),
     };
 
@@ -130,7 +130,7 @@ describe("secret birth credential: same-holder composition", () => {
       pureCircuits.assertSameHolderSecretBirthPresentations(
         firstFixture.credential,
         firstFixture.credentialProof,
-        firstFixture.presentationRequest,
+        firstFixture.verificationRequest,
         firstFixture.presentation,
         secondFixture.credential,
         secondFixture.credentialProof,

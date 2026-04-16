@@ -3,7 +3,7 @@ import { describe, expect,it } from "vitest";
 import { pureCircuits as genericPureCircuits } from "../../../../credentials/src/managed/credentials/contract/index.js";
 import {
   pureCircuits,
-  type SecretBirthCredentialPresentationRequest,
+  type SecretBirthCredentialVerificationRequest,
 } from "../../../../credentials-birth-secret/src/managed/secret-birth-credential/contract/index.js";
 import {
   SecretHolderAgent,
@@ -102,8 +102,8 @@ describe("secret-holder presentation", () => {
       requestMessage!.envelope,
     );
     const requestBody =
-      requestMessage!.body as SecretBirthCredentialPresentationRequest;
-    pureCircuits.assertValidSecretBirthCredentialPresentationRequest(
+      requestMessage!.body as SecretBirthCredentialVerificationRequest;
+    pureCircuits.assertValidSecretBirthCredentialVerificationRequestMessage(
       requestBody,
     );
 

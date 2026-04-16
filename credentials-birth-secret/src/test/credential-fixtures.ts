@@ -7,7 +7,9 @@ import {
 } from "@midnight-ntwrk/compact-runtime";
 
 import {
+  HolderBindingProfile,
   type Proof,
+  type ProtocolMessageEnvelope,
   pureCircuits as genericPureCircuits,
   type VerificationMethodRef,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
@@ -16,6 +18,7 @@ import {
   type SecretBirthCredential,
   type SecretBirthCredentialPresentation,
   type SecretBirthCredentialPresentationRequest,
+  type SecretBirthCredentialVerificationRequest,
 } from "../managed/secret-birth-credential/contract/index.js";
 
 const JUBJUB_FIELD_MODULUS =
@@ -33,6 +36,7 @@ export type BirthCredentialFixture = {
   readonly credential: SecretBirthCredential;
   readonly credentialProof: Proof;
   readonly presentationRequest: SecretBirthCredentialPresentationRequest;
+  readonly verificationRequest: SecretBirthCredentialVerificationRequest;
   readonly presentation: SecretBirthCredentialPresentation;
   readonly witness: {
     readonly holderSecret: Uint8Array;
@@ -91,6 +95,20 @@ const mod = (value: bigint): bigint => {
 
 const contractAddress = (label: string): { bytes: Uint8Array } => ({
   bytes: sha256(`contract:${label}`),
+});
+
+const createProtocolEnvelope = (
+  label: string,
+  threadLabel: string,
+): ProtocolMessageEnvelope => ({
+  version: 1n,
+  messageId: sha256(`protocol:message:${label}`),
+  threadId: sha256(`protocol:thread:${threadLabel}`),
+  initialMessage: true,
+  respondsToMessageId: genericPureCircuits.noProtocolResponseReference(),
+  createdAt: 1n,
+  hasExpiresAt: false,
+  expiresAt: 0n,
 });
 
 export const createSigner = (
@@ -241,6 +259,35 @@ export const createSecretBirthCredentialFixture = (
     verifierChallengeHash: sha256("challenge:verifier"),
   };
 
+  const verificationRequest: SecretBirthCredentialVerificationRequest = {
+    envelope: createProtocolEnvelope(
+      "secret-presentation-request",
+      "secret-birth-presentation",
+    ),
+    schema: credential.schema,
+    issuerVerificationMethodRef: credential.issuerVerificationMethodRef,
+    holderBindingProfile: HolderBindingProfile.blindedSecretHolder,
+    features: {
+      supportsSelectiveDisclosure: true,
+      supportsPredicateProofs: true,
+      supportsVerifierScopedPseudonym: true,
+      supportsSameHolderProof: true,
+    },
+    verifierChallengeHash: presentationRequest.verifierChallengeHash,
+    body: {
+      requireSubjectIdCommitmentDisclosure:
+        presentationRequest.requireSubjectIdCommitmentDisclosure,
+      requireBirthCountryDisclosure:
+        presentationRequest.requireBirthCountryDisclosure,
+      requireVerifierScopedPseudonym:
+        presentationRequest.requireVerifierScopedPseudonym,
+      verifierDomainHash: presentationRequest.verifierDomainHash,
+      requireAgeOverThreshold: presentationRequest.requireAgeOverThreshold,
+      requestedAgeThresholdYears:
+        presentationRequest.requestedAgeThresholdYears,
+    },
+  };
+
   const presentation: SecretBirthCredentialPresentation = {
     version: 1n,
     schema: credential.schema,
@@ -277,6 +324,7 @@ export const createSecretBirthCredentialFixture = (
     credential,
     credentialProof,
     presentationRequest,
+    verificationRequest,
     presentation,
     witness,
   };

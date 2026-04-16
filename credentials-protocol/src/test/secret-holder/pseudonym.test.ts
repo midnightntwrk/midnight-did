@@ -2,7 +2,7 @@ import { describe, expect,it } from "vitest";
 
 import {
   pureCircuits as genericPureCircuits,
-  type SecretBirthCredentialPresentationRequest,
+  type SecretBirthCredentialVerificationRequest,
 } from "../../../../credentials-birth-secret/src/managed/secret-birth-credential/contract/index.js";
 import {
   SecretHolderAgent,
@@ -83,7 +83,7 @@ describe("secret-holder pseudonym", () => {
 
     const requestMessage = bus.receive("holder")!;
     const presentationRequest =
-      requestMessage.body as SecretBirthCredentialPresentationRequest;
+      requestMessage.body as SecretBirthCredentialVerificationRequest;
 
     const presentationWitness: SecretPresentationWitness = {
       credentialIndex: 0,

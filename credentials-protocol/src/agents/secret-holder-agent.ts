@@ -7,25 +7,31 @@ import {
 } from "../../../credentials/src/managed/credentials/contract/index.js";
 import {
   type SecretBirthCredential,
+  type SecretBirthCredentialIssuanceOffer,
+  type SecretBirthCredentialIssuanceRequest,
+  type SecretBirthCredentialIssuanceResult,
   type SecretBirthCredentialPresentation,
-  type SecretBirthCredentialPresentationRequest,
+  type SecretBirthCredentialVerificationRequest,
+  type SecretBirthCredentialVerificationSubmission,
 } from "../../../credentials-birth-secret/src/managed/secret-birth-credential/contract/index.js";
 import { padText,sha256 } from "../shared/crypto.js";
 import { createEnvelope } from "../shared/envelope.js";
 import { assertBodyHasFields,assertMessageType } from "../shared/validation.js";
 import type { MessageBus } from "../transport/message-bus.js";
 import type { ProtocolMessage } from "../transport/types.js";
-import type {
-  SecretIssuanceOffer,
-  SecretIssuanceResult,
-} from "./secret-issuer-agent.js";
-import type { SecretPresentationSubmissionBody } from "./verifier-agent.js";
 
 const SECRET_BIRTH_SCHEMA = {
   packageId: padText("midnight-did:vc:birth-secret"),
   schemaId: padText("birth-credential:v1"),
   majorVersion: 1n,
   minorVersion: 0n,
+};
+
+const SECRET_HOLDER_FEATURES = {
+  supportsSelectiveDisclosure: true,
+  supportsPredicateProofs: true,
+  supportsVerifierScopedPseudonym: true,
+  supportsSameHolderProof: true,
 };
 
 export type SecretStoredCredential = {
@@ -41,11 +47,11 @@ export type SecretStoredCredential = {
 export type SameHolderPresentation = {
   readonly firstCredential: SecretBirthCredential;
   readonly firstCredentialProof: Proof;
-  readonly firstRequest: SecretBirthCredentialPresentationRequest;
+  readonly firstRequest: SecretBirthCredentialVerificationRequest;
   readonly firstPresentation: SecretBirthCredentialPresentation;
   readonly secondCredential: SecretBirthCredential;
   readonly secondCredentialProof: Proof;
-  readonly secondRequest: SecretBirthCredentialPresentationRequest;
+  readonly secondRequest: SecretBirthCredentialVerificationRequest;
   readonly secondPresentation: SecretBirthCredentialPresentation;
 };
 
@@ -82,7 +88,7 @@ export class SecretHolderAgent {
   receiveOfferAndSendRequest(offer: ProtocolMessage): void {
     assertMessageType(offer, "issuance:offer");
     assertBodyHasFields(offer, ["envelope", "schema", "body"]);
-    const issuanceOffer = offer.body as SecretIssuanceOffer;
+    const issuanceOffer = offer.body as SecretBirthCredentialIssuanceOffer;
     const challengeHash = sha256("challenge:issuance");
 
     const holderSecretCommitment =
@@ -95,7 +101,7 @@ export class SecretHolderAgent {
     const blindingIndex = this.credentials.length;
     const holderBindingBlindingFactor = sha256(`blinding:holder-secret:${blindingIndex}`);
 
-    const request = {
+    const request: SecretBirthCredentialIssuanceRequest = {
       envelope: createEnvelope(
         "secret-issuance-request",
         "secret-birth-issuance",
@@ -103,9 +109,9 @@ export class SecretHolderAgent {
         issuanceOffer.envelope.messageId,
         issuanceOffer.envelope.threadId,
       ),
-      schema: SECRET_BIRTH_SCHEMA,
+      schema: issuanceOffer.schema,
       issuerVerificationMethodRef: issuanceOffer.issuerVerificationMethodRef,
-      holderBindingProfile: HolderBindingProfile.blindedSecretHolder,
+      holderBindingProfile: issuanceOffer.holderBindingProfile,
       body: {
         holderSecretCommitment,
         holderBindingBlindingFactor,
@@ -133,7 +139,7 @@ export class SecretHolderAgent {
   receiveCredentialResult(result: ProtocolMessage): void {
     assertMessageType(result, "issuance:result");
     assertBodyHasFields(result, ["envelope", "schema", "body"]);
-    const issuanceResult = result.body as SecretIssuanceResult;
+    const issuanceResult = result.body as SecretBirthCredentialIssuanceResult;
     const respondsToId = Buffer.from(result.envelope.respondsToMessageId).toString("hex");
     const blindingFactor = this.pendingBlindingFactors.get(respondsToId);
     if (!blindingFactor) {
@@ -184,9 +190,9 @@ export class SecretHolderAgent {
     witnessData: SecretPresentationWitness,
   ): void {
     assertMessageType(requestMessage, "presentation:request");
-    assertBodyHasFields(requestMessage, ["version", "schema", "verifierChallengeHash"]);
+    assertBodyHasFields(requestMessage, ["envelope", "schema", "verifierChallengeHash", "body"]);
     const request =
-      requestMessage.body as SecretBirthCredentialPresentationRequest;
+      requestMessage.body as SecretBirthCredentialVerificationRequest;
     const stored = this.getCredential(witnessData.credentialIndex);
     const credential = stored.credential;
 
@@ -207,40 +213,31 @@ export class SecretHolderAgent {
       },
       disclosed: {
         revealSubjectIdCommitment:
-          request.requireSubjectIdCommitmentDisclosure,
-        subjectIdCommitment: request.requireSubjectIdCommitmentDisclosure
+          request.body.requireSubjectIdCommitmentDisclosure,
+        subjectIdCommitment: request.body.requireSubjectIdCommitmentDisclosure
           ? credential.claims.subjectIdCommitment
           : new Uint8Array(32),
-        revealBirthCountryCode: request.requireBirthCountryDisclosure,
-        birthCountryCodePadded: request.requireBirthCountryDisclosure
+        revealBirthCountryCode: request.body.requireBirthCountryDisclosure,
+        birthCountryCodePadded: request.body.requireBirthCountryDisclosure
           ? witnessData.birthCountryCodePadded
           : new Uint8Array(32),
-        birthCountryCodeOpening: request.requireBirthCountryDisclosure
+        birthCountryCodeOpening: request.body.requireBirthCountryDisclosure
           ? witnessData.birthCountryCodeOpening
           : new Uint8Array(32),
         revealVerifierScopedPseudonym:
-          request.requireVerifierScopedPseudonym,
-        verifierScopedPseudonym: request.requireVerifierScopedPseudonym
+          request.body.requireVerifierScopedPseudonym,
+        verifierScopedPseudonym: request.body.requireVerifierScopedPseudonym
           ? genericPureCircuits.verifierScopedPseudonym(
               this.holderSecret,
-              request.verifierDomainHash,
+              request.body.verifierDomainHash,
             )
           : new Uint8Array(32),
-        proveAgeOverThreshold: request.requireAgeOverThreshold,
-        ageThresholdYears: request.requestedAgeThresholdYears,
+        proveAgeOverThreshold: request.body.requireAgeOverThreshold,
+        ageThresholdYears: request.body.requestedAgeThresholdYears,
       },
     };
 
-    const submissionBody: SecretPresentationSubmissionBody = {
-      credential: stored.credential,
-      credentialProof: stored.credentialProof,
-      presentation,
-    };
-
-    this.bus.send({
-      type: "presentation:submission",
-      from: this.label,
-      to: requestMessage.from,
+    const submission: SecretBirthCredentialVerificationSubmission = {
       envelope: createEnvelope(
         "secret-presentation-submission",
         "secret-birth-presentation",
@@ -248,7 +245,23 @@ export class SecretHolderAgent {
         requestMessage.envelope.messageId,
         requestMessage.envelope.threadId,
       ),
-      body: submissionBody,
+      schema: request.schema,
+      issuerVerificationMethodRef: request.issuerVerificationMethodRef,
+      holderBindingProfile: request.holderBindingProfile,
+      challengeHash: request.verifierChallengeHash,
+      body: {
+        credential: stored.credential,
+        credentialProof: stored.credentialProof,
+        presentation,
+      },
+    };
+
+    this.bus.send({
+      type: "presentation:submission",
+      from: this.label,
+      to: requestMessage.from,
+      envelope: submission.envelope,
+      body: submission,
     });
   }
 
@@ -295,22 +308,30 @@ export class SecretHolderAgent {
   ): SameHolderPresentation {
     const buildRequest = (
       credential: SecretBirthCredential,
-    ): SecretBirthCredentialPresentationRequest => ({
-      version: 1n,
+    ): SecretBirthCredentialVerificationRequest => ({
+      envelope: createEnvelope(
+        "same-holder-presentation-request",
+        "secret-birth-presentation",
+        true,
+      ),
       schema: credential.schema,
       issuerVerificationMethodRef: credential.issuerVerificationMethodRef,
-      requireSubjectIdCommitmentDisclosure: false,
-      requireBirthCountryDisclosure: false,
-      requireVerifierScopedPseudonym: false,
-      verifierDomainHash: new Uint8Array(32),
-      requireAgeOverThreshold: false,
-      requestedAgeThresholdYears: 0n,
+      holderBindingProfile: HolderBindingProfile.blindedSecretHolder,
+      features: SECRET_HOLDER_FEATURES,
       verifierChallengeHash,
+      body: {
+        requireSubjectIdCommitmentDisclosure: false,
+        requireBirthCountryDisclosure: false,
+        requireVerifierScopedPseudonym: false,
+        verifierDomainHash: new Uint8Array(32),
+        requireAgeOverThreshold: false,
+        requestedAgeThresholdYears: 0n,
+      },
     });
 
     const buildPresentation = (
       credential: SecretBirthCredential,
-      request: SecretBirthCredentialPresentationRequest,
+      request: SecretBirthCredentialVerificationRequest,
     ): SecretBirthCredentialPresentation => ({
       version: 1n,
       schema: credential.schema,

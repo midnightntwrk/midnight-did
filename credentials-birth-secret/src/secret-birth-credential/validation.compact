@@ -1,0 +1,396 @@
+export circuit assertValidSecretBirthCredentialIssuanceOffer(
+  offer: SecretBirthCredentialIssuanceOffer
+): [] {
+  SecretBirthCredentialIssuance_assertValidOfferMessage(offer);
+  assertValidSecretBirthSchemaRef(offer.schema);
+  assert(
+    offer.holderBindingProfile == HolderBindingProfile.blindedSecretHolder,
+    "Secret birth credential issuance offer must use blinded secret holder binding"
+  );
+  if (offer.body.supportsExpiration) {
+    assert(
+      offer.body.defaultExpirationDays > 0,
+      "Secret birth credential issuance offer default expiration must be positive when supported"
+    );
+  } else {
+    assert(
+      offer.body.defaultExpirationDays == 0,
+      "Secret birth credential issuance offer default expiration must be zero when expiration is disabled"
+    );
+  }
+}
+
+export circuit assertValidSecretBirthCredentialIssuanceRequest(
+  request: SecretBirthCredentialIssuanceRequest
+): [] {
+  SecretBirthCredentialIssuance_assertValidRequestMessage(request);
+  assertValidSecretBirthSchemaRef(request.schema);
+  assert(
+    request.holderBindingProfile == HolderBindingProfile.blindedSecretHolder,
+    "Secret birth credential issuance request must use blinded secret holder binding"
+  );
+  assert(
+    request.body.holderSecretCommitment != noProtocolResponseReference(),
+    "Secret birth credential issuance request holder secret commitment must be set"
+  );
+  assert(
+    request.body.holderBindingBlindingFactor != noProtocolResponseReference(),
+    "Secret birth credential issuance request holder binding blinding factor must be set"
+  );
+  assert(
+    request.body.holderChallengeHash != noProtocolResponseReference(),
+    "Secret birth credential issuance request holder challenge must be set"
+  );
+  if (request.body.requestExpiration) {
+    assert(
+      request.body.requestedExpirationDays > 0,
+      "Secret birth credential issuance request expiration days must be positive when requested"
+    );
+  } else {
+    assert(
+      request.body.requestedExpirationDays == 0,
+      "Secret birth credential issuance request expiration days must be zero when disabled"
+    );
+  }
+}
+
+export circuit assertSecretBirthCredentialIssuanceRequestMatchesOffer(
+  offer: SecretBirthCredentialIssuanceOffer,
+  request: SecretBirthCredentialIssuanceRequest
+): [] {
+  assertValidSecretBirthCredentialIssuanceOffer(offer);
+  assertValidSecretBirthCredentialIssuanceRequest(request);
+  SecretBirthCredentialIssuance_assertOfferRequestAlignment(offer, request);
+  if (request.body.requestExpiration) {
+    assert(
+      offer.body.supportsExpiration,
+      "Secret birth credential issuance request cannot require expiration when the offer disables it"
+    );
+  }
+}
+
+export circuit assertValidSecretBirthCredentialIssuanceResult(
+  result: SecretBirthCredentialIssuanceResult
+): [] {
+  SecretBirthCredentialIssuance_assertValidResultMessage(result);
+  assertValidSecretBirthSchemaRef(result.schema);
+  assert(
+    result.holderBindingProfile == HolderBindingProfile.blindedSecretHolder,
+    "Secret birth credential issuance result must use blinded secret holder binding"
+  );
+  assertValidSecretBirthCredential(
+    result.body.credential,
+    result.body.credentialProof
+  );
+  assert(
+    result.body.credentialProof.challengeHash == result.body.issuanceChallengeHash,
+    "Secret birth credential issuance result challenge must match the issuer proof challenge"
+  );
+}
+
+export circuit assertSecretBirthCredentialIssuanceResultMatchesRequest(
+  request: SecretBirthCredentialIssuanceRequest,
+  result: SecretBirthCredentialIssuanceResult
+): [] {
+  assertValidSecretBirthCredentialIssuanceRequest(request);
+  assertValidSecretBirthCredentialIssuanceResult(result);
+  SecretBirthCredentialIssuance_assertRequestResultAlignment(request, result);
+  assert(
+    request.body.holderChallengeHash == result.body.issuanceChallengeHash,
+    "Secret birth credential issuance result challenge must match the request challenge"
+  );
+}
+
+export circuit assertValidSecretBirthCredentialVerificationRequestMessage(
+  request: SecretBirthCredentialVerificationRequest
+): [] {
+  SecretBirthCredentialVerification_assertValidRequestMessage(request);
+  assertValidSecretBirthSchemaRef(request.schema);
+  assert(
+    request.holderBindingProfile == HolderBindingProfile.blindedSecretHolder,
+    "Secret birth credential verification request must use blinded secret holder binding"
+  );
+  assertValidSecretBirthCredentialPresentationRequest(
+    secretBirthCredentialPresentationRequestFromProtocol(request)
+  );
+}
+
+export circuit assertValidSecretBirthCredentialVerificationSubmissionMessage(
+  submission: SecretBirthCredentialVerificationSubmission
+): [] {
+  SecretBirthCredentialVerification_assertValidSubmissionMessage(submission);
+  assertValidSecretBirthSchemaRef(submission.schema);
+  assert(
+    submission.holderBindingProfile == HolderBindingProfile.blindedSecretHolder,
+    "Secret birth credential verification submission must use blinded secret holder binding"
+  );
+  assertValidSecretBirthCredentialPresentation(
+    submission.body.credential,
+    submission.body.credentialProof,
+    submission.body.presentation
+  );
+  assert(
+    submission.challengeHash != noProtocolResponseReference(),
+    "Secret birth credential verification submission challenge must be set"
+  );
+}
+
+export circuit assertSecretBirthCredentialVerificationSubmissionMatchesRequest(
+  request: SecretBirthCredentialVerificationRequest,
+  submission: SecretBirthCredentialVerificationSubmission,
+  holderSecret: Bytes<32>,
+  holderSecretOpening: Bytes<32>,
+  holderBindingBlindingFactor: Bytes<32>
+): [] {
+  assertValidSecretBirthCredentialVerificationRequestMessage(request);
+  assertValidSecretBirthCredentialVerificationSubmissionMessage(submission);
+  SecretBirthCredentialVerification_assertRequestSubmissionAlignment(
+    request,
+    submission
+  );
+  assertSecretBirthPresentationSatisfiesRequest(
+    submission.body.credential,
+    submission.body.credentialProof,
+    secretBirthCredentialPresentationRequestFromProtocol(request),
+    submission.body.presentation,
+    holderSecret,
+    holderSecretOpening,
+    holderBindingBlindingFactor
+  );
+}
+
+export circuit assertValidSecretBirthCredentialVerificationResultMessage(
+  result: SecretBirthCredentialVerificationResult
+): [] {
+  SecretBirthCredentialVerification_assertValidResultMessage(result);
+  if (result.approved) {
+    assert(
+      result.body.credentialRoot != noProtocolResponseReference(),
+      "Secret birth credential verification result must include a credential root when approved"
+    );
+    if (result.body.hasVerifierScopedPseudonym) {
+      assert(
+        result.body.verifierScopedPseudonym != noProtocolResponseReference(),
+        "Secret birth credential verification result pseudonym must be set when marked as present"
+      );
+    }
+  }
+}
+
+export circuit assertSecretBirthCredentialVerificationResultMatchesSubmission(
+  submission: SecretBirthCredentialVerificationSubmission,
+  result: SecretBirthCredentialVerificationResult
+): [] {
+  assertValidSecretBirthCredentialVerificationSubmissionMessage(submission);
+  assertValidSecretBirthCredentialVerificationResultMessage(result);
+  SecretBirthCredentialVerification_assertSubmissionResultAlignment(
+    submission,
+    result
+  );
+  if (result.approved) {
+    assert(
+      result.body.credentialRoot == secretBirthCredentialBodyRoot(submission.body.credential),
+      "Secret birth credential verification result credential root does not match the submission"
+    );
+    if (result.body.hasVerifierScopedPseudonym) {
+      assert(
+        result.body.verifierScopedPseudonym == submission.body.presentation.disclosed.verifierScopedPseudonym,
+        "Secret birth credential verification result pseudonym does not match the submission"
+      );
+    }
+  }
+}
+
+export circuit assertValidSecretBirthCredential(
+  credential: SecretBirthCredential,
+  proof: Proof
+): [] {
+  assertValidSecretBirthSchemaRef(credential.schema);
+  assertValidCredentialEnvelope(credential, birthCredentialClaimRoot(credential.claims));
+  assertValidBlindedSecretHolderCredentialBinding(credential.holderBinding);
+  assertValidCredentialProof(credential, proof);
+}
+
+export circuit assertValidSecretBirthCredentialPresentation(
+  credential: SecretBirthCredential,
+  credentialProof: Proof,
+  presentation: SecretBirthCredentialPresentation
+): [] {
+  assertValidSecretBirthCredential(credential, credentialProof);
+  assertValidSecretBirthSchemaRef(presentation.schema);
+  assertValidPresentationEnvelope(credential, presentation);
+  assertValidBlindedSecretHolderPresentationBinding(presentation.holderBinding);
+  assertMatchingBlindedSecretHolderBindings(
+    credential.holderBinding,
+    presentation.holderBinding
+  );
+
+  if (presentation.disclosed.revealSubjectIdCommitment) {
+    assert(
+      presentation.disclosed.subjectIdCommitment == credential.claims.subjectIdCommitment,
+      "Presentation subject commitment does not match the credential"
+    );
+  }
+  if (presentation.disclosed.revealBirthCountryCode) {
+    assert(
+      birthCountryCodeCommitment(
+        presentation.disclosed.birthCountryCodePadded,
+        presentation.disclosed.birthCountryCodeOpening
+      ) == credential.claims.birthCountryCodeCommitment,
+      "Presentation birth-country disclosure does not match the credential"
+    );
+  }
+  if (presentation.disclosed.revealVerifierScopedPseudonym) {
+    assert(
+      presentation.disclosed.verifierScopedPseudonym != pad(32, ""),
+      "Presentation verifier-scoped pseudonym must be set when enabled"
+    );
+  }
+  if (presentation.disclosed.proveAgeOverThreshold) {
+    assert(presentation.disclosed.ageThresholdYears > 0, "Age threshold must be positive");
+  }
+}
+
+export circuit assertSecretBirthPresentationSatisfiesRequest(
+  credential: SecretBirthCredential,
+  credentialProof: Proof,
+  request: SecretBirthCredentialPresentationRequest,
+  presentation: SecretBirthCredentialPresentation,
+  holderSecret: Bytes<32>,
+  holderSecretOpening: Bytes<32>,
+  holderBindingBlindingFactor: Bytes<32>
+): [] {
+  assertValidSecretBirthCredentialPresentationRequest(request);
+  assertValidSecretBirthCredentialPresentation(
+    credential,
+    credentialProof,
+    presentation
+  );
+  assertMatchingSchemaRefs(request.schema, credential.schema);
+  assertMatchingSchemaRefs(request.schema, presentation.schema);
+  assert(
+    request.issuerVerificationMethodRef.didContractAddress == credential.issuerVerificationMethodRef.didContractAddress,
+    "Presentation request issuer contract does not match the credential issuer"
+  );
+  assert(
+    request.issuerVerificationMethodRef.methodId == credential.issuerVerificationMethodRef.methodId,
+    "Presentation request issuer method id does not match the credential issuer"
+  );
+  assertBlindedSecretHolderBindingWitness(
+    presentation.holderBinding,
+    request.verifierChallengeHash,
+    holderSecret,
+    holderSecretOpening,
+    holderBindingBlindingFactor
+  );
+  if (request.requireSubjectIdCommitmentDisclosure) {
+    assert(
+      presentation.disclosed.revealSubjectIdCommitment,
+      "Presentation request requires the subject-id commitment disclosure"
+    );
+  }
+  if (request.requireBirthCountryDisclosure) {
+    assert(
+      presentation.disclosed.revealBirthCountryCode,
+      "Presentation request requires the birth-country disclosure"
+    );
+  }
+  if (request.requireVerifierScopedPseudonym) {
+    assert(
+      presentation.disclosed.revealVerifierScopedPseudonym,
+      "Presentation request requires a verifier-scoped pseudonym"
+    );
+  }
+  if (presentation.disclosed.revealVerifierScopedPseudonym) {
+    assertVerifierScopedPseudonym(
+      presentation.disclosed.verifierScopedPseudonym,
+      holderSecret,
+      request.verifierDomainHash
+    );
+  }
+  if (request.requireAgeOverThreshold) {
+    assert(
+      presentation.disclosed.proveAgeOverThreshold,
+      "Presentation request requires the age-over-threshold predicate"
+    );
+    assert(
+      presentation.disclosed.ageThresholdYears == request.requestedAgeThresholdYears,
+      "Presentation age threshold does not match the request"
+    );
+  }
+}
+
+export circuit assertValidSecretBirthCredentialAgePredicate(
+  credential: SecretBirthCredential,
+  presentation: SecretBirthCredentialPresentation,
+  currentDay: Uint<32>,
+  birthDateDays: Uint<32>,
+  birthDateOpening: Bytes<32>
+): [] {
+  assert(
+    presentation.disclosed.proveAgeOverThreshold,
+    "Presentation must request the age-over-threshold predicate"
+  );
+  assert(
+    birthDateCommitment(birthDateDays, birthDateOpening) == credential.claims.birthDateCommitment,
+    "Birth-date witness does not match credential commitment"
+  );
+  assert(currentDay >= birthDateDays, "Current day must not precede the birth date witness");
+  assert(
+    currentDay - birthDateDays >= presentation.disclosed.ageThresholdYears * 365,
+    "Age predicate does not satisfy the requested threshold"
+  );
+}
+
+export circuit assertSameHolderSecretBirthPresentations(
+  firstCredential: SecretBirthCredential,
+  firstCredentialProof: Proof,
+  firstRequest: SecretBirthCredentialVerificationRequest,
+  firstPresentation: SecretBirthCredentialPresentation,
+  secondCredential: SecretBirthCredential,
+  secondCredentialProof: Proof,
+  secondRequest: SecretBirthCredentialVerificationRequest,
+  secondPresentation: SecretBirthCredentialPresentation,
+  holderSecret: Bytes<32>,
+  firstHolderSecretOpening: Bytes<32>,
+  firstHolderBindingBlindingFactor: Bytes<32>,
+  secondHolderSecretOpening: Bytes<32>,
+  secondHolderBindingBlindingFactor: Bytes<32>
+): [] {
+  assert(
+    firstRequest.verifierChallengeHash == secondRequest.verifierChallengeHash,
+    "Same-holder composition requires a shared verifier challenge"
+  );
+
+  assertValidSecretBirthCredentialVerificationRequestMessage(firstRequest);
+  assertSecretBirthPresentationSatisfiesRequest(
+    firstCredential,
+    firstCredentialProof,
+    secretBirthCredentialPresentationRequestFromProtocol(firstRequest),
+    firstPresentation,
+    holderSecret,
+    firstHolderSecretOpening,
+    firstHolderBindingBlindingFactor
+  );
+  assertValidSecretBirthCredentialVerificationRequestMessage(secondRequest);
+  assertSecretBirthPresentationSatisfiesRequest(
+    secondCredential,
+    secondCredentialProof,
+    secretBirthCredentialPresentationRequestFromProtocol(secondRequest),
+    secondPresentation,
+    holderSecret,
+    secondHolderSecretOpening,
+    secondHolderBindingBlindingFactor
+  );
+
+  assertSameBlindedSecretHolderBindingWitnesses(
+    firstPresentation.holderBinding,
+    secondPresentation.holderBinding,
+    firstRequest.verifierChallengeHash,
+    holderSecret,
+    firstHolderSecretOpening,
+    firstHolderBindingBlindingFactor,
+    secondHolderSecretOpening,
+    secondHolderBindingBlindingFactor
+  );
+}

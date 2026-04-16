@@ -1,0 +1,41 @@
+export struct SecretBirthCredentialIssuanceOfferBody {
+  supportsExpiration: Boolean,
+  defaultExpirationDays: Uint<16>,
+  requiresHolderSecret: Boolean,
+}
+
+export struct SecretBirthCredentialIssuanceRequestBody {
+  holderSecretCommitment: Bytes<32>,
+  holderBindingBlindingFactor: Bytes<32>,
+  holderChallengeHash: Bytes<32>,
+  requestExpiration: Boolean,
+  requestedExpirationDays: Uint<16>,
+}
+
+export struct SecretBirthCredentialIssuanceResultBody {
+  credential: SecretBirthCredential,
+  credentialProof: Proof,
+  issuanceChallengeHash: Bytes<32>,
+}
+
+export struct SecretBirthCredentialVerificationRequestBody {
+  requireSubjectIdCommitmentDisclosure: Boolean,
+  requireBirthCountryDisclosure: Boolean,
+  requireVerifierScopedPseudonym: Boolean,
+  verifierDomainHash: Bytes<32>,
+  requireAgeOverThreshold: Boolean,
+  requestedAgeThresholdYears: Uint<8>,
+}
+
+export struct SecretBirthCredentialVerificationSubmissionBody {
+  credential: SecretBirthCredential,
+  credentialProof: Proof,
+  presentation: SecretBirthCredentialPresentation,
+}
+
+export struct SecretBirthCredentialVerificationResultBody {
+  credentialRoot: Bytes<32>,
+  verifiedThresholdYears: Uint<8>,
+  hasVerifierScopedPseudonym: Boolean,
+  verifierScopedPseudonym: Bytes<32>,
+}

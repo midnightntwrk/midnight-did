@@ -1,11 +1,13 @@
 import { describe, expect,it } from "vitest";
 
 import { pureCircuits as genericPureCircuits } from "../../../../credentials/src/managed/credentials/contract/index.js";
-import { pureCircuits } from "../../../../credentials-birth-secret/src/managed/secret-birth-credential/contract/index.js";
+import {
+  pureCircuits,
+  type SecretBirthCredentialIssuanceRequest,
+} from "../../../../credentials-birth-secret/src/managed/secret-birth-credential/contract/index.js";
 import { SecretHolderAgent } from "../../agents/secret-holder-agent.js";
 import {
   type SecretClaimWitness,
-  type SecretIssuanceRequest,
   SecretIssuerAgent,
 } from "../../agents/secret-issuer-agent.js";
 import { MessageBus } from "../../transport/message-bus.js";
@@ -118,7 +120,7 @@ describe("secret-holder issuance", () => {
       offer.envelope,
       requestMsg.envelope,
     );
-    const requestBody = (requestMsg.body as SecretIssuanceRequest).body;
+    const requestBody = (requestMsg.body as SecretBirthCredentialIssuanceRequest).body;
 
     // The request should contain a commitment, NOT the raw secret
     expect(requestBody.holderSecretCommitment).toBeDefined();

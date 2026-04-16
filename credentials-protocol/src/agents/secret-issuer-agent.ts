@@ -3,12 +3,14 @@ import { ecMulGenerator } from "@midnight-ntwrk/compact-runtime";
 import {
   HolderBindingProfile,
   type Proof,
-  type ProtocolMessageEnvelope,
   pureCircuits as genericPureCircuits,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
 import {
   pureCircuits,
   type SecretBirthCredential,
+  type SecretBirthCredentialIssuanceOffer,
+  type SecretBirthCredentialIssuanceRequest,
+  type SecretBirthCredentialIssuanceResult,
 } from "../../../credentials-birth-secret/src/managed/secret-birth-credential/contract/index.js";
 import { mod, padText,sha256 } from "../shared/crypto.js";
 import { createEnvelope } from "../shared/envelope.js";
@@ -44,47 +46,6 @@ const FEATURES = {
   supportsSameHolderProof: true,
 };
 
-export type SecretIssuanceOffer = {
-  readonly envelope: ProtocolMessageEnvelope;
-  readonly schema: typeof SECRET_BIRTH_SCHEMA;
-  readonly issuerVerificationMethodRef: DIDProfile["signer"]["verificationMethodRef"];
-  readonly holderBindingProfile: HolderBindingProfile;
-  readonly features: typeof FEATURES;
-  readonly body: {
-    readonly supportsExpiration: boolean;
-    readonly defaultExpirationDays: bigint;
-    readonly requiresHolderSecret: boolean;
-  };
-};
-
-export type SecretIssuanceRequestBody = {
-  readonly holderSecretCommitment: Uint8Array;
-  readonly holderBindingBlindingFactor: Uint8Array;
-  readonly holderChallengeHash: Uint8Array;
-  readonly requestExpiration: boolean;
-  readonly requestedExpirationDays: bigint;
-};
-
-export type SecretIssuanceRequest = {
-  readonly envelope: ProtocolMessageEnvelope;
-  readonly schema: typeof SECRET_BIRTH_SCHEMA;
-  readonly issuerVerificationMethodRef: DIDProfile["signer"]["verificationMethodRef"];
-  readonly holderBindingProfile: HolderBindingProfile;
-  readonly body: SecretIssuanceRequestBody;
-};
-
-export type SecretIssuanceResult = {
-  readonly envelope: ProtocolMessageEnvelope;
-  readonly schema: typeof SECRET_BIRTH_SCHEMA;
-  readonly issuerVerificationMethodRef: DIDProfile["signer"]["verificationMethodRef"];
-  readonly holderBindingProfile: HolderBindingProfile;
-  readonly body: {
-    readonly credential: SecretBirthCredential;
-    readonly credentialProof: Proof;
-    readonly issuanceChallengeHash: Uint8Array;
-  };
-};
-
 export class SecretIssuerAgent {
   private readonly profile: DIDProfile;
   private readonly bus: MessageBus;
@@ -96,7 +57,7 @@ export class SecretIssuerAgent {
   }
 
   createAndSendOffer(holderLabel: PartyId): void {
-    const offer: SecretIssuanceOffer = {
+    const offer: SecretBirthCredentialIssuanceOffer = {
       envelope: createEnvelope(
         "secret-issuance-offer",
         "secret-birth-issuance",
@@ -128,7 +89,7 @@ export class SecretIssuerAgent {
   ): void {
     assertMessageType(request, "issuance:request");
     assertBodyHasFields(request, ["envelope", "schema", "body"]);
-    const issuanceRequest = request.body as SecretIssuanceRequest;
+    const issuanceRequest = request.body as SecretBirthCredentialIssuanceRequest;
     const requestBody = issuanceRequest.body;
 
     // TEST ONLY: production must use a unique random nonce per issuance.
@@ -204,7 +165,7 @@ export class SecretIssuerAgent {
       },
     };
 
-    const result: SecretIssuanceResult = {
+    const result: SecretBirthCredentialIssuanceResult = {
       envelope: createEnvelope(
         "secret-issuance-result",
         "secret-birth-issuance",
