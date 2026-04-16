@@ -1,0 +1,43 @@
+export struct SecretPassportCredentialIssuanceOfferBody {
+  supportsExpiration: Boolean,
+  defaultExpirationDays: Uint<16>,
+  requiresHolderSecret: Boolean,
+}
+
+export struct SecretPassportCredentialIssuanceRequestBody {
+  holderSecretCommitment: Bytes<32>,
+  holderBindingBlindingFactor: Bytes<32>,
+  holderChallengeHash: Bytes<32>,
+  requestExpiration: Boolean,
+  requestedExpirationDays: Uint<16>,
+}
+
+export struct SecretPassportCredentialIssuanceResultBody {
+  credential: SecretPassportCredential,
+  credentialProof: Proof,
+  issuanceChallengeHash: Bytes<32>,
+}
+
+export struct SecretPassportCredentialVerificationRequestBody {
+  requireNationalityDisclosure: Boolean,
+  requireGenderDisclosure: Boolean,
+  requireVerifierScopedPseudonym: Boolean,
+  verifierDomainHash: Bytes<32>,
+  requireAgeOverThreshold: Boolean,
+  requestedAgeThresholdYears: Uint<8>,
+  requireNotExpired: Boolean,
+}
+
+export struct SecretPassportCredentialVerificationSubmissionBody {
+  credential: SecretPassportCredential,
+  credentialProof: Proof,
+  presentation: SecretPassportCredentialPresentation,
+}
+
+export struct SecretPassportCredentialVerificationResultBody {
+  credentialRoot: Bytes<32>,
+  verifiedThresholdYears: Uint<8>,
+  hasVerifierScopedPseudonym: Boolean,
+  verifierScopedPseudonym: Bytes<32>,
+  verifiedNotExpired: Boolean,
+}

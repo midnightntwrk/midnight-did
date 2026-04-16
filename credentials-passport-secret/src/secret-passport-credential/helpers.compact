@@ -1,0 +1,57 @@
+export circuit secretPassportCredentialBodyRoot(
+  credential: SecretPassportCredential
+): Bytes<32> {
+  return credentialBodyRoot(credential);
+}
+
+export circuit secretPassportCredentialPresentationBodyRoot(
+  presentation: SecretPassportCredentialPresentation
+): Bytes<32> {
+  return presentationBodyRoot(presentation);
+}
+
+export circuit secretPassportCredentialPresentationRequestBodyRoot(
+  request: SecretPassportCredentialPresentationRequest
+): Bytes<32> {
+  return persistentHash<SecretPassportCredentialPresentationRequest>(request);
+}
+
+export circuit assertValidSecretPassportSchemaRef(schema: SchemaRef): [] {
+  assert(
+    schema.packageId == pad(32, "midnight-did:vc:passport-secret"),
+    "Unexpected secret passport schema package identifier"
+  );
+  assert(schema.schemaId == pad(32, "passport-credential:v1"), "Unexpected schema identifier");
+  assert(schema.majorVersion == 1, "Secret passport credential major version mismatch");
+}
+
+export circuit assertValidSecretPassportCredentialPresentationRequest(
+  request: SecretPassportCredentialPresentationRequest
+): [] {
+  assert(request.version == 1, "Presentation request version mismatch");
+  assertValidSecretPassportSchemaRef(request.schema);
+  assertValidVerificationMethodRef(request.issuerVerificationMethodRef);
+  if (request.requireAgeOverThreshold) {
+    assert(request.requestedAgeThresholdYears > 0, "Requested age threshold must be positive");
+  } else {
+    assert(request.requestedAgeThresholdYears == 0, "Requested age threshold must be zero when disabled");
+  }
+}
+
+export circuit secretPassportCredentialPresentationRequestFromProtocol(
+  request: SecretPassportCredentialVerificationRequest
+): SecretPassportCredentialPresentationRequest {
+  return SecretPassportCredentialPresentationRequest {
+    version: request.envelope.version,
+    schema: request.schema,
+    issuerVerificationMethodRef: request.issuerVerificationMethodRef,
+    requireNationalityDisclosure: request.body.requireNationalityDisclosure,
+    requireGenderDisclosure: request.body.requireGenderDisclosure,
+    requireVerifierScopedPseudonym: request.body.requireVerifierScopedPseudonym,
+    verifierDomainHash: request.body.verifierDomainHash,
+    requireAgeOverThreshold: request.body.requireAgeOverThreshold,
+    requestedAgeThresholdYears: request.body.requestedAgeThresholdYears,
+    requireNotExpired: request.body.requireNotExpired,
+    verifierChallengeHash: request.verifierChallengeHash,
+  };
+}

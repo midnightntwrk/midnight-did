@@ -34,6 +34,7 @@
     "credentials-same-holder",
     "credentials-iso-registry",
     "credentials-passport",
+    "credentials-passport-secret",
     "credentials-birth",
     "credentials-birth-secret",
     "credentials-demo-contract",

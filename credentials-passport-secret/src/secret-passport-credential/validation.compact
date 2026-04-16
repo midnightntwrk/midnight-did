@@ -1,0 +1,408 @@
+export circuit assertValidSecretPassportCredentialIssuanceOffer(
+  offer: SecretPassportCredentialIssuanceOffer
+): [] {
+  SecretPassportCredentialIssuance_assertValidOfferMessage(offer);
+  assertValidSecretPassportSchemaRef(offer.schema);
+  assert(
+    offer.holderBindingProfile == HolderBindingProfile.blindedSecretHolder,
+    "Secret passport credential issuance offer must use blinded secret holder binding"
+  );
+  if (offer.body.supportsExpiration) {
+    assert(
+      offer.body.defaultExpirationDays > 0,
+      "Secret passport credential issuance offer default expiration must be positive when supported"
+    );
+  } else {
+    assert(
+      offer.body.defaultExpirationDays == 0,
+      "Secret passport credential issuance offer default expiration must be zero when expiration is disabled"
+    );
+  }
+}
+
+export circuit assertValidSecretPassportCredentialIssuanceRequest(
+  request: SecretPassportCredentialIssuanceRequest
+): [] {
+  SecretPassportCredentialIssuance_assertValidRequestMessage(request);
+  assertValidSecretPassportSchemaRef(request.schema);
+  assert(
+    request.holderBindingProfile == HolderBindingProfile.blindedSecretHolder,
+    "Secret passport credential issuance request must use blinded secret holder binding"
+  );
+  assert(
+    request.body.holderSecretCommitment != noProtocolResponseReference(),
+    "Secret passport credential issuance request holder secret commitment must be set"
+  );
+  assert(
+    request.body.holderBindingBlindingFactor != noProtocolResponseReference(),
+    "Secret passport credential issuance request holder binding blinding factor must be set"
+  );
+  assert(
+    request.body.holderChallengeHash != noProtocolResponseReference(),
+    "Secret passport credential issuance request holder challenge must be set"
+  );
+  if (request.body.requestExpiration) {
+    assert(
+      request.body.requestedExpirationDays > 0,
+      "Secret passport credential issuance request expiration days must be positive when requested"
+    );
+  } else {
+    assert(
+      request.body.requestedExpirationDays == 0,
+      "Secret passport credential issuance request expiration days must be zero when disabled"
+    );
+  }
+}
+
+export circuit assertSecretPassportCredentialIssuanceRequestMatchesOffer(
+  offer: SecretPassportCredentialIssuanceOffer,
+  request: SecretPassportCredentialIssuanceRequest
+): [] {
+  assertValidSecretPassportCredentialIssuanceOffer(offer);
+  assertValidSecretPassportCredentialIssuanceRequest(request);
+  SecretPassportCredentialIssuance_assertOfferRequestAlignment(offer, request);
+  if (request.body.requestExpiration) {
+    assert(
+      offer.body.supportsExpiration,
+      "Secret passport credential issuance request cannot require expiration when the offer disables it"
+    );
+  }
+}
+
+export circuit assertValidSecretPassportCredentialIssuanceResult(
+  result: SecretPassportCredentialIssuanceResult
+): [] {
+  SecretPassportCredentialIssuance_assertValidResultMessage(result);
+  assertValidSecretPassportSchemaRef(result.schema);
+  assert(
+    result.holderBindingProfile == HolderBindingProfile.blindedSecretHolder,
+    "Secret passport credential issuance result must use blinded secret holder binding"
+  );
+  assertValidSecretPassportCredential(
+    result.body.credential,
+    result.body.credentialProof
+  );
+  assert(
+    result.body.credentialProof.challengeHash == result.body.issuanceChallengeHash,
+    "Secret passport credential issuance result challenge must match the issuer proof challenge"
+  );
+}
+
+export circuit assertSecretPassportCredentialIssuanceResultMatchesRequest(
+  request: SecretPassportCredentialIssuanceRequest,
+  result: SecretPassportCredentialIssuanceResult
+): [] {
+  assertValidSecretPassportCredentialIssuanceRequest(request);
+  assertValidSecretPassportCredentialIssuanceResult(result);
+  SecretPassportCredentialIssuance_assertRequestResultAlignment(request, result);
+  assert(
+    request.body.holderChallengeHash == result.body.issuanceChallengeHash,
+    "Secret passport credential issuance result challenge must match the request challenge"
+  );
+}
+
+export circuit assertValidSecretPassportCredentialVerificationRequestMessage(
+  request: SecretPassportCredentialVerificationRequest
+): [] {
+  SecretPassportCredentialVerification_assertValidRequestMessage(request);
+  assertValidSecretPassportSchemaRef(request.schema);
+  assert(
+    request.holderBindingProfile == HolderBindingProfile.blindedSecretHolder,
+    "Secret passport credential verification request must use blinded secret holder binding"
+  );
+  assertValidSecretPassportCredentialPresentationRequest(
+    secretPassportCredentialPresentationRequestFromProtocol(request)
+  );
+}
+
+export circuit assertValidSecretPassportCredentialVerificationSubmissionMessage(
+  submission: SecretPassportCredentialVerificationSubmission
+): [] {
+  SecretPassportCredentialVerification_assertValidSubmissionMessage(submission);
+  assertValidSecretPassportSchemaRef(submission.schema);
+  assert(
+    submission.holderBindingProfile == HolderBindingProfile.blindedSecretHolder,
+    "Secret passport credential verification submission must use blinded secret holder binding"
+  );
+  assertValidSecretPassportCredentialPresentation(
+    submission.body.credential,
+    submission.body.credentialProof,
+    submission.body.presentation
+  );
+  assert(
+    submission.challengeHash != noProtocolResponseReference(),
+    "Secret passport credential verification submission challenge must be set"
+  );
+}
+
+export circuit assertSecretPassportCredentialVerificationSubmissionMatchesRequest(
+  request: SecretPassportCredentialVerificationRequest,
+  submission: SecretPassportCredentialVerificationSubmission,
+  holderSecret: Bytes<32>,
+  holderSecretOpening: Bytes<32>,
+  holderBindingBlindingFactor: Bytes<32>
+): [] {
+  assertValidSecretPassportCredentialVerificationRequestMessage(request);
+  assertValidSecretPassportCredentialVerificationSubmissionMessage(submission);
+  SecretPassportCredentialVerification_assertRequestSubmissionAlignment(
+    request,
+    submission
+  );
+  assertSecretPassportPresentationSatisfiesRequest(
+    submission.body.credential,
+    submission.body.credentialProof,
+    secretPassportCredentialPresentationRequestFromProtocol(request),
+    submission.body.presentation,
+    holderSecret,
+    holderSecretOpening,
+    holderBindingBlindingFactor
+  );
+}
+
+export circuit assertValidSecretPassportCredentialVerificationResultMessage(
+  result: SecretPassportCredentialVerificationResult
+): [] {
+  SecretPassportCredentialVerification_assertValidResultMessage(result);
+  if (result.approved) {
+    assert(
+      result.body.credentialRoot != noProtocolResponseReference(),
+      "Secret passport credential verification result must include a credential root when approved"
+    );
+    if (result.body.hasVerifierScopedPseudonym) {
+      assert(
+        result.body.verifierScopedPseudonym != noProtocolResponseReference(),
+        "Secret passport credential verification result pseudonym must be set when marked as present"
+      );
+    }
+  }
+}
+
+export circuit assertSecretPassportCredentialVerificationResultMatchesSubmission(
+  submission: SecretPassportCredentialVerificationSubmission,
+  result: SecretPassportCredentialVerificationResult
+): [] {
+  assertValidSecretPassportCredentialVerificationSubmissionMessage(submission);
+  assertValidSecretPassportCredentialVerificationResultMessage(result);
+  SecretPassportCredentialVerification_assertSubmissionResultAlignment(
+    submission,
+    result
+  );
+  if (result.approved) {
+    assert(
+      result.body.credentialRoot == secretPassportCredentialBodyRoot(submission.body.credential),
+      "Secret passport credential verification result credential root does not match the submission"
+    );
+    if (result.body.hasVerifierScopedPseudonym) {
+      assert(
+        result.body.verifierScopedPseudonym == submission.body.presentation.disclosed.verifierScopedPseudonym,
+        "Secret passport credential verification result pseudonym does not match the submission"
+      );
+    }
+  }
+}
+
+export circuit assertValidSecretPassportCredential(
+  credential: SecretPassportCredential,
+  proof: Proof
+): [] {
+  assertValidSecretPassportSchemaRef(credential.schema);
+  assertValidCredentialEnvelope(credential, passportCredentialClaimRoot(credential.claims));
+  assertValidBlindedSecretHolderCredentialBinding(credential.holderBinding);
+  assertValidCredentialProof(credential, proof);
+}
+
+export circuit assertValidSecretPassportCredentialPresentation(
+  credential: SecretPassportCredential,
+  credentialProof: Proof,
+  presentation: SecretPassportCredentialPresentation
+): [] {
+  assertValidSecretPassportCredential(credential, credentialProof);
+  assertValidSecretPassportSchemaRef(presentation.schema);
+  assertValidPresentationEnvelope(credential, presentation);
+  assertValidBlindedSecretHolderPresentationBinding(presentation.holderBinding);
+  assertMatchingBlindedSecretHolderBindings(
+    credential.holderBinding,
+    presentation.holderBinding
+  );
+
+  if (presentation.disclosed.revealNationality) {
+    assert(
+      nationalityCommitment(presentation.disclosed.nationalityValue, presentation.disclosed.nationalityOpening)
+        == credential.claims.nationalityCommitment,
+      "Presentation nationality disclosure does not match the credential"
+    );
+  }
+  if (presentation.disclosed.revealGender) {
+    assert(
+      genderCommitment(presentation.disclosed.genderValue, presentation.disclosed.genderOpening)
+        == credential.claims.genderCommitment,
+      "Presentation gender disclosure does not match the credential"
+    );
+  }
+  if (presentation.disclosed.revealVerifierScopedPseudonym) {
+    assert(
+      presentation.disclosed.verifierScopedPseudonym != pad(32, ""),
+      "Presentation verifier-scoped pseudonym must be set when enabled"
+    );
+  }
+  if (presentation.disclosed.proveAgeOverThreshold) {
+    assert(presentation.disclosed.ageThresholdYears > 0, "Age threshold must be positive");
+  }
+}
+
+export circuit assertSecretPassportPresentationSatisfiesRequest(
+  credential: SecretPassportCredential,
+  credentialProof: Proof,
+  request: SecretPassportCredentialPresentationRequest,
+  presentation: SecretPassportCredentialPresentation,
+  holderSecret: Bytes<32>,
+  holderSecretOpening: Bytes<32>,
+  holderBindingBlindingFactor: Bytes<32>
+): [] {
+  assertValidSecretPassportCredentialPresentationRequest(request);
+  assertValidSecretPassportCredentialPresentation(
+    credential,
+    credentialProof,
+    presentation
+  );
+  assertMatchingSchemaRefs(request.schema, credential.schema);
+  assertMatchingSchemaRefs(request.schema, presentation.schema);
+  assert(
+    request.issuerVerificationMethodRef.didContractAddress == credential.issuerVerificationMethodRef.didContractAddress,
+    "Presentation request issuer contract does not match the credential issuer"
+  );
+  assert(
+    request.issuerVerificationMethodRef.methodId == credential.issuerVerificationMethodRef.methodId,
+    "Presentation request issuer method id does not match the credential issuer"
+  );
+  assertBlindedSecretHolderBindingWitness(
+    presentation.holderBinding,
+    request.verifierChallengeHash,
+    holderSecret,
+    holderSecretOpening,
+    holderBindingBlindingFactor
+  );
+  if (request.requireNationalityDisclosure) {
+    assert(
+      presentation.disclosed.revealNationality,
+      "Presentation request requires the nationality disclosure"
+    );
+  }
+  if (request.requireGenderDisclosure) {
+    assert(
+      presentation.disclosed.revealGender,
+      "Presentation request requires the gender disclosure"
+    );
+  }
+  if (request.requireVerifierScopedPseudonym) {
+    assert(
+      presentation.disclosed.revealVerifierScopedPseudonym,
+      "Presentation request requires a verifier-scoped pseudonym"
+    );
+  }
+  if (presentation.disclosed.revealVerifierScopedPseudonym) {
+    assertVerifierScopedPseudonym(
+      presentation.disclosed.verifierScopedPseudonym,
+      holderSecret,
+      request.verifierDomainHash
+    );
+  }
+  if (request.requireAgeOverThreshold) {
+    assert(
+      presentation.disclosed.proveAgeOverThreshold,
+      "Presentation request requires the age-over-threshold predicate"
+    );
+    assert(
+      presentation.disclosed.ageThresholdYears == request.requestedAgeThresholdYears,
+      "Presentation age threshold does not match the request"
+    );
+  }
+  if (request.requireNotExpired) {
+    assert(
+      presentation.disclosed.proveNotExpired,
+      "Presentation request requires the not-expired predicate"
+    );
+  }
+}
+
+export circuit assertValidSecretPassportCredentialAgePredicate(
+  credential: SecretPassportCredential,
+  presentation: SecretPassportCredentialPresentation,
+  currentDay: Uint<32>,
+  birthDateDays: Uint<32>,
+  birthDateOpening: Bytes<32>
+): [] {
+  assert(
+    presentation.disclosed.proveAgeOverThreshold,
+    "Presentation must request the age-over-threshold predicate"
+  );
+  assert(
+    birthDateCommitment(birthDateDays, birthDateOpening) == credential.claims.birthDateCommitment,
+    "Birth-date witness does not match credential commitment"
+  );
+  assert(currentDay >= birthDateDays, "Current day must not precede the birth date witness");
+  assert(
+    currentDay - birthDateDays >= presentation.disclosed.ageThresholdYears * 365,
+    "Age predicate does not satisfy the requested threshold"
+  );
+}
+
+export circuit assertSecretPassportNotExpired(
+  credential: SecretPassportCredential,
+  currentDay: Uint<32>
+): [] {
+  assert(currentDay <= credential.claims.expiryDate, "Passport has expired");
+}
+
+export circuit assertSameHolderSecretPassportPresentations(
+  firstCredential: SecretPassportCredential,
+  firstCredentialProof: Proof,
+  firstRequest: SecretPassportCredentialVerificationRequest,
+  firstPresentation: SecretPassportCredentialPresentation,
+  secondCredential: SecretPassportCredential,
+  secondCredentialProof: Proof,
+  secondRequest: SecretPassportCredentialVerificationRequest,
+  secondPresentation: SecretPassportCredentialPresentation,
+  holderSecret: Bytes<32>,
+  firstHolderSecretOpening: Bytes<32>,
+  firstHolderBindingBlindingFactor: Bytes<32>,
+  secondHolderSecretOpening: Bytes<32>,
+  secondHolderBindingBlindingFactor: Bytes<32>
+): [] {
+  assert(
+    firstRequest.verifierChallengeHash == secondRequest.verifierChallengeHash,
+    "Same-holder composition requires a shared verifier challenge"
+  );
+
+  assertValidSecretPassportCredentialVerificationRequestMessage(firstRequest);
+  assertSecretPassportPresentationSatisfiesRequest(
+    firstCredential,
+    firstCredentialProof,
+    secretPassportCredentialPresentationRequestFromProtocol(firstRequest),
+    firstPresentation,
+    holderSecret,
+    firstHolderSecretOpening,
+    firstHolderBindingBlindingFactor
+  );
+  assertValidSecretPassportCredentialVerificationRequestMessage(secondRequest);
+  assertSecretPassportPresentationSatisfiesRequest(
+    secondCredential,
+    secondCredentialProof,
+    secretPassportCredentialPresentationRequestFromProtocol(secondRequest),
+    secondPresentation,
+    holderSecret,
+    secondHolderSecretOpening,
+    secondHolderBindingBlindingFactor
+  );
+
+  assertSameBlindedSecretHolderBindingWitnesses(
+    firstPresentation.holderBinding,
+    secondPresentation.holderBinding,
+    firstRequest.verifierChallengeHash,
+    holderSecret,
+    firstHolderSecretOpening,
+    firstHolderBindingBlindingFactor,
+    secondHolderSecretOpening,
+    secondHolderBindingBlindingFactor
+  );
+}

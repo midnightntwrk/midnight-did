@@ -1,0 +1,27 @@
+export struct SecretPassportCredentialDisclosures {
+  revealNationality: Boolean,
+  nationalityValue: Uint<16>,
+  nationalityOpening: Bytes<32>,
+  revealGender: Boolean,
+  genderValue: Uint<8>,
+  genderOpening: Bytes<32>,
+  revealVerifierScopedPseudonym: Boolean,
+  verifierScopedPseudonym: Bytes<32>,
+  proveAgeOverThreshold: Boolean,
+  ageThresholdYears: Uint<8>,
+  proveNotExpired: Boolean,
+}
+
+export struct SecretPassportCredentialPresentationRequest {
+  version: Uint<16>,
+  schema: SchemaRef,
+  issuerVerificationMethodRef: VerificationMethodRef,
+  requireNationalityDisclosure: Boolean,
+  requireGenderDisclosure: Boolean,
+  requireVerifierScopedPseudonym: Boolean,
+  verifierDomainHash: Bytes<32>,
+  requireAgeOverThreshold: Boolean,
+  requestedAgeThresholdYears: Uint<8>,
+  requireNotExpired: Boolean,
+  verifierChallengeHash: Bytes<32>,
+}
