@@ -19,6 +19,7 @@ import type { DIDProfile } from "./types.js";
 import type { ProtocolMessage } from "../transport/types.js";
 import { MessageBus } from "../transport/message-bus.js";
 import type { PresentationSubmissionBody } from "./verifier-agent.js";
+import { assertMessageType, assertBodyHasFields } from "../shared/validation.js";
 import { mod, sha256 } from "../shared/crypto.js";
 import { createEnvelope } from "../shared/envelope.js";
 
@@ -47,12 +48,8 @@ export class HolderAgent {
   }
 
   receiveOfferAndSendRequest(offer: ProtocolMessage): void {
-    if (offer.type !== "issuance:offer") {
-      throw new Error(
-        `Expected issuance:offer message, got ${offer.type}`,
-      );
-    }
-
+    assertMessageType(offer, "issuance:offer");
+    assertBodyHasFields(offer, ["envelope", "schema", "body"]);
     const issuanceOffer = offer.body as BirthCredentialIssuanceOffer;
     const challengeHash = sha256("challenge:issuance");
 
@@ -88,12 +85,8 @@ export class HolderAgent {
   }
 
   receiveCredentialResult(result: ProtocolMessage): void {
-    if (result.type !== "issuance:result") {
-      throw new Error(
-        `Expected issuance:result message, got ${result.type}`,
-      );
-    }
-
+    assertMessageType(result, "issuance:result");
+    assertBodyHasFields(result, ["envelope", "schema", "body"]);
     const issuanceResult = result.body as BirthCredentialIssuanceResult;
     this.credentials.push({
       credential: issuanceResult.body.credential,
@@ -182,12 +175,8 @@ export class HolderAgent {
     requestMessage: ProtocolMessage,
     witnessData: PresentationWitness,
   ): void {
-    if (requestMessage.type !== "presentation:request") {
-      throw new Error(
-        `Expected presentation:request message, got ${requestMessage.type}`,
-      );
-    }
-
+    assertMessageType(requestMessage, "presentation:request");
+    assertBodyHasFields(requestMessage, ["version", "schema", "verifierChallengeHash"]);
     const request = requestMessage.body as BirthCredentialPresentationRequest;
     const stored = this.getCredential(witnessData.credentialIndex);
 

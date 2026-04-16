@@ -14,6 +14,7 @@ import {
 import type { DIDProfile } from "./types.js";
 import type { ProtocolMessage, PartyId } from "../transport/types.js";
 import { MessageBus } from "../transport/message-bus.js";
+import { assertMessageType, assertBodyHasFields } from "../shared/validation.js";
 import { mod, sha256, padText } from "../shared/crypto.js";
 import { createEnvelope } from "../shared/envelope.js";
 
@@ -126,6 +127,8 @@ export class SecretIssuerAgent {
     request: ProtocolMessage,
     claimWitness: SecretClaimWitness,
   ): void {
+    assertMessageType(request, "issuance:request");
+    assertBodyHasFields(request, ["envelope", "schema", "body"]);
     const issuanceRequest = request.body as SecretIssuanceRequest;
     const requestBody = issuanceRequest.body;
 

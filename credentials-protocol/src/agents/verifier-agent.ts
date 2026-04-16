@@ -19,6 +19,7 @@ import type { DIDProfile } from "./types.js";
 import type { ProtocolMessage, PartyId } from "../transport/types.js";
 import { MessageBus } from "../transport/message-bus.js";
 import type { SameHolderPresentation } from "./secret-holder-agent.js";
+import { assertMessageType, assertBodyHasFields } from "../shared/validation.js";
 import { sha256, padText } from "../shared/crypto.js";
 import { createEnvelope } from "../shared/envelope.js";
 
@@ -162,12 +163,8 @@ export class VerifierAgent {
     submission: ProtocolMessage,
     simulatorWitness: SimulatorWitness,
   ): { approved: boolean } {
-    if (submission.type !== "presentation:submission") {
-      throw new Error(
-        `Expected presentation:submission message, got ${submission.type}`,
-      );
-    }
-
+    assertMessageType(submission, "presentation:submission");
+    assertBodyHasFields(submission, ["credential", "credentialProof", "presentation", "presentationProof"]);
     const body = submission.body as PresentationSubmissionBody;
 
     // Validate the credential and presentation signatures
@@ -249,12 +246,8 @@ export class VerifierAgent {
     submission: ProtocolMessage,
     simulatorWitness: SecretSimulatorWitness,
   ): { approved: boolean; pseudonym?: Uint8Array } {
-    if (submission.type !== "presentation:submission") {
-      throw new Error(
-        `Expected presentation:submission message, got ${submission.type}`,
-      );
-    }
-
+    assertMessageType(submission, "presentation:submission");
+    assertBodyHasFields(submission, ["credential", "credentialProof", "presentation"]);
     const body = submission.body as SecretPresentationSubmissionBody;
 
     // Validate the credential and presentation

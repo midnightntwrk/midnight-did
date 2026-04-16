@@ -4,6 +4,7 @@ import {
   type Proof,
   pureCircuits as genericPureCircuits,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
+import { assertMessageType, assertBodyHasFields } from "../shared/validation.js";
 import {
   type BirthCredential,
   type BirthCredentialIssuanceOffer,
@@ -82,6 +83,8 @@ export class IssuerAgent {
     request: ProtocolMessage,
     claimWitness: ClaimWitness,
   ): void {
+    assertMessageType(request, "issuance:request");
+    assertBodyHasFields(request, ["envelope", "schema", "body"]);
     const issuanceRequest = request.body as BirthCredentialIssuanceRequest;
 
     const claims = {

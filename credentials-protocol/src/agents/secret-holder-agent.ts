@@ -17,6 +17,7 @@ import type {
   SecretIssuanceResult,
 } from "./secret-issuer-agent.js";
 import type { SecretPresentationSubmissionBody } from "./verifier-agent.js";
+import { assertMessageType, assertBodyHasFields } from "../shared/validation.js";
 import { sha256, padText } from "../shared/crypto.js";
 import { createEnvelope } from "../shared/envelope.js";
 
@@ -79,12 +80,8 @@ export class SecretHolderAgent {
   }
 
   receiveOfferAndSendRequest(offer: ProtocolMessage): void {
-    if (offer.type !== "issuance:offer") {
-      throw new Error(
-        `Expected issuance:offer message, got ${offer.type}`,
-      );
-    }
-
+    assertMessageType(offer, "issuance:offer");
+    assertBodyHasFields(offer, ["envelope", "schema", "body"]);
     const issuanceOffer = offer.body as SecretIssuanceOffer;
     const challengeHash = sha256("challenge:issuance");
 
@@ -133,12 +130,8 @@ export class SecretHolderAgent {
   private readonly pendingBlindingFactors = new Map<string, Uint8Array>();
 
   receiveCredentialResult(result: ProtocolMessage): void {
-    if (result.type !== "issuance:result") {
-      throw new Error(
-        `Expected issuance:result message, got ${result.type}`,
-      );
-    }
-
+    assertMessageType(result, "issuance:result");
+    assertBodyHasFields(result, ["envelope", "schema", "body"]);
     const issuanceResult = result.body as SecretIssuanceResult;
     const respondsToId = Buffer.from(result.envelope.respondsToMessageId).toString("hex");
     const blindingFactor = this.pendingBlindingFactors.get(respondsToId);
@@ -189,12 +182,8 @@ export class SecretHolderAgent {
     requestMessage: ProtocolMessage,
     witnessData: SecretPresentationWitness,
   ): void {
-    if (requestMessage.type !== "presentation:request") {
-      throw new Error(
-        `Expected presentation:request message, got ${requestMessage.type}`,
-      );
-    }
-
+    assertMessageType(requestMessage, "presentation:request");
+    assertBodyHasFields(requestMessage, ["version", "schema", "verifierChallengeHash"]);
     const request =
       requestMessage.body as BirthCredentialPresentationRequest;
     const stored = this.getCredential(witnessData.credentialIndex);
