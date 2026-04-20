@@ -50,7 +50,7 @@ stdenv.mkDerivation rec {
   meta = with lib; {
     description = "Compact compiler from Midnight Network";
     homepage = "https://github.com/midnightntwrk/compact";
-    license = licenses.mit;
+    license = lib.licenses.asl20;
     platforms = lib.attrNames platformInfo;
     mainProgram = "compact";
   };
