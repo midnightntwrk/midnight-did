@@ -286,22 +286,31 @@ sequenceDiagram
 
 ### 5.2 Design Rationale
 
-The WebAuthn P-256 private key is **non-exportable and hardware-bound** to the specific device and Relying Party ID. It cannot sign JubJub or Ed25519 payloads and has no role in Midnight VC/VP operations. Adding it to the DID document would create a verification method that the wallet can never actually use for on-chain credential proofs.
+The WebAuthn P-256 private key is **non-exportable and hardware-bound** to the specific device and Relying Party ID. It cannot sign JubJub or Ed25519 payloads and has no role in Midnight VC/VP operations. Adding it to the DID document would create a verification method the wallet can never use for on-chain credential proofs.
 
-The passkey's correct role is narrower and more valuable: it is a **local authentication gate**. A successful passkey assertion proves that the registered user is physically present on the registered device, which unlocks the encrypted secret store that holds the real credential keys (Ed25519 and JubJub). All VC/VP signing and ZK circuit operations continue to use those keys exclusively.
+The passkey's correct role is a **cryptographic prerequisite to store decryption**, not merely a UI gate. The two platforms achieve this through different mechanisms:
+
+**Web — WebAuthn PRF extension.** The [WebAuthn PRF extension](https://www.w3.org/TR/webauthn-3/#prf-extension) (available in Chrome 116+, Safari 16.4+, Firefox 119+) allows a relying party to request a deterministic pseudo-random output from the authenticator during any assertion. The wallet supplies a locally stored `salt`; the authenticator returns `PRF(salt)` — 32 bytes derived from the hardware-bound credential — only after a successful biometric or PIN check. The wallet feeds this output into HKDF to derive separate key-encryption keys (KEKs) for the secret store and the VC store. Both stores are encrypted with AES-256-GCM. Without a successful passkey assertion the PRF output is unavailable, so the stores cannot be decrypted. The PRF output and derived KEKs are cleared from memory immediately after decryption.
+
+**Mobile — OS-managed biometric key protection.** On iOS, the KEK is stored as a Keychain item guarded by `kSecAccessControlBiometryCurrentSet`; Face ID or Touch ID is the gate for retrieval, enforced by the Secure Enclave. On Android, the KEK is wrapped by a Keystore-backed AES key created with `setUserAuthenticationRequired(true)` and `PURPOSE_DECRYPT`; a `BiometricPrompt` challenge is the gate. In both cases the OS releases the KEK only after the biometric assertion passes; the app never has custody of the raw KEK outside an authenticated session.
+
+In both models, all VC/VP signing and ZK circuit operations continue to use the Ed25519 and JubJub keys exclusively.
 
 ### 5.3 Functional Requirements
 
 | ID | Requirement |
 |---|---|
-| FR-2.1 | The wallet MUST trigger a WebAuthn `navigator.credentials.create()` call with `authenticatorSelection.userVerification = "required"` and `authenticatorSelection.residentKey = "required"` |
-| FR-2.2 | The wallet MUST store the returned passkey credential ID in local app storage; the P-256 public key is retained by the platform authenticator and need not be stored separately by the app |
-| FR-2.3 | The wallet MUST NOT add the P-256 public key to the Midnight DID document; the passkey is a local session authentication mechanism only and has no DID semantics |
-| FR-2.4 | The secret store MUST be encrypted with a key that is derived from or protected by the passkey; a successful WebAuthn assertion MUST be the gate that allows the wallet to decrypt the secret store and load the Ed25519 and JubJub keys into memory |
-| FR-2.5 | The VC store MUST be unlocked within the same authenticated session as the secret store |
-| FR-2.6 | The wallet MUST clear decrypted key material from memory and lock the session after a configurable idle timeout |
-| FR-2.7 | The wallet MUST support a PIN or password fallback if biometric authentication is unavailable or fails three times consecutively |
-| FR-2.8 | On mobile, the wallet MUST use the platform authenticator (Face ID on iOS, fingerprint or face on Android); an external FIDO2 security key MAY be offered as an additional option |
+| FR-2.1 | The wallet MUST trigger `navigator.credentials.create()` with `userVerification: "required"`, `residentKey: "required"`, and `extensions: { prf: {} }` to request PRF support at registration time |
+| FR-2.2 | The wallet MUST store the passkey `credentialId` and a randomly generated `prf_salt` (32 bytes) in local app storage; the P-256 private key is retained in hardware and never accessible to the app |
+| FR-2.3 | The wallet MUST NOT add the P-256 public key to the Midnight DID document |
+| FR-2.4 | **(Web)** Immediately after registration (and on every subsequent unlock), the wallet MUST call `navigator.credentials.get()` with `extensions: { prf: { eval: { first: prf_salt } } }`; the returned `prf.results.first` (32-byte PRF output) MUST be used as HKDF input to derive `KEK = HKDF(prf_output, "lace-secret-store-v1")` and `KEK_vc = HKDF(prf_output, "lace-vc-store-v1")`; both stores MUST be encrypted with AES-256-GCM using their respective KEKs |
+| FR-2.5 | **(Mobile — iOS)** The wallet MUST store the KEK as a Keychain item protected by `kSecAccessControlBiometryCurrentSet`; the KEK MUST only be retrievable after a successful Face ID or Touch ID assertion enforced by the Secure Enclave |
+| FR-2.6 | **(Mobile — Android)** The wallet MUST wrap the KEK using an Android Keystore-backed AES key created with `PURPOSE_ENCRYPT \| PURPOSE_DECRYPT` and `setUserAuthenticationRequired(true)`; the KEK MUST only be unwrappable after a `BiometricPrompt` assertion |
+| FR-2.7 | The KEK and PRF output MUST be cleared from memory immediately after the stores are decrypted; only the decrypted Ed25519 and JubJub keys remain in session memory |
+| FR-2.8 | The VC store MUST be decrypted in the same authenticated session as the secret store, using its own derived `KEK_vc` |
+| FR-2.9 | The wallet MUST clear all session key material from memory and re-lock the stores after a configurable idle timeout |
+| FR-2.10 | If PRF is not supported by the authenticator (web), the wallet MUST fall back to a PIN-derived KEK using `PBKDF2(pin, salt, iterations=600000, hash=SHA-256)`; the wallet MUST warn the user that hardware-backed store protection is unavailable |
+| FR-2.11 | The wallet MUST support a PIN or password fallback for unlock if biometric authentication is unavailable or fails three consecutive times |
 
 ### 5.4 Web Wallet Flow
 
@@ -309,33 +318,49 @@ The passkey's correct role is narrower and more valuable: it is a **local authen
 sequenceDiagram
     actor User
     participant Wallet as Lace Wallet (Web)
-    participant Browser as Browser WebAuthn API
+    participant Browser as Browser WebAuthn + PRF API
     participant Biometric as Platform Authenticator
     participant SecretStore as Encrypted Secret Store
     participant VCStore as Encrypted VC Store
 
+    Note over User,VCStore: Passkey registration
     User->>Wallet: Navigate to Security Settings → Add Passkey
-    Wallet->>Wallet: Generate random challenge
-    Wallet->>Browser: navigator.credentials.create(challenge, rpId="lace.io", userVerification=required, residentKey=required)
+    Wallet->>Wallet: Generate challenge + prf_salt (32 random bytes)
+    Wallet->>Browser: credentials.create({ challenge, rpId, userVerification: required, residentKey: required, extensions: { prf: {} } })
     Browser->>Biometric: Prompt: Touch ID / Windows Hello / Security Key
-    User->>Biometric: Authenticate (fingerprint / face / PIN)
-    Biometric-->>Browser: WebAuthn attestation response (credential ID + P-256 public key)
-    Browser-->>Wallet: Attestation response
-    Wallet->>Wallet: Store credential ID in local app storage
-    Note right of Wallet: No DID document update — P-256 key stays on device
-    Wallet-->>User: Passkey registered — future logins use biometrics
+    User->>Biometric: Authenticate
+    Biometric-->>Browser: Attestation response + prf supported flag
+    Browser-->>Wallet: credentialId + extension results
+    Wallet->>Wallet: Store credentialId + prf_salt in local app storage
+    Note right of Wallet: No DID document update
+
+    Note over Wallet,VCStore: Initial store encryption (immediately after registration)
+    Wallet->>Browser: credentials.get({ extensions: { prf: { eval: { first: prf_salt } } }, allowCredentials: [credentialId] })
+    Browser->>Biometric: Prompt biometric
+    User->>Biometric: Authenticate
+    Biometric-->>Browser: Assertion + PRF result
+    Browser-->>Wallet: prf.results.first → 32-byte PRF output
+    Wallet->>Wallet: KEK    = HKDF(prf_output, info="lace-secret-store-v1")
+    Wallet->>Wallet: KEK_vc = HKDF(prf_output, info="lace-vc-store-v1")
+    Wallet->>SecretStore: AES-256-GCM encrypt with KEK
+    Wallet->>VCStore: AES-256-GCM encrypt with KEK_vc
+    Wallet->>Wallet: Clear PRF output + KEK + KEK_vc from memory
+    Wallet-->>User: Passkey registered — stores cryptographically protected
 
     Note over User,VCStore: Subsequent wallet unlock flow
     User->>Wallet: Open wallet
-    Wallet->>Browser: navigator.credentials.get(challenge, allowCredentials=[credentialId])
+    Wallet->>Browser: credentials.get({ extensions: { prf: { eval: { first: prf_salt } } }, allowCredentials: [credentialId] })
     Browser->>Biometric: Prompt biometric
     User->>Biometric: Authenticate
-    Biometric-->>Browser: Assertion response (authenticatorData + signature)
-    Browser-->>Wallet: Verified assertion
-    Wallet->>SecretStore: Decrypt secret store (assertion used to derive or release encryption key)
-    SecretStore-->>Wallet: Ed25519 + JubJub keys loaded into memory
-    Wallet->>VCStore: Unlock VC store
+    Biometric-->>Browser: Assertion + PRF result
+    Browser-->>Wallet: prf.results.first → 32-byte PRF output
+    Wallet->>Wallet: KEK    = HKDF(prf_output, info="lace-secret-store-v1")
+    Wallet->>SecretStore: AES-256-GCM decrypt with KEK
+    SecretStore-->>Wallet: Ed25519 + JubJub keys loaded into session memory
+    Wallet->>Wallet: KEK_vc = HKDF(prf_output, info="lace-vc-store-v1")
+    Wallet->>VCStore: AES-256-GCM decrypt with KEK_vc
     VCStore-->>Wallet: Credentials accessible
+    Wallet->>Wallet: Clear PRF output + KEK + KEK_vc from memory
     Wallet-->>User: Wallet session active
 ```
 
@@ -347,29 +372,41 @@ sequenceDiagram
     participant App as Lace Mobile App
     participant OS as iOS / Android Platform
     participant SecureEl as Secure Enclave / StrongBox
+    participant Keychain as iOS Keychain / Android Keystore
     participant SecretStore as Encrypted Secret Store
     participant VCStore as Encrypted VC Store
 
+    Note over User,VCStore: Passkey registration + store protection setup
     User->>App: Navigate to Security Settings → Add Passkey
-    App->>OS: Request passkey creation (FIDO2 platform API, rpId="lace.io")
-    OS->>SecureEl: Generate P-256 key pair (hardware-bound, non-exportable)
+    App->>OS: Request passkey creation (rpId="lace.io", userVerification=required)
+    OS->>SecureEl: Generate hardware-bound P-256 key pair (non-exportable)
     OS->>User: Prompt Face ID / Touch ID / fingerprint
     User->>OS: Biometric confirmation
-    OS-->>App: Passkey credential ID (P-256 private key stays in hardware)
-    App->>App: Store credential ID in local app storage
+    OS-->>App: credentialId (P-256 private key stays in hardware)
+    App->>App: Generate KEK + KEK_vc (two random 32-byte keys)
+    Note over App,Keychain: iOS: SecItemAdd with kSecAccessControlBiometryCurrentSet
+    Note over App,Keychain: Android: wrap with Keystore AES key (setUserAuthenticationRequired=true)
+    App->>Keychain: Store KEK + KEK_vc (biometric-protected)
+    App->>SecretStore: AES-256-GCM encrypt with KEK
+    App->>VCStore: AES-256-GCM encrypt with KEK_vc
+    App->>App: Clear KEK + KEK_vc from memory
     Note right of App: No DID document update
-    App-->>User: Passkey registered
+    App-->>User: Passkey registered — stores cryptographically protected
 
     Note over User,VCStore: Subsequent wallet unlock flow
     User->>App: Open app
-    App->>OS: Request biometric authentication (passkey assertion, credentialId)
+    App->>OS: Request biometric authentication to retrieve KEK
+    Note over OS: iOS: SecItemCopyMatching triggers Face ID / Touch ID
+    Note over OS: Android: BiometricPrompt → unwrap Keystore-protected KEK
     OS->>User: Face ID / fingerprint prompt
     User->>OS: Authenticate
-    OS-->>App: Assertion verified
-    App->>SecretStore: Decrypt secret store (assertion releases encryption key)
-    SecretStore-->>App: Ed25519 + JubJub keys loaded into memory
-    App->>VCStore: Unlock VC store
+    OS->>Keychain: Biometric assertion satisfied — release KEK + KEK_vc
+    Keychain-->>App: KEK + KEK_vc
+    App->>SecretStore: AES-256-GCM decrypt with KEK
+    SecretStore-->>App: Ed25519 + JubJub keys loaded into session memory
+    App->>VCStore: AES-256-GCM decrypt with KEK_vc
     VCStore-->>App: Credentials accessible
+    App->>App: Clear KEK + KEK_vc from memory
     App-->>User: Wallet session active
 ```
 
@@ -377,12 +414,15 @@ sequenceDiagram
 
 | Condition | Handling |
 |---|---|
-| Device has no platform authenticator | Offer PIN/password as the only fallback; display guidance on enabling biometrics in OS settings |
+| Device has no platform authenticator | Offer PIN/password fallback with PBKDF2-derived KEK; warn user that hardware-backed protection is unavailable |
+| PRF extension not supported by authenticator (web) | Fall back to PBKDF2(pin, salt) KEK derivation; show warning |
 | Biometric enrollment not configured on device | Deep-link to OS biometric settings (Face ID / fingerprint setup) |
-| Biometric authentication fails 3 times | Lock to PIN/password fallback; do not increment lockout counter for passkey |
-| Session key derivation or store decryption fails | Force fallback to PIN/password; do not expose error detail to UI |
-| Idle timeout reached | Lock wallet; clear key material from memory; require re-authentication on next action |
-| User cancels WebAuthn prompt during registration | Return to settings; no credential stored; no changes made |
+| Biometric authentication fails 3 times | Lock to PIN/password fallback; do not expose PRF output or Keychain entry |
+| PRF output changes unexpectedly (authenticator reset) | Store decryption fails; prompt user to restore from backup or re-initialise wallet |
+| Keychain / Keystore item inaccessible (device restore, biometry change) | Prompt user to restore from backup seed phrase; all biometric-protected material is invalidated on biometry change by OS design |
+| KEK derivation or AES decryption fails | Do not expose error details; force PIN/password fallback; log internally |
+| Idle timeout reached | Lock wallet; clear all key material from memory; require re-authentication |
+| User cancels WebAuthn prompt during registration | Return to settings; no credential or KEK stored; no changes made |
 
 ---
 
