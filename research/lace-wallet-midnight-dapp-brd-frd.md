@@ -690,7 +690,7 @@ sequenceDiagram
     else FAIL
         Screener-->>Wallet: Rejection (reason category: SANCTIONS_MATCH / PEP_MATCH / JURISDICTION_BLOCKED)
         Wallet-->>DApp: Issuance failed
-        DApp-->>User: Display rejection reason; advise contacting support
+        DApp-->>User: Display rejection reason, advise contacting support
     end
 ```
 
