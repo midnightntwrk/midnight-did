@@ -279,24 +279,31 @@ sequenceDiagram
 | **ID** | UC-2 |
 | **Name** | Passkey Registration |
 | **Primary Actor** | User |
-| **Supporting Actors** | Lace Wallet, Device Biometric Layer, Midnight DID Contract |
+| **Supporting Actors** | Lace Wallet, Device Biometric Layer |
 | **Trigger** | User navigates to Security Settings and initiates passkey setup |
-| **Pre-conditions** | UC-1 is complete; a Midnight DID exists; the device supports WebAuthn (platform authenticator or security key) |
-| **Post-conditions** | A P-256 (ES256) public key is added as a verification method to the DID document; the user can unlock the wallet session using biometrics |
+| **Pre-conditions** | UC-1 is complete; the local secret store is encrypted and contains the Ed25519 and JubJub key pairs; the device supports WebAuthn (platform authenticator or security key) |
+| **Post-conditions** | A passkey credential is registered on the device; the user can unlock the wallet session and the local secret store using biometrics; **no DID document change occurs** |
 
-### 5.2 Functional Requirements
+### 5.2 Design Rationale
+
+The WebAuthn P-256 private key is **non-exportable and hardware-bound** to the specific device and Relying Party ID. It cannot sign JubJub or Ed25519 payloads and has no role in Midnight VC/VP operations. Adding it to the DID document would create a verification method that the wallet can never actually use for on-chain credential proofs.
+
+The passkey's correct role is narrower and more valuable: it is a **local authentication gate**. A successful passkey assertion proves that the registered user is physically present on the registered device, which unlocks the encrypted secret store that holds the real credential keys (Ed25519 and JubJub). All VC/VP signing and ZK circuit operations continue to use those keys exclusively.
+
+### 5.3 Functional Requirements
 
 | ID | Requirement |
 |---|---|
-| FR-2.1 | The wallet MUST trigger a WebAuthn `navigator.credentials.create()` call with `authenticatorSelection.userVerification = "required"` |
-| FR-2.2 | The wallet MUST extract the P-256 public key from the WebAuthn attestation response and convert it to JWK format (`kty: "EC", crv: "P-256"`) |
-| FR-2.3 | The wallet MUST add the P-256 JWK as a new verification method to the DID document (e.g. fragment `#key-passkey`) |
-| FR-2.4 | The passkey verification method MAY be added under `authentication` in addition to `assertionMethod` to allow DID-authenticated login flows |
-| FR-2.5 | On subsequent wallet opens, the wallet MUST offer biometric unlock via WebAuthn `navigator.credentials.get()` |
-| FR-2.6 | The wallet MUST support fallback to PIN or password if biometric authentication fails |
-| FR-2.7 | On mobile, the wallet MUST use the platform authenticator (Face ID on iOS, fingerprint/face on Android); an external security key MAY be supported as an alternative |
+| FR-2.1 | The wallet MUST trigger a WebAuthn `navigator.credentials.create()` call with `authenticatorSelection.userVerification = "required"` and `authenticatorSelection.residentKey = "required"` |
+| FR-2.2 | The wallet MUST store the returned passkey credential ID in local app storage; the P-256 public key is retained by the platform authenticator and need not be stored separately by the app |
+| FR-2.3 | The wallet MUST NOT add the P-256 public key to the Midnight DID document; the passkey is a local session authentication mechanism only and has no DID semantics |
+| FR-2.4 | The secret store MUST be encrypted with a key that is derived from or protected by the passkey; a successful WebAuthn assertion MUST be the gate that allows the wallet to decrypt the secret store and load the Ed25519 and JubJub keys into memory |
+| FR-2.5 | The VC store MUST be unlocked within the same authenticated session as the secret store |
+| FR-2.6 | The wallet MUST clear decrypted key material from memory and lock the session after a configurable idle timeout |
+| FR-2.7 | The wallet MUST support a PIN or password fallback if biometric authentication is unavailable or fails three times consecutively |
+| FR-2.8 | On mobile, the wallet MUST use the platform authenticator (Face ID on iOS, fingerprint or face on Android); an external FIDO2 security key MAY be offered as an additional option |
 
-### 5.3 Web Wallet Flow
+### 5.4 Web Wallet Flow
 
 ```mermaid
 sequenceDiagram
@@ -304,65 +311,78 @@ sequenceDiagram
     participant Wallet as Lace Wallet (Web)
     participant Browser as Browser WebAuthn API
     participant Biometric as Platform Authenticator
-    participant DIDContract as DID Contract
+    participant SecretStore as Encrypted Secret Store
+    participant VCStore as Encrypted VC Store
 
     User->>Wallet: Navigate to Security Settings → Add Passkey
-    Wallet->>Browser: navigator.credentials.create(challenge, rpId, userVerification=required)
+    Wallet->>Wallet: Generate random challenge
+    Wallet->>Browser: navigator.credentials.create(challenge, rpId="lace.io", userVerification=required, residentKey=required)
     Browser->>Biometric: Prompt: Touch ID / Windows Hello / Security Key
     User->>Biometric: Authenticate (fingerprint / face / PIN)
-    Biometric-->>Browser: WebAuthn attestation response
-    Browser-->>Wallet: P-256 public key (COSE → JWK conversion)
-    Wallet->>DIDContract: Add verification method #key-passkey (EC/P-256 JWK)
-    DIDContract-->>Wallet: Transaction confirmed
+    Biometric-->>Browser: WebAuthn attestation response (credential ID + P-256 public key)
+    Browser-->>Wallet: Attestation response
+    Wallet->>Wallet: Store credential ID in local app storage
+    Note right of Wallet: No DID document update — P-256 key stays on device
     Wallet-->>User: Passkey registered — future logins use biometrics
 
-    Note over User,Wallet: Subsequent unlock flow
+    Note over User,VCStore: Subsequent wallet unlock flow
     User->>Wallet: Open wallet
-    Wallet->>Browser: navigator.credentials.get(challenge, allowCredentials)
+    Wallet->>Browser: navigator.credentials.get(challenge, allowCredentials=[credentialId])
     Browser->>Biometric: Prompt biometric
     User->>Biometric: Authenticate
-    Biometric-->>Browser: Assertion response
+    Biometric-->>Browser: Assertion response (authenticatorData + signature)
     Browser-->>Wallet: Verified assertion
-    Wallet-->>User: Wallet session unlocked
+    Wallet->>SecretStore: Decrypt secret store (assertion used to derive or release encryption key)
+    SecretStore-->>Wallet: Ed25519 + JubJub keys loaded into memory
+    Wallet->>VCStore: Unlock VC store
+    VCStore-->>Wallet: Credentials accessible
+    Wallet-->>User: Wallet session active
 ```
 
-### 5.4 Mobile Wallet Flow
+### 5.5 Mobile Wallet Flow
 
 ```mermaid
 sequenceDiagram
     actor User
     participant App as Lace Mobile App
-    participant OS as iOS / Android Authenticator
+    participant OS as iOS / Android Platform
     participant SecureEl as Secure Enclave / StrongBox
-    participant DIDContract as DID Contract
+    participant SecretStore as Encrypted Secret Store
+    participant VCStore as Encrypted VC Store
 
     User->>App: Navigate to Security Settings → Add Passkey
-    App->>OS: Request passkey creation (FIDO2 / platform API)
-    OS->>SecureEl: Generate P-256 key pair (hardware-bound)
+    App->>OS: Request passkey creation (FIDO2 platform API, rpId="lace.io")
+    OS->>SecureEl: Generate P-256 key pair (hardware-bound, non-exportable)
     OS->>User: Prompt Face ID / Touch ID / fingerprint
     User->>OS: Biometric confirmation
-    OS-->>App: Passkey credential (P-256 public key)
-    App->>DIDContract: Add verification method #key-passkey (EC/P-256 JWK)
-    DIDContract-->>App: Transaction confirmed
+    OS-->>App: Passkey credential ID (P-256 private key stays in hardware)
+    App->>App: Store credential ID in local app storage
+    Note right of App: No DID document update
     App-->>User: Passkey registered
 
-    Note over User,App: Subsequent unlock flow
+    Note over User,VCStore: Subsequent wallet unlock flow
     User->>App: Open app
-    App->>OS: Request biometric authentication (passkey assertion)
+    App->>OS: Request biometric authentication (passkey assertion, credentialId)
     OS->>User: Face ID / fingerprint prompt
     User->>OS: Authenticate
     OS-->>App: Assertion verified
-    App-->>User: Wallet session unlocked
+    App->>SecretStore: Decrypt secret store (assertion releases encryption key)
+    SecretStore-->>App: Ed25519 + JubJub keys loaded into memory
+    App->>VCStore: Unlock VC store
+    VCStore-->>App: Credentials accessible
+    App-->>User: Wallet session active
 ```
 
-### 5.5 Error Conditions
+### 5.6 Error Conditions
 
 | Condition | Handling |
 |---|---|
-| Device has no platform authenticator | Offer external FIDO2 security key as alternative; display guidance |
-| Biometric enrollment not configured | Deep-link to OS biometric settings |
-| DID update transaction fails | Passkey is not registered; show error and retry option |
-| User cancels WebAuthn prompt | Return to settings; no changes made |
+| Device has no platform authenticator | Offer PIN/password as the only fallback; display guidance on enabling biometrics in OS settings |
+| Biometric enrollment not configured on device | Deep-link to OS biometric settings (Face ID / fingerprint setup) |
+| Biometric authentication fails 3 times | Lock to PIN/password fallback; do not increment lockout counter for passkey |
+| Session key derivation or store decryption fails | Force fallback to PIN/password; do not expose error detail to UI |
+| Idle timeout reached | Lock wallet; clear key material from memory; require re-authentication on next action |
+| User cancels WebAuthn prompt during registration | Return to settings; no credential stored; no changes made |
 
 ---
 
@@ -377,8 +397,8 @@ sequenceDiagram
 | **Primary Actor** | User |
 | **Supporting Actors** | Lace Wallet, National ID Issuer, Sanction Screening Issuer, Midnight Passport DApp |
 | **Trigger** | User navigates to the Trusted Issuers section of the Midnight Passport DApp |
-| **Pre-conditions** | UC-1 is complete; user has a Midnight DID with at least one JubJub verification method; wallet session is active |
-| **Post-conditions** | User holds a `NationalIdCredential` VC and a `SanctionScreeningCredential` VC in the wallet; both are bound to the same hidden holder secret |
+| **Pre-conditions** | UC-1 and UC-2 are complete; wallet session is active (secret store and VC store are unlocked); the user has a physical national identity document available |
+| **Post-conditions** | User holds a `NationalIdCredential` VC and a `SanctionScreeningCredential` VC in the wallet; both are bound to the same hidden holder secret; the user's Midnight DID was never disclosed to either issuer |
 
 This use case contains two sub-flows executed sequentially. The Sanction Screening issuance depends on the National ID credential being held first.
 
@@ -386,60 +406,172 @@ This use case contains two sub-flows executed sequentially. The Sanction Screeni
 
 ### 6.2 Sub-Flow 3a — National ID Issuance
 
-#### 6.2.1 Functional Requirements
+#### 6.2.1 Design Rationale
+
+The National ID issuance does not start inside the DApp. It starts on the **issuer's own website**, where the user completes identity verification before a credential offer is ever generated. This is the correct OID4VCI Pre-Authorized Code Flow model: the pre-authorized code is the issuer's way of saying "this session has been verified — now let the wallet claim the credential."
+
+Critically, **the user's Midnight DID is never disclosed to the issuer**. The OID4VCI protocol is used purely as an issuance transport. Authentication to the issuer happens through physical identity verification (document + liveness), not through a DID-authenticated login. The wallet binds the issued credential to the holder through a `midnight_holder_commitment` — a blinded cryptographic commitment to the holder's hidden secret — rather than through a DID reference.
+
+**Why not SIOP 2.0?** SIOP 2.0 is a DID-authenticated login protocol and would expose the holder's Midnight DID to the issuer. For a National ID issuance where the physical identity check is the authoritative authentication event, SIOP 2.0 adds correlation risk without adding security value.
+
+**Ephemeral key for proof-of-possession.** OID4VCI requires a proof at the Credential Endpoint to prevent token replay. The wallet fulfills this with a JWT signed by a **fresh, single-use Ed25519 key pair** generated solely for this exchange. The `kid` claim in the JWT carries the base64url-encoded ephemeral public key — not a DID URL. The issuer uses this only to verify the `c_nonce` was freshly signed; it does not learn a persistent wallet identifier. The ephemeral key is discarded immediately after the credential is received.
+
+#### 6.2.2 Functional Requirements
 
 | ID | Requirement |
 |---|---|
-| FR-3a.1 | The DApp MUST display a list of available trusted issuers with their credential types and required user actions |
-| FR-3a.2 | The DApp MUST initiate an OID4VCI Pre-Authorized Code Flow when the user selects the National ID Issuer |
-| FR-3a.3 | The National ID Issuer MUST perform a document scan of the user's national identity card (NFC chip read or optical scan) |
-| FR-3a.4 | The National ID Issuer MUST perform a live face verification (liveness check + face match against document photo) |
-| FR-3a.5 | On successful verification, the issuer MUST create a `NationalIdCredential` with the claim set defined in Section 8.1 |
-| FR-3a.6 | The credential MUST use **BlindedSecretHolderBinding**: the issuer signs over a blinded commitment to the holder's secret; the holder's DID is not disclosed to the issuer |
-| FR-3a.7 | The wallet MUST generate or reuse the hidden holder secret and the blinding factor before the issuance request |
-| FR-3a.8 | The issued VC MUST be stored in the wallet's credential store with metadata linking it to the issuer DID |
-| FR-3a.9 | The DApp MUST show a confirmation screen with a summary of the issued claims (without displaying sensitive raw values) |
+| FR-3a.1 | The DApp MUST display a list of available trusted issuers with credential type descriptions and a "Get this credential" link that navigates the user to the issuer's website |
+| FR-3a.2 | The issuance flow MUST use OID4VCI Pre-Authorized Code Flow; the flow begins on the issuer's website, not inside the DApp |
+| FR-3a.3 | The issuer's website MUST create an anonymous verification session for the user without requiring a pre-existing account or a Midnight DID |
+| FR-3a.4 | The issuer's website MUST perform a document scan of the user's national identity card (NFC chip read or optical OCR scan) |
+| FR-3a.5 | The issuer's website MUST perform a live face verification (liveness check + face match against the document photo) |
+| FR-3a.6 | After successful verification, the issuer MUST generate a `pre_authorized_code` bound to the verified session |
+| FR-3a.7 | The issuer MUST present the credential offer as both a **QR code** (for cross-device scanning with a mobile wallet) and a **deep link / redirect URI** (for same-device wallet activation, e.g. `openid-credential-offer://`) |
+| FR-3a.8 | The wallet MUST parse the credential offer and exchange the `pre_authorized_code` for an access token at the issuer's token endpoint using standard OAuth 2.0; no DID is involved in this exchange |
+| FR-3a.9 | The issuer's token endpoint MUST return an access token and a `c_nonce` for anti-replay binding |
+| FR-3a.10 | The wallet MUST generate or reuse the hidden holder secret and derive the blinding factor; it MUST compute `midnight_holder_commitment = blindedSecretHolderCommitment(holderSecretCommitment, issuerNonce, blindingFactor)` |
+| FR-3a.11 | The wallet MUST generate a fresh **ephemeral Ed25519 key pair** solely for this issuance exchange; the key MUST be single-use and discarded after the credential is received |
+| FR-3a.12 | The wallet MUST construct a JWT proof signed by the ephemeral key over the `c_nonce`; the `kid` claim MUST be the base64url-encoded ephemeral public key and MUST NOT be a DID URL |
+| FR-3a.13 | The wallet MUST send the credential request with `{ format: "midnight_compact", proof: { proof_type: "jwt", jwt: <signed_jwt> }, midnight_holder_commitment: <blinded_commitment> }` |
+| FR-3a.14 | The issuer MUST verify the JWT proof for anti-replay (c_nonce correctly signed), then build the `NationalIdCredential` from the verified document data and bind it to `midnight_holder_commitment` using `BlindedSecretHolderBinding` |
+| FR-3a.15 | The issuer MUST sign the credential with its JubJub key under `assertionMethod` semantics |
+| FR-3a.16 | The wallet MUST verify the issuer proof, discard the ephemeral key, and store the VC in the credential store |
+| FR-3a.17 | The DApp MUST show a confirmation screen when the user returns from the issuance flow |
 
-#### 6.2.2 Issuance Sequence (Web and Mobile)
+#### 6.2.3 Web Wallet Flow — Same Device
+
+The user visits the issuer's website in the same browser where the Lace extension is installed. After identity verification, the issuer redirects to a `openid-credential-offer://` URI that the Lace extension intercepts.
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant DApp as Midnight Passport DApp
-    participant Wallet as Lace Wallet
-    participant Issuer as National ID Issuer Service
-    participant IDScan as ID Scanner / Face Verify
+    participant IssuerSite as Issuer Website (Browser)
+    participant IDVerify as ID Scan + Liveness Service
+    participant IssuerAPI as Issuer OID4VCI API
+    participant Wallet as Lace Wallet (Browser Extension)
 
-    User->>DApp: Navigate to Trusted Issuers → Select National ID Issuer
-    DApp->>Issuer: Initiate OID4VCI Pre-Authorized Code Flow
-    Issuer-->>DApp: Credential offer (pre-authorized code)
-    DApp->>Wallet: Forward credential offer
-    Wallet->>Wallet: Generate hidden holder secret + blinding factor
-    Wallet->>Issuer: Token request (pre-authorized code)
-    Issuer-->>Wallet: Access token + c_nonce
+    User->>IssuerSite: Navigate to issuer website (no account or DID required)
+    IssuerSite->>IssuerSite: Create anonymous verification session
+    IssuerSite->>User: Prompt: scan national ID document
+    User->>IssuerSite: Scan document (NFC chip or OCR upload)
+    IssuerSite->>IDVerify: Verify document authenticity + extract data
+    IDVerify-->>IssuerSite: Document data verified
+    IssuerSite->>User: Prompt: complete liveness check
+    User->>IssuerSite: Perform selfie / video liveness check
+    IssuerSite->>IDVerify: Liveness check + face match against document photo
+    IDVerify-->>IssuerSite: Liveness verified, face matched
 
-    Note over User,IDScan: Identity verification step
-    Issuer->>IDScan: Start document scan session
-    IDScan->>User: Prompt: scan national ID document
-    User->>IDScan: Scan document (NFC or optical)
-    IDScan->>User: Prompt: perform liveness check / selfie
-    User->>IDScan: Capture face
-    IDScan-->>Issuer: Verified: document data + face match result
+    IssuerSite->>IssuerAPI: Generate pre_authorized_code (bound to verified session)
+    IssuerAPI-->>IssuerSite: pre_authorized_code
+    IssuerSite->>User: Display "Open in Lace" button + QR code
+    User->>Wallet: Click "Open in Lace" (openid-credential-offer://...?credential_offer=...)
 
-    Wallet->>Issuer: Credential request (c_nonce, blinded holder commitment, Ed25519 proof-of-possession)
-    Issuer->>Issuer: Build NationalIdCredential claim commitments
-    Issuer->>Issuer: Compute claimRoot over committed claims
-    Issuer->>Issuer: Sign credential with issuer JubJub key (assertionMethod)
-    Issuer-->>Wallet: NationalIdCredential VC (Compact-native)
+    Wallet->>IssuerAPI: Token request (grant_type=urn:ietf:params:oauth:grant-type:pre-authorized_code, pre_authorized_code)
+    IssuerAPI-->>Wallet: access_token + c_nonce
+
+    Wallet->>Wallet: Retrieve / generate hidden holder secret + blinding factor
+    Wallet->>Wallet: Generate ephemeral Ed25519 key pair (single-use)
+    Wallet->>Wallet: Compute midnight_holder_commitment
+    Wallet->>Wallet: Sign JWT proof: { kid: base64url(ephemeral_pubkey), alg: EdDSA, nonce: c_nonce }
+    Note right of Wallet: kid is a raw public key — not a DID URL
+
+    Wallet->>IssuerAPI: Credential request { format: midnight_compact, proof: {jwt}, midnight_holder_commitment }
+    IssuerAPI->>IssuerAPI: Verify JWT proof (c_nonce anti-replay)
+    IssuerAPI->>IssuerAPI: Build NationalIdCredential from verified document data
+    IssuerAPI->>IssuerAPI: Bind VC to midnight_holder_commitment (BlindedSecretHolderBinding)
+    IssuerAPI->>IssuerAPI: Sign VC with issuer JubJub key (assertionMethod)
+    IssuerAPI-->>Wallet: NationalIdCredential VC (Compact-native)
+
     Wallet->>Wallet: Verify issuer proof
+    Wallet->>Wallet: Discard ephemeral key
     Wallet->>Wallet: Store VC in credential store
-    Wallet-->>DApp: Issuance complete
-    DApp-->>User: Show confirmation: Digital ID credential received
+    Wallet-->>User: Digital ID credential received
 ```
 
-#### 6.2.3 Mobile-Specific Notes
+#### 6.2.4 Web Wallet Flow — Cross Device (Desktop + Mobile Wallet)
 
-On mobile, the document scan and face verification are performed natively within the issuer's mobile SDK embedded in the Lace app or via a redirect to the issuer's mobile verification app. The OID4VCI flow proceeds identically over HTTPS regardless of platform.
+The user completes verification on a desktop browser. The issuer displays a QR code that the user scans with the Lace mobile wallet.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Desktop as Desktop Browser (Issuer Website)
+    participant IDVerify as ID Scan + Liveness Service
+    participant IssuerAPI as Issuer OID4VCI API
+    participant LaceApp as Lace Mobile Wallet
+
+    User->>Desktop: Navigate to issuer website
+    Desktop->>Desktop: Create anonymous verification session
+    User->>Desktop: Scan national ID + complete liveness check
+    Desktop->>IDVerify: Verify document + face
+    IDVerify-->>Desktop: Verification passed
+
+    Desktop->>IssuerAPI: Generate pre_authorized_code
+    IssuerAPI-->>Desktop: pre_authorized_code
+    Desktop->>User: Display QR code (openid-credential-offer://...?pre-auth-code=...)
+
+    User->>LaceApp: Scan QR code with Lace mobile wallet
+    LaceApp->>LaceApp: Parse credential offer
+    LaceApp->>IssuerAPI: Token request (pre_authorized_code)
+    IssuerAPI-->>LaceApp: access_token + c_nonce
+
+    LaceApp->>LaceApp: Generate ephemeral Ed25519 key + midnight_holder_commitment
+    LaceApp->>LaceApp: Sign JWT proof over c_nonce with ephemeral key (kid = raw pubkey, no DID URL)
+    LaceApp->>IssuerAPI: Credential request { proof: {jwt}, midnight_holder_commitment }
+    IssuerAPI->>IssuerAPI: Verify proof, build + sign NationalIdCredential
+    IssuerAPI-->>LaceApp: NationalIdCredential VC
+
+    LaceApp->>LaceApp: Verify issuer proof, discard ephemeral key, store VC
+    LaceApp-->>User: Digital ID credential received
+```
+
+#### 6.2.5 Mobile Wallet Flow — Same Device
+
+The user visits the issuer's mobile-optimized website or native app on the same phone as the Lace wallet. After verification, the issuer redirects to the Lace app deep link.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant IssuerApp as Issuer Mobile Site / App
+    participant IDVerify as ID Scan + Liveness SDK
+    participant IssuerAPI as Issuer OID4VCI API
+    participant LaceApp as Lace Mobile Wallet
+
+    User->>IssuerApp: Open issuer mobile site (no account or DID required)
+    IssuerApp->>IssuerApp: Create anonymous verification session
+    User->>IssuerApp: Scan national ID (NFC or camera OCR)
+    User->>IssuerApp: Complete liveness check (selfie)
+    IssuerApp->>IDVerify: Verify document + face via on-device or cloud SDK
+    IDVerify-->>IssuerApp: Verification passed
+
+    IssuerApp->>IssuerAPI: Generate pre_authorized_code
+    IssuerAPI-->>IssuerApp: pre_authorized_code
+    IssuerApp->>LaceApp: Redirect: openid-credential-offer://...?pre-auth-code=... (universal link / app link)
+
+    LaceApp->>LaceApp: Parse credential offer
+    LaceApp->>IssuerAPI: Token request (pre_authorized_code)
+    IssuerAPI-->>LaceApp: access_token + c_nonce
+
+    LaceApp->>LaceApp: Generate ephemeral Ed25519 key + midnight_holder_commitment
+    LaceApp->>LaceApp: Sign JWT proof (kid = raw ephemeral pubkey, no DID URL)
+    LaceApp->>IssuerAPI: Credential request { proof: {jwt}, midnight_holder_commitment }
+    IssuerAPI->>IssuerAPI: Verify proof, build + sign NationalIdCredential
+    IssuerAPI-->>LaceApp: NationalIdCredential VC
+
+    LaceApp->>LaceApp: Verify, discard ephemeral key, store VC
+    LaceApp-->>User: Digital ID credential received
+```
+
+#### 6.2.6 Error Conditions
+
+| Condition | Handling |
+|---|---|
+| Document scan fails (poor image quality, unsupported document type) | Issuer website shows retry prompt; pre-authorized code not generated |
+| Liveness check fails (spoof detected) | Issuer website blocks issuance; user advised to retry in better lighting |
+| `pre_authorized_code` expires before wallet scans QR | Token request returns error; user directed back to issuer website to restart |
+| `c_nonce` mismatch in credential request | Issuer rejects credential request; wallet shows error; user retries credential request |
+| Issuer rejects `midnight_holder_commitment` (unrecognized format) | Wallet shows "issuer does not support Midnight credentials"; DApp shows guidance |
+| Network failure during credential request | Wallet retries up to 3 times with exponential backoff; shows error if all fail |
 
 ---
 
@@ -927,8 +1059,8 @@ These key types must not be used interchangeably. The JubJub key is the only key
 | ID | Requirement |
 |---|---|
 | SR-1 | The hidden holder secret MUST never be transmitted to any issuer or verifier in clear form |
-| SR-2 | The P-256 passkey private key MUST be device-bound (non-exportable) |
-| SR-3 | The wallet MUST require biometric or PIN confirmation before constructing any VP |
+| SR-2 | The P-256 passkey private key MUST be device-bound and non-exportable; it MUST NOT be added to the DID document or used to sign Midnight VC/VP payloads |
+| SR-3 | The wallet MUST require a successful passkey assertion (or PIN/password fallback) before decrypting the secret store and constructing any VP |
 | SR-4 | The investment contract MUST record a nullifier per successful proof submission to prevent replay |
 | SR-5 | All network communication between wallet, DApp, and issuance services MUST use TLS 1.3 or higher |
 | SR-6 | The DApp MUST display the issuer DID and credential schema to the user before any issuance is accepted |
@@ -1007,8 +1139,8 @@ These key types must not be used interchangeably. The JubJub key is the only key
 | UC | Name | Actors | Pre-condition | Key Output |
 |---|---|---|---|---|
 | UC-1 | Wallet Initialization | User, Lace Wallet, Midnight Network | Wallet installed, network reachable | Midnight DID with Ed25519 + JubJub keys |
-| UC-2 | Passkey Registration | User, Lace Wallet, Device Biometric | UC-1 complete, device supports WebAuthn | P-256 key in DID; biometric wallet unlock |
-| UC-3a | National ID Issuance | User, DApp, National ID Issuer | UC-1 complete, wallet session active | `NationalIdCredential` in wallet |
+| UC-2 | Passkey Registration | User, Lace Wallet, Device Biometric | UC-1 complete, device supports WebAuthn | Passkey registered on device; biometric wallet unlock + secret store decryption |
+| UC-3a | National ID Issuance | User, Issuer Website, National ID Issuer, Lace Wallet | UC-2 complete, wallet session active, physical ID document available | `NationalIdCredential` in wallet; Midnight DID not disclosed to issuer |
 | UC-3b | Sanction Screening Issuance | User, DApp, Screening Issuer | UC-3a complete | `SanctionScreeningCredential` in wallet |
 | UC-4a | External Wallet Connect | User, DApp, External Wallet | UC-3 complete | External wallet connected; balance visible |
 | UC-4b | Investment Selection | User, DApp | UC-4a complete | User selects product and amount |
@@ -1020,7 +1152,7 @@ The following maps each use case to the Midnight VC capability profiles defined 
 
 | Use Case | Credential Family | Holder Binding | Disclosures | Predicates | Pseudonym | Same-Holder | Verifier Mode |
 |---|---|---|---|---|---|---|---|
-| UC-3a issuance | NationalId | BlindedSecret | — | — | No | No | Issuer (off-chain) |
+| UC-3a issuance | NationalId | BlindedSecret | — | — | No | No | Issuer (off-chain); ephemeral key proof-of-possession; DID not disclosed |
 | UC-3b presentation request | NationalId | BlindedSecret | firstName, familyName, dateOfBirth, residenceCountry | — | Yes (screener domain) | Single credential | Off-chain screener |
 | UC-3b VC issuance | SanctionScreening | BlindedSecret | — | — | No | No | Issuer (off-chain) |
 | UC-4c proof submission | NationalId + SanctionScreening | BlindedSecret | screeningResult (from screening VC) | age >= 18 (from NationalId) | No | Two-credential (shared holder secret) | On-chain contract |
