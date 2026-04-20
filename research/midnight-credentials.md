@@ -370,14 +370,14 @@ compose only the capabilities they actually need.
 | Hidden-holder flow | secret holder binding, issuer proof, holder witness verification | avoid a stable public holder DID in the verifier-facing flow | `credentials-birth-secret` tests, `credentials-protocol` secret-holder issuance and presentation tests |
 | Advanced privacy flow | secret holder binding, blinded holder anchor, verifier-domain pseudonym, selective disclosure, age predicate | support stronger privacy controls while still proving business eligibility | `credentials-birth-secret` tests, `credentials-protocol` secret-holder pseudonym tests |
 | Contract-native gated access flow | typed presentation request plus reusable capability issuance | issue a contract-level capability and consume it later with soft business denial states | `credentials-demo-contract` tests, `credentials-protocol` contract-verifier capability-lifecycle tests |
-| Same-holder credential composition | two secret-holder credentials, one shared verifier challenge, one shared hidden holder secret witness | prove that multiple credentials belong to the same holder without revealing a stable public DID | `credentials-same-holder` and `credentials-birth-secret` tests, `credentials-protocol` secret-holder same-holder tests |
+| Same-holder credential composition | two or three secret-holder credentials, one shared verifier challenge, one shared hidden holder secret witness | prove that multiple credentials belong to the same holder without revealing a stable public DID | `credentials-same-holder` and `credentials-birth-secret` tests, `credentials-protocol` secret-holder same-holder tests |
 | Full explicit-holder lifecycle | explicit holder binding, protocol-level issuance offer/request/result, presentation request/submission/result | exercise the complete issuance-to-verification lifecycle through typed protocol messages | `credentials-protocol` explicit-holder full-lifecycle tests |
 | Passport issuer-attested credential | explicit holder binding, issuer proof, nationality and gender disclosures | accept an issuer-attested passport credential as a typed source record | `credentials-passport` tests |
 | Passport operational disclosure flow | explicit holder binding, nationality disclosure, age predicate | verify a passport presentation with nationality disclosure and age check | `credentials-passport` tests |
 | Passport full verification flow | explicit holder binding, nationality and gender disclosure, age predicate, expiry check | verify a passport presentation against all supported disclosures and predicates | `credentials-passport` tests |
 | Passport hidden-holder flow | secret holder binding, blinded anchor, age predicate, expiry check | avoid a stable public holder DID while proving age and document validity | `credentials-passport-secret` tests |
 | Passport advanced privacy flow | secret holder binding, pseudonym, nationality and gender disclosure, age predicate, expiry check | support stronger privacy controls while proving passport-based eligibility | `credentials-passport-secret` tests |
-| Passport same-holder composition | two secret passport credentials from different issuers, shared verifier challenge, shared hidden holder secret | prove that multiple passport credentials belong to the same holder without revealing a stable public DID | `credentials-passport-secret` tests |
+| Passport same-holder composition | two or three secret passport credentials from different issuers, shared verifier challenge, shared hidden holder secret | prove that multiple passport credentials belong to the same holder without revealing a stable public DID | `credentials-passport-secret` tests |
 
 This profile matrix is deliberate.
 
@@ -605,8 +605,10 @@ The generic core now exposes two reusable holder-binding helper sets instead of 
 | `assertBlindedSecretHolderBindingWitness(binding, verifierChallengeHash, holderSecret, opening, blindingFactor)` | Verify a hidden holder witness against a blinded issuance anchor | recomputes the raw holder commitment privately, then checks the blinded commitment and request challenge response | keeps the public credential/presentation shape free of the raw holder commitment | still requires a higher-level issuance choreography before it becomes real blind issuance |
 | `assertSameSecretHolderBindingWitnesses(firstBinding, secondBinding, verifierChallengeHash, holderSecret, firstOpening, secondOpening)` | Prove that two secret-holder bindings are satisfied by the same hidden holder secret | validates both bindings against one shared holder secret witness and one verifier challenge | smallest reusable same-holder primitive without introducing a generic bundle abstraction | works only when the verifier intentionally coordinates a shared challenge across the composed proof |
 | `assertSameBlindedSecretHolderBindingWitnesses(firstBinding, secondBinding, verifierChallengeHash, holderSecret, firstOpening, firstBlindingFactor, secondOpening, secondBlindingFactor)` | Prove that two blinded secret-holder bindings belong to the same holder | validates both blinded bindings against one shared holder secret witness | gives the generic layer an AnonCreds-style same-holder building block while preserving hidden holder binding | still pairwise and verifier-session scoped; not a full multi-credential presentation object |
+| `assertSameSecretHolderBindingWitnesses3(firstBinding, secondBinding, thirdBinding, verifierChallengeHash, holderSecret, firstOpening, secondOpening, thirdOpening)` | Prove that three secret-holder bindings are satisfied by the same hidden holder secret | validates three bindings against one shared holder secret witness and one verifier challenge | enough for staged multi-credential business flows without introducing a fully generic bundle format | remains a bounded primitive rather than a universal composition type |
+| `assertSameBlindedSecretHolderBindingWitnesses3(firstBinding, secondBinding, thirdBinding, verifierChallengeHash, holderSecret, firstOpening, firstBlindingFactor, secondOpening, secondBlindingFactor, thirdOpening, thirdBlindingFactor)` | Prove that three blinded secret-holder bindings belong to the same holder | validates three blinded bindings against one shared holder secret witness | extends the same-holder capability to realistic three-credential policy checks while preserving hidden holder binding | still requires the verifier or contract to coordinate one shared challenge |
 
-The two same-holder circuits are now packaged separately in the dedicated
+The same-holder circuits are now packaged separately in the dedicated
 `credentials-same-holder` capability package rather than living in the generic
 credentials core.
 
@@ -623,6 +625,8 @@ The dedicated capability package currently owns:
 
 - `assertSameSecretHolderBindingWitnesses(...)`
 - `assertSameBlindedSecretHolderBindingWitnesses(...)`
+- `assertSameSecretHolderBindingWitnesses3(...)`
+- `assertSameBlindedSecretHolderBindingWitnesses3(...)`
 
 ##### `assertSameSecretHolderBindingWitnesses(...)`
 
@@ -664,6 +668,47 @@ Why it is separated:
 - it is the first step toward multi-credential same-holder proofs, but it still
   should remain an optional imported capability rather than part of the
   mandatory base VC/VP envelope
+
+##### `assertSameSecretHolderBindingWitnesses3(...)`
+
+Purpose:
+- prove that three secret-holder bindings are satisfied by the same hidden
+  holder secret witness under one verifier session challenge
+
+Logic:
+- validate each binding against the same hidden holder secret
+- require all three bindings to remain distinct
+- reuse one shared `verifierChallengeHash` for the three checks
+
+When to import it:
+- when a verifier or business contract needs a bounded three-credential
+  same-holder proof without introducing a generic bundle format
+
+Why it is separated:
+- it is still composition logic, not a base credential invariant
+- it demonstrates that bounded multi-credential composition can grow one step
+  at a time before the project commits to a universal presentation bundle
+
+##### `assertSameBlindedSecretHolderBindingWitnesses3(...)`
+
+Purpose:
+- prove that three blinded secret-holder bindings are satisfied by the same
+  hidden holder secret witness while preserving blinded issuance anchors
+
+Logic:
+- validate each blinded binding against the same holder secret plus its own
+  opening and blinding factor
+- require all three bindings to remain distinct
+- reuse one shared `verifierChallengeHash` for the three checks
+
+When to import it:
+- when a hidden-holder credential family or business contract needs a bounded
+  three-credential same-holder proof in one verifier session
+
+Why it is separated:
+- it keeps the generic layer reusable and explicit
+- it supports practical multi-credential policy checks without forcing a
+  generic presentation-bundle abstraction into the core
 
 ### Protocol Message Circuits
 
@@ -1518,7 +1563,9 @@ AnonCreds treats this as a first-class capability. Midnight should too if the pr
 The current prototype now includes the smallest adopted version of that idea:
 
 - the generic layer can prove that two secret-holder bindings are satisfied by the same hidden holder secret witness
+- the generic layer can also prove the same property for three secret-holder bindings under one shared verifier challenge
 - the concrete secret birth-credential layer can compose two independently valid presentations and require one shared verifier challenge
+- the protocol layer now exercises both two-credential and three-credential same-holder flows for the secret birth family
 - the verifier still decides whether it wants a pairwise same-holder proof for one session; this is not forced into every presentation shape
 
 This is a deliberate design choice.

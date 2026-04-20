@@ -50,17 +50,17 @@ protocol message types from `credentials-birth` end to end. Tests validate:
 
 ### Secret-holder flows
 
-Secret-holder presentation requests already use the Compact-generated request
-shape from `credentials-birth-secret`.
-
-Secret-holder issuance still uses package-local TypeScript message wrappers for
-offer/request/result because the secret birth package does not yet expose the
-full issuance protocol message family as Compact-generated types. Tests still
+Secret-holder issuance and presentation flows now use the Compact-generated
+protocol message families from `credentials-birth-secret` end to end. Tests
 validate:
 
-- generic protocol envelopes through the shared credentials circuits
-- secret presentation request bodies through `credentials-birth-secret`
-- issued credential and proof validity through Compact circuits
+- offer, request, submission, and result message shapes
+- response envelope threading
+- request/submission and submission/result alignment enforced by Compact circuits
+- blinded holder-binding and pseudonym-specific validation through
+  `credentials-birth-secret`
+- same-holder composition flows through the agent layer, including a
+  three-credential verifier session
 
 ## Where To Start
 
@@ -82,6 +82,9 @@ validate:
 - `src/test/secret-holder/same-holder.test.ts`
 - `src/test/contract-verifier/age-gate.test.ts`
 - `src/test/contract-verifier/capability-lifecycle.test.ts`
+- `src/test/integration/explicit-holder-lifecycle.integration.test.ts`
+- `src/test/integration/secret-holder-lifecycle.integration.test.ts`
+- `src/test/integration/contract-verifier-lifecycle.integration.test.ts`
 
 ## Validation
 
@@ -91,4 +94,5 @@ Run the package in isolation:
 npm run lint -w credentials-protocol
 npm run typecheck -w credentials-protocol
 npm run all -w credentials-protocol
+npm run test:integration -w credentials-protocol
 ```

@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+
 import { pureCircuits } from "../managed/iso-registry/contract/index.js";
 
 describe("ISO code types and assertions", () => {

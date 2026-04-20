@@ -7,11 +7,11 @@ import {
   provisionDidProfile,
   StandaloneEnvironment,
 } from "../../../../standalone-environment/src/index.js";
-import { ContractVerifier } from "../../agents/contract-verifier.js";
 import { HolderAgent } from "../../agents/holder-agent.js";
 import { IssuerAgent } from "../../agents/issuer-agent.js";
 import type { DIDProfile } from "../../agents/types.js";
 import { MessageBus } from "../../transport/message-bus.js";
+import { ContractVerifier } from "../helpers/contract-verifier.js";
 import { createSigner, fill } from "../helpers/did-provider.js";
 
 const canRun = await containerRuntimeAvailable();
@@ -106,8 +106,10 @@ describeIntegration(
         );
 
         // Phase 3: Read contract policy and present
+        const verifierChallengeHash = fill(42);
         const ageGateRequest = contract.getAgeGateRequest(
           issuerProfile.verificationMethodRefValue,
+          verifierChallengeHash,
         );
         expect(ageGateRequest).toBeDefined();
 
@@ -125,22 +127,28 @@ describeIntegration(
         const capabilityResult = contract.issueAgeGateCapability(
           stored.credential,
           stored.credentialProof,
-          presentation,
-          presentationProof,
-          ageGateRequest.verifierChallengeHash,
-          12775n,
-          3650n,
-          fill(5),
+          verifierChallengeHash,
+          {
+            presentation,
+            presentationProof,
+            currentDay: 12775n,
+            birthDateDays: 3650n,
+            birthDateOpening: fill(5),
+          },
         );
 
         expect(capabilityResult).toBeDefined();
 
         // Phase 5: Claim capability
-        const claimResult = contract.claimCapability(capabilityResult);
+        const claimResult = contract.claimCapability(
+          capabilityResult.capabilityHash,
+        );
         expect(claimResult).toBe("approved");
 
         // Phase 6: Second claim should be denied
-        const secondClaim = contract.claimCapability(capabilityResult);
+        const secondClaim = contract.claimCapability(
+          capabilityResult.capabilityHash,
+        );
         expect(secondClaim).toBe("alreadyConsumed");
       },
       600_000,

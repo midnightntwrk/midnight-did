@@ -22,8 +22,9 @@
   "scripts": {
     "contract": "npm run compact",
     "compact": "compact compile src/passport-credential.compact src/managed/passport-credential && node ./scripts/align-runtime-version.mjs && node ./scripts/strip-managed-sourcemaps.mjs",
-    "test": "vitest run",
-    "test:ci": "vitest run",
+    "test": "vitest run --config vitest.config.ts",
+    "test:ci": "vitest run --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "prepack": "npm run build",
     "clean": "rm -rf dist && rm -rf coverage && rm -rf reports",
     "build": "rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/passport-credential.compact ./dist && cp -Rf ./src/passport-credential ./dist/",
@@ -35,6 +36,7 @@
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "*",
     "@midnight-ntwrk/midnight-did-credentials": "*",
-    "@midnight-ntwrk/midnight-did-credentials-iso-registry": "*"
+    "@midnight-ntwrk/midnight-did-credentials-iso-registry": "*",
+    "@midnight-ntwrk/midnight-did-standalone-environment": "*"
   }
 }

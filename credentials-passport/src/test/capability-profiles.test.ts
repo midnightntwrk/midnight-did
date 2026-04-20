@@ -45,7 +45,8 @@ describe("passport credential: capability profiles", () => {
       },
     };
     const presentationProof = signProof({
-      bodyRoot: pureCircuits.passportCredentialPresentationBodyRoot(presentation),
+      bodyRoot:
+        pureCircuits.passportCredentialPresentationBodyRoot(presentation),
       context: "presentation",
       signer: fixture.holder,
       createdAt: fixture.presentationProof.createdAt + 2n,
@@ -101,7 +102,8 @@ describe("passport credential: capability profiles", () => {
     };
 
     const presentationProof = signProof({
-      bodyRoot: pureCircuits.passportCredentialPresentationBodyRoot(presentation),
+      bodyRoot:
+        pureCircuits.passportCredentialPresentationBodyRoot(presentation),
       context: "presentation",
       signer: fixture.holder,
       createdAt: fixture.presentationProof.createdAt + 3n,

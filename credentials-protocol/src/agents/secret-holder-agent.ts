@@ -55,6 +55,13 @@ export type SameHolderPresentation = {
   readonly secondPresentation: SecretBirthCredentialPresentation;
 };
 
+export type SameHolderTriplePresentation = SameHolderPresentation & {
+  readonly thirdCredential: SecretBirthCredential;
+  readonly thirdCredentialProof: Proof;
+  readonly thirdRequest: SecretBirthCredentialVerificationRequest;
+  readonly thirdPresentation: SecretBirthCredentialPresentation;
+};
+
 export type SecretPresentationWitness = {
   readonly credentialIndex: number;
   readonly currentDay: bigint;
@@ -301,14 +308,80 @@ export class SecretHolderAgent {
     );
   }
 
+  /**
+   * Build a same-holder proof for three stored credentials under one shared
+   * verifier challenge.
+   */
+  buildSameHolderProof3(
+    credentialIndices: [number, number, number],
+    verifierChallengeHash: Uint8Array,
+  ): SameHolderTriplePresentation {
+    const first = this.getCredential(credentialIndices[0]);
+    const second = this.getCredential(credentialIndices[1]);
+    const third = this.getCredential(credentialIndices[2]);
+
+    const pair = this._buildSameHolderProofForPair(
+      first,
+      second,
+      verifierChallengeHash,
+    );
+    const thirdRequest = this._buildSameHolderRequest(
+      third.credential,
+      verifierChallengeHash,
+    );
+    const thirdPresentation = this._buildSameHolderPresentation(
+      third.credential,
+      thirdRequest,
+    );
+
+    return {
+      ...pair,
+      thirdCredential: third.credential,
+      thirdCredentialProof: third.credentialProof,
+      thirdRequest,
+      thirdPresentation,
+    };
+  }
+
   private _buildSameHolderProofForPair(
     first: SecretStoredCredential,
     second: SecretStoredCredential,
     verifierChallengeHash: Uint8Array,
   ): SameHolderPresentation {
-    const buildRequest = (
-      credential: SecretBirthCredential,
-    ): SecretBirthCredentialVerificationRequest => ({
+    const firstRequest = this._buildSameHolderRequest(
+      first.credential,
+      verifierChallengeHash,
+    );
+    const secondRequest = this._buildSameHolderRequest(
+      second.credential,
+      verifierChallengeHash,
+    );
+    const firstPresentation = this._buildSameHolderPresentation(
+      first.credential,
+      firstRequest,
+    );
+    const secondPresentation = this._buildSameHolderPresentation(
+      second.credential,
+      secondRequest,
+    );
+
+    return {
+      firstCredential: first.credential,
+      firstCredentialProof: first.credentialProof,
+      firstRequest,
+      firstPresentation,
+      secondCredential: second.credential,
+      secondCredentialProof: second.credentialProof,
+      secondRequest,
+      secondPresentation,
+    };
+  }
+
+  private _buildSameHolderRequest(
+    credential: SecretBirthCredential,
+    verifierChallengeHash: Uint8Array,
+  ): SecretBirthCredentialVerificationRequest {
+    return {
       envelope: createEnvelope(
         "same-holder-presentation-request",
         "secret-birth-presentation",
@@ -327,12 +400,14 @@ export class SecretHolderAgent {
         requireAgeOverThreshold: false,
         requestedAgeThresholdYears: 0n,
       },
-    });
+    };
+  }
 
-    const buildPresentation = (
-      credential: SecretBirthCredential,
-      request: SecretBirthCredentialVerificationRequest,
-    ): SecretBirthCredentialPresentation => ({
+  private _buildSameHolderPresentation(
+    credential: SecretBirthCredential,
+    request: SecretBirthCredentialVerificationRequest,
+  ): SecretBirthCredentialPresentation {
+    return {
       version: 1n,
       schema: credential.schema,
       credentialClaimRoot: credential.claimRoot,
@@ -358,25 +433,6 @@ export class SecretHolderAgent {
         proveAgeOverThreshold: false,
         ageThresholdYears: 0n,
       },
-    });
-
-    const firstRequest = buildRequest(first.credential);
-    const secondRequest = buildRequest(second.credential);
-    const firstPresentation = buildPresentation(first.credential, firstRequest);
-    const secondPresentation = buildPresentation(
-      second.credential,
-      secondRequest,
-    );
-
-    return {
-      firstCredential: first.credential,
-      firstCredentialProof: first.credentialProof,
-      firstRequest,
-      firstPresentation,
-      secondCredential: second.credential,
-      secondCredentialProof: second.credentialProof,
-      secondRequest,
-      secondPresentation,
     };
   }
 }

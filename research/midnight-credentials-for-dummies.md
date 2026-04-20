@@ -94,6 +94,40 @@ If you remember only one architectural sentence, remember this:
 - protocols are off-chain
 - verification semantics are on-chain
 
+## A Fast "Who Sees What" Cheat Sheet
+
+Regular people usually get lost at exactly this point:
+
+- Rita has some facts
+- Alice has some secrets
+- Vera asks for a proof
+- the contract checks something
+
+and suddenly nobody remembers which bytes are visible to whom.
+
+So here is the short version.
+
+| Thing | Rita sees | Alice sees | Vera sees | Contract sees |
+| --- | --- | --- | --- | --- |
+| source facts before issuance | yes | sometimes, if she supplied them | no | no |
+| raw holder secret | no | yes | no | no |
+| commitment to a claim | yes | yes | yes, if included in the credential body | yes, if submitted |
+| issuer proof | yes | yes | yes | yes |
+| holder proof | no | yes | yes | yes |
+| openings for disclosed claims | no after issuance | yes | yes, but only for disclosed claims | yes, but only if submitted |
+| predicate witness such as raw birth date | no after issuance | yes | no in the intended model | available to the circuit as witness during verification |
+| verifier challenge | no unless Vera shared it | yes | yes | yes, if checked by the circuit |
+| verifier-scoped pseudonym | no | yes | yes, for that verifier only | yes, if checked by the circuit |
+
+If Mohawk had to compress the whole system into one sentence, it would be:
+
+- Rita attests facts
+- Alice keeps secrets
+- Vera asks precise questions
+- the contract checks consistency
+
+That is the mental model.
+
 ## One-Screen Summary
 
 Midnight Credentials in the current prototype are built in five layers.
@@ -139,7 +173,7 @@ So in the current work:
 | Package | What it does in simple words |
 | --- | --- |
 | `credentials` | the generic VC/VP envelope, proof logic, and holder-binding primitives |
-| `credentials-same-holder` | optional proof that two hidden-holder presentations came from the same holder |
+| `credentials-same-holder` | optional proof that two or three hidden-holder presentations came from the same holder |
 | `credentials-birth` | a birth credential family using explicit DID-based holder binding |
 | `credentials-birth-secret` | the same birth family, but with hidden holder binding and better privacy |
 | `credentials-iso-registry` | shared numeric ISO code types — countries, currencies, languages, regions, and genders as circuit-friendly integers |
@@ -216,6 +250,92 @@ The claim commitment circuits (`subjectIdCommitment`, `birthDateCommitment`, etc
 - `assertValidCredentialEnvelope(...)` checks generic credential invariants such as version and claim-root consistency
 - `assertValidCredentialProof(...)` makes sure the issuer proof really belongs to the issuer method recorded in the credential
 - `assertValidBirthCredential(...)` glues the generic checks to the birth schema
+
+### What The `*Commitment` Properties Mean Inside A VC
+
+This is the simplest way to read a field such as:
+
+- `subjectIdCommitment`
+- `birthDateCommitment`
+- `nationalityCommitment`
+- `genderCommitment`
+
+It means:
+
+- "the issuer is attesting to a real value"
+- "but the value itself is not stored here in clear form"
+- "instead, the VC stores a commitment to that value"
+
+So inside the VC:
+
+- the commitment property is the durable public anchor
+- the raw value is not part of the public credential body
+- the opening is also not part of the public credential body
+
+In practical terms, a commitment property gives the VC two useful traits at once:
+
+- integrity: the issuer has signed a stable typed field
+- privacy: the field does not reveal the underlying value by itself
+
+### Why The VC Stores Commitments Instead Of Raw Values
+
+Because the VC has to survive three different futures:
+
+1. full disclosure later
+2. partial disclosure later
+3. predicate proof later
+
+If the VC stored only raw values, privacy would be poor.
+If it stored only opaque hashes with no typed structure, later verification would be awkward.
+
+The commitment field is the compromise:
+
+- typed enough for Compact
+- hidden enough for privacy
+- stable enough for later proofs
+
+### One Example In Natural Language, TypeScript, And Compact
+
+Natural language:
+
+- Rita knows Alice's birth date.
+- Rita does not want to publish it directly in the VC.
+- So the VC stores `birthDateCommitment`, not the raw birth date.
+
+TypeScript:
+
+```ts
+const birthDateCommitment = pureCircuits.birthDateCommitment(
+  witness.birthDateDays,
+  witness.birthDateOpening,
+);
+
+const credential = {
+  ...,
+  claims: {
+    ...,
+    birthDateCommitment,
+  },
+};
+```
+
+Compact:
+
+```compact
+export circuit birthDateCommitment(
+  birthDateDays: Uint<32>,
+  opening: Bytes<32>
+): Bytes<32>
+```
+
+The VC publishes:
+
+- `birthDateCommitment`
+
+The VC does not publish:
+
+- `birthDateDays`
+- `birthDateOpening`
 
 ### Why This Matters
 
@@ -444,6 +564,112 @@ The verifier does not need to know the raw birth date if the contract can still 
 - the witness matches the commitment
 - the witness implies the predicate
 
+### What Happens To Commitment Properties Inside A VP
+
+This is the missing piece for many readers.
+
+The presentation usually does not copy all the raw personal data out of the VC.
+Instead, it stays anchored to the VC commitments in one of three ways.
+
+#### Mode 1: Keep The Commitment Hidden
+
+The VP says:
+
+- "I am proving something about the committed value"
+
+but it does not reveal the value or the opening.
+
+This is what happens for a pure predicate such as:
+
+- `age >= 18`
+
+The verifier gets:
+
+- the credential
+- the presentation
+- the proof
+
+The verifier does not get:
+
+- raw birth date
+- birth-date opening
+
+#### Mode 2: Selectively Open The Commitment
+
+The VP says:
+
+- "I am revealing this one value, and here is the opening that proves it matches the VC commitment"
+
+For example, Alice might reveal nationality.
+
+The verifier gets:
+
+- the disclosed nationality value
+- the nationality opening
+
+Then the circuit recomputes the commitment and checks it matches the commitment stored in the VC.
+
+#### Mode 3: Carry The Commitment Forward As An Anchor
+
+The VP often still references the credential's claim root or committed structure, so the verifier knows:
+
+- this presentation belongs to that issued credential
+- the disclosed or proven facts are tied back to the original VC
+
+So the VP is not a brand new identity object.
+It is a controlled use of the existing VC commitments.
+
+### A Very Short Rule Of Thumb
+
+Inside the VC:
+
+- `*Commitment` fields are long-lived privacy-preserving anchors
+
+Inside the VP:
+
+- those anchors are either:
+  - selectively opened
+  - used for predicate proofs
+  - or referenced indirectly through the credential claim root
+
+### One Example In Natural Language, TypeScript, And Compact
+
+Natural language:
+
+- Alice has a VC with `nationalityCommitment`.
+- Vera asks Alice to reveal nationality.
+- Alice includes the nationality value and opening in the VP disclosure.
+- The verifier recomputes the commitment and checks it matches the VC.
+
+TypeScript:
+
+```ts
+const presentation = {
+  ...,
+  disclosed: {
+    revealNationality: true,
+    nationalityValue: witness.nationality,
+    nationalityOpening: witness.nationalityOpening,
+  },
+};
+```
+
+Compact thinking:
+
+```compact
+assert(
+  nationalityCommitment(
+    presentation.disclosed.nationalityValue,
+    presentation.disclosed.nationalityOpening
+  ) == credential.claims.nationalityCommitment
+)
+```
+
+The important idea is:
+
+- the VP does not ask the verifier to trust the disclosed value by itself
+- the VP asks the verifier to check that the disclosed value matches the commitment already signed in the VC
+
 ### Tests For This Chapter
 
 - `credentials-birth/src/test/age-predicate.test.ts`
@@ -542,6 +768,107 @@ That is the important privacy jump.
 The holder is still bound.
 The binding is just no longer a giant glowing label saying "hello, I am Alice again".
 
+### One Example In Three Languages
+
+Natural language:
+
+- Rita issues a credential to "whoever knows Alice's hidden holder secret".
+- Vera later asks for a fresh proof under challenge `Q`.
+- Alice answers with a response derived from that secret and `Q`.
+
+TypeScript:
+
+```ts
+const holderSecret = sha256("alice-holder-secret");
+const holderSecretOpening = sha256("alice-holder-secret-opening");
+
+const bindingCommitment = genericPureCircuits.secretHolderBindingCommitment(
+  holderSecret,
+  holderSecretOpening,
+);
+
+const challengeResponse = genericPureCircuits.secretHolderBindingChallengeResponse(
+  holderSecret,
+  verifierChallengeHash,
+);
+```
+
+Compact:
+
+```compact
+export circuit secretHolderBindingCommitment(
+  holderSecret: Bytes<32>,
+  opening: Bytes<32>
+): Bytes<32>
+
+export circuit secretHolderBindingChallengeResponse(
+  holderSecret: Bytes<32>,
+  verifierChallengeHash: Bytes<32>
+): Bytes<32>
+```
+
+Read left to right:
+
+- the credential stores `secretHolderBindingCommitment(...)`
+- the presentation stores `secretHolderBindingChallengeResponse(...)`
+- the verifier checks that both came from the same underlying holder secret story
+
+### What Actually Moves Between Parties
+
+Here is the hidden-holder story without poetry:
+
+| Stage | Rita sends | Alice stores or computes | Vera receives |
+| --- | --- | --- | --- |
+| issuance | credential body with holder-secret commitment + issuer proof | raw holder secret, opening, credential body, issuer proof | nothing yet |
+| presentation request | nothing | verifier challenge, disclosure requirements, predicate requirements | request and challenge |
+| presentation | nothing | challenge response from holder secret, selected disclosures, predicate witness | presentation body and holder proof |
+| verification | nothing | nothing new | a package that can be checked against the original commitment |
+
+So the transformation is:
+
+1. Alice starts with a local secret.
+2. The credential only stores a commitment to that secret.
+3. The presentation derives a challenge response from that secret.
+4. The verifier checks that the response is consistent with the commitment path.
+
+The verifier never gets the secret itself.
+
+### Why This Is Secure
+
+This section is the answer to Alice's very reasonable question:
+
+"Fine, but why can't Vera just fake the whole thing?"
+
+Because the pieces are chained together.
+
+1. Rita signed a credential body that includes the holder-binding anchor.
+2. Alice can only satisfy the presentation if she knows the secret behind that anchor.
+3. Vera chooses a fresh challenge, so replaying an old response should fail.
+4. The circuit checks that the credential, presentation, and witness all describe the same holder-binding story.
+
+If Vera tries to fake Alice:
+
+- she can copy the public credential body
+- she can copy an old presentation package
+- but she cannot produce a valid fresh challenge response without Alice's secret
+
+If Rita tries to track every future use:
+
+- she knows the commitment she issued
+- but she does not automatically learn every verifier challenge or verifier-scoped derivative
+- and she does not get Alice's local witness material during presentation
+
+This is not magic.
+It is simply a chain of "you only get the next valid object if you know the previous secret input".
+
+### What The Holder-Binding Is Similar To
+
+If explicit DID holder binding is like showing the same membership card everywhere,
+hidden holder binding is like proving you know the secret phrase associated with the membership
+without shouting the card number across the room.
+
+Mohawk calls this "the difference between authentication and involuntary merchandising."
+
 ### Where This Shows Up In The Concrete Family
 
 In `credentials-birth-secret/src/secret-birth-credential.compact`:
@@ -615,6 +942,96 @@ This gives us a stronger privacy-oriented substrate for future work.
 Mohawk calls it "a respectable intermediate state".
 Which is the closest he gets to romance.
 
+### The Transformation From Secret To Blinded Anchor
+
+This is the part many people read twice.
+That is normal.
+
+Start with:
+
+- holder secret
+- opening for the secret commitment
+- issuer nonce
+- holder blinding factor
+
+Then the flow is:
+
+1. derive a normal commitment from the holder secret
+2. mix that commitment with the issuer nonce
+3. blind the result with the holder blinding factor
+4. store the blinded value in the credential
+
+Conceptually:
+
+```mermaid
+flowchart LR
+  Secret[Holder secret] --> C1[secretHolderBindingCommitment]
+  Opening[Opening] --> C1
+  C1 --> Blind[blindedSecretHolderCommitment]
+  Nonce[Issuer nonce] --> Blind
+  Factor[Holder blinding factor] --> Blind
+  Blind --> VC[Credential stores blinded anchor]
+```
+
+### Why Bother With Blinding
+
+Because Mohawk does not want the issuance artifact to be a reusable tracking handle either.
+
+Blinding gives us:
+
+- better separation between issuance-time material and presentation-time material
+- a cleaner base for future blind-issuance style work
+- less temptation to treat one intermediate value as a global identity tag
+
+### What Each Party Knows In The Blinded Model
+
+| Party | Knows |
+| --- | --- |
+| Rita | issuer nonce, issued credential, issuer proof |
+| Alice | holder secret, opening, blinding factor, issued credential |
+| Vera | blinded anchor inside the credential, plus whatever the presentation reveals |
+
+The important part is that no single verifier gets the full recipe.
+Alice keeps the witness material.
+Rita does not automatically observe every future proof.
+
+### One Example In Three Languages
+
+Natural language:
+
+- Alice wants Rita to issue a credential without making the issuance anchor too reusable.
+- So Alice blinds the holder-binding anchor before it lands in the credential.
+
+TypeScript:
+
+```ts
+const secretCommitment = genericPureCircuits.secretHolderBindingCommitment(
+  holderSecret,
+  holderSecretOpening,
+);
+
+const blindedCommitment = genericPureCircuits.blindedSecretHolderCommitment(
+  secretCommitment,
+  issuerNonce,
+  holderBindingBlindingFactor,
+);
+```
+
+Compact:
+
+```compact
+export circuit blindedSecretHolderCommitment(
+  secretCommitment: Bytes<32>,
+  issuerNonce: Bytes<32>,
+  holderBindingBlindingFactor: Bytes<32>
+): Bytes<32>
+```
+
+The mental shortcut is:
+
+- plain hidden binding = "I can prove I know the secret"
+- blinded hidden binding = "I can still prove I know the secret, but the issuance anchor is less reusable as a tracking artifact"
+
 ### Tests For This Chapter
 
 - `credentials/src/test/secret-holder-binding.test.ts`
@@ -677,6 +1094,75 @@ This lets Vera say:
 without being able to say:
 
 - "and therefore I know this is the same person in everybody else's service too"
+
+### Data Transformation For The Pseudonym
+
+The pseudonym is not pulled from thin air.
+It is derived.
+
+Inputs:
+
+- hidden holder secret
+- verifier-domain hash
+
+Output:
+
+- one pseudonym that is stable only for that domain
+
+So:
+
+- same holder secret + same verifier domain = same pseudonym
+- same holder secret + different verifier domain = different pseudonym
+
+That is why the verifier gets continuity without getting universal linkability.
+
+### Why The Verifier Cannot Cheat By Reusing Another Domain
+
+Vera cannot ask for "the nightclub pseudonym" and then reuse it as "the bank pseudonym"
+without being caught by the circuit model, because the pseudonym is checked against the
+domain hash that belongs to the request.
+
+If the request says:
+
+- domain hash = `hash("nightclub.example")`
+
+then the presentation has to satisfy that domain.
+A pseudonym derived for `hash("bank.example")` is simply the wrong object.
+
+### One Example In Three Languages
+
+Natural language:
+
+- Vera runs `nightclub.example`.
+- She wants to know whether this is the same returning visitor.
+- She does not need Alice's global identifier.
+
+TypeScript:
+
+```ts
+const verifierDomainHash = sha256("nightclub.example");
+
+const pseudonym = genericPureCircuits.verifierScopedPseudonym(
+  holderSecret,
+  verifierDomainHash,
+);
+```
+
+Compact:
+
+```compact
+export circuit verifierScopedPseudonym(
+  holderSecret: Bytes<32>,
+  verifierDomainHash: Bytes<32>
+): Bytes<32>
+```
+
+If Alice visits:
+
+- `nightclub.example` twice, the pseudonym is the same
+- `bank.example` later, the pseudonym changes
+
+That is the whole trick.
 
 ### Tests For This Chapter
 
@@ -744,6 +1230,8 @@ In `credentials-same-holder/src/same-holder.compact`:
 
 - `assertSameSecretHolderBindingWitnesses(...)`
 - `assertSameBlindedSecretHolderBindingWitnesses(...)`
+- `assertSameSecretHolderBindingWitnesses3(...)`
+- `assertSameBlindedSecretHolderBindingWitnesses3(...)`
 
 In `credentials-birth-secret/src/secret-birth-credential.compact`:
 
@@ -756,15 +1244,119 @@ In `credentials-birth-secret/src/secret-birth-credential.compact`:
 - both holder bindings are then checked against the same hidden holder secret witness
 - the concrete credential-family circuit composes those checks instead of pushing a universal bundle object into the generic core
 
+The same idea now exists in two bounded forms:
+
+- two-credential same-holder composition
+- three-credential same-holder composition
+
+That is enough to support realistic staged verifier flows without pretending we
+already need one universal mega-presentation type.
+
 That is very Midnight-friendly:
 
 - small reusable capability at Layer 1
 - family-specific composition at Layer 2
 
+### What Same-Holder Proof Really Means
+
+This is where regular people often hear the wrong sentence.
+
+The system is not proving:
+
+- "these two credentials have the same name"
+- "these two credentials came from the same issuer"
+- "these two credentials have matching public identifiers"
+
+It is proving:
+
+- "the same hidden holder secret witness can satisfy both holder bindings under the same verifier challenge"
+
+That is narrower.
+And that is good.
+Narrow claims are easier to trust.
+
+### Why The Shared Challenge Matters
+
+Without a shared verifier challenge, Alice could satisfy two unrelated requests that happened at different times.
+
+With a shared challenge:
+
+- Vera is saying "I want one combined proof event"
+- Alice is answering one combined proof event
+- the circuits can treat the two presentations as one verifier interaction
+
+That is why `assertSameSecretHolderBindingWitnesses(...)` and
+`assertSameBlindedSecretHolderBindingWitnesses(...)` are about both:
+
+- the same secret
+- the same request context
+
+### A Plain-English Flow
+
+1. Vera asks for credential A and credential B under one shared challenge.
+2. Alice builds both presentations locally.
+3. Each presentation is valid on its own.
+4. The same-holder capability checks that the hidden binding witness behind both presentations is the same.
+5. Vera learns "same holder" without learning a global holder identifier.
+
+Mohawk likes this because it proves exactly the relation Vera needs, and no more.
+
+### One Example In Three Languages
+
+Natural language:
+
+- Vera asks Alice to prove that passport credential A and compliance credential B belong to the same hidden holder.
+- Alice should not reveal one global DID method to do that.
+
+TypeScript:
+
+```ts
+sameHolderPureCircuits.assertSameBlindedSecretHolderBindingWitnesses(
+  firstHolderBinding,
+  secondHolderBinding,
+  verifierChallengeHash,
+  holderSecret,
+  firstHolderSecretOpening,
+  firstHolderBindingBlindingFactor,
+  secondHolderSecretOpening,
+  secondHolderBindingBlindingFactor,
+);
+```
+
+Compact:
+
+```compact
+export circuit assertSameBlindedSecretHolderBindingWitnesses(
+  firstBinding: BlindedSecretHolderBinding,
+  secondBinding: BlindedSecretHolderBinding,
+  verifierChallengeHash: Bytes<32>,
+  holderSecret: Bytes<32>,
+  firstHolderSecretOpening: Bytes<32>,
+  firstHolderBindingBlindingFactor: Bytes<32>,
+  secondHolderSecretOpening: Bytes<32>,
+  secondHolderBindingBlindingFactor: Bytes<32>
+): []
+```
+
+The verifier learns one thing:
+
+- these two presentations came from the same hidden holder witness
+
+The verifier does not automatically learn:
+
+- Alice's long-term public DID method
+- Alice's name
+- Alice's passport number
+
 ### Tests For This Chapter
 
 - `credentials-same-holder/src/test/same-holder-capability.test.ts`
 - `credentials-birth-secret/src/test/same-holder-composition.test.ts`
+
+Those tests now cover both:
+
+- two-credential same-holder proofs
+- three-credential same-holder proofs
 
 ## Chapter 11: Capability Profiles, Or How Not To Lie To Yourself
 
@@ -789,11 +1381,11 @@ That is a better engineering habit because it tells you exactly what combination
 | age-predicate flow | Alice proves `age >= threshold` instead of revealing the raw birth date | `credentials-birth/src/test/age-predicate.test.ts` |
 | hidden-holder flow | Alice proves control using a hidden holder secret instead of a visible DID method | `credentials-birth-secret/src/test/capability-profiles.test.ts` |
 | advanced privacy flow | Alice uses hidden holder binding, a blinded anchor, selective disclosure, verifier pseudonym, and age predicate | `credentials-birth-secret/src/test/capability-profiles.test.ts` |
-| same-holder composition | Alice proves two credentials belong to the same hidden holder | `credentials-birth-secret/src/test/same-holder-composition.test.ts` |
+| same-holder composition | Alice proves two or three credentials belong to the same hidden holder | `credentials-birth-secret/src/test/same-holder-composition.test.ts` |
 | passport explicit-holder flow | Alice presents a passport with mixed public/private claims and explicit DID binding | `credentials-passport/src/test/capability-profiles.test.ts` |
 | passport predicates | Alice proves age and expiry from a passport without revealing personal data | `credentials-passport/src/test/predicates.test.ts` |
 | passport hidden-holder flow | Alice presents a passport with hidden holder binding and verifier pseudonym | `credentials-passport-secret/src/test/capability-profiles.test.ts` |
-| passport same-holder composition | Alice proves passport and another credential belong to the same hidden holder | `credentials-passport-secret/src/test/same-holder-composition.test.ts` |
+| passport same-holder composition | Alice proves two or three passport-backed credentials belong to the same hidden holder | `credentials-passport-secret/src/test/same-holder-composition.test.ts` |
 
 ### Why This Matters
 
@@ -1331,6 +1923,93 @@ The off-chain verifier is stateless.
 Mohawk considers this "the correct separation of concerns".
 He does not elaborate.
 
+### The Same Interaction In Natural Language, TypeScript, And Compact Thinking
+
+Natural language:
+
+1. Vera asks for a proof.
+2. Alice prepares local witness material.
+3. Alice sends a typed submission.
+4. Vera or the contract checks the submission.
+
+TypeScript:
+
+```ts
+const request = verifier.createAndSendPresentationRequest("holder", requirements);
+const incoming = bus.receive("holder");
+const submission = holder.receiveRequestAndSendSubmission(incoming);
+const result = verifier.receiveSubmissionAndEvaluate(
+  bus.receive("verifier")!,
+  simulatorWitness,
+);
+```
+
+Compact thinking:
+
+```compact
+assertValid...RequestMessage(...)
+assert...SubmissionMatchesRequest(...)
+assertValid...CredentialPresentation(...)
+assert...PresentationSatisfiesRequest(...)
+assertValid...Predicate(...)
+```
+
+The TypeScript layer answers:
+
+- who sends what
+- when the challenge appears
+- who owns which private material
+
+The Compact layer answers:
+
+- whether the submitted objects are valid
+- whether the request and submission line up
+- whether the hidden witness really satisfies the claimed predicate or binding
+
+That separation is not bureaucracy.
+It is the safety model.
+
+### Advanced Flow: Who Touches Which Data
+
+When the advanced privacy profile is used, the off-chain protocol layer keeps the boundaries sharp.
+
+| Party | Builds locally | Sends outward |
+| --- | --- | --- |
+| Issuer agent | credential body, issuer proof | offer, issued credential package |
+| Holder agent | secret-holder witness, disclosures, predicate witnesses, holder proof, pseudonym | issuance request, presentation submission |
+| Verifier agent | request policy, challenge, result | presentation request, verification result |
+| Contract verifier | verification state, capability receipt | on-chain decision or capability |
+
+The crucial security property here is boring but essential:
+
+- the verifier asks for a proof
+- the holder manufactures the proof
+- the contract checks the proof
+
+The verifier does not manufacture Alice's private witness material.
+If your architecture lets Vera do that, Mohawk will take your whiteboard markers away.
+
+### Data Transformation Across The Advanced Flow
+
+For a hidden-holder credential, the public-to-private story looks like this:
+
+1. Rita issues a credential containing commitments and holder-binding anchor.
+2. Alice stores that credential plus her local witness material.
+3. Vera sends a verifier challenge and request policy.
+4. Alice transforms local witness material into:
+   - selected disclosures
+   - predicate witness inputs
+   - challenge-bound holder response
+   - optional verifier-scoped pseudonym
+5. Vera or the contract verifies the resulting package against the original credential.
+
+That is the same design principle repeated everywhere:
+
+- public artifact at issuance
+- private witness at use time
+- narrow verifier request
+- deterministic circuit checks
+
 ### What The Tests Cover
 
 | Test file | What it proves |
@@ -1341,7 +2020,7 @@ He does not elaborate.
 | `credentials-protocol/src/test/secret-holder/issuance.test.ts` | secret-holder issuance through agents |
 | `credentials-protocol/src/test/secret-holder/presentation.test.ts` | hidden-holder presentation through agents |
 | `credentials-protocol/src/test/secret-holder/pseudonym.test.ts` | verifier-scoped pseudonym through the protocol layer |
-| `credentials-protocol/src/test/secret-holder/same-holder.test.ts` | same-holder composition through party-isolated agents |
+| `credentials-protocol/src/test/secret-holder/same-holder.test.ts` | same-holder composition through party-isolated agents, including a three-credential flow |
 | `credentials-protocol/src/test/contract-verifier/age-gate.test.ts` | contract verifier age-gate with protocol-issued credentials |
 | `credentials-protocol/src/test/contract-verifier/capability-lifecycle.test.ts` | full capability lifecycle through the contract verifier |
 | `credentials-protocol/src/test/helpers/message-bus.test.ts` | MessageBus transport primitives |
@@ -1414,6 +2093,265 @@ Mohawk considers this "the minimum acceptable level of paranoia".
 
 - `credentials-protocol/src/test/integration/explicit-holder-lifecycle.integration.test.ts`
 - Integration tests require Docker and skip automatically when unavailable
+
+## Chapter 23: Midnight Vs AnonCreds, In Human Language
+
+By now Alice has suffered through:
+
+- explicit holder binding
+- hidden holder binding
+- verifier-scoped pseudonyms
+- same-holder composition
+- business contracts that ask deeply personal questions like "are you at least 18?"
+
+So this is the right moment to answer the obvious question:
+
+"Why are we building Midnight Credentials at all if AnonCreds already exists?"
+
+Short answer:
+
+- AnonCreds is better today at privacy-preserving credential exchange
+- Midnight is better when the proof must directly drive smart-contract behavior
+
+Mohawk summarizes it less diplomatically:
+
+> AnonCreds is excellent at convincing a verifier.
+> Midnight is excellent at making the verified fact do something.
+
+### The Fast Comparison
+
+| Question | AnonCreds | Midnight |
+| --- | --- | --- |
+| Is it strong for privacy-preserving VC exchange? | yes | partially, but still maturing |
+| Does it support hidden holder binding well? | yes | yes, in the new secret-holder profiles |
+| Does it have mature blind issuance? | yes | not yet fully |
+| Does it support same-holder proofs across credentials? | yes | yes, prototyped as reusable capabilities |
+| Is it naturally shaped for smart contracts? | not really | yes |
+| Can the proof directly drive contract state changes? | usually not the core model | yes |
+| Are disclosures bounded and typed for contract consumption? | not the main design goal | yes |
+
+### The Real Difference
+
+AnonCreds mainly solves this problem:
+
+"How can Alice prove something to Vera with strong privacy and as little disclosure as possible?"
+
+Midnight mainly solves this problem:
+
+"How can Alice prove something in a way that a smart contract can safely consume and enforce?"
+
+Those problems overlap, but they are not identical.
+
+### Alice At A Door, Version 1: AnonCreds Style
+
+Alice wants to enter a nightclub.
+Vera is the verifier at the entrance.
+
+In an AnonCreds-style mental model:
+
+1. Vera asks for a presentation
+2. Alice builds a privacy-preserving proof
+3. Vera verifies it
+4. Vera decides whether to let Alice in
+
+That is already very powerful.
+The verifier gets a cryptographic answer instead of a pinky promise.
+
+But the final action still lives mostly in verifier behavior.
+
+### Alice At A Door, Version 2: Midnight Style
+
+Now replace the nightclub bouncer with a business contract.
+
+The contract has a rule:
+
+- only a holder with a valid proof of `age >= 18` may execute `enterVenue()`
+
+In a Midnight mental model:
+
+1. the contract defines what proof shape it expects
+2. Alice prepares the proof locally
+3. Alice submits the proof to the contract-facing flow
+4. the proof is checked against typed circuits
+5. the contract either:
+   - allows the action
+   - records a state transition
+   - issues a capability
+   - or rejects the action
+
+This is the important shift:
+
+- in AnonCreds, proof success usually helps a verifier decide
+- in Midnight, proof success can become executable policy input
+
+That is why Midnight has a different kind of power.
+
+### What Midnight Smart Contracts Can Do With A Proof
+
+If the proof is valid, a Midnight business contract can do more than say
+"looks good to me".
+
+It can:
+
+- allow a protected state transition
+- deny a protected state transition
+- mint or record a capability for later use
+- bind the result to a ledger action
+- combine proof success with payment or token movement
+- enforce that only certain disclosures or predicates are accepted
+
+Mohawk likes this because it reduces the distance between:
+
+- policy
+- proof
+- enforcement
+
+Less room for "the verifier code probably does the same thing as the contract policy"
+usually means fewer spectacularly avoidable mistakes.
+
+### Why Disclosure Feels Different On Midnight
+
+AnonCreds is very good at selective disclosure.
+That part should be respected.
+
+Midnight's difference is not "more privacy by magic".
+Midnight's difference is:
+
+- disclosures are strongly typed
+- disclosures are bounded
+- predicates are specialization-defined
+- the contract can see exactly which proof modes are allowed
+
+That means a Midnight credential family can say:
+
+- this field may be fully hidden
+- this field may be disclosed with an opening
+- this field may be used only for a predicate
+- this verifier request must not ask for anything else
+
+In practice, this makes Midnight disclosure easier to audit at the circuit level.
+
+### A Story About Alice, Vera, And Mohawk
+
+Alice wants to join a regulated on-chain auction.
+
+The auction contract requires:
+
+- age at least 18
+- nationality in an allowed list
+- no raw birth date disclosure
+- no reusable global holder identifier
+
+Vera, the verifier service, could do this off-chain in many ecosystems.
+
+But the Midnight version can go further:
+
+1. Vera publishes or derives the request policy
+2. Alice prepares a hidden-holder presentation
+3. Alice proves `age >= 18`
+4. Alice discloses nationality only if the policy requires it
+5. Alice derives a verifier-scoped pseudonym
+6. the contract accepts the proof and unlocks bidding rights
+
+That last step is the crucial part.
+
+The proof does not merely persuade Vera.
+The proof changes what the system allows Alice to do.
+
+Mohawk calls this:
+
+"turning zero-knowledge into a very opinionated access-control system"
+
+### Why AnonCreds Is Still Stronger In Some Areas
+
+This book should not pretend otherwise.
+
+AnonCreds is still ahead today on:
+
+- mature blind issuance
+- mature privacy-preserving credential exchange
+- mature same-holder composition in the broader model
+- non-revocation proofs
+
+So the right posture is not:
+
+"Midnight replaces AnonCreds in every dimension."
+
+The right posture is:
+
+"Midnight borrows the privacy capabilities that fit, while staying native to Compact and smart-contract enforcement."
+
+### The Difference In One Tiny TypeScript Sketch
+
+The AnonCreds mental model is closer to:
+
+```ts
+const accepted = verifier.verifyPresentation(presentation, request);
+if (accepted) {
+  grantAccess();
+}
+```
+
+The Midnight mental model is closer to:
+
+```ts
+const request = buildAgeGateRequest({ minimumAge: 18, verifierDomain: 'auction.example' });
+const submission = holder.prepareSubmission(request, witnessBundle);
+
+await auctionContract.joinRestrictedAuction(submission);
+```
+
+The decision boundary moves closer to the contract.
+
+### The Difference In One Tiny Compact Sketch
+
+In Compact-style thinking, the contract is not asking:
+
+"Did some external verifier say yes?"
+
+It is asking:
+
+"Did this submission satisfy the exact proof rules I accept?"
+
+```compact
+export circuit joinRestrictedAuction(
+  credential: SecretBirthCredential,
+  presentation: SecretBirthPresentation,
+  proof: PresentationProof
+): [] {
+  assertSecretBirthPresentationSatisfiesRequest(
+    credential,
+    presentation,
+    requestForAdultsOnlyAuction()
+  );
+
+  assertValidPresentationProof(
+    secretBirthPresentationBodyRoot(presentation),
+    proof
+  );
+
+  // Business effect happens here.
+  // The proof is not just observed; it gates the contract behavior.
+}
+```
+
+That is the core Midnight superpower.
+
+### So Which One Should Alice Use?
+
+If Alice mainly needs privacy-preserving exchange with a verifier ecosystem,
+AnonCreds is currently the more mature answer.
+
+If Alice needs proofs that can be consumed by a Midnight smart contract and
+turned into real system behavior, Midnight Credentials is the better fit.
+
+If Alice needs both, then Midnight should borrow the right privacy ideas from
+AnonCreds without importing its whole worldview.
+
+Mohawk approves of this because it is the rare architectural plan that is both:
+
+- ambitious
+- and not completely detached from reality
 
 ## Where To Start In The Code
 

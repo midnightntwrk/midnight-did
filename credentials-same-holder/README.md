@@ -11,7 +11,7 @@ Related docs:
 
 This package isolates one specific reusable capability:
 
-- proving that two holder bindings are satisfied by the same hidden holder secret witness
+- proving that two or three holder bindings are satisfied by the same hidden holder secret witness
 
 It exists as a separate package so business contracts can import the capability
 only when they need multi-credential same-holder composition.
@@ -23,6 +23,8 @@ more explicit.
 
 - `assertSameSecretHolderBindingWitnesses(...)`
 - `assertSameBlindedSecretHolderBindingWitnesses(...)`
+- `assertSameSecretHolderBindingWitnesses3(...)`
+- `assertSameBlindedSecretHolderBindingWitnesses3(...)`
 
 These circuits do not define:
 
@@ -41,8 +43,8 @@ The capability does not introduce a generic bundle object.
 Instead it proves a narrower statement:
 
 - under one verifier challenge
-- two independently valid holder bindings
-- are both satisfied by the same hidden holder secret witness
+- two or three independently valid holder bindings
+- are satisfied by the same hidden holder secret witness
 
 That is a better fit for Midnight at the current stage because it keeps the
 composition primitive reusable without prematurely fixing one universal
@@ -52,8 +54,8 @@ multi-credential presentation format.
 
 Use this package only when the business contract needs to assert:
 
-- two hidden-holder presentations came from the same holder
-- the verifier challenge should bind both presentations into one proof step
+- two or three hidden-holder presentations came from the same holder
+- the verifier challenge should bind the presented credentials into one proof step
 
 If a credential family only needs single-credential validation, keep the
 dependency on `credentials` only.

@@ -48,7 +48,9 @@ remove_compose_project_containers() {
         $2 ~ /^did-api-test-/ ||
         $2 ~ /^did-cli-test-/ ||
         $2 ~ /^did-resolver-int-/ ||
-        $2 ~ /^did-resolver-e2e-/ {
+        $2 ~ /^did-resolver-e2e-/ ||
+        $2 ~ /^credentials-/ ||
+        $2 ~ /^standalone-/ {
           print $1
         }
       '

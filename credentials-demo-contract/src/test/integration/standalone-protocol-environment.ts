@@ -3,6 +3,7 @@
 export {
   containerRuntimeAvailable,
   type ProtocolDidProfile,
+  provisionDidProfile,
   StandaloneEnvironment as StandaloneProtocolEnvironment,
   verifierChallengeForProfile,
 } from "../../../../standalone-environment/src/index.js";

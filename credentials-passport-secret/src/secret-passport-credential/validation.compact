@@ -406,3 +406,79 @@ export circuit assertSameHolderSecretPassportPresentations(
     secondHolderBindingBlindingFactor
   );
 }
+
+export circuit assertSameHolderSecretPassportPresentations3(
+  firstCredential: SecretPassportCredential,
+  firstCredentialProof: Proof,
+  firstRequest: SecretPassportCredentialVerificationRequest,
+  firstPresentation: SecretPassportCredentialPresentation,
+  secondCredential: SecretPassportCredential,
+  secondCredentialProof: Proof,
+  secondRequest: SecretPassportCredentialVerificationRequest,
+  secondPresentation: SecretPassportCredentialPresentation,
+  thirdCredential: SecretPassportCredential,
+  thirdCredentialProof: Proof,
+  thirdRequest: SecretPassportCredentialVerificationRequest,
+  thirdPresentation: SecretPassportCredentialPresentation,
+  holderSecret: Bytes<32>,
+  firstHolderSecretOpening: Bytes<32>,
+  firstHolderBindingBlindingFactor: Bytes<32>,
+  secondHolderSecretOpening: Bytes<32>,
+  secondHolderBindingBlindingFactor: Bytes<32>,
+  thirdHolderSecretOpening: Bytes<32>,
+  thirdHolderBindingBlindingFactor: Bytes<32>
+): [] {
+  assert(
+    firstRequest.verifierChallengeHash == secondRequest.verifierChallengeHash,
+    "Same-holder composition requires a shared verifier challenge"
+  );
+  assert(
+    firstRequest.verifierChallengeHash == thirdRequest.verifierChallengeHash,
+    "Same-holder composition requires a shared verifier challenge"
+  );
+
+  assertValidSecretPassportCredentialVerificationRequestMessage(firstRequest);
+  assertSecretPassportPresentationSatisfiesRequest(
+    firstCredential,
+    firstCredentialProof,
+    secretPassportCredentialPresentationRequestFromProtocol(firstRequest),
+    firstPresentation,
+    holderSecret,
+    firstHolderSecretOpening,
+    firstHolderBindingBlindingFactor
+  );
+  assertValidSecretPassportCredentialVerificationRequestMessage(secondRequest);
+  assertSecretPassportPresentationSatisfiesRequest(
+    secondCredential,
+    secondCredentialProof,
+    secretPassportCredentialPresentationRequestFromProtocol(secondRequest),
+    secondPresentation,
+    holderSecret,
+    secondHolderSecretOpening,
+    secondHolderBindingBlindingFactor
+  );
+  assertValidSecretPassportCredentialVerificationRequestMessage(thirdRequest);
+  assertSecretPassportPresentationSatisfiesRequest(
+    thirdCredential,
+    thirdCredentialProof,
+    secretPassportCredentialPresentationRequestFromProtocol(thirdRequest),
+    thirdPresentation,
+    holderSecret,
+    thirdHolderSecretOpening,
+    thirdHolderBindingBlindingFactor
+  );
+
+  assertSameBlindedSecretHolderBindingWitnesses3(
+    firstPresentation.holderBinding,
+    secondPresentation.holderBinding,
+    thirdPresentation.holderBinding,
+    firstRequest.verifierChallengeHash,
+    holderSecret,
+    firstHolderSecretOpening,
+    firstHolderBindingBlindingFactor,
+    secondHolderSecretOpening,
+    secondHolderBindingBlindingFactor,
+    thirdHolderSecretOpening,
+    thirdHolderBindingBlindingFactor
+  );
+}

@@ -1,6 +1,6 @@
 services:
   proof-server:
-    container_name: 'did-proof-server'
+    container_name: '${MIDNIGHT_STACK_NAME:-did}-proof-server'
     image: '${PROOF_SERVER_IMAGE:-midnightntwrk/proof-server:8.0.3}'
     command: ['midnight-proof-server -v']
     ports:
@@ -15,7 +15,7 @@ services:
       start_period: 10s
 
   indexer:
-    container_name: 'did-indexer'
+    container_name: '${MIDNIGHT_STACK_NAME:-did}-indexer'
     image: 'midnightntwrk/indexer-standalone:4.0.0'
     env_file: standalone.env.example
     ports:
@@ -34,8 +34,8 @@ services:
         condition: service_healthy
 
   node:
+    container_name: '${MIDNIGHT_STACK_NAME:-did}-node'
     image: 'midnightntwrk/midnight-node:0.22.3'
-    container_name: 'did-node'
     ports:
       - '9944'
     healthcheck:

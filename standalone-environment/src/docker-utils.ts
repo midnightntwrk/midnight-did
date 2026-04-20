@@ -7,7 +7,7 @@ import type { StartedDockerComposeEnvironment } from "testcontainers";
 export const containerRuntimeAvailable = async (): Promise<boolean> => {
   try {
     const { getContainerRuntimeClient } = await import(
-      // @ts-expect-error — testcontainers internal path, no public type
+      // @ts-ignore - internal testcontainers path has no stable public typing
       "testcontainers/build/container-runtime/clients/client.js"
     );
     await getContainerRuntimeClient();

@@ -127,12 +127,13 @@ export class TestEnvironment {
         this.composeFile,
       )
         .withProjectName(this.composeProjectName)
+        .withEnvironment({ MIDNIGHT_STACK_NAME: this.composeProjectName })
         .withWaitStrategy(
-          "did-proof-server",
+          "proof-server",
           Wait.forHttp("/version", 6300).withStartupTimeout(180000),
         )
         .withWaitStrategy(
-          "did-indexer",
+          "indexer",
           Wait.forHealthCheck().withStartupTimeout(180000),
         );
       this.env = await dockerEnv.up();
@@ -142,22 +143,22 @@ export class TestEnvironment {
         indexer: TestEnvironment.mapContainerPort(
           this.env,
           this.testConfig.dappConfig.indexer,
-          "did-indexer",
+          "indexer",
         ),
         indexerWS: TestEnvironment.mapContainerPort(
           this.env,
           this.testConfig.dappConfig.indexerWS,
-          "did-indexer",
+          "indexer",
         ),
         node: TestEnvironment.mapContainerPort(
           this.env,
           this.testConfig.dappConfig.node,
-          "did-node",
+          "node",
         ),
         proofServer: TestEnvironment.mapContainerPort(
           this.env,
           this.testConfig.dappConfig.proofServer,
-          "did-proof-server",
+          "proof-server",
         ),
       };
     }

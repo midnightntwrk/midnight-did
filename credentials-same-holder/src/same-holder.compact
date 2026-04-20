@@ -48,6 +48,52 @@ export circuit assertSameSecretHolderBindingWitnesses(
   );
 }
 
+// Three-credential same-holder composition for plain secret bindings.
+// This keeps the reusable capability explicit and bounded instead of
+// prematurely introducing a generic "bundle" abstraction.
+export circuit assertSameSecretHolderBindingWitnesses3(
+  firstBinding: SecretHolderBinding,
+  secondBinding: SecretHolderBinding,
+  thirdBinding: SecretHolderBinding,
+  verifierChallengeHash: Bytes<32>,
+  holderSecret: Bytes<32>,
+  firstOpening: Bytes<32>,
+  secondOpening: Bytes<32>,
+  thirdOpening: Bytes<32>
+): [] {
+  assert(
+    firstBinding.holderSecretCommitment != secondBinding.holderSecretCommitment,
+    "Same-holder proof requires distinct first and second credential bindings"
+  );
+  assert(
+    firstBinding.holderSecretCommitment != thirdBinding.holderSecretCommitment,
+    "Same-holder proof requires distinct first and third credential bindings"
+  );
+  assert(
+    secondBinding.holderSecretCommitment != thirdBinding.holderSecretCommitment,
+    "Same-holder proof requires distinct second and third credential bindings"
+  );
+
+  assertSecretHolderBindingWitness(
+    firstBinding,
+    verifierChallengeHash,
+    holderSecret,
+    firstOpening
+  );
+  assertSecretHolderBindingWitness(
+    secondBinding,
+    verifierChallengeHash,
+    holderSecret,
+    secondOpening
+  );
+  assertSecretHolderBindingWitness(
+    thirdBinding,
+    verifierChallengeHash,
+    holderSecret,
+    thirdOpening
+  );
+}
+
 // Same-holder composition for blinded bindings. The caller supplies the same
 // hidden holder witness together with the binding-specific opening and blinding
 // factor for each independently issued credential.
@@ -78,5 +124,57 @@ export circuit assertSameBlindedSecretHolderBindingWitnesses(
     holderSecret,
     secondOpening,
     secondBlindingFactor
+  );
+}
+
+// Three-credential same-holder composition for blinded bindings. This is the
+// next bounded step after the two-credential primitive and is sufficient for
+// staged business flows such as travel or onboarding checks.
+export circuit assertSameBlindedSecretHolderBindingWitnesses3(
+  firstBinding: BlindedSecretHolderBinding,
+  secondBinding: BlindedSecretHolderBinding,
+  thirdBinding: BlindedSecretHolderBinding,
+  verifierChallengeHash: Bytes<32>,
+  holderSecret: Bytes<32>,
+  firstOpening: Bytes<32>,
+  firstBlindingFactor: Bytes<32>,
+  secondOpening: Bytes<32>,
+  secondBlindingFactor: Bytes<32>,
+  thirdOpening: Bytes<32>,
+  thirdBlindingFactor: Bytes<32>
+): [] {
+  assert(
+    firstBinding.blindedHolderSecretCommitment != secondBinding.blindedHolderSecretCommitment,
+    "Same-holder proof requires distinct first and second credential bindings"
+  );
+  assert(
+    firstBinding.blindedHolderSecretCommitment != thirdBinding.blindedHolderSecretCommitment,
+    "Same-holder proof requires distinct first and third credential bindings"
+  );
+  assert(
+    secondBinding.blindedHolderSecretCommitment != thirdBinding.blindedHolderSecretCommitment,
+    "Same-holder proof requires distinct second and third credential bindings"
+  );
+
+  assertBlindedSecretHolderBindingWitness(
+    firstBinding,
+    verifierChallengeHash,
+    holderSecret,
+    firstOpening,
+    firstBlindingFactor
+  );
+  assertBlindedSecretHolderBindingWitness(
+    secondBinding,
+    verifierChallengeHash,
+    holderSecret,
+    secondOpening,
+    secondBlindingFactor
+  );
+  assertBlindedSecretHolderBindingWitness(
+    thirdBinding,
+    verifierChallengeHash,
+    holderSecret,
+    thirdOpening,
+    thirdBlindingFactor
   );
 }

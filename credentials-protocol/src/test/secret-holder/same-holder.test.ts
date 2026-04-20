@@ -1,11 +1,15 @@
-import { describe, expect,it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { SecretHolderAgent } from "../../agents/secret-holder-agent.js";
 import {
   type SecretClaimWitness,
   SecretIssuerAgent,
 } from "../../agents/secret-issuer-agent.js";
-import { type SameHolderSimulatorWitness,VerifierAgent } from "../../agents/verifier-agent.js";
+import {
+  type SameHolderSimulatorWitness,
+  type SameHolderTripleSimulatorWitness,
+  VerifierAgent,
+} from "../../agents/verifier-agent.js";
 import { MessageBus } from "../../transport/message-bus.js";
 import {
   createDIDProfile,
@@ -156,5 +160,64 @@ describe("secret-holder same-holder composition", () => {
     expect(() => verifier.verifySameHolderProof(presentation, simulatorWitness)).toThrow(
       /Blinded holder commitment does not match the hidden holder secret witness/,
     );
+  });
+
+  it("proves three credentials from different issuers belong to the same hidden holder", () => {
+    const bus = new MessageBus();
+    const alice = new SecretHolderAgent(aliceHolderConfig, bus);
+    const verifier = new VerifierAgent(verifierProfile, bus);
+    const municipalProfile = createDIDProfile("issuer", "municipal", 222222222n);
+
+    const municipalClaimWitness: SecretClaimWitness = {
+      subjectId: sha256("subject:alice:municipal"),
+      subjectOpening: sha256("opening:subject:municipal"),
+      legalNamePadded: padText("Alice Example"),
+      legalNameOpening: sha256("opening:legal-name:municipal"),
+      birthDateDays: 3650n,
+      birthDateOpening: sha256("opening:birth-date:municipal"),
+      birthCountryCodePadded: padText("CAN"),
+      birthCountryCodeOpening: sha256("opening:birth-country:municipal"),
+      issuedAt: 12_000n,
+      expiresAt: 22_000n,
+    };
+
+    issueCredential(bus, ritaProfile, alice, ritaClaimWitness);
+    issueCredential(bus, governmentProfile, alice, governmentClaimWitness);
+    issueCredential(bus, municipalProfile, alice, municipalClaimWitness);
+
+    expect(alice.credentialCount).toBe(3);
+
+    const challenge = verifier.generateChallenge();
+    const presentation = alice.buildSameHolderProof3([0, 1, 2], challenge);
+
+    const { holderSecret, holderSecretOpening } = alice.secretWitness;
+    const firstStored = alice.getCredential(0);
+    const secondStored = alice.getCredential(1);
+    const thirdStored = alice.getCredential(2);
+    const simulatorWitness: SameHolderTripleSimulatorWitness = {
+      holderSecret,
+      firstHolderSecretOpening: holderSecretOpening,
+      firstHolderBindingBlindingFactor: firstStored.holderBindingBlindingFactor,
+      secondHolderSecretOpening: holderSecretOpening,
+      secondHolderBindingBlindingFactor: secondStored.holderBindingBlindingFactor,
+      thirdHolderSecretOpening: holderSecretOpening,
+      thirdHolderBindingBlindingFactor: thirdStored.holderBindingBlindingFactor,
+    };
+
+    const result = verifier.verifySameHolderProof3(
+      presentation,
+      simulatorWitness,
+    );
+    expect(result.sameHolder).toBe(true);
+  });
+
+  it("generates a fresh verifier challenge for each same-holder interaction", () => {
+    const bus = new MessageBus();
+    const verifier = new VerifierAgent(verifierProfile, bus);
+
+    const firstChallenge = verifier.generateChallenge();
+    const secondChallenge = verifier.generateChallenge();
+
+    expect(firstChallenge).not.toEqual(secondChallenge);
   });
 });

@@ -614,12 +614,13 @@ Each credential family gets the same test template, parameterized by its specifi
 - [x] Birth credential family, both profiles (Layer 2) — 24 tests
 - [x] Demo contract (Layer 3) — 7 tests
 - [x] Protocol agents (Layer 4) — 21 tests
-- [x] Integration tests — 3 tests
+- [x] Birth standalone integration tests — 3 tests
 
 ### Phase 2: ISO Registry + Credential Families
 
 - [x] `credentials-iso-registry` package with country, region, currency, language, gender codes — 5 tests
 - [x] Passport credential family (explicit + secret variants) — 25 tests
+- [x] Passport standalone smoke tests (explicit + secret profiles with real Midnight DIDs) — 2 tests
 - [ ] Driving License credential family (explicit + secret variants)
 - [ ] National ID credential family (explicit + secret variants)
 - [ ] AML/KYC Compliance credential family (explicit + secret variants)
@@ -640,7 +641,7 @@ Each credential family gets the same test template, parameterized by its specifi
 
 - [ ] Protocol agent tests for all new families
 - [ ] Integration tests for UC-2 and UC-7 (multi-credential with real DIDs)
-- [ ] Three-credential same-holder circuit (extends current two-credential pattern)
+- [x] Three-credential same-holder circuit (extends current two-credential pattern)
 
 ## Appendix: Negative Test Cases
 

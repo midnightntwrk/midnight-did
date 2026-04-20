@@ -24,4 +24,7 @@ echo "[all] Resolver pipeline"
 echo "[all] DID manager pipeline"
 ./run-manager.sh
 
+echo "[all] Credentials pipeline"
+./run-credentials.sh
+
 echo "All steps completed successfully."

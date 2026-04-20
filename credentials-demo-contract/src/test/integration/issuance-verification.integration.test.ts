@@ -7,19 +7,20 @@ import {
   createSigner,
   withVerificationMethodRef,
 } from "../../../../credentials-birth/src/test/credential-fixtures.js";
-import { CredentialsDemoSimulator } from "../../simulator.js";
 import {
   containerRuntimeAvailable,
   type ProtocolDidProfile,
-  StandaloneProtocolEnvironment,
+  provisionDidProfile,
+  StandaloneEnvironment,
   verifierChallengeForProfile,
-} from "./standalone-protocol-environment.js";
+} from "../../../../standalone-environment/src/index.js";
+import { CredentialsDemoSimulator } from "../../simulator.js";
 
 const canRunContainers = await containerRuntimeAvailable();
 const describeIntegration = canRunContainers ? describe : describe.skip;
 
 describeIntegration("credentials protocol standalone integration", () => {
-  const environment = new StandaloneProtocolEnvironment();
+  const environment = new StandaloneEnvironment("credentials-demo-contract");
   let issuerProfile: ProtocolDidProfile;
   let holderProfile: ProtocolDidProfile;
   let verifierProfile: ProtocolDidProfile;
@@ -27,17 +28,23 @@ describeIntegration("credentials protocol standalone integration", () => {
   beforeAll(async () => {
     setNetworkId("undeployed");
     await environment.start();
-    issuerProfile = await environment.provisionDidProfile(
+    issuerProfile = await provisionDidProfile(
+      environment.providers,
       "issuer",
       createSigner("issuer", 123456789n),
+      "credentials-demo-contract",
     );
-    holderProfile = await environment.provisionDidProfile(
+    holderProfile = await provisionDidProfile(
+      environment.providers,
       "holder",
       createSigner("holder", 987654321n),
+      "credentials-demo-contract",
     );
-    verifierProfile = await environment.provisionDidProfile(
+    verifierProfile = await provisionDidProfile(
+      environment.providers,
       "verifier",
       createSigner("verifier", 555555555n),
+      "credentials-demo-contract",
     );
     await environment.waitForWalletSync();
   }, 1000 * 60 * 10);

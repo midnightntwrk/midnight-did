@@ -524,7 +524,9 @@ export const removeVerificationMethod = async (
     methodId,
     "methodId",
   );
-  const contractAddress = didContract.deployTxData.public.contractAddress;
+  const contractAddress = parseContractAddress(
+    didContract.deployTxData.public.contractAddress,
+  );
   const didState = await getMidnightDIDLedgerState(providers, contractAddress);
 
   if (!didState) {
@@ -581,7 +583,9 @@ export const addVerificationMethodRelation = async (
     methodId,
     "methodId",
   );
-  const contractAddress = didContract.deployTxData.public.contractAddress;
+  const contractAddress = parseContractAddress(
+    didContract.deployTxData.public.contractAddress,
+  );
   const didState = await getMidnightDIDLedgerState(providers, contractAddress);
   if (!didState) {
     throw new Error("Cannot query DID state");
@@ -610,7 +614,9 @@ export const removeVerificationMethodRelation = async (
     methodId,
     "methodId",
   );
-  const contractAddress = didContract.deployTxData.public.contractAddress;
+  const contractAddress = parseContractAddress(
+    didContract.deployTxData.public.contractAddress,
+  );
   const didState = await getMidnightDIDLedgerState(providers, contractAddress);
   if (!didState) {
     throw new Error("Cannot query DID state");

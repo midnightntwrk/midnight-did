@@ -70,29 +70,30 @@ export class StandaloneEnvironment {
     const baseConfig = new StandaloneConfig();
     const dockerEnv = new DockerComposeEnvironment(composePath, composeFile)
       .withProjectName(this.projectName)
+      .withEnvironment({ MIDNIGHT_STACK_NAME: this.projectName })
       .withWaitStrategy(
-        "did-proof-server",
+        "proof-server",
         Wait.forHttp("/version", 6300).withStartupTimeout(180_000),
       )
       .withWaitStrategy(
-        "did-indexer",
+        "indexer",
         Wait.forHealthCheck().withStartupTimeout(180_000),
       );
 
     this.env = await dockerEnv.up();
 
     const config = Object.assign(baseConfig, {
-      indexer: mapContainerPort(this.env, baseConfig.indexer, "did-indexer"),
+      indexer: mapContainerPort(this.env, baseConfig.indexer, "indexer"),
       indexerWS: mapContainerPort(
         this.env,
         baseConfig.indexerWS,
-        "did-indexer",
+        "indexer",
       ),
-      node: mapContainerPort(this.env, baseConfig.node, "did-node"),
+      node: mapContainerPort(this.env, baseConfig.node, "node"),
       proofServer: mapContainerPort(
         this.env,
         baseConfig.proofServer,
-        "did-proof-server",
+        "proof-server",
       ),
       logDir: path.resolve(
         integrationPath(REPO_ROOT, this.category, "wallet"),

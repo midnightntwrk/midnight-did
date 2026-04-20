@@ -65,6 +65,8 @@ export type PassportCredentialFixture = {
 export type SecretPassportCredentialFixtureOptions = {
   readonly issuerLabel?: string;
   readonly issuerSecretKey?: bigint;
+  readonly issuerVerificationMethodRef?: VerificationMethodRef;
+  readonly verifierChallengeHash?: Uint8Array;
   readonly holderSecret?: Uint8Array;
   readonly holderSecretOpening?: Uint8Array;
   readonly holderBindingBlindingFactor?: Uint8Array;
@@ -173,10 +175,15 @@ export const signProof = ({
 export const createSecretPassportCredentialFixture = (
   options: SecretPassportCredentialFixtureOptions = {},
 ): PassportCredentialFixture => {
-  const issuer = createSigner(
+  const baseIssuer = createSigner(
     options.issuerLabel ?? "issuer",
     options.issuerSecretKey ?? 123456789n,
   );
+  const issuer = {
+    ...baseIssuer,
+    verificationMethodRef:
+      options.issuerVerificationMethodRef ?? baseIssuer.verificationMethodRef,
+  };
 
   const witness = {
     holderSecret: options.holderSecret ?? sha256("holder-secret:alice"),
@@ -288,7 +295,8 @@ export const createSecretPassportCredentialFixture = (
     requireAgeOverThreshold: true,
     requestedAgeThresholdYears: 18n,
     requireNotExpired: false,
-    verifierChallengeHash: sha256("challenge:verifier"),
+    verifierChallengeHash:
+      options.verifierChallengeHash ?? sha256("challenge:verifier"),
   };
 
   const verificationRequest: SecretPassportCredentialVerificationRequest = {

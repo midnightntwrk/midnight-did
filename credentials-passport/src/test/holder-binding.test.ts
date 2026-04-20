@@ -85,9 +85,7 @@ describe("passport credential: holder binding", () => {
         fixture.presentation,
         fixture.presentationProof,
       ),
-    ).toThrow(
-      /Presentation request requires the gender disclosure/,
-    );
+    ).toThrow(/Presentation request requires the gender disclosure/);
 
     const mismatchedChallengeRequest = {
       ...fixture.presentationRequest,

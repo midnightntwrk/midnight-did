@@ -145,7 +145,7 @@ Parties provisioned: issuer DID, holder DID (demo contract deployed as the verif
 
 #### Connection to protocol agents
 
-The integration tests use the same `IssuerAgent`, `HolderAgent`, `SecretIssuerAgent`, `SecretHolderAgent`, `VerifierAgent`, and `ContractVerifier` classes from `credentials-protocol/src/agents/`. The only difference is the `DIDProfile` values come from `StandaloneEnvironment.provisionDidProfile()` instead of the simulated `createDIDProfile()`.
+The integration tests use the same `IssuerAgent`, `HolderAgent`, `SecretIssuerAgent`, `SecretHolderAgent`, `VerifierAgent`, and `ContractVerifier` classes from `credentials-protocol/src/agents/`. The only difference is the `DIDProfile` values come from the shared `provisionDidProfile(env.providers, ...)` helper in `standalone-environment` instead of the simulated `createDIDProfile()`.
 
 This is the "simulated vs real DID" seam that was designed into the architecture from the start.
 
@@ -164,7 +164,7 @@ npm run test:integration --workspace=credentials-protocol
 
 ### Migration: `credentials-demo-contract/src/test/integration/`
 
-The existing `standalone-protocol-environment.ts` and `issuance-verification.integration.test.ts` should be updated to import from `standalone-environment` instead of defining their own environment class. This validates the extraction works correctly.
+The existing `standalone-protocol-environment.ts` and `issuance-verification.integration.test.ts` were updated to import from `standalone-environment` instead of defining their own environment class. This validates the extraction works correctly.
 
 ## Docker Infrastructure
 

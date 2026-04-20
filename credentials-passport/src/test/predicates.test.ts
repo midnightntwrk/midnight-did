@@ -89,10 +89,7 @@ describe("passport credential: predicates", () => {
     const fixture = createPassportCredentialFixture();
 
     expect(() =>
-      pureCircuits.assertPassportNotExpired(
-        fixture.credential,
-        30000n,
-      ),
+      pureCircuits.assertPassportNotExpired(fixture.credential, 30000n),
     ).toThrow(/Passport has expired/);
   });
 });

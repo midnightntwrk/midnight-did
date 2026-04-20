@@ -12,6 +12,8 @@ import {
   type VerificationMethodRef,
 } from "../../../credentials/src/managed/credentials/contract/index.js";
 import {
+  type CredentialProtocolFeatures,
+  HolderBindingProfile,
   type PassportCredential,
   type PassportCredentialIssuanceOffer,
   type PassportCredentialIssuanceRequest,
@@ -21,8 +23,6 @@ import {
   type PassportCredentialVerificationRequest,
   type PassportCredentialVerificationResult,
   type PassportCredentialVerificationSubmission,
-  type CredentialProtocolFeatures,
-  HolderBindingProfile,
   type ProtocolMessageEnvelope,
   pureCircuits,
 } from "../managed/passport-credential/contract/index.js";
@@ -320,12 +320,11 @@ const buildPassportCredentialFixture = (
   };
 };
 
-export const createPassportCredentialFixture =
-  (): PassportCredentialFixture =>
-    buildPassportCredentialFixture(
-      createSigner("issuer", 123456789n),
-      createSigner("holder", 987654321n),
-    );
+export const createPassportCredentialFixture = (): PassportCredentialFixture =>
+  buildPassportCredentialFixture(
+    createSigner("issuer", 123456789n),
+    createSigner("holder", 987654321n),
+  );
 
 export const createPassportCredentialFixtureForParticipants = (
   issuer: Signer,
@@ -344,7 +343,10 @@ export const createPassportCredentialProtocolFixture =
       supportsSameHolderProof: false,
     };
 
-    return createPassportCredentialProtocolFixtureFromFixture(fixture, features);
+    return createPassportCredentialProtocolFixtureFromFixture(
+      fixture,
+      features,
+    );
   };
 
 export const createPassportCredentialProtocolFixtureForParticipants = (
@@ -454,8 +456,7 @@ const createPassportCredentialProtocolFixtureFromFixture = (
         fixture.presentationRequest.requireAgeOverThreshold,
       requestedAgeThresholdYears:
         fixture.presentationRequest.requestedAgeThresholdYears,
-      requireNotExpired:
-        fixture.presentationRequest.requireNotExpired,
+      requireNotExpired: fixture.presentationRequest.requireNotExpired,
     },
   };
 
@@ -489,7 +490,9 @@ const createPassportCredentialProtocolFixtureFromFixture = (
     }),
     approved: true,
     body: {
-      credentialRoot: pureCircuits.passportCredentialBodyRoot(fixture.credential),
+      credentialRoot: pureCircuits.passportCredentialBodyRoot(
+        fixture.credential,
+      ),
       verifiedThresholdYears: fixture.presentation.disclosed.ageThresholdYears,
       verifiedNotExpired: false,
     },

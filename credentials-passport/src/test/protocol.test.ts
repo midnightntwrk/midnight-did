@@ -10,9 +10,10 @@ describe("passport credential: protocol layer", () => {
   it("maps a protocol verification request into the concrete passport presentation request shape", () => {
     const fixture = createPassportCredentialProtocolFixture();
 
-    const request = pureCircuits.passportCredentialPresentationRequestFromProtocol(
-      fixture.verificationRequest,
-    );
+    const request =
+      pureCircuits.passportCredentialPresentationRequestFromProtocol(
+        fixture.verificationRequest,
+      );
 
     expect(request).toEqual(fixture.presentationRequest);
   });

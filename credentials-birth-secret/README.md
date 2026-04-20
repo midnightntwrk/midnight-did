@@ -65,7 +65,7 @@ What it does prove:
 - holder knowledge of the committed secret through a private witness
 - challenge-bound response derived from the holder secret
 - verifier-scoped pseudonym derivation from the hidden holder secret
-- same-holder composition across two secret birth credentials when the verifier coordinates a shared challenge
+- same-holder composition across two or three secret birth credentials when the verifier coordinates a shared challenge
 
 What it does not yet prove:
 

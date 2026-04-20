@@ -23,7 +23,10 @@ import { createEnvelope } from "../shared/envelope.js";
 import { assertBodyHasFields,assertMessageType } from "../shared/validation.js";
 import type { MessageBus } from "../transport/message-bus.js";
 import type { PartyId,ProtocolMessage } from "../transport/types.js";
-import type { SameHolderPresentation } from "./secret-holder-agent.js";
+import type {
+  SameHolderPresentation,
+  SameHolderTriplePresentation,
+} from "./secret-holder-agent.js";
 import type { DIDProfile } from "./types.js";
 
 export type PresentationRequirements = {
@@ -114,6 +117,11 @@ export type SameHolderSimulatorWitness = {
   readonly firstHolderBindingBlindingFactor: Uint8Array;
   readonly secondHolderSecretOpening: Uint8Array;
   readonly secondHolderBindingBlindingFactor: Uint8Array;
+};
+
+export type SameHolderTripleSimulatorWitness = SameHolderSimulatorWitness & {
+  readonly thirdHolderSecretOpening: Uint8Array;
+  readonly thirdHolderBindingBlindingFactor: Uint8Array;
 };
 
 export class VerifierAgent {
@@ -388,9 +396,7 @@ export class VerifierAgent {
   // --- Same-holder composition methods ---
 
   generateChallenge(): Uint8Array {
-    return sha256(
-      `midnight:vc:verifier:${this.profile.label}:same-holder-challenge`,
-    );
+    return this.generateChallengeHash();
   }
 
   verifySameHolderProof(
@@ -411,6 +417,35 @@ export class VerifierAgent {
       simulatorWitness.firstHolderBindingBlindingFactor,
       simulatorWitness.secondHolderSecretOpening,
       simulatorWitness.secondHolderBindingBlindingFactor,
+    );
+
+    return { sameHolder: true };
+  }
+
+  verifySameHolderProof3(
+    presentation: SameHolderTriplePresentation,
+    simulatorWitness: SameHolderTripleSimulatorWitness,
+  ): { sameHolder: boolean } {
+    secretPureCircuits.assertSameHolderSecretBirthPresentations3(
+      presentation.firstCredential,
+      presentation.firstCredentialProof,
+      presentation.firstRequest,
+      presentation.firstPresentation,
+      presentation.secondCredential,
+      presentation.secondCredentialProof,
+      presentation.secondRequest,
+      presentation.secondPresentation,
+      presentation.thirdCredential,
+      presentation.thirdCredentialProof,
+      presentation.thirdRequest,
+      presentation.thirdPresentation,
+      simulatorWitness.holderSecret,
+      simulatorWitness.firstHolderSecretOpening,
+      simulatorWitness.firstHolderBindingBlindingFactor,
+      simulatorWitness.secondHolderSecretOpening,
+      simulatorWitness.secondHolderBindingBlindingFactor,
+      simulatorWitness.thirdHolderSecretOpening,
+      simulatorWitness.thirdHolderBindingBlindingFactor,
     );
 
     return { sameHolder: true };

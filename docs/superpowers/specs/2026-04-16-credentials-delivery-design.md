@@ -2,18 +2,25 @@
 
 Date: 2026-04-16
 
-Status: Approved
+Status: Delivered and retained as historical design context
 
 ## Context
 
-The `feat/credentials-compact-model` branch contains a five-package Compact-first Verifiable Credentials prototype for Midnight. The prototype covers seven capability profiles at the simulator/unit-test level but lacks:
+This document captured the delivery plan before the current branch gained:
 
-- Party-boundary-enforcing protocol simulation
-- Standalone integration tests with real Midnight DIDs
-- Protocol-level test coverage for the secret-holder profile
-- Spec and companion guide alignment with the current code
+- `credentials-protocol`
+- `standalone-environment`
+- `credentials-iso-registry`
+- `credentials-passport`
+- `credentials-passport-secret`
+- standalone integration coverage for explicit-holder, secret-holder, and contract-verifier flows
 
-This design defines the delivery plan to close those gaps.
+Treat this file as the historical delivery plan. The current source of truth for
+prototype scope is:
+
+- `research/midnight-credentials.md`
+- `research/midnight-credentials-for-dummies.md`
+- `research/midnight-credentials-test-strategy.md`
 
 ## Delivery Scope
 

@@ -394,3 +394,79 @@ export circuit assertSameHolderSecretBirthPresentations(
     secondHolderBindingBlindingFactor
   );
 }
+
+export circuit assertSameHolderSecretBirthPresentations3(
+  firstCredential: SecretBirthCredential,
+  firstCredentialProof: Proof,
+  firstRequest: SecretBirthCredentialVerificationRequest,
+  firstPresentation: SecretBirthCredentialPresentation,
+  secondCredential: SecretBirthCredential,
+  secondCredentialProof: Proof,
+  secondRequest: SecretBirthCredentialVerificationRequest,
+  secondPresentation: SecretBirthCredentialPresentation,
+  thirdCredential: SecretBirthCredential,
+  thirdCredentialProof: Proof,
+  thirdRequest: SecretBirthCredentialVerificationRequest,
+  thirdPresentation: SecretBirthCredentialPresentation,
+  holderSecret: Bytes<32>,
+  firstHolderSecretOpening: Bytes<32>,
+  firstHolderBindingBlindingFactor: Bytes<32>,
+  secondHolderSecretOpening: Bytes<32>,
+  secondHolderBindingBlindingFactor: Bytes<32>,
+  thirdHolderSecretOpening: Bytes<32>,
+  thirdHolderBindingBlindingFactor: Bytes<32>
+): [] {
+  assert(
+    firstRequest.verifierChallengeHash == secondRequest.verifierChallengeHash,
+    "Same-holder composition requires a shared verifier challenge"
+  );
+  assert(
+    firstRequest.verifierChallengeHash == thirdRequest.verifierChallengeHash,
+    "Same-holder composition requires a shared verifier challenge"
+  );
+
+  assertValidSecretBirthCredentialVerificationRequestMessage(firstRequest);
+  assertSecretBirthPresentationSatisfiesRequest(
+    firstCredential,
+    firstCredentialProof,
+    secretBirthCredentialPresentationRequestFromProtocol(firstRequest),
+    firstPresentation,
+    holderSecret,
+    firstHolderSecretOpening,
+    firstHolderBindingBlindingFactor
+  );
+  assertValidSecretBirthCredentialVerificationRequestMessage(secondRequest);
+  assertSecretBirthPresentationSatisfiesRequest(
+    secondCredential,
+    secondCredentialProof,
+    secretBirthCredentialPresentationRequestFromProtocol(secondRequest),
+    secondPresentation,
+    holderSecret,
+    secondHolderSecretOpening,
+    secondHolderBindingBlindingFactor
+  );
+  assertValidSecretBirthCredentialVerificationRequestMessage(thirdRequest);
+  assertSecretBirthPresentationSatisfiesRequest(
+    thirdCredential,
+    thirdCredentialProof,
+    secretBirthCredentialPresentationRequestFromProtocol(thirdRequest),
+    thirdPresentation,
+    holderSecret,
+    thirdHolderSecretOpening,
+    thirdHolderBindingBlindingFactor
+  );
+
+  assertSameBlindedSecretHolderBindingWitnesses3(
+    firstPresentation.holderBinding,
+    secondPresentation.holderBinding,
+    thirdPresentation.holderBinding,
+    firstRequest.verifierChallengeHash,
+    holderSecret,
+    firstHolderSecretOpening,
+    firstHolderBindingBlindingFactor,
+    secondHolderSecretOpening,
+    secondHolderBindingBlindingFactor,
+    thirdHolderSecretOpening,
+    thirdHolderBindingBlindingFactor
+  );
+}
