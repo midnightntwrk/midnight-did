@@ -324,7 +324,7 @@ sequenceDiagram
     participant VCStore as Encrypted VC Store
 
     Note over User,VCStore: Passkey registration
-    User->>Wallet: Navigate to Security Settings → Add Passkey
+    User->>Wallet: Navigate to Security Settings, Add Passkey
     Wallet->>Wallet: Generate challenge + prf_salt (32 random bytes)
     Wallet->>Browser: credentials.create({ challenge, rpId, userVerification: required, residentKey: required, extensions: { prf: {} } })
     Browser->>Biometric: Prompt: Touch ID / Windows Hello / Security Key
@@ -339,7 +339,7 @@ sequenceDiagram
     Browser->>Biometric: Prompt biometric
     User->>Biometric: Authenticate
     Biometric-->>Browser: Assertion + PRF result
-    Browser-->>Wallet: prf.results.first → 32-byte PRF output
+    Browser-->>Wallet: prf.results.first (32-byte PRF output)
     Wallet->>Wallet: KEK    = HKDF(prf_output, info="lace-secret-store-v1")
     Wallet->>Wallet: KEK_vc = HKDF(prf_output, info="lace-vc-store-v1")
     Wallet->>SecretStore: AES-256-GCM encrypt with KEK
@@ -353,7 +353,7 @@ sequenceDiagram
     Browser->>Biometric: Prompt biometric
     User->>Biometric: Authenticate
     Biometric-->>Browser: Assertion + PRF result
-    Browser-->>Wallet: prf.results.first → 32-byte PRF output
+    Browser-->>Wallet: prf.results.first (32-byte PRF output)
     Wallet->>Wallet: KEK    = HKDF(prf_output, info="lace-secret-store-v1")
     Wallet->>SecretStore: AES-256-GCM decrypt with KEK
     SecretStore-->>Wallet: Ed25519 + JubJub keys loaded into session memory
@@ -377,7 +377,7 @@ sequenceDiagram
     participant VCStore as Encrypted VC Store
 
     Note over User,VCStore: Passkey registration + store protection setup
-    User->>App: Navigate to Security Settings → Add Passkey
+    User->>App: Navigate to Security Settings, Add Passkey
     App->>OS: Request passkey creation (rpId="lace.io", userVerification=required)
     OS->>SecureEl: Generate hardware-bound P-256 key pair (non-exportable)
     OS->>User: Prompt Face ID / Touch ID / fingerprint
@@ -397,7 +397,7 @@ sequenceDiagram
     User->>App: Open app
     App->>OS: Request biometric authentication to retrieve KEK
     Note over OS: iOS: SecItemCopyMatching triggers Face ID / Touch ID
-    Note over OS: Android: BiometricPrompt → unwrap Keystore-protected KEK
+    Note over OS: Android: BiometricPrompt unwraps Keystore-protected KEK
     OS->>User: Face ID / fingerprint prompt
     User->>OS: Authenticate
     OS->>Keychain: Biometric assertion satisfied — release KEK + KEK_vc
@@ -658,13 +658,13 @@ sequenceDiagram
     participant SanctionDB as Sanctions DB (OFAC/EU/UN)
     participant PEPDB as PEP Database
 
-    User->>DApp: Navigate to Trusted Issuers → Select Sanction Screening Issuer
+    User->>DApp: Navigate to Trusted Issuers, select Sanction Screening Issuer
     DApp->>Screener: Initiate OID4VCI Pre-Authorized Code Flow
     Screener-->>DApp: Credential offer (pre-authorized code) + NationalIdPresentationRequest
     DApp->>Wallet: Forward offer and presentation request
 
     Note over Wallet: Wallet evaluates request against stored NationalIdCredential
-    Wallet->>User: Show disclosure summary: first name, family name, date of birth, residence country will be shared
+    Wallet->>User: Show disclosure summary (firstName, familyName, dateOfBirth, residenceCountry)
     User->>Wallet: Confirm disclosure
 
     Wallet->>Wallet: Build NationalIdPresentation (selective disclosure: firstName, familyName, dateOfBirth, residenceCountry)
@@ -688,7 +688,7 @@ sequenceDiagram
         Wallet-->>DApp: Issuance complete
         DApp-->>User: Sanction Screening credential received
     else FAIL
-        Screener-->>Wallet: Rejection (reason category: SANCTIONS_MATCH / PEP_MATCH / JURISDICTION_BLOCKED)
+        Screener-->>Wallet: Rejection (SANCTIONS_MATCH, PEP_MATCH, or JURISDICTION_BLOCKED)
         Wallet-->>DApp: Issuance failed
         DApp-->>User: Display rejection reason, advise contacting support
     end
@@ -772,7 +772,7 @@ sequenceDiagram
     WC->>WCRelay: Create pairing topic
     WCRelay-->>WC: Pairing URI
     DApp-->>User: Display deep link or QR code
-    User->>ExtApp: Open deep link → wallet app opens
+    User->>ExtApp: Open deep link, wallet app opens
     ExtApp->>WCRelay: Subscribe to pairing topic
     WCRelay->>ExtApp: Session proposal (DApp metadata, permissions)
     ExtApp-->>User: "Midnight Passport DApp wants to connect. Approve?"
@@ -897,8 +897,8 @@ sequenceDiagram
         Contract-->>DApp: SUCCESS { txHash, capabilityRef }
         DApp-->>User: Investment confirmed. Funds transferred. Capability: [ref]
     else Check failed
-        Contract-->>DApp: DENIED { reason: AGE_PREDICATE_FAILED | SANCTIONS_CHECK_FAILED | HOLDER_BINDING_MISMATCH }
-        DApp-->>User: Investment declined: [reason]. Contact support if unexpected.
+        Contract-->>DApp: DENIED (AGE_PREDICATE_FAILED, SANCTIONS_CHECK_FAILED, or HOLDER_BINDING_MISMATCH)
+        DApp-->>User: Investment declined. Contact support if unexpected.
     end
 ```
 
