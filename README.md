@@ -96,8 +96,7 @@ Prerequisites:
 - Docker (for integration tests)
 
 Enter the development shell:
-- `nix develop`
-  - Provides Node.js 24, Docker tooling, Playwright browser binaries, and the **Compact compiler 0.5.1** (replaces the previous standalone Compact devtools 0.4.x prerequisite).
+- `nix develop` (Provides Node.js 24, Docker tooling, Playwright browser binaries, and the **Compact compiler 0.5.1**)
 
 Install dependencies:
 - `npm ci`
