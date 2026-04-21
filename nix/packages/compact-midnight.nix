@@ -7,12 +7,12 @@
 let
   platformInfo = {
     x86_64-linux = {
-      url_suffix = "compact-x86_64-unknown-linux-musl.tar.xz";
+      urlSuffix = "compact-x86_64-unknown-linux-musl.tar.xz";
       sourceRoot = "compact-x86_64-unknown-linux-musl";
       sha256 = "sha256-aExrPS7vlISqu6egggwWauXBafOuzyjL6iB0hAJjumY=";
     };
     aarch64-darwin = {
-      url_suffix = "compact-aarch64-apple-darwin.tar.xz";
+      urlSuffix = "compact-aarch64-apple-darwin.tar.xz";
       sourceRoot = "compact-aarch64-apple-darwin";
       sha256 = "sha256-TZBkfk6N4OyNIn62sBqxxYIjUS5ivPNrapNM7vgXmgg=";
     };
@@ -31,7 +31,7 @@ stdenv.mkDerivation rec {
   version = "0.5.1";
 
   src = fetchurl {
-    url = "https://github.com/midnightntwrk/compact/releases/download/compact-v${version}/${currentPlatform.url_suffix}";
+    url = "https://github.com/midnightntwrk/compact/releases/download/compact-v${version}/${currentPlatform.urlSuffix}";
     sha256 = currentPlatform.sha256;
   };
 

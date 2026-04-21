@@ -4,15 +4,10 @@
     {
       devShells.default = pkgs.mkShell {
         packages = with pkgs; [
-          # Core tools
           docker
           git
           just
-          nix
           nodejs_24
-          # Browser automation (provides playwright-core Node.js library)
-          playwright
-          # Compact compiler from Midnight Network (v0.5.1)
           self'.packages.compact-midnight
         ];
 
