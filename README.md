@@ -92,12 +92,13 @@ stateDiagram-v2
 ## Running
 
 Prerequisites:
-- Node 24+
-- npm 10+
+- [Nix](https://nixos.org/download) (with [flakes enabled](https://nixos.wiki/wiki/Flakes))
 - Docker (for integration tests)
-- Compact devtools `0.4.x` with toolchain `0.30.0`
 
-Install:
+Enter the development shell:
+- `nix develop` (Provides Node.js 24, Docker tooling, Playwright browser binaries, and the **Compact compiler 0.5.1**)
+
+Install dependencies:
 - `npm ci`
 - `compact update 0.30.0`
 

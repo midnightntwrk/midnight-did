@@ -5,7 +5,7 @@
 - Node.js 24+
 - npm 10+
 - Docker for integration flows
-- Compact devtools `0.4.x`
+- Compact compiler `0.5.1`
 - Compact toolchain `0.30.0` (`compact update 0.30.0`)
 
 ## Main workspace commands
