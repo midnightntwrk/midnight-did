@@ -63,7 +63,7 @@ This document describes the **user and business flows** that sit on top of the u
 - `research/midnight-credentials.md` — canonical Midnight VC/VP specification
 - `research/midnight-credentials-for-dummies.md` — narrative guide to the credential layers
 - `research/midnight-credentials-test-strategy.md` — credential family claim structures and test matrix
-- `research/webauthn-es256-implementation-plan.md` — P-256 / WebAuthn DID integration plan
+- `research/lace-wallet-midnight-dapp-gap-analysis.md` — implementation gap and prototype coverage review for this BRD/FRD
 - `w3c-spec/midnight-method.md` — Midnight DID method specification
 
 ---
@@ -118,7 +118,7 @@ The Midnight Credentials system is organized in five layers. This document descr
 |---|---|---|
 | **Layer 0 — ISO Registry** | `credentials-iso-registry` | Shared numeric ISO code types: country, gender, currency, region |
 | **Layer 1 — Generic Capabilities** | `credentials`, `credentials-same-holder` | Generic VC/VP envelopes, proof circuits, holder-binding profiles, same-holder composition |
-| **Layer 2 — Credential Families** | `credentials-national-id`, `credentials-compliance` | Concrete claim structures, disclosure layouts, ZK predicates per credential type |
+| **Layer 2 — Credential Families** | Target: `credentials-national-id`, `credentials-compliance`; current executable proxy: `credentials-passport-secret` | Concrete claim structures, disclosure layouts, ZK predicates per credential type |
 | **Layer 3 — Business Contract** | Midnight Smart Contract (investment DApp) | On-chain proof verification, fund custody, eligibility state, capability issuance |
 | **Layer 4 — Application Orchestration** | Lace Wallet, DApp frontend, `credentials-protocol` | Off-chain protocol coordination, VP construction, wallet connect, UI flows |
 | **Layer 5 — Governance** | Trusted Issuers Registry | Issuer accreditation, schema version policy, DApp trust rules |

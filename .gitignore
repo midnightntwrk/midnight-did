@@ -95,3 +95,6 @@ docs-site/.vitepress/dist/
 docs-site/.vitepress/cache/
 docs-site/api/reference/
 docs-site/source/
+
+# Generated document exports
+research/*.pdf
