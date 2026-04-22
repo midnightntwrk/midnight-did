@@ -364,22 +364,22 @@ Production readiness gaps:
 
 ## UC-10: Browser Denied Paths
 
-Playwright covers both the shortcut denied flow and the issuer-side sanctions
-denial flow.
+Playwright covers the shortcut denied flow and both issuer-side sanctions and
+PEP denial flows.
 
 Low-level implementation:
 
 | Detail | Location |
 |---|---|
 | Shortcut denied path | `src/app-session.ts`, `src/actors/compliance-issuer.ts` |
-| Issuer-side sanctions denial | `app/screening-issuer.js`, `src/issuers/screening-issuer-service.ts` |
+| Issuer-side sanctions/PEP denial | `app/screening-issuer.js`, `src/issuers/screening-issuer-service.ts` |
 | Browser coverage | `src/e2e/passport-prototype.spec.ts` |
 
 Protocol and data shape:
 
 - `runDeniedPath` demonstrates direct actor denial before proof creation.
-- The Screening issuer denial path demonstrates user-visible issuer denial
-  before returning a credential offer.
+- The Screening issuer denial paths demonstrate user-visible issuer denial
+  before returning a credential offer for sanctions or PEP matches.
 - In both cases, the wallet cannot prepare an investment proof.
 
 Mocked or simplified:

@@ -1,4 +1,33 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+
+const issueNationalIdThroughBrowser = async (page: Page): Promise<void> => {
+  await page.locator("#initializeWallet").click();
+  await page.locator("#issueNationalId").click();
+  await page.locator("#uploadDocuments").click();
+  await page.locator("#passLiveness").click();
+  await page.locator("#approveProfile").click();
+  await page.locator("#completeIssuance").click();
+  await expect(page.locator("#nationalIdStatus")).toHaveText("Issued");
+};
+
+const expectScreeningDenial = async (
+  page: Page,
+  input: {
+    readonly buttonId: "flagSanctions" | "flagPep";
+    readonly reason: string;
+  },
+): Promise<void> => {
+  await page.locator(`#${input.buttonId}`).click();
+  await expect(page.locator("#issuerProofStatus")).toHaveText("Denied");
+  await expect(page.locator("#completeIssuance")).toBeDisabled();
+  await expect(page.locator("#issuerEvents li").first()).toContainText(
+    input.reason,
+  );
+
+  await page.getByLabel("Back to Midnight Passport prototype").click();
+  await expect(page.locator("#complianceStatus")).toHaveText("Not issued");
+  await expect(page.locator("#prepareProof")).toBeDisabled();
+};
 
 test.describe("Midnight Passport prototype browser", () => {
   test.beforeEach(async ({ request }) => {
@@ -103,26 +132,28 @@ test.describe("Midnight Passport prototype browser", () => {
   }) => {
     await page.goto("/");
 
-    await page.locator("#initializeWallet").click();
-    await page.locator("#issueNationalId").click();
-    await page.locator("#uploadDocuments").click();
-    await page.locator("#passLiveness").click();
-    await page.locator("#approveProfile").click();
-    await page.locator("#completeIssuance").click();
-
-    await expect(page.locator("#nationalIdStatus")).toHaveText("Issued");
+    await issueNationalIdThroughBrowser(page);
     await page.locator("#issueCompliance").click();
     await expect(page).toHaveURL(/screening-issuer\.html/);
 
-    await page.locator("#flagSanctions").click();
-    await expect(page.locator("#issuerProofStatus")).toHaveText("Denied");
-    await expect(page.locator("#completeIssuance")).toBeDisabled();
-    await expect(page.locator("#issuerEvents li").first()).toContainText(
-      "Sanctions screening returned a possible match",
-    );
+    await expectScreeningDenial(page, {
+      buttonId: "flagSanctions",
+      reason: "Sanctions screening returned a possible match",
+    });
+  });
 
-    await page.getByLabel("Back to Midnight Passport prototype").click();
-    await expect(page.locator("#complianceStatus")).toHaveText("Not issued");
-    await expect(page.locator("#prepareProof")).toBeDisabled();
+  test("models Screening issuer PEP denial without issuing compliance", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    await issueNationalIdThroughBrowser(page);
+    await page.locator("#issueCompliance").click();
+    await expect(page).toHaveURL(/screening-issuer\.html/);
+
+    await expectScreeningDenial(page, {
+      buttonId: "flagPep",
+      reason: "PEP screening returned a possible match",
+    });
   });
 });
