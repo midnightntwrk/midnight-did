@@ -23,3 +23,12 @@ The package exposes typed helpers for OpenID-shaped transport envelopes:
 These helpers use the `credentials-openid` Compact value framing internally, so
 application code can carry binary Compact credential and presentation payloads
 inside JSON envelopes without treating JSON as the canonical VC/VP format.
+
+## Compact Entry Points
+
+- `src/sanction-screening-credential.compact` is the standalone entry point used
+  for this package's generated TS/JS artifacts and single-family tests.
+- `src/sanction-screening-credential/composable.compact` is the Layer 3 entry
+  point for business contracts that compose multiple credential families. The
+  Layer 3 contract must include shared dependencies such as
+  `credentials-same-holder` once before including this file.

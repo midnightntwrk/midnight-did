@@ -1,13 +1,13 @@
 export circuit secretPassportCredentialBodyRoot(
   credential: SecretPassportCredential
 ): Bytes<32> {
-  return credentialBodyRoot(credential);
+  return secretPassportCredentialGenericBodyRoot(credential);
 }
 
 export circuit secretPassportCredentialPresentationBodyRoot(
   presentation: SecretPassportCredentialPresentation
 ): Bytes<32> {
-  return presentationBodyRoot(presentation);
+  return secretPassportCredentialGenericPresentationBodyRoot(presentation);
 }
 
 export circuit secretPassportCredentialPresentationRequestBodyRoot(

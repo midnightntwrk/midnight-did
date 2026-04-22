@@ -33,6 +33,15 @@ It supports:
 - `credentials-passport`: shared passport claim family and explicit-holder variant
 - `credentials-openid`: Compact value framing used by the typed transport codecs
 
+## Compact Entry Points
+
+- `src/secret-passport-credential.compact` is the standalone entry point used
+  for this package's generated TS/JS artifacts and single-family tests.
+- `src/secret-passport-credential/composable.compact` is the Layer 3 entry point
+  for business contracts that compose multiple credential families. The Layer 3
+  contract must include shared dependencies such as `credentials-same-holder`
+  and `credentials-iso-registry` once before including this file.
+
 ## Validation
 
 ```sh

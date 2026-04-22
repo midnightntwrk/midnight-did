@@ -206,9 +206,9 @@ export circuit assertValidSecretPassportCredential(
   proof: Proof
 ): [] {
   assertValidSecretPassportSchemaRef(credential.schema);
-  assertValidCredentialEnvelope(credential, passportCredentialClaimRoot(credential.claims));
+  assertValidSecretPassportCredentialEnvelope(credential, passportCredentialClaimRoot(credential.claims));
   assertValidBlindedSecretHolderCredentialBinding(credential.holderBinding);
-  assertValidCredentialProof(credential, proof);
+  assertValidSecretPassportCredentialProofEnvelope(credential, proof);
 }
 
 export circuit assertValidSecretPassportCredentialPresentation(
@@ -218,7 +218,7 @@ export circuit assertValidSecretPassportCredentialPresentation(
 ): [] {
   assertValidSecretPassportCredential(credential, credentialProof);
   assertValidSecretPassportSchemaRef(presentation.schema);
-  assertValidPresentationEnvelope(credential, presentation);
+  assertValidSecretPassportPresentationEnvelope(credential, presentation);
   assertValidBlindedSecretHolderPresentationBinding(presentation.holderBinding);
   assertMatchingBlindedSecretHolderBindings(
     credential.holderBinding,

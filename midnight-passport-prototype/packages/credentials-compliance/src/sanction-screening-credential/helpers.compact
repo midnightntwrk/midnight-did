@@ -1,13 +1,13 @@
 export circuit sanctionScreeningCredentialBodyRoot(
   credential: SanctionScreeningCredential
 ): Bytes<32> {
-  return credentialBodyRoot(credential);
+  return sanctionScreeningCredentialGenericBodyRoot(credential);
 }
 
 export circuit sanctionScreeningCredentialPresentationBodyRoot(
   presentation: SanctionScreeningCredentialPresentation
 ): Bytes<32> {
-  return presentationBodyRoot(presentation);
+  return sanctionScreeningCredentialGenericPresentationBodyRoot(presentation);
 }
 
 export circuit sanctionScreeningCredentialPresentationRequestBodyRoot(

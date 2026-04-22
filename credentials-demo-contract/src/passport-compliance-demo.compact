@@ -1,0 +1,90 @@
+pragma language_version >= 0.20;
+
+import CompactStandardLibrary;
+
+include "../../credentials-same-holder/src/same-holder";
+include "../../credentials-iso-registry/src/iso-registry";
+include "../../midnight-passport-prototype/packages/credentials-passport-secret/src/secret-passport-credential/composable";
+include "../../midnight-passport-prototype/packages/credentials-compliance/src/sanction-screening-credential/composable";
+
+witness holderSecret(): Bytes<32>;
+witness passportHolderSecretOpening(): Bytes<32>;
+witness passportHolderBindingBlindingFactor(): Bytes<32>;
+witness screeningHolderSecretOpening(): Bytes<32>;
+witness screeningHolderBindingBlindingFactor(): Bytes<32>;
+witness holderBirthDateDays(): Uint<32>;
+witness holderBirthDateOpening(): Bytes<32>;
+witness screeningDateDay(): Uint<32>;
+witness screeningDateOpening(): Bytes<32>;
+
+export circuit verifyPassportAndComplianceEligibility(
+  passportCredential: SecretPassportCredential,
+  passportCredentialProof: Proof,
+  passportRequest: SecretPassportCredentialPresentationRequest,
+  passportPresentation: SecretPassportCredentialPresentation,
+  screeningCredential: SanctionScreeningCredential,
+  screeningCredentialProof: Proof,
+  screeningRequest: SanctionScreeningCredentialPresentationRequest,
+  screeningPresentation: SanctionScreeningCredentialPresentation,
+  currentDay: Uint<32>
+): [] {
+  const holderSecretWitness = holderSecret();
+  const passportHolderSecretOpeningWitness = passportHolderSecretOpening();
+  const passportHolderBindingBlindingFactorWitness = passportHolderBindingBlindingFactor();
+  const screeningHolderSecretOpeningWitness = screeningHolderSecretOpening();
+  const screeningHolderBindingBlindingFactorWitness = screeningHolderBindingBlindingFactor();
+
+  assert(
+    passportRequest.verifierChallengeHash == screeningRequest.verifierChallengeHash,
+    "Passport and compliance presentations must use the same verifier challenge"
+  );
+
+  assertSecretPassportPresentationSatisfiesRequest(
+    passportCredential,
+    passportCredentialProof,
+    passportRequest,
+    passportPresentation,
+    holderSecretWitness,
+    passportHolderSecretOpeningWitness,
+    passportHolderBindingBlindingFactorWitness
+  );
+  assertValidSecretPassportCredentialAgePredicate(
+    passportCredential,
+    passportPresentation,
+    currentDay,
+    holderBirthDateDays(),
+    holderBirthDateOpening()
+  );
+  assertSecretPassportNotExpired(passportCredential, currentDay);
+
+  assertSanctionScreeningPresentationSatisfiesRequest(
+    screeningCredential,
+    screeningCredentialProof,
+    screeningRequest,
+    screeningPresentation,
+    holderSecretWitness,
+    screeningHolderSecretOpeningWitness,
+    screeningHolderBindingBlindingFactorWitness
+  );
+  assertSanctionScreeningResultPass(screeningCredential, screeningPresentation);
+  assertSanctionScreeningPepFalse(screeningCredential, screeningPresentation);
+  assertSanctionScreeningFresh(
+    screeningCredential,
+    screeningPresentation,
+    currentDay,
+    screeningDateDay(),
+    screeningDateOpening()
+  );
+  assertSanctionScreeningNotExpired(screeningCredential, currentDay);
+
+  assertSameBlindedSecretHolderBindingWitnesses(
+    passportPresentation.holderBinding,
+    screeningPresentation.holderBinding,
+    passportRequest.verifierChallengeHash,
+    holderSecretWitness,
+    passportHolderSecretOpeningWitness,
+    passportHolderBindingBlindingFactorWitness,
+    screeningHolderSecretOpeningWitness,
+    screeningHolderBindingBlindingFactorWitness
+  );
+}

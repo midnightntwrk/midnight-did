@@ -456,19 +456,48 @@ Rule of thumb:
 
 ## Recommended Next Prototype Task
 
-Create a small dependency-composition spike with an external-consumer shape:
+The first dependency-composition spike is now represented by
+`credentials-demo-contract/src/passport-compliance-demo.compact`. It composes:
+
+- `credentials-same-holder`
+- `credentials-iso-registry`
+- `credentials-passport-secret/src/secret-passport-credential/composable`
+- `credentials-compliance/src/sanction-screening-credential/composable`
+
+The contract verifies a Passport presentation and a Sanction Screening
+presentation under one verifier challenge, checks the same hidden holder through
+the blinded holder-binding capability, and applies Layer 3 business rules such
+as passport age, passport expiry, screening result, PEP status, screening
+freshness, and screening expiry.
+
+The spike validates these points:
+
+- standalone credential-family entry points can remain unchanged for package
+  builds and generated TS/JS artifacts
+- composition-safe entry points prevent duplicate shared `SchemaRef`, `Proof`,
+  holder-binding, and protocol declarations
+- family-local wrapper circuits are enough to route generic VC helper calls
+  through prefixed module instantiations
+- generated TypeScript for the Layer 3 contract exposes both concrete family
+  types and the composed business circuit
+
+Next, harden this from a spike into a reusable pattern:
 
 1. Add or generate a minimal Layer 3 contract that imports two concrete
-   credential families and one optional capability package.
+   credential families and one optional capability package. Done for Passport +
+   Compliance.
 2. Keep all credential checks family-specific and all business state mutation in
-   the Layer 3 contract.
-3. Verify Compact compilation and generated TS artifacts.
+   the Layer 3 contract. Done for the current eligibility check.
+3. Verify Compact compilation and generated TS artifacts. Done in
+   `credentials-demo-contract`.
 4. Add a TypeScript test that imports the Layer 3 generated contract and proves
-   the expected public types are usable.
-5. Document the exact import paths that worked.
-6. Keep the temporary spike contract checked in only after it compiles; otherwise
-   record the compiler failure in this research note and avoid committing
-   non-building Compact source.
+   the expected public types are usable. Done in
+   `passport-compliance-composition.test.ts`.
+5. Add fixture-backed tests that execute the composed eligibility circuit with
+   successful and failing Passport + Compliance presentations.
+6. Document the exact import paths that worked in each package README. Started.
+7. Generalize the standalone/composable split to any future credential family
+   before publishing.
 
 Candidate scenario:
 

@@ -1646,7 +1646,7 @@ That is an acceptable trade-off for this phase because the goal is contract-nati
 5. Decide whether a W3C adapter should target JSON-LD, SD-JWT VC, or another exchange format.
 6. Extend the schema package with more selective disclosures and predicates only when they have a clear contract use case.
 7. Keep the schema package separate from business contracts.
-8. Research and validate the dependency composition model for Compact credential packages so Layer 3 smart contracts can import concrete VC/VP/protocol types and compose business logic without depending on generated TS/JS internals. See [Midnight Credentials Dependency Composition Model](./midnight-credentials-dependency-composition.md).
+8. Continue hardening the dependency composition model for Compact credential packages so Layer 3 smart contracts can import concrete VC/VP/protocol types and compose business logic without depending on generated TS/JS internals. The first Passport + Compliance composition spike is documented in [Midnight Credentials Dependency Composition Model](./midnight-credentials-dependency-composition.md).
 
 ## Appendix A: Comparison with AnonCreds
 

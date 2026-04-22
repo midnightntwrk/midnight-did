@@ -13,52 +13,51 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pragma language_version >= 0.20;
+// Composition-safe entry point for Layer 3 contracts. The importing contract
+// must include shared dependencies such as credentials and same-holder exactly
+// once before including this file.
 
-import CompactStandardLibrary;
+include "./model";
 
-include "../../../../credentials-same-holder/src/same-holder";
-include "./sanction-screening-credential/model";
+import VC<SanctionScreeningCredentialClaims, SanctionScreeningCredentialDisclosures, BlindedSecretHolderBinding> prefix SanctionScreeningCredentialVC_;
 
-import VC<SanctionScreeningCredentialClaims, SanctionScreeningCredentialDisclosures, BlindedSecretHolderBinding>;
-
-export type SanctionScreeningCredential = Credential;
-export type SanctionScreeningCredentialPresentation = Presentation;
+export type SanctionScreeningCredential = SanctionScreeningCredentialVC_Credential;
+export type SanctionScreeningCredentialPresentation = SanctionScreeningCredentialVC_Presentation;
 
 export circuit sanctionScreeningCredentialGenericBodyRoot(
   credential: SanctionScreeningCredential
 ): Bytes<32> {
-  return credentialBodyRoot(credential);
+  return SanctionScreeningCredentialVC_credentialBodyRoot(credential);
 }
 
 export circuit sanctionScreeningCredentialGenericPresentationBodyRoot(
   presentation: SanctionScreeningCredentialPresentation
 ): Bytes<32> {
-  return presentationBodyRoot(presentation);
+  return SanctionScreeningCredentialVC_presentationBodyRoot(presentation);
 }
 
 export circuit assertValidSanctionScreeningCredentialEnvelope(
   credential: SanctionScreeningCredential,
   expectedClaimRoot: Bytes<32>
 ): [] {
-  assertValidCredentialEnvelope(credential, expectedClaimRoot);
+  SanctionScreeningCredentialVC_assertValidCredentialEnvelope(credential, expectedClaimRoot);
 }
 
 export circuit assertValidSanctionScreeningCredentialProofEnvelope(
   credential: SanctionScreeningCredential,
   proof: Proof
 ): [] {
-  assertValidCredentialProof(credential, proof);
+  SanctionScreeningCredentialVC_assertValidCredentialProof(credential, proof);
 }
 
 export circuit assertValidSanctionScreeningPresentationEnvelope(
   credential: SanctionScreeningCredential,
   presentation: SanctionScreeningCredentialPresentation
 ): [] {
-  assertValidPresentationEnvelope(credential, presentation);
+  SanctionScreeningCredentialVC_assertValidPresentationEnvelope(credential, presentation);
 }
 
-include "./sanction-screening-credential/protocol-model";
+include "./protocol-model";
 
 import IssuanceProtocol<
   SanctionScreeningCredentialIssuanceOfferBody,
@@ -78,5 +77,6 @@ export type SanctionScreeningCredentialIssuanceResult = SanctionScreeningCredent
 export type SanctionScreeningCredentialVerificationRequest = SanctionScreeningCredentialVerification_RequestMessage;
 export type SanctionScreeningCredentialVerificationSubmission = SanctionScreeningCredentialVerification_SubmissionMessage;
 export type SanctionScreeningCredentialVerificationResult = SanctionScreeningCredentialVerification_ResultMessage;
-include "./sanction-screening-credential/helpers";
-include "./sanction-screening-credential/validation";
+
+include "./helpers";
+include "./validation";

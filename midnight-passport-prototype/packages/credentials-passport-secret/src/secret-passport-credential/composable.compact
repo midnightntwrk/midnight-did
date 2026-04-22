@@ -13,54 +13,52 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pragma language_version >= 0.20;
+// Composition-safe entry point for Layer 3 contracts. The importing contract
+// must include shared dependencies such as credentials, same-holder, and the ISO
+// registry exactly once before including this file.
 
-import CompactStandardLibrary;
+include "../../../credentials-passport/src/passport-credential/claims";
+include "./model";
 
-include "../../../../credentials-same-holder/src/same-holder";
-include "../../../../credentials-iso-registry/src/iso-registry";
-include "../../credentials-passport/src/passport-credential/claims";
-include "./secret-passport-credential/model";
+import VC<PassportCredentialClaims, SecretPassportCredentialDisclosures, BlindedSecretHolderBinding> prefix SecretPassportCredentialVC_;
 
-import VC<PassportCredentialClaims, SecretPassportCredentialDisclosures, BlindedSecretHolderBinding>;
-
-export type SecretPassportCredential = Credential;
-export type SecretPassportCredentialPresentation = Presentation;
+export type SecretPassportCredential = SecretPassportCredentialVC_Credential;
+export type SecretPassportCredentialPresentation = SecretPassportCredentialVC_Presentation;
 
 export circuit secretPassportCredentialGenericBodyRoot(
   credential: SecretPassportCredential
 ): Bytes<32> {
-  return credentialBodyRoot(credential);
+  return SecretPassportCredentialVC_credentialBodyRoot(credential);
 }
 
 export circuit secretPassportCredentialGenericPresentationBodyRoot(
   presentation: SecretPassportCredentialPresentation
 ): Bytes<32> {
-  return presentationBodyRoot(presentation);
+  return SecretPassportCredentialVC_presentationBodyRoot(presentation);
 }
 
 export circuit assertValidSecretPassportCredentialEnvelope(
   credential: SecretPassportCredential,
   expectedClaimRoot: Bytes<32>
 ): [] {
-  assertValidCredentialEnvelope(credential, expectedClaimRoot);
+  SecretPassportCredentialVC_assertValidCredentialEnvelope(credential, expectedClaimRoot);
 }
 
 export circuit assertValidSecretPassportCredentialProofEnvelope(
   credential: SecretPassportCredential,
   proof: Proof
 ): [] {
-  assertValidCredentialProof(credential, proof);
+  SecretPassportCredentialVC_assertValidCredentialProof(credential, proof);
 }
 
 export circuit assertValidSecretPassportPresentationEnvelope(
   credential: SecretPassportCredential,
   presentation: SecretPassportCredentialPresentation
 ): [] {
-  assertValidPresentationEnvelope(credential, presentation);
+  SecretPassportCredentialVC_assertValidPresentationEnvelope(credential, presentation);
 }
 
-include "./secret-passport-credential/protocol-model";
+include "./protocol-model";
 
 import IssuanceProtocol<
   SecretPassportCredentialIssuanceOfferBody,
@@ -80,5 +78,6 @@ export type SecretPassportCredentialIssuanceResult = SecretPassportCredentialIss
 export type SecretPassportCredentialVerificationRequest = SecretPassportCredentialVerification_RequestMessage;
 export type SecretPassportCredentialVerificationSubmission = SecretPassportCredentialVerification_SubmissionMessage;
 export type SecretPassportCredentialVerificationResult = SecretPassportCredentialVerification_ResultMessage;
-include "./secret-passport-credential/helpers";
-include "./secret-passport-credential/validation";
+
+include "./helpers";
+include "./validation";

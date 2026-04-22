@@ -206,9 +206,9 @@ export circuit assertValidSanctionScreeningCredential(
   proof: Proof
 ): [] {
   assertValidSanctionScreeningSchemaRef(credential.schema);
-  assertValidCredentialEnvelope(credential, sanctionScreeningCredentialClaimRoot(credential.claims));
+  assertValidSanctionScreeningCredentialEnvelope(credential, sanctionScreeningCredentialClaimRoot(credential.claims));
   assertValidBlindedSecretHolderCredentialBinding(credential.holderBinding);
-  assertValidCredentialProof(credential, proof);
+  assertValidSanctionScreeningCredentialProofEnvelope(credential, proof);
   assert(credential.claims.screeningResult > 0, "Screening result must be set");
   assert(credential.claims.riskLevel > 0, "Risk level must be set");
   assert(credential.claims.sanctionsListsChecked > 0, "At least one sanctions list must be checked");
@@ -221,7 +221,7 @@ export circuit assertValidSanctionScreeningCredentialPresentation(
 ): [] {
   assertValidSanctionScreeningCredential(credential, credentialProof);
   assertValidSanctionScreeningSchemaRef(presentation.schema);
-  assertValidPresentationEnvelope(credential, presentation);
+  assertValidSanctionScreeningPresentationEnvelope(credential, presentation);
   assertValidBlindedSecretHolderPresentationBinding(presentation.holderBinding);
   assertMatchingBlindedSecretHolderBindings(
     credential.holderBinding,
