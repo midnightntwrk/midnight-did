@@ -12,7 +12,9 @@ const elements = {
   events: $("#issuerEvents"),
   verifyNationalId: $("#verifyNationalId"),
   runSanctions: $("#runSanctions"),
+  flagSanctions: $("#flagSanctions"),
   runPep: $("#runPep"),
+  flagPep: $("#flagPep"),
   approveProfile: $("#approveProfile"),
   completeIssuance: $("#completeIssuance"),
 };
@@ -42,27 +44,36 @@ function renderEvents(values) {
 }
 
 function renderSession(session) {
+  const denied = session.status === "denied";
   elements.sessionId.textContent = session.id;
   elements.status.textContent = session.status;
   elements.issuerDid.textContent = session.issuerDid;
   elements.issuerMethodId.textContent = `${session.issuerMethodId.slice(0, 16)}…`;
   elements.proofStatus.textContent =
-    session.status === "checks_completed" ? "Ready" : "Waiting";
+    session.status === "checks_completed"
+      ? "Ready"
+      : denied
+        ? "Denied"
+        : "Waiting";
   elements.proofStatus.classList.toggle(
     "success",
     session.status === "checks_completed",
   );
+  elements.proofStatus.classList.toggle("danger", denied);
 
   Object.entries(checkButtons).forEach(([check, button]) => {
-    button.disabled = Boolean(session.checks[check]);
+    button.disabled = denied || Boolean(session.checks[check]);
     button.textContent = session.checks[check]
       ? `${checkLabels[check]} ✓`
       : checkLabels[check];
   });
+  elements.flagSanctions.disabled = denied || session.checks.sanctionsChecked;
+  elements.flagPep.disabled = denied || session.checks.pepChecked;
 
   const completed = Object.values(session.checks).every(Boolean);
-  elements.completeIssuance.disabled = !completed;
+  elements.completeIssuance.disabled = denied || !completed;
   renderEvents([
+    ...(denied ? [`Denied: ${session.denialReason ?? "Screening failed"}.`] : []),
     session.checks.nationalIdPresentationVerified
       ? "National ID presentation verified: age and holder binding context accepted."
       : "Waiting for National ID presentation.",
@@ -104,6 +115,15 @@ async function completeCheck(check) {
   );
 }
 
+async function denyScreening(reason) {
+  if (!sessionId) return;
+  renderSession(
+    await fetchJson(`/api/issuer/screening/sessions/${sessionId}/deny/${reason}`, {
+      method: "POST",
+    }),
+  );
+}
+
 async function completeIssuance() {
   if (!sessionId) return;
   const result = await fetchJson(
@@ -121,7 +141,11 @@ elements.verifyNationalId?.addEventListener("click", () =>
 elements.runSanctions?.addEventListener("click", () =>
   completeCheck("sanctionsChecked"),
 );
+elements.flagSanctions?.addEventListener("click", () =>
+  denyScreening("sanctions_match"),
+);
 elements.runPep?.addEventListener("click", () => completeCheck("pepChecked"));
+elements.flagPep?.addEventListener("click", () => denyScreening("pep_match"));
 elements.approveProfile?.addEventListener("click", () =>
   completeCheck("profileApproved"),
 );

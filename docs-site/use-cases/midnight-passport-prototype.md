@@ -99,7 +99,9 @@ own prototype Midnight DID:
 The Screening VC fixture is signed with that issuer key and remains bound to the
 same hidden holder secret. The verifier later checks that National ID and
 Screening credentials are controlled by the same holder without learning the
-holder DID.
+holder DID. The issuer page also supports negative sanctions/PEP outcomes; in
+that case it marks the issuer session as denied and does not return a credential
+offer to the wallet.
 
 ## Passkey Unlock And Wallet Seed
 

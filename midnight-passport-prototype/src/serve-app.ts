@@ -264,13 +264,13 @@ const handleScreeningIssuerApi = async (
   }
 
   const sessionMatch = requestUrl.pathname.match(
-    /^\/api\/issuer\/screening\/sessions\/([^/]+)(?:\/checks\/([^/]+)|\/complete)?$/u,
+    /^\/api\/issuer\/screening\/sessions\/([^/]+)(?:\/checks\/([^/]+)|\/deny\/([^/]+)|\/complete)?$/u,
   );
   if (!sessionMatch) {
     return false;
   }
 
-  const [, sessionId, check] = sessionMatch;
+  const [, sessionId, check, denialReason] = sessionMatch;
   try {
     if (check) {
       sendJson(
@@ -280,6 +280,18 @@ const handleScreeningIssuerApi = async (
           sessionId,
           check: check as ScreeningIssuerCheck,
           value: true,
+        }),
+      );
+      return true;
+    }
+
+    if (denialReason) {
+      sendJson(
+        response,
+        200,
+        issuer.deny({
+          sessionId,
+          reason: denialReason as "sanctions_match" | "pep_match",
         }),
       );
       return true;

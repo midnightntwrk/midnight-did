@@ -50,7 +50,9 @@ export type ScreeningIssuerSessionState = {
     | "checks_completed"
     | "offer_issued"
     | "token_issued"
-    | "credential_issued";
+    | "credential_issued"
+    | "denied";
+  readonly denialReason?: string;
   readonly credentialOfferUri?: string;
 };
 
@@ -68,6 +70,7 @@ type MutableScreeningIssuerSession = {
   issuerMethodId: string;
   checks: Record<ScreeningIssuerCheck, boolean>;
   status: ScreeningIssuerSessionState["status"];
+  denialReason?: string;
   preAuthorizedCode?: string;
   accessToken?: string;
   credentialOfferUri?: string;
@@ -98,6 +101,7 @@ const publicSession = (
   issuerMethodId: session.issuerMethodId,
   checks: { ...session.checks },
   status: session.status,
+  denialReason: session.denialReason,
   credentialOfferUri: session.credentialOfferUri,
 });
 
@@ -200,11 +204,27 @@ export class ScreeningIssuerService {
     return publicSession(session);
   }
 
+  deny(input: {
+    readonly sessionId: string;
+    readonly reason: "sanctions_match" | "pep_match";
+  }): ScreeningIssuerSessionState {
+    const session = this.requireSession(input.sessionId);
+    session.status = "denied";
+    session.denialReason =
+      input.reason === "sanctions_match"
+        ? "Sanctions screening returned a possible match"
+        : "PEP screening returned a possible match";
+    return publicSession(session);
+  }
+
   completeChecks(sessionId: string): {
     readonly session: ScreeningIssuerSessionState;
     readonly redirectUrl: string;
   } {
     const session = this.requireSession(sessionId);
+    if (session.status === "denied") {
+      throw new Error(session.denialReason ?? "Screening issuer denied");
+    }
     if (!checks.every((check) => session.checks[check])) {
       throw new Error("All Screening issuer checks must pass first");
     }

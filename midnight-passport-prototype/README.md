@@ -93,7 +93,9 @@ The browser shell can run the flow manually:
 12. settle through the external crypto wallet stub
 
 It also includes a denied-path shortcut that demonstrates compliance rejection
-before investment proof creation.
+before investment proof creation. The Screening issuer page also supports an
+issuer-side denied path where sanctions or PEP checks can block the credential
+offer before the wallet receives a Screening VC.
 
 Browser API endpoints:
 
