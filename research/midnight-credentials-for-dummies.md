@@ -1382,10 +1382,10 @@ That is a better engineering habit because it tells you exactly what combination
 | hidden-holder flow | Alice proves control using a hidden holder secret instead of a visible DID method | `credentials-birth-secret/src/test/capability-profiles.test.ts` |
 | advanced privacy flow | Alice uses hidden holder binding, a blinded anchor, selective disclosure, verifier pseudonym, and age predicate | `credentials-birth-secret/src/test/capability-profiles.test.ts` |
 | same-holder composition | Alice proves two or three credentials belong to the same hidden holder | `credentials-birth-secret/src/test/same-holder-composition.test.ts` |
-| passport explicit-holder flow | Alice presents a passport with mixed public/private claims and explicit DID binding | `credentials-passport/src/test/capability-profiles.test.ts` |
-| passport predicates | Alice proves age and expiry from a passport without revealing personal data | `credentials-passport/src/test/predicates.test.ts` |
-| passport hidden-holder flow | Alice presents a passport with hidden holder binding and verifier pseudonym | `credentials-passport-secret/src/test/capability-profiles.test.ts` |
-| passport same-holder composition | Alice proves two or three passport-backed credentials belong to the same hidden holder | `credentials-passport-secret/src/test/same-holder-composition.test.ts` |
+| passport explicit-holder flow | Alice presents a passport with mixed public/private claims and explicit DID binding | `midnight-passport-prototype/packages/credentials-passport/src/test/capability-profiles.test.ts` |
+| passport predicates | Alice proves age and expiry from a passport without revealing personal data | `midnight-passport-prototype/packages/credentials-passport/src/test/predicates.test.ts` |
+| passport hidden-holder flow | Alice presents a passport with hidden holder binding and verifier pseudonym | `midnight-passport-prototype/packages/credentials-passport-secret/src/test/capability-profiles.test.ts` |
+| passport same-holder composition | Alice proves two or three passport-backed credentials belong to the same hidden holder | `midnight-passport-prototype/packages/credentials-passport-secret/src/test/same-holder-composition.test.ts` |
 
 ### Why This Matters
 
@@ -1771,8 +1771,8 @@ Mohawk approves because: "More predicates. Same privacy. Better verification."
 
 ### Tests For This Chapter
 
-- `credentials-passport/src/test/capability-profiles.test.ts`
-- `credentials-passport/src/test/predicates.test.ts`
+- `midnight-passport-prototype/packages/credentials-passport/src/test/capability-profiles.test.ts`
+- `midnight-passport-prototype/packages/credentials-passport/src/test/predicates.test.ts`
 
 ## Chapter 19: Two Use Cases Walk Into a Contract
 
@@ -2379,11 +2379,11 @@ If you want the shortest path:
    - same-holder composition in a real family
 11. `credentials-iso-registry/src/iso-registry/codes.compact`
    - shared ISO code types
-12. `credentials-passport/src/passport-credential/claims.compact`
+12. `midnight-passport-prototype/packages/credentials-passport/src/passport-credential/claims.compact`
    - passport claims with ISO types
-13. `credentials-passport/src/test/predicates.test.ts`
+13. `midnight-passport-prototype/packages/credentials-passport/src/test/predicates.test.ts`
    - passport predicates: age and expiry
-14. `credentials-passport-secret/src/test/same-holder-composition.test.ts`
+14. `midnight-passport-prototype/packages/credentials-passport-secret/src/test/same-holder-composition.test.ts`
    - same-holder composition with passport credentials
 15. `credentials-demo-contract/src/demo.compact`
    - business contract composition

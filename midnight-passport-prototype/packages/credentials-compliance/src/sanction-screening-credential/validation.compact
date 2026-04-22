@@ -1,0 +1,391 @@
+export circuit assertValidSanctionScreeningCredentialIssuanceOffer(
+  offer: SanctionScreeningCredentialIssuanceOffer
+): [] {
+  SanctionScreeningCredentialIssuance_assertValidOfferMessage(offer);
+  assertValidSanctionScreeningSchemaRef(offer.schema);
+  assert(
+    offer.holderBindingProfile == HolderBindingProfile.blindedSecretHolder,
+    "Sanction screening issuance offer must use blinded secret holder binding"
+  );
+  if (offer.body.supportsExpiration) {
+    assert(
+      offer.body.defaultExpirationDays > 0,
+      "Sanction screening issuance offer default expiration must be positive when supported"
+    );
+  } else {
+    assert(
+      offer.body.defaultExpirationDays == 0,
+      "Sanction screening issuance offer default expiration must be zero when expiration is disabled"
+    );
+  }
+}
+
+export circuit assertValidSanctionScreeningCredentialIssuanceRequest(
+  request: SanctionScreeningCredentialIssuanceRequest
+): [] {
+  SanctionScreeningCredentialIssuance_assertValidRequestMessage(request);
+  assertValidSanctionScreeningSchemaRef(request.schema);
+  assert(
+    request.holderBindingProfile == HolderBindingProfile.blindedSecretHolder,
+    "Sanction screening issuance request must use blinded secret holder binding"
+  );
+  assert(
+    request.body.holderSecretCommitment != noProtocolResponseReference(),
+    "Sanction screening issuance request holder secret commitment must be set"
+  );
+  assert(
+    request.body.holderBindingBlindingFactor != noProtocolResponseReference(),
+    "Sanction screening issuance request holder binding blinding factor must be set"
+  );
+  assert(
+    request.body.holderChallengeHash != noProtocolResponseReference(),
+    "Sanction screening issuance request holder challenge must be set"
+  );
+  if (request.body.requestExpiration) {
+    assert(
+      request.body.requestedExpirationDays > 0,
+      "Sanction screening issuance request expiration days must be positive when requested"
+    );
+  } else {
+    assert(
+      request.body.requestedExpirationDays == 0,
+      "Sanction screening issuance request expiration days must be zero when disabled"
+    );
+  }
+}
+
+export circuit assertSanctionScreeningCredentialIssuanceRequestMatchesOffer(
+  offer: SanctionScreeningCredentialIssuanceOffer,
+  request: SanctionScreeningCredentialIssuanceRequest
+): [] {
+  assertValidSanctionScreeningCredentialIssuanceOffer(offer);
+  assertValidSanctionScreeningCredentialIssuanceRequest(request);
+  SanctionScreeningCredentialIssuance_assertOfferRequestAlignment(offer, request);
+  if (request.body.requestExpiration) {
+    assert(
+      offer.body.supportsExpiration,
+      "Sanction screening issuance request cannot require expiration when the offer disables it"
+    );
+  }
+}
+
+export circuit assertValidSanctionScreeningCredentialIssuanceResult(
+  result: SanctionScreeningCredentialIssuanceResult
+): [] {
+  SanctionScreeningCredentialIssuance_assertValidResultMessage(result);
+  assertValidSanctionScreeningSchemaRef(result.schema);
+  assert(
+    result.holderBindingProfile == HolderBindingProfile.blindedSecretHolder,
+    "Sanction screening issuance result must use blinded secret holder binding"
+  );
+  assertValidSanctionScreeningCredential(
+    result.body.credential,
+    result.body.credentialProof
+  );
+  assert(
+    result.body.credentialProof.challengeHash == result.body.issuanceChallengeHash,
+    "Sanction screening issuance result challenge must match the issuer proof challenge"
+  );
+}
+
+export circuit assertSanctionScreeningCredentialIssuanceResultMatchesRequest(
+  request: SanctionScreeningCredentialIssuanceRequest,
+  result: SanctionScreeningCredentialIssuanceResult
+): [] {
+  assertValidSanctionScreeningCredentialIssuanceRequest(request);
+  assertValidSanctionScreeningCredentialIssuanceResult(result);
+  SanctionScreeningCredentialIssuance_assertRequestResultAlignment(request, result);
+  assert(
+    request.body.holderChallengeHash == result.body.issuanceChallengeHash,
+    "Sanction screening issuance result challenge must match the request challenge"
+  );
+}
+
+export circuit assertValidSanctionScreeningCredentialVerificationRequestMessage(
+  request: SanctionScreeningCredentialVerificationRequest
+): [] {
+  SanctionScreeningCredentialVerification_assertValidRequestMessage(request);
+  assertValidSanctionScreeningSchemaRef(request.schema);
+  assert(
+    request.holderBindingProfile == HolderBindingProfile.blindedSecretHolder,
+    "Sanction screening verification request must use blinded secret holder binding"
+  );
+  assertValidSanctionScreeningCredentialPresentationRequest(
+    sanctionScreeningCredentialPresentationRequestFromProtocol(request)
+  );
+}
+
+export circuit assertValidSanctionScreeningCredentialVerificationSubmissionMessage(
+  submission: SanctionScreeningCredentialVerificationSubmission
+): [] {
+  SanctionScreeningCredentialVerification_assertValidSubmissionMessage(submission);
+  assertValidSanctionScreeningSchemaRef(submission.schema);
+  assert(
+    submission.holderBindingProfile == HolderBindingProfile.blindedSecretHolder,
+    "Sanction screening verification submission must use blinded secret holder binding"
+  );
+  assertValidSanctionScreeningCredentialPresentation(
+    submission.body.credential,
+    submission.body.credentialProof,
+    submission.body.presentation
+  );
+  assert(
+    submission.challengeHash != noProtocolResponseReference(),
+    "Sanction screening verification submission challenge must be set"
+  );
+}
+
+export circuit assertSanctionScreeningCredentialVerificationSubmissionMatchesRequest(
+  request: SanctionScreeningCredentialVerificationRequest,
+  submission: SanctionScreeningCredentialVerificationSubmission,
+  holderSecret: Bytes<32>,
+  holderSecretOpening: Bytes<32>,
+  holderBindingBlindingFactor: Bytes<32>
+): [] {
+  assertValidSanctionScreeningCredentialVerificationRequestMessage(request);
+  assertValidSanctionScreeningCredentialVerificationSubmissionMessage(submission);
+  SanctionScreeningCredentialVerification_assertRequestSubmissionAlignment(
+    request,
+    submission
+  );
+  assertSanctionScreeningPresentationSatisfiesRequest(
+    submission.body.credential,
+    submission.body.credentialProof,
+    sanctionScreeningCredentialPresentationRequestFromProtocol(request),
+    submission.body.presentation,
+    holderSecret,
+    holderSecretOpening,
+    holderBindingBlindingFactor
+  );
+}
+
+export circuit assertValidSanctionScreeningCredentialVerificationResultMessage(
+  result: SanctionScreeningCredentialVerificationResult
+): [] {
+  SanctionScreeningCredentialVerification_assertValidResultMessage(result);
+  if (result.approved) {
+    assert(
+      result.body.credentialRoot != noProtocolResponseReference(),
+      "Sanction screening verification result must include a credential root when approved"
+    );
+    if (result.body.hasVerifierScopedPseudonym) {
+      assert(
+        result.body.verifierScopedPseudonym != noProtocolResponseReference(),
+        "Sanction screening verification result pseudonym must be set when marked as present"
+      );
+    }
+  }
+}
+
+export circuit assertSanctionScreeningCredentialVerificationResultMatchesSubmission(
+  submission: SanctionScreeningCredentialVerificationSubmission,
+  result: SanctionScreeningCredentialVerificationResult
+): [] {
+  assertValidSanctionScreeningCredentialVerificationSubmissionMessage(submission);
+  assertValidSanctionScreeningCredentialVerificationResultMessage(result);
+  SanctionScreeningCredentialVerification_assertSubmissionResultAlignment(
+    submission,
+    result
+  );
+  if (result.approved) {
+    assert(
+      result.body.credentialRoot == sanctionScreeningCredentialBodyRoot(submission.body.credential),
+      "Sanction screening verification result credential root does not match the submission"
+    );
+    if (result.body.hasVerifierScopedPseudonym) {
+      assert(
+        result.body.verifierScopedPseudonym == submission.body.presentation.disclosed.verifierScopedPseudonym,
+        "Sanction screening verification result pseudonym does not match the submission"
+      );
+    }
+  }
+}
+
+export circuit assertValidSanctionScreeningCredential(
+  credential: SanctionScreeningCredential,
+  proof: Proof
+): [] {
+  assertValidSanctionScreeningSchemaRef(credential.schema);
+  assertValidCredentialEnvelope(credential, sanctionScreeningCredentialClaimRoot(credential.claims));
+  assertValidBlindedSecretHolderCredentialBinding(credential.holderBinding);
+  assertValidCredentialProof(credential, proof);
+  assert(credential.claims.screeningResult > 0, "Screening result must be set");
+  assert(credential.claims.riskLevel > 0, "Risk level must be set");
+  assert(credential.claims.sanctionsListsChecked > 0, "At least one sanctions list must be checked");
+}
+
+export circuit assertValidSanctionScreeningCredentialPresentation(
+  credential: SanctionScreeningCredential,
+  credentialProof: Proof,
+  presentation: SanctionScreeningCredentialPresentation
+): [] {
+  assertValidSanctionScreeningCredential(credential, credentialProof);
+  assertValidSanctionScreeningSchemaRef(presentation.schema);
+  assertValidPresentationEnvelope(credential, presentation);
+  assertValidBlindedSecretHolderPresentationBinding(presentation.holderBinding);
+  assertMatchingBlindedSecretHolderBindings(
+    credential.holderBinding,
+    presentation.holderBinding
+  );
+
+  if (presentation.disclosed.revealScreeningResult) {
+    assert(
+      presentation.disclosed.screeningResult == credential.claims.screeningResult,
+      "Presentation screening result does not match the credential"
+    );
+  }
+  if (presentation.disclosed.revealPepStatus) {
+    assert(
+      presentation.disclosed.isPep == credential.claims.isPep,
+      "Presentation PEP status does not match the credential"
+    );
+  }
+  if (presentation.disclosed.revealVerifierScopedPseudonym) {
+    assert(
+      presentation.disclosed.verifierScopedPseudonym != pad(32, ""),
+      "Presentation verifier-scoped pseudonym must be set when enabled"
+    );
+  }
+  if (presentation.disclosed.proveScreeningFresh) {
+    assert(
+      presentation.disclosed.maxScreeningAgeDays > 0,
+      "Presentation screening freshness window must be positive"
+    );
+  }
+}
+
+export circuit assertSanctionScreeningPresentationSatisfiesRequest(
+  credential: SanctionScreeningCredential,
+  credentialProof: Proof,
+  request: SanctionScreeningCredentialPresentationRequest,
+  presentation: SanctionScreeningCredentialPresentation,
+  holderSecret: Bytes<32>,
+  holderSecretOpening: Bytes<32>,
+  holderBindingBlindingFactor: Bytes<32>
+): [] {
+  assertValidSanctionScreeningCredentialPresentationRequest(request);
+  assertValidSanctionScreeningCredentialPresentation(
+    credential,
+    credentialProof,
+    presentation
+  );
+  assertMatchingSchemaRefs(request.schema, credential.schema);
+  assertMatchingSchemaRefs(request.schema, presentation.schema);
+  assert(
+    request.issuerVerificationMethodRef.didContractAddress == credential.issuerVerificationMethodRef.didContractAddress,
+    "Presentation request issuer contract does not match the credential issuer"
+  );
+  assert(
+    request.issuerVerificationMethodRef.methodId == credential.issuerVerificationMethodRef.methodId,
+    "Presentation request issuer method id does not match the credential issuer"
+  );
+  assertBlindedSecretHolderBindingWitness(
+    presentation.holderBinding,
+    request.verifierChallengeHash,
+    holderSecret,
+    holderSecretOpening,
+    holderBindingBlindingFactor
+  );
+  if (request.requireScreeningResultPass) {
+    assert(
+      presentation.disclosed.revealScreeningResult,
+      "Presentation request requires screening result disclosure"
+    );
+    assert(
+      presentation.disclosed.screeningResult == screeningResultPass(),
+      "Presentation request requires a PASS screening result"
+    );
+  }
+  if (request.requirePepFalse) {
+    assert(
+      presentation.disclosed.revealPepStatus,
+      "Presentation request requires PEP status disclosure"
+    );
+    assert(!presentation.disclosed.isPep, "Presentation request requires non-PEP status");
+  }
+  if (request.requireVerifierScopedPseudonym) {
+    assert(
+      presentation.disclosed.revealVerifierScopedPseudonym,
+      "Presentation request requires a verifier-scoped pseudonym"
+    );
+  }
+  if (presentation.disclosed.revealVerifierScopedPseudonym) {
+    assertVerifierScopedPseudonym(
+      presentation.disclosed.verifierScopedPseudonym,
+      holderSecret,
+      request.verifierDomainHash
+    );
+  }
+  if (request.requireScreeningFresh) {
+    assert(
+      presentation.disclosed.proveScreeningFresh,
+      "Presentation request requires screening freshness proof"
+    );
+    assert(
+      presentation.disclosed.maxScreeningAgeDays == request.maxScreeningAgeDays,
+      "Presentation screening freshness window does not match the request"
+    );
+  }
+  if (request.requireNotExpired) {
+    assert(
+      presentation.disclosed.proveNotExpired,
+      "Presentation request requires not-expired proof"
+    );
+  }
+}
+
+export circuit assertSanctionScreeningResultPass(
+  credential: SanctionScreeningCredential,
+  presentation: SanctionScreeningCredentialPresentation
+): [] {
+  assert(
+    presentation.disclosed.revealScreeningResult,
+    "Presentation must disclose screening result"
+  );
+  assert(
+    presentation.disclosed.screeningResult == credential.claims.screeningResult,
+    "Presentation screening result does not match the credential"
+  );
+  assert(credential.claims.screeningResult == screeningResultPass(), "Screening result is not PASS");
+}
+
+export circuit assertSanctionScreeningPepFalse(
+  credential: SanctionScreeningCredential,
+  presentation: SanctionScreeningCredentialPresentation
+): [] {
+  assert(presentation.disclosed.revealPepStatus, "Presentation must disclose PEP status");
+  assert(
+    presentation.disclosed.isPep == credential.claims.isPep,
+    "Presentation PEP status does not match the credential"
+  );
+  assert(!credential.claims.isPep, "Credential subject is marked as PEP");
+}
+
+export circuit assertSanctionScreeningFresh(
+  credential: SanctionScreeningCredential,
+  presentation: SanctionScreeningCredentialPresentation,
+  currentDay: Uint<32>,
+  screeningDateDay: Uint<32>,
+  screeningDateOpening: Bytes<32>
+): [] {
+  assert(
+    presentation.disclosed.proveScreeningFresh,
+    "Presentation must request screening freshness proof"
+  );
+  assert(
+    screeningDateCommitment(screeningDateDay, screeningDateOpening) == credential.claims.screeningDateCommitment,
+    "Screening date witness does not match credential commitment"
+  );
+  assert(currentDay >= screeningDateDay, "Current day must not precede screening date");
+  assert(
+    currentDay - screeningDateDay <= presentation.disclosed.maxScreeningAgeDays,
+    "Screening result is older than the requested freshness window"
+  );
+}
+
+export circuit assertSanctionScreeningNotExpired(
+  credential: SanctionScreeningCredential,
+  currentDay: Uint<32>
+): [] {
+  assert(currentDay <= credential.claims.validUntilDay, "Sanction screening credential has expired");
+}

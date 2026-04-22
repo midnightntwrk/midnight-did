@@ -1,0 +1,48 @@
+{
+  "name": "@midnight-ntwrk/midnight-passport-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone prototype for Midnight Passport actor flows",
+  "scripts": {
+    "test": "vitest run --config vitest.config.ts",
+    "pretest": "npm run build:deps",
+    "test:ci": "vitest run --config vitest.config.ts",
+    "pretest:ci": "npm run build:deps",
+    "test:e2e": "playwright test --config playwright.config.ts",
+    "playwright:install": "playwright install chromium",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretypecheck": "npm run build:deps",
+    "lint": "npm run lint:packages && npm run lint:local",
+    "lint:fix": "npm run lint:fix:packages && npm run lint:fix:local",
+    "all": "npm run test:packages && npm run typecheck:local && npm run test:ci:local && npm run state:generate",
+    "app:serve": "node --experimental-specifier-resolution=node --loader ts-node/esm src/serve-app.ts",
+    "start": "npm run app:serve",
+    "clean": "npm run clean:packages && npm run clean:local",
+    "state:generate": "node --experimental-specifier-resolution=node --loader ts-node/esm src/write-app-state.ts",
+    "build:deps": "npm run build:shared && npm run build -w @midnight-ntwrk/midnight-did-credentials-passport && npm run build -w @midnight-ntwrk/midnight-did-credentials-passport-secret && npm run build -w @midnight-ntwrk/midnight-did-credentials-compliance",
+    "typecheck:local": "tsc -p tsconfig.json --noEmit",
+    "test:ci:local": "vitest run --config vitest.config.ts",
+    "test:packages": "npm run all -w @midnight-ntwrk/midnight-did-credentials-passport && npm run all -w @midnight-ntwrk/midnight-did-credentials-passport-secret && npm run all -w @midnight-ntwrk/midnight-did-credentials-compliance",
+    "lint:packages": "npm run lint -w @midnight-ntwrk/midnight-did-credentials-passport && npm run lint -w @midnight-ntwrk/midnight-did-credentials-passport-secret && npm run lint -w @midnight-ntwrk/midnight-did-credentials-compliance",
+    "lint:local": "eslint src --ext .ts",
+    "lint:fix:packages": "npm run lint:fix -w @midnight-ntwrk/midnight-did-credentials-passport && npm run lint:fix -w @midnight-ntwrk/midnight-did-credentials-passport-secret && npm run lint:fix -w @midnight-ntwrk/midnight-did-credentials-compliance",
+    "lint:fix:local": "eslint src --ext .ts --fix",
+    "clean:packages": "npm run clean -w @midnight-ntwrk/midnight-did-credentials-passport && npm run clean -w @midnight-ntwrk/midnight-did-credentials-passport-secret && npm run clean -w @midnight-ntwrk/midnight-did-credentials-compliance",
+    "clean:local": "rm -rf dist && rm -rf coverage",
+    "build:shared": "npm run build -w @midnight-ntwrk/midnight-did-credentials && npm run build -w @midnight-ntwrk/midnight-did-credentials-same-holder && npm run build -w @midnight-ntwrk/midnight-did-credentials-iso-registry && npm run build -w @midnight-ntwrk/midnight-did-credentials-openid",
+    "preall": "npm run build:shared"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "*",
+    "@midnight-ntwrk/midnight-did-credentials": "*",
+    "@midnight-ntwrk/midnight-did-credentials-compliance": "*",
+    "@midnight-ntwrk/midnight-did-credentials-openid": "*",
+    "@midnight-ntwrk/midnight-did-credentials-passport-secret": "*",
+    "@midnight-ntwrk/midnight-did-credentials-same-holder": "*",
+    "@midnight-ntwrk/midnight-js-network-id": "*"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}

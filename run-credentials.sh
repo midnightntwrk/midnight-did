@@ -24,8 +24,7 @@ npm run lint -w credentials-same-holder
 npm run lint -w credentials-iso-registry
 npm run lint -w credentials-birth
 npm run lint -w credentials-birth-secret
-npm run lint -w credentials-passport
-npm run lint -w credentials-passport-secret
+npm run lint -w credentials-openid
 npm run lint -w credentials-demo-contract
 npm run lint -w credentials-protocol
 
@@ -35,8 +34,8 @@ npm run typecheck -w credentials-same-holder
 npm run typecheck -w credentials-iso-registry
 npm run typecheck -w credentials-birth
 npm run typecheck -w credentials-birth-secret
-npm run typecheck -w credentials-passport
-npm run typecheck -w credentials-passport-secret
+npm run build -w credentials-openid
+npm run typecheck -w credentials-openid
 npm run typecheck -w credentials-demo-contract
 npm run typecheck -w credentials-protocol
 npm run typecheck -w standalone-environment
@@ -56,11 +55,8 @@ npm run all -w credentials-birth
 echo "[credentials] Secret birth credential family"
 npm run all -w credentials-birth-secret
 
-echo "[credentials] Passport credential family"
-npm run all -w credentials-passport
-
-echo "[credentials] Secret passport credential family"
-npm run all -w credentials-passport-secret
+echo "[credentials] OpenID domain schemas"
+npm run all -w credentials-openid
 
 echo "[credentials] Demo verifier contract"
 npm run all -w credentials-demo-contract
@@ -72,12 +68,6 @@ if docker info >/dev/null 2>&1; then
   run_credentials_integration_target \
     "Standalone demo-contract integration" \
     npm run test:integration -w credentials-demo-contract
-  run_credentials_integration_target \
-    "Standalone passport integration" \
-    npm run test:integration -w credentials-passport
-  run_credentials_integration_target \
-    "Standalone secret passport integration" \
-    npm run test:integration -w credentials-passport-secret
   run_credentials_integration_target \
     "Standalone protocol integration" \
     npm run test:integration -w credentials-protocol

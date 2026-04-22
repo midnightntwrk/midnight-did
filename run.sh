@@ -27,4 +27,7 @@ echo "[all] DID manager pipeline"
 echo "[all] Credentials pipeline"
 ./run-credentials.sh
 
+echo "[all] Midnight Passport prototype pipeline"
+./run-passport-prototype.sh
+
 echo "All steps completed successfully."

@@ -32,11 +32,11 @@
     "test:integration": "vitest run --dir src/test/integration",
     "test:ci": "vitest run --exclude src/test/integration/**/*.test.ts",
     "prepack": "npm run build",
-    "clean": "rm -rf dist && rm -rf coverage && rm -rf reports",
-    "build": "rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/demo.compact ./dist",
+    "clean": "rm -rf dist && rm -rf coverage && rm -rf reports && rm -rf src/managed",
+    "build": "npm run compact && rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/demo.compact ./dist",
     "lint": "eslint src --ignore-pattern 'src/managed/**'",
     "lint:fix": "eslint src --fix --ignore-pattern 'src/managed/**'",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "npm run compact && tsc -p tsconfig.json --noEmit",
     "all": "npm run compact && npm run build && npm run test:ci"
   },
   "dependencies": {

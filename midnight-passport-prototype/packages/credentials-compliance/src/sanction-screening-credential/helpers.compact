@@ -1,0 +1,91 @@
+export circuit sanctionScreeningCredentialBodyRoot(
+  credential: SanctionScreeningCredential
+): Bytes<32> {
+  return credentialBodyRoot(credential);
+}
+
+export circuit sanctionScreeningCredentialPresentationBodyRoot(
+  presentation: SanctionScreeningCredentialPresentation
+): Bytes<32> {
+  return presentationBodyRoot(presentation);
+}
+
+export circuit sanctionScreeningCredentialPresentationRequestBodyRoot(
+  request: SanctionScreeningCredentialPresentationRequest
+): Bytes<32> {
+  return persistentHash<SanctionScreeningCredentialPresentationRequest>(request);
+}
+
+export circuit assertValidSanctionScreeningSchemaRef(schema: SchemaRef): [] {
+  assert(
+    schema.packageId == pad(32, "midnight-did:vc:compliance"),
+    "Unexpected compliance schema package identifier"
+  );
+  assert(schema.schemaId == pad(32, "sanction-screening:v1"), "Unexpected compliance schema identifier");
+  assert(schema.majorVersion == 1, "Compliance credential major version mismatch");
+}
+
+export circuit sanctionScreeningCredentialClaimRoot(
+  claims: SanctionScreeningCredentialClaims
+): Bytes<32> {
+  return persistentHash<SanctionScreeningCredentialClaims>(claims);
+}
+
+export circuit subjectIdCommitment(subjectId: Bytes<32>, opening: Bytes<32>): Bytes<32> {
+  return persistentCommit<Bytes<32>>(subjectId, opening);
+}
+
+export circuit screeningDateCommitment(screeningDateDay: Uint<32>, opening: Bytes<32>): Bytes<32> {
+  return persistentCommit<Uint<32>>(screeningDateDay, opening);
+}
+
+export circuit screeningResultPass(): Uint<8> {
+  return 1;
+}
+
+export circuit screeningResultFail(): Uint<8> {
+  return 2;
+}
+
+export circuit riskLevelLow(): Uint<8> {
+  return 1;
+}
+
+export circuit riskLevelMedium(): Uint<8> {
+  return 2;
+}
+
+export circuit riskLevelHigh(): Uint<8> {
+  return 3;
+}
+
+export circuit assertValidSanctionScreeningCredentialPresentationRequest(
+  request: SanctionScreeningCredentialPresentationRequest
+): [] {
+  assert(request.version == 1, "Presentation request version mismatch");
+  assertValidSanctionScreeningSchemaRef(request.schema);
+  assertValidVerificationMethodRef(request.issuerVerificationMethodRef);
+  if (request.requireScreeningFresh) {
+    assert(request.maxScreeningAgeDays > 0, "Screening freshness window must be positive");
+  } else {
+    assert(request.maxScreeningAgeDays == 0, "Screening freshness window must be zero when disabled");
+  }
+}
+
+export circuit sanctionScreeningCredentialPresentationRequestFromProtocol(
+  request: SanctionScreeningCredentialVerificationRequest
+): SanctionScreeningCredentialPresentationRequest {
+  return SanctionScreeningCredentialPresentationRequest {
+    version: request.envelope.version,
+    schema: request.schema,
+    issuerVerificationMethodRef: request.issuerVerificationMethodRef,
+    requireScreeningResultPass: request.body.requireScreeningResultPass,
+    requirePepFalse: request.body.requirePepFalse,
+    requireVerifierScopedPseudonym: request.body.requireVerifierScopedPseudonym,
+    verifierDomainHash: request.body.verifierDomainHash,
+    requireScreeningFresh: request.body.requireScreeningFresh,
+    maxScreeningAgeDays: request.body.maxScreeningAgeDays,
+    requireNotExpired: request.body.requireNotExpired,
+    verifierChallengeHash: request.verifierChallengeHash,
+  };
+}

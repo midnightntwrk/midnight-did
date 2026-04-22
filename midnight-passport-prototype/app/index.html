@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Midnight Passport Prototype</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <main class="passport-shell">
+      <header class="topbar glass-panel">
+        <a class="brand" href="#top" aria-label="Midnight Passport prototype home">
+          <span class="brand-mark">MP</span>
+          <span>
+            <strong>Midnight Passport</strong>
+            <small>Prototype</small>
+          </span>
+        </a>
+        <nav class="stage-tabs" aria-label="Prototype stages">
+          <a class="stage-tab active" href="#wallet">Wallet</a>
+          <a class="stage-tab" href="#credentials">Credentials</a>
+          <a class="stage-tab" href="#protocol">Protocol</a>
+          <a class="stage-tab" href="#consent">Disclosure</a>
+          <a class="stage-tab" href="#investment">Invest</a>
+        </nav>
+      </header>
+
+      <section id="top" class="hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Privacy-first identity for gated experiences</p>
+          <h1>Prove eligibility without handing over your <span>identity</span>.</h1>
+          <p class="hero-text">
+            Midnight Passport shows how a wallet can hold credentials, prepare a
+            private proof, and unlock a product without exposing a passport,
+            holder DID, or raw compliance profile.
+          </p>
+          <div class="hero-actions">
+            <button class="button primary" id="runHappyPath">Run happy path</button>
+            <button class="button secondary" id="reviewDisclosure">Review disclosure</button>
+            <button class="button ghost" id="runDeniedPath">Try denied path</button>
+          </div>
+        </div>
+
+        <aside class="phone-frame" aria-label="Mobile preview">
+          <div class="phone-screen">
+            <div class="passport-card">
+              <div class="passport-card-header">
+                <span class="status-dot"></span>
+                <span>Ready to prove</span>
+              </div>
+              <h2 id="passportHolderName">Alice Example</h2>
+              <p id="passportSummary">Over 18 · Sanctions PASS · Holder hidden</p>
+              <div class="proof-orbit">
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="grid-section" id="wallet">
+        <div class="section-heading">
+          <p class="eyebrow">Wallet setup</p>
+          <h2>Local keys, local store, explicit consent.</h2>
+        </div>
+        <div class="wallet-layout">
+          <article class="glass-card wallet-card">
+            <div class="card-header">
+              <div>
+                <p class="label">Wallet state</p>
+                <h3>Lace wallet emulator</h3>
+              </div>
+              <span class="pill success" id="walletStatus">Ready</span>
+            </div>
+            <dl class="facts">
+              <div>
+                <dt>Midnight DID</dt>
+                <dd id="profileId">alice</dd>
+              </div>
+              <div>
+                <dt>Passkey credential</dt>
+                <dd id="passkeyCredentialId">Not created</dd>
+              </div>
+              <div>
+                <dt>Wallet seed hash</dt>
+                <dd id="walletSeedHash">Not generated</dd>
+              </div>
+              <div>
+                <dt>Secret store</dt>
+                <dd id="secretStoreStatus">Encrypted with passkey-derived KEK</dd>
+              </div>
+              <div>
+                <dt>Holder binding</dt>
+                <dd id="holderBindingStatus">Blinded secret, no holder DID in proofs</dd>
+              </div>
+            </dl>
+          </article>
+
+          <article class="glass-card actor-card">
+            <p class="label">Actors</p>
+            <div class="actor-row">
+              <span class="actor-icon">W</span>
+              <div><strong>Wallet</strong><small>Stores VC witnesses locally</small></div>
+            </div>
+            <div class="actor-row">
+              <span class="actor-icon cyan">I</span>
+              <div><strong>Issuers</strong><small>National ID and compliance credentials</small></div>
+            </div>
+            <div class="actor-row">
+              <span class="actor-icon pink">V</span>
+              <div><strong>Verifier</strong><small>Requests minimum disclosure</small></div>
+            </div>
+          </article>
+        </div>
+        <article class="glass-card flow-card">
+          <div class="card-header">
+            <div>
+              <p class="label">Interactive flow</p>
+              <h3>Run the prototype one actor at a time</h3>
+            </div>
+            <span class="pill" id="flowMode">Manual</span>
+          </div>
+          <div class="action-grid" aria-label="Prototype flow actions">
+            <button class="button secondary" id="resetFlow">Reset</button>
+            <button class="button secondary" id="initializeWallet">Initialize wallet</button>
+            <button class="button secondary" id="lockWallet">Lock wallet</button>
+            <button class="button secondary" id="unlockWallet">Unlock with passkey</button>
+            <button class="button secondary" id="issueNationalId">Start National ID issuance</button>
+            <button class="button secondary" id="issueCompliance">Issue compliance</button>
+            <button class="button secondary" id="prepareProof">Prepare proof</button>
+            <button class="button secondary" id="settleInvestment">Settle transfer</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid-section" id="credentials">
+        <div class="section-heading">
+          <p class="eyebrow cyan-text">Credential inventory</p>
+          <h2>Credentials are product capabilities, not paperwork.</h2>
+        </div>
+        <div class="experience-grid">
+          <article class="experience-card card-purple" id="nationalIdCard">
+            <span class="gated-label">National ID proxy</span>
+            <h3>Age proof</h3>
+            <span class="credential-status" id="nationalIdStatus">Not issued</span>
+            <p>Prove over-18 from committed birth date. No name, document number, or birth date is shared.</p>
+          </article>
+          <article class="experience-card card-cyan" id="complianceCard">
+            <span class="gated-label">Compliance issuer</span>
+            <h3>Sanctions PASS</h3>
+            <span class="credential-status" id="complianceStatus">Not issued</span>
+            <p>Show a current screening result and PEP=false, bound to the same hidden holder.</p>
+          </article>
+          <article class="experience-card card-pink" id="verifierCard">
+            <span class="gated-label">Verifier contract</span>
+            <h3>Private unlock</h3>
+            <span class="credential-status" id="verifierStatus">Waiting</span>
+            <p>The contract checks predicates and emits access state, not raw identity data.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="grid-section" id="protocol">
+        <div class="section-heading">
+          <p class="eyebrow cyan-text">Protocol orchestration</p>
+          <h2>The browser now talks to the TypeScript prototype backend.</h2>
+        </div>
+        <div class="protocol-grid">
+          <article class="glass-card">
+            <div class="card-header">
+              <div>
+                <p class="label">Issuance side</p>
+                <h3>OID4VCI-shaped flow</h3>
+              </div>
+              <span class="pill">Issuer</span>
+            </div>
+            <ol class="protocol-list" id="issuerProtocolList">
+              <li>OID4VCI-style credential offer</li>
+              <li>Credential response with Midnight Compact payload</li>
+            </ol>
+          </article>
+          <article class="glass-card">
+            <div class="card-header">
+              <div>
+                <p class="label">Verification side</p>
+                <h3>OID4VP-shaped flow</h3>
+              </div>
+              <span class="pill">Verifier</span>
+            </div>
+            <ol class="protocol-list" id="verifierProtocolList">
+              <li>Presentation definition with product requirements</li>
+              <li>Contract simulator decision</li>
+            </ol>
+          </article>
+        </div>
+      </section>
+
+      <section class="grid-section consent-grid" id="consent">
+        <div class="consent-modal glass-panel">
+          <div class="shield">◇</div>
+          <p class="eyebrow">Disclosure request</p>
+          <h2>Invest privately with Midnight Passport?</h2>
+          <p class="modal-copy">
+            The DApp asks for proof that you satisfy the product policy. You choose whether to create and submit the proof.
+          </p>
+          <div class="disclosure-columns">
+            <div class="disclosure-list share">
+              <h3>Will be proven</h3>
+              <ul id="willProveList">
+                <li>Over 18</li>
+                <li>Sanctions screening is PASS</li>
+                <li>PEP flag is false</li>
+                <li>Same hidden holder controls both credentials</li>
+              </ul>
+            </div>
+            <div class="disclosure-list no-share">
+              <h3>Will not be shared</h3>
+              <ul id="willNotShareList">
+                <li>Passport number</li>
+                <li>Legal name</li>
+                <li>Birth date</li>
+                <li>Holder DID</li>
+              </ul>
+            </div>
+          </div>
+          <button class="button primary full-width" id="approveProof">Approve private proof</button>
+        </div>
+      </section>
+
+      <section class="grid-section" id="investment">
+        <div class="section-heading">
+          <p class="eyebrow">Investment flow</p>
+          <h2>Business logic receives proof outcomes, not personal data.</h2>
+        </div>
+        <div class="timeline glass-card">
+          <div class="timeline-step" id="timelineWallet"><span>1</span><strong>Wallet prepares witnesses</strong><small>Local VC data never leaves the wallet.</small></div>
+          <div class="timeline-step" id="timelineRequest"><span>2</span><strong>Verifier requests minimum proof</strong><small>Age, compliance and same-holder predicates.</small></div>
+          <div class="timeline-step" id="timelineProof"><span>3</span><strong>Contract checks policy</strong><small>Proof unlocks eligibility state.</small></div>
+          <div class="timeline-step" id="settlementStep"><span>4</span><strong>External wallet confirms transfer</strong><small id="settlementSummary">Crypto wallet remains separate from identity wallet.</small></div>
+        </div>
+      </section>
+
+      <aside class="event-log glass-panel" aria-live="polite">
+        <div class="card-header">
+          <div>
+            <p class="label">Event log</p>
+            <h3>Prototype activity</h3>
+          </div>
+          <span class="pill" id="proofStatus">Idle</span>
+        </div>
+        <ol id="events">
+          <li>Wallet ready with encrypted local store.</li>
+          <li>Credential inventory loaded.</li>
+          <li>Waiting for disclosure approval.</li>
+        </ol>
+      </aside>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

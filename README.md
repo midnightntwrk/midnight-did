@@ -14,6 +14,8 @@ This repository contains the smart contract, domain model, resolver/conversion l
 | [`secret-storage`](secret-storage/README.md) | `@midnight-ntwrk/midnight-did-secret-storage` | Encrypted key storage + sign/verify/HD derivation |
 | [`did-resolver-service`](did-resolver-service/README.md) | `@midnight-ntwrk/midnight-did-resolver-service` | REST/Swagger/UI DID resolver service |
 | [`did-manager-service`](did-manager-service/README.md) | `@midnight-ntwrk/midnight-did-manager-service` | Web DID management backend + minimal UI |
+| [`credentials-openid`](credentials-openid/README.md) | `@midnight-ntwrk/midnight-did-credentials-openid` | OID4VCI/OID4VP-inspired envelopes for Midnight Compact VC/VP payloads |
+| [`midnight-passport-prototype`](midnight-passport-prototype/README.md) | `@midnight-ntwrk/midnight-passport-prototype` | Executable Midnight Passport prototype with wallet, issuers, verifier, DApp, and browser UI |
 
 ## Architecture
 
@@ -107,9 +109,12 @@ Pipelines:
 - API only: `./run-api.sh`
 - Resolver only: `./run-resolver.sh`
 - DID manager only: `./run-manager.sh`
+- Credentials and Passport prototype: `./run-credentials.sh`
+- Passport prototype only: `./run-passport-prototype.sh`
 - Docs pipeline: `./run-docs.sh`
 - Manager app: `./start-manager.sh [--standalone|--preprod|--mainnet]`
 - Resolver app: `./start-resolver.sh [--standalone|--preprod|--mainnet]`
+- Passport prototype app: `./start-passport-prototype.sh`
 - Docs dev server: `./start-docs.sh`
 
 Network defaults:
@@ -148,6 +153,8 @@ When you need direct package/service documentation:
 - `secret-storage/README.md`
 - `did-resolver-service/README.md`
 - `did-manager-service/README.md`
+- `credentials-openid/README.md`
+- `midnight-passport-prototype/README.md`
 
 ## Notes
 

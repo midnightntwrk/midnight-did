@@ -1,0 +1,36 @@
+export struct SanctionScreeningCredentialClaims {
+  subjectIdCommitment: Bytes<32>,
+  screeningResult: Uint<8>,
+  isPep: Boolean,
+  sanctionsListsChecked: Uint<8>,
+  issuerJurisdiction: Uint<16>,
+  riskLevel: Uint<8>,
+  screeningDateCommitment: Bytes<32>,
+  validUntilDay: Uint<32>,
+}
+
+export struct SanctionScreeningCredentialDisclosures {
+  revealScreeningResult: Boolean,
+  screeningResult: Uint<8>,
+  revealPepStatus: Boolean,
+  isPep: Boolean,
+  revealVerifierScopedPseudonym: Boolean,
+  verifierScopedPseudonym: Bytes<32>,
+  proveScreeningFresh: Boolean,
+  maxScreeningAgeDays: Uint<32>,
+  proveNotExpired: Boolean,
+}
+
+export struct SanctionScreeningCredentialPresentationRequest {
+  version: Uint<16>,
+  schema: SchemaRef,
+  issuerVerificationMethodRef: VerificationMethodRef,
+  requireScreeningResultPass: Boolean,
+  requirePepFalse: Boolean,
+  requireVerifierScopedPseudonym: Boolean,
+  verifierDomainHash: Bytes<32>,
+  requireScreeningFresh: Boolean,
+  maxScreeningAgeDays: Uint<32>,
+  requireNotExpired: Boolean,
+  verifierChallengeHash: Bytes<32>,
+}

@@ -1,0 +1,37 @@
+{
+  "name": "@midnight-ntwrk/midnight-did-credentials-openid",
+  "version": "0.1.0",
+  "description": "OID4VCI/OID4VP-inspired domain schemas for Midnight Credentials",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24",
+    "npm": ">=10"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -b tsconfig.build.json --force",
+    "test": "vitest run --config vitest.config.ts",
+    "test:ci": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "clean": "rm -rf dist && rm -rf coverage",
+    "all": "npm run build && npm run test:ci"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "*",
+    "zod": "^4.1.0"
+  }
+}

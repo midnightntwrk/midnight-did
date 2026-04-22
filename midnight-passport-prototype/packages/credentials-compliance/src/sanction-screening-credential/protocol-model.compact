@@ -1,0 +1,45 @@
+export struct SanctionScreeningCredentialIssuanceOfferBody {
+  supportsExpiration: Boolean,
+  defaultExpirationDays: Uint<16>,
+  requiresHolderSecret: Boolean,
+}
+
+export struct SanctionScreeningCredentialIssuanceRequestBody {
+  holderSecretCommitment: Bytes<32>,
+  holderBindingBlindingFactor: Bytes<32>,
+  holderChallengeHash: Bytes<32>,
+  requestExpiration: Boolean,
+  requestedExpirationDays: Uint<16>,
+}
+
+export struct SanctionScreeningCredentialIssuanceResultBody {
+  credential: SanctionScreeningCredential,
+  credentialProof: Proof,
+  issuanceChallengeHash: Bytes<32>,
+}
+
+export struct SanctionScreeningCredentialVerificationRequestBody {
+  requireScreeningResultPass: Boolean,
+  requirePepFalse: Boolean,
+  requireVerifierScopedPseudonym: Boolean,
+  verifierDomainHash: Bytes<32>,
+  requireScreeningFresh: Boolean,
+  maxScreeningAgeDays: Uint<32>,
+  requireNotExpired: Boolean,
+}
+
+export struct SanctionScreeningCredentialVerificationSubmissionBody {
+  credential: SanctionScreeningCredential,
+  credentialProof: Proof,
+  presentation: SanctionScreeningCredentialPresentation,
+}
+
+export struct SanctionScreeningCredentialVerificationResultBody {
+  credentialRoot: Bytes<32>,
+  verifiedScreeningResultPass: Boolean,
+  verifiedPepFalse: Boolean,
+  verifiedScreeningFresh: Boolean,
+  verifiedNotExpired: Boolean,
+  hasVerifierScopedPseudonym: Boolean,
+  verifierScopedPseudonym: Bytes<32>,
+}

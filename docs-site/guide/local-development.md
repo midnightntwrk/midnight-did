@@ -28,8 +28,11 @@ Targeted runners:
 ./run-api.sh
 ./run-resolver.sh
 ./run-manager.sh
+./run-credentials.sh
+./run-passport-prototype.sh
 ./start-resolver.sh
 ./start-manager.sh
+./start-passport-prototype.sh
 ```
 
 Preprod helpers:
@@ -65,6 +68,62 @@ Shared runtime infrastructure:
 
 - standalone stack: `api/standalone.yml`
 - preprod proof server: `infrastructure/preprod-proof-server.yml`
+
+## Midnight Credentials and Passport prototype
+
+Credential work currently has two layers:
+
+- reusable credential capability packages at the repository root
+- Passport-product prototype packages under `midnight-passport-prototype/packages`
+
+Use the broader credentials runner when changing the Compact credential model,
+credential families, standalone integration tests, or the Passport prototype:
+
+```bash
+PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run-credentials.sh
+```
+
+Use the Passport runner when iterating on the Lace Wallet + Midnight Passport
+prototype only:
+
+```bash
+PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run-passport-prototype.sh
+```
+
+This runner validates:
+
+- Passport-specific credential package lint/build/tests
+- `credentials-openid` build and tests
+- the TypeScript browser-session backend
+- Playwright browser flow through the Digital National ID issuer redirect
+- standalone explicit and hidden-holder Passport credential integrations when Docker is available
+
+Start the browser prototype:
+
+```bash
+./start-passport-prototype.sh
+```
+
+Default local URL:
+
+- `http://127.0.0.1:5174`
+
+The prototype is not just a static page. It uses the TypeScript server in
+`midnight-passport-prototype/src/serve-app.ts`, with actors for the wallet,
+Digital National ID issuer, compliance issuer, DApp, verifier contract stub, and
+external crypto wallet stub.
+
+The Digital National ID issuer flow intentionally mocks document upload,
+liveness, and profile approval checks while keeping the protocol exchange close
+to the target shape:
+
+1. wallet starts issuer session
+2. browser redirects to `national-id-issuer.html`
+3. user completes mocked checks
+4. issuer redirects back with `credential_offer_uri`, `issuer_session`, and `state`
+5. wallet validates callback state/session
+6. wallet exchanges pre-authorized token and credential request messages
+7. wallet stores the Midnight Compact credential response
 
 ## Bootstrapped proof server image (local optimization)
 
@@ -253,3 +312,5 @@ npm run docs:sync-source
 | `secret-storage/` | Reusable encrypted key storage and HD derivation |
 | `did-resolver-service/` | Resolver HTTP service and UI |
 | `did-manager-service/` | Wallet/DID management HTTP service and UI |
+| `credentials-openid/` | OID4VCI/OID4VP-inspired Zod schemas and Compact value transport codec |
+| `midnight-passport-prototype/` | Executable Passport prototype app and Passport-specific credential families |

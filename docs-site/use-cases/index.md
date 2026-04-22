@@ -21,6 +21,7 @@ Deferred here:
 | VC signing and verification | Strong foundation | `assertionMethod` and off-chain signing support are present; VC profile still needs to be designed |
 | Delegated agent authorization | Good near-term extension | `capabilityDelegation`, `capabilityInvocation`, and service endpoints are already part of the DID model |
 | Secure agent discovery | Partial but practical | service endpoints and `keyAgreement` are present; messaging profile is still external |
+| Midnight Passport Prototype | Executable prototype | exercises Midnight Credentials, OpenID-shaped issuance, wallet-held credentials, selective disclosure, verifier decisions, and settlement separation |
 
 ## Source basis
 

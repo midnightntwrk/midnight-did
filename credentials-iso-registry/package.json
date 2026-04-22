@@ -4,7 +4,10 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24", "npm": ">=10" },
+  "engines": {
+    "node": ">=24",
+    "npm": ">=10"
+  },
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,11 +25,11 @@
     "test": "vitest run",
     "test:ci": "vitest run",
     "prepack": "npm run build",
-    "clean": "rm -rf dist && rm -rf coverage && rm -rf reports",
-    "build": "rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/iso-registry.compact ./dist && cp -Rf ./src/iso-registry ./dist/",
+    "clean": "rm -rf dist && rm -rf coverage && rm -rf reports && rm -rf src/managed",
+    "build": "npm run compact && rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/iso-registry.compact ./dist && cp -Rf ./src/iso-registry ./dist/",
     "lint": "eslint src --ignore-pattern 'src/managed/**'",
     "lint:fix": "eslint src --fix --ignore-pattern 'src/managed/**'",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "npm run compact && tsc -p tsconfig.json --noEmit",
     "all": "npm run compact && npm run build && npm run test:ci"
   },
   "dependencies": {
