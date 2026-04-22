@@ -58,6 +58,148 @@ repo also relies on `include` for file-level source composition. The practical
 recommendation is to keep the public package surface stable and compiler-tested
 rather than expose arbitrary internal file paths.
 
+
+## Compiler Spike Findings
+
+A first Layer 3 compiler spike tried to compose the current top-level
+`credentials-passport-secret` and `credentials-compliance` entry points in one
+business contract. That failed because both entry points transitively include
+`credentials-same-holder` and `credentials`, causing shared symbols such as
+`SchemaRef` to be bound twice in the same scope.
+
+A second spike tried to include shared dependencies once and instantiate each
+credential family with a prefix. That avoided the duplicate generic core, but
+failed because the current family validation files expect unprefixed generic VC
+helpers such as `assertValidPresentationEnvelope`.
+
+The failure is not a semantic problem in the credential model. It is a package
+surface problem:
+
+- the current top-level family entry points are good standalone build targets
+- multi-family Layer 3 contracts need a different source surface
+- validation/helper files that call generic VC helpers must be prefix-aware or
+  wrapped by family-prefixed circuits
+
+This is a useful result. It means the current package split is conceptually
+right, but the current Compact source surface is optimized for standalone
+credential-family compilation, not for multi-family Layer 3 composition.
+
+The implementation model should therefore introduce composition-friendly
+entry points before publishing packages.
+
+## Composition-Friendly Entry Point Model
+
+Each concrete credential family should expose two Compact entry points.
+
+### Standalone entry point
+
+Used for package-local tests, generated TS/JS artifacts, and simple consumers
+that need only one family.
+
+Example:
+
+```text
+src/secret-passport-credential.compact
+```
+
+Allowed behavior:
+
+- includes generic dependencies
+- instantiates the generic `VC` module
+- exports convenient unprefixed family names
+- compiles directly to `src/managed/<family>`
+
+### Composition entry point
+
+Used by Layer 3 contracts that compose multiple credential families.
+
+Example candidate:
+
+```text
+src/secret-passport-credential/composable.compact
+```
+
+Required behavior:
+
+- does not include shared generic dependencies such as `credentials` or
+  `credentials-same-holder`
+- assumes the Layer 3 contract imports shared dependencies once
+- instantiates generic modules with a family prefix
+- exports only family-prefixed concrete types and circuits
+- ensures validation circuits call family-prefixed generic helpers or
+  family-local wrapper circuits
+
+This avoids both failure modes from the compiler spike:
+
+- no duplicate `SchemaRef`, `Proof`, or holder-binding declarations
+- no accidental collision between generic aliases such as `Credential` and
+  `Presentation`
+
+The likely final shape is:
+
+```compact
+// Layer 3 contract
+include "credentials/src/credentials";
+include "credentials-same-holder/src/same-holder";
+include "credentials-iso-registry/src/iso-registry";
+
+include "credentials-passport-secret/src/secret-passport-credential/composable";
+include "credentials-compliance/src/sanction-screening-credential/composable";
+```
+
+Open design choice:
+
+- either duplicate a small wrapper layer per family for standalone vs composable
+  entry points, or refactor family internals so the standalone entry point is a
+  thin wrapper around the composable entry point. The second option is cleaner
+  but requires more Compact source restructuring.
+
+Recommended direction:
+
+1. Keep the standalone entry point as the package-local compiler target.
+2. Extract family model/schema helpers into files that do not include generic
+   dependencies.
+3. Add a composable entry point that imports generic modules with a family
+   prefix and exposes family-prefixed wrapper circuits.
+4. Make validation files depend on those family-prefixed wrapper circuits, not
+   on global unprefixed generic helper names.
+
+## Naming And Collision Strategy
+
+Compact provides prefix imports for module-level names:
+
+```compact
+import A prefix A$;
+import B prefix B$;
+
+// Use A$myCircuit and B$myCircuit without ambiguity.
+```
+
+That is the right model for generic credential modules and protocol modules.
+For example, a Layer 3 contract that composes two credential families should not
+rely on global helper names such as `Credential`, `Presentation`, or
+`assertValidPresentationEnvelope`. Each family should instantiate the generic
+module with its own prefix and then expose explicit family names:
+
+```compact
+import VC<PassportClaims, PassportDisclosures, BlindedSecretHolderBinding>
+  prefix Passport_;
+
+export type PassportCredential = Passport_Credential;
+export type PassportPresentation = Passport_Presentation;
+```
+
+The caveat is `include`. An `include` composes source into the current scope, so
+including two top-level family files can still duplicate shared declarations
+before prefixing has any chance to help. That is the exact failure seen in the
+compiler spike. The practical rule is:
+
+- use `include` for one-time shared source dependencies
+- use `import ... prefix ...` for generic module instantiations and imported
+  module surfaces
+- keep Layer 3 imports pointed at composition-safe entry points that do not
+  transitively include the same shared core twice
+
 ## Recommended Package Shape
 
 Each reusable credential package should publish three surfaces.
@@ -69,7 +211,8 @@ This is the contract-author surface.
 Recommended files:
 
 ```text
-src/<family>.compact                 # canonical entry point
+src/<family>.compact                 # standalone canonical entry point
+src/<family>/composable.compact      # Layer 3 composition entry point
 src/<family>/model.compact           # structs and request models
 src/<family>/protocol-model.compact  # concrete protocol message bodies
 src/<family>/helpers.compact         # roots, schema checks, constructor helpers
@@ -78,8 +221,9 @@ src/<family>/validation.compact      # assertion circuits and predicates
 
 Rules:
 
-- The top-level `<family>.compact` is the only stable Compact entry point for
-  Layer 3 contracts.
+- The top-level `<family>.compact` is the stable standalone entry point.
+- The `<family>/composable.compact` entry point is the stable Layer 3 entry
+  point when more than one credential family is composed in the same contract.
 - Internal files may exist for readability, but Layer 3 contracts should avoid
   importing them directly unless the package explicitly documents them as public.
 - Public circuits should use family-prefixed names, such as
@@ -170,12 +314,14 @@ export circuit verifyBusinessEligibility(
 ```
 
 For multi-credential policies, the Layer 3 contract should compose concrete
-families directly:
+families through composition-safe entry points:
 
 ```compact
-include "../../midnight-passport-prototype/packages/credentials-passport-secret/src/secret-passport-credential";
-include "../../midnight-passport-prototype/packages/credentials-compliance/src/sanction-screening-credential";
 include "../../credentials-same-holder/src/same-holder";
+include "../../credentials-iso-registry/src/iso-registry";
+
+include "../../midnight-passport-prototype/packages/credentials-passport-secret/src/secret-passport-credential/composable";
+include "../../midnight-passport-prototype/packages/credentials-compliance/src/sanction-screening-credential/composable";
 ```
 
 Then the contract should:
@@ -320,6 +466,9 @@ Create a small dependency-composition spike with an external-consumer shape:
 4. Add a TypeScript test that imports the Layer 3 generated contract and proves
    the expected public types are usable.
 5. Document the exact import paths that worked.
+6. Keep the temporary spike contract checked in only after it compiles; otherwise
+   record the compiler failure in this research note and avoid committing
+   non-building Compact source.
 
 Candidate scenario:
 
@@ -341,11 +490,12 @@ case and produce the dependency guidance needed before publishing packages.
 
 Use an explicit dependency composition model:
 
-1. one stable Compact entry point per credential/capability package
-2. concrete family packages export family-prefixed types and circuits
-3. Layer 3 contracts include/import only the concrete families and optional
+1. one stable standalone Compact entry point per credential/capability package
+2. one stable composition Compact entry point for multi-family Layer 3 imports
+3. concrete family packages export family-prefixed types and circuits
+4. Layer 3 contracts include/import only the concrete families and optional
    capability packages they need
-4. generated TS/JS artifacts are published for applications and tests, not for
+5. generated TS/JS artifacts are published for applications and tests, not for
    Compact contract source composition
-5. no generic multi-credential bundle package until repeated Layer 3 contracts
+6. no generic multi-credential bundle package until repeated Layer 3 contracts
    prove the abstraction is worth it
