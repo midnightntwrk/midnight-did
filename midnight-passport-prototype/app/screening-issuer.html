@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Screening VC Issuer</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <main class="passport-shell issuer-shell">
+      <header class="topbar glass-panel">
+        <a class="brand" href="/" aria-label="Back to Midnight Passport prototype">
+          <span class="brand-mark">SC</span>
+          <span>
+            <strong>Screening VC Issuer</strong>
+            <small>Mocked sanctions checks, OID4VCI-shaped issuance</small>
+          </span>
+        </a>
+      </header>
+
+      <section class="issuer-hero glass-panel">
+        <p class="eyebrow cyan-text">Compliance issuer redirect</p>
+        <h1>Issue a Screening VC after mocked compliance checks.</h1>
+        <p class="hero-text">
+          This page represents a compliance issuer. The wallet arrives with a
+          National ID credential context, the issuer verifies the presentation,
+          runs mocked screening checks, then returns a credential offer URI to
+          the wallet.
+        </p>
+      </section>
+
+      <section class="issuer-grid">
+        <article class="glass-card">
+          <div class="card-header">
+            <div>
+              <p class="label">Issuer session</p>
+              <h3 id="issuerSessionId">Loading...</h3>
+            </div>
+            <span class="pill" id="issuerStatus">Loading</span>
+          </div>
+          <dl class="facts">
+            <div>
+              <dt>Protocol</dt>
+              <dd>OID4VCI pre-authorized credential offer</dd>
+            </div>
+            <div>
+              <dt>Credential</dt>
+              <dd>Sanctions Screening VC</dd>
+            </div>
+            <div>
+              <dt>Issuer DID</dt>
+              <dd id="issuerDid">Loading...</dd>
+            </div>
+            <div>
+              <dt>Issuer signing key</dt>
+              <dd id="issuerMethodId">Loading...</dd>
+            </div>
+            <div>
+              <dt>Input credential</dt>
+              <dd>National ID proxy presentation, holder DID hidden</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="glass-card">
+          <p class="label">Mocked screening checks</p>
+          <div class="issuer-checks">
+            <button class="button secondary" id="verifyNationalId">
+              Verify National ID presentation
+            </button>
+            <button class="button secondary" id="runSanctions">
+              Run sanctions screening
+            </button>
+            <button class="button secondary" id="runPep">
+              Run PEP screening
+            </button>
+            <button class="button secondary" id="approveProfile">
+              Approve compliance profile
+            </button>
+          </div>
+          <button class="button primary full-width" id="completeIssuance" disabled>
+            Return Screening VC offer to wallet
+          </button>
+        </article>
+      </section>
+
+      <aside class="event-log glass-panel" aria-live="polite">
+        <div class="card-header">
+          <div>
+            <p class="label">Issuer log</p>
+            <h3>Screening activity</h3>
+          </div>
+          <span class="pill" id="issuerProofStatus">Waiting</span>
+        </div>
+        <ol id="issuerEvents">
+          <li>Waiting for issuer session.</li>
+        </ol>
+      </aside>
+    </main>
+    <script src="./screening-issuer.js"></script>
+  </body>
+</html>

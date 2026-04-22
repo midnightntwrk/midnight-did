@@ -64,6 +64,9 @@ export type SanctionScreeningFixture = {
 };
 
 export type SanctionScreeningFixtureOptions = {
+  readonly issuerLabel?: string;
+  readonly issuerSecretKey?: bigint;
+  readonly issuerVerificationMethodRef?: VerificationMethodRef;
   readonly screeningResult?: bigint;
   readonly isPep?: boolean;
   readonly holderSecret?: Uint8Array;
@@ -171,7 +174,15 @@ export const signProof = ({
 export const createSanctionScreeningFixture = (
   options: SanctionScreeningFixtureOptions = {},
 ): SanctionScreeningFixture => {
-  const issuer = createSigner("compliance-issuer", 98_765_432n);
+  const baseIssuer = createSigner(
+    options.issuerLabel ?? "compliance-issuer",
+    options.issuerSecretKey ?? 98_765_432n,
+  );
+  const issuer = {
+    ...baseIssuer,
+    verificationMethodRef:
+      options.issuerVerificationMethodRef ?? baseIssuer.verificationMethodRef,
+  };
   const witness = {
     holderSecret: options.holderSecret ?? sha256("holder-secret:alice"),
     holderSecretOpening:

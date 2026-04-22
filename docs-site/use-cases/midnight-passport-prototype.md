@@ -19,7 +19,7 @@ future wallet, issuer, and DApp separation.
 | Wallet / Midnight Passport | `src/actors/wallet.ts` | Stores credentials, encrypts local stores with passkey-derived keys, generates the Midnight wallet seed, and creates verifier-scoped presentations |
 | Wallet bridge | `src/bridge/wallet-bridge.ts` | Boundary a future extension or mobile wallet can replace |
 | Digital National ID issuer | `src/issuers/national-id-issuer-service.ts` + `app/national-id-issuer.html` | Redirect-based issuer UI with mocked checks, OID4VCI-shaped exchange, and a Midnight DID/JubJub signing method |
-| Compliance issuer | `src/actors/compliance-issuer.ts` | Issues screening credentials after passport proof checks |
+| Screening VC issuer | `src/issuers/screening-issuer-service.ts` + `app/screening-issuer.html` | Redirect-based issuer UI with mocked compliance checks, OID4VCI-shaped exchange, and a Midnight DID/JubJub signing method |
 | DApp | `src/actors/dapp.ts` | Requests eligibility proof for the investment product |
 | Verifier contract stub | `src/actors/investment-verifier.ts` | Simulates smart-contract verification decisions |
 | External crypto wallet | `src/actors/crypto-wallet.ts` | Keeps payment/settlement separate from identity wallet |
@@ -44,8 +44,12 @@ sequenceDiagram
   ID-->>Passport: Credential offer URI + state
   Passport->>ID: Token request + credential request
   ID-->>Passport: Midnight Compact National ID credential signed by issuer JubJub key
-  Passport->>Compliance: Present required disclosure
-  Compliance-->>Passport: Compliance credential
+  Passport->>Compliance: Start Screening VC issuance
+  Compliance-->>User: Redirect to mocked checks
+  User->>Compliance: Verify National ID, run sanctions/PEP checks, approve profile
+  Compliance-->>Passport: Credential offer URI + state
+  Passport->>Compliance: Token request + credential request
+  Compliance-->>Passport: Midnight Compact Screening credential signed by issuer JubJub key
   DApp->>Passport: Request investment proof
   Passport->>Verifier: Submit verifier-scoped presentations
   Verifier-->>DApp: Eligibility decision
@@ -78,6 +82,25 @@ references the issuer verification method. The mocked document/liveness checks
 do not replace the issuer signature; they only gate whether the issuer returns a
 credential offer.
 
+The Screening VC issuer UI intentionally mocks compliance-provider work:
+
+- National ID presentation verification
+- sanctions screening
+- PEP screening
+- compliance profile approval
+
+The protocol boundary is the same OID4VCI-shaped flow, but it depends on the
+wallet already holding a National ID credential. The screening issuer has its
+own prototype Midnight DID:
+
+- `did:midnight:prototype:screening-issuer`
+- JubJub verification method `#screening-jubjub-1`
+
+The Screening VC fixture is signed with that issuer key and remains bound to the
+same hidden holder secret. The verifier later checks that National ID and
+Screening credentials are controlled by the same holder without learning the
+holder DID.
+
 ## Passkey Unlock And Wallet Seed
 
 The wallet flow now separates three concepts:
@@ -101,6 +124,8 @@ UI shows only the seed hash/fingerprint, never the seed.
 - Holder material can be derived from a locally generated wallet seed.
 - A National ID credential can be issued by a concrete Midnight DID/JubJub
   signing method.
+- A Screening VC can be issued by a separate Midnight DID/JubJub signing method
+  after validating the National ID credential context.
 - Presentations can be verifier scoped.
 - The holder can prove eligibility without revealing raw passport data, legal
   name, passport number, birth date, or holder DID.

@@ -8,6 +8,7 @@ import type {
   WalletInitializationOptions,
 } from "../actors/wallet.js";
 import type {
+  ComplianceCredentialFixture,
   InvestmentProofBundle,
   WalletCredentialInventory,
   WalletProfile,
@@ -40,6 +41,7 @@ export interface WalletBridge {
   requestNationalIdCredential(issuer: NationalIdIssuerAgent): void;
   acceptNationalIdCredential(credential: PassportCredentialFixture): void;
   requestComplianceCredential(issuer: ComplianceIssuerAgent): void;
+  acceptComplianceCredential(credential: ComplianceCredentialFixture): void;
   createInvestmentProof(
     verifier: InvestmentVerifierContractStub,
   ): InvestmentProofBundle;
@@ -101,6 +103,10 @@ export class InProcessWalletBridge implements WalletBridge {
 
   requestComplianceCredential(issuer: ComplianceIssuerAgent): void {
     this.wallet.requestComplianceCredential(issuer);
+  }
+
+  acceptComplianceCredential(credential: ComplianceCredentialFixture): void {
+    this.wallet.acceptComplianceCredential(credential);
   }
 
   createInvestmentProof(

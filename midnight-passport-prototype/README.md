@@ -47,6 +47,8 @@ The SPA should emulate these actors:
 - `src/app-session.ts` — TypeScript session backend that drives the browser flow
 - `src/issuers/national-id-issuer-service.ts` — redirect-based Digital National
   ID issuer service
+- `src/issuers/screening-issuer-service.ts` — redirect-based Screening VC
+  issuer service
 
 ## Run The Browser Prototype
 
@@ -81,10 +83,14 @@ The browser shell can run the flow manually:
    checks
 4. return to the wallet with a credential offer URI
 5. redeem the offer through token and credential request/response messages
-6. issue compliance credential
-7. prepare the verifier-scoped proof
-8. approve the proof
-9. settle through the external crypto wallet stub
+6. start Screening VC issuance
+7. redirect to the screening issuer page and complete mocked
+   National-ID-verification, sanctions, PEP, and approval checks
+8. return to the wallet with a Screening VC credential offer URI
+9. redeem the offer through token and credential request/response messages
+10. prepare the verifier-scoped proof
+11. approve the proof
+12. settle through the external crypto wallet stub
 
 It also includes a denied-path shortcut that demonstrates compliance rejection
 before investment proof creation.
@@ -98,7 +104,7 @@ Browser API endpoints:
 | `POST /api/actions/lockWallet` | Seal the wallet session while keeping encrypted stores persisted in memory |
 | `POST /api/actions/unlockWallet` | Reopen the secure stores with passkey-derived unlock material |
 | `POST /api/actions/issueNationalId` | Ask the National ID issuer actor for the passport proxy credential |
-| `POST /api/actions/issueCompliance` | Ask the compliance issuer actor for the screening credential |
+| `POST /api/actions/issueCompliance` | Direct actor shortcut for issuing the screening credential |
 | `POST /api/actions/prepareProof` | Build verifier-scoped Midnight presentations in the wallet |
 | `POST /api/actions/approveProof` | Verify the proof bundle with the investment verifier contract stub |
 | `POST /api/actions/settleInvestment` | Settle through the external crypto wallet stub after approval |
@@ -111,6 +117,13 @@ Browser API endpoints:
 | `POST /api/issuer/national-id/token` | Exchange the pre-authorized code for an access token |
 | `POST /api/issuer/national-id/credential` | Exchange a credential request for a Midnight Compact credential response |
 | `POST /api/issuer/national-id/redeem` | Wallet convenience endpoint that performs token + credential exchange for the returned offer |
+| `POST /api/issuer/screening/start` | Start a redirect-based Screening VC issuer session |
+| `GET /api/issuer/screening/sessions/:id` | Read screening issuer-side mocked verification state |
+| `POST /api/issuer/screening/sessions/:id/checks/:check` | Mark a mocked screening check as complete |
+| `POST /api/issuer/screening/sessions/:id/complete` | Return an OID4VCI Screening VC offer URI to the wallet redirect URI |
+| `POST /api/issuer/screening/token` | Exchange the screening pre-authorized code for an access token |
+| `POST /api/issuer/screening/credential` | Exchange a screening credential request for a Midnight Compact credential response |
+| `POST /api/issuer/screening/redeem` | Wallet convenience endpoint that performs token + credential exchange for the returned screening offer |
 
 The TypeScript wallet actor models session locking. Encrypted stores can exist
 while the wallet is locked, but credential issuance and proof creation require a
@@ -133,7 +146,8 @@ from `credentials-openid`:
 - National ID issuer emulator with a Midnight DID and JubJub signing key
 - redirect-based Digital National ID issuer page with mocked document,
   liveness, and profile-approval checks
-- compliance issuer emulator
+- redirect-based Screening VC issuer page with mocked National ID proof,
+  sanctions, PEP, and compliance-approval checks
 - investment verifier contract stub
 - external crypto wallet stub
 - OID4VCI-style credential offer/request/response envelopes

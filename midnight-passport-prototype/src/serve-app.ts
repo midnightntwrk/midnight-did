@@ -16,6 +16,7 @@ import {
   PassportPrototypeSession,
 } from "./app-session.js";
 import type { NationalIdIssuerCheck } from "./issuers/national-id-issuer-service.js";
+import type { ScreeningIssuerCheck } from "./issuers/screening-issuer-service.js";
 
 const host = process.env.HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.PORT ?? "5174", 10);
@@ -187,6 +188,117 @@ const handleNationalIdIssuerApi = async (
   return true;
 };
 
+const handleScreeningIssuerApi = async (
+  request: IncomingMessage,
+  requestUrl: URL,
+  response: ServerResponse,
+): Promise<boolean> => {
+  const issuer = session.screeningIssuerApi();
+  const origin = originFor(requestUrl);
+
+  if (requestUrl.pathname === "/api/issuer/screening/metadata") {
+    sendJson(response, 200, issuer.metadata(origin));
+    return true;
+  }
+
+  if (requestUrl.pathname === "/api/issuer/screening/start") {
+    const result = session.beginScreeningIssuance({
+      issuerOrigin: origin,
+      redirectUri: `${origin}/`,
+    });
+    sendJson(response, 200, result);
+    return true;
+  }
+
+  if (requestUrl.pathname === "/api/issuer/screening/redeem") {
+    const body = (await readJsonBody(request)) as {
+      readonly credentialOfferUri?: string;
+      readonly issuerSessionId?: string;
+      readonly state?: string;
+    };
+    if (!body.credentialOfferUri) {
+      sendJson(response, 400, { error: "credentialOfferUri is required" });
+      return true;
+    }
+    sendJson(
+      response,
+      200,
+      session.redeemScreeningCredentialOffer({
+        credentialOfferUri: body.credentialOfferUri,
+        issuerSessionId: body.issuerSessionId,
+        state: body.state,
+      }),
+    );
+    return true;
+  }
+
+  if (requestUrl.pathname === "/api/issuer/screening/token") {
+    sendJson(
+      response,
+      200,
+      issuer.exchangeToken((await readJsonBody(request)) as never),
+    );
+    return true;
+  }
+
+  if (requestUrl.pathname === "/api/issuer/screening/credential") {
+    const body = (await readJsonBody(request)) as {
+      readonly accessToken?: string;
+      readonly credentialRequest?: unknown;
+    };
+    if (!body.accessToken || !body.credentialRequest) {
+      sendJson(response, 400, {
+        error: "accessToken and credentialRequest are required",
+      });
+      return true;
+    }
+    sendJson(
+      response,
+      200,
+      session.issueComplianceCredentialFromProtocol({
+        accessToken: body.accessToken,
+        credentialRequest: body.credentialRequest as never,
+      }),
+    );
+    return true;
+  }
+
+  const sessionMatch = requestUrl.pathname.match(
+    /^\/api\/issuer\/screening\/sessions\/([^/]+)(?:\/checks\/([^/]+)|\/complete)?$/u,
+  );
+  if (!sessionMatch) {
+    return false;
+  }
+
+  const [, sessionId, check] = sessionMatch;
+  try {
+    if (check) {
+      sendJson(
+        response,
+        200,
+        issuer.setCheck({
+          sessionId,
+          check: check as ScreeningIssuerCheck,
+          value: true,
+        }),
+      );
+      return true;
+    }
+
+    if (requestUrl.pathname.endsWith("/complete")) {
+      sendJson(response, 200, issuer.completeChecks(sessionId));
+      return true;
+    }
+
+    sendJson(response, 200, issuer.getSession(sessionId));
+  } catch (error) {
+    sendJson(response, 409, {
+      error: error instanceof Error ? error.message : "Issuer request failed",
+    });
+  }
+  return true;
+};
+
 const handleApiRequest = async (
   request: IncomingMessage,
   requestUrl: URL,
@@ -199,6 +311,10 @@ const handleApiRequest = async (
 
   if (requestUrl.pathname.startsWith("/api/issuer/national-id/")) {
     return handleNationalIdIssuerApi(request, requestUrl, response);
+  }
+
+  if (requestUrl.pathname.startsWith("/api/issuer/screening/")) {
+    return handleScreeningIssuerApi(request, requestUrl, response);
   }
 
   if (requestUrl.pathname.startsWith("/api/actions/")) {

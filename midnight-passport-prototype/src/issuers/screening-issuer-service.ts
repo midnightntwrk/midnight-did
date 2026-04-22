@@ -1,6 +1,11 @@
 import { URL } from "node:url";
 
 import {
+  encodeSanctionScreeningCredential,
+  encodeSanctionScreeningProof,
+  type SanctionScreeningFixture,
+} from "@midnight-ntwrk/midnight-did-credentials-compliance";
+import {
   createCredentialIssuerMetadata,
   createCredentialRequest,
   createCredentialResponse,
@@ -15,32 +20,31 @@ import {
   type TokenRequest,
   type TokenResponse,
 } from "@midnight-ntwrk/midnight-did-credentials-openid";
-import {
-  encodeSecretPassportCredential,
-  encodeSecretPassportProof,
-  type PassportCredentialFixture,
-} from "@midnight-ntwrk/midnight-did-credentials-passport-secret";
 
-import { NationalIdIssuerAgent } from "../actors/national-id-issuer.js";
+import { ComplianceIssuerAgent } from "../actors/compliance-issuer.js";
 import { sha256 } from "../crypto/secure-store.js";
-import type { HolderSecretMaterial } from "../types.js";
+import type {
+  HolderSecretMaterial,
+  WalletCredentialInventory,
+} from "../types.js";
 
-export const NATIONAL_ID_CREDENTIAL_CONFIGURATION_ID =
-  "midnight_passport_national_id_v1";
+export const SCREENING_CREDENTIAL_CONFIGURATION_ID =
+  "midnight_passport_screening_v1";
 
-export type NationalIdIssuerCheck =
-  | "documentsUploaded"
-  | "livenessPassed"
+export type ScreeningIssuerCheck =
+  | "nationalIdPresentationVerified"
+  | "sanctionsChecked"
+  | "pepChecked"
   | "profileApproved";
 
-export type NationalIdIssuerSessionState = {
+export type ScreeningIssuerSessionState = {
   readonly id: string;
   readonly state: string;
   readonly redirectUri: string;
   readonly issuerOrigin: string;
   readonly issuerDid: string;
   readonly issuerMethodId: string;
-  readonly checks: Record<NationalIdIssuerCheck, boolean>;
+  readonly checks: Record<ScreeningIssuerCheck, boolean>;
   readonly status:
     | "created"
     | "checks_completed"
@@ -50,29 +54,30 @@ export type NationalIdIssuerSessionState = {
   readonly credentialOfferUri?: string;
 };
 
-export type NationalIdIssuedCredential = {
+export type ScreeningIssuedCredential = {
   readonly response: CredentialResponse;
-  readonly credential: PassportCredentialFixture;
+  readonly credential: SanctionScreeningFixture;
 };
 
-type MutableNationalIdIssuerSession = {
+type MutableScreeningIssuerSession = {
   id: string;
   state: string;
   redirectUri: string;
   issuerOrigin: string;
   issuerDid: string;
   issuerMethodId: string;
-  checks: Record<NationalIdIssuerCheck, boolean>;
-  status: NationalIdIssuerSessionState["status"];
+  checks: Record<ScreeningIssuerCheck, boolean>;
+  status: ScreeningIssuerSessionState["status"];
   preAuthorizedCode?: string;
   accessToken?: string;
   credentialOfferUri?: string;
   tokenConsumed: boolean;
 };
 
-const checks: readonly NationalIdIssuerCheck[] = [
-  "documentsUploaded",
-  "livenessPassed",
+const checks: readonly ScreeningIssuerCheck[] = [
+  "nationalIdPresentationVerified",
+  "sanctionsChecked",
+  "pepChecked",
   "profileApproved",
 ];
 
@@ -83,8 +88,8 @@ const randomId = (prefix: string): string =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
 const publicSession = (
-  session: MutableNationalIdIssuerSession,
-): NationalIdIssuerSessionState => ({
+  session: MutableScreeningIssuerSession,
+): ScreeningIssuerSessionState => ({
   id: session.id,
   state: session.state,
   redirectUri: session.redirectUri,
@@ -96,23 +101,26 @@ const publicSession = (
   credentialOfferUri: session.credentialOfferUri,
 });
 
-export class NationalIdIssuerService {
-  private readonly sessions = new Map<string, MutableNationalIdIssuerSession>();
-  private readonly issuer = new NationalIdIssuerAgent();
+export class ScreeningIssuerService {
+  private readonly sessions = new Map<string, MutableScreeningIssuerSession>();
+  private readonly issuer = new ComplianceIssuerAgent({
+    sanctioned: false,
+    pep: false,
+  });
 
-  issuerIdentity(): ReturnType<NationalIdIssuerAgent["identity"]> {
+  issuerIdentity(): ReturnType<ComplianceIssuerAgent["identity"]> {
     return this.issuer.identity();
   }
 
   metadata(issuerOrigin: string): CredentialIssuerMetadata {
     return createCredentialIssuerMetadata({
       credential_issuer: issuerOrigin,
-      credential_endpoint: `${issuerOrigin}/api/issuer/national-id/credential`,
-      token_endpoint: `${issuerOrigin}/api/issuer/national-id/token`,
+      credential_endpoint: `${issuerOrigin}/api/issuer/screening/credential`,
+      token_endpoint: `${issuerOrigin}/api/issuer/screening/token`,
       credential_configurations_supported: {
-        [NATIONAL_ID_CREDENTIAL_CONFIGURATION_ID]: {
+        [SCREENING_CREDENTIAL_CONFIGURATION_ID]: {
           format: "midnight_compact_vc",
-          scope: "national_id",
+          scope: "sanction_screening",
           cryptographic_binding_methods_supported: [
             "blinded_secret_commitment",
           ],
@@ -121,10 +129,11 @@ export class NationalIdIssuerService {
               proof_signing_alg_values_supported: ["EdDSA", "ES256"],
             },
           },
-          display: [{ name: "Digital National ID" }],
+          display: [{ name: "Sanctions Screening" }],
           credential_definition: {
             issuerDid: this.issuerIdentity().did,
             issuerKeyType: "jubjub",
+            requiresCredentialFamily: "passport-secret",
           },
         },
       },
@@ -134,13 +143,18 @@ export class NationalIdIssuerService {
   start(input: {
     readonly issuerOrigin: string;
     readonly redirectUri: string;
+    readonly inventory: WalletCredentialInventory;
   }): {
-    readonly session: NationalIdIssuerSessionState;
+    readonly session: ScreeningIssuerSessionState;
     readonly redirectUrl: string;
   } {
-    const id = randomId("nid");
+    if (!input.inventory.nationalId) {
+      throw new Error("Digital National ID credential is required first");
+    }
+
+    const id = randomId("screening");
     const issuerIdentity = this.issuerIdentity();
-    const session: MutableNationalIdIssuerSession = {
+    const session: MutableScreeningIssuerSession = {
       id,
       state: randomId("state"),
       redirectUri: input.redirectUri,
@@ -150,8 +164,9 @@ export class NationalIdIssuerService {
         issuerIdentity.signer.verificationMethodRef.methodId,
       ),
       checks: {
-        documentsUploaded: false,
-        livenessPassed: false,
+        nationalIdPresentationVerified: true,
+        sanctionsChecked: false,
+        pepChecked: false,
         profileApproved: false,
       },
       status: "created",
@@ -161,21 +176,21 @@ export class NationalIdIssuerService {
 
     return {
       session: publicSession(session),
-      redirectUrl: `${input.issuerOrigin}/national-id-issuer.html?session=${encodeURIComponent(id)}`,
+      redirectUrl: `${input.issuerOrigin}/screening-issuer.html?session=${encodeURIComponent(id)}`,
     };
   }
 
-  getSession(id: string): NationalIdIssuerSessionState {
+  getSession(id: string): ScreeningIssuerSessionState {
     return publicSession(this.requireSession(id));
   }
 
   setCheck(input: {
     readonly sessionId: string;
-    readonly check: NationalIdIssuerCheck;
+    readonly check: ScreeningIssuerCheck;
     readonly value: boolean;
-  }): NationalIdIssuerSessionState {
+  }): ScreeningIssuerSessionState {
     if (!checks.includes(input.check)) {
-      throw new Error(`Unknown National ID check "${input.check}"`);
+      throw new Error(`Unknown Screening issuer check "${input.check}"`);
     }
     const session = this.requireSession(input.sessionId);
     session.checks[input.check] = input.value;
@@ -186,18 +201,18 @@ export class NationalIdIssuerService {
   }
 
   completeChecks(sessionId: string): {
-    readonly session: NationalIdIssuerSessionState;
+    readonly session: ScreeningIssuerSessionState;
     readonly redirectUrl: string;
   } {
     const session = this.requireSession(sessionId);
     if (!checks.every((check) => session.checks[check])) {
-      throw new Error("All National ID issuer checks must pass first");
+      throw new Error("All Screening issuer checks must pass first");
     }
 
     session.preAuthorizedCode = randomId("preauth");
     const offer = createPreAuthorizedCredentialOffer({
       credentialIssuer: session.issuerOrigin,
-      credentialConfigurationIds: [NATIONAL_ID_CREDENTIAL_CONFIGURATION_ID],
+      credentialConfigurationIds: [SCREENING_CREDENTIAL_CONFIGURATION_ID],
       preAuthorizedCode: session.preAuthorizedCode,
     });
     session.credentialOfferUri = credentialOfferUri({
@@ -212,7 +227,7 @@ export class NationalIdIssuerService {
       session.credentialOfferUri,
     );
     redirect.searchParams.set("issuer_session", session.id);
-    redirect.searchParams.set("issuer_kind", "national-id");
+    redirect.searchParams.set("issuer_kind", "screening");
     redirect.searchParams.set("state", session.state);
 
     return {
@@ -240,7 +255,7 @@ export class NationalIdIssuerService {
       access_token: session.accessToken,
       token_type: "Bearer",
       expires_in: 300,
-      c_nonce: toHex(sha256(`issuer-c-nonce:${session.id}`)),
+      c_nonce: toHex(sha256(`screening-c-nonce:${session.id}`)),
       c_nonce_expires_in: 300,
     };
   }
@@ -250,7 +265,7 @@ export class NationalIdIssuerService {
     readonly token: TokenResponse;
   }): CredentialRequest {
     return createCredentialRequest({
-      credential_configuration_id: NATIONAL_ID_CREDENTIAL_CONFIGURATION_ID,
+      credential_configuration_id: SCREENING_CREDENTIAL_CONFIGURATION_ID,
       format: "midnight_compact_vc",
       proof: {
         proof_type: "jwt",
@@ -259,11 +274,16 @@ export class NationalIdIssuerService {
       midnight: {
         holderBinding: {
           method: "blinded_secret_commitment",
-          challenge: input.token.c_nonce ?? toHex(sha256("issuer-c-nonce")),
-          blindedCommitment: toHex(input.holder.passportBlindingFactor),
-          verifierDomain: "national-id-issuer.prototype",
+          challenge: input.token.c_nonce ?? toHex(sha256("screening-c-nonce")),
+          blindedCommitment: toHex(input.holder.complianceBlindingFactor),
+          verifierDomain: "screening-issuer.prototype",
         },
-        requestedClaims: ["ageOver18", "notExpired", "issuingCountry"],
+        requestedClaims: [
+          "screeningResultPass",
+          "pepFalse",
+          "screeningFresh",
+          "notExpired",
+        ],
       },
     });
   }
@@ -272,11 +292,12 @@ export class NationalIdIssuerService {
     readonly accessToken: string;
     readonly request: CredentialRequest;
     readonly holder: HolderSecretMaterial;
-  }): NationalIdIssuedCredential {
+    readonly inventory: WalletCredentialInventory;
+  }): ScreeningIssuedCredential {
     const session = this.findByAccessToken(input.accessToken);
     if (
       input.request.credential_configuration_id !==
-      NATIONAL_ID_CREDENTIAL_CONFIGURATION_ID
+      SCREENING_CREDENTIAL_CONFIGURATION_ID
     ) {
       throw new Error("Unsupported credential configuration");
     }
@@ -284,32 +305,44 @@ export class NationalIdIssuerService {
       input.request.midnight?.holderBinding.method !==
       "blinded_secret_commitment"
     ) {
-      throw new Error("National ID issuance requires blinded holder binding");
+      throw new Error("Screening issuance requires blinded holder binding");
     }
 
-    const credential = this.issuer.issueCredential(input.holder);
+    const result = this.issuer.screenAndIssue({
+      inventory: input.inventory,
+      holder: input.holder,
+    });
+    if (!result.issued) {
+      throw new Error(result.reason);
+    }
+
     session.status = "credential_issued";
     const response = createCredentialResponse({
       credential: {
         format: "midnight_compact_vc",
-        credentialFamily: "passport-secret",
-        schemaId: "national-id-proxy:v1",
+        credentialFamily: "sanction-screening",
+        schemaId: "sanction-screening:v1",
         schemaVersion: "1.0",
-        credential: encodeSecretPassportCredential(credential.credential),
-        credentialProof: encodeSecretPassportProof(credential.credentialProof),
+        credential: encodeSanctionScreeningCredential(
+          result.credential.credential,
+        ),
+        credentialProof: encodeSanctionScreeningProof(
+          result.credential.credentialProof,
+        ),
         holderBinding: input.request.midnight.holderBinding,
       },
-      c_nonce: toHex(sha256(`issuer-next-c-nonce:${session.id}`)),
+      c_nonce: toHex(sha256(`screening-next-c-nonce:${session.id}`)),
       c_nonce_expires_in: 300,
     });
 
-    return { response, credential };
+    return { response, credential: result.credential };
   }
 
   redeemOffer(input: {
     readonly credentialOfferUri: string;
     readonly holder: HolderSecretMaterial;
-  }): NationalIdIssuedCredential {
+    readonly inventory: WalletCredentialInventory;
+  }): ScreeningIssuedCredential {
     const tokenRequest = this.createTokenRequest(input.credentialOfferUri);
     const token = this.exchangeToken(tokenRequest);
     const credentialRequest = this.createCredentialRequest({
@@ -320,6 +353,7 @@ export class NationalIdIssuerService {
       accessToken: token.access_token,
       request: credentialRequest,
       holder: input.holder,
+      inventory: input.inventory,
     });
   }
 
@@ -327,17 +361,17 @@ export class NationalIdIssuerService {
     return parseCredentialOfferUri(credentialOfferUriValue);
   }
 
-  private requireSession(id: string): MutableNationalIdIssuerSession {
+  private requireSession(id: string): MutableScreeningIssuerSession {
     const session = this.sessions.get(id);
     if (!session) {
-      throw new Error(`National ID issuer session "${id}" was not found`);
+      throw new Error(`Screening issuer session "${id}" was not found`);
     }
     return session;
   }
 
   private findByPreAuthorizedCode(
     preAuthorizedCode: string,
-  ): MutableNationalIdIssuerSession {
+  ): MutableScreeningIssuerSession {
     for (const session of this.sessions.values()) {
       if (session.preAuthorizedCode === preAuthorizedCode) return session;
     }
@@ -346,7 +380,7 @@ export class NationalIdIssuerService {
 
   private findByAccessToken(
     accessToken: string,
-  ): MutableNationalIdIssuerSession {
+  ): MutableScreeningIssuerSession {
     for (const session of this.sessions.values()) {
       if (session.accessToken === accessToken) return session;
     }

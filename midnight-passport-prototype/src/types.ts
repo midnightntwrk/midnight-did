@@ -2,6 +2,8 @@ import type { BlindedSecretHolderBinding } from "@midnight-ntwrk/midnight-did-cr
 import type { SanctionScreeningFixture } from "@midnight-ntwrk/midnight-did-credentials-compliance";
 import type { PassportCredentialFixture } from "@midnight-ntwrk/midnight-did-credentials-passport-secret";
 
+export type ComplianceCredentialFixture = SanctionScreeningFixture;
+
 export type HolderSecretMaterial = {
   readonly holderSecret: Uint8Array;
   readonly passportOpening: Uint8Array;

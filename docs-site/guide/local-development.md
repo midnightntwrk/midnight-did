@@ -95,7 +95,8 @@ This runner validates:
 - Passport-specific credential package lint/build/tests
 - `credentials-openid` build and tests
 - the TypeScript browser-session backend
-- Playwright browser flow through the Digital National ID issuer redirect
+- Playwright browser flow through the Digital National ID and Screening issuer
+  redirects
 - standalone explicit and hidden-holder Passport credential integrations when Docker is available
 
 Start the browser prototype:
@@ -110,8 +111,8 @@ Default local URL:
 
 The prototype is not just a static page. It uses the TypeScript server in
 `midnight-passport-prototype/src/serve-app.ts`, with actors for the wallet,
-Digital National ID issuer, compliance issuer, DApp, verifier contract stub, and
-external crypto wallet stub.
+Digital National ID issuer, Screening VC issuer, DApp, verifier contract stub,
+and external crypto wallet stub.
 
 The Digital National ID issuer flow intentionally mocks document upload,
 liveness, and profile approval checks while keeping the protocol exchange close
@@ -124,6 +125,19 @@ to the target shape:
 5. wallet validates callback state/session
 6. wallet exchanges pre-authorized token and credential request messages
 7. wallet stores the Midnight Compact credential response
+
+The Screening VC issuer follows the same redirect and offer redemption pattern,
+but starts only after the wallet holds the National ID credential:
+
+1. wallet starts screening issuer session
+2. browser redirects to `screening-issuer.html`
+3. user completes mocked National-ID-verification, sanctions, PEP, and approval
+   checks
+4. issuer redirects back with `credential_offer_uri`, `issuer_session`,
+   `issuer_kind=screening`, and `state`
+5. wallet validates callback state/session
+6. wallet exchanges pre-authorized token and credential request messages
+7. wallet stores the Midnight Compact Screening VC response
 
 ## Bootstrapped proof server image (local optimization)
 

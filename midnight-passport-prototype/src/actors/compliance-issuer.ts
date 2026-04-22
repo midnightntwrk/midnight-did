@@ -1,4 +1,8 @@
-import { createSanctionScreeningFixture } from "@midnight-ntwrk/midnight-did-credentials-compliance";
+import {
+  createSanctionScreeningFixture,
+  createSigner,
+  type Signer,
+} from "@midnight-ntwrk/midnight-did-credentials-compliance";
 import { pureCircuits as passportCircuits } from "@midnight-ntwrk/midnight-did-credentials-passport-secret";
 
 import type {
@@ -9,6 +13,11 @@ import type {
 export type ComplianceScreeningPolicy = {
   readonly sanctioned: boolean;
   readonly pep: boolean;
+};
+
+export type ComplianceIssuerIdentity = {
+  readonly did: string;
+  readonly signer: Signer;
 };
 
 export type ComplianceCredentialResult =
@@ -22,7 +31,23 @@ export type ComplianceCredentialResult =
     };
 
 export class ComplianceIssuerAgent {
-  constructor(private readonly policy: ComplianceScreeningPolicy) {}
+  private readonly issuerIdentity: ComplianceIssuerIdentity;
+
+  constructor(
+    private readonly policy: ComplianceScreeningPolicy,
+    identity?: Partial<ComplianceIssuerIdentity>,
+  ) {
+    this.issuerIdentity = {
+      did: identity?.did ?? "did:midnight:prototype:screening-issuer",
+      signer:
+        identity?.signer ??
+        createSigner("screening-issuer", 98_765_432n, "#screening-jubjub-1"),
+    };
+  }
+
+  identity(): ComplianceIssuerIdentity {
+    return this.issuerIdentity;
+  }
 
   screenAndIssue({
     inventory,
@@ -57,6 +82,10 @@ export class ComplianceIssuerAgent {
     return {
       issued: true,
       credential: createSanctionScreeningFixture({
+        issuerLabel: this.issuerIdentity.signer.label,
+        issuerSecretKey: this.issuerIdentity.signer.secretKey,
+        issuerVerificationMethodRef:
+          this.issuerIdentity.signer.verificationMethodRef,
         holderSecret: holder.holderSecret,
         holderSecretOpening: holder.complianceOpening,
         holderBindingBlindingFactor: holder.complianceBlindingFactor,

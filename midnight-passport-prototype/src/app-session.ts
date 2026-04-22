@@ -16,6 +16,10 @@ import {
   NationalIdIssuerService,
   type NationalIdIssuerSessionState,
 } from "./issuers/national-id-issuer-service.js";
+import {
+  ScreeningIssuerService,
+  type ScreeningIssuerSessionState,
+} from "./issuers/screening-issuer-service.js";
 import type {
   CryptoTransferReceipt,
   InvestmentDecision,
@@ -105,6 +109,7 @@ export type PrototypeAppState = {
   };
   readonly issuer?: {
     readonly nationalId?: NationalIdIssuerSessionState;
+    readonly screening?: ScreeningIssuerSessionState;
   };
   readonly events: readonly string[];
 };
@@ -120,6 +125,7 @@ export class PassportPrototypeSession {
   private readonly wallet = new MidnightPassportWallet("alice");
   private readonly walletBridge = new InProcessWalletBridge(this.wallet);
   private readonly nationalIdIssuer = new NationalIdIssuerService();
+  private readonly screeningIssuer = new ScreeningIssuerService();
   private readonly verifier = new InvestmentVerifierContractStub(
     "midnight-treasury",
     this.product,
@@ -140,6 +146,7 @@ export class PassportPrototypeSession {
   private receipt?: CryptoTransferReceipt;
   private denied = false;
   private nationalIdIssuerSession?: NationalIdIssuerSessionState;
+  private screeningIssuerSession?: ScreeningIssuerSessionState;
   private readonly events: string[] = [
     "Prototype reset. Start by initializing the wallet.",
     "No credential material has left the local wallet.",
@@ -219,11 +226,13 @@ export class PassportPrototypeSession {
       },
       protocol: {
         issuerMessages: [
-          this.walletBridge.status().credentials.nationalId
-            ? "OID4VCI credential response accepted by wallet"
-            : "Waiting for National ID issuer redirect",
+          this.walletBridge.status().credentials.compliance
+            ? "OID4VCI Screening credential response accepted by wallet"
+            : this.walletBridge.status().credentials.nationalId
+              ? "Waiting for Screening issuer redirect"
+              : "Waiting for National ID issuer redirect",
           "issuer identified by Midnight DID and JubJub verification method",
-          "OID4VCI credential offer URI",
+          "OID4VCI credential offer URI from each issuer SPA",
           "pre-authorized token request",
           "credential request with blinded holder commitment",
           "Midnight Compact credential response",
@@ -236,8 +245,13 @@ export class PassportPrototypeSession {
         ],
       },
       issuer: this.nationalIdIssuerSession
-        ? { nationalId: this.nationalIdIssuerSession }
-        : undefined,
+        ? {
+            nationalId: this.nationalIdIssuerSession,
+            screening: this.screeningIssuerSession,
+          }
+        : this.screeningIssuerSession
+          ? { screening: this.screeningIssuerSession }
+          : undefined,
       events: [...this.events],
     };
   }
@@ -275,6 +289,44 @@ export class PassportPrototypeSession {
     return this.state();
   }
 
+  beginScreeningIssuance(input: {
+    readonly issuerOrigin: string;
+    readonly redirectUri: string;
+  }): { readonly redirectUrl: string; readonly state: PrototypeAppState } {
+    this.assertInitialized();
+    this.assertWalletUnlocked();
+    const result = this.screeningIssuer.start({
+      issuerOrigin: input.issuerOrigin,
+      redirectUri: input.redirectUri,
+      inventory: this.walletBridge.inventory(),
+    });
+    this.screeningIssuerSession = result.session;
+    this.addEvent(
+      "Screening issuer redirect started: wallet sent a National ID presentation context for mocked compliance checks.",
+    );
+    return { redirectUrl: result.redirectUrl, state: this.state() };
+  }
+
+  redeemScreeningCredentialOffer(input: {
+    readonly credentialOfferUri: string;
+    readonly issuerSessionId?: string;
+    readonly state?: string;
+  }): PrototypeAppState {
+    this.assertInitialized();
+    this.assertWalletUnlocked();
+    this.assertScreeningIssuerCallback(input);
+    const issued = this.screeningIssuer.redeemOffer({
+      credentialOfferUri: input.credentialOfferUri,
+      holder: this.walletBridge.profile().holder,
+      inventory: this.walletBridge.inventory(),
+    });
+    this.walletBridge.acceptComplianceCredential(issued.credential);
+    this.addEvent(
+      "Wallet redeemed Screening issuer credential offer and stored the compliance credential.",
+    );
+    return this.state();
+  }
+
   issueNationalIdCredentialFromProtocol(input: {
     readonly accessToken: string;
     readonly credentialRequest: CredentialRequest;
@@ -293,8 +345,31 @@ export class PassportPrototypeSession {
     return issued.response;
   }
 
+  issueComplianceCredentialFromProtocol(input: {
+    readonly accessToken: string;
+    readonly credentialRequest: CredentialRequest;
+  }): CredentialResponse {
+    this.assertInitialized();
+    this.assertWalletUnlocked();
+    const issued = this.screeningIssuer.issueCredential({
+      accessToken: input.accessToken,
+      request: input.credentialRequest,
+      holder: this.walletBridge.profile().holder,
+      inventory: this.walletBridge.inventory(),
+    });
+    this.walletBridge.acceptComplianceCredential(issued.credential);
+    this.addEvent(
+      "Wallet stored Screening credential from issuer credential endpoint.",
+    );
+    return issued.response;
+  }
+
   nationalIdIssuerApi(): NationalIdIssuerService {
     return this.nationalIdIssuer;
+  }
+
+  screeningIssuerApi(): ScreeningIssuerService {
+    return this.screeningIssuer;
   }
 
   execute(
@@ -531,6 +606,24 @@ export class PassportPrototypeSession {
     }
     if (input.state && input.state !== this.nationalIdIssuerSession.state) {
       throw new Error("National ID issuer state mismatch");
+    }
+  }
+
+  private assertScreeningIssuerCallback(input: {
+    readonly issuerSessionId?: string;
+    readonly state?: string;
+  }): void {
+    if (!this.screeningIssuerSession) {
+      throw new Error("Screening issuer session was not started");
+    }
+    if (
+      input.issuerSessionId &&
+      input.issuerSessionId !== this.screeningIssuerSession.id
+    ) {
+      throw new Error("Screening issuer session mismatch");
+    }
+    if (input.state && input.state !== this.screeningIssuerSession.state) {
+      throw new Error("Screening issuer state mismatch");
     }
   }
 

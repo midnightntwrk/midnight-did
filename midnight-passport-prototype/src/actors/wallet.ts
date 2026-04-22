@@ -12,6 +12,7 @@ import {
   sha256,
 } from "../crypto/secure-store.js";
 import type {
+  ComplianceCredentialFixture,
   HolderSecretMaterial,
   InvestmentProofBundle,
   WalletCredentialInventory,
@@ -175,6 +176,14 @@ export class MidnightPassportWallet {
     this.inventory = {
       ...this.inventory,
       nationalId: credential,
+    };
+  }
+
+  acceptComplianceCredential(credential: ComplianceCredentialFixture): void {
+    this.assertUnlocked();
+    this.inventory = {
+      ...this.inventory,
+      compliance: credential,
     };
   }
 

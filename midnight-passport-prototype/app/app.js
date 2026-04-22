@@ -211,8 +211,13 @@ async function acceptCredentialOfferRedirect() {
   const params = new URLSearchParams(window.location.search);
   const credentialOfferUri = params.get("credential_offer_uri");
   if (!credentialOfferUri) return false;
+  const issuerKind = params.get("issuer_kind");
+  const redeemEndpoint =
+    issuerKind === "screening"
+      ? "/api/issuer/screening/redeem"
+      : "/api/issuer/national-id/redeem";
 
-  const state = await fetchJson("/api/issuer/national-id/redeem", {
+  const state = await fetchJson(redeemEndpoint, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -250,6 +255,19 @@ async function startNationalIdIssuance() {
   }
 }
 
+async function startScreeningIssuance() {
+  try {
+    const result = await fetchJson("/api/issuer/screening/start", {
+      method: "POST",
+    });
+    window.location.href = result.redirectUrl;
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Screening issuance failed";
+    renderList(elements.events, [message, ...(prototypeState?.events ?? [])]);
+  }
+}
+
 async function reviewDisclosure() {
   if (prototypeState?.actions.prepareProof) {
     await performAction("prepareProof");
@@ -278,7 +296,7 @@ elements.initializeWallet?.addEventListener("click", () => performAction("initia
 elements.lockWallet?.addEventListener("click", () => performAction("lockWallet"));
 elements.unlockWallet?.addEventListener("click", () => performAction("unlockWallet"));
 elements.issueNationalId?.addEventListener("click", startNationalIdIssuance);
-elements.issueCompliance?.addEventListener("click", () => performAction("issueCompliance"));
+elements.issueCompliance?.addEventListener("click", startScreeningIssuance);
 elements.prepareProof?.addEventListener("click", () => performAction("prepareProof"));
 elements.approveProof?.addEventListener("click", () => performAction("approveProof"));
 elements.settleInvestment?.addEventListener("click", () => performAction("settleInvestment"));

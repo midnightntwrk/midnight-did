@@ -49,6 +49,16 @@ test.describe("Midnight Passport prototype browser", () => {
     await expect(page.locator("#issueCompliance")).toBeEnabled();
 
     await page.locator("#issueCompliance").click();
+    await expect(page).toHaveURL(/screening-issuer\.html/);
+    await expect(page.locator("#issuerDid")).toHaveText(
+      "did:midnight:prototype:screening-issuer",
+    );
+    await expect(page.locator("#verifyNationalId")).toContainText("✓");
+    await page.locator("#runSanctions").click();
+    await page.locator("#runPep").click();
+    await page.locator("#approveProfile").click();
+    await expect(page.locator("#completeIssuance")).toBeEnabled();
+    await page.locator("#completeIssuance").click();
     await expect(page.locator("#complianceStatus")).toHaveText("Issued");
     await expect(page.locator("#prepareProof")).toBeEnabled();
 

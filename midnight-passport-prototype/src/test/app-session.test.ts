@@ -120,6 +120,57 @@ describe("Midnight Passport browser session backend", () => {
     expect(state.events[0]).toMatch(/redeemed OID4VCI credential offer/);
   });
 
+  it("accepts Screening VC through issuer redirect and credential offer redemption", () => {
+    const session = new PassportPrototypeSession();
+    session.execute("initializeWallet");
+    session.execute("issueNationalId");
+
+    const started = session.beginScreeningIssuance({
+      issuerOrigin: "http://screening.example",
+      redirectUri: "http://wallet.example/",
+    });
+    const issuer = session.screeningIssuerApi();
+    const sessionId = started.state.issuer?.screening?.id;
+    expect(started.state.issuer?.screening?.issuerDid).toBe(
+      "did:midnight:prototype:screening-issuer",
+    );
+    if (!sessionId) {
+      throw new Error("Expected Screening issuer session");
+    }
+
+    issuer.setCheck({
+      sessionId,
+      check: "sanctionsChecked",
+      value: true,
+    });
+    issuer.setCheck({
+      sessionId,
+      check: "pepChecked",
+      value: true,
+    });
+    issuer.setCheck({
+      sessionId,
+      check: "profileApproved",
+      value: true,
+    });
+    const completed = issuer.completeChecks(sessionId);
+
+    if (!completed.session.credentialOfferUri) {
+      throw new Error("Expected Screening credential offer URI");
+    }
+
+    const redirect = new URL(completed.redirectUrl);
+    const state = session.redeemScreeningCredentialOffer({
+      credentialOfferUri: completed.session.credentialOfferUri,
+      issuerSessionId: redirect.searchParams.get("issuer_session") ?? undefined,
+      state: redirect.searchParams.get("state") ?? undefined,
+    });
+
+    expect(redirect.searchParams.get("issuer_kind")).toBe("screening");
+    expect(state.actors.complianceIssued).toBe(true);
+    expect(state.events[0]).toMatch(/Screening issuer credential offer/);
+  });
+
   it("models the denied compliance path without creating a proof", () => {
     const session = new PassportPrototypeSession();
 
