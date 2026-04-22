@@ -45,6 +45,7 @@ sequenceDiagram
   Passport->>ID: Token request + credential request
   ID-->>Passport: Midnight Compact National ID credential signed by issuer JubJub key
   Passport->>Compliance: Start Screening VC issuance
+  Passport->>Compliance: Submit National ID VP payload
   Compliance-->>User: Redirect to mocked checks
   User->>Compliance: Verify National ID, run sanctions/PEP checks, approve profile
   Compliance-->>Passport: Credential offer URI + state
@@ -90,8 +91,10 @@ The Screening VC issuer UI intentionally mocks compliance-provider work:
 - compliance profile approval
 
 The protocol boundary is the same OID4VCI-shaped flow, but it depends on the
-wallet already holding a National ID credential. The screening issuer has its
-own prototype Midnight DID:
+wallet first creating an explicit National ID VP payload. The Screening issuer
+decodes the Compact credential, issuer proof, and presentation payload before it
+opens the mocked sanctions/PEP checks. The screening issuer has its own
+prototype Midnight DID:
 
 - `did:midnight:prototype:screening-issuer`
 - JubJub verification method `#screening-jubjub-1`
@@ -102,6 +105,10 @@ Screening credentials are controlled by the same holder without learning the
 holder DID. The issuer page also supports negative sanctions/PEP outcomes; in
 that case it marks the issuer session as denied and does not return a credential
 offer to the wallet.
+
+The current VP handoff still carries prototype-only fixture context for the
+local pure-circuit simulator. Production transport should replace that fixture
+context with proof artifacts and verifier-request state.
 
 ## Passkey Unlock And Wallet Seed
 
@@ -162,6 +169,12 @@ Run only local TypeScript/session tests:
 ```bash
 npm run test:ci:local -w midnight-passport-prototype
 ```
+
+The living implementation matrix is maintained in
+`midnight-passport-prototype/midnight-passport-use-cases.md`. Update it whenever
+the prototype adds, removes, or materially changes an executable use case. The
+matrix includes low-level module references, test references, mocked boundaries,
+and production-readiness notes for each use case.
 
 ## Current Limitations
 

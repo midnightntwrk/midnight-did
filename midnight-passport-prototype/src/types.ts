@@ -1,5 +1,9 @@
 import type { BlindedSecretHolderBinding } from "@midnight-ntwrk/midnight-did-credentials";
 import type { SanctionScreeningFixture } from "@midnight-ntwrk/midnight-did-credentials-compliance";
+import type {
+  EncodedCompactValue,
+  MidnightHolderBinding,
+} from "@midnight-ntwrk/midnight-did-credentials-openid";
 import type { PassportCredentialFixture } from "@midnight-ntwrk/midnight-did-credentials-passport-secret";
 
 export type ComplianceCredentialFixture = SanctionScreeningFixture;
@@ -24,6 +28,24 @@ export type WalletProfile = {
 export type WalletCredentialInventory = {
   readonly nationalId?: PassportCredentialFixture;
   readonly compliance?: SanctionScreeningFixture;
+};
+
+export type NationalIdPresentationVpToken = {
+  readonly format: "midnight_compact_vp";
+  readonly presentationFamily: "passport-secret";
+  readonly schemaId: "national-id-proxy:v1";
+  readonly schemaVersion: "1.0";
+  readonly credential: EncodedCompactValue;
+  readonly credentialProof: EncodedCompactValue;
+  readonly presentation: EncodedCompactValue;
+  readonly holderBinding: MidnightHolderBinding;
+};
+
+export type NationalIdPresentationSubmission = {
+  readonly vpToken: NationalIdPresentationVpToken;
+  // Prototype-only context used by the local Compact simulator. Production
+  // should rebuild this from request state and holder-provided private witnesses.
+  readonly prototypeFixture: PassportCredentialFixture;
 };
 
 export type InvestmentProduct = {

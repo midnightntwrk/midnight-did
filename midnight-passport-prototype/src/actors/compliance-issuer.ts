@@ -3,12 +3,12 @@ import {
   createSigner,
   type Signer,
 } from "@midnight-ntwrk/midnight-did-credentials-compliance";
-import { pureCircuits as passportCircuits } from "@midnight-ntwrk/midnight-did-credentials-passport-secret";
+import {
+  type PassportCredentialFixture,
+  pureCircuits as passportCircuits,
+} from "@midnight-ntwrk/midnight-did-credentials-passport-secret";
 
-import type {
-  HolderSecretMaterial,
-  WalletCredentialInventory,
-} from "../types.js";
+import type { HolderSecretMaterial } from "../types.js";
 
 export type ComplianceScreeningPolicy = {
   readonly sanctioned: boolean;
@@ -50,23 +50,19 @@ export class ComplianceIssuerAgent {
   }
 
   screenAndIssue({
-    inventory,
+    nationalIdPresentation,
     holder,
     verifierChallengeHash,
   }: {
-    readonly inventory: WalletCredentialInventory;
+    readonly nationalIdPresentation: PassportCredentialFixture;
     readonly holder: HolderSecretMaterial;
     readonly verifierChallengeHash?: Uint8Array;
   }): ComplianceCredentialResult {
-    if (!inventory.nationalId) {
-      return { issued: false, reason: "National ID credential is required" };
-    }
-
     passportCircuits.assertSecretPassportPresentationSatisfiesRequest(
-      inventory.nationalId.credential,
-      inventory.nationalId.credentialProof,
-      inventory.nationalId.presentationRequest,
-      inventory.nationalId.presentation,
+      nationalIdPresentation.credential,
+      nationalIdPresentation.credentialProof,
+      nationalIdPresentation.presentationRequest,
+      nationalIdPresentation.presentation,
       holder.holderSecret,
       holder.passportOpening,
       holder.passportBlindingFactor,

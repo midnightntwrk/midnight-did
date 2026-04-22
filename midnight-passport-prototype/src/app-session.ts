@@ -298,11 +298,12 @@ export class PassportPrototypeSession {
     const result = this.screeningIssuer.start({
       issuerOrigin: input.issuerOrigin,
       redirectUri: input.redirectUri,
-      inventory: this.walletBridge.inventory(),
+      nationalIdPresentation:
+        this.walletBridge.createNationalIdPresentationForScreening(),
     });
     this.screeningIssuerSession = result.session;
     this.addEvent(
-      "Screening issuer redirect started: wallet sent a National ID presentation context for mocked compliance checks.",
+      "Screening issuer redirect started: wallet sent a National ID VP payload for mocked compliance checks.",
     );
     return { redirectUrl: result.redirectUrl, state: this.state() };
   }
@@ -318,7 +319,6 @@ export class PassportPrototypeSession {
     const issued = this.screeningIssuer.redeemOffer({
       credentialOfferUri: input.credentialOfferUri,
       holder: this.walletBridge.profile().holder,
-      inventory: this.walletBridge.inventory(),
     });
     this.walletBridge.acceptComplianceCredential(issued.credential);
     this.addEvent(
@@ -355,7 +355,6 @@ export class PassportPrototypeSession {
       accessToken: input.accessToken,
       request: input.credentialRequest,
       holder: this.walletBridge.profile().holder,
-      inventory: this.walletBridge.inventory(),
     });
     this.walletBridge.acceptComplianceCredential(issued.credential);
     this.addEvent(

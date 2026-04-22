@@ -1,17 +1,11 @@
-import { URL } from "node:url";
-
 import {
   createCredentialIssuerMetadata,
   createCredentialRequest,
   createCredentialResponse,
-  createPreAuthorizedCredentialOffer,
-  createPreAuthorizedTokenRequest,
   type CredentialIssuerMetadata,
   type CredentialOffer,
-  credentialOfferUri,
   type CredentialRequest,
   type CredentialResponse,
-  parseCredentialOfferUri,
   type TokenRequest,
   type TokenResponse,
 } from "@midnight-ntwrk/midnight-did-credentials-openid";
@@ -24,6 +18,20 @@ import {
 import { NationalIdIssuerAgent } from "../actors/national-id-issuer.js";
 import { sha256 } from "../crypto/secure-store.js";
 import type { HolderSecretMaterial } from "../types.js";
+import {
+  allChecksPassed,
+  createIssuerRedirect,
+  createIssuerSession,
+  createOfferCallback,
+  createTokenRequestFromOffer,
+  exchangePreAuthorizedToken,
+  findByAccessToken,
+  type IssuerSessionRecord,
+  parseCredentialOffer,
+  type PublicIssuerSession,
+  publicIssuerSession,
+  toHex,
+} from "./issuer-session.js";
 
 export const NATIONAL_ID_CREDENTIAL_CONFIGURATION_ID =
   "midnight_passport_national_id_v1";
@@ -33,42 +41,27 @@ export type NationalIdIssuerCheck =
   | "livenessPassed"
   | "profileApproved";
 
-export type NationalIdIssuerSessionState = {
-  readonly id: string;
-  readonly state: string;
-  readonly redirectUri: string;
-  readonly issuerOrigin: string;
-  readonly issuerDid: string;
-  readonly issuerMethodId: string;
-  readonly checks: Record<NationalIdIssuerCheck, boolean>;
-  readonly status:
-    | "created"
-    | "checks_completed"
-    | "offer_issued"
-    | "token_issued"
-    | "credential_issued";
-  readonly credentialOfferUri?: string;
-};
+type NationalIdIssuerStatus =
+  | "created"
+  | "checks_completed"
+  | "offer_issued"
+  | "token_issued"
+  | "credential_issued";
+
+export type NationalIdIssuerSessionState = PublicIssuerSession<
+  NationalIdIssuerCheck,
+  NationalIdIssuerStatus
+>;
 
 export type NationalIdIssuedCredential = {
   readonly response: CredentialResponse;
   readonly credential: PassportCredentialFixture;
 };
 
-type MutableNationalIdIssuerSession = {
-  id: string;
-  state: string;
-  redirectUri: string;
-  issuerOrigin: string;
-  issuerDid: string;
-  issuerMethodId: string;
-  checks: Record<NationalIdIssuerCheck, boolean>;
-  status: NationalIdIssuerSessionState["status"];
-  preAuthorizedCode?: string;
-  accessToken?: string;
-  credentialOfferUri?: string;
-  tokenConsumed: boolean;
-};
+type MutableNationalIdIssuerSession = IssuerSessionRecord<
+  NationalIdIssuerCheck,
+  NationalIdIssuerStatus
+>;
 
 const checks: readonly NationalIdIssuerCheck[] = [
   "documentsUploaded",
@@ -76,25 +69,9 @@ const checks: readonly NationalIdIssuerCheck[] = [
   "profileApproved",
 ];
 
-const toHex = (value: Uint8Array): string =>
-  `0x${[...value].map((byte) => byte.toString(16).padStart(2, "0")).join("")}`;
-
-const randomId = (prefix: string): string =>
-  `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-
 const publicSession = (
   session: MutableNationalIdIssuerSession,
-): NationalIdIssuerSessionState => ({
-  id: session.id,
-  state: session.state,
-  redirectUri: session.redirectUri,
-  issuerOrigin: session.issuerOrigin,
-  issuerDid: session.issuerDid,
-  issuerMethodId: session.issuerMethodId,
-  checks: { ...session.checks },
-  status: session.status,
-  credentialOfferUri: session.credentialOfferUri,
-});
+): NationalIdIssuerSessionState => publicIssuerSession(session);
 
 export class NationalIdIssuerService {
   private readonly sessions = new Map<string, MutableNationalIdIssuerSession>();
@@ -138,30 +115,29 @@ export class NationalIdIssuerService {
     readonly session: NationalIdIssuerSessionState;
     readonly redirectUrl: string;
   } {
-    const id = randomId("nid");
     const issuerIdentity = this.issuerIdentity();
-    const session: MutableNationalIdIssuerSession = {
-      id,
-      state: randomId("state"),
+    const session = createIssuerSession({
+      idPrefix: "nid",
       redirectUri: input.redirectUri,
       issuerOrigin: input.issuerOrigin,
       issuerDid: issuerIdentity.did,
-      issuerMethodId: toHex(
-        issuerIdentity.signer.verificationMethodRef.methodId,
-      ),
+      issuerMethodId: issuerIdentity.signer.verificationMethodRef.methodId,
       checks: {
         documentsUploaded: false,
         livenessPassed: false,
         profileApproved: false,
       },
       status: "created",
-      tokenConsumed: false,
-    };
-    this.sessions.set(id, session);
+    });
+    this.sessions.set(session.id, session);
 
     return {
       session: publicSession(session),
-      redirectUrl: `${input.issuerOrigin}/national-id-issuer.html?session=${encodeURIComponent(id)}`,
+      redirectUrl: createIssuerRedirect({
+        issuerOrigin: input.issuerOrigin,
+        page: "national-id-issuer.html",
+        sessionId: session.id,
+      }),
     };
   }
 
@@ -179,7 +155,7 @@ export class NationalIdIssuerService {
     }
     const session = this.requireSession(input.sessionId);
     session.checks[input.check] = input.value;
-    if (checks.every((check) => session.checks[check])) {
+    if (allChecksPassed(session, checks)) {
       session.status = "checks_completed";
     }
     return publicSession(session);
@@ -190,59 +166,31 @@ export class NationalIdIssuerService {
     readonly redirectUrl: string;
   } {
     const session = this.requireSession(sessionId);
-    if (!checks.every((check) => session.checks[check])) {
+    if (!allChecksPassed(session, checks)) {
       throw new Error("All National ID issuer checks must pass first");
     }
 
-    session.preAuthorizedCode = randomId("preauth");
-    const offer = createPreAuthorizedCredentialOffer({
-      credentialIssuer: session.issuerOrigin,
-      credentialConfigurationIds: [NATIONAL_ID_CREDENTIAL_CONFIGURATION_ID],
-      preAuthorizedCode: session.preAuthorizedCode,
+    const redirectUrl = createOfferCallback(session, {
+      credentialConfigurationId: NATIONAL_ID_CREDENTIAL_CONFIGURATION_ID,
+      issuerKind: "national-id",
     });
-    session.credentialOfferUri = credentialOfferUri({
-      issuerOrigin: session.issuerOrigin,
-      offer,
-    });
-    session.status = "offer_issued";
-
-    const redirect = new URL(session.redirectUri);
-    redirect.searchParams.set(
-      "credential_offer_uri",
-      session.credentialOfferUri,
-    );
-    redirect.searchParams.set("issuer_session", session.id);
-    redirect.searchParams.set("issuer_kind", "national-id");
-    redirect.searchParams.set("state", session.state);
 
     return {
       session: publicSession(session),
-      redirectUrl: redirect.toString(),
+      redirectUrl,
     };
   }
 
   createTokenRequest(credentialOfferUriValue: string): TokenRequest {
-    const offer = parseCredentialOfferUri(credentialOfferUriValue);
-    return createPreAuthorizedTokenRequest({ offer });
+    return createTokenRequestFromOffer(credentialOfferUriValue);
   }
 
   exchangeToken(request: TokenRequest): TokenResponse {
-    const session = this.findByPreAuthorizedCode(
-      request["pre-authorized_code"],
-    );
-    if (session.tokenConsumed) {
-      throw new Error("Pre-authorized code has already been used");
-    }
-    session.tokenConsumed = true;
-    session.status = "token_issued";
-    session.accessToken = randomId("access");
-    return {
-      access_token: session.accessToken,
-      token_type: "Bearer",
-      expires_in: 300,
-      c_nonce: toHex(sha256(`issuer-c-nonce:${session.id}`)),
-      c_nonce_expires_in: 300,
-    };
+    return exchangePreAuthorizedToken({
+      sessions: this.sessions.values(),
+      request,
+      nonceLabel: "issuer-c-nonce",
+    });
   }
 
   createCredentialRequest(input: {
@@ -324,7 +272,7 @@ export class NationalIdIssuerService {
   }
 
   offerFromUri(credentialOfferUriValue: string): CredentialOffer {
-    return parseCredentialOfferUri(credentialOfferUriValue);
+    return parseCredentialOffer(credentialOfferUriValue);
   }
 
   private requireSession(id: string): MutableNationalIdIssuerSession {
@@ -335,21 +283,9 @@ export class NationalIdIssuerService {
     return session;
   }
 
-  private findByPreAuthorizedCode(
-    preAuthorizedCode: string,
-  ): MutableNationalIdIssuerSession {
-    for (const session of this.sessions.values()) {
-      if (session.preAuthorizedCode === preAuthorizedCode) return session;
-    }
-    throw new Error("Unknown pre-authorized code");
-  }
-
   private findByAccessToken(
     accessToken: string,
   ): MutableNationalIdIssuerSession {
-    for (const session of this.sessions.values()) {
-      if (session.accessToken === accessToken) return session;
-    }
-    throw new Error("Unknown access token");
+    return findByAccessToken(this.sessions.values(), accessToken);
   }
 }

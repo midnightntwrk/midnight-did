@@ -10,6 +10,7 @@ import type {
 import type {
   ComplianceCredentialFixture,
   InvestmentProofBundle,
+  NationalIdPresentationSubmission,
   WalletCredentialInventory,
   WalletProfile,
 } from "../types.js";
@@ -45,6 +46,7 @@ export interface WalletBridge {
   createInvestmentProof(
     verifier: InvestmentVerifierContractStub,
   ): InvestmentProofBundle;
+  createNationalIdPresentationForScreening(): NationalIdPresentationSubmission;
 }
 
 export class InProcessWalletBridge implements WalletBridge {
@@ -113,5 +115,9 @@ export class InProcessWalletBridge implements WalletBridge {
     verifier: InvestmentVerifierContractStub,
   ): InvestmentProofBundle {
     return this.wallet.createInvestmentProof(verifier);
+  }
+
+  createNationalIdPresentationForScreening(): NationalIdPresentationSubmission {
+    return this.wallet.createNationalIdPresentationForScreening();
   }
 }

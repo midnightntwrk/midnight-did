@@ -43,6 +43,9 @@ The SPA should emulate these actors:
 ## Documents
 
 - `prototype-plan.md` — staged implementation plan and acceptance criteria
+- `midnight-passport-use-cases.md` — living use-case matrix with low-level
+  implementation details, mocked boundaries, leftovers, and
+  production-readiness notes
 - `app/` — styled browser shell based on the Midnight style kit
 - `src/app-session.ts` — TypeScript session backend that drives the browser flow
 - `src/issuers/national-id-issuer-service.ts` — redirect-based Digital National
@@ -84,13 +87,14 @@ The browser shell can run the flow manually:
 4. return to the wallet with a credential offer URI
 5. redeem the offer through token and credential request/response messages
 6. start Screening VC issuance
-7. redirect to the screening issuer page and complete mocked
-   National-ID-verification, sanctions, PEP, and approval checks
-8. return to the wallet with a Screening VC credential offer URI
-9. redeem the offer through token and credential request/response messages
-10. prepare the verifier-scoped proof
-11. approve the proof
-12. settle through the external crypto wallet stub
+7. wallet builds an explicit National ID VP payload for the Screening issuer
+8. redirect to the screening issuer page and complete mocked
+   National-ID-presentation, sanctions, PEP, and approval checks
+9. return to the wallet with a Screening VC credential offer URI
+10. redeem the offer through token and credential request/response messages
+11. prepare the verifier-scoped proof
+12. approve the proof
+13. settle through the external crypto wallet stub
 
 It also includes a denied-path shortcut that demonstrates compliance rejection
 before investment proof creation. The Screening issuer page also supports an
@@ -196,12 +200,13 @@ The current tests cover:
 1. wallet store initialization from passkey-style PRF material
 2. random Midnight wallet seed generation and encrypted storage
 3. National ID proxy credential issuance from an issuer DID/JubJub signing method
-4. sanctions/PEP compliance credential issuance
-5. investment proof creation with age, expiry, PASS, PEP=false, freshness, and
+4. explicit National ID VP payload handoff into the Screening issuer
+5. sanctions/PEP compliance credential issuance
+6. investment proof creation with age, expiry, PASS, PEP=false, freshness, and
    same-holder predicates
-6. settlement through a separate external crypto wallet stub
-7. OpenID-shaped issuance and presentation envelopes carrying Midnight Compact payloads
-8. browser e2e for approved and denied Passport prototype flows
+7. settlement through a separate external crypto wallet stub
+8. OpenID-shaped issuance and presentation envelopes carrying Midnight Compact payloads
+9. browser e2e for approved and denied Passport prototype flows
 
 The wallet keeps issued credential bodies and issuer proofs in its credential
 inventory. When the DApp requests a proof, the wallet derives fresh

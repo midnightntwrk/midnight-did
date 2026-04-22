@@ -1,5 +1,3 @@
-import { URL } from "node:url";
-
 import {
   encodeSanctionScreeningCredential,
   encodeSanctionScreeningProof,
@@ -9,24 +7,40 @@ import {
   createCredentialIssuerMetadata,
   createCredentialRequest,
   createCredentialResponse,
-  createPreAuthorizedCredentialOffer,
-  createPreAuthorizedTokenRequest,
   type CredentialIssuerMetadata,
   type CredentialOffer,
-  credentialOfferUri,
   type CredentialRequest,
   type CredentialResponse,
-  parseCredentialOfferUri,
   type TokenRequest,
   type TokenResponse,
 } from "@midnight-ntwrk/midnight-did-credentials-openid";
+import {
+  decodeSecretPassportCredential,
+  decodeSecretPassportPresentation,
+  decodeSecretPassportProof,
+  type PassportCredentialFixture,
+} from "@midnight-ntwrk/midnight-did-credentials-passport-secret";
 
 import { ComplianceIssuerAgent } from "../actors/compliance-issuer.js";
 import { sha256 } from "../crypto/secure-store.js";
 import type {
   HolderSecretMaterial,
-  WalletCredentialInventory,
+  NationalIdPresentationSubmission,
 } from "../types.js";
+import {
+  allChecksPassed,
+  createIssuerRedirect,
+  createIssuerSession,
+  createOfferCallback,
+  createTokenRequestFromOffer,
+  exchangePreAuthorizedToken,
+  findByAccessToken,
+  type IssuerSessionRecord,
+  parseCredentialOffer,
+  type PublicIssuerSession,
+  publicIssuerSession,
+  toHex,
+} from "./issuer-session.js";
 
 export const SCREENING_CREDENTIAL_CONFIGURATION_ID =
   "midnight_passport_screening_v1";
@@ -37,44 +51,29 @@ export type ScreeningIssuerCheck =
   | "pepChecked"
   | "profileApproved";
 
-export type ScreeningIssuerSessionState = {
-  readonly id: string;
-  readonly state: string;
-  readonly redirectUri: string;
-  readonly issuerOrigin: string;
-  readonly issuerDid: string;
-  readonly issuerMethodId: string;
-  readonly checks: Record<ScreeningIssuerCheck, boolean>;
-  readonly status:
-    | "created"
-    | "checks_completed"
-    | "offer_issued"
-    | "token_issued"
-    | "credential_issued"
-    | "denied";
-  readonly denialReason?: string;
-  readonly credentialOfferUri?: string;
-};
+type ScreeningIssuerStatus =
+  | "created"
+  | "checks_completed"
+  | "offer_issued"
+  | "token_issued"
+  | "credential_issued"
+  | "denied";
+
+export type ScreeningIssuerSessionState = PublicIssuerSession<
+  ScreeningIssuerCheck,
+  ScreeningIssuerStatus
+>;
 
 export type ScreeningIssuedCredential = {
   readonly response: CredentialResponse;
   readonly credential: SanctionScreeningFixture;
 };
 
-type MutableScreeningIssuerSession = {
-  id: string;
-  state: string;
-  redirectUri: string;
-  issuerOrigin: string;
-  issuerDid: string;
-  issuerMethodId: string;
-  checks: Record<ScreeningIssuerCheck, boolean>;
-  status: ScreeningIssuerSessionState["status"];
-  denialReason?: string;
-  preAuthorizedCode?: string;
-  accessToken?: string;
-  credentialOfferUri?: string;
-  tokenConsumed: boolean;
+type MutableScreeningIssuerSession = IssuerSessionRecord<
+  ScreeningIssuerCheck,
+  ScreeningIssuerStatus
+> & {
+  nationalIdPresentation: PassportCredentialFixture;
 };
 
 const checks: readonly ScreeningIssuerCheck[] = [
@@ -84,26 +83,71 @@ const checks: readonly ScreeningIssuerCheck[] = [
   "profileApproved",
 ];
 
-const toHex = (value: Uint8Array): string =>
-  `0x${[...value].map((byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+const bytesEqual = (left: Uint8Array, right: Uint8Array): boolean =>
+  left.length === right.length &&
+  left.every((byte, index) => byte === right[index]);
 
-const randomId = (prefix: string): string =>
-  `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+const bytesToHex = (value: Uint8Array): string =>
+  [...value].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 
 const publicSession = (
   session: MutableScreeningIssuerSession,
-): ScreeningIssuerSessionState => ({
-  id: session.id,
-  state: session.state,
-  redirectUri: session.redirectUri,
-  issuerOrigin: session.issuerOrigin,
-  issuerDid: session.issuerDid,
-  issuerMethodId: session.issuerMethodId,
-  checks: { ...session.checks },
-  status: session.status,
-  denialReason: session.denialReason,
-  credentialOfferUri: session.credentialOfferUri,
-});
+): ScreeningIssuerSessionState => publicIssuerSession(session);
+
+const nationalIdPresentationFixture = (
+  submission: NationalIdPresentationSubmission,
+): PassportCredentialFixture => {
+  const { vpToken, prototypeFixture } = submission;
+  if (vpToken.format !== "midnight_compact_vp") {
+    throw new Error("Screening issuer requires a Midnight Compact VP token");
+  }
+  if (
+    vpToken.presentationFamily !== "passport-secret" ||
+    vpToken.schemaId !== "national-id-proxy:v1"
+  ) {
+    throw new Error("Screening issuer requires a National ID presentation");
+  }
+
+  const credential = decodeSecretPassportCredential(vpToken.credential);
+  const credentialProof = decodeSecretPassportProof(vpToken.credentialProof);
+  const presentation = decodeSecretPassportPresentation(vpToken.presentation);
+  if (!bytesEqual(presentation.credentialClaimRoot, credential.claimRoot)) {
+    throw new Error(
+      "National ID presentation is not anchored to the credential",
+    );
+  }
+  if (
+    !bytesEqual(credential.claimRoot, prototypeFixture.credential.claimRoot) ||
+    !bytesEqual(
+      presentation.credentialClaimRoot,
+      prototypeFixture.presentation.credentialClaimRoot,
+    )
+  ) {
+    throw new Error("National ID VP token does not match prototype fixture");
+  }
+  if (vpToken.holderBinding.method !== "blinded_secret_commitment") {
+    throw new Error("National ID VP requires blinded holder binding");
+  }
+  if (
+    vpToken.holderBinding.challenge !==
+    bytesToHex(prototypeFixture.presentationRequest.verifierChallengeHash)
+  ) {
+    throw new Error("National ID VP holder-binding challenge mismatch");
+  }
+  if (
+    vpToken.holderBinding.blindedCommitment !==
+    bytesToHex(credential.holderBinding.blindedHolderSecretCommitment)
+  ) {
+    throw new Error("National ID VP holder-binding commitment mismatch");
+  }
+
+  return {
+    ...prototypeFixture,
+    credential,
+    credentialProof,
+    presentation,
+  };
+};
 
 export class ScreeningIssuerService {
   private readonly sessions = new Map<string, MutableScreeningIssuerSession>();
@@ -147,40 +191,42 @@ export class ScreeningIssuerService {
   start(input: {
     readonly issuerOrigin: string;
     readonly redirectUri: string;
-    readonly inventory: WalletCredentialInventory;
+    readonly nationalIdPresentation: NationalIdPresentationSubmission;
   }): {
     readonly session: ScreeningIssuerSessionState;
     readonly redirectUrl: string;
   } {
-    if (!input.inventory.nationalId) {
-      throw new Error("Digital National ID credential is required first");
-    }
+    const nationalIdPresentation = nationalIdPresentationFixture(
+      input.nationalIdPresentation,
+    );
 
-    const id = randomId("screening");
     const issuerIdentity = this.issuerIdentity();
     const session: MutableScreeningIssuerSession = {
-      id,
-      state: randomId("state"),
-      redirectUri: input.redirectUri,
-      issuerOrigin: input.issuerOrigin,
-      issuerDid: issuerIdentity.did,
-      issuerMethodId: toHex(
-        issuerIdentity.signer.verificationMethodRef.methodId,
-      ),
-      checks: {
-        nationalIdPresentationVerified: true,
-        sanctionsChecked: false,
-        pepChecked: false,
-        profileApproved: false,
-      },
-      status: "created",
-      tokenConsumed: false,
+      ...createIssuerSession({
+        idPrefix: "screening",
+        redirectUri: input.redirectUri,
+        issuerOrigin: input.issuerOrigin,
+        issuerDid: issuerIdentity.did,
+        issuerMethodId: issuerIdentity.signer.verificationMethodRef.methodId,
+        checks: {
+          nationalIdPresentationVerified: true,
+          sanctionsChecked: false,
+          pepChecked: false,
+          profileApproved: false,
+        },
+        status: "created",
+      }),
+      nationalIdPresentation,
     };
-    this.sessions.set(id, session);
+    this.sessions.set(session.id, session);
 
     return {
       session: publicSession(session),
-      redirectUrl: `${input.issuerOrigin}/screening-issuer.html?session=${encodeURIComponent(id)}`,
+      redirectUrl: createIssuerRedirect({
+        issuerOrigin: input.issuerOrigin,
+        page: "screening-issuer.html",
+        sessionId: session.id,
+      }),
     };
   }
 
@@ -198,7 +244,7 @@ export class ScreeningIssuerService {
     }
     const session = this.requireSession(input.sessionId);
     session.checks[input.check] = input.value;
-    if (checks.every((check) => session.checks[check])) {
+    if (allChecksPassed(session, checks)) {
       session.status = "checks_completed";
     }
     return publicSession(session);
@@ -225,59 +271,31 @@ export class ScreeningIssuerService {
     if (session.status === "denied") {
       throw new Error(session.denialReason ?? "Screening issuer denied");
     }
-    if (!checks.every((check) => session.checks[check])) {
+    if (!allChecksPassed(session, checks)) {
       throw new Error("All Screening issuer checks must pass first");
     }
 
-    session.preAuthorizedCode = randomId("preauth");
-    const offer = createPreAuthorizedCredentialOffer({
-      credentialIssuer: session.issuerOrigin,
-      credentialConfigurationIds: [SCREENING_CREDENTIAL_CONFIGURATION_ID],
-      preAuthorizedCode: session.preAuthorizedCode,
+    const redirectUrl = createOfferCallback(session, {
+      credentialConfigurationId: SCREENING_CREDENTIAL_CONFIGURATION_ID,
+      issuerKind: "screening",
     });
-    session.credentialOfferUri = credentialOfferUri({
-      issuerOrigin: session.issuerOrigin,
-      offer,
-    });
-    session.status = "offer_issued";
-
-    const redirect = new URL(session.redirectUri);
-    redirect.searchParams.set(
-      "credential_offer_uri",
-      session.credentialOfferUri,
-    );
-    redirect.searchParams.set("issuer_session", session.id);
-    redirect.searchParams.set("issuer_kind", "screening");
-    redirect.searchParams.set("state", session.state);
 
     return {
       session: publicSession(session),
-      redirectUrl: redirect.toString(),
+      redirectUrl,
     };
   }
 
   createTokenRequest(credentialOfferUriValue: string): TokenRequest {
-    const offer = parseCredentialOfferUri(credentialOfferUriValue);
-    return createPreAuthorizedTokenRequest({ offer });
+    return createTokenRequestFromOffer(credentialOfferUriValue);
   }
 
   exchangeToken(request: TokenRequest): TokenResponse {
-    const session = this.findByPreAuthorizedCode(
-      request["pre-authorized_code"],
-    );
-    if (session.tokenConsumed) {
-      throw new Error("Pre-authorized code has already been used");
-    }
-    session.tokenConsumed = true;
-    session.status = "token_issued";
-    session.accessToken = randomId("access");
-    return {
-      access_token: session.accessToken,
-      token_type: "Bearer",
-      expires_in: 300,
-      c_nonce: toHex(sha256(`screening-c-nonce:${session.id}`)),
-      c_nonce_expires_in: 300,
-    };
+    return exchangePreAuthorizedToken({
+      sessions: this.sessions.values(),
+      request,
+      nonceLabel: "screening-c-nonce",
+    });
   }
 
   createCredentialRequest(input: {
@@ -312,7 +330,6 @@ export class ScreeningIssuerService {
     readonly accessToken: string;
     readonly request: CredentialRequest;
     readonly holder: HolderSecretMaterial;
-    readonly inventory: WalletCredentialInventory;
   }): ScreeningIssuedCredential {
     const session = this.findByAccessToken(input.accessToken);
     if (
@@ -329,7 +346,7 @@ export class ScreeningIssuerService {
     }
 
     const result = this.issuer.screenAndIssue({
-      inventory: input.inventory,
+      nationalIdPresentation: session.nationalIdPresentation,
       holder: input.holder,
     });
     if (!result.issued) {
@@ -361,7 +378,6 @@ export class ScreeningIssuerService {
   redeemOffer(input: {
     readonly credentialOfferUri: string;
     readonly holder: HolderSecretMaterial;
-    readonly inventory: WalletCredentialInventory;
   }): ScreeningIssuedCredential {
     const tokenRequest = this.createTokenRequest(input.credentialOfferUri);
     const token = this.exchangeToken(tokenRequest);
@@ -373,12 +389,11 @@ export class ScreeningIssuerService {
       accessToken: token.access_token,
       request: credentialRequest,
       holder: input.holder,
-      inventory: input.inventory,
     });
   }
 
   offerFromUri(credentialOfferUriValue: string): CredentialOffer {
-    return parseCredentialOfferUri(credentialOfferUriValue);
+    return parseCredentialOffer(credentialOfferUriValue);
   }
 
   private requireSession(id: string): MutableScreeningIssuerSession {
@@ -389,21 +404,9 @@ export class ScreeningIssuerService {
     return session;
   }
 
-  private findByPreAuthorizedCode(
-    preAuthorizedCode: string,
-  ): MutableScreeningIssuerSession {
-    for (const session of this.sessions.values()) {
-      if (session.preAuthorizedCode === preAuthorizedCode) return session;
-    }
-    throw new Error("Unknown pre-authorized code");
-  }
-
   private findByAccessToken(
     accessToken: string,
   ): MutableScreeningIssuerSession {
-    for (const session of this.sessions.values()) {
-      if (session.accessToken === accessToken) return session;
-    }
-    throw new Error("Unknown access token");
+    return findByAccessToken(this.sessions.values(), accessToken);
   }
 }

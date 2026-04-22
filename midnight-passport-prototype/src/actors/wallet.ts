@@ -2,7 +2,12 @@ import { Buffer } from "node:buffer";
 import { randomBytes } from "node:crypto";
 
 import { pureCircuits as genericCircuits } from "@midnight-ntwrk/midnight-did-credentials";
-import type { PassportCredentialFixture } from "@midnight-ntwrk/midnight-did-credentials-passport-secret";
+import {
+  encodeSecretPassportCredential,
+  encodeSecretPassportPresentation,
+  encodeSecretPassportProof,
+  type PassportCredentialFixture,
+} from "@midnight-ntwrk/midnight-did-credentials-passport-secret";
 
 import {
   decryptAesGcm,
@@ -15,6 +20,7 @@ import type {
   ComplianceCredentialFixture,
   HolderSecretMaterial,
   InvestmentProofBundle,
+  NationalIdPresentationSubmission,
   WalletCredentialInventory,
   WalletProfile,
 } from "../types.js";
@@ -189,8 +195,11 @@ export class MidnightPassportWallet {
 
   requestComplianceCredential(issuer: ComplianceIssuerAgent): void {
     this.assertUnlocked();
+    if (!this.inventory.nationalId) {
+      throw new Error("National ID credential is missing");
+    }
     const result = issuer.screenAndIssue({
-      inventory: this.inventory,
+      nationalIdPresentation: this.inventory.nationalId,
       holder: this.profile.holder,
     });
     if (!result.issued) {
@@ -200,6 +209,66 @@ export class MidnightPassportWallet {
     this.inventory = {
       ...this.inventory,
       compliance: result.credential,
+    };
+  }
+
+  createNationalIdPresentationForScreening(
+    verifierChallengeHash = sha256("challenge:screening-issuer"),
+  ): NationalIdPresentationSubmission {
+    this.assertUnlocked();
+    if (!this.inventory.nationalId) {
+      throw new Error("National ID credential is missing");
+    }
+
+    const presentationRequest = {
+      ...this.inventory.nationalId.presentationRequest,
+      verifierChallengeHash,
+    };
+    const presentation = {
+      ...this.inventory.nationalId.presentation,
+      holderBinding: {
+        blindedHolderSecretCommitment:
+          this.inventory.nationalId.credential.holderBinding
+            .blindedHolderSecretCommitment,
+        issuerNonce:
+          this.inventory.nationalId.credential.holderBinding.issuerNonce,
+        requestChallengeResponse:
+          genericCircuits.secretHolderBindingChallengeResponse(
+            this.profile.holder.holderSecret,
+            verifierChallengeHash,
+          ),
+      },
+    };
+    const prototypeFixture = {
+      ...this.inventory.nationalId,
+      presentationRequest,
+      presentation,
+    };
+
+    return {
+      vpToken: {
+        format: "midnight_compact_vp",
+        presentationFamily: "passport-secret",
+        schemaId: "national-id-proxy:v1",
+        schemaVersion: "1.0",
+        credential: encodeSecretPassportCredential(prototypeFixture.credential),
+        credentialProof: encodeSecretPassportProof(
+          prototypeFixture.credentialProof,
+        ),
+        presentation: encodeSecretPassportPresentation(
+          prototypeFixture.presentation,
+        ),
+        holderBinding: {
+          method: "blinded_secret_commitment",
+          challenge: toHex(verifierChallengeHash),
+          blindedCommitment: toHex(
+            prototypeFixture.credential.holderBinding
+              .blindedHolderSecretCommitment,
+          ),
+          verifierDomain: "screening-issuer.prototype",
+        },
+      },
+      prototypeFixture,
     };
   }
 
