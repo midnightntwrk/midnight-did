@@ -3,6 +3,13 @@ import { randomBytes } from "node:crypto";
 
 import { pureCircuits as genericCircuits } from "@midnight-ntwrk/midnight-did-credentials";
 import {
+  createMidnightCompactDescriptor,
+  createVpAuthorizationResponse,
+  parseVpAuthorizationRequest,
+  type VpAuthorizationRequest,
+  type VpAuthorizationResponse,
+} from "@midnight-ntwrk/midnight-did-credentials-openid";
+import {
   encodeSecretPassportCredential,
   encodeSecretPassportPresentation,
   encodeSecretPassportPresentationRequest,
@@ -41,6 +48,16 @@ export type WalletInitializationOptions = {
 
 const toHex = (value: Uint8Array): string =>
   [...value].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+
+const hexToBytes = (value: string): Uint8Array => {
+  const normalized = value.startsWith("0x") ? value.slice(2) : value;
+  if (normalized.length % 2 !== 0) {
+    throw new Error("Hex byte string must have even length");
+  }
+  return Uint8Array.from(
+    normalized.match(/../g)?.map((part) => Number.parseInt(part, 16)) ?? [],
+  );
+};
 
 const seedMaterial = (walletSeed: Uint8Array, label: string): Uint8Array =>
   sha256(`${label}:${toHex(walletSeed)}`);
@@ -266,6 +283,37 @@ export class MidnightPassportWallet {
         },
       },
     };
+  }
+
+  createScreeningAuthorizationResponse(
+    request: VpAuthorizationRequest,
+  ): VpAuthorizationResponse {
+    this.assertUnlocked();
+    const parsedRequest = parseVpAuthorizationRequest(request);
+    const challenge =
+      typeof parsedRequest.midnight?.challenge === "string" &&
+      parsedRequest.midnight.challenge.startsWith("0x")
+        ? hexToBytes(parsedRequest.midnight.challenge)
+        : sha256(parsedRequest.nonce);
+    const submission = this.createNationalIdPresentationForScreening(challenge);
+    const descriptorId =
+      parsedRequest.presentation_definition.input_descriptors[0]?.id ??
+      "national-id";
+
+    return createVpAuthorizationResponse({
+      state: parsedRequest.state,
+      vp_token: submission.vpToken,
+      presentation_submission: {
+        id: `screening-submission-${Date.now().toString(36)}`,
+        definition_id: parsedRequest.presentation_definition.id,
+        descriptor_map: [
+          createMidnightCompactDescriptor({
+            id: descriptorId,
+            path: "$.vp_token",
+          }),
+        ],
+      },
+    });
   }
 
   createInvestmentProof(

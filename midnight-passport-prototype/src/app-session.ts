@@ -1,6 +1,7 @@
 import type {
   CredentialRequest,
   CredentialResponse,
+  VpAuthorizationResponse,
 } from "@midnight-ntwrk/midnight-did-credentials-openid";
 import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 
@@ -25,6 +26,7 @@ import type {
   InvestmentDecision,
   InvestmentProduct,
   InvestmentProofBundle,
+  ScreeningPresentationRequestState,
 } from "./types.js";
 
 const toHex = (value: Uint8Array): string =>
@@ -45,6 +47,7 @@ export const passportPrototypeActions = [
   "unlockWallet",
   "issueNationalId",
   "issueCompliance",
+  "approveScreeningConsent",
   "prepareProof",
   "approveProof",
   "settleInvestment",
@@ -59,6 +62,7 @@ export type PrototypeActorState = {
   readonly walletUnlocked: boolean;
   readonly nationalIdIssued: boolean;
   readonly complianceIssued: boolean;
+  readonly screeningConsentPending: boolean;
   readonly proofPrepared: boolean;
   readonly proofApproved: boolean;
   readonly transferSettled: boolean;
@@ -107,6 +111,15 @@ export type PrototypeAppState = {
     readonly issuerMessages: readonly string[];
     readonly verifierMessages: readonly string[];
   };
+  readonly consent?: {
+    readonly pendingScreeningRequest?: {
+      readonly id: string;
+      readonly clientId: string;
+      readonly requestUri: string;
+      readonly verifierDomain?: string;
+      readonly challenge?: string;
+    };
+  };
   readonly issuer?: {
     readonly nationalId?: NationalIdIssuerSessionState;
     readonly screening?: ScreeningIssuerSessionState;
@@ -147,6 +160,7 @@ export class PassportPrototypeSession {
   private denied = false;
   private nationalIdIssuerSession?: NationalIdIssuerSessionState;
   private screeningIssuerSession?: ScreeningIssuerSessionState;
+  private pendingScreeningRequest?: ScreeningPresentationRequestState;
   private readonly events: string[] = [
     "Prototype reset. Start by initializing the wallet.",
     "No credential material has left the local wallet.",
@@ -228,8 +242,10 @@ export class PassportPrototypeSession {
         issuerMessages: [
           this.walletBridge.status().credentials.compliance
             ? "OID4VCI Screening credential response accepted by wallet"
-            : this.walletBridge.status().credentials.nationalId
-              ? "Waiting for Screening issuer redirect"
+            : this.pendingScreeningRequest
+              ? "OID4VP Screening request is waiting for wallet consent"
+              : this.walletBridge.status().credentials.nationalId
+                ? "Waiting for Screening issuer redirect"
               : "Waiting for National ID issuer redirect",
           "issuer identified by Midnight DID and JubJub verification method",
           "OID4VCI credential offer URI from each issuer SPA",
@@ -244,6 +260,19 @@ export class PassportPrototypeSession {
           "contract simulator decision",
         ],
       },
+      consent: this.pendingScreeningRequest
+        ? {
+            pendingScreeningRequest: {
+              id: this.pendingScreeningRequest.id,
+              clientId: this.pendingScreeningRequest.request.client_id,
+              requestUri: this.pendingScreeningRequest.requestUri,
+              verifierDomain:
+                this.pendingScreeningRequest.request.midnight?.verifierDomain,
+              challenge:
+                this.pendingScreeningRequest.request.midnight?.challenge,
+            },
+          }
+        : undefined,
       issuer: this.nationalIdIssuerSession
         ? {
             nationalId: this.nationalIdIssuerSession,
@@ -291,19 +320,52 @@ export class PassportPrototypeSession {
 
   beginScreeningIssuance(input: {
     readonly issuerOrigin: string;
-    readonly redirectUri: string;
+    readonly walletOrigin: string;
   }): { readonly redirectUrl: string; readonly state: PrototypeAppState } {
     this.assertInitialized();
     this.assertWalletUnlocked();
     const result = this.screeningIssuer.start({
       issuerOrigin: input.issuerOrigin,
-      redirectUri: input.redirectUri,
-      nationalIdPresentation:
-        this.walletBridge.createNationalIdPresentationForScreening(),
+      walletOrigin: input.walletOrigin,
     });
     this.screeningIssuerSession = result.session;
+    this.pendingScreeningRequest = this.screeningIssuer.getAuthorizationRequest(
+      result.session.id,
+    );
     this.addEvent(
-      "Screening issuer redirect started: wallet sent a National ID VP payload for mocked compliance checks.",
+      "Screening issuer redirect started: wallet received an OID4VP-style request and is waiting for explicit consent before sending the National ID VP.",
+    );
+    return { redirectUrl: result.redirectUrl, state: this.state() };
+  }
+
+  screeningPresentationRequest(requestId: string): ScreeningPresentationRequestState {
+    return this.screeningIssuer.getAuthorizationRequest(requestId);
+  }
+
+  buildScreeningAuthorizationResponse(input: {
+    readonly requestId: string;
+  }): {
+    readonly directPostUrl: string;
+    readonly response: VpAuthorizationResponse;
+  } {
+    this.assertInitialized();
+    this.assertWalletUnlocked();
+    const request = this.screeningIssuer.getAuthorizationRequest(input.requestId);
+    return {
+      directPostUrl: request.request.redirect_uri ?? "",
+      response: this.wallet.createScreeningAuthorizationResponse(request.request),
+    };
+  }
+
+  acceptScreeningAuthorizationResponse(input: {
+    readonly requestId: string;
+    readonly response: VpAuthorizationResponse;
+  }): { readonly redirectUrl: string; readonly state: PrototypeAppState } {
+    const result = this.screeningIssuer.acceptAuthorizationResponse(input);
+    this.screeningIssuerSession = result.session;
+    this.pendingScreeningRequest = undefined;
+    this.addEvent(
+      "Wallet approved the Screening presentation request and posted a National ID VP to the issuer direct-post endpoint.",
     );
     return { redirectUrl: result.redirectUrl, state: this.state() };
   }
@@ -390,6 +452,9 @@ export class PassportPrototypeSession {
       case "issueCompliance":
         this.issueCompliance();
         break;
+      case "approveScreeningConsent":
+        this.approveScreeningConsent();
+        break;
       case "prepareProof":
         this.prepareProof();
         break;
@@ -449,11 +514,17 @@ export class PassportPrototypeSession {
   issueCompliance(): void {
     this.assertInitialized();
     if (this.walletBridge.status().credentials.compliance) return;
-    this.walletBridge.requestComplianceCredential(
-      new ComplianceIssuerAgent({ sanctioned: false, pep: false }),
+    throw new Error(
+      "Use the Screening issuer redirect flow to request the compliance credential.",
     );
+  }
+
+  approveScreeningConsent(): void {
+    if (!this.pendingScreeningRequest) {
+      throw new Error("No Screening presentation request is waiting for consent");
+    }
     this.addEvent(
-      "Compliance issuer verified passport disclosure and issued PASS / PEP=false credential.",
+      "Wallet consent approved for the Screening request. Submit the National ID VP through the direct-post flow.",
     );
   }
 
@@ -498,7 +569,9 @@ export class PassportPrototypeSession {
     this.initializeWallet();
     this.unlockWallet();
     this.issueNationalId();
-    this.issueCompliance();
+    this.walletBridge.requestComplianceCredential(
+      new ComplianceIssuerAgent({ sanctioned: false, pep: false }),
+    );
     this.prepareProof();
     this.approveProof();
     this.settleInvestment();
@@ -530,6 +603,7 @@ export class PassportPrototypeSession {
       walletUnlocked: status.unlocked,
       nationalIdIssued: status.credentials.nationalId,
       complianceIssued: status.credentials.compliance,
+      screeningConsentPending: Boolean(this.pendingScreeningRequest),
       proofPrepared: Boolean(this.proof),
       proofApproved: this.decision?.approved === true,
       transferSettled: Boolean(this.receipt),
@@ -552,6 +626,11 @@ export class PassportPrototypeSession {
         actors.walletUnlocked &&
         actors.nationalIdIssued &&
         !actors.complianceIssued &&
+        !actors.screeningConsentPending &&
+        !actors.denied,
+      approveScreeningConsent:
+        actors.walletUnlocked &&
+        actors.screeningConsentPending &&
         !actors.denied,
       prepareProof:
         actors.walletUnlocked &&

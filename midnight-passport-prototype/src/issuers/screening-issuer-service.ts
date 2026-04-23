@@ -4,15 +4,21 @@ import {
   type SanctionScreeningFixture,
 } from "@midnight-ntwrk/midnight-did-credentials-compliance";
 import {
+  assertPresentationSubmissionMatchesDefinition,
   createCredentialIssuerMetadata,
   createCredentialRequest,
   createCredentialResponse,
+  createPresentationDefinition,
+  createVpAuthorizationRequest,
+  createVpAuthorizationResponse,
   type CredentialIssuerMetadata,
   type CredentialOffer,
   type CredentialRequest,
   type CredentialResponse,
   type TokenRequest,
   type TokenResponse,
+  type VpAuthorizationRequest,
+  type VpAuthorizationResponse,
 } from "@midnight-ntwrk/midnight-did-credentials-openid";
 import {
   decodeSecretPassportCredential,
@@ -28,6 +34,8 @@ import type {
   HolderSecretMaterial,
   NationalIdPresentationContext,
   NationalIdPresentationSubmission,
+  NationalIdPresentationVpToken,
+  ScreeningPresentationRequestState,
 } from "../types.js";
 import {
   allChecksPassed,
@@ -75,7 +83,9 @@ type MutableScreeningIssuerSession = IssuerSessionRecord<
   ScreeningIssuerCheck,
   ScreeningIssuerStatus
 > & {
-  nationalIdPresentation: NationalIdPresentationContext;
+  nationalIdPresentation?: NationalIdPresentationContext;
+  authorizationRequest: ScreeningPresentationRequestState;
+  authorizationRequestConsumed: boolean;
 };
 
 const checks: readonly ScreeningIssuerCheck[] = [
@@ -91,6 +101,19 @@ const bytesEqual = (left: Uint8Array, right: Uint8Array): boolean =>
 
 const bytesToHex = (value: Uint8Array): string =>
   [...value].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+
+const randomRequestId = (prefix: string): string =>
+  `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+const createWalletRequestRedirect = (
+  session: MutableScreeningIssuerSession,
+): string => {
+  const redirect = new URL(session.redirectUri);
+  redirect.searchParams.set("request_uri", session.authorizationRequest.requestUri);
+  redirect.searchParams.set("client_id", session.authorizationRequest.request.client_id);
+  redirect.searchParams.set("screening_request", session.authorizationRequest.id);
+  return redirect.toString();
+};
 
 const publicSession = (
   session: MutableScreeningIssuerSession,
@@ -189,40 +212,111 @@ export class ScreeningIssuerService {
 
   start(input: {
     readonly issuerOrigin: string;
-    readonly redirectUri: string;
-    readonly nationalIdPresentation: NationalIdPresentationSubmission;
+    readonly walletOrigin: string;
   }): {
     readonly session: ScreeningIssuerSessionState;
     readonly redirectUrl: string;
   } {
-    const nationalIdPresentation = nationalIdPresentationContext(
-      input.nationalIdPresentation,
-    );
-
     const issuerIdentity = this.issuerIdentity();
+    const baseSession = createIssuerSession({
+      idPrefix: "screening",
+      redirectUri: input.walletOrigin,
+      issuerOrigin: input.issuerOrigin,
+      issuerDid: issuerIdentity.did,
+      issuerMethodId: issuerIdentity.signer.verificationMethodRef.methodId,
+      checks: {
+        nationalIdPresentationVerified: false,
+        sanctionsChecked: false,
+        pepChecked: false,
+        profileApproved: false,
+      },
+      status: "created",
+    });
+    const requestId = baseSession.id;
     const session: MutableScreeningIssuerSession = {
-      ...createIssuerSession({
-        idPrefix: "screening",
-        redirectUri: input.redirectUri,
-        issuerOrigin: input.issuerOrigin,
-        issuerDid: issuerIdentity.did,
-        issuerMethodId: issuerIdentity.signer.verificationMethodRef.methodId,
-        checks: {
-          nationalIdPresentationVerified: true,
-          sanctionsChecked: false,
-          pepChecked: false,
-          profileApproved: false,
-        },
-        status: "created",
-      }),
-      nationalIdPresentation,
+      ...baseSession,
+      authorizationRequest: {
+        id: requestId,
+        requestUri: `${input.issuerOrigin}/api/issuer/screening/requests/${requestId}`,
+        request: createVpAuthorizationRequest({
+          response_type: "vp_token",
+          client_id: issuerIdentity.did,
+          redirect_uri: `${input.issuerOrigin}/api/issuer/screening/direct-post`,
+          response_mode: "direct_post",
+          state: randomRequestId("screening-state"),
+          nonce: randomRequestId("screening-nonce"),
+          presentation_definition: createPresentationDefinition({
+            id: `screening-definition-${requestId}`,
+            name: "National ID required for sanctions screening",
+            purpose:
+              "The Screening issuer requires a Midnight National ID presentation before compliance checks can begin.",
+            input_descriptors: [
+              {
+                id: "national-id",
+                name: "Digital National ID",
+                constraints: {
+                  fields: [{ path: ["$.presentationFamily"] }],
+                },
+              },
+            ],
+          }),
+          midnight: {
+            verifierDomain: "screening-issuer.prototype",
+            challenge: toHex(sha256(`screening-vp:${requestId}`)),
+            acceptedCredentialFamilies: ["passport-secret"],
+            requireSameHolder: false,
+            predicateHints: [
+              "midnight:predicate:age-over",
+              "midnight:predicate:not-expired",
+            ],
+          },
+        }),
+      },
+      authorizationRequestConsumed: false,
     };
     this.sessions.set(session.id, session);
 
     return {
       session: publicSession(session),
+      redirectUrl: createWalletRequestRedirect(session),
+    };
+  }
+
+  getAuthorizationRequest(requestId: string): ScreeningPresentationRequestState {
+    return this.requireSessionByRequestId(requestId).authorizationRequest;
+  }
+
+  acceptAuthorizationResponse(input: {
+    readonly requestId: string;
+    readonly response: VpAuthorizationResponse;
+  }): { readonly session: ScreeningIssuerSessionState; readonly redirectUrl: string } {
+    const session = this.requireSessionByRequestId(input.requestId);
+    if (session.authorizationRequestConsumed) {
+      throw new Error("Screening presentation request has already been used");
+    }
+    if (session.status === "denied") {
+      throw new Error(session.denialReason ?? "Screening issuer denied");
+    }
+
+    const response = createVpAuthorizationResponse(input.response);
+    const request = session.authorizationRequest.request;
+    if ((response.state ?? "") !== (request.state ?? "")) {
+      throw new Error("Screening presentation response state mismatch");
+    }
+    assertPresentationSubmissionMatchesDefinition({
+      definition: request.presentation_definition,
+      submission: response.presentation_submission,
+    });
+    const vpToken = response.vp_token as NationalIdPresentationVpToken;
+    const nationalIdPresentation = nationalIdPresentationContext({ vpToken });
+    session.nationalIdPresentation = nationalIdPresentation;
+    session.authorizationRequestConsumed = true;
+    session.checks.nationalIdPresentationVerified = true;
+
+    return {
+      session: publicSession(session),
       redirectUrl: createIssuerRedirect({
-        issuerOrigin: input.issuerOrigin,
+        issuerOrigin: session.issuerOrigin,
         page: "screening-issuer.html",
         sessionId: session.id,
       }),
@@ -331,6 +425,9 @@ export class ScreeningIssuerService {
     readonly holder: HolderSecretMaterial;
   }): ScreeningIssuedCredential {
     const session = this.findByAccessToken(input.accessToken);
+    if (!session.nationalIdPresentation) {
+      throw new Error("National ID presentation must be submitted before issuance");
+    }
     if (
       input.request.credential_configuration_id !==
       SCREENING_CREDENTIAL_CONFIGURATION_ID
@@ -401,6 +498,15 @@ export class ScreeningIssuerService {
       throw new Error(`Screening issuer session "${id}" was not found`);
     }
     return session;
+  }
+
+  private requireSessionByRequestId(requestId: string): MutableScreeningIssuerSession {
+    for (const session of this.sessions.values()) {
+      if (session.authorizationRequest.id === requestId) {
+        return session;
+      }
+    }
+    throw new Error(`Screening presentation request "${requestId}" was not found`);
   }
 
   private findByAccessToken(

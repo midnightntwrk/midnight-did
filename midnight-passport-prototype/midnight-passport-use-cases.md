@@ -19,8 +19,8 @@ issuer, verifier, DApp, and payment actors.
 | UC-1 | Initialize Passport wallet | Yes | deterministic passkey fixture and in-memory stores | WebAuthn PRF, persistent secure storage, seed recovery policy |
 | UC-2 | Lock and unlock wallet session | Yes | no platform biometric or secure-element prompt | user presence, timeout, session persistence |
 | UC-3 | Issue Digital National ID | Yes | document/liveness/approval are buttons | real KYC provider and OID4VCI issuer service |
-| UC-4 | Present National ID to Screening issuer | Yes | VP transport is local and not OID4VP redirect/direct-post yet | production VP proof transport and DID key resolution |
-| UC-5 | Issue Screening VC | Yes | sanctions/PEP checks are buttons | screening provider integration and audit policy |
+| UC-4 | Present National ID to Screening issuer | Yes | request expiry and cross-device wallet handoff are not modeled yet | production wallet transport, DID key resolution, and expiry policy |
+| UC-5 | Issue Screening VC | Yes | sanctions/PEP checks are buttons | screening provider integration, audit policy, and proof-of-possession validation |
 | UC-6 | Deny Screening issuance | Yes | deterministic denial buttons | structured review and appeal flows |
 | UC-7 | Prepare investment proof | Yes | verifier contract is an in-process simulator | deployed verifier contract and protocol transport |
 | UC-8 | Approve and settle investment | Yes | external crypto wallet is a stub | wallet API and real transaction signing |
@@ -144,9 +144,11 @@ Production readiness gaps:
 
 ## UC-4: Present National ID To Screening Issuer
 
-Before Screening issuance starts, the wallet builds an explicit National ID VP
-payload and gives it to the Screening issuer. The issuer no longer treats the
-wallet inventory as implicit context.
+Before Screening issuance starts, the issuer creates an OID4VP-style
+authorization request. The wallet receives that request through a redirect,
+shows an explicit consent boundary, builds a National ID VP only after user
+approval, and posts it to the issuer `direct_post` endpoint. The issuer no
+longer treats the wallet inventory as implicit context.
 
 Low-level implementation:
 
@@ -154,14 +156,25 @@ Low-level implementation:
 |---|---|
 | VP payload type | `src/types.ts` |
 | Wallet VP builder | `src/actors/wallet.ts` |
-| Bridge method | `src/bridge/wallet-bridge.ts` |
-| Screening session start | `src/app-session.ts` |
+| Wallet consent and session orchestration | `src/app-session.ts`, `app/app.js` |
+| Screening request routing | `src/serve-app.ts` |
 | VP decode and validation | `src/issuers/screening-issuer-service.ts` |
 | Compact codecs | `packages/credentials-passport-secret/src/codecs.ts` |
-| Tests | `src/test/screening-issuer-service.test.ts` |
+| Browser coverage | `src/e2e/passport-prototype.spec.ts` |
+| Tests | `src/test/screening-issuer-service.test.ts`, `src/test/app-session.test.ts` |
 
 Protocol and data shape:
 
+- `POST /api/issuer/screening/start` creates a Screening issuer session and a
+  one-time authorization request.
+- The wallet receives `request_uri`, `client_id`, and `screening_request`
+  parameters on its callback URL.
+- `GET /api/issuer/screening/requests/:id` returns the request body, which is
+  shaped like an OID4VP authorization request with Midnight-specific hints.
+- `POST /api/wallet/screening/authorization-response` is the wallet-side step
+  that turns a pending request into a VP response after user consent.
+- `POST /api/issuer/screening/direct-post` is the issuer-side endpoint that
+  accepts the VP response and marks the request as consumed.
 - `createNationalIdPresentationForScreening()` builds a
   `NationalIdPresentationSubmission`.
 - The VP token includes `format: "midnight_compact_vp"`, family
@@ -171,21 +184,25 @@ Protocol and data shape:
 - The Screening issuer decodes the Compact values and verifies that the
   presentation is anchored to the credential claim root.
 - The Screening issuer validates the decoded presentation request plus
-  holder-binding method, challenge, and blinded commitment before opening a
-  session.
+  holder-binding method, challenge, and blinded commitment before opening the
+  Screening issuer UI.
+- The issuer rejects replay of the same authorization response once
+  `authorizationRequestConsumed` is set.
 
 Mocked or simplified:
 
-- The VP does not yet travel through full OID4VP redirect or direct-post
-  protocol.
+- The wallet and issuer still live inside one prototype service, so the request
+  URI is local and no cross-device handoff is modeled.
 - Full holder-witness verification still happens at issuance time in the local
   prototype because the wallet and issuer live in one process for now.
+- Authorization request expiry timestamps are not implemented yet.
 
 Production readiness gaps:
 
-- Add OID4VP/SIOP request and response transport.
-- Define replay protection, expiry, and holder consent UX.
+- Persist issuer request state outside process memory.
+- Add request expiry, cancellation, and explicit consent denial handling.
 - Resolve issuer and holder DID keys instead of relying on local fixtures.
+- Separate wallet and issuer origins into independently deployable services.
 
 ## UC-5: Issue Screening VC
 
@@ -206,7 +223,10 @@ Low-level implementation:
 
 Protocol and data shape:
 
-- `ScreeningIssuerService.start()` requires a validated National ID VP payload.
+- `ScreeningIssuerService.start()` creates a Screening session and an attached
+  OID4VP-style authorization request.
+- `acceptAuthorizationResponse()` stores a validated National ID VP payload on
+  the session before any sanctions or PEP checks are allowed to complete.
 - The issuer page toggles `sanctionsChecked`, `pepChecked`, and
   `profileApproved` checks.
 - `completeChecks()` creates a Screening credential offer URI.
@@ -219,13 +239,15 @@ Mocked or simplified:
 - Sanctions and PEP checks are local buttons.
 - Provider matching data is not modeled.
 - JWT proof validation is placeholder text.
+- The Screening issuer page assumes the VP has already passed the direct-post
+  gate before the compliance operator starts clicking checks.
 
 Production readiness gaps:
 
 - Integrate real sanctions and PEP providers.
 - Add policy versioning, review workflow, and provider evidence retention.
 - Replace fixture DID keys with DID resolution.
-- Validate credential request proof and anti-replay state.
+- Validate credential request proof and add durable nonce/request replay state.
 
 ## UC-6: Deny Screening Issuance
 

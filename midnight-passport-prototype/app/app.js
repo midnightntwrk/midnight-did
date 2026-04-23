@@ -34,6 +34,7 @@ const elements = {
   unlockWallet: $("#unlockWallet"),
   issueNationalId: $("#issueNationalId"),
   issueCompliance: $("#issueCompliance"),
+  approveScreeningConsent: $("#approveScreeningConsent"),
   prepareProof: $("#prepareProof"),
   approveProof: $("#approveProof"),
   settleInvestment: $("#settleInvestment"),
@@ -170,6 +171,10 @@ function renderPrototypeState(state) {
   setDisabled(elements.unlockWallet, !actions.unlockWallet);
   setDisabled(elements.issueNationalId, !actions.issueNationalId);
   setDisabled(elements.issueCompliance, !actions.issueCompliance);
+  setDisabled(
+    elements.approveScreeningConsent,
+    !actions.approveScreeningConsent,
+  );
   setDisabled(elements.prepareProof, !actions.prepareProof);
   setDisabled(elements.approveProof, !actions.approveProof);
   setDisabled(elements.settleInvestment, !actions.settleInvestment);
@@ -196,7 +201,9 @@ async function fetchJson(url, options) {
 async function loadPrototypeState() {
   try {
     if (await acceptCredentialOfferRedirect()) return;
-    renderPrototypeState(await fetchJson("/api/state"));
+    const state = await fetchJson("/api/state");
+    renderPrototypeState(state);
+    await acceptScreeningRequestRedirect(state);
   } catch (apiError) {
     try {
       const response = await fetch("./prototype-state.json", { cache: "no-store" });
@@ -229,6 +236,19 @@ async function acceptCredentialOfferRedirect() {
   window.history.replaceState({}, document.title, "/");
   renderPrototypeState(state);
   document.querySelector("#credentials")?.scrollIntoView({ behavior: "smooth" });
+  return true;
+}
+
+async function acceptScreeningRequestRedirect(state) {
+  const params = new URLSearchParams(window.location.search);
+  const requestUri = params.get("request_uri");
+  const requestId = params.get("screening_request");
+  if (!requestUri || !requestId) return false;
+  renderList(elements.events, [
+    "Screening issuer requested a National ID VP. Review the disclosure request before approving.",
+    ...(state?.events ?? []),
+  ]);
+  document.querySelector("#consent")?.scrollIntoView({ behavior: "smooth" });
   return true;
 }
 
@@ -275,6 +295,32 @@ async function reviewDisclosure() {
   document.querySelector("#consent")?.scrollIntoView({ behavior: "smooth" });
 }
 
+async function approveScreeningConsent() {
+  const params = new URLSearchParams(window.location.search);
+  const requestId = params.get("screening_request");
+  if (!requestId) return;
+
+  const authorization = await fetchJson(
+    "/api/wallet/screening/authorization-response",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ requestId }),
+    },
+  );
+  const directPostUrl =
+    authorization.directPostUrl || "/api/issuer/screening/direct-post";
+  const result = await fetchJson(directPostUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      requestId,
+      response: authorization.response,
+    }),
+  });
+  window.location.href = result.redirectUrl;
+}
+
 const sections = $$('section[id]');
 const tabs = $$(".stage-tab");
 
@@ -297,6 +343,10 @@ elements.lockWallet?.addEventListener("click", () => performAction("lockWallet")
 elements.unlockWallet?.addEventListener("click", () => performAction("unlockWallet"));
 elements.issueNationalId?.addEventListener("click", startNationalIdIssuance);
 elements.issueCompliance?.addEventListener("click", startScreeningIssuance);
+elements.approveScreeningConsent?.addEventListener(
+  "click",
+  approveScreeningConsent,
+);
 elements.prepareProof?.addEventListener("click", () => performAction("prepareProof"));
 elements.approveProof?.addEventListener("click", () => performAction("approveProof"));
 elements.settleInvestment?.addEventListener("click", () => performAction("settleInvestment"));

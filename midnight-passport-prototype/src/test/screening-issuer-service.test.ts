@@ -14,61 +14,75 @@ const walletWithNationalId = (): MidnightPassportWallet => {
   return wallet;
 };
 
-describe("Screening issuer OID4VCI-shaped service", () => {
-  it("requires an explicit National ID VP submission before screening", () => {
+describe("Screening issuer OID4VCI/OID4VP-shaped service", () => {
+  it("creates a Screening presentation request and accepts a direct-post VP submission", () => {
     const wallet = walletWithNationalId();
     const service = new ScreeningIssuerService();
-    const presentation = wallet.createNationalIdPresentationForScreening();
 
     const started = service.start({
       issuerOrigin: "http://screening.example",
-      redirectUri: "http://wallet.example/callback",
-      nationalIdPresentation: presentation,
+      walletOrigin: "http://wallet.example/callback",
     });
+    const request = service.getAuthorizationRequest(started.session.id);
 
-    expect(started.session.checks.nationalIdPresentationVerified).toBe(true);
+    expect(started.session.checks.nationalIdPresentationVerified).toBe(false);
     expect(started.session.issuerDid).toBe(
       "did:midnight:prototype:screening-issuer",
     );
-    expect(started.redirectUrl).toContain("screening-issuer.html");
+    expect(started.redirectUrl).toContain("request_uri=");
+
+    const accepted = service.acceptAuthorizationResponse({
+      requestId: request.id,
+      response: wallet.createScreeningAuthorizationResponse(request.request),
+    });
+
+    expect(accepted.session.checks.nationalIdPresentationVerified).toBe(true);
+    expect(accepted.redirectUrl).toContain("screening-issuer.html");
   });
 
-  it("rejects a Screening flow when the submitted VP is not a National ID presentation", () => {
+  it("rejects a Screening direct-post when the submitted VP is not a National ID presentation", () => {
     const wallet = walletWithNationalId();
     const service = new ScreeningIssuerService();
-    const presentation = wallet.createNationalIdPresentationForScreening();
+    const started = service.start({
+      issuerOrigin: "http://screening.example",
+      walletOrigin: "http://wallet.example/callback",
+    });
+    const request = service.getAuthorizationRequest(started.session.id);
+    const response = wallet.createScreeningAuthorizationResponse(request.request);
 
     expect(() =>
-      service.start({
-        issuerOrigin: "http://screening.example",
-        redirectUri: "http://wallet.example/callback",
-        nationalIdPresentation: {
-          ...presentation,
-          vpToken: {
-            ...presentation.vpToken,
-            schemaId:
-              "not-national-id:v1" as typeof presentation.vpToken.schemaId,
+      service.acceptAuthorizationResponse({
+        requestId: request.id,
+        response: {
+          ...response,
+          vp_token: {
+            ...(response.vp_token as Record<string, unknown>),
+            schemaId: "not-national-id:v1",
           },
         },
       }),
     ).toThrow(/National ID presentation/);
   });
 
-  it("rejects a Screening flow when VP holder binding does not match the presentation request", () => {
+  it("rejects a Screening direct-post when VP holder binding does not match the presentation request", () => {
     const wallet = walletWithNationalId();
     const service = new ScreeningIssuerService();
-    const presentation = wallet.createNationalIdPresentationForScreening();
+    const started = service.start({
+      issuerOrigin: "http://screening.example",
+      walletOrigin: "http://wallet.example/callback",
+    });
+    const request = service.getAuthorizationRequest(started.session.id);
+    const response = wallet.createScreeningAuthorizationResponse(request.request);
 
     expect(() =>
-      service.start({
-        issuerOrigin: "http://screening.example",
-        redirectUri: "http://wallet.example/callback",
-        nationalIdPresentation: {
-          ...presentation,
-          vpToken: {
-            ...presentation.vpToken,
+      service.acceptAuthorizationResponse({
+        requestId: request.id,
+        response: {
+          ...response,
+          vp_token: {
+            ...(response.vp_token as Record<string, any>),
             holderBinding: {
-              ...presentation.vpToken.holderBinding,
+              ...((response.vp_token as Record<string, any>).holderBinding ?? {}),
               challenge: "deadbeef",
             },
           },
@@ -77,13 +91,40 @@ describe("Screening issuer OID4VCI-shaped service", () => {
     ).toThrow(/challenge mismatch/);
   });
 
+  it("rejects replay of the same Screening VP authorization response", () => {
+    const wallet = walletWithNationalId();
+    const service = new ScreeningIssuerService();
+    const started = service.start({
+      issuerOrigin: "http://screening.example",
+      walletOrigin: "http://wallet.example/callback",
+    });
+    const request = service.getAuthorizationRequest(started.session.id);
+    const response = wallet.createScreeningAuthorizationResponse(request.request);
+
+    service.acceptAuthorizationResponse({
+      requestId: request.id,
+      response,
+    });
+
+    expect(() =>
+      service.acceptAuthorizationResponse({
+        requestId: request.id,
+        response,
+      }),
+    ).toThrow(/already been used/);
+  });
+
   it("exchanges a Screening credential offer without reading wallet inventory", () => {
     const wallet = walletWithNationalId();
     const service = new ScreeningIssuerService();
     const started = service.start({
       issuerOrigin: "http://screening.example",
-      redirectUri: "http://wallet.example/callback",
-      nationalIdPresentation: wallet.createNationalIdPresentationForScreening(),
+      walletOrigin: "http://wallet.example/callback",
+    });
+    const request = service.getAuthorizationRequest(started.session.id);
+    service.acceptAuthorizationResponse({
+      requestId: request.id,
+      response: wallet.createScreeningAuthorizationResponse(request.request),
     });
 
     for (const check of [

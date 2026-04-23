@@ -204,9 +204,53 @@ const handleScreeningIssuerApi = async (
   if (requestUrl.pathname === "/api/issuer/screening/start") {
     const result = session.beginScreeningIssuance({
       issuerOrigin: origin,
-      redirectUri: `${origin}/`,
+      walletOrigin: `${origin}/`,
     });
     sendJson(response, 200, result);
+    return true;
+  }
+
+  const requestMatch = requestUrl.pathname.match(
+    /^\/api\/issuer\/screening\/requests\/([^/]+)$/u,
+  );
+  if (requestMatch) {
+    try {
+      sendJson(
+        response,
+        200,
+        session.screeningPresentationRequest(requestMatch[1]),
+      );
+    } catch (error) {
+      sendJson(response, 404, {
+        error: error instanceof Error ? error.message : "Request not found",
+      });
+    }
+    return true;
+  }
+
+  if (requestUrl.pathname === "/api/issuer/screening/direct-post") {
+    const body = (await readJsonBody(request)) as {
+      readonly requestId?: string;
+      readonly response?: unknown;
+    };
+    if (!body.requestId || !body.response) {
+      sendJson(response, 400, { error: "requestId and response are required" });
+      return true;
+    }
+    try {
+      sendJson(
+        response,
+        200,
+        session.acceptScreeningAuthorizationResponse({
+          requestId: body.requestId,
+          response: body.response as never,
+        }),
+      );
+    } catch (error) {
+      sendJson(response, 409, {
+        error: error instanceof Error ? error.message : "Direct-post failed",
+      });
+    }
     return true;
   }
 
@@ -327,6 +371,27 @@ const handleApiRequest = async (
 
   if (requestUrl.pathname.startsWith("/api/issuer/screening/")) {
     return handleScreeningIssuerApi(request, requestUrl, response);
+  }
+
+  if (requestUrl.pathname === "/api/wallet/screening/authorization-response") {
+    const body = (await readJsonBody(request)) as { readonly requestId?: string };
+    if (!body.requestId) {
+      sendJson(response, 400, { error: "requestId is required" });
+      return true;
+    }
+    try {
+      sendJson(response, 200, session.buildScreeningAuthorizationResponse({
+        requestId: body.requestId,
+      }));
+    } catch (error) {
+      sendJson(response, 409, {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Authorization response build failed",
+      });
+    }
+    return true;
   }
 
   if (requestUrl.pathname.startsWith("/api/actions/")) {

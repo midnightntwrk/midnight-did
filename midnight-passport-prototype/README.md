@@ -87,16 +87,20 @@ The browser shell can run the flow manually:
 4. return to the wallet with a credential offer URI
 5. redeem the offer through token and credential request/response messages
 6. start Screening VC issuance
-7. wallet builds an explicit National ID VP payload for the Screening issuer
-   with encoded credential, issuer proof, presentation request, and
-   presentation
-8. redirect to the screening issuer page and complete mocked
-   National-ID-presentation, sanctions, PEP, and approval checks
-9. return to the wallet with a Screening VC credential offer URI
-10. redeem the offer through token and credential request/response messages
-11. prepare the verifier-scoped proof
-12. approve the proof
-13. settle through the external crypto wallet stub
+7. wallet receives an OID4VP-style Screening request redirect with a
+   `request_uri`, client identifier, verifier-domain hints, and a request id
+8. wallet renders an explicit consent step before any National ID VP leaves the
+   wallet
+9. wallet builds a National ID VP payload for the Screening issuer with encoded
+   credential, issuer proof, presentation request, and presentation
+10. wallet posts that VP to the issuer `direct_post` endpoint
+11. Screening issuer verifies the VP envelope, then opens the issuer page for
+   mocked National-ID-presentation, sanctions, PEP, and approval checks
+12. return to the wallet with a Screening VC credential offer URI
+13. redeem the offer through token and credential request/response messages
+14. prepare the verifier-scoped proof
+15. approve the proof
+16. settle through the external crypto wallet stub
 
 It also includes a denied-path shortcut that demonstrates compliance rejection
 before investment proof creation. The Screening issuer page also supports an
@@ -112,7 +116,8 @@ Browser API endpoints:
 | `POST /api/actions/lockWallet` | Seal the wallet session while keeping encrypted stores persisted in memory |
 | `POST /api/actions/unlockWallet` | Reopen the secure stores with passkey-derived unlock material |
 | `POST /api/actions/issueNationalId` | Ask the National ID issuer actor for the passport proxy credential |
-| `POST /api/actions/issueCompliance` | Direct actor shortcut for issuing the screening credential |
+| `POST /api/actions/issueCompliance` | Legacy direct actor shortcut; browser flow uses issuer redirect instead |
+| `POST /api/actions/approveScreeningConsent` | Local action-state hook for the wallet consent step |
 | `POST /api/actions/prepareProof` | Build verifier-scoped Midnight presentations in the wallet |
 | `POST /api/actions/approveProof` | Verify the proof bundle with the investment verifier contract stub |
 | `POST /api/actions/settleInvestment` | Settle through the external crypto wallet stub after approval |
@@ -126,6 +131,9 @@ Browser API endpoints:
 | `POST /api/issuer/national-id/credential` | Exchange a credential request for a Midnight Compact credential response |
 | `POST /api/issuer/national-id/redeem` | Wallet convenience endpoint that performs token + credential exchange for the returned offer |
 | `POST /api/issuer/screening/start` | Start a redirect-based Screening VC issuer session |
+| `GET /api/issuer/screening/requests/:id` | Return the Screening OID4VP-style authorization request bound to the issuer session |
+| `POST /api/wallet/screening/authorization-response` | Build a wallet-approved National ID VP authorization response for a pending Screening request |
+| `POST /api/issuer/screening/direct-post` | Deliver the approved National ID VP to the Screening issuer and mark the request as consumed |
 | `GET /api/issuer/screening/sessions/:id` | Read screening issuer-side mocked verification state |
 | `POST /api/issuer/screening/sessions/:id/checks/:check` | Mark a mocked screening check as complete |
 | `POST /api/issuer/screening/sessions/:id/complete` | Return an OID4VCI Screening VC offer URI to the wallet redirect URI |
@@ -159,7 +167,8 @@ from `credentials-openid`:
 - investment verifier contract stub
 - external crypto wallet stub
 - OID4VCI-style credential offer/request/response envelopes
-- OID4VP-style presentation definition/submission envelopes
+- OID4VP-style presentation request redirect, wallet consent, direct-post
+  response delivery, and presentation definition/submission envelopes
 
 ```bash
 ./run-passport-prototype.sh
@@ -203,12 +212,14 @@ The current tests cover:
 2. random Midnight wallet seed generation and encrypted storage
 3. National ID proxy credential issuance from an issuer DID/JubJub signing method
 4. explicit National ID VP payload handoff into the Screening issuer
-5. sanctions/PEP compliance credential issuance
-6. investment proof creation with age, expiry, PASS, PEP=false, freshness, and
+5. wallet-mediated consent before the National ID VP is sent to the Screening issuer
+6. single-use Screening request state with replay rejection on reused direct-post submissions
+7. sanctions/PEP compliance credential issuance
+8. investment proof creation with age, expiry, PASS, PEP=false, freshness, and
    same-holder predicates
-7. settlement through a separate external crypto wallet stub
-8. OpenID-shaped issuance and presentation envelopes carrying Midnight Compact payloads
-9. browser e2e for approved and denied Passport prototype flows
+9. settlement through a separate external crypto wallet stub
+10. OpenID-shaped issuance and presentation envelopes carrying Midnight Compact payloads
+11. browser e2e for approved and denied Passport prototype flows
 
 The wallet keeps issued credential bodies and issuer proofs in its credential
 inventory. When the DApp requests a proof, the wallet derives fresh

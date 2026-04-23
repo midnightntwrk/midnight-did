@@ -20,7 +20,48 @@ describe("Midnight Passport browser session backend", () => {
     expect(session.state().wallet.walletSeedHash).toMatch(/^[0-9a-f]{64}$/u);
 
     session.execute("issueNationalId");
-    session.execute("issueCompliance");
+    const screeningStart = session.beginScreeningIssuance({
+      issuerOrigin: "http://screening.example",
+      walletOrigin: "http://wallet.example/",
+    });
+    const screeningSessionId = screeningStart.state.issuer?.screening?.id;
+    if (!screeningSessionId) {
+      throw new Error("Expected Screening issuer session");
+    }
+    const request = session.screeningPresentationRequest(screeningSessionId);
+    session.acceptScreeningAuthorizationResponse({
+      requestId: request.id,
+      response: session.buildScreeningAuthorizationResponse({
+        requestId: request.id,
+      }).response,
+    });
+    const screeningIssuer = session.screeningIssuerApi();
+    screeningIssuer.setCheck({
+      sessionId: screeningSessionId,
+      check: "sanctionsChecked",
+      value: true,
+    });
+    screeningIssuer.setCheck({
+      sessionId: screeningSessionId,
+      check: "pepChecked",
+      value: true,
+    });
+    screeningIssuer.setCheck({
+      sessionId: screeningSessionId,
+      check: "profileApproved",
+      value: true,
+    });
+    const issuedFlow = screeningIssuer.completeChecks(screeningSessionId);
+    if (!issuedFlow.session.credentialOfferUri) {
+      throw new Error("Expected Screening credential offer URI");
+    }
+    const complianceRedirect = new URL(issuedFlow.redirectUrl);
+    session.redeemScreeningCredentialOffer({
+      credentialOfferUri: issuedFlow.session.credentialOfferUri,
+      issuerSessionId:
+        complianceRedirect.searchParams.get("issuer_session") ?? undefined,
+      state: complianceRedirect.searchParams.get("state") ?? undefined,
+    });
     session.execute("prepareProof");
     session.execute("approveProof");
     session.execute("settleInvestment");
@@ -127,7 +168,7 @@ describe("Midnight Passport browser session backend", () => {
 
     const started = session.beginScreeningIssuance({
       issuerOrigin: "http://screening.example",
-      redirectUri: "http://wallet.example/",
+      walletOrigin: "http://wallet.example/",
     });
     const issuer = session.screeningIssuerApi();
     const sessionId = started.state.issuer?.screening?.id;
@@ -137,6 +178,16 @@ describe("Midnight Passport browser session backend", () => {
     if (!sessionId) {
       throw new Error("Expected Screening issuer session");
     }
+
+    const request = session.screeningPresentationRequest(sessionId);
+    const authorization = session.buildScreeningAuthorizationResponse({
+      requestId: request.id,
+    });
+    const posted = session.acceptScreeningAuthorizationResponse({
+      requestId: request.id,
+      response: authorization.response,
+    });
+    expect(posted.redirectUrl).toContain("screening-issuer.html");
 
     issuer.setCheck({
       sessionId,

@@ -6,6 +6,8 @@ import type { SanctionScreeningFixture } from "@midnight-ntwrk/midnight-did-cred
 import type {
   EncodedCompactValue,
   MidnightHolderBinding,
+  VpAuthorizationRequest,
+  VpAuthorizationResponse,
 } from "@midnight-ntwrk/midnight-did-credentials-openid";
 import type {
   PassportCredentialFixture,
@@ -59,6 +61,17 @@ export type NationalIdPresentationContext = {
 
 export type NationalIdPresentationSubmission = {
   readonly vpToken: NationalIdPresentationVpToken;
+};
+
+export type ScreeningPresentationRequestState = {
+  readonly id: string;
+  readonly requestUri: string;
+  readonly request: VpAuthorizationRequest;
+};
+
+export type ScreeningPresentationAuthorization = {
+  readonly directPostUrl: string;
+  readonly response: VpAuthorizationResponse;
 };
 
 export type InvestmentProduct = {

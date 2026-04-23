@@ -78,6 +78,9 @@ test.describe("Midnight Passport prototype browser", () => {
     await expect(page.locator("#issueCompliance")).toBeEnabled();
 
     await page.locator("#issueCompliance").click();
+    await expect(page).toHaveURL(/request_uri=/);
+    await expect(page.locator("#approveScreeningConsent")).toBeEnabled();
+    await page.locator("#approveScreeningConsent").click();
     await expect(page).toHaveURL(/screening-issuer\.html/);
     await expect(page.locator("#issuerDid")).toHaveText(
       "did:midnight:prototype:screening-issuer",
@@ -134,6 +137,8 @@ test.describe("Midnight Passport prototype browser", () => {
 
     await issueNationalIdThroughBrowser(page);
     await page.locator("#issueCompliance").click();
+    await expect(page).toHaveURL(/request_uri=/);
+    await page.locator("#approveScreeningConsent").click();
     await expect(page).toHaveURL(/screening-issuer\.html/);
 
     await expectScreeningDenial(page, {
@@ -149,6 +154,8 @@ test.describe("Midnight Passport prototype browser", () => {
 
     await issueNationalIdThroughBrowser(page);
     await page.locator("#issueCompliance").click();
+    await expect(page).toHaveURL(/request_uri=/);
+    await page.locator("#approveScreeningConsent").click();
     await expect(page).toHaveURL(/screening-issuer\.html/);
 
     await expectScreeningDenial(page, {

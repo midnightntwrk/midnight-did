@@ -45,7 +45,9 @@ sequenceDiagram
   Passport->>ID: Token request + credential request
   ID-->>Passport: Midnight Compact National ID credential signed by issuer JubJub key
   Passport->>Compliance: Start Screening VC issuance
-  Passport->>Compliance: Submit National ID VP payload
+  Compliance-->>Passport: OID4VP-style request redirect
+  User->>Passport: Review Screening consent request
+  Passport->>Compliance: Direct-post National ID VP payload
   Compliance-->>User: Redirect to mocked checks
   User->>Compliance: Verify National ID, run sanctions/PEP checks, approve profile
   Compliance-->>Passport: Credential offer URI + state
@@ -90,11 +92,12 @@ The Screening VC issuer UI intentionally mocks compliance-provider work:
 - PEP screening
 - compliance profile approval
 
-The protocol boundary is the same OID4VCI-shaped flow, but it depends on the
-wallet first creating an explicit National ID VP payload. The Screening issuer
-decodes the Compact credential, issuer proof, and presentation payload before it
-opens the mocked sanctions/PEP checks. The screening issuer has its own
-prototype Midnight DID:
+The protocol boundary is the same OID4VCI-shaped flow, but it now starts with
+an OID4VP-style request redirect. The wallet receives `request_uri`,
+`client_id`, and a request identifier, shows a consent step, then direct-posts
+an explicit National ID VP payload. The Screening issuer decodes the Compact
+credential, issuer proof, and presentation payload before it opens the mocked
+sanctions/PEP checks. The screening issuer has its own prototype Midnight DID:
 
 - `did:midnight:prototype:screening-issuer`
 - JubJub verification method `#screening-jubjub-1`
@@ -106,9 +109,11 @@ holder DID. The issuer page also supports negative sanctions/PEP outcomes; in
 that case it marks the issuer session as denied and does not return a credential
 offer to the wallet.
 
-The current VP handoff still carries prototype-only fixture context for the
-local pure-circuit simulator. Production transport should replace that fixture
-context with proof artifacts and verifier-request state.
+The current VP handoff is now explicit and replay-protected within one process:
+the issuer marks each Screening authorization request as consumed after the
+first accepted direct-post response. Production transport still needs durable
+request storage, expiry, consent denial handling, and independently deployed
+wallet and issuer services.
 
 ## Passkey Unlock And Wallet Seed
 
@@ -135,6 +140,10 @@ UI shows only the seed hash/fingerprint, never the seed.
   signing method.
 - A Screening VC can be issued by a separate Midnight DID/JubJub signing method
   after validating the National ID credential context.
+- Screening issuance can require a wallet consent step before the National ID VP
+  leaves the wallet.
+- Screening authorization requests can be treated as single-use and rejected on
+  replay.
 - Presentations can be verifier scoped.
 - The holder can prove eligibility without revealing raw passport data, legal
   name, passport number, birth date, or holder DID.
@@ -182,6 +191,7 @@ and production-readiness notes for each use case.
 - OAuth authorization server behavior is not implemented.
 - JWT proof validation is represented by prototype placeholders.
 - The app runs all actors in one local service for speed.
+- Screening request expiry and durable replay state are not implemented.
 - The verifier contract is a simulator, not a deployed Compact contract.
 
 These are intentional prototype constraints. The next production-oriented step
