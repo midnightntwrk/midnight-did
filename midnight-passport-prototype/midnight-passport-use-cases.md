@@ -19,7 +19,7 @@ issuer, verifier, DApp, and payment actors.
 | UC-1 | Initialize Passport wallet | Yes | deterministic passkey fixture and in-memory stores | WebAuthn PRF, persistent secure storage, seed recovery policy |
 | UC-2 | Lock and unlock wallet session | Yes | no platform biometric or secure-element prompt | user presence, timeout, session persistence |
 | UC-3 | Issue Digital National ID | Yes | document/liveness/approval are buttons | real KYC provider and OID4VCI issuer service |
-| UC-4 | Present National ID to Screening issuer | Yes | VP includes simulator-only fixture context | production VP proof transport and DID key resolution |
+| UC-4 | Present National ID to Screening issuer | Yes | VP transport is local and not OID4VP redirect/direct-post yet | production VP proof transport and DID key resolution |
 | UC-5 | Issue Screening VC | Yes | sanctions/PEP checks are buttons | screening provider integration and audit policy |
 | UC-6 | Deny Screening issuance | Yes | deterministic denial buttons | structured review and appeal flows |
 | UC-7 | Prepare investment proof | Yes | verifier contract is an in-process simulator | deployed verifier contract and protocol transport |
@@ -166,25 +166,26 @@ Protocol and data shape:
   `NationalIdPresentationSubmission`.
 - The VP token includes `format: "midnight_compact_vp"`, family
   `passport-secret`, schema `national-id-proxy:v1`, encoded credential,
-  encoded issuer proof, encoded presentation, and holder-binding metadata.
+  encoded issuer proof, encoded presentation request, encoded presentation,
+  and holder-binding metadata.
 - The Screening issuer decodes the Compact values and verifies that the
   presentation is anchored to the credential claim root.
-- The Screening issuer validates holder-binding method, challenge, and blinded
-  commitment before opening a session.
+- The Screening issuer validates the decoded presentation request plus
+  holder-binding method, challenge, and blinded commitment before opening a
+  session.
 
 Mocked or simplified:
 
-- The submission still includes `prototypeFixture` so local pure-circuit
-  simulation can run without a production ZK proof transport.
 - The VP does not yet travel through full OID4VP redirect or direct-post
   protocol.
+- Full holder-witness verification still happens at issuance time in the local
+  prototype because the wallet and issuer live in one process for now.
 
 Production readiness gaps:
 
-- Replace `prototypeFixture` with proof artifacts, verifier-request state, and
-  issuer-resolved DID key material.
 - Add OID4VP/SIOP request and response transport.
 - Define replay protection, expiry, and holder consent UX.
+- Resolve issuer and holder DID keys instead of relying on local fixtures.
 
 ## UC-5: Issue Screening VC
 

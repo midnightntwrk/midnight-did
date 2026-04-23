@@ -1,10 +1,18 @@
-import type { BlindedSecretHolderBinding } from "@midnight-ntwrk/midnight-did-credentials";
+import type {
+  BlindedSecretHolderBinding,
+  Proof,
+} from "@midnight-ntwrk/midnight-did-credentials";
 import type { SanctionScreeningFixture } from "@midnight-ntwrk/midnight-did-credentials-compliance";
 import type {
   EncodedCompactValue,
   MidnightHolderBinding,
 } from "@midnight-ntwrk/midnight-did-credentials-openid";
-import type { PassportCredentialFixture } from "@midnight-ntwrk/midnight-did-credentials-passport-secret";
+import type {
+  PassportCredentialFixture,
+  SecretPassportCredential,
+  SecretPassportCredentialPresentation,
+  SecretPassportCredentialPresentationRequest,
+} from "@midnight-ntwrk/midnight-did-credentials-passport-secret";
 
 export type ComplianceCredentialFixture = SanctionScreeningFixture;
 
@@ -37,15 +45,20 @@ export type NationalIdPresentationVpToken = {
   readonly schemaVersion: "1.0";
   readonly credential: EncodedCompactValue;
   readonly credentialProof: EncodedCompactValue;
+  readonly presentationRequest: EncodedCompactValue;
   readonly presentation: EncodedCompactValue;
   readonly holderBinding: MidnightHolderBinding;
 };
 
+export type NationalIdPresentationContext = {
+  readonly credential: SecretPassportCredential;
+  readonly credentialProof: Proof;
+  readonly presentationRequest: SecretPassportCredentialPresentationRequest;
+  readonly presentation: SecretPassportCredentialPresentation;
+};
+
 export type NationalIdPresentationSubmission = {
   readonly vpToken: NationalIdPresentationVpToken;
-  // Prototype-only context used by the local Compact simulator. Production
-  // should rebuild this from request state and holder-provided private witnesses.
-  readonly prototypeFixture: PassportCredentialFixture;
 };
 
 export type InvestmentProduct = {

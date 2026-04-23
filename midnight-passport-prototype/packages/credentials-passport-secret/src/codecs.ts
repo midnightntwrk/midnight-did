@@ -21,6 +21,7 @@ import type {
   SecretPassportCredential,
   SecretPassportCredentialDisclosures,
   SecretPassportCredentialPresentation,
+  SecretPassportCredentialPresentationRequest,
   Signature,
   VerificationMethodRef,
 } from "./managed/secret-passport-credential/contract/index.js";
@@ -396,6 +397,100 @@ const passportDisclosuresDescriptor: CompactType<SecretPassportCredentialDisclos
       ),
   };
 
+export const secretPassportPresentationRequestDescriptor: CompactType<SecretPassportCredentialPresentationRequest> =
+  {
+    alignment: () =>
+      uint16
+        .alignment()
+        .concat(
+          schemaRefDescriptor
+            .alignment()
+            .concat(
+              verificationMethodRefDescriptor
+                .alignment()
+                .concat(
+                  CompactTypeBoolean.alignment().concat(
+                    CompactTypeBoolean.alignment().concat(
+                      CompactTypeBoolean.alignment().concat(
+                        bytes32
+                          .alignment()
+                          .concat(
+                            CompactTypeBoolean.alignment().concat(
+                              uint8
+                                .alignment()
+                                .concat(
+                                  CompactTypeBoolean.alignment().concat(
+                                    bytes32.alignment(),
+                                  ),
+                                ),
+                            ),
+                          ),
+                      ),
+                    ),
+                  ),
+                ),
+            ),
+        ),
+    fromValue: (value: Value): SecretPassportCredentialPresentationRequest => ({
+      version: uint16.fromValue(value),
+      schema: schemaRefDescriptor.fromValue(value),
+      issuerVerificationMethodRef:
+        verificationMethodRefDescriptor.fromValue(value),
+      requireNationalityDisclosure: CompactTypeBoolean.fromValue(value),
+      requireGenderDisclosure: CompactTypeBoolean.fromValue(value),
+      requireVerifierScopedPseudonym: CompactTypeBoolean.fromValue(value),
+      verifierDomainHash: bytes32.fromValue(value),
+      requireAgeOverThreshold: CompactTypeBoolean.fromValue(value),
+      requestedAgeThresholdYears: uint8.fromValue(value),
+      requireNotExpired: CompactTypeBoolean.fromValue(value),
+      verifierChallengeHash: bytes32.fromValue(value),
+    }),
+    toValue: (value: SecretPassportCredentialPresentationRequest): Value =>
+      uint16
+        .toValue(value.version)
+        .concat(
+          schemaRefDescriptor
+            .toValue(value.schema)
+            .concat(
+              verificationMethodRefDescriptor
+                .toValue(value.issuerVerificationMethodRef)
+                .concat(
+                  CompactTypeBoolean.toValue(
+                    value.requireNationalityDisclosure,
+                  ).concat(
+                    CompactTypeBoolean.toValue(
+                      value.requireGenderDisclosure,
+                    ).concat(
+                      CompactTypeBoolean.toValue(
+                        value.requireVerifierScopedPseudonym,
+                      ).concat(
+                        bytes32
+                          .toValue(value.verifierDomainHash)
+                          .concat(
+                            CompactTypeBoolean.toValue(
+                              value.requireAgeOverThreshold,
+                            ).concat(
+                              uint8
+                                .toValue(value.requestedAgeThresholdYears)
+                                .concat(
+                                  CompactTypeBoolean.toValue(
+                                    value.requireNotExpired,
+                                  ).concat(
+                                    bytes32.toValue(
+                                      value.verifierChallengeHash,
+                                    ),
+                                  ),
+                                ),
+                            ),
+                          ),
+                      ),
+                    ),
+                  ),
+                ),
+            ),
+        ),
+  };
+
 export const secretPassportPresentationDescriptor: CompactType<SecretPassportCredentialPresentation> =
   {
     alignment: () =>
@@ -472,6 +567,16 @@ export const decodeSecretPassportPresentation = (
   encoded: EncodedCompactValue,
 ): SecretPassportCredentialPresentation =>
   decodeCompactPayload(secretPassportPresentationDescriptor, encoded);
+
+export const encodeSecretPassportPresentationRequest = (
+  request: SecretPassportCredentialPresentationRequest,
+): EncodedCompactValue =>
+  encodeCompactPayload(secretPassportPresentationRequestDescriptor, request);
+
+export const decodeSecretPassportPresentationRequest = (
+  encoded: EncodedCompactValue,
+): SecretPassportCredentialPresentationRequest =>
+  decodeCompactPayload(secretPassportPresentationRequestDescriptor, encoded);
 
 export const encodeSecretPassportProof = (proof: Proof): EncodedCompactValue =>
   encodeCompactPayload(secretPassportProofDescriptor, proof);

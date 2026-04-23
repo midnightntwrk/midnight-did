@@ -1,14 +1,20 @@
+import type { Proof } from "@midnight-ntwrk/midnight-did-credentials";
 import {
   createSanctionScreeningFixture,
   createSigner,
   type Signer,
 } from "@midnight-ntwrk/midnight-did-credentials-compliance";
 import {
-  type PassportCredentialFixture,
   pureCircuits as passportCircuits,
+  type SecretPassportCredential,
+  type SecretPassportCredentialPresentation,
+  type SecretPassportCredentialPresentationRequest,
 } from "@midnight-ntwrk/midnight-did-credentials-passport-secret";
 
-import type { HolderSecretMaterial } from "../types.js";
+import type {
+  HolderSecretMaterial,
+  NationalIdPresentationContext,
+} from "../types.js";
 
 export type ComplianceScreeningPolicy = {
   readonly sanctioned: boolean;
@@ -54,7 +60,14 @@ export class ComplianceIssuerAgent {
     holder,
     verifierChallengeHash,
   }: {
-    readonly nationalIdPresentation: PassportCredentialFixture;
+    readonly nationalIdPresentation:
+      | NationalIdPresentationContext
+      | {
+          readonly credential: SecretPassportCredential;
+          readonly credentialProof: Proof;
+          readonly presentationRequest: SecretPassportCredentialPresentationRequest;
+          readonly presentation: SecretPassportCredentialPresentation;
+        };
     readonly holder: HolderSecretMaterial;
     readonly verifierChallengeHash?: Uint8Array;
   }): ComplianceCredentialResult {

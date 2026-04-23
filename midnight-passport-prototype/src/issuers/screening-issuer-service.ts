@@ -17,14 +17,16 @@ import {
 import {
   decodeSecretPassportCredential,
   decodeSecretPassportPresentation,
+  decodeSecretPassportPresentationRequest,
   decodeSecretPassportProof,
-  type PassportCredentialFixture,
+  pureCircuits as passportCircuits,
 } from "@midnight-ntwrk/midnight-did-credentials-passport-secret";
 
 import { ComplianceIssuerAgent } from "../actors/compliance-issuer.js";
 import { sha256 } from "../crypto/secure-store.js";
 import type {
   HolderSecretMaterial,
+  NationalIdPresentationContext,
   NationalIdPresentationSubmission,
 } from "../types.js";
 import {
@@ -73,7 +75,7 @@ type MutableScreeningIssuerSession = IssuerSessionRecord<
   ScreeningIssuerCheck,
   ScreeningIssuerStatus
 > & {
-  nationalIdPresentation: PassportCredentialFixture;
+  nationalIdPresentation: NationalIdPresentationContext;
 };
 
 const checks: readonly ScreeningIssuerCheck[] = [
@@ -94,10 +96,10 @@ const publicSession = (
   session: MutableScreeningIssuerSession,
 ): ScreeningIssuerSessionState => publicIssuerSession(session);
 
-const nationalIdPresentationFixture = (
+const nationalIdPresentationContext = (
   submission: NationalIdPresentationSubmission,
-): PassportCredentialFixture => {
-  const { vpToken, prototypeFixture } = submission;
+): NationalIdPresentationContext => {
+  const { vpToken } = submission;
   if (vpToken.format !== "midnight_compact_vp") {
     throw new Error("Screening issuer requires a Midnight Compact VP token");
   }
@@ -110,27 +112,24 @@ const nationalIdPresentationFixture = (
 
   const credential = decodeSecretPassportCredential(vpToken.credential);
   const credentialProof = decodeSecretPassportProof(vpToken.credentialProof);
+  const presentationRequest = decodeSecretPassportPresentationRequest(
+    vpToken.presentationRequest,
+  );
   const presentation = decodeSecretPassportPresentation(vpToken.presentation);
+  passportCircuits.assertValidSecretPassportCredentialPresentationRequest(
+    presentationRequest,
+  );
   if (!bytesEqual(presentation.credentialClaimRoot, credential.claimRoot)) {
     throw new Error(
       "National ID presentation is not anchored to the credential",
     );
-  }
-  if (
-    !bytesEqual(credential.claimRoot, prototypeFixture.credential.claimRoot) ||
-    !bytesEqual(
-      presentation.credentialClaimRoot,
-      prototypeFixture.presentation.credentialClaimRoot,
-    )
-  ) {
-    throw new Error("National ID VP token does not match prototype fixture");
   }
   if (vpToken.holderBinding.method !== "blinded_secret_commitment") {
     throw new Error("National ID VP requires blinded holder binding");
   }
   if (
     vpToken.holderBinding.challenge !==
-    bytesToHex(prototypeFixture.presentationRequest.verifierChallengeHash)
+    bytesToHex(presentationRequest.verifierChallengeHash)
   ) {
     throw new Error("National ID VP holder-binding challenge mismatch");
   }
@@ -142,9 +141,9 @@ const nationalIdPresentationFixture = (
   }
 
   return {
-    ...prototypeFixture,
     credential,
     credentialProof,
+    presentationRequest,
     presentation,
   };
 };
@@ -196,7 +195,7 @@ export class ScreeningIssuerService {
     readonly session: ScreeningIssuerSessionState;
     readonly redirectUrl: string;
   } {
-    const nationalIdPresentation = nationalIdPresentationFixture(
+    const nationalIdPresentation = nationalIdPresentationContext(
       input.nationalIdPresentation,
     );
 

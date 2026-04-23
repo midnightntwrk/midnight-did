@@ -5,6 +5,7 @@ import { pureCircuits as genericCircuits } from "@midnight-ntwrk/midnight-did-cr
 import {
   encodeSecretPassportCredential,
   encodeSecretPassportPresentation,
+  encodeSecretPassportPresentationRequest,
   encodeSecretPassportProof,
   type PassportCredentialFixture,
 } from "@midnight-ntwrk/midnight-did-credentials-passport-secret";
@@ -239,36 +240,31 @@ export class MidnightPassportWallet {
           ),
       },
     };
-    const prototypeFixture = {
-      ...this.inventory.nationalId,
-      presentationRequest,
-      presentation,
-    };
-
     return {
       vpToken: {
         format: "midnight_compact_vp",
         presentationFamily: "passport-secret",
         schemaId: "national-id-proxy:v1",
         schemaVersion: "1.0",
-        credential: encodeSecretPassportCredential(prototypeFixture.credential),
+        credential: encodeSecretPassportCredential(
+          this.inventory.nationalId.credential,
+        ),
         credentialProof: encodeSecretPassportProof(
-          prototypeFixture.credentialProof,
+          this.inventory.nationalId.credentialProof,
         ),
-        presentation: encodeSecretPassportPresentation(
-          prototypeFixture.presentation,
-        ),
+        presentationRequest:
+          encodeSecretPassportPresentationRequest(presentationRequest),
+        presentation: encodeSecretPassportPresentation(presentation),
         holderBinding: {
           method: "blinded_secret_commitment",
           challenge: toHex(verifierChallengeHash),
           blindedCommitment: toHex(
-            prototypeFixture.credential.holderBinding
+            this.inventory.nationalId.credential.holderBinding
               .blindedHolderSecretCommitment,
           ),
           verifierDomain: "screening-issuer.prototype",
         },
       },
-      prototypeFixture,
     };
   }
 

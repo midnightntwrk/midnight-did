@@ -88,6 +88,8 @@ The browser shell can run the flow manually:
 5. redeem the offer through token and credential request/response messages
 6. start Screening VC issuance
 7. wallet builds an explicit National ID VP payload for the Screening issuer
+   with encoded credential, issuer proof, presentation request, and
+   presentation
 8. redirect to the screening issuer page and complete mocked
    National-ID-presentation, sanctions, PEP, and approval checks
 9. return to the wallet with a Screening VC credential offer URI
