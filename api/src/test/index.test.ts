@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
-import * as api from "../index.js";
+vi.mock("../lib.js", () => ({}));
+
+let api: typeof import("../index.js");
+
+beforeAll(async () => {
+  api = await import("../index.js");
+});
 
 describe("api package barrel", () => {
   it("re-exports public mapping helpers", () => {

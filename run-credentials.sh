@@ -3,6 +3,7 @@ set -euo pipefail
 
 source ./scripts/run-common.sh
 
+run_common_apply_light_mode "$@"
 run_common_setup_cleanup_trap
 run_common_ensure_node
 run_common_ensure_runtime_helpers
@@ -36,8 +37,12 @@ npm run typecheck -w credentials-birth
 npm run typecheck -w credentials-birth-secret
 npm run build -w credentials-openid
 npm run typecheck -w credentials-openid
-npm run typecheck -w credentials-demo-contract
-npm run typecheck -w credentials-protocol
+if [[ "${SKIP_LONG_RUNNING:-0}" == "1" ]]; then
+  echo "[credentials] Skip heavy demo-contract and protocol typecheck (SKIP_LONG_RUNNING=1)"
+else
+  npm run typecheck -w credentials-demo-contract
+  npm run typecheck -w credentials-protocol
+fi
 npm run typecheck -w standalone-environment
 
 echo "[credentials] Core credentials package"
@@ -58,13 +63,19 @@ npm run all -w credentials-birth-secret
 echo "[credentials] OpenID domain schemas"
 npm run all -w credentials-openid
 
-echo "[credentials] Demo verifier contract"
-npm run all -w credentials-demo-contract
+if [[ "${SKIP_LONG_RUNNING:-0}" == "1" ]]; then
+  echo "[credentials] Skip heavy demo-contract and protocol package runs (SKIP_LONG_RUNNING=1)"
+else
+  echo "[credentials] Demo verifier contract"
+  npm run all -w credentials-demo-contract
 
-echo "[credentials] Protocol simulation layer"
-npm run all -w credentials-protocol
+  echo "[credentials] Protocol simulation layer"
+  npm run all -w credentials-protocol
+fi
 
-if docker info >/dev/null 2>&1; then
+if [[ "${SKIP_LONG_RUNNING:-0}" == "1" ]]; then
+  echo "[credentials] Skip standalone integrations (SKIP_LONG_RUNNING=1)"
+elif docker info >/dev/null 2>&1; then
   run_credentials_integration_target \
     "Standalone demo-contract integration" \
     npm run test:integration -w credentials-demo-contract

@@ -3,6 +3,7 @@ set -euo pipefail
 
 source ./scripts/run-common.sh
 
+run_common_apply_light_mode "$@"
 run_common_setup_cleanup_trap
 run_common_ensure_node
 run_common_auto_proof_server_image "manager"

@@ -9,6 +9,17 @@ run_common_cleanup_test_infra() {
   ./scripts/cleanup-test-infra.sh || true
 }
 
+run_common_apply_light_mode() {
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --light)
+        export SKIP_LONG_RUNNING=1
+        ;;
+    esac
+  done
+}
+
 run_common_setup_cleanup_trap() {
   run_common_cleanup_test_infra
   trap 'run_common_cleanup_test_infra' EXIT INT TERM

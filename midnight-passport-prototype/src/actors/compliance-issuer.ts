@@ -55,7 +55,7 @@ export class ComplianceIssuerAgent {
   }
 
   screenAndIssue({
-    nationalIdPresentation,
+    nationalIdPresentation: _nationalIdPresentation,
     holder,
     verifierChallengeHash,
   }: {

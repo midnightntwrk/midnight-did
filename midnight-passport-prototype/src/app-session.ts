@@ -246,7 +246,7 @@ export class PassportPrototypeSession {
               ? "OID4VP Screening request is waiting for wallet consent"
               : this.walletBridge.status().credentials.nationalId
                 ? "Waiting for Screening issuer redirect"
-              : "Waiting for National ID issuer redirect",
+                : "Waiting for National ID issuer redirect",
           "issuer identified by Midnight DID and JubJub verification method",
           "OID4VCI credential offer URI from each issuer SPA",
           "pre-authorized token request",
@@ -338,22 +338,26 @@ export class PassportPrototypeSession {
     return { redirectUrl: result.redirectUrl, state: this.state() };
   }
 
-  screeningPresentationRequest(requestId: string): ScreeningPresentationRequestState {
+  screeningPresentationRequest(
+    requestId: string,
+  ): ScreeningPresentationRequestState {
     return this.screeningIssuer.getAuthorizationRequest(requestId);
   }
 
-  buildScreeningAuthorizationResponse(input: {
-    readonly requestId: string;
-  }): {
+  buildScreeningAuthorizationResponse(input: { readonly requestId: string }): {
     readonly directPostUrl: string;
     readonly response: VpAuthorizationResponse;
   } {
     this.assertInitialized();
     this.assertWalletUnlocked();
-    const request = this.screeningIssuer.getAuthorizationRequest(input.requestId);
+    const request = this.screeningIssuer.getAuthorizationRequest(
+      input.requestId,
+    );
     return {
       directPostUrl: request.request.redirect_uri ?? "",
-      response: this.wallet.createScreeningAuthorizationResponse(request.request),
+      response: this.wallet.createScreeningAuthorizationResponse(
+        request.request,
+      ),
     };
   }
 
@@ -521,7 +525,9 @@ export class PassportPrototypeSession {
 
   approveScreeningConsent(): void {
     if (!this.pendingScreeningRequest) {
-      throw new Error("No Screening presentation request is waiting for consent");
+      throw new Error(
+        "No Screening presentation request is waiting for consent",
+      );
     }
     this.addEvent(
       "Wallet consent approved for the Screening request. Submit the National ID VP through the direct-post flow.",

@@ -34,6 +34,15 @@ export default defineConfig({
       ],
     },
   },
+  server: {
+    deps: {
+      inline: [
+        /@midnight-ntwrk\/midnight-js-indexer-public-data-provider/,
+        /@apollo\/client/,
+        /graphql-ws/,
+      ],
+    },
+  },
   resolve: {
     alias: {
       '@midnight-ntwrk/midnight-did-contract': contractEntry,

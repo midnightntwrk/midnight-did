@@ -48,7 +48,9 @@ describe("Screening issuer OID4VCI/OID4VP-shaped service", () => {
       walletOrigin: "http://wallet.example/callback",
     });
     const request = service.getAuthorizationRequest(started.session.id);
-    const response = wallet.createScreeningAuthorizationResponse(request.request);
+    const response = wallet.createScreeningAuthorizationResponse(
+      request.request,
+    );
 
     expect(() =>
       service.acceptAuthorizationResponse({
@@ -72,7 +74,9 @@ describe("Screening issuer OID4VCI/OID4VP-shaped service", () => {
       walletOrigin: "http://wallet.example/callback",
     });
     const request = service.getAuthorizationRequest(started.session.id);
-    const response = wallet.createScreeningAuthorizationResponse(request.request);
+    const response = wallet.createScreeningAuthorizationResponse(
+      request.request,
+    );
 
     expect(() =>
       service.acceptAuthorizationResponse({
@@ -82,7 +86,8 @@ describe("Screening issuer OID4VCI/OID4VP-shaped service", () => {
           vp_token: {
             ...(response.vp_token as Record<string, any>),
             holderBinding: {
-              ...((response.vp_token as Record<string, any>).holderBinding ?? {}),
+              ...((response.vp_token as Record<string, any>).holderBinding ??
+                {}),
               challenge: "deadbeef",
             },
           },
@@ -99,7 +104,9 @@ describe("Screening issuer OID4VCI/OID4VP-shaped service", () => {
       walletOrigin: "http://wallet.example/callback",
     });
     const request = service.getAuthorizationRequest(started.session.id);
-    const response = wallet.createScreeningAuthorizationResponse(request.request);
+    const response = wallet.createScreeningAuthorizationResponse(
+      request.request,
+    );
 
     expect(() =>
       service.acceptAuthorizationResponse({
@@ -127,7 +134,9 @@ describe("Screening issuer OID4VCI/OID4VP-shaped service", () => {
       walletOrigin: "http://wallet.example/callback",
     });
     const request = service.getAuthorizationRequest(started.session.id);
-    const response = wallet.createScreeningAuthorizationResponse(request.request);
+    const response = wallet.createScreeningAuthorizationResponse(
+      request.request,
+    );
 
     service.acceptAuthorizationResponse({
       requestId: request.id,

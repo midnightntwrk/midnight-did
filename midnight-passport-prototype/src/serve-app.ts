@@ -374,15 +374,21 @@ const handleApiRequest = async (
   }
 
   if (requestUrl.pathname === "/api/wallet/screening/authorization-response") {
-    const body = (await readJsonBody(request)) as { readonly requestId?: string };
+    const body = (await readJsonBody(request)) as {
+      readonly requestId?: string;
+    };
     if (!body.requestId) {
       sendJson(response, 400, { error: "requestId is required" });
       return true;
     }
     try {
-      sendJson(response, 200, session.buildScreeningAuthorizationResponse({
-        requestId: body.requestId,
-      }));
+      sendJson(
+        response,
+        200,
+        session.buildScreeningAuthorizationResponse({
+          requestId: body.requestId,
+        }),
+      );
     } catch (error) {
       sendJson(response, 409, {
         error:
