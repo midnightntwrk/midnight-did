@@ -347,10 +347,15 @@ Persisted wallet data should include the credential schema ID and schema version
 ### Prototype Package Layout
 The current implementation lives in:
 
-- [`../credentials/src/credentials.compact`](../credentials/src/credentials.compact) (entry point that includes `credentials/types`, `credentials/proofs`, `credentials/vc`, `credentials/holder-bindings`, `credentials/protocols`)
+- [`../credentials/src/credentials.compact`](../credentials/src/credentials.compact) (standalone package root)
+- [`../credentials/src/credentials/composable.compact`](../credentials/src/credentials/composable.compact) (shared Layer 3 root)
+- [`../credentials/src/credentials/vc-support.compact`](../credentials/src/credentials/vc-support.compact) (VC envelope and proof-validation support)
+- [`../credentials/src/credentials/protocol-support.compact`](../credentials/src/credentials/protocol-support.compact) (issuance and presentation protocol support)
+- [`../credentials/src/credentials/bindings.compact`](../credentials/src/credentials/bindings.compact) (holder-binding structs and witness-validation helpers)
 - [`../credentials-birth/src/birth-credential.compact`](../credentials-birth/src/birth-credential.compact) (entry point that includes `birth-credential/model`, `birth-credential/protocol-model`, `birth-credential/helpers`, `birth-credential/validation`; also contains [`birth-credential/claims.compact`](../credentials-birth/src/birth-credential/claims.compact) with shared claim commitment circuits imported by both `credentials-birth` and `credentials-birth-secret`)
 - [`../credentials-birth-secret/src/secret-birth-credential.compact`](../credentials-birth-secret/src/secret-birth-credential.compact)
 - [`../credentials-same-holder/src/same-holder.compact`](../credentials-same-holder/src/same-holder.compact)
+- [`../credentials-same-holder/src/same-holder/composable.compact`](../credentials-same-holder/src/same-holder/composable.compact)
 - [`../credentials-iso-registry/src/iso-registry.compact`](../credentials-iso-registry/src/iso-registry.compact) (shared ISO code types: CountryCode, CurrencyCode, LanguageCode, RegionCode, GenderCode)
 - [`../midnight-passport-prototype/packages/credentials-passport/src/passport-credential.compact`](../midnight-passport-prototype/packages/credentials-passport/src/passport-credential.compact) (explicit DID-bound passport credential with age predicate and expiry check, imports ISO registry for CountryCode and GenderCode)
 - [`../midnight-passport-prototype/packages/credentials-passport-secret/src/secret-passport-credential.compact`](../midnight-passport-prototype/packages/credentials-passport-secret/src/secret-passport-credential.compact) (hidden holder-secret passport credential with pseudonym support, same-holder composition, and expiry check)

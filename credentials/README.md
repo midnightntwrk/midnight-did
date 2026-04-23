@@ -25,6 +25,36 @@ It owns the generic pieces that should be shared across many credential families
 - generic issuer proof-binding rules
 - reusable holder-binding helper circuits for explicit and secret profiles
 
+## Compact Entry Points
+
+- `src/credentials.compact` is the standalone entry point used for the package
+  build and generated TS/JS artifacts.
+- `src/credentials/composable.compact` is the shared Layer 3 root for contracts
+  and credential families that need the full generic surface once.
+- `src/credentials/vc-support.compact` is the narrower shared surface for VC
+  envelope and proof helpers.
+- `src/credentials/protocol-support.compact` is the narrower shared surface for
+  issuance and presentation protocol modules.
+- `src/credentials/bindings.compact` is the narrower shared surface for
+  holder-binding types and witness-validation helpers.
+
+These narrower entry points exist so capability packages can depend on less
+than the full generic bundle when they do not need VC envelopes or protocols.
+They are alternative public surfaces, not internal layers underneath
+`composable.compact`, because Compact does not deduplicate repeated includes.
+
+```mermaid
+graph TD
+  C["credentials.compact"] --> CC["credentials/composable.compact"]
+  C --> V["credentials/vc-support.compact"]
+  C --> B["credentials/bindings.compact"]
+  C --> P["credentials/protocol-support.compact"]
+  B --> SH["credentials-same-holder/composable.compact"]
+  CC --> F["credential-family composable entrypoints"]
+  SH --> L3["Layer 3 business contracts"]
+  F --> L3
+```
+
 It intentionally does not own schema-specific business logic such as:
 
 - claim commitment layouts

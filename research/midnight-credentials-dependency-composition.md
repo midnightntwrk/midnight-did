@@ -139,8 +139,8 @@ The likely final shape is:
 
 ```compact
 // Layer 3 contract
-include "credentials/src/credentials";
-include "credentials-same-holder/src/same-holder";
+include "credentials/src/credentials/composable";
+include "credentials-same-holder/src/same-holder/composable";
 include "credentials-iso-registry/src/iso-registry";
 
 include "credentials-passport-secret/src/secret-passport-credential/composable";
@@ -233,6 +233,54 @@ Rules:
   `SecretPassportCredentialIssuance_`, so generated protocol types remain
   readable and collision-resistant.
 
+## Shared Module Decomposition
+
+The shared layer now distinguishes between a standalone package root and the
+smaller shared surfaces that capability packages or Layer 3 contracts can
+include intentionally.
+
+Shared package surfaces:
+
+| Package | Surface | Purpose |
+|---|---|---|
+| `credentials` | `src/credentials.compact` | standalone package root used for generated TS/JS artifacts |
+| `credentials` | `src/credentials/composable.compact` | full shared Layer 3 root for credential-family composables and business contracts |
+| `credentials` | `src/credentials/vc-support.compact` | VC envelope and proof-validation support |
+| `credentials` | `src/credentials/protocol-support.compact` | issuance and presentation protocol modules |
+| `credentials` | `src/credentials/bindings.compact` | holder-binding structs and witness-validation helpers |
+| `credentials-same-holder` | `src/same-holder.compact` | standalone package root used for generated TS/JS artifacts |
+| `credentials-same-holder` | `src/same-holder/composable.compact` | same-holder capability without re-including the whole `credentials` bundle |
+| `credentials-iso-registry` | `src/iso-registry.compact` | flat shared vocabulary surface; no extra composable split needed today |
+
+This is enough decomposition for the current Passport + Screening prototype:
+
+- Passport and Screening credential-family composables include the full shared
+  `credentials/composable.compact` surface once in Layer 3.
+- `same-holder/composable.compact` can depend on the narrower
+  `bindings.compact` surface when used in a smaller capability-only contract.
+- `iso-registry` stays flat because it does not transitively include any other
+  shared modules and does not create the duplicate-symbol problem.
+- `vc-support`, `protocol-support`, and `bindings` are alternative public
+  surfaces. `composable.compact` includes the leaf files directly rather than
+  including those surfaces, because Compact does not deduplicate repeated
+  `include` chains.
+
+```mermaid
+graph TD
+  C["credentials.compact<br/>standalone build root"] --> CC["credentials/composable.compact"]
+  C --> V["vc-support.compact"]
+  C --> B["bindings.compact"]
+  C --> P["protocol-support.compact"]
+  B --> SHC["same-holder/composable.compact"]
+  SH["same-holder.compact<br/>standalone build root"] --> SHC
+  CC --> PSC["passport-secret/composable.compact"]
+  CC --> COM["compliance/composable.compact"]
+  PSC --> L3["Layer 3 contract"]
+  COM --> L3
+  SHC --> L3
+  ISO["iso-registry.compact"] --> L3
+```
+
 ### 2. Generated Runtime Surface
 
 This is the test/application surface produced by `compact compile`.
@@ -317,7 +365,8 @@ For multi-credential policies, the Layer 3 contract should compose concrete
 families through composition-safe entry points:
 
 ```compact
-include "../../credentials-same-holder/src/same-holder";
+include "../../credentials/src/credentials";
+include "../../credentials-same-holder/src/same-holder/composable";
 include "../../credentials-iso-registry/src/iso-registry";
 
 include "../../midnight-passport-prototype/packages/credentials-passport-secret/src/secret-passport-credential/composable";
@@ -474,6 +523,8 @@ The spike validates these points:
 
 - standalone credential-family entry points can remain unchanged for package
   builds and generated TS/JS artifacts
+- capability packages can follow the same standalone/composable split when they
+  otherwise re-include the full shared bundle
 - composition-safe entry points prevent duplicate shared `SchemaRef`, `Proof`,
   holder-binding, and protocol declarations
 - family-local wrapper circuits are enough to route generic VC helper calls

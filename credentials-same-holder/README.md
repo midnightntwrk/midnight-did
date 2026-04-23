@@ -26,6 +26,15 @@ more explicit.
 - `assertSameSecretHolderBindingWitnesses3(...)`
 - `assertSameBlindedSecretHolderBindingWitnesses3(...)`
 
+## Compact Entry Points
+
+- `src/same-holder.compact` is the standalone entry point used for the package
+  build and generated TS/JS artifacts.
+- `src/same-holder/composable.compact` is the Layer 3 entry point for contracts
+  that already include `credentials/src/credentials/bindings.compact` or
+  `credentials/src/credentials/composable.compact` and want the same-holder
+  capability without re-including the full shared bundle.
+
 These circuits do not define:
 
 - credential schemas

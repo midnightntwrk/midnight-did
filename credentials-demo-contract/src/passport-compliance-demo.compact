@@ -2,7 +2,8 @@ pragma language_version >= 0.20;
 
 import CompactStandardLibrary;
 
-include "../../credentials-same-holder/src/same-holder";
+include "../../credentials/src/credentials/composable";
+include "../../credentials-same-holder/src/same-holder/composable";
 include "../../credentials-iso-registry/src/iso-registry";
 include "../../midnight-passport-prototype/packages/credentials-passport-secret/src/secret-passport-credential/composable";
 include "../../midnight-passport-prototype/packages/credentials-compliance/src/sanction-screening-credential/composable";
