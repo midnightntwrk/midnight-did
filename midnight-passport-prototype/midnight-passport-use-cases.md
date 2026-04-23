@@ -183,6 +183,9 @@ Protocol and data shape:
   and holder-binding metadata.
 - The Screening issuer decodes the Compact values and verifies that the
   presentation is anchored to the credential claim root.
+- The VP currently carries a prototype-only witness bundle so the issuer can
+  run pure-circuit validation at direct-post time instead of deferring that
+  trust decision to credential issuance.
 - The Screening issuer validates the decoded presentation request plus
   holder-binding method, challenge, and blinded commitment before opening the
   Screening issuer UI.
@@ -193,8 +196,11 @@ Mocked or simplified:
 
 - The wallet and issuer still live inside one prototype service, so the request
   URI is local and no cross-device handoff is modeled.
-- Full holder-witness verification still happens at issuance time in the local
-  prototype because the wallet and issuer live in one process for now.
+- The direct-post payload still contains prototype witness material. This is a
+  local-validation aid, not the production transport model.
+- Screening now validates the National ID presentation at direct-post
+  acceptance time. Issuance still receives holder material only to mint the
+  current wallet-friendly credential fixture shape.
 - Authorization request expiry timestamps are not implemented yet.
 
 Production readiness gaps:

@@ -111,9 +111,11 @@ offer to the wallet.
 
 The current VP handoff is now explicit and replay-protected within one process:
 the issuer marks each Screening authorization request as consumed after the
-first accepted direct-post response. Production transport still needs durable
-request storage, expiry, consent denial handling, and independently deployed
-wallet and issuer services.
+first accepted direct-post response, and the direct-post payload carries a
+prototype-only witness bundle so the issuer can run pure-circuit validation at
+acceptance time. Production transport still needs durable request storage,
+expiry, consent denial handling, independently deployed wallet and issuer
+services, and a proof artifact that avoids exporting raw witness material.
 
 ## Passkey Unlock And Wallet Seed
 

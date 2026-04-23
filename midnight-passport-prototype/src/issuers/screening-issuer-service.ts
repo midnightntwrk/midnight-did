@@ -102,6 +102,16 @@ const bytesEqual = (left: Uint8Array, right: Uint8Array): boolean =>
 const bytesToHex = (value: Uint8Array): string =>
   [...value].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 
+const hexToBytes = (value: string): Uint8Array => {
+  const normalized = value.startsWith("0x") ? value.slice(2) : value;
+  if (normalized.length % 2 !== 0) {
+    throw new Error("Hex byte string must have even length");
+  }
+  return Uint8Array.from(
+    normalized.match(/../g)?.map((part) => Number.parseInt(part, 16)) ?? [],
+  );
+};
+
 const randomRequestId = (prefix: string): string =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -123,6 +133,7 @@ const nationalIdPresentationContext = (
   submission: NationalIdPresentationSubmission,
 ): NationalIdPresentationContext => {
   const { vpToken } = submission;
+  const prototypeWitness = vpToken.prototypeWitness;
   if (vpToken.format !== "midnight_compact_vp") {
     throw new Error("Screening issuer requires a Midnight Compact VP token");
   }
@@ -162,6 +173,15 @@ const nationalIdPresentationContext = (
   ) {
     throw new Error("National ID VP holder-binding commitment mismatch");
   }
+  passportCircuits.assertSecretPassportPresentationSatisfiesRequest(
+    credential,
+    credentialProof,
+    presentationRequest,
+    presentation,
+    hexToBytes(prototypeWitness.holderSecret),
+    hexToBytes(prototypeWitness.passportOpening),
+    hexToBytes(prototypeWitness.passportBlindingFactor),
+  );
 
   return {
     credential,
@@ -307,7 +327,7 @@ export class ScreeningIssuerService {
       definition: request.presentation_definition,
       submission: response.presentation_submission,
     });
-    const vpToken = response.vp_token as NationalIdPresentationVpToken;
+    const vpToken = response.vp_token as unknown as NationalIdPresentationVpToken;
     const nationalIdPresentation = nationalIdPresentationContext({ vpToken });
     session.nationalIdPresentation = nationalIdPresentation;
     session.authorizationRequestConsumed = true;

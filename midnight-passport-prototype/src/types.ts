@@ -50,6 +50,7 @@ export type NationalIdPresentationVpToken = {
   readonly presentationRequest: EncodedCompactValue;
   readonly presentation: EncodedCompactValue;
   readonly holderBinding: MidnightHolderBinding;
+  readonly prototypeWitness: NationalIdPresentationPrototypeWitness;
 };
 
 export type NationalIdPresentationContext = {
@@ -57,6 +58,12 @@ export type NationalIdPresentationContext = {
   readonly credentialProof: Proof;
   readonly presentationRequest: SecretPassportCredentialPresentationRequest;
   readonly presentation: SecretPassportCredentialPresentation;
+};
+
+export type NationalIdPresentationPrototypeWitness = {
+  readonly holderSecret: string;
+  readonly passportOpening: string;
+  readonly passportBlindingFactor: string;
 };
 
 export type NationalIdPresentationSubmission = {

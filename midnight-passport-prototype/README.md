@@ -92,7 +92,8 @@ The browser shell can run the flow manually:
 8. wallet renders an explicit consent step before any National ID VP leaves the
    wallet
 9. wallet builds a National ID VP payload for the Screening issuer with encoded
-   credential, issuer proof, presentation request, and presentation
+   credential, issuer proof, presentation request, presentation, and a
+   prototype-only witness bundle for pure-circuit validation
 10. wallet posts that VP to the issuer `direct_post` endpoint
 11. Screening issuer verifies the VP envelope, then opens the issuer page for
    mocked National-ID-presentation, sanctions, PEP, and approval checks
@@ -169,6 +170,9 @@ from `credentials-openid`:
 - OID4VCI-style credential offer/request/response envelopes
 - OID4VP-style presentation request redirect, wallet consent, direct-post
   response delivery, and presentation definition/submission envelopes
+- prototype-only holder witness transport so the Screening issuer can validate
+  the National ID VP at request-acceptance time instead of deferring that
+  decision to issuance
 
 ```bash
 ./run-passport-prototype.sh

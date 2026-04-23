@@ -281,6 +281,13 @@ export class MidnightPassportWallet {
           ),
           verifierDomain: "screening-issuer.prototype",
         },
+        prototypeWitness: {
+          holderSecret: toHex(this.profile.holder.holderSecret),
+          passportOpening: toHex(this.profile.holder.passportOpening),
+          passportBlindingFactor: toHex(
+            this.profile.holder.passportBlindingFactor,
+          ),
+        },
       },
     };
   }

@@ -91,6 +91,34 @@ describe("Screening issuer OID4VCI/OID4VP-shaped service", () => {
     ).toThrow(/challenge mismatch/);
   });
 
+  it("rejects a Screening direct-post when the prototype witness does not satisfy the National ID presentation", () => {
+    const wallet = walletWithNationalId();
+    const service = new ScreeningIssuerService();
+    const started = service.start({
+      issuerOrigin: "http://screening.example",
+      walletOrigin: "http://wallet.example/callback",
+    });
+    const request = service.getAuthorizationRequest(started.session.id);
+    const response = wallet.createScreeningAuthorizationResponse(request.request);
+
+    expect(() =>
+      service.acceptAuthorizationResponse({
+        requestId: request.id,
+        response: {
+          ...response,
+          vp_token: {
+            ...(response.vp_token as Record<string, any>),
+            prototypeWitness: {
+              ...((response.vp_token as Record<string, any>).prototypeWitness ??
+                {}),
+              passportOpening: sha256("tampered-passport-opening"),
+            },
+          },
+        },
+      }),
+    ).toThrow();
+  });
+
   it("rejects replay of the same Screening VP authorization response", () => {
     const wallet = walletWithNationalId();
     const service = new ScreeningIssuerService();

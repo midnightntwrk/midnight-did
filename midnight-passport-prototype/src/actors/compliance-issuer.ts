@@ -4,11 +4,10 @@ import {
   createSigner,
   type Signer,
 } from "@midnight-ntwrk/midnight-did-credentials-compliance";
-import {
-  pureCircuits as passportCircuits,
-  type SecretPassportCredential,
-  type SecretPassportCredentialPresentation,
-  type SecretPassportCredentialPresentationRequest,
+import type {
+  SecretPassportCredential,
+  SecretPassportCredentialPresentation,
+  SecretPassportCredentialPresentationRequest,
 } from "@midnight-ntwrk/midnight-did-credentials-passport-secret";
 
 import type {
@@ -71,16 +70,6 @@ export class ComplianceIssuerAgent {
     readonly holder: HolderSecretMaterial;
     readonly verifierChallengeHash?: Uint8Array;
   }): ComplianceCredentialResult {
-    passportCircuits.assertSecretPassportPresentationSatisfiesRequest(
-      nationalIdPresentation.credential,
-      nationalIdPresentation.credentialProof,
-      nationalIdPresentation.presentationRequest,
-      nationalIdPresentation.presentation,
-      holder.holderSecret,
-      holder.passportOpening,
-      holder.passportBlindingFactor,
-    );
-
     if (this.policy.sanctioned) {
       return { issued: false, reason: "Sanctions screening failed" };
     }
