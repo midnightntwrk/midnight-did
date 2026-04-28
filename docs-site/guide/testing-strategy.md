@@ -10,7 +10,13 @@ Use this first while iterating on code or docs:
 SKIP_LONG_RUNNING=1 ./run.sh
 ```
 
-This is the quickest way to catch build, lint, unit-test, and workspace integration drift.
+This is the quickest way to catch build, lint, unit-test, and integration drift
+for the root Midnight DID workspace:
+
+- core packages
+- API
+- resolver
+- DID manager
 
 For CI-parity core checks (without mutating files with auto-fixes):
 
@@ -25,6 +31,8 @@ Use these when you are working on one area:
 - `./run-api.sh`
 - `./run-resolver.sh`
 - `./run-manager.sh`
+- `research/identity-examples/midnight-verifiable-credentials/./run.sh`
+- `research/identity-examples/midnight-identity-solution-examples/./run.sh`
 
 Each runner includes infra cleanup traps and explicit dependency preparation to make clean, per-job execution reproducible.
 

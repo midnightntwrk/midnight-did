@@ -103,11 +103,15 @@ Install dependencies:
 - `compact update 0.30.0`
 
 Pipelines:
-- Full workspace: `./run.sh`
+- Root DID workspace: `./run.sh`
 - Core pipeline only: `SKIP_LINT_FIX=1 ./run-core.sh`
 - API only: `./run-api.sh`
 - Resolver only: `./run-resolver.sh`
 - DID manager only: `./run-manager.sh`
+- Split VC workspace: `research/identity-examples/midnight-verifiable-credentials/./run.sh`
+- Split Passport/examples workspace: `research/identity-examples/midnight-identity-solution-examples/./run.sh`
+- Root wrapper for VC workspace: `./run-credentials.sh`
+- Root wrapper for Passport/examples workspace: `./run-passport-prototype.sh`
 - Docs pipeline: `./run-docs.sh`
 - Manager app: `./start-manager.sh [--standalone|--preprod|--mainnet]`
 - Resolver app: `./start-resolver.sh [--standalone|--preprod|--mainnet]`
@@ -135,6 +139,7 @@ If you are new to the repository, start here:
 1. `./start-docs.sh`
 2. `SKIP_LONG_RUNNING=1 ./run.sh`
 3. the component-specific runner for the area you are changing
+4. if you are working on credentials or Passport, use the split-repo runners instead of expecting root `./run.sh` to cover them
 
 Docs helpers:
 

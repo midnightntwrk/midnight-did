@@ -16,6 +16,13 @@ Fast verification:
 SKIP_LONG_RUNNING=1 ./run.sh
 ```
 
+This root runner now validates only the Midnight DID workspace:
+
+- core packages
+- API
+- resolver
+- DID manager
+
 CI-aligned core verification (skip auto-fix pass):
 
 ```bash
@@ -66,6 +73,86 @@ Shared runtime infrastructure:
 - standalone stack: `api/standalone.yml`
 - preprod proof server: `infrastructure/preprod-proof-server.yml`
 
+## Midnight Credentials and Passport prototype
+
+Credential and Passport work now live in split repositories:
+
+- reusable credential capability packages:
+  `research/identity-examples/midnight-verifiable-credentials`
+- Passport-product prototype packages:
+  `research/identity-examples/midnight-identity-solution-examples`
+
+Use the broader credentials runner when changing the Compact credential model,
+credential families, standalone integration tests, or the Passport prototype:
+
+```bash
+cd research/identity-examples/midnight-verifiable-credentials
+PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh
+```
+
+Use the Passport runner when iterating on the Lace Wallet + Midnight Passport
+prototype only:
+
+```bash
+cd research/identity-examples/midnight-identity-solution-examples
+PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh
+```
+
+Root compatibility wrappers still exist:
+
+```bash
+PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run-credentials.sh
+PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run-passport-prototype.sh
+```
+
+This runner validates:
+
+- Passport-specific credential package lint/build/tests
+- `credentials-openid` build and tests
+- the TypeScript browser-session backend
+- Playwright browser flow through the Digital National ID and Screening issuer
+  redirects
+- standalone explicit and hidden-holder Passport credential integrations when Docker is available
+
+Start the browser prototype:
+
+```bash
+./start-passport-prototype.sh
+```
+
+Default local URL:
+
+- `http://127.0.0.1:5174`
+
+The prototype is not just a static page. It uses the TypeScript server in
+`midnight-passport-prototype/src/serve-app.ts`, with actors for the wallet,
+Digital National ID issuer, Screening VC issuer, DApp, verifier contract stub,
+and external crypto wallet stub.
+
+The Digital National ID issuer flow intentionally mocks document upload,
+liveness, and profile approval checks while keeping the protocol exchange close
+to the target shape:
+
+1. wallet starts issuer session
+2. browser redirects to `national-id-issuer.html`
+3. user completes mocked checks
+4. issuer redirects back with `credential_offer_uri`, `issuer_session`, and `state`
+5. wallet validates callback state/session
+6. wallet exchanges pre-authorized token and credential request messages
+7. wallet stores the Midnight Compact credential response
+
+The Screening VC issuer follows the same redirect and offer redemption pattern,
+but starts only after the wallet holds the National ID credential:
+
+1. wallet starts screening issuer session
+2. browser redirects to `screening-issuer.html`
+3. user completes mocked National-ID-verification, sanctions, PEP, and approval
+   checks
+4. issuer redirects back with `credential_offer_uri`, `issuer_session`,
+   `issuer_kind=screening`, and `state`
+5. wallet validates callback state/session
+6. wallet exchanges pre-authorized token and credential request messages
+7. wallet stores the Midnight Compact Screening VC response
 ## Bootstrapped proof server image (local optimization)
 
 ### Purpose
