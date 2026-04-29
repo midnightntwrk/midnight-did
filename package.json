@@ -30,7 +30,6 @@
     "domain",
     "did",
     "contract",
-    "standalone-environment",
     "secret-storage",
     "did-resolver-service",
     "did-manager-service",
