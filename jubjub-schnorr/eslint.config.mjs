@@ -1,3 +1,7 @@
+// This file is part of midnightntwrk/midnight-did.
+// Copyright (C) 2025 Midnight Foundation
+// SPDX-License-Identifier: Apache-2.0
+
 import js from '@eslint/js';
 import plugin from '@typescript-eslint/eslint-plugin';
 import parser from '@typescript-eslint/parser';
@@ -44,6 +48,7 @@ export default [
             '@midnight-ntwrk/midnight-did-contract',
             '@midnight-ntwrk/midnight-did-api',
             '@midnight-ntwrk/midnight-did-resolver-service',
+            '@midnight-ntwrk/midnight-did-secret-storage',
           ],
         },
       ],

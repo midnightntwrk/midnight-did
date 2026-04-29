@@ -41,6 +41,9 @@ export const witnesses = {
     { privateState }: WitnessContext<Ledger, DIDPrivateState>,
     challengeHash: bigint
   ): [DIDPrivateState, [bigint, bigint]] => {
+    // Shared Schnorr witness contract:
+    // q = floor(challengeHash / 2^248)
+    // r = challengeHash mod 2^248
     const q = challengeHash / TWO_248;
     const r = challengeHash % TWO_248;
     return [privateState, [q, r]];

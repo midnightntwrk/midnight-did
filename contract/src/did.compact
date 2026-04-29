@@ -134,14 +134,13 @@ export circuit verifyJubjubDigestSignature(
   pk: JubjubPoint,
   signature: JubjubSignature,
   digest: Vector<4, Field>
-): Boolean {
+): [] {
   // Preferred protocol entrypoint for DID-facing JubJub signatures.
   const schnorrSignature: Schnorr_SchnorrSignature = Schnorr_SchnorrSignature {
     announcement: signature.r,
     response: signature.s,
   };
   Schnorr_schnorrVerifyDigest(digest, schnorrSignature, pk);
-  return true;
 }
 
 export circuit addAlsoKnownAs(value: Opaque<"string">): [] {

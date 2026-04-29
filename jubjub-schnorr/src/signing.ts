@@ -24,6 +24,7 @@ export const JUBJUB_ORDER =
   6554484396890773809930967563523245729705921265872317281365359162392183254199n;
 export const TWO_248 =
   452312848583266388373324160190187140051835877600158453279131187530910662656n;
+export const JUBJUB_SIGNATURE_LENGTH_BYTES = 96;
 
 const bigintTo32Be = (value: bigint): Buffer => {
   const hex = value.toString(16).padStart(64, "0");
@@ -84,8 +85,10 @@ export const encodeJubjubSignature = (
 export const decodeJubjubSignature = (
   signature: Uint8Array,
 ): JubjubSchnorrSignature => {
-  if (signature.length !== 96) {
-    throw new Error("Jubjub signature must be exactly 96 bytes");
+  if (signature.length !== JUBJUB_SIGNATURE_LENGTH_BYTES) {
+    throw new Error(
+      `Jubjub signature must be exactly ${JUBJUB_SIGNATURE_LENGTH_BYTES} bytes`,
+    );
   }
   return {
     announcement: {
@@ -114,6 +117,8 @@ export const signJubjubDigest = (
   digest: JubjubDigest,
   nonceSeed?: Uint8Array,
 ): JubjubSchnorrSignature => {
+  // Low-level API. If nonceSeed is omitted, this path uses fresh randomness.
+  // DID-facing code should prefer the deterministic seed-based helpers.
   const sk = normalizeScalar(secretScalar);
   const publicKey = deriveJubjubPublicKey(sk);
   const seedMaterial =

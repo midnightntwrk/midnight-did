@@ -79,6 +79,18 @@ The Compact module follows the zkloan pattern:
 - witness `(q, r)` such that `cFull = q * 2^248 + r`
 - use `r` as the actual JubJub challenge scalar
 
+Every host contract that imports the shared `schnorr` module must implement
+the witness with exactly this arithmetic:
+
+```ts
+const q = challengeHash / TWO_248;
+const r = challengeHash % TWO_248;
+return [privateState, [q, r]];
+```
+
+This witness contract is part of the protocol. If a consumer changes the
+reduction rule, Compact verification and TS signing drift again.
+
 Constants:
 
 - `JUBJUB_ORDER`
@@ -114,9 +126,18 @@ Use the re-exported helpers from `secret-storage`:
 That is the intended public surface for:
 
 - `payloadToJubjubDigest`
+- `signJubjubDigestFromSeed`
 - `signJubjubPayloadFromSeed`
 - `verifyJubjubPayload`
 - signature encode/decode helpers
+
+For DID-facing application code, prefer the deterministic seed-based helpers:
+
+- `signJubjubDigestFromSeed(...)`
+- `signJubjubPayloadFromSeed(...)`
+
+`signJubjubDigest(...)` remains available as a lower-level API and uses a
+random nonce when no `nonceSeed` is supplied.
 
 ### For contract code
 

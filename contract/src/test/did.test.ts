@@ -81,6 +81,15 @@ describe("DID smart contract", () => {
         digest
       )
     ).not.toThrow();
+
+    expect(() =>
+      simulator.contract.impureCircuits.verifyJubjubDigestSignature(
+        simulator.circuitContext,
+        publicKey,
+        { r: signature.announcement, s: signature.response + 1n },
+        digest
+      )
+    ).toThrow();
   });
 
   describe("Verification Methods", () => {

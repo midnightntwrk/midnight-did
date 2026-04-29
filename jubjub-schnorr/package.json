@@ -26,7 +26,7 @@
   },
   "scripts": {
     "contract": "npm run compact",
-    "compact": "compact compile src/jubjub-schnorr.compact src/managed/jubjub-schnorr && node ./scripts/align-runtime-version.mjs && node ./scripts/strip-managed-sourcemaps.mjs",
+    "compact": "rm -rf src/managed && compact compile src/jubjub-schnorr.compact src/managed/jubjub-schnorr && node ./scripts/align-runtime-version.mjs && node ./scripts/strip-managed-sourcemaps.mjs",
     "test": "npm run compact && vitest run --config vitest.config.ts",
     "test:ci": "npm run compact && vitest run --config vitest.config.ts",
     "prepack": "npm run build",
