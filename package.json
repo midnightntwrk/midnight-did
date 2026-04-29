@@ -7,8 +7,8 @@
   },
   "scripts": {
     "clean": "npm run clean -w contract && npm run clean -w domain && npm run clean -w did && npm run clean -w api && npm run clean -w secret-storage && npm run clean -w did-resolver-service && npm run clean -w did-manager-service",
-    "lint": "npm run lint -w contract && npm run lint -w secret-storage && npm run lint -w domain && npm run lint -w did && npm run lint -w api && npm run lint -w did-resolver-service && npm run lint -w did-manager-service",
-    "lint:fix": "npm run lint:fix -w contract && npm run lint:fix -w secret-storage && npm run lint:fix -w domain && npm run lint:fix -w did && npm run lint:fix -w api && npm run lint:fix -w did-resolver-service && npm run lint:fix -w did-manager-service",
+    "lint": "npm run lint -w contract && npm run lint -w domain && npm run lint -w did && npm run lint -w api && npm run lint -w secret-storage && npm run lint -w did-resolver-service && npm run lint -w did-manager-service",
+    "lint:fix": "npm run lint:fix -w contract && npm run lint:fix -w domain && npm run lint:fix -w did && npm run lint:fix -w api && npm run lint:fix -w secret-storage && npm run lint:fix -w did-resolver-service && npm run lint:fix -w did-manager-service",
     "build:all": "npm run build -w contract && npm run build -w secret-storage",
     "test:all": "npm run all -w contract && npm run test -w api",
     "coverage": "npm run coverage -w contract",
@@ -30,6 +30,7 @@
     "domain",
     "did",
     "contract",
+    "standalone-environment",
     "secret-storage",
     "did-resolver-service",
     "did-manager-service",

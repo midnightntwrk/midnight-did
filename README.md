@@ -112,6 +112,7 @@ Pipelines:
 - Split Passport/examples workspace: `research/identity-examples/midnight-identity-solution-examples/./run.sh`
 - Root wrapper for VC workspace: `./run-credentials.sh`
 - Root wrapper for Passport/examples workspace: `./run-passport-prototype.sh`
+- Root `./run.sh` validates only the DID/API/resolver/manager workspace. It does not execute VC or Passport pipelines.
 - Docs pipeline: `./run-docs.sh`
 - Manager app: `./start-manager.sh [--standalone|--preprod|--mainnet]`
 - Resolver app: `./start-resolver.sh [--standalone|--preprod|--mainnet]`
