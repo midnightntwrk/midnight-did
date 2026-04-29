@@ -120,6 +120,9 @@ export circuit verifyJubjubSignature(
   signature: JubjubSignature,
   challenge: Field
 ): Boolean {
+  // Low-level primitive only.
+  // Prefer verifyJubjubDigestSignature(...) so the contract owns the transcript
+  // and challenge reduction semantics via the shared JubJub Schnorr module.
   const leftSide: JubjubPoint = ecMulGenerator(signature.s);
   const cPk: JubjubPoint = ecMul(pk, challenge);
   const rightSide: JubjubPoint = ecAdd(signature.r, cPk);
@@ -132,6 +135,7 @@ export circuit verifyJubjubDigestSignature(
   signature: JubjubSignature,
   digest: Vector<4, Field>
 ): Boolean {
+  // Preferred protocol entrypoint for DID-facing JubJub signatures.
   const schnorrSignature: Schnorr_SchnorrSignature = Schnorr_SchnorrSignature {
     announcement: signature.r,
     response: signature.s,
