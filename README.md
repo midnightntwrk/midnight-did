@@ -108,10 +108,6 @@ Pipelines:
 - API only: `./run-api.sh`
 - Resolver only: `./run-resolver.sh`
 - DID manager only: `./run-manager.sh`
-- Split VC workspace: `research/identity-examples/midnight-verifiable-credentials/./run.sh`
-- Split Passport/examples workspace: `research/identity-examples/midnight-identity-solution-examples/./run.sh`
-- Root wrapper for VC workspace: `./run-credentials.sh`
-- Root wrapper for Passport/examples workspace: `./run-passport-prototype.sh`
 - Root `./run.sh` validates only the DID/API/resolver/manager workspace. It does not execute VC or Passport pipelines.
 - Docs pipeline: `./run-docs.sh`
 - Manager app: `./start-manager.sh [--standalone|--preprod|--mainnet]`
@@ -125,6 +121,10 @@ Network defaults:
 
 Fast mode:
 - Skip long-running integration/e2e targets: `SKIP_LONG_RUNNING=1 ./run.sh`
+
+Related repositories:
+- Midnight Verifiable Credentials and the Passport prototype now live outside this repository.
+- Use the separate identity workspace sandbox or the split repositories directly for VC and Passport work.
 
 Docs site local URL:
 - `http://127.0.0.1:4173`

@@ -75,35 +75,11 @@ Shared runtime infrastructure:
 
 ## Midnight Credentials and Passport prototype
 
-Credential and Passport work now live in split repositories:
+Credential and Passport work no longer live inside this repository.
 
-- reusable credential capability packages:
-  `research/identity-examples/midnight-verifiable-credentials`
-- Passport-product prototype packages:
-  `research/identity-examples/midnight-identity-solution-examples`
-
-Use the broader credentials runner when changing the Compact credential model,
-credential families, standalone integration tests, or the Passport prototype:
-
-```bash
-cd research/identity-examples/midnight-verifiable-credentials
-PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh
-```
-
-Use the Passport runner when iterating on the Lace Wallet + Midnight Passport
-prototype only:
-
-```bash
-cd research/identity-examples/midnight-identity-solution-examples
-PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh
-```
-
-Root compatibility wrappers still exist:
-
-```bash
-PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run-credentials.sh
-PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run-passport-prototype.sh
-```
+Use the separate Midnight identity workspace or the split repositories directly
+when changing the Compact credential model, credential families, standalone
+integration tests, or the Passport prototype.
 
 This runner validates:
 

@@ -31,8 +31,6 @@ Use these when you are working on one area:
 - `./run-api.sh`
 - `./run-resolver.sh`
 - `./run-manager.sh`
-- `research/identity-examples/midnight-verifiable-credentials/./run.sh`
-- `research/identity-examples/midnight-identity-solution-examples/./run.sh`
 
 Each runner includes infra cleanup traps and explicit dependency preparation to make clean, per-job execution reproducible.
 
