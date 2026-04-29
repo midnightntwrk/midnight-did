@@ -1,6 +1,11 @@
 export type MidnightCurve = "Ed25519" | "Jubjub" | "P-256";
 export type MidnightKeyType = "OKP" | "EC";
 export type SecretKeyRef = string;
+export type {
+  JubjubDigest as JubjubPayloadDigest,
+  JubjubSchnorrSignature,
+} from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
+export { JUBJUB_SIGNATURE_LENGTH_BYTES } from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
 
 export type PublicJwk = {
   kty: MidnightKeyType;
