@@ -1,3 +1,9 @@
+<!--
+  This file is part of midnightntwrk/midnight-did.
+  Copyright (C) 2025 Midnight Foundation
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 # JubJub Schnorr Follow-ups
 
 ## Potential task: DID/API verification helper
