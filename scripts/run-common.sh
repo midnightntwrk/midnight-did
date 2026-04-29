@@ -5,6 +5,20 @@ if [[ -n "${MIDNIGHT_RUN_COMMON_SH_LOADED:-}" ]]; then
 fi
 MIDNIGHT_RUN_COMMON_SH_LOADED=1
 
+run_common_apply_light_mode() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --light)
+        export SKIP_LONG_RUNNING=1
+        shift
+        ;;
+      *)
+        shift
+        ;;
+    esac
+  done
+}
+
 run_common_cleanup_test_infra() {
   ./scripts/cleanup-test-infra.sh || true
 }
