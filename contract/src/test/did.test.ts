@@ -13,6 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { Buffer } from "node:buffer";
+
+import {
+  deriveJubjubPublicKeyFromSeed,
+  payloadToJubjubDigest,
+  signJubjubPayloadFromSeed
+} from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
 import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -56,6 +63,24 @@ describe("DID smart contract", () => {
 
   it("re-exports the managed contract bundle", () => {
     expect(ContractExports.DIDContract).toBeDefined();
+  });
+
+  it("verifies shared Jubjub Schnorr digests through the DID contract", () => {
+    const simulator = new DIDSimulator();
+    const seed = new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1));
+    const payload = Buffer.from("midnight-did-contract-jubjub-payload", "utf8");
+    const publicKey = deriveJubjubPublicKeyFromSeed(seed);
+    const signature = signJubjubPayloadFromSeed(seed, payload);
+    const digest = payloadToJubjubDigest(payload);
+
+    expect(() =>
+      simulator.contract.impureCircuits.verifyJubjubDigestSignature(
+        simulator.circuitContext,
+        publicKey,
+        { r: signature.announcement, s: signature.response },
+        digest
+      )
+    ).not.toThrow();
   });
 
   describe("Verification Methods", () => {

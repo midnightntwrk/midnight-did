@@ -16,6 +16,7 @@
 pragma language_version >= 0.20;
 
 import CompactStandardLibrary;
+import "../../jubjub-schnorr/src/schnorr" prefix Schnorr_;
 
 // Ledger state - Full DID Document
 export ledger contractVersion: Uint<32>;
@@ -87,6 +88,16 @@ export struct JubjubSignature {
   s: Field,
 }
 
+export pure circuit jubjubSignatureDigestChallenge(
+  ann_x: Field,
+  ann_y: Field,
+  pk_x: Field,
+  pk_y: Field,
+  digest: Vector<4, Field>
+): Field {
+  return Schnorr_schnorrChallengeDigest(ann_x, ann_y, pk_x, pk_y, digest);
+}
+
 // Constructor
 constructor() {
   contractVersion = 1;
@@ -114,6 +125,19 @@ export circuit verifyJubjubSignature(
   const rightSide: JubjubPoint = ecAdd(signature.r, cPk);
   assert(leftSide == rightSide, "Jubjub signature verification failed");
   return leftSide == rightSide;
+}
+
+export circuit verifyJubjubDigestSignature(
+  pk: JubjubPoint,
+  signature: JubjubSignature,
+  digest: Vector<4, Field>
+): Boolean {
+  const schnorrSignature: Schnorr_SchnorrSignature = Schnorr_SchnorrSignature {
+    announcement: signature.r,
+    response: signature.s,
+  };
+  Schnorr_schnorrVerifyDigest(digest, schnorrSignature, pk);
+  return true;
 }
 
 export circuit addAlsoKnownAs(value: Opaque<"string">): [] {
