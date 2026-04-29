@@ -265,6 +265,7 @@ test.describe.serial('did-manager-service UI', () => {
     expect(deactivated.data.didDocumentMetadata.deactivated).toBe(true);
 
     await page.goto(`${env.baseUrl}/wallet`);
+    await expect(page.locator('#closeSession')).toBeEnabled();
     await clickAndWaitForJsonResponse<any>(page, '#closeSession', (url, method) => {
       return method === 'POST' && url.pathname === '/api/session/close';
     });
