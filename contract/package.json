@@ -39,5 +39,14 @@
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "*"
-  }
+  },
+  "files": [
+    "dist/**",
+    "src/**/*.compact",
+    "README.md",
+    "scripts/*.mjs",
+    "package.json",
+    "tsconfig.json",
+    "tsconfig.build.json"
+  ]
 }

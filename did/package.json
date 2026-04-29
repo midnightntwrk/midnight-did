@@ -27,11 +27,19 @@
     "coverage": "vitest run --coverage",
     "clean": "rm -rf dist && rm -rf coverage",
     "lint": "eslint src",
-    "lint:fix": "eslint src --fix"
+    "lint:fix": "eslint src --fix",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "@midnight-ntwrk/midnight-did-contract": "*",
     "@midnight-ntwrk/midnight-did-domain": "*",
     "zod": "^4.1.0"
-  }
+  },
+  "files": [
+    "dist/**",
+    "README.md",
+    "package.json",
+    "tsconfig.json",
+    "tsconfig.build.json"
+  ]
 }
