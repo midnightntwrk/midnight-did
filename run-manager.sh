@@ -26,15 +26,11 @@ npm --ignore-scripts run test -w did-manager-service
 if [[ "${SKIP_LONG_RUNNING:-0}" == "1" ]]; then
   echo "[manager] Skip Playwright E2E (SKIP_LONG_RUNNING=1)"
 else
-  if [[ -n "${PLAYWRIGHT_BROWSERS_PATH:-}" && -d "${PLAYWRIGHT_BROWSERS_PATH}" ]]; then
-    echo "[manager] Skip Playwright install (PLAYWRIGHT_BROWSERS_PATH set and exists: ${PLAYWRIGHT_BROWSERS_PATH})"
-  else
-    echo "[manager] Playwright install"
-    npm run playwright:install -w did-manager-service
-  fi
+  echo "[manager] Playwright install"
+  env -u PLAYWRIGHT_BROWSERS_PATH npm run playwright:install -w did-manager-service
 
   echo "[manager] Playwright E2E (standalone)"
-  npm run test:e2e:standalone -w did-manager-service
+  env -u PLAYWRIGHT_BROWSERS_PATH npm run test:e2e:standalone -w did-manager-service
 fi
 
 echo "[manager] Done"
