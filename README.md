@@ -119,6 +119,24 @@ Network defaults:
 - `preprod` and `mainnet` use public indexer v4 endpoints (`/api/v4/graphql`)
 - manager `--mainnet` defaults to local proof server (`http://127.0.0.1:6300`) and expects a funded seed (no faucet)
 
+## Artifact Packaging
+
+Use `artifacts/npm/` as the stable local tarball output for unpublished DID packages.
+
+Commands:
+- `npm run artifacts:pack`
+- `./upgrade-libs.sh --destination /path/to/downstream-repo`
+
+What gets packed:
+- `@midnight-ntwrk/midnight-did-api`
+- `@midnight-ntwrk/midnight-did-domain`
+- `@midnight-ntwrk/midnight-did`
+- `@midnight-ntwrk/midnight-did-jubjub-schnorr`
+- `@midnight-ntwrk/midnight-did-contract`
+- `@midnight-ntwrk/midnight-did-secret-storage`
+
+The generated tarballs are intentionally gitignored under [`artifacts/`](./artifacts/README.md).
+
 Fast mode:
 - Skip long-running integration/e2e targets: `SKIP_LONG_RUNNING=1 ./run.sh`
 

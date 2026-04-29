@@ -29,12 +29,20 @@
     "coverage": "vitest run -c vitest.config.ts --coverage",
     "clean": "rm -rf dist && rm -rf coverage",
     "lint": "eslint src",
-    "lint:fix": "eslint src --fix"
+    "lint:fix": "eslint src --fix",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "@midnight-ntwrk/midnight-did-jubjub-schnorr": "*",
     "@midnight-ntwrk/wallet-sdk-hd": "^3.0.0",
     "circomlibjs": "^0.1.7",
     "zod": "^4.1.0"
-  }
+  },
+  "files": [
+    "dist/**",
+    "README.md",
+    "package.json",
+    "tsconfig.json",
+    "tsconfig.build.json"
+  ]
 }

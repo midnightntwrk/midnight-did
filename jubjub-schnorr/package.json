@@ -44,5 +44,14 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^3.2.4"
-  }
+  },
+  "files": [
+    "dist/**",
+    "src/**/*.compact",
+    "README.md",
+    "scripts/*.mjs",
+    "package.json",
+    "tsconfig.json",
+    "tsconfig.build.json"
+  ]
 }

@@ -33,12 +33,20 @@
     "coverage": "vitest run --coverage",
     "clean": "rm -rf dist && rm -rf coverage",
     "lint": "eslint src",
-    "lint:fix": "eslint src --fix"
+    "lint:fix": "eslint src --fix",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "zod": "^4.1.0"
   },
   "devDependencies": {
     "base64-js": "^1.5.1"
-  }
+  },
+  "files": [
+    "dist/**",
+    "README.md",
+    "package.json",
+    "tsconfig.json",
+    "tsconfig.build.json"
+  ]
 }
