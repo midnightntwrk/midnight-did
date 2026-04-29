@@ -1,6 +1,0 @@
-[submodule "research/identity-examples/midnight-identity-solution-examples"]
-	path = research/identity-examples/midnight-identity-solution-examples
-	url = https://github.com/midnightntwrk/midnight-identity-solution-examples.git
-[submodule "research/identity-examples/midnight-identity-oracle-ssi"]
-	path = research/identity-examples/midnight-identity-oracle-ssi
-	url = https://github.com/midnightntwrk/midnight-identity-oracle-ssi.git
