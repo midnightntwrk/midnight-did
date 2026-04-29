@@ -17,6 +17,11 @@ fi
 echo "[core] Lint"
 npm run lint
 
+echo "[core] Jubjub Schnorr build/test"
+npm run build -w jubjub-schnorr
+npm run test:ci -w jubjub-schnorr
+npm run coverage -w jubjub-schnorr || true
+
 echo "[core] Contract build/test"
 npm run contract -w contract
 npm run build -w contract

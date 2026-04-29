@@ -20,15 +20,19 @@
     }
   },
   "scripts": {
+    "prebuild": "npm run build -w @midnight-ntwrk/midnight-did-jubjub-schnorr",
     "build": "rm -rf dist && tsc -b tsconfig.build.json --force",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "npm run build -w @midnight-ntwrk/midnight-did-jubjub-schnorr",
     "test": "vitest run -c vitest.config.ts --passWithNoTests",
+    "precoverage": "npm run build -w @midnight-ntwrk/midnight-did-jubjub-schnorr",
     "coverage": "vitest run -c vitest.config.ts --coverage",
     "clean": "rm -rf dist && rm -rf coverage",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix"
   },
   "dependencies": {
+    "@midnight-ntwrk/midnight-did-jubjub-schnorr": "*",
     "@midnight-ntwrk/wallet-sdk-hd": "^3.0.0",
     "circomlibjs": "^0.1.7",
     "zod": "^4.1.0"

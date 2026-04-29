@@ -51,6 +51,10 @@ describe("package index", () => {
     expect(secretStorage.VeramoSecretStore).toBeDefined();
     expect(secretStorage.generateCurveKey).toBeDefined();
     expect(secretStorage.deriveCurvePrivateFromSeed).toBeDefined();
+    expect(secretStorage.payloadToJubjubDigest).toBeDefined();
+    expect(secretStorage.verifyJubjubPayload).toBeDefined();
+    expect(secretStorage.decodeJubjubSignature).toBeDefined();
+    expect(secretStorage.JUBJUB_SIGNATURE_LENGTH_BYTES).toBe(96);
     expect(secretStorage.SeedSchema).toBeDefined();
     expect(secretStorage.parseSeed).toBeDefined();
     expect(secretStorage.SecretStoreLockedError).toBeDefined();

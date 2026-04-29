@@ -1,5 +1,4 @@
 import {
-  createHash,
   createPrivateKey,
   createPublicKey,
   generateKeyPairSync,
@@ -7,14 +6,14 @@ import {
   verify,
 } from "node:crypto";
 
+import { maxField } from "@midnight-ntwrk/ledger-v8";
 import {
-  bigIntToValue,
-  ecAdd,
-  ecMul,
-  ecMulGenerator,
-  maxField,
-  valueToBigInt,
-} from "@midnight-ntwrk/ledger-v8";
+  decodeJubjubSignature,
+  deriveJubjubPublicKeyFromSeed,
+  encodeJubjubSignature,
+  signJubjubPayloadFromSeed,
+  verifyJubjubPayload,
+} from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
 
 import { UnsupportedCurveError } from "./errors.js";
 import type { ImportKeyInput, MidnightCurve, PublicJwk } from "./types.js";
@@ -34,8 +33,6 @@ type LocalJsonWebKey = {
   d?: string;
 };
 
-const JUBJUB_FIELD_MODULUS =
-  6554484396890773809930967563523245729705921265872317281365359162392183254199n;
 const LEDGER_MAX_FIELD = maxField();
 
 const base64urlToBuffer = (value: string): Buffer => {
@@ -68,70 +65,6 @@ const bigintToBase64url = (value: bigint): string => {
 const bufferToBigint = (buf: Buffer): bigint => {
   if (buf.length === 0) return 0n;
   return BigInt(`0x${buf.toString("hex")}`);
-};
-
-const bigintTo32Be = (value: bigint): Buffer => {
-  const hex = value.toString(16).padStart(64, "0");
-  return Buffer.from(hex, "hex");
-};
-
-const pointToBigints = (
-  point: [Uint8Array, Uint8Array],
-): { x: bigint; y: bigint } => ({
-  x: valueToBigInt([point[0]]),
-  y: valueToBigInt([point[1]]),
-});
-
-const pointFromBigints = (point: {
-  x: bigint;
-  y: bigint;
-}): [Uint8Array, Uint8Array] => [
-  bigIntToValue(point.x)[0],
-  bigIntToValue(point.y)[0],
-];
-
-const hashToJubjubScalar = (input: Uint8Array): bigint => {
-  const digest = createHash("sha256").update(input).digest();
-  const scalar = BigInt(`0x${digest.toString("hex")}`);
-  return scalar % JUBJUB_FIELD_MODULUS;
-};
-
-const serializePoint = (point: { x: bigint; y: bigint }): Buffer =>
-  Buffer.concat([bigintTo32Be(point.x), bigintTo32Be(point.y)]);
-
-const deserializeJubjubSignature = (
-  signature: Uint8Array,
-): { r: { x: bigint; y: bigint }; s: bigint } => {
-  if (signature.length !== 96) {
-    throw new Error("Jubjub signature must be exactly 96 bytes");
-  }
-  const x = bufferToBigint(Buffer.from(signature.subarray(0, 32)));
-  const y = bufferToBigint(Buffer.from(signature.subarray(32, 64)));
-  const s = bufferToBigint(Buffer.from(signature.subarray(64, 96)));
-  return { r: { x, y }, s };
-};
-
-const serializeJubjubSignature = (signature: {
-  r: { x: bigint; y: bigint };
-  s: bigint;
-}): Uint8Array =>
-  Buffer.concat([
-    bigintTo32Be(signature.r.x),
-    bigintTo32Be(signature.r.y),
-    bigintTo32Be(signature.s),
-  ]);
-
-const computeJubjubChallenge = (
-  r: { x: bigint; y: bigint },
-  pk: { x: bigint; y: bigint },
-  payload: Uint8Array,
-): bigint => {
-  const challengeInput = Buffer.concat([
-    serializePoint(r),
-    serializePoint(pk),
-    Buffer.from(payload),
-  ]);
-  return hashToJubjubScalar(challengeInput);
 };
 
 const curveFromJwk = (jwk: LocalJsonWebKey): PublicJwk => {
@@ -178,12 +111,7 @@ const deriveJubjubPublic = async (
   privateKey: Buffer,
 ): Promise<{ x: bigint; y: bigint }> => {
   const normalized = ensure32Bytes(privateKey);
-  const scalar = hashToJubjubScalar(normalized);
-  const point = ecMulGenerator(bigIntToValue(scalar)) as [
-    Uint8Array,
-    Uint8Array,
-  ];
-  return pointToBigints(point);
+  return deriveJubjubPublicKeyFromSeed(normalized);
 };
 
 const createEd25519Pkcs8 = (privateKey: Buffer): Buffer => {
@@ -391,21 +319,9 @@ export const signWithCurveKey = async (
     const privateKeyBytes = ensure32Bytes(
       Buffer.from(record.privateKey, "base64"),
     );
-    const sk = hashToJubjubScalar(privateKeyBytes);
-    const pk = pointToBigints(
-      ecMulGenerator(bigIntToValue(sk)) as [Uint8Array, Uint8Array],
+    return encodeJubjubSignature(
+      signJubjubPayloadFromSeed(privateKeyBytes, payload),
     );
-
-    const k = hashToJubjubScalar(
-      Buffer.concat([privateKeyBytes, Buffer.from(payload)]),
-    );
-    const r = pointToBigints(
-      ecMulGenerator(bigIntToValue(k)) as [Uint8Array, Uint8Array],
-    );
-    const c = computeJubjubChallenge(r, pk, payload);
-    const s = (k + c * sk) % JUBJUB_FIELD_MODULUS;
-
-    return serializeJubjubSignature({ r, s });
   }
   throw new UnsupportedCurveError(`${record.kty}/${record.crv}`);
 };
@@ -434,28 +350,16 @@ export const verifyWithPublicJwk = async (
       throw new UnsupportedCurveError("EC/Jubjub missing y coordinate");
     }
 
-    const pk = {
+    const publicKey = {
       x: bufferToBigint(base64urlToBuffer(publicJwk.x)),
       y: bufferToBigint(base64urlToBuffer(publicJwk.y)),
     };
 
-    const decoded = deserializeJubjubSignature(signature);
-    const c = computeJubjubChallenge(decoded.r, pk, payload);
-
-    const left = pointToBigints(
-      ecMulGenerator(bigIntToValue(decoded.s)) as [Uint8Array, Uint8Array],
+    return verifyJubjubPayload(
+      publicKey,
+      payload,
+      decodeJubjubSignature(signature),
     );
-    const right = pointToBigints(
-      ecAdd(
-        pointFromBigints(decoded.r),
-        ecMul(pointFromBigints(pk), bigIntToValue(c)) as [
-          Uint8Array,
-          Uint8Array,
-        ],
-      ) as [Uint8Array, Uint8Array],
-    );
-
-    return left.x === right.x && left.y === right.y;
   }
   throw new UnsupportedCurveError(`${publicJwk.kty}/${publicJwk.crv}`);
 };

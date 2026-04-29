@@ -152,6 +152,7 @@ When you need direct package/service documentation:
 - `api/README.md`
 - `domain/README.md`
 - `did/README.md`
+- `jubjub-schnorr/README.md`
 - `secret-storage/README.md`
 - `did-resolver-service/README.md`
 - `did-manager-service/README.md`
@@ -165,6 +166,7 @@ When you need direct package/service documentation:
 - CI uses cache layers for npm, Compact toolchain, and Playwright browsers (manager pipeline).
 - Service runners now prepare missing generated artifacts/dependencies explicitly so standalone service jobs are reproducible.
 - HD seed derivation for `Ed25519`, `Jubjub`, and `P-256` is documented in [`secret-storage/README.md`](secret-storage/README.md).
+- Shared JubJub Schnorr transcript and the 96-byte signature wire format are documented in [`jubjub-schnorr/README.md`](jubjub-schnorr/README.md).
 - DID Resolution responses follow the DID Core shape:
   - `didDocument`
   - `didResolutionMetadata`
