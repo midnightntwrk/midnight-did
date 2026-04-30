@@ -106,3 +106,26 @@ The recommended capability order remains:
 The first capability solves lightweight prototype issuance and verification with
 minimal moving parts. The second adds DID semantics on top of the same general
 proof model.
+
+## Offchain VC binding rule
+
+When Midnight VC uses `OffchainMidnightHolderBinding`, the `holderMethodId`
+field should not store raw UTF-8 text directly.
+
+Canonical rule:
+
+1. normalize the selected offchain DID verification method reference to
+   relative fragment form only:
+   - valid example: `#holder-key-1`
+   - absolute DID URL input must be reduced to the fragment for hashing
+2. compute:
+   - `sha256("midnight:offchain:holder-method-id:v1" || 0x00 || normalizedFragment)`
+3. store the 32-byte digest in Compact as `holderMethodId`
+
+Why:
+
+- the VC Compact type is fixed at `Bytes<32>`
+- this avoids truncation/padding ambiguity for longer method ids
+- it keeps `holderDidStateHash` and method selection as separate dimensions
+- it gives portable demos a deterministic method-reference encoding without
+  requiring full DID resolution inside Compact
