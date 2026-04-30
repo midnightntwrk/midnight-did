@@ -21,7 +21,7 @@ import { MidnightDIDSchema, type MidnightDIDString } from "./midnight.js";
  *
  * Key differences from generic W3C DID Core:
  * - @context MUST be an array with at least 2 specific URIs
- * - id MUST be a valid Midnight DID (did:midnight:<network>:<address>)
+ * - id MUST be a valid Midnight DID (did:midnight:<network>:<identifier>)
  * - controller MUST equal the DID subject (single-controller model)
  * - verificationMethod type MUST be JsonWebKey only
  * - Only Ed25519 (OKP) and EC (Jubjub or P-256) key types are supported
@@ -96,7 +96,7 @@ export const MidnightDIDDocumentSchema = DIDDocumentSchema.check(
   ),
   z.refine(
     (doc) => MidnightDIDSchema.safeParse(doc.id).success,
-    "id must be a valid Midnight DID (did:midnight:<network>:<address>)",
+    "id must be a valid Midnight DID (did:midnight:<network>:<identifier>)",
   ),
   z.refine((doc) => {
     // Controller must equal subject (single-controller model)

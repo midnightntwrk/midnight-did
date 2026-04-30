@@ -1,5 +1,6 @@
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import {
+  type ContractAddress,
   type DIDDocumentMetadata,
   parseMidnightDID,
   parseMidnightDIDString,
@@ -46,20 +47,27 @@ export class MidnightDIDResolver {
     const parsed = parseMidnightDIDString(did);
     const { network, id } = parseMidnightDID(parsed);
 
+    if (network === MidnightNetwork.Offchain) {
+      throw new Error(
+        "Offchain Midnight DIDs must be resolved from their portable DID URL state payload, not through the ledger resolver",
+      );
+    }
+
     if (this.expectedNetwork !== null && network !== this.expectedNetwork) {
       throw new Error(
         `Network mismatch: DID network is ${network}, expected ${this.expectedNetwork}`,
       );
     }
 
-    const ledgerState = await this.ledgerReader(id);
+    const contractAddress = id as ContractAddress;
+    const ledgerState = await this.ledgerReader(contractAddress);
     if (ledgerState === null) return null;
 
     return {
       didDocument: LedgerToDomain.ledgerStateToDIDDocument(
         ledgerState,
         network,
-        id,
+        contractAddress,
       ),
       didDocumentMetadata: LedgerToDomain.ledgerStateToMetadata(ledgerState),
     };
