@@ -133,4 +133,14 @@ describe("MidnightDIDResolver", () => {
 
     await expect(() => resolver.resolve(did)).rejects.toThrow(/DID not found/);
   });
+
+  it("rejects offchain Midnight DIDs in the ledger resolver", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    await expect(() =>
+      resolver.resolveResult(`did:midnight:offchain:${"b".repeat(64)}`),
+    ).rejects.toThrow(/portable DID URL state payload/);
+  });
 });

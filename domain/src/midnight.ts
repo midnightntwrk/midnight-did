@@ -7,6 +7,7 @@ export enum MidnightNetwork {
   Mainnet = "Mainnet",
   Preview = "Preview",
   Preprod = "Preprod",
+  Offchain = "Offchain",
 }
 
 export const ContractAddressHexSchema = z
@@ -19,12 +20,25 @@ export const ContractAddressHexSchema = z
 
 export type ContractAddress = z.infer<typeof ContractAddressHexSchema>;
 
+export const OffchainStateHashHexSchema = z
+  .string()
+  .check(
+    z.regex(/^[0-9a-f]{64}$/),
+    z.refine(
+      (value) => value === value.toLowerCase(),
+      "Offchain state hash must use lowercase hex",
+    ),
+  )
+  .brand("OffchainStateHash");
+
+export type OffchainStateHashHex = z.infer<typeof OffchainStateHashHexSchema>;
+
 export function parseContractAddress(input: string): ContractAddress {
   return ContractAddressHexSchema.parse(input) as ContractAddress;
 }
 
 export function createMidnightDIDString(
-  contractAddress: ContractAddress,
+  contractAddress: ContractAddress | OffchainStateHashHex,
   network: MidnightNetwork,
 ): MidnightDIDString {
   const net = network.toLowerCase();
@@ -49,12 +63,17 @@ export const MidnightDIDSchema = z
         "mainnet",
         "preview",
         "preprod",
+        "offchain",
       ].includes(net);
     }, "Unknown network in Midnight DID"),
     z.refine((val) => {
-      const addr = val.split(":")[3] ?? "";
-      return /^[0-9a-fA-F]{64}$/.test(addr);
-    }, "Invalid contract address in Midnight DID"),
+      const identifier = val.split(":")[3] ?? "";
+      return /^[0-9a-fA-F]{64}$/.test(identifier);
+    }, "Invalid method-specific identifier in Midnight DID"),
+    z.refine((val) => {
+      const [, , net, identifier] = val.split(":");
+      return net !== "offchain" || identifier === identifier.toLowerCase();
+    }, "Offchain Midnight DID identifiers must use lowercase hex"),
   )
   .brand("MidnightDID");
 
@@ -66,7 +85,7 @@ export function parseMidnightDIDString(input: string): MidnightDIDString {
 
 export function parseMidnightDID(did: MidnightDIDString): {
   network: MidnightNetwork;
-  id: ContractAddress;
+  id: ContractAddress | OffchainStateHashHex;
 } {
   const [, , net, addr] = did.split(":");
   const network =
@@ -80,6 +99,14 @@ export function parseMidnightDID(did: MidnightDIDString): {
             ? MidnightNetwork.Preview
             : net === "preprod"
               ? MidnightNetwork.Preprod
-              : MidnightNetwork.Undeployed;
-  return { network, id: addr as ContractAddress };
+              : net === "offchain"
+                ? MidnightNetwork.Offchain
+                : MidnightNetwork.Undeployed;
+  return {
+    network,
+    id:
+      network === MidnightNetwork.Offchain
+        ? (addr as OffchainStateHashHex)
+        : (addr as ContractAddress),
+  };
 }

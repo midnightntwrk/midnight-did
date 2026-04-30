@@ -38,7 +38,10 @@ describe("Midnight DID helpers", () => {
     ).toThrow(/Unknown network/);
     expect(() =>
       parseMidnightDIDString(`did:midnight:devnet:${"c".repeat(63)}`),
-    ).toThrow(/Invalid contract address/);
+    ).toThrow(/Invalid method-specific identifier/);
+    expect(() =>
+      parseMidnightDIDString(`did:midnight:offchain:${"C".repeat(64)}`),
+    ).toThrow(/lowercase hex/);
   });
 
   it("maps undeployed network strings to the correct enum", () => {
@@ -55,6 +58,13 @@ describe("Midnight DID helpers", () => {
     );
     expect(parseMidnightDID(parseMidnightDIDString(preprodDid)).network).toBe(
       MidnightNetwork.Preprod,
+    );
+  });
+
+  it("maps offchain network strings to the correct enum", () => {
+    const did = `did:midnight:offchain:${sampleAddress}`;
+    expect(parseMidnightDID(parseMidnightDIDString(did)).network).toBe(
+      MidnightNetwork.Offchain,
     );
   });
 });
