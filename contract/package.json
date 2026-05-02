@@ -43,5 +43,13 @@
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "*",
     "@midnight-ntwrk/midnight-did-jubjub-schnorr": "*"
-  }
+  },
+  "files": [
+    "dist/**",
+    "README.md",
+    "scripts/*.mjs",
+    "package.json",
+    "tsconfig.json",
+    "tsconfig.build.json"
+  ]
 }
