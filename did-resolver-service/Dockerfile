@@ -3,6 +3,7 @@ FROM node:24-bookworm-slim AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+COPY jubjub-schnorr/package.json jubjub-schnorr/package.json
 COPY contract/package.json contract/package.json
 COPY domain/package.json domain/package.json
 COPY did/package.json did/package.json
@@ -10,12 +11,13 @@ COPY did-resolver-service/package.json did-resolver-service/package.json
 
 RUN npm ci --ignore-scripts
 
+COPY jubjub-schnorr jubjub-schnorr
 COPY contract contract
 COPY domain domain
 COPY did did
 COPY did-resolver-service did-resolver-service
 
-RUN npm run build -w contract \
+RUN npm --ignore-scripts run build -w contract \
   && npm run build -w domain \
   && npm run build -w did \
   && npm run build -w did-resolver-service
@@ -27,6 +29,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY package.json package-lock.json ./
+COPY jubjub-schnorr/package.json jubjub-schnorr/package.json
 COPY contract/package.json contract/package.json
 COPY domain/package.json domain/package.json
 COPY did/package.json did/package.json
@@ -34,6 +37,7 @@ COPY did-resolver-service/package.json did-resolver-service/package.json
 
 RUN npm ci --ignore-scripts --omit=dev
 
+COPY --from=builder /app/jubjub-schnorr/dist jubjub-schnorr/dist
 COPY --from=builder /app/contract/dist contract/dist
 COPY --from=builder /app/domain/dist domain/dist
 COPY --from=builder /app/did/dist did/dist
