@@ -8,6 +8,7 @@
           git
           just
           nodejs_24
+          turbo
           self'.packages.compact-midnight
         ];
 

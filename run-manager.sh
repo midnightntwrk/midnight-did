@@ -12,7 +12,7 @@ export DID_MANAGER_SETUP="${DID_MANAGER_SETUP:-standalone}"
 run_common_ensure_contract_artifacts "manager"
 
 echo "[manager] Build dependency packages (once)"
-npm run prepare:deps -w did-manager-service
+npm run build:manager-prereqs
 
 echo "[manager] Lint"
 npm run lint -w did-manager-service
