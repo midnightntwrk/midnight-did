@@ -51,7 +51,7 @@ jobs:
         run: npm ci --prefer-offline
 
       - name: Run core workflow
-        run: SKIP_LINT_FIX=1 bash ./run-core.sh
+        run: npm run ci:core
 
   services:
     name: ${{ matrix.name }}

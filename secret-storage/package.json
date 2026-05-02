@@ -25,6 +25,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "pretest": "npm run build -w @midnight-ntwrk/midnight-did-jubjub-schnorr",
     "test": "vitest run -c vitest.config.ts --passWithNoTests",
+    "test:ci": "npm run test",
     "precoverage": "npm run build -w @midnight-ntwrk/midnight-did-jubjub-schnorr",
     "coverage": "vitest run -c vitest.config.ts --coverage",
     "clean": "rm -rf dist && rm -rf coverage",

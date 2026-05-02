@@ -9,10 +9,7 @@ run_common_ensure_runtime_helpers
 run_common_ensure_contract_artifacts "api"
 
 echo "[api] Build dependencies"
-npm run build -w contract
-npm run build -w domain
-npm run build -w did
-npm run build -w secret-storage
+npm run build:service-prereqs
 
 echo "[api] Build API"
 npm run build -w api

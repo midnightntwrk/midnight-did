@@ -10,11 +10,7 @@ run_common_auto_proof_server_image "resolver"
 run_common_ensure_contract_artifacts "resolver"
 
 echo "[resolver] Build dependencies"
-npm run build -w contract
-npm run build -w domain
-npm run build -w did
-npm run build -w secret-storage
-npm run build -w api
+npm run build:service-prereqs
 
 echo "[resolver] Lint + build"
 npm run lint -w did-resolver-service
