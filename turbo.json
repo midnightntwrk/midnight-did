@@ -1,5 +1,11 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [
+    "package-lock.json",
+    "tsconfig*.json",
+    ".eslintrc*",
+    ".nvmrc"
+  ],
   "tasks": {
     "clean": {
       "cache": false
@@ -25,8 +31,6 @@
       "outputs": [
         "dist/**",
         "src/managed/**",
-        "coverage/**",
-        "reports/**",
         "*.tsbuildinfo"
       ]
     },
