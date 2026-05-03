@@ -49,8 +49,8 @@ run_common_auto_proof_server_image() {
 
 run_common_ensure_contract_artifacts() {
   local caller="${1:-run}"
-  if [[ ! -f "contract/src/managed/did/contract/index.js" ]]; then
-    echo "[${caller}] Generate contract managed artifacts"
-    npm run contract -w contract
+  if [[ ! -f "contract/dist/managed/did/contract/index.js" ]]; then
+    echo "[${caller}] Build contract package outputs"
+    npm run build:prepared -w contract
   fi
 }
