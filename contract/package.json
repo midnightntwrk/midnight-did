@@ -23,7 +23,7 @@
     "precompact": "npm run build -w @midnight-ntwrk/midnight-did-jubjub-schnorr",
     "prebuild": "npm run compact",
     "contract": "npm run compact",
-    "build:prepared": "npm run compact && npm run build",
+    "build:prepared": "npm run build",
     "compact": "compact compile src/did.compact src/managed/did && node ./scripts/align-runtime-version.mjs && node ./scripts/strip-managed-sourcemaps.mjs",
     "pretest": "npm run build -w @midnight-ntwrk/midnight-did-jubjub-schnorr",
     "test": "vitest run",
