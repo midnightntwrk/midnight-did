@@ -107,8 +107,8 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline
 
-      - name: Prepare contract generated artifacts
-        run: npm run contract -w contract
+      - name: Prepare contract package build outputs
+        run: npm run build:prepared -w contract
 
       - name: Run service workflow
         run: bash ${{ matrix.script }}
