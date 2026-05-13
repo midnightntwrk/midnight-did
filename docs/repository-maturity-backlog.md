@@ -23,8 +23,9 @@
 4. **Fail-fast API/CLI dependencies check in dev environment**
    - Add a local precheck for known workspace dependency/type drift before `run.sh` starts so failures are easier to triage.
 
-5. **Formalize workspace contract for each package**
-   - Validate that every workspace defines a minimum set of scripts (`lint`, `build`, `test`, `coverage`) before pipeline start.
+5. ✅ **Done: Formalize workspace contract for each package**
+   - `scripts/repository-audit.mjs` now enforces required workspace scripts `lint`, `build`, `test`, `coverage`, and `lint:fix`.
+   - Added `cli` `test` script alias (`npm run test-api`) so all workspaces satisfy the contract.
 
 6. **Add deterministic timing artifact export**
    - Add `--metrics-json <path>` option to `run.sh` and publish artifacts in CI for trend analysis.

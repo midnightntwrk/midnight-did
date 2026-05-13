@@ -9,7 +9,7 @@ const pkgPath = resolve("package.json");
 const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
 const workspaces = Array.isArray(pkg.workspaces) ? pkg.workspaces : [];
 
-const requiredWorkspaceScripts = ["lint", "build", "coverage", "lint:fix"];
+const requiredWorkspaceScripts = ["lint", "build", "test", "coverage", "lint:fix"];
 const expectedOutOfScope = [
   "credentials",
   "credentials-birth",
