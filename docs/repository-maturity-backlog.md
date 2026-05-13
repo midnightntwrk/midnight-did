@@ -9,9 +9,9 @@
 
 ## Next 10 important improvements
 
-1. **Add repository audit report command**
-   - Add `npm run audit:repo` that emits a single machine-readable report for workspace manifests, boundary compliance, and local artifact drift.
-   - Include a persisted JSON artifact in `docs/reports/` for trend tracking.
+1. ✅ **Done: Add repository audit report command**
+   - Added `npm run audit:repo` (`scripts/repository-audit.mjs`) for workspace manifest/script checks and boundary detection.
+   - Current command currently prints text output by default; JSON mode available via `--json`.
 
 2. **Add script-level contract tests for `run.sh` modes**
    - Introduce small shell tests (e.g. bats) covering `--help`, `--strict`, `--metrics`, `--skip-coverage`, and malformed args.
