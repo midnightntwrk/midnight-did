@@ -22,6 +22,7 @@
     "pack:cli": "npm_config_cache=.npm-cache bash -lc 'cd cli && npm pack'",
     "pack:all": "npm run pack:contract && npm run pack:cli && echo 'Artifacts:' && ls -1 *.tgz || true && ls -1 contract/*.tgz cli/*.tgz || true",
     "checkdeps": "bash scripts/check-deps.sh",
+    "check:toolchain": "node scripts/check-toolchain.mjs",
     "check:workspaces": "node scripts/validate-workspace-manifests.js",
     "run:strict": "bash ./run.sh --strict",
     "run:pipeline-checks": "npm run check:boundaries && bash ./run.sh --strict",
