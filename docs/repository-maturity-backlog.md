@@ -13,8 +13,9 @@
    - Added `npm run audit:repo` (`scripts/repository-audit.mjs`) for workspace manifest/script checks and boundary detection.
    - Current command currently prints text output by default; JSON mode available via `--json`.
 
-2. **Add script-level contract tests for `run.sh` modes**
+2. ✅ **Done: Add script-level contract tests for `run.sh` modes**
    - Introduce small shell tests (e.g. bats) covering `--help`, `--strict`, `--metrics`, `--skip-coverage`, and malformed args.
+   - Implemented as `scripts/run-sh-contract.test.mjs` executed via `npm run test:run-sh`.
 
 3. **Split coverage from core CI path with allowlist**
    - Add optional CI job matrix entry `run:fast` for day-to-day checks and keep full coverage on nightly/weekly schedule.

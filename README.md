@@ -79,6 +79,7 @@ See [Repository Boundary and Workspace Policy](docs/repository-boundary.md) for 
 - Boundary checks (before broad refactors): `npm run check:boundaries`
 - Local state cleanup: `npm run clean:local-state`
 - Repo audit: `npm run audit:repo`
+- run.sh contract checks: `npm run test:run-sh`
 
 
 ### LICENSE
