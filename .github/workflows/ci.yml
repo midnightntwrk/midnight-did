@@ -18,8 +18,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  run-pipeline:
+  run-pipeline-fast:
+    name: Build, Lint, Test (No Coverage)
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      COMPACT_COMPILER_VERSION: 0.29.0
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # ratchet:actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Set up Compact toolchain
+        uses: midnightntwrk/setup-compact-action@v1
+        with:
+          compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
+
+      - name: Verify Compact installation
+        run: compact compile --version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate workspace boundary
+        run: npm run check:workspaces
+
+      - name: Validate run.sh contract modes
+        run: npm run test:run-sh
+
+      - name: Run project workflow
+        run: npm run run:fast
+
+  run-pipeline-full:
     name: Build, Lint, Test, and Coverage
+    if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
