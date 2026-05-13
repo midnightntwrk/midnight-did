@@ -35,8 +35,8 @@
    - `run.sh` executes this precheck before patching and heavy pipeline work.
    - Added in [`scripts/check-toolchain.mjs`](/Users/ysh/iohk/midnight-did/scripts/check-toolchain.mjs) and wired via `run.sh` (`node scripts/check-toolchain.mjs`).
 
-8. **Tighten CI smoke targets**
-   - Add a minimal workflow job that runs only `npm run check:boundaries` + `npm run run:fast` to catch most breakage in < 10 minutes.
+8. ✅ **Done: Tighten CI smoke targets**
+   - Added `run-pipeline-fast` (`push`/`pull_request`/`workflow_dispatch`) with quick boundary checks and `npm run run:fast`.
 
 9. **Unify documentation and script discoverability**
    - Add a small contributor section in `CONTRIBUTING.md` listing canonical scripts and recommended local workflow by role (issue triage, feature, release).

@@ -80,6 +80,7 @@ See [Repository Boundary and Workspace Policy](docs/repository-boundary.md) for 
 - Local state cleanup: `npm run clean:local-state`
 - Repo audit: `npm run audit:repo`
 - run.sh contract checks: `npm run test:run-sh`
+- Toolchain sanity check: `npm run check:toolchain`
 
 
 ### LICENSE
