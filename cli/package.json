@@ -9,6 +9,7 @@
     "npm": ">=10"
   },
   "scripts": {
+    "test": "npm run test-api",
     "prebuild": "npm --prefix ../contract run build && npm --prefix ../api run build",
     "testnet-remote": "node --experimental-specifier-resolution=node --loader ts-node/esm src/testnet-remote.ts",
     "testnet-remote-ps": "cp -r proof-server-testnet.yml ./dist/ && node --experimental-specifier-resolution=node --loader ts-node/esm src/testnet-remote-start-proof-server.ts",
