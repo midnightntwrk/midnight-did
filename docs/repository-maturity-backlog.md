@@ -17,8 +17,8 @@
    - Introduce small shell tests (e.g. bats) covering `--help`, `--strict`, `--metrics`, `--skip-coverage`, and malformed args.
    - Implemented as `scripts/run-sh-contract.test.mjs` executed via `npm run test:run-sh`.
 
-3. **Split coverage from core CI path with allowlist**
-   - Add optional CI job matrix entry `run:fast` for day-to-day checks and keep full coverage on nightly/weekly schedule.
+3. ✅ **Done: Split coverage from core CI path with allowlist**
+   - CI now runs `run:fast` for push/pull_request/dispatch and keeps full `run:strict` with coverage only on scheduled runs.
 
 4. **Fail-fast API/CLI dependencies check in dev environment**
    - Add a local precheck for known workspace dependency/type drift before `run.sh` starts so failures are easier to triage.
