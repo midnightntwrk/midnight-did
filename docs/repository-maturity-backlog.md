@@ -30,8 +30,10 @@
 6. **Add deterministic timing artifact export**
    - Add `--metrics-json <path>` option to `run.sh` and publish artifacts in CI for trend analysis.
 
-7. **Introduce a root-level `npx`/`npm` sanity task**
-   - Add guard to validate Node/npm ranges, lockfile/tooling versions, and essential binaries before running full pipeline.
+7. ✅ **Done: Introduce a root-level `npx`/`npm` sanity task**
+   - Added `npm run check:toolchain` with root precheck logic in `scripts/check-toolchain.mjs`.
+   - `run.sh` executes this precheck before patching and heavy pipeline work.
+   - Added in [`scripts/check-toolchain.mjs`](/Users/ysh/iohk/midnight-did/scripts/check-toolchain.mjs) and wired via `run.sh` (`node scripts/check-toolchain.mjs`).
 
 8. **Tighten CI smoke targets**
    - Add a minimal workflow job that runs only `npm run check:boundaries` + `npm run run:fast` to catch most breakage in < 10 minutes.

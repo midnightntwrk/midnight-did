@@ -45,6 +45,7 @@ while (($#)); do
 done
 
 if [[ "$DRY_RUN" != "1" ]]; then
+  node ./scripts/check-toolchain.mjs
   node ./scripts/ensure-onchain-runtime-cjs.mjs
 fi
 
