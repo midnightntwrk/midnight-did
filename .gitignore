@@ -22,6 +22,24 @@ coverage
 # Dependency directories
 jspm_packages/
 
+# Workspace-local build/test residues
+api/.midnight-db/
+.turbo/
+docs-site/
+review/
+did-manager-service/
+credentials/
+credentials-birth/
+credentials-birth-secret/
+credentials-demo-contract/
+credentials-iso-registry/
+credentials-openid/
+credentials-protocol/
+credentials-same-holder/
+secret-storage/
+midnight-passport-prototype/
+proof-server-bootstrap/
+
 # Optional npm cache directory
 .npm
 
