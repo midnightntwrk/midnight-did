@@ -4,6 +4,7 @@ set -euo pipefail
 STRICT_MODE=0
 PRINT_METRICS=0
 SKIP_COVERAGE=0
+DRY_RUN="${MIDNIGHT_DID_DRY_RUN:-0}"
 
 usage() {
   cat <<'EOF'
@@ -43,7 +44,9 @@ while (($#)); do
   shift
 done
 
-node ./scripts/ensure-onchain-runtime-cjs.mjs
+if [[ "$DRY_RUN" != "1" ]]; then
+  node ./scripts/ensure-onchain-runtime-cjs.mjs
+fi
 
 declare -a STEP_LABELS=()
 declare -a STEP_COMMANDS=()
@@ -125,6 +128,16 @@ add_step "Build and test DID resolver service" "npm run build -w did-resolver-se
 
 if [[ "$SKIP_COVERAGE" == "0" ]]; then
   add_step "Coverage DID resolver service" "npm run coverage -w did-resolver-service || true"
+fi
+
+if [[ "$DRY_RUN" == "1" ]]; then
+  echo "DRY-RUN: planned steps:"
+  for step_index in "${!STEP_LABELS[@]}"; do
+    display_step=$((step_index + 1))
+    total_steps=${#STEP_LABELS[@]}
+    echo "  ${display_step}/${total_steps} ${STEP_LABELS[$step_index]}"
+  done
+  exit 0
 fi
 
 for step_index in "${!STEP_LABELS[@]}"; do

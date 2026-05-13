@@ -49,5 +49,8 @@ jobs:
       - name: Validate workspace boundary
         run: npm run check:workspaces
 
+      - name: Validate run.sh contract modes
+        run: npm run test:run-sh
+
       - name: Run project workflow
         run: npm run run:strict
