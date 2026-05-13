@@ -52,8 +52,13 @@ Why these dependencies
 - Node 24 is required (see `.nvmrc`); npm >= 10
 - Recommended: `nvm use` before running scripts
 - One-shot pipeline: `./run.sh` (builds, lints, tests, coverage)
+- Strict pipeline: `npm run run:strict` or `./run.sh --strict` (no auto-fix pass)
+- Fast pipeline: `npm run run:fast` (skip coverage steps)
+- Timing pipeline: `npm run run:metrics` or `./run.sh --metrics` (per-step timing)
 - Circuit compilation uses the [`@midnight-ntwrk/compact`](https://github.com/midnightntwrk/compact) CLI via `compact compile`; the workspace scripts invoke it automatically.
 - `./run.sh` automatically patches `@midnight-ntwrk/onchain-runtime` with a CommonJS shim (see `docs/runtime-shim.md`) so contract tooling continues to work until upstream ships a CJS entrypoint.
+
+See [Repository Boundary and Workspace Policy](docs/repository-boundary.md) for the active package scope and local artifact policy.
 
 ### Testing
 
@@ -70,7 +75,9 @@ Why these dependencies
 
 - Run both API and resolver tests:
   - `npm run test -w api && npm run test -w did-resolver-service && npm run test:integration -w did-resolver-service`
-  - Full repository pipeline (recommended): `./run.sh`
+- Full repository pipeline (recommended): `./run.sh`
+- Boundary checks (before broad refactors): `npm run check:boundaries`
+- Local state cleanup: `npm run clean:local-state`
 
 
 ### LICENSE
