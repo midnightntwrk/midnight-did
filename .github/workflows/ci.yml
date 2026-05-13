@@ -50,4 +50,4 @@ jobs:
         run: npm run check:workspaces
 
       - name: Run project workflow
-        run: bash ./run.sh
+        run: npm run run:strict
