@@ -4,11 +4,12 @@ set -euo pipefail
 STRICT_MODE=0
 PRINT_METRICS=0
 SKIP_COVERAGE=0
+METRICS_JSON_PATH=""
 DRY_RUN="${MIDNIGHT_DID_DRY_RUN:-0}"
 
 usage() {
   cat <<'EOF'
-Usage: ./run.sh [--strict] [--metrics] [--skip-coverage] [-h|--help]
+Usage: ./run.sh [--strict] [--metrics] [--skip-coverage] [--metrics-json <file>] [-h|--help]
 
 Runs the full local pipeline.
 
@@ -16,6 +17,8 @@ Options:
   --strict        Do not run lint:fix; fail if lint is not clean.
   --metrics       Print per-step wall-clock durations.
   --skip-coverage Skip all coverage steps (faster local runs).
+  --metrics-json  Export timings as JSON. Requires a destination path:
+                  --metrics-json <path/to/metrics.json>
   -h, --help      Show this help text.
 EOF
 }
@@ -31,6 +34,14 @@ while (($#)); do
     --skip-coverage)
       SKIP_COVERAGE=1
       ;;
+    --metrics-json)
+      if (($# < 2)); then
+        echo "--metrics-json requires a file path." >&2
+        exit 1
+      fi
+      shift
+      METRICS_JSON_PATH=$1
+      ;;
     -h|--help)
       usage
       exit 0
@@ -45,6 +56,7 @@ while (($#)); do
 done
 
 if [[ "$DRY_RUN" != "1" ]]; then
+  node ./scripts/check-workspace-dependencies.mjs
   node ./scripts/check-toolchain.mjs
   node ./scripts/ensure-onchain-runtime-cjs.mjs
 fi
@@ -60,6 +72,16 @@ add_step() {
 
 now_ms() {
   node -e 'process.stdout.write(String(Date.now()))'
+}
+
+json_escape() {
+  local value=$1
+  value=${value//\\/\\\\}
+  value=${value//\"/\\\"}
+  value=${value//$'\n'/\\n}
+  value=${value//$'\r'/\\r}
+  value=${value//$'\t'/\\t}
+  printf '%s' "$value"
 }
 
 run_step() {
@@ -91,6 +113,36 @@ run_step() {
   if [[ "$PRINT_METRICS" == "1" ]]; then
     printf "  step %03d: %8dms\n" "$display_step" "$elapsed_ms"
   fi
+}
+
+write_metrics_json() {
+  local total_steps=${#STEP_LABELS[@]}
+  {
+    printf '{\n'
+    printf '  "generatedAt": "%s",\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf '  "totalSteps": %d,\n' "${total_steps}"
+    printf '  "strictMode": %s,\n' "${STRICT_MODE}"
+    printf '  "skipCoverage": %s,\n' "${SKIP_COVERAGE}"
+    printf '  "printMetrics": %s,\n' "${PRINT_METRICS}"
+    printf '  "steps": [\n'
+    local i=0
+    local label
+    local duration
+    for i in "${!STEP_LABELS[@]}"; do
+      local step_index=$((i + 1))
+      local escaped_label
+      duration="${STEP_DURATIONS[$i]:-0}"
+      label="${STEP_LABELS[$i]}"
+      escaped_label="$(json_escape "$label")"
+      if ((i > 0)); then
+        printf ',\n'
+      fi
+      printf '    {"index": %d, "label": "%s", "durationMs": %s}' "${step_index}" "${escaped_label}" "${duration}"
+    done
+    printf '\n  ]\n'
+    printf '}\n'
+  } >"${METRICS_JSON_PATH}"
+  echo "Metrics JSON written to: ${METRICS_JSON_PATH}"
 }
 
 if [[ "$STRICT_MODE" == "1" ]]; then
@@ -138,6 +190,13 @@ if [[ "$DRY_RUN" == "1" ]]; then
     total_steps=${#STEP_LABELS[@]}
     echo "  ${display_step}/${total_steps} ${STEP_LABELS[$step_index]}"
   done
+  if [[ -n "$METRICS_JSON_PATH" ]]; then
+    STEP_DURATIONS=()
+    for ((i=0; i<${#STEP_LABELS[@]}; i++)); do
+      STEP_DURATIONS+=(0)
+    done
+    write_metrics_json
+  fi
   exit 0
 fi
 
@@ -155,4 +214,8 @@ if [[ "$PRINT_METRICS" == "1" ]]; then
       $((i + 1)) "${STEP_LABELS[$i]}" "$duration"
   done
   echo "Total: ${#STEP_LABELS[@]} steps, ${#STEP_DURATIONS[@]} durations."
+fi
+
+if [[ -n "$METRICS_JSON_PATH" ]]; then
+  write_metrics_json
 fi

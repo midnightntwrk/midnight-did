@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,4 L0,8" fill="#334155" />
+    </marker>
+    <style>
+      .title { font: 700 22px system-ui, -apple-system, sans-serif; fill: #0f172a; }
+      .sub { font: 500 16px system-ui, -apple-system, sans-serif; fill: #0f172a; }
+      .label { font: 400 13px system-ui, -apple-system, sans-serif; fill: #475569; }
+      .lane { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.5; }
+      .actor { fill: #eef2ff; stroke: #4338ca; stroke-width: 2; }
+      .event { fill: #fff; stroke: #64748b; stroke-width: 1.5; rx: 8; }
+      .ok { fill: #dcfce7; stroke: #22c55e; }
+      .warn { fill: #fef9c3; stroke: #ca8a04; }
+      .bad { fill: #fee2e2; stroke: #ef4444; }
+      .edge { stroke: #334155; stroke-width: 2; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <text x="20" y="40" class="title">University-style flow: before vs after contract + VC improvements</text>
+
+  <!-- lanes -->
+  <rect class="lane" x="30" y="70" width="350" height="300" />
+  <rect class="lane" x="420" y="70" width="350" height="300" />
+  <rect class="lane" x="810" y="70" width="360" height="300" />
+
+  <text x="110" y="95" class="sub">Current Baseline</text>
+  <text x="490" y="95" class="sub">Improvement</text>
+  <text x="930" y="95" class="sub">Target Outcome</text>
+
+  <!-- left nodes -->
+  <rect class="event bad" x="55" y="125" width="300" height="60" />
+  <text x="85" y="155" class="label">Student submits proof for diploma eligibility</text>
+  <text x="85" y="172" class="label">No standardized VC schema/revocation checks</text>
+
+  <rect class="event bad" x="55" y="210" width="300" height="60" />
+  <text x="85" y="240" class="label">Verifier accepts ad-hoc payloads</text>
+  <text x="85" y="257" class="label">Hard to trust, hard to automate</text>
+
+  <rect class="event bad" x="55" y="295" width="300" height="60" />
+  <text x="85" y="325" class="label">Each integration re-implements trust rules</text>
+
+  <!-- middle nodes -->
+  <rect class="event warn" x="445" y="125" width="300" height="60" />
+  <text x="475" y="155" class="label">Define compact credential format + issuance policy</text>
+
+  <rect class="event warn" x="445" y="210" width="300" height="60" />
+  <text x="475" y="240" class="label">University issues signed credential</text>
+  <text x="475" y="257" class="label">DID-based subject + issuer binding</text>
+
+  <rect class="event warn" x="445" y="295" width="300" height="60" />
+  <text x="475" y="325" class="label">Registry + status + scripts verify in pipeline</text>
+
+  <!-- right nodes -->
+  <rect class="event ok" x="840" y="125" width="300" height="60" />
+  <text x="870" y="155" class="label">Student stores VC and presents concise proof</text>
+
+  <rect class="event ok" x="840" y="210" width="300" height="60" />
+  <text x="870" y="240" class="label">Verifier checks DID + issuer trust + status</text>
+  <text x="870" y="257" class="label">Deterministic decision: approved/denied</text>
+
+  <rect class="event ok" x="840" y="295" width="300" height="60" />
+  <text x="870" y="325" class="label">Reusable credential works across jobs, discounts, and access rules</text>
+
+  <!-- arrows -->
+  <line x1="355" y1="155" x2="420" y2="155" class="edge" />
+  <line x1="355" y1="240" x2="420" y2="240" class="edge" />
+  <line x1="355" y1="325" x2="420" y2="325" class="edge" />
+
+  <line x1="745" y1="155" x2="810" y2="155" class="edge" />
+  <line x1="745" y1="240" x2="810" y2="240" class="edge" />
+  <line x1="745" y1="325" x2="810" y2="325" class="edge" />
+
+</svg>

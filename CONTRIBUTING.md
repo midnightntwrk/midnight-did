@@ -62,6 +62,30 @@ Ensure the title is a clear summary of the requirement and provides enough conte
 
 Where this is not possible, a copy of the Apache 2.0 or the repository's top-level LICENSE file in the same directory is required
 
+## Role-Based Local Workflow Matrix
+
+Use one of these flows to align work type with local scripts:
+
+- **Issue Triage**
+  - Run `npm run check:workspaces` to verify workspace boundaries.
+  - Run `npm run test:run-sh` to keep `run.sh` contract behavior stable.
+  - Run `npm run lint:fix -w <workspace>` only for touched scope if needed.
+
+- **Feature Work**
+  - Run `npm run run:fast` for iterative development.
+  - Run `npm run run:strict` before opening a PR to ensure clean lints.
+  - Run `npm run test -w <workspace>` while you work; add integration/system tests before review.
+
+- **Release Preparation**
+  - Run `npm run check:boundaries` followed by `npm run run:strict`.
+  - Validate docs, changelog, and examples with related workspace tests.
+
+- **CI Triage**
+  - Reproduce CI by running `npm run check:toolchain`, `npm run test:run-sh`, and the same CI flavor:
+    - `npm run run:fast` for push/PR behavior.
+    - `npm run run:strict` for strict behavior.
+  - Export timings with `./run.sh --metrics-json /tmp/run-metrics.json --strict` when debugging regressions.
+
 ## Support and Communication:
 
 Ask anything about Midnight! We're here to help. Connect with us on [Discord](https://discord.com/invite/midnightnetwork), [Telegram](https://t.me/Midnight_Network_Official), and [X](https://x.com/MidnightNtwrk) and Join the Community to stay updated and engage with other Midnight enthusiasts.

@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560">
+  <defs>
+    <marker id="arrow2" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,4 L0,8" fill="#334155" />
+    </marker>
+    <style>
+      .title { font: 700 24px system-ui, -apple-system, sans-serif; fill: #0f172a; }
+      .sub { font: 500 14px system-ui, -apple-system, sans-serif; fill: #334155; }
+      .label { font: 500 13px system-ui, -apple-system, sans-serif; fill: #0f172a; }
+      .tiny { font: 400 12px system-ui, -apple-system, sans-serif; fill: #475569; }
+      .lane { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.8; }
+      .core { fill: #dbeafe; stroke: #2563eb; }
+      .service { fill: #dcfce7; stroke: #16a34a; }
+      .new { fill: #fde68a; stroke: #ca8a04; }
+      .edge { stroke: #334155; stroke-width: 2; marker-end: url(#arrow2); }
+      .bg { fill: #f1f5f9; stroke: #cbd5e1; }
+    </style>
+  </defs>
+
+  <text x="20" y="40" class="title">Use Case Readiness by Engineering Layer</text>
+  <text x="20" y="64" class="sub">What ships from current specs quickly vs what needs new modules in this repo.</text>
+
+  <rect class="lane" x="20" y="100" width="360" height="420" />
+  <rect class="lane" x="420" y="100" width="360" height="420" />
+  <rect class="lane" x="820" y="100" width="360" height="420" />
+
+  <text x="70" y="130" class="label">A) Current DID-Core Layer</text>
+  <text x="470" y="130" class="label">B) Service / Protocol Layer</text>
+  <text x="870" y="130" class="label">C) New Contract + Registry Layer</text>
+
+  <line x1="400" y1="100" x2="400" y2="520" stroke="#94a3b8" stroke-width="1.5" />
+  <line x1="800" y1="100" x2="800" y2="520" stroke="#94a3b8" stroke-width="1.5" />
+
+  <rect class="core" x="40" y="160" width="320" height="44" rx="12" />
+  <text x="55" y="188" class="tiny">Auth with DID + WebAuthn</text>
+
+  <rect class="core" x="40" y="220" width="320" height="44" rx="12" />
+  <text x="55" y="248" class="tiny">Signing / verifying credentials</text>
+
+  <rect class="core" x="40" y="280" width="320" height="44" rx="12" />
+  <text x="55" y="308" class="tiny">Delegated agent authorization</text>
+
+  <rect class="core" x="40" y="340" width="320" height="44" rx="12" />
+  <text x="55" y="368" class="tiny">DIDComm discovery profile prep</text>
+
+  <rect class="core" x="40" y="400" width="320" height="44" rx="12" />
+  <text x="55" y="428" class="tiny">Record provenance signatures</text>
+
+  <rect class="service" x="440" y="160" width="320" height="44" rx="12" />
+  <text x="455" y="188" class="tiny">Reusable KYC/compliance attestations</text>
+
+  <rect class="service" x="440" y="220" width="320" height="44" rx="12" />
+  <text x="455" y="248" class="tiny">Regulated finance / RWA access</text>
+
+  <rect class="service" x="440" y="280" width="320" height="44" rx="12" />
+  <text x="455" y="308" class="tiny">Healthcare + medical attestations</text>
+
+  <rect class="service" x="440" y="340" width="320" height="44" rx="12" />
+  <text x="455" y="368" class="tiny">Proof flow UX + policy enforcement</text>
+
+  <rect class="new" x="840" y="160" width="320" height="44" rx="12" />
+  <text x="855" y="188" class="tiny">Trust registry for issuers/verifiers</text>
+
+  <rect class="new" x="840" y="220" width="320" height="44" rx="12" />
+  <text x="855" y="248" class="tiny">Multi-sig governance contracts</text>
+
+  <rect class="new" x="840" y="280" width="320" height="44" rx="12" />
+  <text x="855" y="308" class="tiny">ZKP age verification circuits</text>
+
+  <rect class="new" x="840" y="340" width="320" height="44" rx="12" />
+  <text x="855" y="368" class="tiny">Revocation / status services</text>
+
+  <line class="edge" x1="360" y1="182" x2="420" y2="182" />
+  <line class="edge" x1="760" y1="182" x2="820" y2="182" />
+  <line class="edge" x1="360" y1="242" x2="420" y2="242" />
+  <line class="edge" x1="760" y1="242" x2="820" y2="242" />
+  <line class="edge" x1="360" y1="302" x2="420" y2="302" />
+  <line class="edge" x1="760" y1="302" x2="820" y2="302" />
+
+  <text x="30" y="525" class="tiny">Legend: blue=DID core ready, green=service patterns, yellow=new on-chain or governance layer.</text>
+</svg>

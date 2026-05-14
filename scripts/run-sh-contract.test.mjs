@@ -2,6 +2,8 @@
 import { strict as assert } from "node:assert";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -69,5 +71,20 @@ const nonStrictResult = runDryRun([]);
 assert.equal(nonStrictResult.exitCode, 0, "dry-run default mode should succeed");
 assertContains(nonStrictResult.stdout, "Lint (fix) workspaces", "default first step");
 assertContains(nonStrictResult.stdout, "Lint workspaces", "default second step");
+
+const metricsDir = mkdtempSync(path.join(tmpdir(), "run-sh-metrics-"));
+const metricsPath = path.join(metricsDir, "metrics.json");
+const metricsResult = runDryRun(["--metrics-json", metricsPath, "--skip-coverage"]);
+assert.equal(metricsResult.exitCode, 0, "dry-run with metrics-json should succeed");
+assertContains(metricsResult.stdout, "Metrics JSON written to:", "metrics json output");
+assert.ok(existsSync(metricsPath), "metrics json file should be created");
+
+const metricsPayload = JSON.parse(readFileSync(metricsPath, "utf8"));
+assert.equal(metricsPayload.printMetrics, 0, "metrics payload records printMetrics");
+assert.equal(metricsPayload.skipCoverage, 1, "metrics payload records skip-coverage");
+assert.ok(Array.isArray(metricsPayload.steps), "metrics payload should include steps array");
+
+rmSync(metricsPath);
+rmSync(metricsDir, { recursive: true, force: true });
 
 console.log("run.sh contract mode checks passed.");

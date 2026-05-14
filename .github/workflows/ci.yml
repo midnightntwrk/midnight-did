@@ -54,7 +54,16 @@ jobs:
         run: npm run test:run-sh
 
       - name: Run project workflow
-        run: npm run run:fast
+        run: |
+          mkdir -p ci-artifacts/metrics
+          bash ./run.sh --skip-coverage --metrics-json ci-artifacts/metrics/ci-metrics.json
+
+      - name: Publish metrics artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-metrics-fast
+          path: ci-artifacts/metrics/ci-metrics.json
 
   run-pipeline-full:
     name: Build, Lint, Test, and Coverage
@@ -92,4 +101,13 @@ jobs:
         run: npm run test:run-sh
 
       - name: Run project workflow
-        run: npm run run:strict
+        run: |
+          mkdir -p ci-artifacts/metrics
+          bash ./run.sh --strict --metrics-json ci-artifacts/metrics/ci-metrics-strict.json
+
+      - name: Publish metrics artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-metrics-full
+          path: ci-artifacts/metrics/ci-metrics-strict.json
