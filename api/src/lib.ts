@@ -83,6 +83,36 @@ let logger: Logger;
 // @ts-expect-error assign for apollo/ws
 globalThis.WebSocket = WebSocket;
 
+const PRIVATE_STATE_PASSWORD_ENV = "MIDNIGHT_DID_PRIVATE_STATE_PASSWORD";
+const LOCAL_PRIVATE_STATE_PASSWORD =
+  "Midnight-DID-local-private-state-password-2026!";
+let warnedAboutLocalPrivateStatePassword = false;
+
+const getPrivateStatePassword = (): string => {
+  const configuredPassword = process.env[PRIVATE_STATE_PASSWORD_ENV];
+  if (configuredPassword != null && configuredPassword.length > 0) {
+    return configuredPassword;
+  }
+
+  const networkId = String(getNetworkId()).toLowerCase();
+  if (networkId === "undeployed") {
+    if (!warnedAboutLocalPrivateStatePassword) {
+      process.emitWarning(
+        `${PRIVATE_STATE_PASSWORD_ENV} is not set; using the local standalone-only private state password fallback.`,
+        {
+          code: "MIDNIGHT_DID_PRIVATE_STATE_PASSWORD_MISSING",
+        },
+      );
+      warnedAboutLocalPrivateStatePassword = true;
+    }
+    return LOCAL_PRIVATE_STATE_PASSWORD;
+  }
+
+  throw new Error(
+    `${PRIVATE_STATE_PASSWORD_ENV} must be set before configuring Midnight DID private state for network ${networkId}.`,
+  );
+};
+
 // HD key derivation from seed
 const deriveKeysFromSeed = (seed: string) => {
   const hdWallet = HDWallet.fromSeed(Buffer.from(seed, "hex"));
@@ -894,9 +924,7 @@ export const configureProviders = async (
   return {
     privateStateProvider: levelPrivateStateProvider({
       privateStateStoreName: contractConfig.privateStateStoreName,
-      privateStoragePasswordProvider: () =>
-        process.env.MIDNIGHT_DID_PRIVATE_STATE_PASSWORD ??
-        "Midnight-DID-local-private-state-password-2026!",
+      privateStoragePasswordProvider: getPrivateStatePassword,
       accountId: String(ctx.unshieldedKeystore.getBech32Address()),
     }),
     publicDataProvider: indexerPublicDataProvider(

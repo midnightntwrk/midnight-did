@@ -24,7 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Resolver `indexerUrl`/`indexerWsUrl` request overrides are now restricted to configured defaults or `MIDNIGHT_INDEXER_ALLOWLIST`.
 - Resolver Docker image now runs as the non-root `node` user.
+- API/CLI private-state storage now requires `MIDNIGHT_DID_PRIVATE_STATE_PASSWORD` outside standalone `undeployed` runs.
+- CLI wallet summaries and test logs redact wallet seeds by default and print only a non-secret fingerprint.
 - CI now pins the Compact setup action by SHA and runs a fast contract coverage threshold gate on PRs.
+
+### Fixed
+
+- Delegation state loading now persists normalized verification method ids from fixtures.
+- Delegation key rotation now preserves the source grant expiry window for the replacement method.
 
 ### Breaking Changes
 

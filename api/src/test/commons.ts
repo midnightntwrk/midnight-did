@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import type { Logger } from "pino";
 import * as Rx from "rxjs";
@@ -22,6 +24,9 @@ const GENESIS_MINT_WALLET_SEED =
   "0000000000000000000000000000000000000000000000000000000000000001";
 const PROOF_SERVER_IMAGE =
   process.env.PROOF_SERVER_IMAGE ?? "midnightntwrk/proof-server:7.0.0";
+
+const seedFingerprint = (seed: string): string =>
+  createHash("sha256").update(seed).digest("hex").slice(0, 12);
 
 export interface TestConfiguration {
   seed: string;
@@ -104,7 +109,9 @@ export class TestEnvironment {
   start = async (): Promise<TestConfiguration> => {
     if (process.env.RUN_ENV_TESTS === "true") {
       this.testConfig = parseArgs(["seed", "env"]);
-      this.logger.info(`Test wallet seed: ${this.testConfig.seed}`);
+      this.logger.info(
+        `Test wallet seed fingerprint: sha256:${seedFingerprint(this.testConfig.seed)}`,
+      );
       this.logger.info("Proof server starting...");
       this.container = await TestEnvironment.getProofServerContainer(
         this.testConfig.psMode,

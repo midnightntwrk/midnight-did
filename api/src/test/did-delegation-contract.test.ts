@@ -1,3 +1,7 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -95,6 +99,58 @@ describe("did delegation lifecycle", () => {
     ]);
   });
 
+  it("keeps delegated rotation within the original grant expiry window", () => {
+    let expiringState: DelegationState = applyDelegationTransition(
+      BASELINE_STATE,
+      {
+        action: "grant",
+        delegatorDid: "did:midnight:university:state-college",
+        delegateDid: "did:midnight:agent:grants-ops",
+        actorDid: "did:midnight:university:state-college",
+        relationship: "capabilityInvocation",
+        verificationMethod: "#temporary-agent-key-v1",
+        effectiveAt: "2026-06-01T00:00:00.000Z",
+        expiresAt: "2026-06-10T00:00:00.000Z",
+      },
+    );
+
+    expiringState = rotateDelegationKey(expiringState, {
+      delegatorDid: "did:midnight:university:state-college",
+      delegateDid: "did:midnight:agent:grants-ops",
+      actorDid: "did:midnight:university:state-college",
+      relationship: "capabilityInvocation",
+      fromVerificationMethod: "#temporary-agent-key-v1",
+      toVerificationMethod: "#temporary-agent-key-v2",
+      effectiveAt: "2026-06-05T00:00:00.000Z",
+      reason: "temporary grant key rotation",
+    });
+
+    const beforeExpiry = evaluateDelegation(
+      expiringState,
+      {
+        delegatorDid: "did:midnight:university:state-college",
+        delegateDid: "did:midnight:agent:grants-ops",
+        relationship: "capabilityInvocation",
+        verificationMethod: "#temporary-agent-key-v2",
+      },
+      "2026-06-06T00:00:00.000Z",
+    );
+    expect(beforeExpiry.isActive).toBe(true);
+    expect(beforeExpiry.validUntil).toBe("2026-06-10T00:00:00.000Z");
+
+    const afterExpiry = evaluateDelegation(
+      expiringState,
+      {
+        delegatorDid: "did:midnight:university:state-college",
+        delegateDid: "did:midnight:agent:grants-ops",
+        relationship: "capabilityInvocation",
+        verificationMethod: "#temporary-agent-key-v2",
+      },
+      "2026-06-11T00:00:00.000Z",
+    );
+    expect(afterExpiry.isActive).toBe(false);
+  });
+
   it("supports revoke and returns an actionable inactive decision", () => {
     const withRevokedState = applyDelegationTransition(BASELINE_STATE, {
       action: "revoke",
@@ -157,5 +213,39 @@ describe("did delegation lifecycle", () => {
     expect(history[1].action).toBe("grant");
     expect(history[2].action).toBe("rotate");
     expect(history[3].action).toBe("revoke");
+  });
+
+  it("normalizes loaded delegation fixture method ids", () => {
+    const fixtureDir = mkdtempSync(
+      path.join(tmpdir(), "midnight-did-delegation-"),
+    );
+    const fixturePath = path.join(fixtureDir, "delegation-state.json");
+    try {
+      writeFileSync(
+        fixturePath,
+        JSON.stringify({
+          registryId: "did:midnight:delegation-registry:test",
+          updatedAt: "2026-06-01T00:00:00.000Z",
+          events: [
+            {
+              action: "grant",
+              delegatorDid: "did:midnight:university:state-college",
+              delegateDid: "did:midnight:agent:grants-ops",
+              actorDid: "did:midnight:university:state-college",
+              relationship: "capabilityInvocation",
+              verificationMethod:
+                "did:midnight:university:state-college#agent-op-key-v1",
+              effectiveAt: "2026-06-01T00:00:00.000Z",
+            },
+          ],
+        }),
+      );
+
+      const loadedState = loadDelegationStateFromFile(fixturePath);
+
+      expect(loadedState.events[0].verificationMethod).toBe("#agent-op-key-v1");
+    } finally {
+      rmSync(fixtureDir, { recursive: true, force: true });
+    }
   });
 });

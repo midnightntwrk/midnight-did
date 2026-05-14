@@ -382,7 +382,11 @@ export const evaluateDelegation = (
     throw new DelegationTemplateError(`Invalid evaluation time: ${String(at)}`);
   }
 
-  const history = getDelegationHistory(state, query);
+  const history = getDelegationHistory(state, {
+    delegatorDid: query.delegatorDid,
+    delegateDid: query.delegateDid,
+    relationship: query.relationship,
+  });
 
   const eventsBeforeTime = history.filter(
     (event) =>
@@ -420,15 +424,10 @@ export const evaluateDelegation = (
     }
 
     if (event.action === "grant") {
-      if (
-        normalizedMethod == null ||
-        event.verificationMethod === normalizedMethod
-      ) {
-        activeMethods.set(event.verificationMethod, {
-          grantedAt: event.effectiveAt,
-          expiresAt: event.expiresAt,
-        });
-      }
+      activeMethods.set(event.verificationMethod, {
+        grantedAt: event.effectiveAt,
+        expiresAt: event.expiresAt,
+      });
       continue;
     }
 
@@ -438,21 +437,12 @@ export const evaluateDelegation = (
     }
 
     if (event.action === "rotate") {
-      if (
-        event.verificationMethod === normalizedMethod ||
-        normalizedMethod == null
-      ) {
-        activeMethods.delete(event.verificationMethod);
-        if (normalizedMethod == null) {
-          activeMethods.set(event.replacementVerificationMethod, {
-            grantedAt: event.effectiveAt,
-          });
-        }
-      }
-
-      if (event.replacementVerificationMethod === normalizedMethod) {
+      const previousGrant = activeMethods.get(event.verificationMethod);
+      activeMethods.delete(event.verificationMethod);
+      if (previousGrant != null) {
         activeMethods.set(event.replacementVerificationMethod, {
           grantedAt: event.effectiveAt,
+          expiresAt: previousGrant.expiresAt,
         });
       }
       continue;
@@ -478,7 +468,12 @@ export const evaluateDelegation = (
     };
   }
 
-  const activeEntries = [...activeMethods.entries()];
+  const activeEntries =
+    normalizedMethod == null
+      ? [...activeMethods.entries()]
+      : [...activeMethods.entries()].filter(
+          ([method]) => method === normalizedMethod,
+        );
   const methods = activeEntries.map(([method]) => method);
   const oldest = activeEntries.reduce<string | undefined>(
     (earliest, [, details]) => {
@@ -605,9 +600,9 @@ export const loadDelegationStateFromFile = (
       `Invalid delegation fixture format: ${fixturePath}`,
     );
   }
-  parsed.events.forEach((event) => {
+  parsed.events = parsed.events.map((event) => {
     validateAction(event);
-    normalizeEvent(event);
+    return normalizeEvent(event);
   });
   return parsed;
 };

@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { webcrypto } from 'node:crypto';
+import { createHash, webcrypto } from 'node:crypto';
 
 import {
   CompiledContract,
@@ -148,6 +148,43 @@ let logger: Logger;
 // Required for GraphQL subscriptions (wallet sync) to work in Node.js
 // @ts-expect-error: It's needed to enable WebSocket usage through apollo
 globalThis.WebSocket = WebSocket;
+
+const PRIVATE_STATE_PASSWORD_ENV = 'MIDNIGHT_DID_PRIVATE_STATE_PASSWORD';
+const LOCAL_PRIVATE_STATE_PASSWORD = 'Midnight-DID-local-private-state-password-2026!';
+let warnedAboutLocalPrivateStatePassword = false;
+
+const getPrivateStatePassword = (): string => {
+  const configuredPassword = process.env[PRIVATE_STATE_PASSWORD_ENV];
+  if (configuredPassword != null && configuredPassword.length > 0) {
+    return configuredPassword;
+  }
+
+  const networkId = String(getNetworkId()).toLowerCase();
+  if (networkId === 'undeployed') {
+    if (!warnedAboutLocalPrivateStatePassword) {
+      process.emitWarning(
+        `${PRIVATE_STATE_PASSWORD_ENV} is not set; using the local standalone-only private state password fallback.`,
+        {
+          code: 'MIDNIGHT_DID_PRIVATE_STATE_PASSWORD_MISSING',
+        },
+      );
+      warnedAboutLocalPrivateStatePassword = true;
+    }
+    return LOCAL_PRIVATE_STATE_PASSWORD;
+  }
+
+  throw new Error(
+    `${PRIVATE_STATE_PASSWORD_ENV} must be set before configuring Midnight DID private state for network ${networkId}.`,
+  );
+};
+
+const seedDisplayValue = (seed: string): string => {
+  if (process.env.MIDNIGHT_DID_SHOW_SEED === 'true') {
+    return seed;
+  }
+  const fingerprint = createHash('sha256').update(seed).digest('hex').slice(0, 12);
+  return `<redacted; sha256:${fingerprint}; set MIDNIGHT_DID_SHOW_SEED=true to print>`;
+};
 
 // Pre-compile the DID contract with ZK circuit assets
 const didCompiledContract = CompiledContract.make('did', DIDContract.Contract).pipe(
@@ -630,7 +667,7 @@ const printWalletSummary = (seed: string, state: WalletSummaryState, unshieldedK
 ${DIV}
   Wallet Overview                            Network: ${networkId}
 ${DIV}
-  Seed: ${seed}
+  Seed: ${seedDisplayValue(seed)}
 ${DIV}
 
   Shielded (ZSwap)
@@ -691,7 +728,7 @@ export const buildWalletAndWaitForFunds = async (config: Config, seed: string): 
 ${DIV}
   Wallet Overview                            Network: ${networkId}
 ${DIV}
-  Seed: ${seed}
+  Seed: ${seedDisplayValue(seed)}
 
   Unshielded Address (send tNight here):
   ${unshieldedKeystore.getBech32Address()}
@@ -733,8 +770,7 @@ export const configureProviders = async (ctx: WalletContext, config: Config) => 
   return {
     privateStateProvider: levelPrivateStateProvider<typeof DIDPrivateStateId>({
       privateStateStoreName: contractConfig.privateStateStoreName,
-      privateStoragePasswordProvider: () =>
-        process.env.MIDNIGHT_DID_PRIVATE_STATE_PASSWORD ?? 'Midnight-DID-local-private-state-password-2026!',
+      privateStoragePasswordProvider: getPrivateStatePassword,
       accountId: String(ctx.unshieldedKeystore.getBech32Address()),
     }),
     publicDataProvider: indexerPublicDataProvider(config.indexer, config.indexerWS),
