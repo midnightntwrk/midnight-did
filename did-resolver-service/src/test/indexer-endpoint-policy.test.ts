@@ -16,10 +16,16 @@ describe("did-resolver-service indexer endpoint policy", () => {
   });
 
   it("normalizes and derives ws url from http override", () => {
-    const policy = new IndexerEndpointPolicy({
-      indexerHttpUrl: "http://default.example/api/v3/graphql",
-      indexerWsUrl: "ws://default.example/api/v3/graphql/ws",
-    });
+    const policy = new IndexerEndpointPolicy(
+      {
+        indexerHttpUrl: "http://default.example/api/v3/graphql",
+        indexerWsUrl: "ws://default.example/api/v3/graphql/ws",
+      },
+      {
+        indexerHttpUrls: ["https://another.example/api/v3/graphql"],
+        indexerWsUrls: ["wss://another.example/api/v3/graphql/ws"],
+      },
+    );
 
     expect(
       policy.resolve({
@@ -32,10 +38,16 @@ describe("did-resolver-service indexer endpoint policy", () => {
   });
 
   it("normalizes explicit ws override", () => {
-    const policy = new IndexerEndpointPolicy({
-      indexerHttpUrl: "http://default.example/api/v3/graphql",
-      indexerWsUrl: "ws://default.example/api/v3/graphql/ws",
-    });
+    const policy = new IndexerEndpointPolicy(
+      {
+        indexerHttpUrl: "http://default.example/api/v3/graphql",
+        indexerWsUrl: "ws://default.example/api/v3/graphql/ws",
+      },
+      {
+        indexerHttpUrls: ["http://another.example/api/v3/graphql"],
+        indexerWsUrls: ["ws://override.example/api/v3/graphql/ws"],
+      },
+    );
 
     expect(
       policy.resolve({
@@ -60,5 +72,23 @@ describe("did-resolver-service indexer endpoint policy", () => {
     expect(() =>
       policy.resolve({ indexerWsUrl: "http://example.com/graphql/ws" }),
     ).toThrow("indexerWsUrl must use ws or wss");
+  });
+
+  it("rejects endpoint overrides that are not allowlisted", () => {
+    const policy = new IndexerEndpointPolicy({
+      indexerHttpUrl: "http://default.example/api/v3/graphql",
+      indexerWsUrl: "ws://default.example/api/v3/graphql/ws",
+    });
+
+    expect(() =>
+      policy.resolve({
+        indexerUrl: "http://169.254.169.254/latest/meta-data",
+      }),
+    ).toThrow("indexerUrl is not in MIDNIGHT_INDEXER_ALLOWLIST");
+    expect(() =>
+      policy.resolve({
+        indexerWsUrl: "ws://localhost:6379/api/v3/graphql/ws",
+      }),
+    ).toThrow("indexerWsUrl is not in MIDNIGHT_INDEXER_ALLOWLIST");
   });
 });

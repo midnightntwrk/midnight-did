@@ -42,6 +42,8 @@ export type ResolveResponse =
 export type ResolverServiceOptions = {
   indexerHttpUrl: string;
   indexerWsUrl: string;
+  allowedIndexerHttpUrls?: readonly string[];
+  allowedIndexerWsUrls?: readonly string[];
   expectedNetwork?: MidnightNetwork;
   debug?: boolean;
   logger?: ResolverLogger;
@@ -80,10 +82,16 @@ export class ResolverService {
     this.expectedNetwork = options.expectedNetwork;
     this.debug = options.debug ?? false;
     this.logger = options.logger ?? defaultLogger;
-    this.endpointPolicy = new IndexerEndpointPolicy({
-      indexerHttpUrl: options.indexerHttpUrl,
-      indexerWsUrl: options.indexerWsUrl,
-    });
+    this.endpointPolicy = new IndexerEndpointPolicy(
+      {
+        indexerHttpUrl: options.indexerHttpUrl,
+        indexerWsUrl: options.indexerWsUrl,
+      },
+      {
+        indexerHttpUrls: options.allowedIndexerHttpUrls,
+        indexerWsUrls: options.allowedIndexerWsUrls,
+      },
+    );
   }
 
   private logResolutionFailure(

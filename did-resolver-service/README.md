@@ -16,6 +16,7 @@ Environment Variables
 - `RESOLVER_PORT` (default `3001`)
 - `MIDNIGHT_INDEXER_HTTP_URL` (default `http://127.0.0.1:8088/api/v3/graphql`)
 - `MIDNIGHT_INDEXER_WS_URL` (default `ws://127.0.0.1:8088/api/v3/graphql/ws`)
+- `MIDNIGHT_INDEXER_ALLOWLIST` (optional comma-separated `http(s)` or `ws(s)` indexer override URLs; client-supplied `indexerUrl`/`indexerWsUrl` values are rejected unless they match this allowlist or the configured defaults)
 - `MIDNIGHT_NETWORK` (optional strict network filter: `undeployed|devnet|testnet|mainnet|preview|preprod`)
 - `RESOLVER_DEBUG` (optional: `true` to print underlying resolve errors to stderr)
 
@@ -40,6 +41,8 @@ Run Locally (No Docker)
   - `export RESOLVER_PORT=3001`
   - `export MIDNIGHT_INDEXER_HTTP_URL=http://127.0.0.1:8088/api/v3/graphql`
   - `export MIDNIGHT_INDEXER_WS_URL=ws://127.0.0.1:8088/api/v3/graphql/ws`
+  - Optional client override allowlist:
+  - `export MIDNIGHT_INDEXER_ALLOWLIST=https://indexer.example/api/v3/graphql,wss://indexer.example/api/v3/graphql/ws`
   - Optional network guard:
   - `export MIDNIGHT_NETWORK=undeployed`
 - Start in development mode:
@@ -56,3 +59,4 @@ Docker
   - `docker build -f did-resolver-service/Dockerfile -t midnight-did-resolver:local .`
 - Run image:
   - `docker run --rm -p 3001:3001 -e RESOLVER_HOST=0.0.0.0 midnight-did-resolver:local`
+- The image runs as the non-root `node` user. In production, keep `indexerUrl` overrides disabled unless each allowed endpoint is listed in `MIDNIGHT_INDEXER_ALLOWLIST`, and place the resolver behind an authenticated gateway when exposed outside a trusted network.

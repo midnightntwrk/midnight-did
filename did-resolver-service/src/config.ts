@@ -24,6 +24,8 @@ export type ResolverServiceConfig = {
   port: number;
   indexerHttpUrl: string;
   indexerWsUrl: string;
+  allowedIndexerHttpUrls: string[];
+  allowedIndexerWsUrls: string[];
   expectedNetwork: MidnightNetwork | null;
   debug: boolean;
 };
@@ -54,23 +56,75 @@ const parseUrl = (
   return parsed.toString().replace(/\/+$/, "");
 };
 
+const deriveWsUrl = (indexerHttpUrl: string): string => {
+  const parsed = new URL(indexerHttpUrl);
+  parsed.protocol = parsed.protocol === "https:" ? "wss:" : "ws:";
+  if (parsed.pathname.endsWith("/graphql")) {
+    parsed.pathname = `${parsed.pathname}/ws`;
+  }
+  return parsed.toString().replace(/\/+$/, "");
+};
+
+const parseIndexerAllowlist = (
+  value: string | undefined,
+): Pick<
+  ResolverServiceConfig,
+  "allowedIndexerHttpUrls" | "allowedIndexerWsUrls"
+> => {
+  const allowedIndexerHttpUrls: string[] = [];
+  const allowedIndexerWsUrls: string[] = [];
+  if (value === undefined || value.trim() === "") {
+    return { allowedIndexerHttpUrls, allowedIndexerWsUrls };
+  }
+
+  for (const raw of value.split(",")) {
+    const item = raw.trim();
+    if (item === "") continue;
+    const parsed = new URL(item);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      const httpUrl = parseUrl(
+        item,
+        item,
+        ["http:", "https:"],
+        "MIDNIGHT_INDEXER_ALLOWLIST",
+      );
+      allowedIndexerHttpUrls.push(httpUrl);
+      allowedIndexerWsUrls.push(deriveWsUrl(httpUrl));
+      continue;
+    }
+    if (parsed.protocol === "ws:" || parsed.protocol === "wss:") {
+      allowedIndexerWsUrls.push(
+        parseUrl(item, item, ["ws:", "wss:"], "MIDNIGHT_INDEXER_ALLOWLIST"),
+      );
+      continue;
+    }
+    throw new Error(`Invalid MIDNIGHT_INDEXER_ALLOWLIST value: ${item}`);
+  }
+
+  return { allowedIndexerHttpUrls, allowedIndexerWsUrls };
+};
+
 export const loadConfig = (
   env: Record<string, string | undefined> = process.env,
-): ResolverServiceConfig => ({
-  host: env.RESOLVER_HOST ?? "127.0.0.1",
-  port: parsePort(env.RESOLVER_PORT),
-  indexerHttpUrl: parseUrl(
-    env.MIDNIGHT_INDEXER_HTTP_URL,
-    "http://127.0.0.1:8088/api/v3/graphql",
-    ["http:", "https:"],
-    "MIDNIGHT_INDEXER_HTTP_URL",
-  ),
-  indexerWsUrl: parseUrl(
-    env.MIDNIGHT_INDEXER_WS_URL,
-    "ws://127.0.0.1:8088/api/v3/graphql/ws",
-    ["ws:", "wss:"],
-    "MIDNIGHT_INDEXER_WS_URL",
-  ),
-  expectedNetwork: parseNetwork(env.MIDNIGHT_NETWORK),
-  debug: parseBoolean(env.RESOLVER_DEBUG),
-});
+): ResolverServiceConfig => {
+  const allowlist = parseIndexerAllowlist(env.MIDNIGHT_INDEXER_ALLOWLIST);
+  return {
+    host: env.RESOLVER_HOST ?? "127.0.0.1",
+    port: parsePort(env.RESOLVER_PORT),
+    indexerHttpUrl: parseUrl(
+      env.MIDNIGHT_INDEXER_HTTP_URL,
+      "http://127.0.0.1:8088/api/v3/graphql",
+      ["http:", "https:"],
+      "MIDNIGHT_INDEXER_HTTP_URL",
+    ),
+    indexerWsUrl: parseUrl(
+      env.MIDNIGHT_INDEXER_WS_URL,
+      "ws://127.0.0.1:8088/api/v3/graphql/ws",
+      ["ws:", "wss:"],
+      "MIDNIGHT_INDEXER_WS_URL",
+    ),
+    ...allowlist,
+    expectedNetwork: parseNetwork(env.MIDNIGHT_NETWORK),
+    debug: parseBoolean(env.RESOLVER_DEBUG),
+  };
+};

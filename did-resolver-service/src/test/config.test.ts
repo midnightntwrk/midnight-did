@@ -11,6 +11,8 @@ describe("did-resolver-service config", () => {
       port: 3001,
       indexerHttpUrl: "http://127.0.0.1:8088/api/v3/graphql",
       indexerWsUrl: "ws://127.0.0.1:8088/api/v3/graphql/ws",
+      allowedIndexerHttpUrls: [],
+      allowedIndexerWsUrls: [],
       expectedNetwork: null,
       debug: false,
     });
@@ -22,6 +24,8 @@ describe("did-resolver-service config", () => {
       RESOLVER_PORT: "13001",
       MIDNIGHT_INDEXER_HTTP_URL: "https://indexer.example/api/v3/graphql",
       MIDNIGHT_INDEXER_WS_URL: "wss://indexer.example/api/v3/graphql/ws",
+      MIDNIGHT_INDEXER_ALLOWLIST:
+        "https://allow.example/api/v3/graphql,wss://ws-allow.example/api/v3/graphql/ws",
       MIDNIGHT_NETWORK: "PreProd",
       RESOLVER_DEBUG: "true",
     });
@@ -30,6 +34,13 @@ describe("did-resolver-service config", () => {
     expect(cfg.port).toBe(13001);
     expect(cfg.indexerHttpUrl).toBe("https://indexer.example/api/v3/graphql");
     expect(cfg.indexerWsUrl).toBe("wss://indexer.example/api/v3/graphql/ws");
+    expect(cfg.allowedIndexerHttpUrls).toEqual([
+      "https://allow.example/api/v3/graphql",
+    ]);
+    expect(cfg.allowedIndexerWsUrls).toEqual([
+      "wss://allow.example/api/v3/graphql/ws",
+      "wss://ws-allow.example/api/v3/graphql/ws",
+    ]);
     expect(cfg.expectedNetwork).toBe(MidnightNetwork.Preprod);
     expect(cfg.debug).toBe(true);
   });
@@ -61,5 +72,10 @@ describe("did-resolver-service config", () => {
         MIDNIGHT_INDEXER_WS_URL: "http://indexer.example/graphql/ws",
       }),
     ).toThrow("Invalid MIDNIGHT_INDEXER_WS_URL value");
+    expect(() =>
+      loadConfig({
+        MIDNIGHT_INDEXER_ALLOWLIST: "file:///tmp/socket",
+      }),
+    ).toThrow("Invalid MIDNIGHT_INDEXER_ALLOWLIST value");
   });
 });

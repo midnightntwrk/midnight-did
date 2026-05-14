@@ -87,6 +87,7 @@ describe("did-resolver-service service", () => {
     const service = new ResolverService({
       indexerHttpUrl: "http://indexer.example/api/v3/graphql",
       indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
+      allowedIndexerHttpUrls: ["https://another.example/api/v3/graphql"],
     });
 
     await service.resolve("did:midnight:devnet:abc", {
@@ -97,6 +98,21 @@ describe("did-resolver-service service", () => {
       "https://another.example/api/v3/graphql",
       "wss://another.example/api/v3/graphql/ws",
     );
+  });
+
+  it("rejects unallowlisted indexer overrides before provider creation", async () => {
+    const service = new ResolverService({
+      indexerHttpUrl: "http://indexer.example/api/v3/graphql",
+      indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
+    });
+
+    const result = await service.resolve("did:midnight:devnet:abc", {
+      indexerUrl: "http://169.254.169.254/latest/meta-data",
+    });
+
+    expect(result.statusCode).toBe(400);
+    expect(result.payload.didResolutionMetadata.error).toBe("invalidDid");
+    expect(providerFactoryMock).not.toHaveBeenCalled();
   });
 
   it("reuses resolver instances for same endpoint pair", async () => {
@@ -117,6 +133,10 @@ describe("did-resolver-service service", () => {
     const service = new ResolverService({
       indexerHttpUrl: "http://indexer.example/api/v3/graphql",
       indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
+      allowedIndexerHttpUrls: Array.from(
+        { length: RESOLVER_CACHE_MAX_SIZE + 1 },
+        (_value, index) => `http://idx-${index}.example/api/v3/graphql`,
+      ),
     });
 
     for (let i = 0; i <= RESOLVER_CACHE_MAX_SIZE; i += 1) {

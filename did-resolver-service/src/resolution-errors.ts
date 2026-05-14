@@ -10,6 +10,7 @@ const didInputErrorMessages = [
   "Invalid contract address in Midnight DID",
   "indexerUrl must use http or https",
   "indexerWsUrl must use ws or wss",
+  "not in MIDNIGHT_INDEXER_ALLOWLIST",
   "Invalid URL",
 ] as const;
 

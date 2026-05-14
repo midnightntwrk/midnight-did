@@ -5,13 +5,43 @@ export type IndexerEndpoints = {
   indexerWsUrl: string;
 };
 
+export type IndexerEndpointAllowlist = {
+  indexerHttpUrls?: readonly string[];
+  indexerWsUrls?: readonly string[];
+};
+
 export class IndexerEndpointPolicy {
   private readonly defaultIndexerHttpUrl: string;
   private readonly defaultIndexerWsUrl: string;
+  private readonly allowedIndexerHttpUrls: ReadonlySet<string>;
+  private readonly allowedIndexerWsUrls: ReadonlySet<string>;
 
-  constructor(defaultEndpoints: IndexerEndpoints) {
-    this.defaultIndexerHttpUrl = defaultEndpoints.indexerHttpUrl;
-    this.defaultIndexerWsUrl = defaultEndpoints.indexerWsUrl;
+  constructor(
+    defaultEndpoints: IndexerEndpoints,
+    allowlist: IndexerEndpointAllowlist = {},
+  ) {
+    this.defaultIndexerHttpUrl = IndexerEndpointPolicy.normalizeIndexerHttpUrl(
+      defaultEndpoints.indexerHttpUrl,
+    );
+    this.defaultIndexerWsUrl = IndexerEndpointPolicy.normalizeIndexerWsUrl(
+      defaultEndpoints.indexerWsUrl,
+    );
+    const allowedIndexerHttpUrls = [
+      this.defaultIndexerHttpUrl,
+      ...(allowlist.indexerHttpUrls ?? []).map((url) =>
+        IndexerEndpointPolicy.normalizeIndexerHttpUrl(url),
+      ),
+    ];
+    this.allowedIndexerHttpUrls = new Set(allowedIndexerHttpUrls);
+    this.allowedIndexerWsUrls = new Set([
+      this.defaultIndexerWsUrl,
+      ...allowedIndexerHttpUrls.map((url) =>
+        IndexerEndpointPolicy.deriveWsUrl(url),
+      ),
+      ...(allowlist.indexerWsUrls ?? []).map((url) =>
+        IndexerEndpointPolicy.normalizeIndexerWsUrl(url),
+      ),
+    ]);
   }
 
   private static normalizeUrl(
@@ -52,6 +82,15 @@ export class IndexerEndpointPolicy {
     return parsed.toString().replace(/\/+$/, "");
   }
 
+  private assertAllowed(
+    url: string,
+    allowlist: ReadonlySet<string>,
+    label: string,
+  ): void {
+    if (allowlist.has(url)) return;
+    throw new Error(`${label} is not in MIDNIGHT_INDEXER_ALLOWLIST`);
+  }
+
   resolve(options?: ResolveRequestOptions): IndexerEndpoints {
     const indexerHttpUrl =
       options?.indexerUrl !== undefined
@@ -63,6 +102,25 @@ export class IndexerEndpointPolicy {
         : options?.indexerUrl !== undefined
           ? IndexerEndpointPolicy.deriveWsUrl(indexerHttpUrl)
           : this.defaultIndexerWsUrl;
+
+    if (options?.indexerUrl !== undefined) {
+      this.assertAllowed(
+        indexerHttpUrl,
+        this.allowedIndexerHttpUrls,
+        "indexerUrl",
+      );
+    }
+    if (
+      options?.indexerWsUrl !== undefined ||
+      options?.indexerUrl !== undefined
+    ) {
+      this.assertAllowed(
+        indexerWsUrl,
+        this.allowedIndexerWsUrls,
+        "indexerWsUrl",
+      );
+    }
+
     return { indexerHttpUrl, indexerWsUrl };
   }
 }

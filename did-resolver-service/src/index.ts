@@ -9,6 +9,8 @@ export const start = async (): Promise<void> => {
   const service = new ResolverService({
     indexerHttpUrl: config.indexerHttpUrl,
     indexerWsUrl: config.indexerWsUrl,
+    allowedIndexerHttpUrls: config.allowedIndexerHttpUrls,
+    allowedIndexerWsUrls: config.allowedIndexerWsUrls,
     expectedNetwork: config.expectedNetwork ?? undefined,
     debug: config.debug,
     logger: createResolverLogger(
