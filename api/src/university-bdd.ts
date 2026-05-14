@@ -5,12 +5,13 @@ import { fileURLToPath } from "node:url";
 
 import {
   assertTrustRoleActive,
+  evaluateTrustRole,
   TRUST_ROLE_ISSUER,
   TRUST_ROLE_VERIFIER,
   type TrustRegistryState,
 } from "./trust-registry";
 import {
-  assertVcNotRevoked,
+  evaluateVcStatus,
   type VcStatusReference,
   type VcStatusRegistry,
   type VerifiableCredential,
@@ -76,6 +77,13 @@ export type UniversityIssuanceRequest = {
   requestReference: string;
 };
 
+export type UniversityIssuanceRequestContext = UniversityIssuanceRequest & {
+  student: UniversityFixtureStudent;
+  issuedAt: string;
+  credentialStatusRef: string;
+  statusRef: string;
+};
+
 export type UniversityDiplomaCredential = {
   id: string;
   studentId: string;
@@ -105,9 +113,20 @@ export type UniversityPresentationRequest = {
   threshold: number;
 };
 
+export type UniversityPresentationRequestContext =
+  UniversityPresentationRequest & {
+    student: UniversityFixtureStudent;
+    credential: UniversityDiplomaCredential;
+    createdAt: string;
+  };
+
 export type UniversityPresentationResponse = {
   accepted: boolean;
   reasons: string[];
+};
+
+export type UniversityPresentationDecision = UniversityPresentationResponse & {
+  issuerCheck: string;
 };
 
 export type UniversityDiscountRequest = {
@@ -119,6 +138,13 @@ export type UniversityDiscountRequest = {
   couponPercent: number;
 };
 
+export type UniversityDiscountRequestContext = UniversityDiscountRequest & {
+  student: UniversityFixtureStudent;
+  credential: UniversityDiplomaCredential;
+  gradeThreshold: number;
+  createdAt: string;
+};
+
 export type UniversityDiscountResponse = {
   accepted: boolean;
   reasons: string[];
@@ -127,8 +153,7 @@ export type UniversityDiscountResponse = {
 type UniversityPresentationStepResponse = {
   presentationResults: Array<
     UniversityPresentationRequest & {
-      response: UniversityPresentationResponse;
-      issuerCheck: string;
+      response: UniversityPresentationDecision;
       studentId: string;
     }
   >;
@@ -169,6 +194,20 @@ export type UniversityScenarioResult = {
   approvedApplications: number;
   approvedDiscounts: number;
   credentials: UniversityDiplomaCredential[];
+};
+
+export type UniversityRuntimeMode = "simulator" | "standalone";
+
+type UniversityTransport = {
+  issueDiploma(
+    request: UniversityIssuanceRequestContext,
+  ): Promise<UniversityIssuanceDecision>;
+  requestPresentation(
+    request: UniversityPresentationRequestContext,
+  ): Promise<UniversityPresentationDecision>;
+  requestDiscount(
+    request: UniversityDiscountRequestContext,
+  ): Promise<UniversityDiscountResponse>;
 };
 
 const parseIso = (value: string): string => {
@@ -251,13 +290,13 @@ export const loadUniversityScenarioFromFile = (
   };
 };
 
-const timedStep = <T>(
+const timedStep = async <T>(
   label: string,
   payload: { request: unknown; involvedDids?: string[] },
-  execute: () => T,
-): UniversityScenarioStepLog & { response: T } => {
+  execute: () => Promise<T>,
+): Promise<UniversityScenarioStepLog & { response: T }> => {
   const start = Date.now();
-  const response = execute();
+  const response = await execute();
   return {
     step: label,
     request: payload.request,
@@ -277,10 +316,179 @@ const toVerifiableCredential = (
   };
 };
 
-export const runUniversityDiplomaScenario = (
+const resolveRuntimeMode = (mode?: string): UniversityRuntimeMode => {
+  if (mode === "standalone" || mode === "simulator") {
+    return mode;
+  }
+  return "simulator";
+};
+
+const createUniversitySimulatorTransport = (
   fixture: UniversityFixture,
-): UniversityScenarioResult => {
+): UniversityTransport => {
+  return {
+    async issueDiploma(
+      request: UniversityIssuanceRequestContext,
+    ): Promise<UniversityIssuanceDecision> {
+      const credential: UniversityDiplomaCredential = {
+        id: `${request.universityDid}:vc:${request.studentId}:diploma`,
+        studentId: request.student.studentId,
+        holderDid: request.studentDid,
+        issuerDid: request.universityDid,
+        issuedAt: request.issuedAt,
+        graduationTerm: request.student.graduationTerm,
+        grade: request.student.grade,
+        program: request.student.program,
+        credentialStatus: {
+          id: request.credentialStatusRef,
+          type: "MidnightStatusList",
+          statusPurpose: "revocation",
+          statusRef: request.statusRef,
+        },
+        proofDigest: "",
+      };
+
+      const digest = computeCredentialDigest(credential);
+      const signed = {
+        ...credential,
+        proofDigest: digest,
+      };
+      const statusDecision = evaluateVcStatus(
+        toVerifiableCredential(signed),
+        fixture.statusRegistry,
+      );
+
+      if (statusDecision.state !== "active") {
+        return {
+          issued: false,
+          statusState: statusDecision.state,
+          statusReason: statusDecision.reason,
+        };
+      }
+
+      return {
+        issued: true,
+        credential: signed,
+        statusState: statusDecision.state,
+        statusReason: statusDecision.reason,
+      };
+    },
+
+    async requestPresentation(
+      request: UniversityPresentationRequestContext,
+    ): Promise<UniversityPresentationDecision> {
+      const verifierDecision = evaluateTrustRole(
+        fixture.trustRegistry,
+        {
+          role: TRUST_ROLE_VERIFIER,
+          partyDid: request.verifierDid,
+        },
+        request.createdAt,
+      );
+
+      const statusDecision = evaluateVcStatus(
+        toVerifiableCredential(request.credential),
+        fixture.statusRegistry,
+      );
+
+      const reasons: string[] = [
+        `Verifier role active: ${verifierDecision.isActive ? "yes" : "no"}`,
+      ];
+
+      if (request.student.grade >= request.threshold) {
+        reasons.push("grade above threshold");
+      } else {
+        reasons.push("grade below threshold");
+      }
+
+      reasons.push(`status=${statusDecision.state}`);
+
+      const accepted =
+        verifierDecision.isActive &&
+        statusDecision.state === "active" &&
+        request.student.grade >= request.threshold;
+
+      return {
+        accepted,
+        reasons,
+        issuerCheck: verifierDecision.reason,
+      };
+    },
+
+    async requestDiscount(
+      request: UniversityDiscountRequestContext,
+    ): Promise<UniversityDiscountResponse> {
+      const statusDecision = evaluateVcStatus(
+        toVerifiableCredential(request.credential),
+        fixture.statusRegistry,
+      );
+
+      const accepted =
+        request.grade > request.gradeThreshold &&
+        statusDecision.state === "active";
+
+      const reasons: string[] = [
+        `grade(${request.grade}) > threshold(${request.gradeThreshold})`,
+        `status=${statusDecision.state}`,
+      ];
+      if (!accepted) {
+        reasons.push("request rejected by mall policy");
+      }
+
+      return {
+        accepted,
+        reasons,
+      };
+    },
+  };
+};
+
+const createUniversityStandaloneTransport = (): UniversityTransport => {
+  const notImplemented = async (): Promise<never> => {
+    throw new Error(
+      "Standalone transport is not implemented yet. Use UNIVERSITY_SCENARIO_MODE=simulator until production transport is wired.",
+    );
+  };
+
+  return {
+    issueDiploma: notImplemented,
+    requestPresentation: notImplemented,
+    requestDiscount: notImplemented,
+  };
+};
+
+const createUniversityTransport = (
+  fixture: UniversityFixture,
+  mode: UniversityRuntimeMode,
+): UniversityTransport => {
+  if (mode === "standalone") {
+    return createUniversityStandaloneTransport();
+  }
+  return createUniversitySimulatorTransport(fixture);
+};
+
+export const runUniversityDiplomaScenario = async (
+  fixture: UniversityFixture,
+  options?: {
+    mode?: UniversityRuntimeMode;
+    transport?: UniversityTransport;
+    now?: string | Date;
+  },
+): Promise<UniversityScenarioResult> => {
   const steps: UniversityScenarioStepLog[] = [];
+  const now = parseIso(
+    options?.now == null
+      ? fixture.createdAt
+      : typeof options.now === "string"
+        ? options.now
+        : options.now.toISOString(),
+  );
+
+  const mode = resolveRuntimeMode(
+    options?.mode ?? process.env.UNIVERSITY_SCENARIO_MODE,
+  );
+  const transport =
+    options?.transport ?? createUniversityTransport(fixture, mode);
 
   assertTrustRoleActive(
     fixture.trustRegistry,
@@ -288,7 +496,7 @@ export const runUniversityDiplomaScenario = (
       role: TRUST_ROLE_ISSUER,
       partyDid: fixture.university.did,
     },
-    parseIso(fixture.createdAt),
+    now,
   );
 
   const studentIndex = new Map(
@@ -297,7 +505,7 @@ export const runUniversityDiplomaScenario = (
   const credentials: UniversityDiplomaCredential[] = [];
 
   steps.push(
-    timedStep(
+    await timedStep(
       "Load graduating class and trust context",
       {
         request: {
@@ -307,7 +515,7 @@ export const runUniversityDiplomaScenario = (
           companyCount: fixture.companies.length,
         },
       },
-      () => {
+      async () => {
         const checks = [
           "University issued as trusted issuer",
           `Student count loaded: ${fixture.students.length}`,
@@ -321,7 +529,7 @@ export const runUniversityDiplomaScenario = (
     ),
   );
 
-  const issuanceStep = timedStep(
+  const issuanceStep = await timedStep(
     "Issue diploma VC across batches",
     {
       request: {
@@ -330,7 +538,7 @@ export const runUniversityDiplomaScenario = (
       },
       involvedDids: [fixture.university.did],
     },
-    () => {
+    async () => {
       const issuedByBatch: Array<{
         batchIndex: number;
         issued: string[];
@@ -354,48 +562,26 @@ export const runUniversityDiplomaScenario = (
           }
 
           const statusRef = `urn:vc-status:midnight:university-diploma:2026:${student.studentId}`;
-          const credentialId = `${fixture.university.did}:vc:${student.studentId}:diploma`;
-          const baseCredential: UniversityDiplomaCredential = {
-            id: credentialId,
+          const requestReference = `request:${fixture.university.did}:${student.studentId}`;
+
+          const issueDecision = await transport.issueDiploma({
+            student,
+            issuedAt: now,
+            credentialStatusRef: fixture.university.credentialStatusRef,
+            statusRef,
             studentId: student.studentId,
-            holderDid: student.did,
-            issuerDid: fixture.university.issuerDid,
-            issuedAt: parseIso(fixture.createdAt),
-            graduationTerm: student.graduationTerm,
-            grade: student.grade,
-            program: student.program,
-            credentialStatus: {
-              id: fixture.university.credentialStatusRef,
-              type: "MidnightStatusList",
-              statusPurpose: "revocation",
-              statusRef,
-            },
-            proofDigest: "",
-          };
+            studentDid: student.did,
+            universityDid: fixture.university.did,
+            requestReference,
+          });
 
-          const digest = computeCredentialDigest(baseCredential);
-          const credential: UniversityDiplomaCredential = {
-            ...baseCredential,
-            proofDigest: digest,
-          };
-
-          const issueDecision = assertVcNotRevoked(
-            toVerifiableCredential(credential),
-            fixture.statusRegistry,
-          );
-
-          if (issueDecision.state === "active") {
-            credentials.push(credential);
+          if (issueDecision.issued && issueDecision.credential != null) {
+            credentials.push(issueDecision.credential);
             issued.push(student.studentId);
             continue;
           }
 
-          if (issueDecision.state === "revoked") {
-            skipped.push(`${student.studentId}:revoked`);
-            continue;
-          }
-
-          skipped.push(`${student.studentId}:${issueDecision.state}`);
+          skipped.push(`${student.studentId}:${issueDecision.statusState}`);
         }
 
         issuedByBatch.push({
@@ -420,7 +606,7 @@ export const runUniversityDiplomaScenario = (
     ],
   });
 
-  const applicationSteps = timedStep<UniversityPresentationStepResponse>(
+  const applicationSteps = await timedStep<UniversityPresentationStepResponse>(
     "Student-to-verifier presentation requests",
     {
       request: {
@@ -431,7 +617,7 @@ export const runUniversityDiplomaScenario = (
         ...fixture.companies.map((company) => company.did),
       ],
     },
-    () => {
+    async () => {
       const presentationResults: UniversityPresentationStepResponse["presentationResults"] =
         [];
       let accepted = 0;
@@ -443,57 +629,34 @@ export const runUniversityDiplomaScenario = (
         if (student == null) {
           continue;
         }
+
         const company = fixture.companies[index % fixture.companies.length];
-        const decision = assertTrustRoleActive(
-          fixture.trustRegistry,
-          {
-            role: TRUST_ROLE_VERIFIER,
-            partyDid: company.did,
-          },
-          parseIso(fixture.createdAt),
-        );
-
-        const statusDecision = assertVcNotRevoked(
-          toVerifiableCredential(credential),
-          fixture.statusRegistry,
-        );
-
         const applicationId = `${credential.studentId}->${company.companyId}`;
-        const request: UniversityPresentationRequest = {
+
+        const response = await transport.requestPresentation({
+          student,
+          credential,
+          createdAt: now,
           presentationId: `presentation-${applicationId}`,
           applicationId,
           verifierDid: company.did,
           studentDid: credential.holderDid,
           credentialId: credential.id,
           threshold: company.verificationThreshold,
-        };
-
-        const reasons: string[] = [];
-        reasons.push(
-          `Verifier role active: ${decision.isActive ? "yes" : "no"}`,
-        );
-
-        if (student.grade >= company.verificationThreshold) {
-          reasons.push("grade above threshold");
-        } else {
-          reasons.push("grade below threshold");
-        }
-
-        reasons.push(`status=${statusDecision.state}`);
-
-        const response: UniversityPresentationResponse = {
-          accepted: student.grade >= company.verificationThreshold,
-          reasons,
-        };
+        });
 
         if (response.accepted) {
           accepted += 1;
         }
 
         presentationResults.push({
-          ...request,
+          presentationId: `presentation-${applicationId}`,
+          applicationId,
+          verifierDid: company.did,
+          studentDid: credential.holderDid,
+          credentialId: credential.id,
+          threshold: company.verificationThreshold,
           response,
-          issuerCheck: decision.reason,
           studentId: student.studentId,
         });
       }
@@ -510,7 +673,7 @@ export const runUniversityDiplomaScenario = (
     ],
   });
 
-  const discountStep = timedStep<UniversityDiscountStepResponse>(
+  const discountStep = await timedStep<UniversityDiscountStepResponse>(
     "Student-to-mall discount presentations",
     {
       request: {
@@ -519,7 +682,7 @@ export const runUniversityDiplomaScenario = (
       },
       involvedDids: [fixture.mall.did],
     },
-    () => {
+    async () => {
       const discountRequests: UniversityDiscountStepResponse["discountRequests"] =
         [];
 
@@ -531,6 +694,7 @@ export const runUniversityDiplomaScenario = (
         if (student == null) {
           continue;
         }
+
         if (student.grade <= fixture.mall.gradeThreshold) {
           continue;
         }
@@ -544,14 +708,14 @@ export const runUniversityDiplomaScenario = (
           couponPercent: fixture.mall.discountPercent,
         };
 
-        const reasons: string[] = [
-          `grade(${student.grade}) > threshold(${fixture.mall.gradeThreshold})`,
-        ];
-        const response: UniversityDiscountResponse = {
-          accepted: true,
-          reasons,
-        };
-        acceptedDiscounts += 1;
+        const response = await transport.requestDiscount({
+          student,
+          credential,
+          gradeThreshold: fixture.mall.gradeThreshold,
+          createdAt: now,
+          ...request,
+        });
+        acceptedDiscounts += response.accepted ? 1 : 0;
 
         discountRequests.push({
           ...request,

@@ -86,6 +86,8 @@ See [Repository Boundary and Workspace Policy](docs/repository-boundary.md) for 
 - Trust registry contract scaffold checks: `npm run test:trust-registry`
 - Delegation template + lifecycle scaffold checks: `npm run test:delegation`
 - University-style BDD fixture flow (`issuance + presentation + discount`): `npm run test:university-bdd`
+  - Default transport mode is `simulator` for deterministic local runs.
+  - Set `UNIVERSITY_SCENARIO_MODE=standalone` to exercise the runtime mode switch (currently guarded with a clear implementation placeholder).
 
 
 ### LICENSE

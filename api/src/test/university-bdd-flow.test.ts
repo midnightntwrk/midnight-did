@@ -17,13 +17,13 @@ describe("University diploma BDD scenario", () => {
     "university-bdd.fixture.json",
   );
 
-  const loadResult = (): UniversityScenarioResult => {
+  const loadResult = async (): Promise<UniversityScenarioResult> => {
     const fixture = loadUniversityScenarioFromFile(fixturePath);
     return runUniversityDiplomaScenario(fixture);
   };
 
-  it("runs deterministic issuance, presentation, and discount steps", () => {
-    const result = loadResult();
+  it("runs deterministic issuance, presentation, and discount steps", async () => {
+    const result = await loadResult();
 
     const issueStep = result.steps.find(
       (step) => step.step === "Issue diploma VC across batches",
@@ -61,6 +61,19 @@ describe("University diploma BDD scenario", () => {
     expect(notes).toContain("Step: Issue diploma VC across batches");
   });
 
+  it("defaults to simulator transport and surfaces standalone mode guard", async () => {
+    const fixture = loadUniversityScenarioFromFile(fixturePath);
+    const result = await runUniversityDiplomaScenario(fixture, {
+      mode: "simulator",
+    });
+
+    expect(result.applicationCount).toBe(10);
+
+    await expect(
+      runUniversityDiplomaScenario(fixture, { mode: "standalone" }),
+    ).rejects.toThrow(/Standalone transport is not implemented yet/);
+  });
+
   const artifacts = new Set<string>();
   afterEach(() => {
     for (const artifact of artifacts) {
@@ -69,8 +82,8 @@ describe("University diploma BDD scenario", () => {
     artifacts.clear();
   });
 
-  it("writes BDD scenario report artifact in deterministic pretty JSON", () => {
-    const result = loadResult();
+  it("writes BDD scenario report artifact in deterministic pretty JSON", async () => {
+    const result = await loadResult();
     const tempDir = mkdtempSync(join(tmpdir(), "university-bdd-"));
     const artifactPath = join(tempDir, "university-bdd-report.json");
     artifacts.add(artifactPath);

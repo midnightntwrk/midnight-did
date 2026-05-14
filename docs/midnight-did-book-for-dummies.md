@@ -196,7 +196,7 @@ Recommended implementation backlog to align docs, tests, and stackable PRs:
 
 5. **Standardize VC request/response DTOs for presentation**
    - Scope: minimal stable schema for request, holder reply, and verifier decision.
-   - Progress: University flow now includes reusable request/response DTOs in `api/src/university-bdd.ts`; remaining work is to reuse across multiple non-education flows.
+   - Progress: University flow now includes reusable request/response DTOs in `api/src/university-bdd.ts`, with a transport adapter abstraction for simulator/standalone mode selection.
 
 6. **Add university-style end-to-end BDD fixture bundle**
    - Scope: student, issuer, verifier, and merchant flows with timing capture.

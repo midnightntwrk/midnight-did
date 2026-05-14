@@ -128,5 +128,12 @@
    - Acceptance: scenario produces deterministic JSON-like structured logs and a reusable timing artifact via the test output or explicit artifact serialization.
 
 20. ✅ **Done: Add PR-ready governance for stackable review**
-   - Add a short PR template and review checklist for use-case-related changes.
-   - Acceptance: checklists require matrix link, scenario coverage, and status update in the backlog.
+  - Add a short PR template and review checklist for use-case-related changes.
+  - Acceptance: checklists require matrix link, scenario coverage, and status update in the backlog.
+
+21. ✅ **Done: Add university transport mode abstraction for BDD scenario runtime**
+  - Refactor university scenario engine (`api/src/university-bdd.ts`) to support pluggable transport adapters via `UniversityTransport`.
+  - Added simulator transport implementation and explicit standalone mode guard to make it clear when transport wiring is required.
+  - Made `runUniversityDiplomaScenario` async and mode-aware (`mode`, optional `transport`, optional `now`) for local timing/control.
+  - Updated scenario tests to validate simulator path and assert standalone mode failure message.
+  - Acceptance: transport-specific behavior can now be substituted without changing scenario composition.
