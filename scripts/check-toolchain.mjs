@@ -60,4 +60,30 @@ if (!existsSync("package-lock.json")) {
   process.exit(1);
 }
 
+const declaredCompactRuntime = pkg.dependencies?.["@midnight-ntwrk/compact-runtime"];
+if (declaredCompactRuntime != null) {
+  let compilerRuntime;
+  try {
+    compilerRuntime = execSync("compact compile --runtime-version", {
+      encoding: "utf8",
+      stdio: "pipe",
+    }).trim();
+  } catch (error) {
+    console.error(
+      "Unable to read Compact compiler runtime version. " +
+        "Install the Compact compiler before running the pipeline.",
+    );
+    process.exit(1);
+  }
+
+  if (declaredCompactRuntime !== compilerRuntime) {
+    console.error(
+      `Compact compiler/runtime mismatch: compiler emits ${compilerRuntime}, ` +
+        `but package.json declares @midnight-ntwrk/compact-runtime ${declaredCompactRuntime}. ` +
+        "Update the compiler pin or runtime dependency before running contract tests.",
+    );
+    process.exit(1);
+  }
+}
+
 console.log("Toolchain precheck passed.");

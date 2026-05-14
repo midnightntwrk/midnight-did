@@ -319,3 +319,44 @@
 61. ✅ **Done: Add docs/contract cross-linking to run.sh and backlog**
    - `run.sh --help` now points to the university visual bundle, backlog, and helper commands.
    - `npm run backlog:progress` now checks the new scripts/docs so backlog status cannot drift silently.
+
+62. **Document the v8 ledger/state migration stance**
+   - Add a migration note for the `typ` ledger field shape, removed operation dispatcher types, and non-batched circuit model.
+   - Acceptance: reviewers can tell whether legacy deployed DID state is supported, explicitly unsupported, or needs a migration utility.
+
+63. **Extract shared API/CLI Midnight provider utilities**
+   - Remove duplicated wallet/provider/private-state/prover-key setup from `cli/src/api.ts` and `api/src/lib.ts`.
+   - Acceptance: CLI imports shared primitives from the API layer or a small internal module, and v8 SDK boundary casts are isolated.
+
+64. **Harden resolver-service public input boundaries**
+   - Add DID length/pattern validation, safer endpoint policy coverage, rate-limit guidance, and log redaction for option bags.
+   - Acceptance: malformed/oversized DID requests fail before resolver work, and errors cannot print caller secrets.
+
+65. **Replace brittle SDK error-string matching**
+   - Replace substring matching for missing contract-address/private-state behavior with a typed probe, explicit provider state check, or narrow error wrapper.
+   - Acceptance: tests cover the expected pre-deploy private-state path without depending on SDK message text.
+
+66. **Add schema guards for persisted delegation/trust/status state**
+   - Validate loader JSON shape before casting persisted data into typed registries.
+   - Acceptance: unknown enum values, missing discriminants, and malformed event arrays fail with stable field diagnostics.
+
+67. **Introduce a circuit-name registry**
+   - Centralize prover-key/circuit names into a typed registry and assert parity with generated contract circuits.
+   - Acceptance: a circuit rename fails at compile time or in a small registry test instead of during a wallet call.
+
+68. **Split the university BDD harness into reviewable modules**
+   - Extract fixture loading, transport contracts, scenario execution, report building, and artifact helpers from the current monolith.
+   - Acceptance: new real-transport code can be reviewed without reading the full scenario runner.
+
+69. **Add a real-transport smoke harness for university BDD**
+   - Wire standalone/proof-server transport behind the existing scenario interface and capture real timing metrics.
+   - Acceptance: `university-bdd:run --mode standalone` either runs against configured infrastructure or fails with actionable setup diagnostics.
+
+70. **Extend contract/API removal semantics coverage**
+   - Add API-level regression coverage proving `removeVerificationMethod` removes relations before the contract removal call.
+   - Add fake-timer coverage for contract timestamp updates.
+   - Acceptance: the documented decomposed removal semantics are enforced in tests.
+
+71. ✅ **Done: Validate Compact compiler/runtime compatibility in CI prechecks**
+   - Added a `check:toolchain` guard comparing `compact compile --runtime-version` with the declared `@midnight-ntwrk/compact-runtime`.
+   - Acceptance: compiler/runtime drift fails before contract tests import generated managed code.

@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      COMPACT_COMPILER_VERSION: 0.29.0
+      COMPACT_COMPILER_VERSION: 0.30.0
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
@@ -37,7 +37,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Set up Compact toolchain
-        uses: midnightntwrk/setup-compact-action@v1
+        uses: midnightntwrk/setup-compact-action@836895c8fffbbea6bd986af2b17e8941ff29d1f8 # ratchet:midnightntwrk/setup-compact-action@v1
         with:
           compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
 
@@ -61,6 +61,9 @@ jobs:
           mkdir -p ci-artifacts/metrics
           bash ./run.sh --skip-coverage --metrics-json ci-artifacts/metrics/ci-metrics.json
 
+      - name: Validate contract coverage thresholds
+        run: npm run coverage
+
       - name: Publish metrics artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -74,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      COMPACT_COMPILER_VERSION: 0.29.0
+      COMPACT_COMPILER_VERSION: 0.30.0
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
@@ -87,7 +90,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Set up Compact toolchain
-        uses: midnightntwrk/setup-compact-action@v1
+        uses: midnightntwrk/setup-compact-action@836895c8fffbbea6bd986af2b17e8941ff29d1f8 # ratchet:midnightntwrk/setup-compact-action@v1
         with:
           compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
 

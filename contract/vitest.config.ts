@@ -39,10 +39,10 @@ export default defineConfig({
         "vitest.config.ts"
       ],
       thresholds: {
-        branches: 25,
-        functions: 73,
-        lines: 72,
-        statements: -269
+        branches: 70,
+        functions: 70,
+        lines: 70,
+        statements: 70
       }
     },
     reporters: ["default", ["junit", { outputFile: "reports/report.xml" }]]
