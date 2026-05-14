@@ -60,6 +60,8 @@ export class IndexerEndpointPolicy {
     if (!protocols.includes(parsed.protocol)) {
       throw new ResolverInputError(message);
     }
+    parsed.username = "";
+    parsed.password = "";
     parsed.search = "";
     parsed.hash = "";
     return parsed.toString().replace(/\/+$/, "");

@@ -60,6 +60,27 @@ describe("did-resolver-service indexer endpoint policy", () => {
     });
   });
 
+  it("strips URL credentials before allowlist matching", () => {
+    const policy = new IndexerEndpointPolicy(
+      {
+        indexerHttpUrl: "http://default.example/api/v3/graphql",
+        indexerWsUrl: "ws://default.example/api/v3/graphql/ws",
+      },
+      {
+        indexerHttpUrls: ["https://another.example/api/v3/graphql"],
+      },
+    );
+
+    expect(
+      policy.resolve({
+        indexerUrl: "https://user:pass@another.example/api/v3/graphql",
+      }),
+    ).toEqual({
+      indexerHttpUrl: "https://another.example/api/v3/graphql",
+      indexerWsUrl: "wss://another.example/api/v3/graphql/ws",
+    });
+  });
+
   it("normalizes explicit ws override", () => {
     const policy = new IndexerEndpointPolicy(
       {

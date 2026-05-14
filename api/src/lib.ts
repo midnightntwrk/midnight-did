@@ -223,7 +223,10 @@ type ContractScopedPrivateStateProvider =
   };
 
 const isMissingContractAddressError = (error: unknown): error is Error =>
-  error instanceof Error && error.message.includes("Contract address not set");
+  error instanceof Error &&
+  (error.message === "Contract address not set" ||
+    error.message.startsWith("Contract address not set.") ||
+    (error as Error & { code?: unknown }).code === "CONTRACT_ADDRESS_NOT_SET");
 
 const setPrivateStateContractAddress = (
   providers: MidnightDIDProviders,
@@ -776,6 +779,7 @@ export const createWalletAndMidnightProvider = async (
       return ctx.wallet.finalizeRecipe(recipe) as any;
     },
     submitTx(tx) {
+      // Wallet SDK transaction typing currently lags the v8 transaction shape.
       return ctx.wallet.submitTransaction(tx as any) as any;
     },
   };

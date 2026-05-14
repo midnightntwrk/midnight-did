@@ -1,9 +1,10 @@
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import * as Rx from "rxjs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   hashProverKey,
+  initPrivateState,
   randomBytes,
   setLogger,
   waitForFunds,
@@ -51,5 +52,48 @@ describe("lib lightweight unit helpers", () => {
 
     const balance = await waitForFunds(wallet);
     expect(balance).toBe(42n);
+  });
+
+  it("skips private state IO only for the provider missing-contract-address error", async () => {
+    setLogger(logger);
+    const providerError = new Error(
+      "Contract address not set. Call setContractAddress() before accessing private state.",
+    );
+    const providers = {
+      privateStateProvider: {
+        get: vi.fn().mockRejectedValue(providerError),
+        set: vi.fn().mockRejectedValue(providerError),
+      },
+      zkConfigProvider: {
+        getProverKey: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+      },
+    } as any;
+
+    const privateState = await initPrivateState(providers);
+
+    expect(privateState.secretKey).toHaveLength(32);
+    expect(providers.zkConfigProvider.getProverKey).toHaveBeenCalledWith(
+      "addVerificationMethod",
+    );
+  });
+
+  it("does not swallow unrelated errors that mention contract address text", async () => {
+    setLogger(logger);
+    const providers = {
+      privateStateProvider: {
+        get: vi
+          .fn()
+          .mockRejectedValue(
+            new Error("audit cache failed: Contract address not set"),
+          ),
+        set: vi.fn(),
+      },
+      zkConfigProvider: {
+        getProverKey: vi.fn(),
+      },
+    } as any;
+
+    await expect(initPrivateState(providers)).rejects.toThrow("audit cache");
+    expect(providers.zkConfigProvider.getProverKey).not.toHaveBeenCalled();
   });
 });
