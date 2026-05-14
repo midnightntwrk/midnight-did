@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const resolveResultMock = vi.fn();
 const queryContractStateMock = vi.fn();
@@ -48,6 +48,10 @@ describe("did-resolver-service service", () => {
     ledgerFromStateMock.mockReset();
     resolverCtorMock.mockClear();
     providerFactoryMock.mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("returns resolved DID document with DID content type", async () => {
@@ -206,6 +210,25 @@ describe("did-resolver-service service", () => {
     expect(internalError.payload.didResolutionMetadata.error).toBe(
       "internalError",
     );
+  });
+
+  it("returns an internal error instead of parking slow resolution forever", async () => {
+    vi.useFakeTimers();
+    resolveResultMock.mockImplementationOnce(
+      () => new Promise<never>(() => undefined),
+    );
+    const service = new ResolverService({
+      indexerHttpUrl: "http://indexer.example/api/v3/graphql",
+      indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
+      requestTimeoutMs: 25,
+    });
+
+    const resultPromise = service.resolve("did:midnight:devnet:abc");
+    await vi.advanceTimersByTimeAsync(25);
+    const result = await resultPromise;
+
+    expect(result.statusCode).toBe(500);
+    expect(result.payload.didResolutionMetadata.error).toBe("internalError");
   });
 
   it("uses injected logger for debug error output", async () => {

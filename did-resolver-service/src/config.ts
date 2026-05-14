@@ -27,17 +27,42 @@ export type ResolverServiceConfig = {
   allowedIndexerHttpUrls: string[];
   allowedIndexerWsUrls: string[];
   expectedNetwork: MidnightNetwork | null;
+  requestTimeoutMs: number;
+  docsEnabled: boolean;
   debug: boolean;
 };
 
 const parseBoolean = (value: string | undefined): boolean =>
   value?.trim().toLowerCase() === "true";
 
+const parseOptionalBoolean = (
+  value: string | undefined,
+): boolean | undefined => {
+  if (value === undefined || value.trim() === "") return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  throw new Error(`Invalid boolean value: ${value}`);
+};
+
 const parsePort = (value: string | undefined): number => {
   const raw = value ?? "3001";
   const parsed = Number(raw);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
     throw new Error(`Invalid RESOLVER_PORT value: ${raw}`);
+  }
+  return parsed;
+};
+
+const parsePositiveInteger = (
+  value: string | undefined,
+  fallback: string,
+  envName: string,
+): number => {
+  const raw = value ?? fallback;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`Invalid ${envName} value: ${raw}`);
   }
   return parsed;
 };
@@ -108,6 +133,7 @@ export const loadConfig = (
   env: Record<string, string | undefined> = process.env,
 ): ResolverServiceConfig => {
   const allowlist = parseIndexerAllowlist(env.MIDNIGHT_INDEXER_ALLOWLIST);
+  const debug = parseBoolean(env.RESOLVER_DEBUG);
   return {
     host: env.RESOLVER_HOST ?? "127.0.0.1",
     port: parsePort(env.RESOLVER_PORT),
@@ -125,6 +151,14 @@ export const loadConfig = (
     ),
     ...allowlist,
     expectedNetwork: parseNetwork(env.MIDNIGHT_NETWORK),
-    debug: parseBoolean(env.RESOLVER_DEBUG),
+    requestTimeoutMs: parsePositiveInteger(
+      env.RESOLVER_REQUEST_TIMEOUT_MS,
+      "10000",
+      "RESOLVER_REQUEST_TIMEOUT_MS",
+    ),
+    docsEnabled:
+      parseOptionalBoolean(env.RESOLVER_DOCS_ENABLED) ??
+      (debug || env.NODE_ENV !== "production"),
+    debug,
   };
 };

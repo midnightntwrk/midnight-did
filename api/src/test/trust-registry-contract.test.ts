@@ -43,6 +43,17 @@ describe("trust-registry contract scaffold", () => {
     expect(beforeExpiry.activeFrom).toBe("2026-06-01T00:00:00.000Z");
     expect(beforeExpiry.activeUntil).toBe("2026-06-05T00:00:00.000Z");
 
+    const atExpiry = evaluateTrustRole(
+      oneOffIssue,
+      {
+        role: "issuer" as TrustRole,
+        partyDid: "did:midnight:issuer:university-beta",
+      },
+      "2026-06-05T00:00:00.000Z",
+    );
+    expect(atExpiry.isActive).toBe(false);
+    expect(atExpiry.reason).toContain("grant expired");
+
     const afterExpiry = evaluateTrustRole(
       oneOffIssue,
       {

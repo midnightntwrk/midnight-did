@@ -112,4 +112,28 @@ describe("did-resolver-service app", () => {
 
     await app.close();
   });
+
+  it("does not mount Swagger docs when docs are disabled", async () => {
+    const service = {
+      resolve: vi.fn(),
+    } as unknown as ResolverService;
+    const app = await createApp(service, { docsEnabled: false });
+    const response = await app.inject({ method: "GET", url: "/docs" });
+
+    expect(response.statusCode).toBe(404);
+
+    await app.close();
+  });
+
+  it("mounts Swagger docs when docs are enabled", async () => {
+    const service = {
+      resolve: vi.fn(),
+    } as unknown as ResolverService;
+    const app = await createApp(service, { docsEnabled: true });
+    const response = await app.inject({ method: "GET", url: "/docs" });
+
+    expect([200, 302]).toContain(response.statusCode);
+
+    await app.close();
+  });
 });

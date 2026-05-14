@@ -190,7 +190,7 @@ export const evaluateTrustRole = (
   if (latest.action === "grant") {
     if (latest.expiresAt != null) {
       const expiry = parseTimestamp(latest.expiresAt, "expiresAt");
-      if (decisionTime > expiry) {
+      if (decisionTime.getTime() >= expiry.getTime()) {
         return {
           role: query.role,
           partyDid: query.partyDid,

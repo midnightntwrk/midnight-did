@@ -13,7 +13,14 @@ function walk(dir) {
       walk(fullPath);
       continue;
     }
-    if (!entry.isFile() || !entry.name.endsWith(".js")) {
+    if (!entry.isFile()) {
+      continue;
+    }
+    if (entry.name.endsWith(".map")) {
+      fs.unlinkSync(fullPath);
+      continue;
+    }
+    if (!entry.name.endsWith(".js")) {
       continue;
     }
 

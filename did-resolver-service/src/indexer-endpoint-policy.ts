@@ -1,3 +1,4 @@
+import { ResolverInputError } from "./resolution-errors.js";
 import { type ResolveRequestOptions } from "./types.js";
 
 export type IndexerEndpoints = {
@@ -50,9 +51,14 @@ export class IndexerEndpointPolicy {
     message: string,
   ): string {
     const trimmed = value.trim();
-    const parsed = new URL(trimmed);
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      throw new ResolverInputError(message);
+    }
     if (!protocols.includes(parsed.protocol)) {
-      throw new Error(message);
+      throw new ResolverInputError(message);
     }
     parsed.search = "";
     parsed.hash = "";
@@ -90,7 +96,9 @@ export class IndexerEndpointPolicy {
     label: string,
   ): void {
     if (allowlist.has(url)) return;
-    throw new Error(`${label} is not in MIDNIGHT_INDEXER_ALLOWLIST`);
+    throw new ResolverInputError(
+      `${label} is not in MIDNIGHT_INDEXER_ALLOWLIST`,
+    );
   }
 
   resolve(options?: ResolveRequestOptions): IndexerEndpoints {

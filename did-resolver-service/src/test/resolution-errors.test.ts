@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   classifyResolutionError,
+  ResolutionRequestTimeoutError,
+  ResolverInputError,
   statusCodeForResolutionError,
 } from "../resolution-errors";
 
@@ -11,8 +13,11 @@ describe("did-resolver-service resolution errors", () => {
       classifyResolutionError(new Error("Invalid Midnight DID format")),
     ).toBe("invalidDid");
     expect(
-      classifyResolutionError(new Error("indexerWsUrl must use ws or wss")),
+      classifyResolutionError(new ResolverInputError("bad endpoint")),
     ).toBe("invalidDid");
+    expect(classifyResolutionError(new Error("Invalid URL"))).toBe(
+      "internalError",
+    );
   });
 
   it("classifies network mismatch and internal errors", () => {
@@ -20,6 +25,9 @@ describe("did-resolver-service resolution errors", () => {
       "networkMismatch",
     );
     expect(classifyResolutionError(new Error("boom"))).toBe("internalError");
+    expect(classifyResolutionError(new ResolutionRequestTimeoutError(25))).toBe(
+      "internalError",
+    );
     expect(classifyResolutionError("non-error")).toBe("internalError");
   });
 

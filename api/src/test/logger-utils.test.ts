@@ -62,4 +62,29 @@ describe("logger-utils", () => {
       }
     }
   });
+
+  it("redacts common secret fields from structured logs", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "midnight-did-api-"));
+    const logPath = path.join(dir, "redaction.log");
+    const logger = await createLogger(logPath);
+
+    logger.info(
+      {
+        seed: "raw-wallet-seed",
+        nested: {
+          privateKey: "raw-private-key",
+        },
+        password: "raw-password",
+      },
+      "secret-redaction-check",
+    );
+    (logger as { flush?: () => void }).flush?.();
+
+    const contents = await readFileEventually(logPath);
+    expect(contents).toContain("secret-redaction-check");
+    expect(contents).toContain("[Redacted]");
+    expect(contents).not.toContain("raw-wallet-seed");
+    expect(contents).not.toContain("raw-private-key");
+    expect(contents).not.toContain("raw-password");
+  });
 });

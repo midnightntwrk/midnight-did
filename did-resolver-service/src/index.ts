@@ -12,6 +12,7 @@ export const start = async (): Promise<void> => {
     allowedIndexerHttpUrls: config.allowedIndexerHttpUrls,
     allowedIndexerWsUrls: config.allowedIndexerWsUrls,
     expectedNetwork: config.expectedNetwork ?? undefined,
+    requestTimeoutMs: config.requestTimeoutMs,
     debug: config.debug,
     logger: createResolverLogger(
       logger.child({ component: "resolver-service" }),
@@ -19,6 +20,7 @@ export const start = async (): Promise<void> => {
   });
   const app = await createApp(service, {
     logger: logger.child({ component: "http-api" }),
+    docsEnabled: config.docsEnabled,
   });
   await app.listen({
     host: config.host,

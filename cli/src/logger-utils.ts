@@ -20,6 +20,19 @@ import * as path from 'node:path';
 import pino from 'pino';
 import pinoPretty from 'pino-pretty';
 
+const SECRET_REDACTION_PATHS = [
+  'seed',
+  '*.seed',
+  'mnemonic',
+  '*.mnemonic',
+  'secretKey',
+  '*.secretKey',
+  'privateKey',
+  '*.privateKey',
+  'password',
+  '*.password',
+] as const;
+
 export const createLogger = async (logPath: string): Promise<pino.Logger> => {
   await fs.mkdir(path.dirname(logPath), { recursive: true });
   const pretty: pinoPretty.PrettyStream = pinoPretty({
@@ -34,6 +47,10 @@ export const createLogger = async (logPath: string): Promise<pino.Logger> => {
     {
       level,
       depthLimit: 20,
+      redact: {
+        paths: [...SECRET_REDACTION_PATHS],
+        censor: '[Redacted]',
+      },
     },
     pino.multistream([
       { stream: pretty, level },

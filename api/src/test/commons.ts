@@ -27,6 +27,8 @@ const PROOF_SERVER_IMAGE =
 
 const seedFingerprint = (seed: string): string =>
   createHash("sha256").update(seed).digest("hex").slice(0, 12);
+const seedCacheFilePrefix = (seed: string): string =>
+  seedFingerprint(seed).slice(0, 8);
 
 export interface TestConfiguration {
   seed: string;
@@ -84,7 +86,7 @@ export function parseArgs(required: string[]): TestConfiguration {
       case "testnet":
         cfg = new TestnetRemoteConfig();
         psMode = "testnet";
-        cacheFileName = `${seed.substring(0, 7)}-${psMode}.state`;
+        cacheFileName = `${seedCacheFilePrefix(seed)}-${psMode}.state`;
         break;
       default:
         throw new Error(`Unknown env value=${env}`);

@@ -60,27 +60,29 @@ const resolveDidWithOptions = async (
 
 export const createApp = async (
   resolverService: ResolverService,
-  options?: { logger?: Logger },
+  options?: { logger?: Logger; docsEnabled?: boolean },
 ): Promise<FastifyInstance> => {
   const fastifyOptions: FastifyServerOptions = options?.logger
     ? { loggerInstance: options.logger }
     : { logger: true };
   const app = Fastify(fastifyOptions);
 
-  await app.register(swagger, {
-    openapi: {
-      info: {
-        title: "Midnight DID Resolver API",
-        description:
-          "Resolve did:midnight identifiers to DID Resolution output.",
-        version: "0.1.0",
+  if (options?.docsEnabled ?? true) {
+    await app.register(swagger, {
+      openapi: {
+        info: {
+          title: "Midnight DID Resolver API",
+          description:
+            "Resolve did:midnight identifiers to DID Resolution output.",
+          version: "0.1.0",
+        },
       },
-    },
-  });
+    });
 
-  await app.register(swaggerUi, {
-    routePrefix: "/docs",
-  });
+    await app.register(swaggerUi, {
+      routePrefix: "/docs",
+    });
+  }
 
   app.get("/", async (_request, reply) => {
     reply.type("text/html").send(resolverPage);

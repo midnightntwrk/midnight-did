@@ -61,6 +61,31 @@ if (!existsSync("package-lock.json")) {
 }
 
 const declaredCompactRuntime = pkg.dependencies?.["@midnight-ntwrk/compact-runtime"];
+const expectedCompactCompiler = process.env.COMPACT_COMPILER_VERSION ?? "0.30.0";
+
+let compactCompilerVersion;
+try {
+  compactCompilerVersion = execSync("compact compile --version", {
+    encoding: "utf8",
+    stdio: "pipe",
+  }).trim();
+} catch (error) {
+  console.error(
+    "Unable to read Compact compiler version. " +
+      "Install the Compact compiler before running the pipeline.",
+  );
+  process.exit(1);
+}
+
+if (compactCompilerVersion !== expectedCompactCompiler) {
+  console.error(
+    `Compact compiler mismatch: compact compile --version returned ${compactCompilerVersion}, ` +
+      `but COMPACT_COMPILER_VERSION expects ${expectedCompactCompiler}. ` +
+      "Update the CI compiler pin or local compiler before running contract tests.",
+  );
+  process.exit(1);
+}
+
 if (declaredCompactRuntime != null) {
   let compilerRuntime;
   try {

@@ -14,6 +14,8 @@ describe("did-resolver-service config", () => {
       allowedIndexerHttpUrls: [],
       allowedIndexerWsUrls: [],
       expectedNetwork: null,
+      requestTimeoutMs: 10000,
+      docsEnabled: true,
       debug: false,
     });
   });
@@ -27,6 +29,8 @@ describe("did-resolver-service config", () => {
       MIDNIGHT_INDEXER_ALLOWLIST:
         "https://allow.example/api/v3/graphql,wss://ws-allow.example/api/v3/graphql/ws",
       MIDNIGHT_NETWORK: "PreProd",
+      RESOLVER_REQUEST_TIMEOUT_MS: "2500",
+      RESOLVER_DOCS_ENABLED: "false",
       RESOLVER_DEBUG: "true",
     });
 
@@ -42,7 +46,14 @@ describe("did-resolver-service config", () => {
       "wss://ws-allow.example/api/v3/graphql/ws",
     ]);
     expect(cfg.expectedNetwork).toBe(MidnightNetwork.Preprod);
+    expect(cfg.requestTimeoutMs).toBe(2500);
+    expect(cfg.docsEnabled).toBe(false);
     expect(cfg.debug).toBe(true);
+  });
+
+  it("disables docs by default in production", () => {
+    const cfg = loadConfig({ NODE_ENV: "production" });
+    expect(cfg.docsEnabled).toBe(false);
   });
 
   it("fails on unsupported network", () => {
@@ -59,6 +70,16 @@ describe("did-resolver-service config", () => {
         RESOLVER_PORT: "70000",
       }),
     ).toThrow("Invalid RESOLVER_PORT value");
+    expect(() =>
+      loadConfig({
+        RESOLVER_REQUEST_TIMEOUT_MS: "0",
+      }),
+    ).toThrow("Invalid RESOLVER_REQUEST_TIMEOUT_MS value");
+    expect(() =>
+      loadConfig({
+        RESOLVER_DOCS_ENABLED: "sometimes",
+      }),
+    ).toThrow("Invalid boolean value");
   });
 
   it("fails on invalid indexer urls", () => {

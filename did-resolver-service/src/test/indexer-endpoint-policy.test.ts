@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { IndexerEndpointPolicy } from "../indexer-endpoint-policy";
+import { ResolverInputError } from "../resolution-errors";
 
 describe("did-resolver-service indexer endpoint policy", () => {
   it("uses defaults when no overrides provided", () => {
@@ -107,6 +108,11 @@ describe("did-resolver-service indexer endpoint policy", () => {
         indexerUrl: "http://169.254.169.254/latest/meta-data",
       }),
     ).toThrow("indexerUrl is not in MIDNIGHT_INDEXER_ALLOWLIST");
+    expect(() =>
+      policy.resolve({
+        indexerUrl: "http://169.254.169.254/latest/meta-data",
+      }),
+    ).toThrowError(ResolverInputError);
     expect(() =>
       policy.resolve({
         indexerWsUrl: "ws://localhost:6379/api/v3/graphql/ws",

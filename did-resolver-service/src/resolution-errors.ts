@@ -4,14 +4,24 @@ export type ResolutionErrorCode =
   | "networkMismatch"
   | "internalError";
 
-const didInputErrorMessages = [
+export class ResolverInputError extends Error {
+  public constructor(message: string) {
+    super(message);
+    this.name = "ResolverInputError";
+  }
+}
+
+export class ResolutionRequestTimeoutError extends Error {
+  public constructor(timeoutMs: number) {
+    super(`DID resolution timed out after ${timeoutMs.toString()}ms`);
+    this.name = "ResolutionRequestTimeoutError";
+  }
+}
+
+const midnightDidInputErrorMessages = [
   "Invalid Midnight DID format",
   "Unknown network in Midnight DID",
   "Invalid contract address in Midnight DID",
-  "indexerUrl must use http or https",
-  "indexerWsUrl must use ws or wss",
-  "not in MIDNIGHT_INDEXER_ALLOWLIST",
-  "Invalid URL",
 ] as const;
 
 export const classifyResolutionError = (
@@ -20,7 +30,12 @@ export const classifyResolutionError = (
   const message =
     error instanceof Error ? error.message : "Unexpected resolve error";
 
-  if (didInputErrorMessages.some((needle) => message.includes(needle))) {
+  if (error instanceof ResolverInputError) {
+    return "invalidDid";
+  }
+  if (
+    midnightDidInputErrorMessages.some((needle) => message.includes(needle))
+  ) {
     return "invalidDid";
   }
   if (message.includes("Network mismatch")) {

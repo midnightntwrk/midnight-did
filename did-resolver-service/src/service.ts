@@ -9,6 +9,7 @@ import { IndexerEndpointPolicy } from "./indexer-endpoint-policy.js";
 import {
   classifyResolutionError,
   type ResolutionErrorCode,
+  ResolutionRequestTimeoutError,
   statusCodeForResolutionError,
 } from "./resolution-errors.js";
 import { type ResolveRequestOptions } from "./types.js";
@@ -45,11 +46,13 @@ export type ResolverServiceOptions = {
   allowedIndexerHttpUrls?: readonly string[];
   allowedIndexerWsUrls?: readonly string[];
   expectedNetwork?: MidnightNetwork;
+  requestTimeoutMs?: number;
   debug?: boolean;
   logger?: ResolverLogger;
 };
 
 export const RESOLVER_CACHE_MAX_SIZE = 64;
+export const DEFAULT_RESOLVER_REQUEST_TIMEOUT_MS = 10_000;
 
 export type ResolverLogger = {
   error: (message: string, context?: Record<string, unknown>) => void;
@@ -74,12 +77,15 @@ const errorPayload = (error: ResolutionErrorCode) => ({
 export class ResolverService {
   private readonly expectedNetwork: MidnightNetwork | undefined;
   private readonly endpointPolicy: IndexerEndpointPolicy;
+  private readonly requestTimeoutMs: number;
   private readonly debug: boolean;
   private readonly logger: ResolverLogger;
   private readonly resolverCache = new Map<string, MidnightDIDResolver>();
 
   constructor(options: ResolverServiceOptions) {
     this.expectedNetwork = options.expectedNetwork;
+    this.requestTimeoutMs =
+      options.requestTimeoutMs ?? DEFAULT_RESOLVER_REQUEST_TIMEOUT_MS;
     this.debug = options.debug ?? false;
     this.logger = options.logger ?? defaultLogger;
     this.endpointPolicy = new IndexerEndpointPolicy(
@@ -154,12 +160,31 @@ export class ResolverService {
     return resolver;
   }
 
+  private async withResolutionTimeout<T>(operation: Promise<T>): Promise<T> {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const timeoutOperation = new Promise<never>((_resolve, reject) => {
+      timeout = setTimeout(() => {
+        reject(new ResolutionRequestTimeoutError(this.requestTimeoutMs));
+      }, this.requestTimeoutMs);
+    });
+
+    try {
+      return await Promise.race([operation, timeoutOperation]);
+    } finally {
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
+    }
+  }
+
   async resolve(
     did: string,
     options?: ResolveRequestOptions,
   ): Promise<ResolveResponse> {
     try {
-      const result = await this.resolverFor(options).resolveResult(did);
+      const result = await this.withResolutionTimeout(
+        this.resolverFor(options).resolveResult(did),
+      );
       if (result === null) {
         return {
           statusCode: 404,
