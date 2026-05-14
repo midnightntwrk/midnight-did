@@ -18,6 +18,11 @@ Use this document to keep onboarding and automation steps aligned with the code 
 
 These are the only npm workspaces declared in root `package.json` and are the packages validated by CI.
 
+## Canonical helper modules (tracked, in scope)
+
+- `schemas/compact-vc` — canonical VC schema definitions and deterministic hash vectors for
+  identity/role/compliance examples.
+
 ## Canonical developer entrypoint
 
 - `./run.sh` — full repo workflow used by CI (lint, build, tests, coverage)

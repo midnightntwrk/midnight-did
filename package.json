@@ -26,7 +26,8 @@
     "check:workspaces": "node scripts/validate-workspace-manifests.js",
     "run:strict": "bash ./run.sh --strict",
     "run:pipeline-checks": "npm run check:boundaries && bash ./run.sh --strict",
-    "test:run-sh": "node scripts/run-sh-contract.test.mjs"
+    "test:run-sh": "node scripts/run-sh-contract.test.mjs",
+    "test:vc-profile": "node --test schemas/compact-vc/test/compact-vc-profile.test.mjs"
   },
   "private": true,
   "packageManager": "npm@10.8.2",

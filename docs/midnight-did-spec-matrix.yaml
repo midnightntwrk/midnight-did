@@ -17,12 +17,14 @@ items:
   - id: use-case-vc-sign-verify
     useCase: "Signing and verification of Verifiable Credentials"
     sourceSection: "docs/midnight-did-use-cases.md#2-signing-and-verification-of-verifiable-credentials"
-    status: needs-primitives
+    status: in-progress
     risk: high
     owner: vc
     implementationNotes:
       - assertionMethod is available and can anchor issuer keys.
-      - VC schema, proof format, and status/revocation model are not implemented in repo.
+      - Canonical compact schema registry is now available in `schemas/compact-vc` with deterministic
+        digest vectors.
+      - VC proof format and status/revocation model remain pending.
     acceptanceCriteria:
       - "Canonical compact profile and hash canonicalization module exists."
       - "Issuer can publish reusable VC schema references in DID services."

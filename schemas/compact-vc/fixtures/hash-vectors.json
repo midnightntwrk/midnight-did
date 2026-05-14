@@ -1,0 +1,14 @@
+[
+  {
+    "fixture": "identity-credential.json",
+    "expectedSha256Hex": "b900a02cd4199abcdb80967f2c944036fff4200fa8a72d143995b469f9bce51a"
+  },
+  {
+    "fixture": "role-credential.json",
+    "expectedSha256Hex": "6c9802896d3bb56662f86cb0394878b4a7cb2b778b285b5b0dcedda1f8c105c3"
+  },
+  {
+    "fixture": "compliance-credential.json",
+    "expectedSha256Hex": "3b08a55c565df08f661085903eb45a41ec18bfeefde0c765a3e605fd75980b1e"
+  }
+]

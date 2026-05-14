@@ -1,0 +1,15 @@
+{
+  "name": "@midnight-ntwrk/compact-vc-profile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Canonical compact credential schema helpers for Midnight VC experiments.",
+  "main": "src/index.mjs",
+  "scripts": {
+    "test": "node --test test/compact-vc-profile.test.mjs",
+    "lint": "node --check src/*.mjs test/*.mjs",
+    "lint:fix": "node -e \"console.log('No automatic lint fixes for this package yet.')\"",
+    "build": "echo \"compact-vc profile has no build step\"",
+    "coverage": "node --test --experimental-test-coverage --test-reporter=spec test/compact-vc-profile.test.mjs"
+  }
+}

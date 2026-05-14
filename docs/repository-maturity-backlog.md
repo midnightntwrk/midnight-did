@@ -66,9 +66,13 @@
    - Add `docs/midnight-did-spec-matrix.yaml` (or `.json`) linking every use case section to implementation status, risk, and owner.
   - Acceptance: reviewers can verify status in one file before writing or merging PRs.
 
-15. **Add canonical compact VC schema package**
+15. ✅ **Done: Add canonical compact VC schema package**
    - Introduce agreed credential type definitions for identity, role, and compliance flows.
-   - Acceptance: shared schema module compiles, includes examples, and exports canonical hash test vectors.
+   - Accepted: shared schema module now exists at `schemas/compact-vc` with:
+     - shared schema registry and envelope helpers
+     - 3 canonical credential fixtures (identity/role/compliance)
+     - deterministic SHA-256 vector fixtures
+     - `npm run test:vc-profile` execution check.
 
 16. **Add VC status/reference baseline**
    - Add soft status workflow in API/service layer plus revocation state fixture format.
