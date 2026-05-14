@@ -113,4 +113,27 @@ describe("did-resolver-service indexer endpoint policy", () => {
       }),
     ).toThrow("indexerWsUrl is not in MIDNIGHT_INDEXER_ALLOWLIST");
   });
+
+  it.each([
+    "http://allowed.example@169.254.169.254/api/v3/graphql",
+    "http://user:pass@allowed.example/api/v3/graphql",
+    "http://a@b@allowed.example/api/v3/graphql",
+    "http://[::1]:8088/api/v3/graphql",
+    "http://[::ffff:127.0.0.1]:8088/api/v3/graphql",
+    "https://allowed.example//api/v3/graphql",
+  ])("rejects URL parser bypass attempt %s", (indexerUrl) => {
+    const policy = new IndexerEndpointPolicy(
+      {
+        indexerHttpUrl: "http://default.example/api/v3/graphql",
+        indexerWsUrl: "ws://default.example/api/v3/graphql/ws",
+      },
+      {
+        indexerHttpUrls: ["https://allowed.example/api/v3/graphql"],
+      },
+    );
+
+    expect(() => policy.resolve({ indexerUrl })).toThrow(
+      "indexerUrl is not in MIDNIGHT_INDEXER_ALLOWLIST",
+    );
+  });
 });

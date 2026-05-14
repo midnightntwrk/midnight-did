@@ -138,6 +138,18 @@ describe("did delegation lifecycle", () => {
     expect(beforeExpiry.isActive).toBe(true);
     expect(beforeExpiry.validUntil).toBe("2026-06-10T00:00:00.000Z");
 
+    const atExpiry = evaluateDelegation(
+      expiringState,
+      {
+        delegatorDid: "did:midnight:university:state-college",
+        delegateDid: "did:midnight:agent:grants-ops",
+        relationship: "capabilityInvocation",
+        verificationMethod: "#temporary-agent-key-v2",
+      },
+      "2026-06-10T00:00:00.000Z",
+    );
+    expect(atExpiry.isActive).toBe(false);
+
     const afterExpiry = evaluateDelegation(
       expiringState,
       {

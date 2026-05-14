@@ -65,12 +65,14 @@ assertContains(strictResult.stdout, "DRY-RUN: planned steps:", "dry-run marker")
 assertContains(strictResult.stdout, "Lint workspaces", "strict lint step");
 assertNotContains(strictResult.stdout, "Lint (fix) workspaces", "strict mode should not include lint:fix");
 assertContains(strictResult.stdout, "Coverage contract", "coverage step should be included by default");
+assertContains(strictResult.stdout, "Coverage API", "api coverage step should be included by default");
 
 const skippedCoverageResult = runDryRun(["--strict", "--skip-coverage"]);
 assert.equal(skippedCoverageResult.exitCode, 0, "dry-run strict skip coverage should succeed");
 assertNotContains(skippedCoverageResult.stdout, "Coverage contract", "coverage should be skipped");
 assertNotContains(skippedCoverageResult.stdout, "Coverage domain", "coverage should be skipped");
 assertNotContains(skippedCoverageResult.stdout, "Coverage did", "coverage should be skipped");
+assertNotContains(skippedCoverageResult.stdout, "Coverage API", "coverage should be skipped");
 assertNotContains(skippedCoverageResult.stdout, "Coverage DID resolver service", "coverage should be skipped");
 
 const nonStrictResult = runDryRun([]);

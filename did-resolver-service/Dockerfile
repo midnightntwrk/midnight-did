@@ -39,6 +39,8 @@ COPY --from=builder /app/domain/dist domain/dist
 COPY --from=builder /app/did/dist did/dist
 COPY --from=builder /app/did-resolver-service/dist did-resolver-service/dist
 
+RUN chown -R node:node /app
+
 EXPOSE 3001
 
 WORKDIR /app/did-resolver-service

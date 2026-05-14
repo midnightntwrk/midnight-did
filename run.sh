@@ -173,30 +173,35 @@ add_step "Build contract (tsc)" "npm run build -w contract"
 add_step "Test contract" "SKIP_RUNTIME_TESTS=1 npm run test:ci -w contract || SKIP_RUNTIME_TESTS=1 npm run test -w contract"
 
 if [[ "$SKIP_COVERAGE" == "0" ]]; then
-  add_step "Coverage contract" "npm run coverage -w contract || true"
+  add_step "Coverage contract" "npm run coverage -w contract"
 fi
 
 add_step "Build domain" "npm run build -w domain"
 add_step "Test domain" "npm run test -w domain"
 
 if [[ "$SKIP_COVERAGE" == "0" ]]; then
-  add_step "Coverage domain" "npm run coverage -w domain || true"
+  add_step "Coverage domain" "npm run coverage -w domain"
 fi
 
 add_step "Build did" "npm run build -w did"
 add_step "Test did" "npm run test -w did -- --pool=threads"
 
 if [[ "$SKIP_COVERAGE" == "0" ]]; then
-  add_step "Coverage did" "npm run coverage -w did || true"
+  add_step "Coverage did" "npm run coverage -w did"
 fi
 
-add_step "Build API and run tests" "npm run build -w api && npm run test -w api && npm run test-api -w api || true"
+add_step "Build API and run tests" "npm run build -w api && npm run test -w api && npm run test-api -w api"
+
+if [[ "$SKIP_COVERAGE" == "0" ]]; then
+  add_step "Coverage API" "npm run coverage -w api"
+fi
+
 add_step "Build CLI" "npm run build -w cli"
 
 add_step "Build and test DID resolver service" "npm run build -w did-resolver-service && npm run test -w did-resolver-service && npm run test:integration -w did-resolver-service"
 
 if [[ "$SKIP_COVERAGE" == "0" ]]; then
-  add_step "Coverage DID resolver service" "npm run coverage -w did-resolver-service || true"
+  add_step "Coverage DID resolver service" "npm run coverage -w did-resolver-service"
 fi
 
 if [[ "$DRY_RUN" == "1" ]]; then

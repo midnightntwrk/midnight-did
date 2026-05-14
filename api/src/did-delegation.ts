@@ -252,6 +252,7 @@ const isEffectivelyActive = (at: Date, expiresAt?: string): boolean => {
   if (expiresAt == null) {
     return true;
   }
+  // expiresAt is an exclusive boundary: a delegation is inactive at the exact expiry instant.
   return at.getTime() < parseTimestamp(expiresAt, "expiresAt").getTime();
 };
 
