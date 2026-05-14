@@ -1,4 +1,4 @@
-import { unshieldedToken } from "@midnight-ntwrk/ledger-v7";
+import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import type { Logger } from "pino";
 import * as Rx from "rxjs";
 import {

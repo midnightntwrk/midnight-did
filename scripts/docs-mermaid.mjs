@@ -227,6 +227,22 @@ const extractMermaidBlocks = (content, sourcePath) => {
   return blocks;
 };
 
+const createPuppeteerConfigFile = (directory) => {
+  const configPath = resolve(directory, "puppeteer-config.json");
+  writeFileSync(
+    configPath,
+    `${JSON.stringify(
+      {
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  return configPath;
+};
+
 const renderSingle = (inputPath, outputPath, renderer, extraArgs = []) => {
   const args = [
     "-i",
@@ -283,6 +299,8 @@ const runRender = (options) => {
 
   const formatList = options.format === "both" ? ["svg", "png"] : [options.format];
   const renderer = createRenderer();
+  const renderTempDir = mkdtempSync(resolve(tmpdir(), "midnight-did-mermaid-render-"));
+  const puppeteerConfigFile = createPuppeteerConfigFile(renderTempDir);
   const manifest = {
     generatedAt: new Date().toISOString(),
     sources,
@@ -292,51 +310,58 @@ const runRender = (options) => {
     blocks: [],
   };
 
-  for (const sourcePath of sources) {
-    const content = readFileSync(sourcePath, "utf8");
-    const blocks = extractMermaidBlocks(content, sourcePath);
-    if (blocks.length === 0) {
-      continue;
-    }
+  try {
+    for (const sourcePath of sources) {
+      const content = readFileSync(sourcePath, "utf8");
+      const blocks = extractMermaidBlocks(content, sourcePath);
+      if (blocks.length === 0) {
+        continue;
+      }
 
-    const sourceSlug = slugify(relative(process.cwd(), sourcePath));
+      const sourceSlug = slugify(relative(process.cwd(), sourcePath));
 
-    for (const block of blocks) {
-      const safeHeading = slugify(block.heading || `block-${block.ordinal}`);
-      const baseName = `${sourceSlug}-${safeHeading}-block-${String(block.ordinal).padStart(3, "0")}`;
-      const tempDir = mkdtempSync(resolve(tmpdir(), "midnight-did-mermaid-"));
-      const tempInput = resolve(tempDir, "diagram.mmd");
-      writeFileSync(tempInput, block.text, "utf8");
+      for (const block of blocks) {
+        const safeHeading = slugify(block.heading || `block-${block.ordinal}`);
+        const baseName = `${sourceSlug}-${safeHeading}-block-${String(block.ordinal).padStart(3, "0")}`;
+        const tempDir = mkdtempSync(resolve(tmpdir(), "midnight-did-mermaid-"));
+        const tempInput = resolve(tempDir, "diagram.mmd");
+        writeFileSync(tempInput, block.text, "utf8");
 
-      try {
-        const blockEntry = {
-          sourcePath,
-          sourceHash: toSha256Hex(sourcePath),
-          heading: block.heading,
-          diagramType: block.diagramType,
-          startLine: block.startLine,
-          endLine: block.endLine,
-          textHash: block.textHash,
-          outputs: {},
-        };
-        for (const fmt of formatList) {
-          const outputFile = resolve(outDir, `${baseName}.${fmt}`);
-          renderSingle(tempInput, outputFile, renderer);
-          const outputBytes = readFileSync(outputFile);
-          if (outputBytes.length === 0) {
-            throw new Error(`Rendered output is empty: ${outputFile}`);
+        try {
+          const blockEntry = {
+            sourcePath,
+            sourceHash: toSha256Hex(sourcePath),
+            heading: block.heading,
+            diagramType: block.diagramType,
+            startLine: block.startLine,
+            endLine: block.endLine,
+            textHash: block.textHash,
+            outputs: {},
+          };
+          for (const fmt of formatList) {
+            const outputFile = resolve(outDir, `${baseName}.${fmt}`);
+            renderSingle(tempInput, outputFile, renderer, [
+              "--puppeteerConfigFile",
+              puppeteerConfigFile,
+            ]);
+            const outputBytes = readFileSync(outputFile);
+            if (outputBytes.length === 0) {
+              throw new Error(`Rendered output is empty: ${outputFile}`);
+            }
+            blockEntry.outputs[fmt] = relative(process.cwd(), outputFile).replaceAll(
+              sep,
+              "/",
+            );
+            blockEntry.outputs[`${fmt}Hash`] = toSha256Hex(outputBytes.toString("base64"));
           }
-          blockEntry.outputs[fmt] = relative(process.cwd(), outputFile).replaceAll(
-            sep,
-            "/",
-          );
-          blockEntry.outputs[`${fmt}Hash`] = toSha256Hex(outputBytes.toString("base64"));
+          manifest.blocks.push(blockEntry);
+        } finally {
+          rmSync(tempDir, { recursive: true, force: true });
         }
-        manifest.blocks.push(blockEntry);
-      } finally {
-        rmSync(tempDir, { recursive: true, force: true });
       }
     }
+  } finally {
+    rmSync(renderTempDir, { recursive: true, force: true });
   }
 
   manifest.totalBlocks = manifest.blocks.length;
@@ -354,6 +379,7 @@ const runCheck = (options) => {
   const errors = [];
   let checked = 0;
   const tempDir = mkdtempSync(resolve(tmpdir(), "midnight-did-mermaid-check-"));
+  const puppeteerConfigFile = createPuppeteerConfigFile(tempDir);
   try {
     for (const sourcePath of sources) {
       const content = readFileSync(sourcePath, "utf8");
@@ -363,7 +389,10 @@ const runCheck = (options) => {
         const verifyOutput = resolve(tempDir, `${toSha256Hex(sourcePath + block.startLine).slice(0, 16)}.svg`);
         writeFileSync(verifyInput, block.text, "utf8");
         try {
-          renderSingle(verifyInput, verifyOutput, renderer);
+          renderSingle(verifyInput, verifyOutput, renderer, [
+            "--puppeteerConfigFile",
+            puppeteerConfigFile,
+          ]);
           checked += 1;
         } catch (error) {
           errors.push(`${sourcePath}:${block.startLine}-${block.endLine} (${block.diagramType}) => ${error.message}`);

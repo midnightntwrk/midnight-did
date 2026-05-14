@@ -81,6 +81,7 @@ See [Repository Boundary and Workspace Policy](docs/repository-boundary.md) for 
 - Repo audit: `npm run audit:repo`
 - run.sh contract checks: `npm run test:run-sh`
 - Toolchain sanity check: `npm run check:toolchain`
+- PR validation snippet: `npm run pr:snippet -- --metrics path/to/metrics.json --command "bash ./run.sh --skip-coverage" --verdict pass`
 - VC schema profile tests: `npm run test:vc-profile`
 - VC status/revocation fixture checks: `npm run test:vc-status`
 - Trust registry contract scaffold checks: `npm run test:trust-registry`
@@ -97,6 +98,10 @@ See [Repository Boundary and Workspace Policy](docs/repository-boundary.md) for 
   - Add a targeted CLI smoke validation with `npm run test:university-bdd:cli`.
   - Compare scenario artifacts with `npm run university-bdd:diff -- --baseline path/to/baseline.json --candidate path/to/candidate.json`.
   - Use `--format json` for machine-readable output and `--fail-on-regression` to hard-fail CI on dropped issuance/application/discount counts.
+  - Visualize request/reply replay with `npm run university-bdd:visualize -- --report docs/uc-bundles/university-bdd/sample-report.json --replay docs/uc-bundles/university-bdd/sample-replay.json --out /tmp/university-bdd-replay.html`.
+  - Export step metrics with `npm run university-bdd:metrics -- --report docs/uc-bundles/university-bdd/sample-report.json --format csv --out /tmp/university-bdd-metrics.csv`.
+  - Generate PR-ready BDD summary text with `npm run university-bdd:pr-summary -- --candidate docs/uc-bundles/university-bdd/sample-report.json`.
+  - Validate helper CLIs with `npm run test:university-bdd:tooling`.
 
 
 ### LICENSE

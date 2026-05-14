@@ -47,7 +47,7 @@ This section converts the spec into a decision-oriented map.
 ### Snapshot by use case
 
 | Use case | Current issue | Improvement target | Practical solution |
-|---|---|---|
+|---|---|---|---|
 | Authentication with DID and WebAuthn | Login logic is app-specific and outside DID core | Add standard account and policy handling for P-256 keys | Keep WebAuthn backend outside the DID contract, keep keys/resolution anchored on Midnight |
 | VC signing and verification | VC payload format is not standardized in repo | Define compact profile and canonical hashing | Introduce a small credential family with explicit issuance and verification steps |
 | Multi-sig collaborative voting | DID contract is single-controller | Add companion governance layer | Keep DID as identity anchor; use a governance contract for threshold rules |
@@ -59,6 +59,24 @@ This section converts the spec into a decision-oriented map.
 | Reusable KYC and compliance | Credentials are re-run per application | Issue portable compliance credentials | Define scope codes and validity intervals to make reusable attestations safe |
 | Healthcare attestations | Sensitive fields and roles are mixed in ad-hoc flows | Separate minimal claim predicates from private payloads | Use minimal claim set + selective disclosure plan + traceable consent patterns |
 | Record provenance | No standard workflow for signed compliance evidence | Normalize signer role + evidence format | Define record templates for signature + role + policy context |
+
+### Smallest owner and dependency badges
+
+Use this table during PR planning. The "owner" is the smallest repository area that should absorb the first implementation. Dependencies are the minimum other building blocks that must stay in sync.
+
+| Use case | Smallest owner badge | Dependency badge |
+|---|---|---|
+| Authentication with DID and WebAuthn | `owner: api/auth adapter` | `depends: DID resolver, P-256 method, relying-party service` |
+| VC signing and verification | `owner: credential profile package` | `depends: assertionMethod, canonical hash, status helper` |
+| Multi-sig collaborative approvals | `owner: companion governance contract` | `depends: participant DIDs, assertion signatures, proposal state` |
+| Issuer/verifier trust registry | `owner: trust registry contract/API` | `depends: role events, DID service endpoints, governance policy` |
+| ZKP age verification | `owner: age credential family` | `depends: compact VC profile, status registry, proof server` |
+| Delegated agent authorization | `owner: delegation templates/API` | `depends: capabilityDelegation, service endpoints, key rotation policy` |
+| DIDComm and agent discovery | `owner: messaging profile shim` | `depends: keyAgreement, endpoint metadata, challenge-response smoke test` |
+| Regulated finance / RWA access | `owner: verifier policy gateway` | `depends: trust registry, compliance VC, status checks` |
+| Reusable KYC and compliance | `owner: reusable credential family` | `depends: schema registry, issuer role, validity window` |
+| Healthcare attestations | `owner: claim minimization policy` | `depends: consent evidence, redaction map, verifier role` |
+| Record provenance | `owner: evidence template package` | `depends: signer role, document hash, audit policy context` |
 
 ## Practical read model for this repo
 

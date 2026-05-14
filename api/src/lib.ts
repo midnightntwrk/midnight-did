@@ -1,8 +1,8 @@
 import { webcrypto } from "node:crypto";
 
 import { CompiledContract } from "@midnight-ntwrk/compact-js";
-import * as ledger from "@midnight-ntwrk/ledger-v7";
-import { unshieldedToken } from "@midnight-ntwrk/ledger-v7";
+import * as ledger from "@midnight-ntwrk/ledger-v8";
+import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import {
   type ContractAddress,
   createMidnightDIDString,
@@ -112,12 +112,6 @@ const buildShieldedConfig = ({
   relayURL: new URL(node.replace(/^http/, "ws")),
 });
 
-const buildUnshieldedConfig = ({ indexer, indexerWS }: Config) => ({
-  networkId: getNetworkId(),
-  indexerClientConnection: { indexerHttpUrl: indexer, indexerWsUrl: indexerWS },
-  txHistoryStorage: new InMemoryTransactionHistoryStorage(),
-});
-
 const buildDustConfig = ({
   indexer,
   indexerWS,
@@ -132,6 +126,12 @@ const buildDustConfig = ({
   indexerClientConnection: { indexerHttpUrl: indexer, indexerWsUrl: indexerWS },
   provingServerUrl: new URL(proofServer),
   relayURL: new URL(node.replace(/^http/, "ws")),
+});
+
+const buildWalletConfig = (config: Config) => ({
+  ...buildShieldedConfig(config),
+  ...buildDustConfig(config),
+  txHistoryStorage: new InMemoryTransactionHistoryStorage(),
 });
 
 // Manual transaction intent signing (SDK bug workaround)
@@ -212,6 +212,23 @@ export async function hashProverKey(
   return new Uint8Array(hash);
 }
 
+type ContractScopedPrivateStateProvider =
+  MidnightDIDProviders["privateStateProvider"] & {
+    setContractAddress?: (address: ContractAddress) => void;
+  };
+
+const isMissingContractAddressError = (error: unknown): error is Error =>
+  error instanceof Error && error.message.includes("Contract address not set");
+
+const setPrivateStateContractAddress = (
+  providers: MidnightDIDProviders,
+  contractAddress: ContractAddress,
+): void => {
+  const provider =
+    providers.privateStateProvider as ContractScopedPrivateStateProvider;
+  provider.setContractAddress?.(contractAddress);
+};
+
 export async function initPrivateState(
   providers: MidnightDIDProviders,
 ): Promise<MidnightDIDPrivateState> {
@@ -220,9 +237,20 @@ export async function initPrivateState(
       getProverKey: (circuitName: string) => Promise<Uint8Array>;
     };
   };
-  const providedPrivateState = await providers.privateStateProvider.get(
-    MidnightDIDPrivateStateId,
-  );
+  let providedPrivateState: MidnightDIDPrivateState | null = null;
+  try {
+    providedPrivateState = await providers.privateStateProvider.get(
+      MidnightDIDPrivateStateId,
+    );
+  } catch (error: unknown) {
+    if (isMissingContractAddressError(error)) {
+      logger.info(
+        "Private state restore skipped (contract address not set yet).",
+      );
+    } else {
+      throw error;
+    }
+  }
   if (
     providedPrivateState != null &&
     providedPrivateState.secretKey != null &&
@@ -246,10 +274,7 @@ export async function initPrivateState(
       privateState,
     );
   } catch (error: unknown) {
-    if (
-      error instanceof Error &&
-      error.message.includes("Contract address not set")
-    ) {
+    if (isMissingContractAddressError(error)) {
       logger.info("Private state save skipped (contract address not set yet).");
     } else {
       throw error;
@@ -262,6 +287,8 @@ export const joinContract = async (
   providers: MidnightDIDProviders,
   contractAddress: string,
 ): Promise<DeployedMidnightDIDContract> => {
+  assertIsContractAddress(contractAddress);
+  setPrivateStateContractAddress(providers, contractAddress);
   const initialPrivateState = await initPrivateState(providers);
   const didContract = await findDeployedContract(providers, {
     contractAddress,
@@ -656,8 +683,17 @@ export const deactivate = async (
   return result.public;
 };
 
-export const midnightNetwork: MidnightNetwork =
+const currentMidnightNetwork = (): MidnightNetwork =>
   RuntimeToDomain.NetworkMap[getNetworkId()];
+
+export const getMidnightNetwork = currentMidnightNetwork;
+
+export const midnightNetwork = {
+  toLowerCase: () => currentMidnightNetwork().toLowerCase(),
+  toString: () => currentMidnightNetwork().toString(),
+  valueOf: () => currentMidnightNetwork(),
+  [Symbol.toPrimitive]: () => currentMidnightNetwork(),
+} as unknown as MidnightNetwork;
 
 export const resolve = async (
   providers: MidnightDIDProviders,
@@ -780,20 +816,23 @@ export const buildWalletAndWaitForFunds = async (
     getNetworkId(),
   );
 
-  // Create three sub-wallets
-  const shieldedWallet = ShieldedWallet(
-    buildShieldedConfig(config),
-  ).startWithSecretKeys(shieldedSecretKeys as any);
-  const unshieldedWallet = UnshieldedWallet(
-    buildUnshieldedConfig(config),
-  ).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore));
-  const dustWallet = DustWallet(buildDustConfig(config)).startWithSecretKey(
-    dustSecretKey as any,
-    ledger.LedgerParameters.initialParameters().dust,
-  );
-
-  // Compose into facade
-  const wallet = new WalletFacade(shieldedWallet, unshieldedWallet, dustWallet);
+  const walletConfig = buildWalletConfig(config);
+  const wallet = await WalletFacade.init({
+    configuration: walletConfig,
+    shielded: (configuration) =>
+      ShieldedWallet(configuration).startWithSecretKeys(
+        shieldedSecretKeys as any,
+      ),
+    unshielded: (configuration) =>
+      UnshieldedWallet(configuration).startWithPublicKey(
+        PublicKey.fromKeyStore(unshieldedKeystore),
+      ),
+    dust: (configuration) =>
+      DustWallet(configuration).startWithSecretKey(
+        dustSecretKey as any,
+        ledger.LedgerParameters.initialParameters().dust,
+      ),
+  });
   await wallet.start(shieldedSecretKeys as any, dustSecretKey as any);
 
   // Wait for sync
@@ -830,7 +869,7 @@ export const registerForDustGeneration = async (
 
   // Check if dust already available
   if (state.dust.availableCoins.length > 0) {
-    const dustBal = state.dust.walletBalance(new Date());
+    const dustBal = state.dust.balance(new Date());
     logger.info(`Dust already available: ${dustBal}`);
     return;
   }
@@ -845,7 +884,7 @@ export const registerForDustGeneration = async (
     await Rx.firstValueFrom(
       wallet.state().pipe(
         Rx.throttleTime(5_000),
-        Rx.filter((s) => s.dust.walletBalance(new Date()) > 0n),
+        Rx.filter((s) => s.dust.balance(new Date()) > 0n),
       ),
     );
     return;
@@ -868,7 +907,7 @@ export const registerForDustGeneration = async (
   await Rx.firstValueFrom(
     wallet.state().pipe(
       Rx.throttleTime(5_000),
-      Rx.filter((s) => s.dust.walletBalance(new Date()) > 0n),
+      Rx.filter((s) => s.dust.balance(new Date()) > 0n),
     ),
   );
 
@@ -898,7 +937,10 @@ export const configureProviders = async (
   return {
     privateStateProvider: levelPrivateStateProvider({
       privateStateStoreName: contractConfig.privateStateStoreName,
-      walletProvider: walletAndMidnightProvider,
+      privateStoragePasswordProvider: () =>
+        process.env.MIDNIGHT_DID_PRIVATE_STATE_PASSWORD ??
+        "Midnight-DID-local-private-state-password-2026!",
+      accountId: String(ctx.unshieldedKeystore.getBech32Address()),
     }),
     publicDataProvider: indexerPublicDataProvider(
       config.indexer,

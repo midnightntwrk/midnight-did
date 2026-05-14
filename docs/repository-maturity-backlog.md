@@ -44,9 +44,10 @@
   - Added role-specific contributor workflows in `CONTRIBUTING.md`.
   - Added `docs/midnight-did-book-for-dummies.md` into README as a practical entry point for user-case based specs.
 
-10. **Backlog-driven cross-repo review loop**
-    - After each PR, run manual or assistant review pass and update this backlog with blocked/investigated items.
-    - This should include a short post-PR note on stale/legacy directories touched or newly introduced.
+10. ✅ **Done: Backlog-driven cross-repo review loop**
+    - PR template now requires backlog/spec-matrix links, review governance checks, and use-case artifact evidence.
+    - `npm run backlog:progress` provides a repeatable post-PR check that validates completed backlog tooling.
+    - Claude review artifacts are kept under `review/` when a PR needs a second-opinion pass.
 
 ## Next 10 backlog items (stackable PR slices)
 
@@ -291,30 +292,30 @@
    - Added `npm run docs:check-mermaid` to validate Mermaid blocks in CI.
    - PRs now fail fast when malformed diagrams are introduced in docs sources.
 
-55. **Add a PR-ready `README` snippet generator**
-   - Add command to dump ready-to-paste runbook text for CI artifacts and backlog updates.
-   - Keep snippet fields stable (version, metrics, verdict, command used).
+55. ✅ **Done: Add a PR-ready `README` snippet generator**
+   - Added `npm run pr:snippet` with stable markdown/json fields for version, verdict, command, run metrics, and university BDD counts.
+   - The helper reads `run.sh --metrics-json` output plus the BDD report artifact for ready-to-paste PR evidence.
 
-56. **Add a canonical replay visualizer script**
-   - Parse report/replay artifacts and output an HTML/mermaid sequence view of each party’s request/reply flow.
-   - Useful for engineering review without opening raw JSON.
+56. ✅ **Done: Add a canonical replay visualizer script**
+   - Added `npm run university-bdd:visualize` to parse report/replay artifacts and emit HTML, markdown, or raw Mermaid sequence views.
+   - The visualizer shows student-to-university issuance, student-to-verifier present proof, and student-to-mall discount exchanges.
 
-57. **Add a “smallest owner + dependencies” badge in specs**
-   - Emit ownership/dependency metadata for each use case in the book annex.
+57. ✅ **Done: Add a “smallest owner + dependencies” badge in specs**
+   - Added owner/dependency badges for each documented use case in the book annex.
    - This reduces reviewer ambiguity during implementation PRs.
 
-58. **Expose a machine-readable metrics index**
-   - Add `scripts/university-bdd-metrics.mjs` to aggregate step latencies into CSV/JSON for trends.
-   - Include baseline guardrails for step budget regressions by commit.
+58. ✅ **Done: Expose a machine-readable metrics index**
+   - Added `npm run university-bdd:metrics` to aggregate step latencies into JSON, CSV, or markdown.
+   - Added budget guards with `--max-step-ms` and `--max-total-ms` for local and CI trend checks.
 
-59. **Add a PR summary helper for university BDD diffs**
-   - Add template that inserts top-line findings from `university-bdd:diff` into PR description.
-   - Include counts (issued/approved/discounted), duration, and schema version.
+59. ✅ **Done: Add a PR summary helper for university BDD diffs**
+   - Added `npm run university-bdd:pr-summary` to generate PR-ready markdown with counts, duration, schema version, and validation commands.
+   - Updated the PR template to request this summary for university BDD changes.
 
-60. **Document adapter migration path for real Midnight transport**
-   - Add a one-page guide linking adapter stubs and contract expectations for HTTP/gRPC transition.
-   - Include production readiness checklist for timeout/retry/breaker defaults.
+60. ✅ **Done: Document adapter migration path for real Midnight transport**
+   - Added `docs/university-bdd-transport-migration.md` linking adapter stubs, API transport contracts, HTTP/gRPC transition expectations, and production readiness checks.
+   - Included evidence commands for standalone transport migration PRs.
 
-61. **Add docs/contract cross-linking to run.sh and backlog**
-   - Ensure `run.sh --metrics --help` points to the visual book bundle paths and latest spec sections.
-   - Add a check that ensures backlog status is updated from scripts and PR templates.
+61. ✅ **Done: Add docs/contract cross-linking to run.sh and backlog**
+   - `run.sh --help` now points to the university visual bundle, backlog, and helper commands.
+   - `npm run backlog:progress` now checks the new scripts/docs so backlog status cannot drift silently.

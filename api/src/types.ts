@@ -1,5 +1,5 @@
-import type { ImpureCircuitId } from "@midnight-ntwrk/compact-js";
-import * as ledger from "@midnight-ntwrk/ledger-v7";
+import type { ProvableCircuitId } from "@midnight-ntwrk/compact-js";
+import * as ledger from "@midnight-ntwrk/ledger-v8";
 import { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
 import {
   DIDContract,
@@ -15,9 +15,9 @@ import type { WalletFacade } from "@midnight-ntwrk/wallet-sdk-facade";
 import type { UnshieldedKeystore } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
 export type MidnightDIDPrivateState = DIDPrivateState;
 
-export type MidnightDIDCircuits = ImpureCircuitId<
-  DIDContract.Contract<MidnightDIDPrivateState>
->;
+export type MidnightDIDContract = DIDContract.Contract<MidnightDIDPrivateState>;
+
+export type MidnightDIDCircuits = ProvableCircuitId<MidnightDIDContract>;
 
 export const MidnightDIDPrivateStateId = "midnightDIDPrivateState";
 
@@ -26,8 +26,6 @@ export type MidnightDIDProviders = MidnightProviders<
   typeof MidnightDIDPrivateStateId,
   MidnightDIDPrivateState
 >;
-
-export type MidnightDIDContract = DIDContract.Contract<MidnightDIDPrivateState>;
 
 export type DeployedMidnightDIDContract =
   | DeployedContract<MidnightDIDContract>

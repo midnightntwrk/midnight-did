@@ -20,6 +20,16 @@ Options:
   --metrics-json  Export timings as JSON. Requires a destination path:
                   --metrics-json <path/to/metrics.json>
   -h, --help      Show this help text.
+
+Useful follow-up commands:
+  npm run pr:snippet -- --metrics <metrics.json> --command "bash ./run.sh --skip-coverage" --verdict pass
+  npm run university-bdd:visualize -- --out /tmp/university-bdd-replay.html
+  npm run university-bdd:metrics -- --format markdown
+
+Reference docs:
+  docs/midnight-did-book-for-dummies.md#university-flow-documentation-bundle
+  docs/uc-bundles/university-bdd/README.md
+  docs/repository-maturity-backlog.md
 EOF
 }
 

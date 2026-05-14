@@ -17,12 +17,12 @@ import { webcrypto } from 'node:crypto';
 
 import {
   CompiledContract,
-  ImpureCircuitId,
-  type ImpureCircuitId as ImpureCircuitIdType,
+  ProvableCircuitId,
+  type ProvableCircuitId as ProvableCircuitIdType,
 } from '@midnight-ntwrk/compact-js';
 import { type ContractAddress } from '@midnight-ntwrk/compact-runtime';
-import * as ledger from '@midnight-ntwrk/ledger-v7';
-import { unshieldedToken } from '@midnight-ntwrk/ledger-v7';
+import * as ledger from '@midnight-ntwrk/ledger-v8';
+import { unshieldedToken } from '@midnight-ntwrk/ledger-v8';
 import { parseContractAddress } from '@midnight-ntwrk/midnight-did';
 import { DIDContract, type DIDPrivateState, witnesses } from '@midnight-ntwrk/midnight-did-contract';
 import {
@@ -74,10 +74,10 @@ import { WebSocket } from 'ws';
 
 import { type Config, contractConfig } from './config';
 
-export type DIDCircuits = ImpureCircuitIdType<DIDContract.Contract<DIDPrivateState>>;
 export const DIDPrivateStateId = 'midnightDIDPrivateState' as const;
-export type DIDProviders = MidnightProviders<DIDCircuits, typeof DIDPrivateStateId, DIDPrivateState>;
 export type DIDContractType = DIDContract.Contract<DIDPrivateState>;
+export type DIDCircuits = ProvableCircuitIdType<DIDContractType>;
+export type DIDProviders = MidnightProviders<DIDCircuits, typeof DIDPrivateStateId, DIDPrivateState>;
 export type DeployedDIDContract = DeployedContract<DIDContractType> | FoundContract<DIDContractType>;
 export type VerificationMethod = DIDContract.VerificationMethod;
 export type Service = DIDContract.Service;
@@ -160,8 +160,29 @@ const hashProverKey = async (proverKey: Uint8Array): Promise<Uint8Array> => {
   return new Uint8Array(hash);
 };
 
+type ContractScopedPrivateStateProvider = DIDProviders['privateStateProvider'] & {
+  setContractAddress?: (address: ContractAddress) => void;
+};
+
+const isMissingContractAddressError = (error: unknown): error is Error =>
+  error instanceof Error && error.message.includes('Contract address not set');
+
+const setPrivateStateContractAddress = (providers: DIDProviders, contractAddress: ContractAddress): void => {
+  const provider = providers.privateStateProvider as ContractScopedPrivateStateProvider;
+  provider.setContractAddress?.(contractAddress);
+};
+
 export const initPrivateState = async (providers: DIDProviders): Promise<DIDPrivateState> => {
-  const providedPrivateState = await providers.privateStateProvider.get(DIDPrivateStateId);
+  let providedPrivateState: DIDPrivateState | null = null;
+  try {
+    providedPrivateState = await providers.privateStateProvider.get(DIDPrivateStateId);
+  } catch (error: unknown) {
+    if (isMissingContractAddressError(error)) {
+      logger.info('Private state restore skipped (contract address not set yet).');
+    } else {
+      throw error;
+    }
+  }
   if (
     providedPrivateState != null &&
     providedPrivateState.secretKey != null &&
@@ -175,14 +196,14 @@ export const initPrivateState = async (providers: DIDProviders): Promise<DIDPriv
 
   logger.info('Creating the new private state..');
   const proverKey = await providers.zkConfigProvider.getProverKey(
-    ImpureCircuitId<DIDContract.Contract<DIDPrivateState>>('addVerificationMethod'),
+    ProvableCircuitId<DIDContract.Contract<DIDPrivateState>>('addVerificationMethod'),
   );
   const secretKey = await hashProverKey(proverKey);
   const privateState: DIDPrivateState = { secretKey };
   try {
     await providers.privateStateProvider.set(DIDPrivateStateId, privateState);
   } catch (error: unknown) {
-    if (error instanceof Error && error.message.includes('Contract address not set')) {
+    if (isMissingContractAddressError(error)) {
       logger.info('Private state save skipped (contract address not set yet).');
     } else {
       throw error;
@@ -213,6 +234,8 @@ export const getDIDLedgerState = async (
 };
 
 export const joinContract = async (providers: DIDProviders, contractAddress: string): Promise<DeployedDIDContract> => {
+  assertIsContractAddress(contractAddress);
+  setPrivateStateContractAddress(providers, contractAddress);
   const initialPrivateState = await initPrivateState(providers);
   const didContract = await findDeployedContract(providers, {
     contractAddress,
@@ -394,8 +417,8 @@ export const createWalletAndMidnightProvider = async (
     },
     async balanceTx(tx, ttl?) {
       const recipe = await ctx.wallet.balanceUnboundTransaction(
-        tx,
-        { shieldedSecretKeys: ctx.shieldedSecretKeys, dustSecretKey: ctx.dustSecretKey },
+        tx as any,
+        { shieldedSecretKeys: ctx.shieldedSecretKeys as any, dustSecretKey: ctx.dustSecretKey as any },
         { ttl: ttl ?? new Date(Date.now() + 30 * 60 * 1000) },
       );
 
@@ -409,10 +432,10 @@ export const createWalletAndMidnightProvider = async (
         signTransactionIntents(recipe.balancingTransaction, signFn, 'pre-proof');
       }
 
-      return ctx.wallet.finalizeRecipe(recipe);
+      return ctx.wallet.finalizeRecipe(recipe) as any;
     },
     submitTx(tx) {
-      return ctx.wallet.submitTransaction(tx) as any;
+      return ctx.wallet.submitTransaction(tx as any) as any;
     },
   };
 };
@@ -447,15 +470,6 @@ const buildShieldedConfig = ({ indexer, indexerWS, node, proofServer }: Config) 
   relayURL: new URL(node.replace(/^http/, 'ws')),
 });
 
-const buildUnshieldedConfig = ({ indexer, indexerWS }: Config) => ({
-  networkId: getNetworkId(),
-  indexerClientConnection: {
-    indexerHttpUrl: indexer,
-    indexerWsUrl: indexerWS,
-  },
-  txHistoryStorage: new InMemoryTransactionHistoryStorage(),
-});
-
 const buildDustConfig = ({ indexer, indexerWS, node, proofServer }: Config) => ({
   networkId: getNetworkId(),
   costParameters: {
@@ -468,6 +482,12 @@ const buildDustConfig = ({ indexer, indexerWS, node, proofServer }: Config) => (
   },
   provingServerUrl: new URL(proofServer),
   relayURL: new URL(node.replace(/^http/, 'ws')),
+});
+
+const buildWalletConfig = (config: Config) => ({
+  ...buildShieldedConfig(config),
+  ...buildDustConfig(config),
+  txHistoryStorage: new InMemoryTransactionHistoryStorage(),
 });
 
 /**
@@ -537,7 +557,7 @@ const registerForDustGeneration = async (
 
   // Check if dust is already available (e.g. from a previous designation)
   if (state.dust.availableCoins.length > 0) {
-    const dustBal = state.dust.walletBalance(new Date());
+    const dustBal = state.dust.balance(new Date());
     console.log(`  ✓ Dust tokens already available (${formatBalance(dustBal)} DUST)`);
     return;
   }
@@ -553,7 +573,7 @@ const registerForDustGeneration = async (
         wallet.state().pipe(
           Rx.throttleTime(5_000),
           Rx.filter((s) => s.isSynced),
-          Rx.filter((s) => s.dust.walletBalance(new Date()) > 0n),
+          Rx.filter((s) => s.dust.balance(new Date()) > 0n),
         ),
       ),
     );
@@ -576,7 +596,7 @@ const registerForDustGeneration = async (
       wallet.state().pipe(
         Rx.throttleTime(5_000),
         Rx.filter((s) => s.isSynced),
-        Rx.filter((s) => s.dust.walletBalance(new Date()) > 0n),
+        Rx.filter((s) => s.dust.balance(new Date()) > 0n),
       ),
     ),
   );
@@ -592,7 +612,7 @@ type WalletSummaryState = {
     coinPublicKey: { toHexString: () => string };
     encryptionPublicKey: { toHexString: () => string };
   };
-  dust: { dustAddress: string };
+  dust: { address: { toString: () => string } };
 };
 
 const printWalletSummary = (seed: string, state: WalletSummaryState, unshieldedKeystore: UnshieldedKeystore) => {
@@ -621,7 +641,7 @@ ${DIV}
   └─ Balance: ${formatBalance(unshieldedBalance)} tNight
 
   Dust
-  └─ Address: ${state.dust.dustAddress}
+  └─ Address: ${state.dust.address}
 
 ${DIV}`);
 };
@@ -649,16 +669,15 @@ export const buildWalletAndWaitForFunds = async (config: Config, seed: string): 
       const dustSecretKey = ledger.DustSecretKey.fromSeed(keys[Roles.Dust]);
       const unshieldedKeystore = createKeystore(keys[Roles.NightExternal], getNetworkId());
 
-      const shieldedWallet = ShieldedWallet(buildShieldedConfig(config)).startWithSecretKeys(shieldedSecretKeys);
-      const unshieldedWallet = UnshieldedWallet(buildUnshieldedConfig(config)).startWithPublicKey(
-        PublicKey.fromKeyStore(unshieldedKeystore),
-      );
-      const dustWallet = DustWallet(buildDustConfig(config)).startWithSecretKey(
-        dustSecretKey,
-        ledger.LedgerParameters.initialParameters().dust,
-      );
-
-      const wallet = new WalletFacade(shieldedWallet, unshieldedWallet, dustWallet);
+      const walletConfig = buildWalletConfig(config);
+      const wallet = await WalletFacade.init({
+        configuration: walletConfig,
+        shielded: (configuration) => ShieldedWallet(configuration).startWithSecretKeys(shieldedSecretKeys),
+        unshielded: (configuration) =>
+          UnshieldedWallet(configuration).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore)),
+        dust: (configuration) =>
+          DustWallet(configuration).startWithSecretKey(dustSecretKey, ledger.LedgerParameters.initialParameters().dust),
+      });
       await wallet.start(shieldedSecretKeys, dustSecretKey);
 
       return { wallet, shieldedSecretKeys, dustSecretKey, unshieldedKeystore };
@@ -714,7 +733,9 @@ export const configureProviders = async (ctx: WalletContext, config: Config) => 
   return {
     privateStateProvider: levelPrivateStateProvider<typeof DIDPrivateStateId>({
       privateStateStoreName: contractConfig.privateStateStoreName,
-      walletProvider: walletAndMidnightProvider,
+      privateStoragePasswordProvider: () =>
+        process.env.MIDNIGHT_DID_PRIVATE_STATE_PASSWORD ?? 'Midnight-DID-local-private-state-password-2026!',
+      accountId: String(ctx.unshieldedKeystore.getBech32Address()),
     }),
     publicDataProvider: indexerPublicDataProvider(config.indexer, config.indexerWS),
     zkConfigProvider,
@@ -731,10 +752,10 @@ export const getDustBalance = async (
   wallet: WalletFacade,
 ): Promise<{ available: bigint; pending: bigint; availableCoins: number; pendingCoins: number }> => {
   const state = await Rx.firstValueFrom(wallet.state().pipe(Rx.filter((s) => s.isSynced)));
-  const available = state.dust.walletBalance(new Date());
+  const available = state.dust.balance(new Date());
   const availableCoins = state.dust.availableCoins.length;
   const pendingCoins = state.dust.pendingCoins.length;
-  // Sum pending coin initial values for a rough pending balance
+  // Sum pending coin initial values for a rough pending balance.
   const pending = state.dust.pendingCoins.reduce((sum, c) => sum + c.initialValue, 0n);
   return { available, pending, availableCoins, pendingCoins };
 };
@@ -760,7 +781,7 @@ export const monitorDustBalance = async (wallet: WalletFacade, stopSignal: Promi
       if (stopped) return;
 
       const now = new Date();
-      const available = state.dust.walletBalance(now);
+      const available = state.dust.balance(now);
       const availableCoins = state.dust.availableCoins.length;
       const pendingCoins = state.dust.pendingCoins.length;
 

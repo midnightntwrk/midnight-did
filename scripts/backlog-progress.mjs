@@ -16,6 +16,44 @@ const CHECKS = [
     label: "Add BDD report diff utility for PR comments",
     command: "node --test scripts/university-bdd-diff.test.mjs",
   },
+  {
+    itemNumber: 55,
+    label: "Add a PR-ready README snippet generator",
+    command: "node scripts/repo-pr-snippet.mjs --format json",
+  },
+  {
+    itemNumber: 56,
+    label: "Add a canonical replay visualizer script",
+    command: "node scripts/university-bdd-replay-visualize.mjs --format mermaid --limit 1",
+  },
+  {
+    itemNumber: 57,
+    label: "Add a smallest owner + dependencies badge in specs",
+    command:
+      "node -e \"const fs=require('fs'); const s=fs.readFileSync('docs/midnight-did-book-for-dummies.md','utf8'); if(!s.includes('Smallest owner and dependency badges')) process.exit(1)\"",
+  },
+  {
+    itemNumber: 58,
+    label: "Expose a machine-readable metrics index",
+    command: "node scripts/university-bdd-metrics.mjs --format json",
+  },
+  {
+    itemNumber: 59,
+    label: "Add a PR summary helper for university BDD diffs",
+    command: "node scripts/university-bdd-pr-summary.mjs",
+  },
+  {
+    itemNumber: 60,
+    label: "Document adapter migration path for real Midnight transport",
+    command:
+      "node -e \"const fs=require('fs'); if(!fs.existsSync('docs/university-bdd-transport-migration.md')) process.exit(1)\"",
+  },
+  {
+    itemNumber: 61,
+    label: "Add docs/contract cross-linking to run.sh and backlog",
+    command:
+      "node -e \"const {spawnSync}=require('child_process'); const r=spawnSync('./run.sh',['--help'],{encoding:'utf8'}); if(r.status!==0 || !r.stdout.includes('docs/uc-bundles/university-bdd/README.md')) process.exit(1)\"",
+  },
 ];
 
 const parseArgs = () => {
@@ -46,8 +84,9 @@ const isDoneLine = (line) => /\u2705/.test(line);
 
 const summarizeBacklog = (text, results) => {
   const lines = text.split("\n");
-  const totalDone = lines.filter((line) => isDoneLine(line)).length;
-  const totalItems = lines.filter((line) => /^\d+\./.test(line)).length;
+  const itemLines = lines.filter((line) => /^\d+\./.test(line));
+  const totalDone = itemLines.filter((line) => isDoneLine(line)).length;
+  const totalItems = itemLines.length;
 
   const checkSummary = CHECKS.map((check) => {
     const title = new RegExp(`^${check.itemNumber}\\.`, "m").test(text)

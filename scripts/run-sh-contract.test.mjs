@@ -48,6 +48,12 @@ function assertNotContains(haystack, expected, label) {
 const helpResult = runRunSh(["--help"]);
 assert.equal(helpResult.exitCode, 0, "help should exit successfully");
 assertContains(helpResult.stdout, "Usage: ./run.sh", "usage text");
+assertContains(helpResult.stdout, "Useful follow-up commands:", "follow-up commands");
+assertContains(
+  helpResult.stdout,
+  "docs/midnight-did-book-for-dummies.md#university-flow-documentation-bundle",
+  "university docs reference",
+);
 
 const invalidResult = runRunSh(["--this-is-unsupported"]);
 assert.notEqual(invalidResult.exitCode, 0, "unsupported arg should fail");

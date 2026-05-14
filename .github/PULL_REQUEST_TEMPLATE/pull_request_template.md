@@ -18,6 +18,7 @@
 - [ ] Link to `[docs/repository-maturity-backlog.md](./docs/repository-maturity-backlog.md)` is updated
 - [ ] For use-case related work, include a status link to `docs/midnight-did-spec-matrix.yaml`
 - [ ] For credential flow changes, include timing or request/response artifacts (or explain why not generated)
+- [ ] For university BDD changes, include output from `npm run university-bdd:pr-summary` or explain why not relevant
 - [ ] Add one explicit “before/after” check that validates the changed path (test or sample).
 
 ## Review Governance
