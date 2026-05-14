@@ -117,6 +117,12 @@ run_step() {
 
 write_metrics_json() {
   local total_steps=${#STEP_LABELS[@]}
+  local metrics_dir
+  metrics_dir="$(dirname "${METRICS_JSON_PATH}")"
+  if [[ -n "${metrics_dir}" && "${metrics_dir}" != "." && ! -d "${metrics_dir}" ]]; then
+    mkdir -p "${metrics_dir}"
+  fi
+
   {
     printf '{\n'
     printf '  "generatedAt": "%s",\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
