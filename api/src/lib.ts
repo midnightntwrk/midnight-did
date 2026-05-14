@@ -65,7 +65,6 @@ import { Buffer } from "buffer";
 import { type Logger } from "pino";
 import * as Rx from "rxjs";
 import { WebSocket } from "ws";
-import { z } from "zod/v4-mini";
 
 import { type Config, contractConfig } from "./config";
 import { BigIntReplacer } from "./logger-utils";

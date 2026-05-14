@@ -74,17 +74,45 @@
      - deterministic SHA-256 vector fixtures
      - `npm run test:vc-profile` execution check.
 
-16. **Add VC status/reference baseline**
-   - Add soft status workflow in API/service layer plus revocation state fixture format.
-   - Acceptance: same credential in revoked state is rejected by verifier tests.
+16. ✅ **Done: Add VC status/reference baseline**
+   - Added soft-status verifier helpers in `api/src/vc-status.ts`:
+     - `evaluateVcStatus`
+     - `assertVcNotRevoked`
+     - `VcRevocationError`
+     - `loadVcStatusRegistryFromFile`
+     - `statusRegistryFixturePath`
+   - Added fixture format under `api/src/test/fixtures/vc-status/*.json` with active and revoked snapshots for the same credential entry.
+   - Added verifier-level test in `api/src/test/vc-status-verification.test.ts`.
+   - Acceptance: same credential in revoked state is rejected by verifier test (`VcRevocationError`).
 
-17. **Add issuer/verifier trust registry contract scaffold**
-   - Add role assignment, expiry windows, and role-history querying.
-   - Acceptance: at least two contract tests cover `issuer` and `verifier` role transitions.
+17. ✅ **Done: Add issuer/verifier trust registry contract scaffold**
+   - Added `api/src/trust-registry.ts` with role lifecycle primitives:
+     - `applyTrustRoleTransition`
+     - `evaluateTrustRole`
+     - `assertTrustRoleActive`
+     - `getTrustRoleHistory`
+     - `loadTrustRegistryFromFile`
+     - `trustRegistryFixturePath`
+   - Added fixture snapshot at `api/src/test/fixtures/trust-registry/trust-registry-baseline.json` with issuer and verifier seed roles.
+   - Added transition tests in `api/src/test/trust-registry-contract.test.ts` covering:
+     - issuer grant -> expiry-based inactivity
+     - verifier grant -> revoke transition + ordered history
+     - inactive role assertion failure path
+   - Acceptance: two role-specific transitions are now covered by contract-style tests, including role-history visibility.
 
-18. **Add DID role delegation + capability template**
-   - Provide a documented delegation template for agents and operational services.
-   - Acceptance: delegated key rotation and revoke path is demonstrated in tests.
+18. ✅ **Done: Add DID role delegation + capability template**
+   - Added `api/src/did-delegation.ts` with:
+     - template validation and normalized verification-method handling
+     - grant/revoke/rotate transition evaluator
+     - active-delegation decision API and history inspection
+     - key rotation helper and fixture loading utilities
+   - Added deterministic fixtures under `api/src/test/fixtures/delegation/`:
+     - `delegation-template-agent.json`
+     - `delegation-template-service.json`
+     - `delegation-baseline-state.json`
+   - Added contract-style tests in `api/src/test/did-delegation-contract.test.ts` covering:
+     - template validation, grant materialization, key rotation, revoke path, and ordered history
+   - Acceptance: delegated key rotation and revoke path validated by tests; agent/service template artifacts exist and are loadable.
 
 19. **Add university-style presentation/issuance BDD slices**
    - Create deterministic fixtures and scenario flow for student-issued diploma, verifier checks, and rejection path.

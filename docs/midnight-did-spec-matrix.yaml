@@ -24,7 +24,7 @@ items:
       - assertionMethod is available and can anchor issuer keys.
       - Canonical compact schema registry is now available in `schemas/compact-vc` with deterministic
         digest vectors.
-      - VC proof format and status/revocation model remain pending.
+      - Status/revocation soft-check workflow is now available in `api/src/vc-status.ts`.
     acceptanceCriteria:
       - "Canonical compact profile and hash canonicalization module exists."
       - "Issuer can publish reusable VC schema references in DID services."
@@ -46,11 +46,13 @@ items:
   - id: use-case-trust-registry
     useCase: "Issuer/verifier trust registry"
     sourceSection: "docs/midnight-did-use-cases.md#4-midnight-did-registry-for-issuerverifier-discovery-and-governance"
-    status: needs-contract
+    status: in-progress
     risk: high
     owner: trust-registry
     implementationNotes:
-      - Current DID document metadata is not a governance registry surface.
+      - Added `api/src/trust-registry.ts` with grant/revoke transitions, expiry checks, and ordered role history.
+      - Baseline role fixtures and contract-style tests are available under `api/src/test/fixtures/trust-registry/` and
+        `api/src/test/trust-registry-contract.test.ts`.
     acceptanceCriteria:
       - "Role assignment and expiry are queryable on-chain."
       - "Role history is exposed for audit and revocation checks."
@@ -71,14 +73,15 @@ items:
   - id: use-case-delegated-agent
     useCase: "Delegated agent authorization"
     sourceSection: "docs/midnight-did-use-cases.md#6-delegated-agent-authorization"
-    status: partially-implemented
+    status: in-progress
     risk: medium
     owner: did
     implementationNotes:
       - capabilityInvocation and capabilityDelegation are available in the contract/DID model.
-      - Demonstration and policy templates for delegation lifecycle are missing.
+      - Added `api/src/did-delegation.ts` with scoped template + delegation lifecycle helpers.
+      - Added fixtures and tests for agent/service delegation templates and grant-rotate-revoke flows.
     acceptanceCriteria:
-      - "A delegation lifecycle scenario is documented with rotation and revoke."
+      - "A delegation lifecycle scenario is documented with rotation and revoke, backed by API-level contract tests."
 
   - id: use-case-didcomm
     useCase: "DIDComm or secure agent discovery"

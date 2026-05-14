@@ -156,8 +156,9 @@ This section converts the existing use-case document into a review format used b
 | Area | Severity | Status | Finding | Why it matters | Concrete acceptance check |
 |---|---|---|---|---|---|
 | VC profile in `docs/midnight-did-use-cases.md` (`Recommended compact-friendly profile` section) | High | Yellow | Canonical schema file exists, but proof format and revocation model are still pending. | Deterministic hash and cross-service reuse is improved, but verification workflows are still incomplete. | `schemas/compact-vc` exports registry + fixtures + deterministic hash vectors; reuse this package in upcoming issuer/verifier flows. |
-| Revocation/status model in use cases (`What still needs to be added` under VC) | Critical | Red | Revocation path is documented but not operationalized. | Replay/overlapping credential windows become security risk for compliance/finance use cases. | `statusRef`/`statusReason` fields are validated by at least one shared verifier pipeline test. |
-| Trust registry intent (`DID registry for issuer/verifier` section) | High | Yellow | Role registry concept exists but not specified in a single interoperable ABI contract surface. | One-off trust onboarding logic will multiply per application. | Registry contract interface and governance lifecycle tests are present and used by at least two use cases. |
+| Revocation/status model in use cases (`What still needs to be added` under VC) | High | Yellow | A soft revocation workflow now exists, but hard enforcement and issuer registry rotation policy are still outside this slice. | Replay/overlapping credential windows become less likely once revocation is checked through a shared helper. | `api/src/vc-status.ts` and `api/src/test/fixtures/vc-status/*.json` validate revoked states in verifier tests. |
+| Trust registry intent (`DID registry for issuer/verifier` section) | High | Yellow | Shared role registry helpers now exist, but governance execution is still a follow-up item. | One-off trust onboarding logic will multiply per application. | `api/src/trust-registry.ts` provides grant/revoke transitions, expiry windows, and ordered history for issuer/verifier roles with role-state tests. |
+| Delegated agent/service lifecycle (`Delegated agent authorization` section) | Medium | Yellow | Delegation templates and lifecycle helpers now exist, but delegated-method key rotation and revoke are still policy-config and service-specific. | Without explicit rotation/revoke policy, production services can keep stale keys past incident windows. | `api/src/did-delegation.ts` plus `api/src/test/fixtures/delegation/*.json` and `api/src/test/did-delegation-contract.test.ts` cover template loading, rotation, and revoke cases. |
 | Multi-sig requirement in DID governance | High | Red | Spec is explicit that base contract is single-controller, but no ready companion contract template is linked. | Any collaborative onboarding done inside one-party patterns fails legal/governance expectations. | Publish and test a `2-of-3` governance contract for one representative flow. |
 | ZKP age verification flow (`How it can work` + `What still blocks`) | Medium | Yellow | Flow mentions oracle/relayer interim path and long-term ZKP path, but no explicit acceptance split for each stage. | Teams can ship non-final path unknowingly while calling it complete. | Create explicit "Phase A/B" acceptance tests with explicit verifier assumptions and output commitments. |
 | DIDComm profile alignment (`DIDComm or secure agent discovery`) | Medium | Yellow | Messaging dependencies are named conceptually but not bound to one protocol stack in this repo. | Cross-project interop stops at proof-of-concept and breaks migration plans. | Add a concrete protocol profile + endpoint schema and a smoke test between two agents. |
@@ -168,9 +169,10 @@ This section converts the existing use-case document into a review format used b
 
 ### Findings summary
 
-- **Critical to launch blockers (Red):** VC canonical schema, revocation model, multi-sig companion governance.
+- **Critical to launch blockers (Red):** multi-sig companion governance.
 - **Near-term risks (Yellow):** trust registry API, KYC/cross-app reuse, DIDs for communication profile, health data minimization, incident workflows.
 - **Already okay but incomplete (Green):** DID base, authentication, basic role delegation concepts, logging and request tracing intent.
+- **In progress:** documented delegation templates, key rotation paths, and revoke behavior for agents/services in `api/src/did-delegation.ts`.
 
 ## Part II-B: Cross-repo alignment and next 10 actionable improvements
 

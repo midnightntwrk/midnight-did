@@ -1,0 +1,24 @@
+{
+  "registryId": "university-trust-registry-v1",
+  "updatedAt": "2026-05-01T00:00:00.000Z",
+  "events": [
+    {
+      "role": "issuer",
+      "partyDid": "did:midnight:issuer:university-alpha",
+      "actorDid": "did:midnight:gov:registry-admin",
+      "action": "grant",
+      "effectiveAt": "2026-04-01T00:00:00.000Z",
+      "expiresAt": "2026-12-31T00:00:00.000Z",
+      "reason": "accredited education partner"
+    },
+    {
+      "role": "verifier",
+      "partyDid": "did:midnight:verifier:acme-hiring",
+      "actorDid": "did:midnight:gov:registry-admin",
+      "action": "grant",
+      "effectiveAt": "2026-04-01T00:00:00.000Z",
+      "expiresAt": "2026-12-31T00:00:00.000Z",
+      "reason": "employment verification partner"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "registryId": "delegation-registry-dev-001",
+  "updatedAt": "2026-05-14T00:00:00.000Z",
+  "events": [
+    {
+      "action": "grant",
+      "templateId": "delegation-agent-initial-v1",
+      "delegatorDid": "did:midnight:university:state-college",
+      "delegateDid": "did:midnight:agent:grants-ops",
+      "actorDid": "did:midnight:university:state-college",
+      "relationship": "capabilityInvocation",
+      "verificationMethod": "did:midnight:university:state-college#agent-op-key-v1",
+      "effectiveAt": "2026-05-10T00:00:00.000Z",
+      "expiresAt": "2026-12-31T00:00:00.000Z",
+      "reason": "baseline operation delegation"
+    },
+    {
+      "action": "grant",
+      "templateId": "delegation-service-initial-v1",
+      "delegatorDid": "did:midnight:university:state-college",
+      "delegateDid": "did:midnight:service:transcript-api",
+      "actorDid": "did:midnight:university:state-college",
+      "relationship": "capabilityDelegation",
+      "verificationMethod": "#service-key-v1",
+      "effectiveAt": "2026-05-11T00:00:00.000Z",
+      "reason": "baseline service delegation"
+    }
+  ]
+}

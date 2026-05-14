@@ -1,0 +1,18 @@
+{
+  "templateVersion": "v1",
+  "templateId": "delegation-service-initial-v1",
+  "delegatorDid": "did:midnight:university:state-college",
+  "delegateDid": "did:midnight:service:transcript-api",
+  "delegateType": "service",
+  "relationship": "capabilityDelegation",
+  "verificationMethod": "#service-key-v1",
+  "allowedOperations": [
+    "proof-submission",
+    "request-endorsement",
+    "vc-status-publish"
+  ],
+  "actorDid": "did:midnight:university:state-college",
+  "validFrom": "2026-05-11T00:00:00.000Z",
+  "issuedAt": "2026-05-11T00:00:00.000Z",
+  "notes": "Operational transcript API delegation template."
+}

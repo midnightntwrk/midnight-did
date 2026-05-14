@@ -1,0 +1,10 @@
+{
+  "statusRef": "urn:vc-status:university-diploma:v1",
+  "statusPurpose": "revocation",
+  "issuedAt": "2026-05-14T00:00:00Z",
+  "credentials": {
+    "urn:vc-status:university-diploma:v1:stu-001": {
+      "state": "active"
+    }
+  }
+}

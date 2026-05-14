@@ -82,6 +82,9 @@ See [Repository Boundary and Workspace Policy](docs/repository-boundary.md) for 
 - run.sh contract checks: `npm run test:run-sh`
 - Toolchain sanity check: `npm run check:toolchain`
 - VC schema profile tests: `npm run test:vc-profile`
+- VC status/revocation fixture checks: `npm run test:vc-status`
+- Trust registry contract scaffold checks: `npm run test:trust-registry`
+- Delegation template + lifecycle scaffold checks: `npm run test:delegation`
 
 
 ### LICENSE

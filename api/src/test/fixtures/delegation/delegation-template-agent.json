@@ -1,0 +1,19 @@
+{
+  "templateVersion": "v1",
+  "templateId": "delegation-agent-initial-v1",
+  "delegatorDid": "did:midnight:university:state-college",
+  "delegateDid": "did:midnight:agent:grants-ops",
+  "delegateType": "agent",
+  "relationship": "capabilityInvocation",
+  "verificationMethod": "#agent-op-key-v1",
+  "allowedOperations": [
+    "presentation-request",
+    "credential-request",
+    "status-lookup"
+  ],
+  "actorDid": "did:midnight:university:state-college",
+  "validFrom": "2026-05-10T00:00:00.000Z",
+  "validUntil": "2026-12-31T00:00:00.000Z",
+  "issuedAt": "2026-05-10T00:00:00.000Z",
+  "notes": "Operational grant for student-facing automation agent."
+}
