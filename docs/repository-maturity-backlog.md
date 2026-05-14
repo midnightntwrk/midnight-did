@@ -137,3 +137,144 @@
   - Made `runUniversityDiplomaScenario` async and mode-aware (`mode`, optional `transport`, optional `now`) for local timing/control.
   - Updated scenario tests to validate simulator path and assert standalone mode failure message.
   - Acceptance: transport-specific behavior can now be substituted without changing scenario composition.
+
+22. ✅ **Done**: Add configurable party-filtering options for scenario execution
+   - Add `studentIds` and `companyIds` selection filters to `runUniversityDiplomaScenario` options.
+   - Ensure filtered runs keep deterministic request/response order and still produce valid timing metrics and counters.
+   - Add contract tests for filtered scenarios with fixture assertions.
+
+23. ✅ **Done**: Add machine-readable and markdown notes formatters for BDD steps
+   - Add dedicated formatters that produce clean, unescaped human text and deterministic machine payloads.
+   - Preserve request/response/did context while avoiding escaped `\n` when logs are inspected in CI output artifacts.
+
+24. ✅ **Done**: Add transport metadata in scenario result
+   - Include selected mode and participant counts in `UniversityScenarioResult`.
+   - Expose scenario-level metadata (`mode`, `studentsTargeted`, `companiesTargeted`) for dashboarding and quick CI checks.
+
+25. ✅ **Done**: Add per-step schema validation guardrails
+   - Add lightweight runtime checks that verify `companyIds` and `studentIds` are present in fixture when filters are provided.
+   - Reject unknown identifiers with actionable errors (not silent filtering to empty sets).
+
+26. ✅ **Done**: Add report export helper for deterministic JSON artifacts
+   - Centralize report shape serialization so callers don't manually pick keys in tests/CI.
+   - Reuse one canonical function for local file output and CI artifact generation.
+
+27. ✅ **Done**: Add standalone transport readiness hook points
+   - Extract transport factories into typed factories and document required adapter method contracts.
+   - Provide explicit interfaces for `transportMode` and future HTTP/gRPC integration layers.
+
+28. ✅ **Done**: Add scenario-level smoke tests for unknown identifier validation
+   - Add tests for missing student/company ids in filtered mode to confirm failure mode is explicit and stable.
+
+29. ✅ **Done**: Add per-party request/response sample snapshots
+   - Capture sample payloads for student-to-university, student-to-verifier, and student-to-mall flows in docs/backlog and tests to simplify onboarding.
+
+30. ✅ **Done**: Add markdown scenario summary report helper
+   - Generate a short human summary (`issued`, `approved`, `rejected`, `latency`) that can be pasted into PR descriptions and CI notes.
+
+31. ✅ **Done**: Add BDD metric guardrails for CI
+   - Add a small API test that asserts key metrics are non-zero and monotonic in deterministic fixtures to detect accidental regression.
+
+## Next 10 improvements (stackable PR candidates)
+
+32. ✅ **Done: Add standalone adapter wiring contract test**
+   - Added `supports standalone adapter wiring via injected transport` test in
+     `api/src/test/university-bdd-flow.test.ts` with a mocked transport and lifecycle assertions.
+   - Verifies `issueDiploma`, `requestPresentation`, and `requestDiscount` invocation counts under `mode: "standalone"`.
+   - Keeps adapter contract scoped to `runUniversityDiplomaScenario` with filtered actor subsets.
+
+33. ✅ **Done: Add scenario run replay artifact with request IDs and hashes**
+   - Added replay telemetry types in `api/src/university-bdd.ts`:
+     `UniversityScenarioReplayStep` and `UniversityScenarioReplayArtifact`.
+   - Added `toUniversityScenarioReplayArtifact(...)` plus deterministic metadata on each step:
+     `stepId`, `requestId`, `requestHash`, `responseHash`, `startedAt`, `endedAt`.
+   - Added deterministic helper coverage in tests (`exports replay-ready artifact with request IDs and hashes`) to validate stable shape and checksum format.
+
+34. ✅ **Done: Add CLI entry point for university BDD execution**
+   - Added `scripts/university-bdd-run.mjs` and wired root command `npm run university-bdd:run`.
+   - Added CLI options for `--fixture`, `--mode`, `--student-ids`, `--company-ids`,
+     `--artifact`, `--replay-artifact`, and `--summary`.
+
+35. ✅ **Done: Add fixture generator for filtered subsets**
+   - Added `deriveUniversityFixtureSubset(...)` in `api/src/university-bdd.ts` to generate deterministic filtered fixtures from existing university fixture data.
+   - Added stable, deterministic subset behavior coverage in `api/src/test/university-bdd-flow.test.ts`.
+
+36. ✅ **Done: Add negative-path trust and status scenarios**
+   - Added `runUniversityDiplomaScenario` regression coverage in `api/src/test/university-bdd-flow.test.ts` for:
+     - issuer role revocation (runtime should fail before issuance),
+     - revoked student credential status (issued/applications/discounts reflect downstream rejection),
+     - expired verifier trust role (presentation approvals drop to zero, discount flow remains unchanged).
+
+37. ✅ **Done: Add transport latency budget assertion**
+   - Added CLI-level `--max-step-ms` and `--max-total-ms` budget flags to fail fast when timing thresholds are exceeded.
+   - Added CLI contract checks for malformed budgets and parser errors.
+
+38. ✅ **Done: Add BDD report diff utility for PR comments**
+   - Added `scripts/university-bdd-diff.mjs` with:
+     - `--baseline` / `--candidate` artifact inputs,
+     - optional JSON or text output (`--format json|text`),
+     - regression guard (`--fail-on-regression`).
+   - Added contract tests in `scripts/university-bdd-diff.test.mjs`.
+   - Wired root script `npm run university-bdd:diff`.
+   - Acceptance: reviewers can compare baseline vs candidate metrics and per-step latency/check deltas in one command.
+
+39. ✅ **Done: Publish backlog progress automatically**
+   - Added `scripts/backlog-progress.mjs` to run bounded checks and emit a machine-readable summary (`--json`).
+   - The script verifies selected target commands, reports PASS/FAIL in a single output, and can optionally apply `✅` markers automatically (`--apply`).
+   - Wired command `npm run backlog:progress` for one-command progress checks before PR creation.
+
+40. ✅ **Done: Add contract tests for parser input resilience**
+   - Added explicit CLI and API fixture parser tests for malformed paths, invalid timestamps, and malformed student/company records.
+   - Added exact field-level diagnostics for malformed student/company inputs in both `scripts/university-bdd-run.test.mjs` and `api/src/test/university-bdd-flow.test.ts`.
+   - Added acceptance checks that error text includes deterministic labels like `students[0].did` and `Invalid ISO timestamp`.
+
+41. ✅ **Done: Add did-method namespace validation and canonicalization tests**
+  - Added canonicalization and namespace guard coverage for university/student/company/mall DIDs.
+  - Added fixtures with mixed-case/whitespace DID values and checks that `loadUniversityScenarioFromFile` normalizes them to lowercase method namespaces.
+  - Exported and used explicit namespace constants (`UNIVERSITY_DID_NAMESPACE_PREFIXES`) with student/university/company/mall role-specific rules.
+
+42. ✅ **Done: Add lightweight adapter contract stubs for HTTP/gRPC transport**
+   - Added `scripts/university-bdd-transport-adapter.mjs` with contract-compatible factories:
+     - `createHttpUniversityTransport` for HTTP POST transport with timeout and request mapping,
+     - `createGrpcUniversityTransport` stub with typed method parity and failure mapping,
+     - `assertTransportConforms` for lightweight interface smoke checks.
+   - Added dedicated transport contract tests in
+     `scripts/university-bdd-transport-adapter.test.mjs` covering:
+     - happy-path request/response forwarding,
+     - HTTP status/error-to-exception mapping,
+     - gRPC stub not-configured path and invoke-failure mapping.
+   - Added npm script `test:university-bdd:transport` to execute transport adapter contract tests locally.
+
+43. ✅ **Done: Add replay runner utility with strict request matching**
+   - Add a small script that replays a saved scenario artifact deterministically and fails when request payload hashes diverge.
+   - Useful as a regression safety net for CI and pre-merge checks.
+
+44. ✅ **Done: Add CLI runner for university BDD with artifact persistence**
+   - Added `npm run university-bdd:run` command with flags for fixture, filters, mode, and artifact path.
+   - Added JSON replay artifact path and strict replay assertion via `--assert-replay`.
+   - Added test coverage for artifact and replay contract checks in `scripts/university-bdd-run.test.mjs`.
+
+
+46. ✅ **Done: Add contract tests for malformed fixture input and missing fields**
+  - Add explicit tests for invalid fixture paths, invalid ISO timestamps, invalid DID method values, and malformed `students` records.
+  - Ensure each failure path returns actionable and stable error messages.
+
+47. Add transport timeout and retry observability
+   - Add optional timeout/retry configuration to `UniversityTransport` option bag.
+   - Record retry counts and timeout events in step checks for CI visibility.
+
+48. Add compact proof and DID binding assertions in scenario payloads
+   - Extend replay artifacts to include proof/signature placeholders for issuance and presentations where relevant.
+   - Ensure deterministic hashes only cover normalized payload fields to avoid non-deterministic fields.
+
+49. Add BDD fixture seed generator and shrinking utility
+   - Add utility to generate stress fixtures (e.g., 100/500 students) with deterministic seed.
+   - Add tests that validate deterministic sorting and subset filtering results.
+
+50. Add artifact schema versioning and migration tests
+   - Add `artifactVersion` field on report/replay exports.
+   - Add compatibility tests for older format readers and upgrade path.
+
+51. Add a documentation and screenshot bundle for use-case flow
+   - Add Mermaid diagram + sample request/reply diagrams into `docs/midnight-did-book-for-dummies.md`.
+   - Include a compact artifact diagram so non-specialists can inspect flow without opening code.

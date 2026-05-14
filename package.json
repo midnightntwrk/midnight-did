@@ -31,7 +31,12 @@
     "test:vc-status": "npm run test -w api -- src/test/vc-status-verification.test.ts",
     "test:trust-registry": "npm run test -w api -- src/test/trust-registry-contract.test.ts",
     "test:delegation": "npm run test -w api -- src/test/did-delegation-contract.test.ts",
-    "test:university-bdd": "npm run test -w api -- src/test/university-bdd-flow.test.ts"
+    "test:university-bdd": "npm run test -w api -- src/test/university-bdd-flow.test.ts",
+    "university-bdd:run": "npm run build -w api && node scripts/university-bdd-run.mjs",
+    "university-bdd:diff": "node scripts/university-bdd-diff.mjs",
+    "test:university-bdd:cli": "npm run build -w api && node --test scripts/university-bdd-run.test.mjs",
+    "test:university-bdd:transport": "node --test scripts/university-bdd-transport-adapter.test.mjs",
+    "backlog:progress": "node scripts/backlog-progress.mjs"
   },
   "private": true,
   "packageManager": "npm@10.8.2",

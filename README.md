@@ -88,6 +88,15 @@ See [Repository Boundary and Workspace Policy](docs/repository-boundary.md) for 
 - University-style BDD fixture flow (`issuance + presentation + discount`): `npm run test:university-bdd`
   - Default transport mode is `simulator` for deterministic local runs.
   - Set `UNIVERSITY_SCENARIO_MODE=standalone` to exercise the runtime mode switch (currently guarded with a clear implementation placeholder).
+  - Optional filters:
+    - `studentIds` to execute only selected student flows
+    - `companyIds` to execute only selected verifier companies
+    - Use `toUniversityScenarioArtifact(...)` and `summarizeUniversityScenario(...)` from `@midnight-ntwrk/midnight-did-api` for stable report shapes and markdown summary output.
+    - Use `collectUniversityPartySamples(...)` from `@midnight-ntwrk/midnight-did-api` to inspect normalized student→university, student→verifier, and student→mall request/response samples for each run.
+  - Run from CLI with `npm run university-bdd:run` (supports `--fixture`, `--mode`, `--student-ids`, `--company-ids`, `--artifact`, `--replay-artifact`, `--summary`, `--max-step-ms`, `--max-total-ms`, `--assert-replay`, `--format`).
+  - Add a targeted CLI smoke validation with `npm run test:university-bdd:cli`.
+  - Compare scenario artifacts with `npm run university-bdd:diff -- --baseline path/to/baseline.json --candidate path/to/candidate.json`.
+  - Use `--format json` for machine-readable output and `--fail-on-regression` to hard-fail CI on dropped issuance/application/discount counts.
 
 
 ### LICENSE
