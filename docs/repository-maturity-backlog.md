@@ -62,9 +62,9 @@
    - Add role-based local workflows: issue triage, feature work, release, and CI triage.
    - Acceptance: README and CONTRIBUTING have aligned command paths for each role.
 
-14. **Create structured spec-to-implementation matrix**
+14. ✅ **Done: Create structured spec-to-implementation matrix**
    - Add `docs/midnight-did-spec-matrix.yaml` (or `.json`) linking every use case section to implementation status, risk, and owner.
-   - Acceptance: reviewers can verify status in one file before writing or merging PRs.
+  - Acceptance: reviewers can verify status in one file before writing or merging PRs.
 
 15. **Add canonical compact VC schema package**
    - Introduce agreed credential type definitions for identity, role, and compliance flows.

@@ -1,0 +1,152 @@
+matrixVersion: v1
+updatedAt: "2026-05-14"
+items:
+  - id: use-case-auth-webauthn
+    useCase: "Authentication with DID and WebAuthn"
+    sourceSection: "docs/midnight-did-use-cases.md#1-authentication-with-did-and-webauthn"
+    status: implemented-in-core
+    risk: low
+    owner: core
+    implementationNotes:
+      - P-256 verification methods and authentication relationship are supported.
+      - WebAuthn relying-party logic still lives at the application layer.
+    acceptanceCriteria:
+      - "Wallet agent publishes P-256 verification method under authentication."
+      - "Application layer verifies challenge response against DID-resolved JWK."
+
+  - id: use-case-vc-sign-verify
+    useCase: "Signing and verification of Verifiable Credentials"
+    sourceSection: "docs/midnight-did-use-cases.md#2-signing-and-verification-of-verifiable-credentials"
+    status: needs-primitives
+    risk: high
+    owner: vc
+    implementationNotes:
+      - assertionMethod is available and can anchor issuer keys.
+      - VC schema, proof format, and status/revocation model are not implemented in repo.
+    acceptanceCriteria:
+      - "Canonical compact profile and hash canonicalization module exists."
+      - "Issuer can publish reusable VC schema references in DID services."
+      - "Verifier can reject revoked credentials deterministically."
+
+  - id: use-case-multisig
+    useCase: "Multi-sig collaborative voting and approvals"
+    sourceSection: "docs/midnight-did-use-cases.md#3-multi-sig-for-collaborative-voting-and-approvals"
+    status: needs-companion-contract
+    risk: high
+    owner: governance
+    implementationNotes:
+      - DID contract remains single-controller today.
+      - Collaboration currently needs companion contract or service orchestration.
+    acceptanceCriteria:
+      - "Governance contract supports threshold proposal flow with auditable history."
+      - "One representative end-to-end scenario is covered by integration tests."
+
+  - id: use-case-trust-registry
+    useCase: "Issuer/verifier trust registry"
+    sourceSection: "docs/midnight-did-use-cases.md#4-midnight-did-registry-for-issuerverifier-discovery-and-governance"
+    status: needs-contract
+    risk: high
+    owner: trust-registry
+    implementationNotes:
+      - Current DID document metadata is not a governance registry surface.
+    acceptanceCriteria:
+      - "Role assignment and expiry are queryable on-chain."
+      - "Role history is exposed for audit and revocation checks."
+
+  - id: use-case-zkp-age
+    useCase: "ZKP age verification"
+    sourceSection: "docs/midnight-did-use-cases.md#5-zkp-age-verification"
+    status: prototype-path
+    risk: medium
+    owner: circuits
+    implementationNotes:
+      - Requires compact-friendly VC claims and proof pipeline.
+      - Long-term goal is native ZKP verification path.
+    acceptanceCriteria:
+      - "Phase A oracle-assisted path exists."
+      - "Phase B native compact circuit path has measurable coverage."
+
+  - id: use-case-delegated-agent
+    useCase: "Delegated agent authorization"
+    sourceSection: "docs/midnight-did-use-cases.md#6-delegated-agent-authorization"
+    status: partially-implemented
+    risk: medium
+    owner: did
+    implementationNotes:
+      - capabilityInvocation and capabilityDelegation are available in the contract/DID model.
+      - Demonstration and policy templates for delegation lifecycle are missing.
+    acceptanceCriteria:
+      - "A delegation lifecycle scenario is documented with rotation and revoke."
+
+  - id: use-case-didcomm
+    useCase: "DIDComm or secure agent discovery"
+    sourceSection: "docs/midnight-did-use-cases.md#7-didcomm-or-secure-agent-discovery"
+    status: needs-protocol-profile
+    risk: medium
+    owner: interoperability
+    implementationNotes:
+      - DID service endpoints and keyAgreement support are present.
+      - Standardized messaging profile and test matrix are not yet defined.
+    acceptanceCriteria:
+      - "Protocol profile and endpoint schema published."
+      - "Cross-service message exchange smoke test passes in repo."
+
+  - id: use-case-regulated-finance
+    useCase: "Regulated finance and RWA access control"
+    sourceSection: "docs/midnight-did-use-cases.md#8-regulated-finance-and-rwa-access-control"
+    status: partially-implemented
+    risk: high
+    owner: app
+    implementationNotes:
+      - DID and VC-ready identity is usable for eligibility and policy filtering.
+      - Shared trust registry and reusable VC status are still missing.
+    acceptanceCriteria:
+      - "Shared accreditation and status check is enforced by one verifier policy layer."
+
+  - id: use-case-reusable-kyc
+    useCase: "Reusable KYC and compliance attestations"
+    sourceSection: "docs/midnight-did-use-cases.md#9-reusable-kyc-and-compliance-attestations"
+    status: in-app-design
+    risk: high
+    owner: app
+    implementationNotes:
+      - Conceptually fits current DID+VC architecture.
+      - No shared credential template package yet.
+    acceptanceCriteria:
+      - "One reusable compliance template is implemented and consumed by two dApps."
+
+  - id: use-case-healthcare
+    useCase: "Healthcare and medical attestations"
+    sourceSection: "docs/midnight-did-use-cases.md#10-healthcare-and-medical-attestations"
+    status: in-app-design
+    risk: medium
+    owner: app
+    implementationNotes:
+      - DID-level identity and signature verification are available.
+      - Data minimization and policy for claims are not codified.
+    acceptanceCriteria:
+      - "Policy profile defines minimum required claims and redaction policy."
+
+  - id: use-case-record-provenance
+    useCase: "Record provenance and compliance evidence"
+    sourceSection: "docs/midnight-did-use-cases.md#11-record-provenance-and-compliance-evidence"
+    status: partially-implemented
+    risk: low
+    owner: core
+    implementationNotes:
+      - Audit and signing primitives exist; repeatable scenario orchestration is incomplete.
+    acceptanceCriteria:
+      - "Standardized evidence DTO and signed evidence package are validated by tests."
+
+  - id: use-case-university-bdd
+    useCase: "University-style presentation/issuance flow"
+    sourceSection: "docs/midnight-did-book-for-dummies.md#snapshot-by-use-case"
+    status: in-progress
+    risk: medium
+    owner: education
+    implementationNotes:
+      - Deterministic fixtures and scenario narratives are defined.
+      - End-to-end BDD implementation needs protocol-level request/response artifacts.
+    acceptanceCriteria:
+      - "Full issuance + presentation scenario executes in standalone and CI contexts."
+      - "Scenario emits request/response logs and timing artifacts."

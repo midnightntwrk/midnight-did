@@ -95,6 +95,10 @@ Provides a brief description for users and developers who want to understand the
 
 See [Midnight DID + VC: A Book for Dummies](./docs/midnight-did-book-for-dummies.md) for a practical spec review and implementation guide based on the documented use cases.
 
+### Spec-to-implementation matrix
+
+See [spec matrix](./docs/midnight-did-spec-matrix.yaml) for machine-friendly status tracking of each documented use case.
+
 ### SECURITY.md
 
 Provides a brief description of the Midnight Foundation's security policy and how to properly disclose security issues.
