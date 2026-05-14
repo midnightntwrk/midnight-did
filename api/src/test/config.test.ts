@@ -10,6 +10,10 @@ import {
   TestnetLocalConfig,
   TestnetRemoteConfig,
 } from "../config";
+import {
+  PRIVATE_STATE_PASSWORD_ENV,
+  resolvePrivateStatePassword,
+} from "../lib";
 
 describe("config", () => {
   it("resolves workspace directories", () => {
@@ -55,5 +59,40 @@ describe("config", () => {
     expect(config.logDir).toContain(path.join("logs", "testnet-remote"));
     expect(config.logDir.endsWith(".log")).toBe(true);
     expect(getNetworkId()).toBe("testnet");
+  });
+
+  it("uses the standalone private-state password fallback only for undeployed networks", () => {
+    let warningCount = 0;
+
+    expect(
+      resolvePrivateStatePassword({
+        networkId: "undeployed",
+        env: {},
+        onStandaloneFallback: () => {
+          warningCount += 1;
+        },
+      }),
+    ).toBe("Midnight-DID-local-private-state-password-2026!");
+    expect(warningCount).toBe(1);
+  });
+
+  it("requires an explicit private-state password outside standalone", () => {
+    expect(() =>
+      resolvePrivateStatePassword({
+        networkId: "testnet",
+        env: {},
+      }),
+    ).toThrow(PRIVATE_STATE_PASSWORD_ENV);
+  });
+
+  it("honors the configured private-state password", () => {
+    expect(
+      resolvePrivateStatePassword({
+        networkId: "testnet",
+        env: {
+          [PRIVATE_STATE_PASSWORD_ENV]: "test-password-from-env",
+        },
+      }),
+    ).toBe("test-password-from-env");
   });
 });

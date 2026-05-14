@@ -54,6 +54,8 @@ export class IndexerEndpointPolicy {
     if (!protocols.includes(parsed.protocol)) {
       throw new Error(message);
     }
+    parsed.search = "";
+    parsed.hash = "";
     return parsed.toString().replace(/\/+$/, "");
   }
 

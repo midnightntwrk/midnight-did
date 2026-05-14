@@ -9,6 +9,12 @@ export const DELEGATION_RELATIONSHIPS = [
   "capabilityDelegation",
 ] as const;
 
+// Trust boundary: this module is a deterministic local projection for
+// delegation templates and accepted delegation events. It validates event
+// shape, timing, and state transitions, but it does not authenticate event
+// signatures. Callers must feed only events that were already accepted by the
+// Compact/on-chain authorization layer or a DID-signature verifier.
+
 export type DelegationRelationship = (typeof DELEGATION_RELATIONSHIPS)[number];
 export type DelegationActorType = "agent" | "service";
 export type DelegationAction = "grant" | "revoke" | "rotate";

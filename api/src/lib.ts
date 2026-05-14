@@ -83,35 +83,53 @@ let logger: Logger;
 // @ts-expect-error assign for apollo/ws
 globalThis.WebSocket = WebSocket;
 
-const PRIVATE_STATE_PASSWORD_ENV = "MIDNIGHT_DID_PRIVATE_STATE_PASSWORD";
+export const PRIVATE_STATE_PASSWORD_ENV = "MIDNIGHT_DID_PRIVATE_STATE_PASSWORD";
 const LOCAL_PRIVATE_STATE_PASSWORD =
   "Midnight-DID-local-private-state-password-2026!";
 let warnedAboutLocalPrivateStatePassword = false;
 
-const getPrivateStatePassword = (): string => {
-  const configuredPassword = process.env[PRIVATE_STATE_PASSWORD_ENV];
+type PrivateStatePasswordOptions = {
+  readonly networkId?: string;
+  readonly env?: Record<string, string | undefined>;
+  readonly onStandaloneFallback?: () => void;
+};
+
+export const resolvePrivateStatePassword = ({
+  networkId,
+  env = process.env,
+  onStandaloneFallback,
+}: PrivateStatePasswordOptions = {}): string => {
+  const configuredPassword = env[PRIVATE_STATE_PASSWORD_ENV];
   if (configuredPassword != null && configuredPassword.length > 0) {
     return configuredPassword;
   }
 
-  const networkId = String(getNetworkId()).toLowerCase();
-  if (networkId === "undeployed") {
-    if (!warnedAboutLocalPrivateStatePassword) {
-      process.emitWarning(
-        `${PRIVATE_STATE_PASSWORD_ENV} is not set; using the local standalone-only private state password fallback.`,
-        {
-          code: "MIDNIGHT_DID_PRIVATE_STATE_PASSWORD_MISSING",
-        },
-      );
-      warnedAboutLocalPrivateStatePassword = true;
-    }
+  const normalizedNetworkId = String(networkId ?? getNetworkId()).toLowerCase();
+  if (normalizedNetworkId === "undeployed") {
+    onStandaloneFallback?.();
     return LOCAL_PRIVATE_STATE_PASSWORD;
   }
 
   throw new Error(
-    `${PRIVATE_STATE_PASSWORD_ENV} must be set before configuring Midnight DID private state for network ${networkId}.`,
+    `${PRIVATE_STATE_PASSWORD_ENV} must be set before configuring Midnight DID private state for network ${normalizedNetworkId}.`,
   );
 };
+
+const warnAboutLocalPrivateStatePasswordOnce = (): void => {
+  if (warnedAboutLocalPrivateStatePassword) return;
+  process.emitWarning(
+    `${PRIVATE_STATE_PASSWORD_ENV} is not set; using the local standalone-only private state password fallback.`,
+    {
+      code: "MIDNIGHT_DID_PRIVATE_STATE_PASSWORD_MISSING",
+    },
+  );
+  warnedAboutLocalPrivateStatePassword = true;
+};
+
+const getPrivateStatePassword = (): string =>
+  resolvePrivateStatePassword({
+    onStandaloneFallback: warnAboutLocalPrivateStatePasswordOnce,
+  });
 
 // HD key derivation from seed
 const deriveKeysFromSeed = (seed: string) => {
