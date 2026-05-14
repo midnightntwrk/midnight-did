@@ -50,6 +50,9 @@ jobs:
       - name: Validate workspace boundary
         run: npm run check:workspaces
 
+      - name: Validate Mermaid diagrams
+        run: npm run docs:check-mermaid -- --source README.md --source docs
+
       - name: Validate run.sh contract modes
         run: npm run test:run-sh
 
@@ -96,6 +99,9 @@ jobs:
 
       - name: Validate workspace boundary
         run: npm run check:workspaces
+
+      - name: Validate Mermaid diagrams
+        run: npm run docs:check-mermaid -- --source README.md --source docs
 
       - name: Validate run.sh contract modes
         run: npm run test:run-sh

@@ -32,6 +32,8 @@
     "test:trust-registry": "npm run test -w api -- src/test/trust-registry-contract.test.ts",
     "test:delegation": "npm run test -w api -- src/test/did-delegation-contract.test.ts",
     "test:university-bdd": "npm run test -w api -- src/test/university-bdd-flow.test.ts",
+    "docs:check-mermaid": "node scripts/docs-mermaid.mjs check",
+    "docs:render": "node scripts/docs-mermaid.mjs render --format both --out-dir docs/assets/book-diagrams --manifest docs/assets/book-diagrams/manifest.json",
     "university-bdd:run": "npm run build -w api && node scripts/university-bdd-run.mjs",
     "university-bdd:diff": "node scripts/university-bdd-diff.mjs",
     "test:university-bdd:cli": "npm run build -w api && node --test scripts/university-bdd-run.test.mjs",

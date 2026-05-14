@@ -71,6 +71,119 @@ Use this loop for every feature request:
 
 This reduces design churn because each request is mapped to the smallest owning layer.
 
+## University flow documentation bundle
+
+The University Diploma scenario currently has a complete simulator execution path with a transport abstraction that includes a placeholder branch for standalone.
+This section keeps the operational view visible to non-specialist reviewers.
+
+### Mermaid flow overview
+
+```mermaid
+flowchart LR
+  U["University issuer"]
+  S["10 graduate students"]
+  C["3 verifier companies"]
+  M["Mall verifier"]
+  T["Test fixture + filters"]
+  B["Batch issuance engine"]
+  P["Presentation engine"]
+  D["Discount engine"]
+  R["Scenario artifact + replay"]
+
+  T -->|load roster and IDs| U
+  U -->|issue diploma| B
+  B -->|issued VCs| S
+  S -->|request job presentation| P
+  P -->|approved/rejected| C
+  S -->|request mall discount| D
+  D -->|discounted/declined| M
+  C -->|presenter checks| R
+  M -->|discount checks| R
+
+  classDef actor fill:#e5efff,stroke:#254d9d,stroke-width:1px;
+  classDef engine fill:#eaf7eb,stroke:#2c8f4b,stroke-width:1px;
+  classDef out fill:#fff6df,stroke:#946800,stroke-width:1px;
+  class U,C,M,S actor;
+  class B,P,D engine;
+  class T,R out;
+```
+
+### Request/reply sample diagrams
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant Student as Student agent
+  participant University as University transport
+  participant Verifier as Verifier company
+  participant Mall as Mall verifier
+
+  Student->>University: issueDiploma({studentId, did, program})
+  University-->>Student: {status: issued, credentialId, holderBinding: ok, requestId}
+
+  Student->>Verifier: requestPresentation({verifierId, presentationRequest})
+  Verifier-->>Student: {status: approved, requestId, check: holderDidMatch}
+
+  Student->>Mall: requestDiscount({studentDid, grade, presentationId})
+  Mall-->>Student: {status: eligible, benefit: 10%, requestHash}
+
+  Note over Student,Mall: All messages use the same student DID and deterministic hash fields.
+```
+
+### Compact artifact diagram
+
+```mermaid
+flowchart TD
+  R["UniversityScenarioResult"]
+  A1["Report Artifact"]
+  A2["Replay Artifact"]
+  X["artifactVersion"]
+  Y["CLI --assert-replay"]
+  Z["Replay validator"]
+
+  R --> A1
+  R --> A2
+  A1 -->|versioned JSON| X
+  A2 -->|requestId + requestHash + responseHash| Y
+  Y -->|canonical checks| Z
+  Z -->|migration support for legacy artifacts| X
+
+  classDef core fill:#eef7ff,stroke:#2a4d87,stroke-width:1px;
+  classDef out fill:#f5fff5,stroke:#2e7d32,stroke-width:1px;
+  classDef tool fill:#fff7ec,stroke:#8a4f00,stroke-width:1px;
+  classDef note fill:#f3f3f3,stroke:#666,stroke-width:1px;
+
+  class R,A1,A2 core;
+  class X,Y,Z out;
+  class R note;
+```
+
+### Screenshot bundle quick reference
+
+Use this JSON fixture sample to validate generated output:
+
+```json
+{
+  "artifactVersion": "1.1.0",
+  "summary": {
+    "issued": 10,
+    "approved": 3,
+    "discounted": 5
+  },
+  "filters": {
+    "studentsTargeted": ["student-001", "student-002", "student-003"],
+    "companiesTargeted": ["company-01", "company-02", "company-03"]
+  }
+}
+```
+
+Bundle this section together with:
+
+- flow overview diagram above
+- request/reply sequence diagram above
+- compact artifact diagram above
+- CLI output from `npm run university-bdd:run -- --mode simulator --summary`
+
 ## Simple implementation roadmap from current spec
 
 Phase 1: near-term foundation

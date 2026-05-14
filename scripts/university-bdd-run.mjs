@@ -10,6 +10,7 @@ import {
   summarizeUniversityScenario,
   toUniversityScenarioArtifact,
   toUniversityScenarioReplayArtifact,
+  normalizeUniversityScenarioReplayArtifact,
 } from "../api/dist/index.js";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -207,41 +208,6 @@ const writeIfPath = (pathValue, payload, encoding = "utf8") => {
   writeFileSync(destination, output, encoding);
 };
 
-const normalizeReplay = (artifact) => {
-  if (artifact == null || !Array.isArray(artifact.steps)) {
-    throw new Error("Replay artifact missing steps array");
-  }
-
-  return {
-    scenarioTitle: artifact.scenarioTitle,
-    generatedAt: artifact.generatedAt,
-    mode: artifact.mode,
-    steps: artifact.steps.map(
-      ({
-        step,
-        stepId,
-        requestId,
-        requestHash,
-        responseHash,
-        latencyMs,
-        startedAt,
-        endedAt,
-        involvedDids,
-      }) => ({
-        step,
-        stepId,
-        requestId,
-        requestHash,
-        responseHash,
-        latencyMs,
-        startedAt,
-        endedAt,
-        involvedDids,
-      }),
-    ),
-  };
-};
-
 const assertReplayMatch = (actualReplay, expectedReplay) => {
   if (actualReplay.mode !== expectedReplay.mode) {
     throw new Error(
@@ -316,24 +282,17 @@ const run = async () => {
   const replay = toUniversityScenarioReplayArtifact(result);
 
   if (options.assertReplay != null) {
-    const expectedReplay = normalizeReplay(
+    const expectedReplay = normalizeUniversityScenarioReplayArtifact(
       JSON.parse(readFileSync(resolve(options.assertReplay), "utf8")),
     );
     assertReplayMatch(replay, expectedReplay);
   }
 
-  writeIfPath(
-    options.artifactPath,
-    () => JSON.stringify(artifact, null, 2),
+  writeIfPath(options.artifactPath, () => JSON.stringify(artifact, null, 2));
+  writeIfPath(options.replayArtifactPath, () =>
+    JSON.stringify(replay, null, 2),
   );
-  writeIfPath(
-    options.replayArtifactPath,
-    () => JSON.stringify(replay, null, 2),
-  );
-  writeIfPath(
-    options.summaryPath,
-    () => summarizeUniversityScenario(result),
-  );
+  writeIfPath(options.summaryPath, () => summarizeUniversityScenario(result));
 
   if (options.format === "summary") {
     console.log(summarizeUniversityScenario(result));

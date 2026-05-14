@@ -5,16 +5,25 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
-  type UniversityFixture,
   collectUniversityPartySamples,
+  computeCredentialDigest,
   deriveUniversityFixtureSubset,
   formatUniversityScenarioNotes,
+  generateUniversityFixture,
   loadUniversityScenarioFromFile,
+  normalizeUniversityScenarioReplayArtifact,
+  normalizeUniversityScenarioReportArtifact,
   runUniversityDiplomaScenario,
+  shrinkUniversityFixture,
   summarizeUniversityScenario,
   toUniversityScenarioArtifact,
   toUniversityScenarioReplayArtifact,
+  UNIVERSITY_SCENARIO_REPLAY_ARTIFACT_VERSION,
+  UNIVERSITY_SCENARIO_REPORT_ARTIFACT_VERSION,
+  type UniversityFixture,
   type UniversityIssuanceRequestContext,
+  type UniversityIssuanceStepResponse,
+  type UniversityPresentationStepResponse,
   universityScenarioFixturePath,
   type UniversityScenarioResult,
   type UniversityTransport,
@@ -33,6 +42,16 @@ describe("University diploma BDD scenario", () => {
     fixture: UniversityFixture,
     studentId: string,
   ): string => `${fixture.statusRegistry.statusRef}:${studentId}`;
+
+  const normalizeNumericSuffixOrder = (values: string[]): string[] =>
+    [...values].sort((left, right) => {
+      const leftDigits = left.match(/(\d+)$/)?.[0];
+      const rightDigits = right.match(/(\d+)$/)?.[0];
+      if (leftDigits == null || rightDigits == null) {
+        return left.localeCompare(right);
+      }
+      return Number(leftDigits) - Number(rightDigits);
+    });
 
   const fixtureWithRevokedStudent = (studentId: string): UniversityFixture => {
     const fixture = cloneFixture();
@@ -133,6 +152,77 @@ describe("University diploma BDD scenario", () => {
         };
       },
       async requestDiscount(request) {
+        calls.push({ method: "requestDiscount", request });
+        const accepted = request.grade > request.gradeThreshold;
+        return {
+          accepted,
+          reasons: [
+            `student=${request.student.studentId}`,
+            `grade=${request.grade}`,
+            `threshold=${request.gradeThreshold}`,
+          ],
+        };
+      },
+    };
+  };
+
+  const createFlakyFirstIssueTransport = (
+    calls: { method: string; request: unknown }[],
+    baseDelayMs = 25,
+  ): UniversityTransport => {
+    const createCredential = (request: UniversityIssuanceRequestContext) => ({
+      id: `${request.universityDid}:vc:${request.studentId}:contract-test`,
+      studentId: request.studentId,
+      holderDid: request.studentDid,
+      issuerDid: request.universityDid,
+      issuedAt: request.issuedAt,
+      graduationTerm: request.student.graduationTerm,
+      grade: request.student.grade,
+      program: request.student.program,
+      credentialStatus: {
+        id: request.credentialStatusRef,
+        type: "MidnightStatusList",
+        statusPurpose: "revocation",
+        statusRef: request.statusRef,
+      },
+      proofDigest: `contract-${request.requestReference}`,
+    });
+    let issueAttempts = 0;
+
+    return {
+      async issueDiploma(request) {
+        calls.push({ method: "issueDiploma", request });
+        issueAttempts += 1;
+
+        if (issueAttempts === 1) {
+          return new Promise<never>((_, reject) =>
+            setTimeout(() => {
+              reject(new Error("request timed out"));
+            }, baseDelayMs),
+          );
+        }
+
+        const credential = createCredential(request);
+        return {
+          issued: true,
+          credential,
+          statusState: "active",
+          statusReason: "contract adapter active",
+        };
+      },
+      requestPresentation(request) {
+        calls.push({ method: "requestPresentation", request });
+        const accepted = request.student.grade > request.threshold;
+        return {
+          accepted,
+          reasons: [
+            `student=${request.student.studentId}`,
+            `threshold=${request.threshold}`,
+          ],
+          issuerCheck: "mock-verifier-active",
+        };
+      },
+      requestDiscount(request) {
         calls.push({ method: "requestDiscount", request });
         const accepted = request.grade > request.gradeThreshold;
         return {
@@ -261,6 +351,97 @@ describe("University diploma BDD scenario", () => {
     );
   });
 
+  it("generates deterministic university fixtures from seed", () => {
+    const base = {
+      studentCount: 120,
+      companyCount: 12,
+      batchSize: 19,
+      seed: "stress-2026",
+      scenarioTitle: "Deterministic seed smoke",
+      gradeFloor: 65,
+      gradeCeil: 98,
+      mallDiscountPercent: 20,
+      mallGradeThreshold: 87,
+    };
+
+    const first = generateUniversityFixture(base);
+    const second = generateUniversityFixture(base);
+
+    expect(first).toEqual(second);
+    expect(first.students).toHaveLength(120);
+    expect(first.companies).toHaveLength(12);
+    expect(first.students[0]!.studentId).toBe("S001");
+    expect(first.students.at(-1)?.studentId).toBe("S120");
+    expect(first.issuanceBatches).toHaveLength(7);
+    expect(first.issuanceBatches.flat()).toHaveLength(120);
+    expect(first.issuanceBatches.flat()).toEqual(
+      expect.arrayContaining(
+        first.students.map((student) => student.studentId),
+      ),
+    );
+    expect(
+      first.issuanceBatches.every(
+        (batch) => batch.length > 0 && batch.length <= base.batchSize,
+      ),
+    ).toBe(true);
+    expect(new Set(first.issuanceBatches.flat()).size).toBe(120);
+    expect(
+      first.trustRegistry.events.filter(({ role }) => role === "verifier"),
+    ).toHaveLength(12);
+    expect(
+      first.trustRegistry.events.find(
+        (event) =>
+          event.role === "issuer" && event.partyDid === first.university.did,
+      ),
+    ).toBeDefined();
+  });
+
+  it("produces stable sorted identifiers when shrinking fixtures", () => {
+    const fixture = generateUniversityFixture({
+      studentCount: 53,
+      companyCount: 11,
+      seed: "shrink-seed",
+      batchSize: 11,
+      gradeFloor: 60,
+    });
+
+    const shrunkA = shrinkUniversityFixture(fixture, {
+      studentCount: 9,
+      companyCount: 4,
+      seed: "subset-seed",
+    });
+    const shrunkB = shrinkUniversityFixture(fixture, {
+      studentCount: 9,
+      companyCount: 4,
+      seed: "subset-seed",
+    });
+    const explicit = deriveUniversityFixtureSubset(fixture, {
+      studentIds: shrunkA.students.map((student) => student.studentId),
+      companyIds: shrunkA.companies.map((company) => company.companyId),
+    });
+
+    expect(shrunkA).toEqual(shrunkB);
+    expect(shrunkA).toEqual(explicit);
+    expect(shrunkA.students).toHaveLength(9);
+    expect(shrunkA.companies).toHaveLength(4);
+    expect(shrunkA.students.map((student) => student.studentId)).toEqual(
+      normalizeNumericSuffixOrder(
+        shrunkA.students.map((student) => student.studentId),
+      ),
+    );
+    expect(shrunkA.companies.map((company) => company.companyId)).toEqual(
+      normalizeNumericSuffixOrder(
+        shrunkA.companies.map((company) => company.companyId),
+      ),
+    );
+    expect(shrunkA.issuanceBatches.flat()).toEqual(
+      expect.arrayContaining(
+        shrunkA.students.map((student) => student.studentId),
+      ),
+    );
+    expect(new Set(shrunkA.issuanceBatches.flat()).size).toBe(9);
+  });
+
   it("fails with actionable errors when unknown IDs are provided", async () => {
     const fixture = loadUniversityScenarioFromFile(fixturePath);
 
@@ -313,6 +494,25 @@ describe("University diploma BDD scenario", () => {
     const notes = readFileSync(reportPath, "utf8");
     expect(notes).toContain("University BDD summary");
     expect(notes).toContain("Mode: simulator");
+  });
+
+  it("embeds artifact schema version and upgrades legacy report artifacts", async () => {
+    const result = await loadResult();
+    const report = toUniversityScenarioArtifact(result);
+
+    expect(report.artifactVersion).toBe(
+      UNIVERSITY_SCENARIO_REPORT_ARTIFACT_VERSION,
+    );
+
+    const legacyReport = JSON.parse(JSON.stringify(report));
+    delete legacyReport.artifactVersion;
+
+    const migratedReport =
+      normalizeUniversityScenarioReportArtifact(legacyReport);
+    expect(migratedReport.artifactVersion).toBe(
+      UNIVERSITY_SCENARIO_REPORT_ARTIFACT_VERSION,
+    );
+    expect(migratedReport.steps.length).toBe(report.steps.length);
   });
 
   it("collects stable student-to-party request/response samples", async () => {
@@ -368,6 +568,42 @@ describe("University diploma BDD scenario", () => {
     expect(firstDiscount).toBeDefined();
   });
 
+  it("retries timeout transport calls and records transport checks", async () => {
+    const fixture = loadUniversityScenarioFromFile(fixturePath);
+    const calls: { method: string; request: unknown }[] = [];
+
+    const result = await runUniversityDiplomaScenario(fixture, {
+      mode: "standalone",
+      transport: createFlakyFirstIssueTransport(calls),
+      studentIds: ["S001"],
+      companyIds: ["C001"],
+      transportRetryOptions: {
+        maxRetries: 1,
+        timeoutMs: 5,
+        retryDelayMs: 0,
+      },
+    });
+
+    expect(result.issuedCount).toBe(1);
+    expect(result.applicationCount).toBe(1);
+    expect(result.discountCount).toBe(0);
+
+    const issueStep = result.steps.find(
+      (step) => step.step === "Issue diploma VC across batches",
+    );
+    expect(issueStep).toBeDefined();
+    expect(issueStep?.checks).toContain(
+      "Transport operation issueDiploma: attempts=2, retries=1, timeoutEvents=1",
+    );
+
+    expect(
+      calls.filter((entry) => entry.method === "issueDiploma"),
+    ).toHaveLength(2);
+    expect(
+      calls.filter((entry) => entry.method === "requestPresentation"),
+    ).toHaveLength(1);
+  });
+
   it("canonicalizes DIDs during fixture load and scenario execution", () => {
     const rawFixture = JSON.parse(
       readFileSync(fixturePath, "utf8"),
@@ -385,9 +621,7 @@ describe("University diploma BDD scenario", () => {
           : student,
       ),
       companies: rawFixture.companies.map((company, index) =>
-        index === 0
-          ? { ...company, did: "did:midnight:ORG:GreatCo" }
-          : company,
+        index === 0 ? { ...company, did: "did:midnight:ORG:GreatCo" } : company,
       ),
       mall: {
         ...rawFixture.mall,
@@ -405,8 +639,12 @@ describe("University diploma BDD scenario", () => {
 
     const loaded = loadUniversityScenarioFromFile(mutatedFixturePath);
 
-    expect(loaded.university.did).toBe("did:midnight:edu:north-edge-university");
-    expect(loaded.university.issuerDid).toBe("did:midnight:key:university-issuer");
+    expect(loaded.university.did).toBe(
+      "did:midnight:edu:north-edge-university",
+    );
+    expect(loaded.university.issuerDid).toBe(
+      "did:midnight:key:university-issuer",
+    );
     expect(loaded.students[0].did).toBe("did:midnight:user:student-first");
     expect(loaded.companies[0].did).toBe("did:midnight:org:greatco");
     expect(loaded.mall.did).toBe("did:midnight:org:night-mall");
@@ -578,6 +816,105 @@ describe("University diploma BDD scenario", () => {
         Date.parse(step.startedAt),
       );
     }
+  });
+
+  it("upgrades legacy replay artifacts and preserves request/response hashes", async () => {
+    const result = await loadResult();
+    const replay = toUniversityScenarioReplayArtifact(result);
+
+    expect(replay.artifactVersion).toBe(
+      UNIVERSITY_SCENARIO_REPLAY_ARTIFACT_VERSION,
+    );
+
+    const legacyReplay = JSON.parse(JSON.stringify(replay));
+    delete legacyReplay.artifactVersion;
+
+    const upgradedReplay =
+      normalizeUniversityScenarioReplayArtifact(legacyReplay);
+    expect(upgradedReplay.artifactVersion).toBe(
+      UNIVERSITY_SCENARIO_REPLAY_ARTIFACT_VERSION,
+    );
+    expect(upgradedReplay.steps.map((step) => step.requestHash)).toEqual(
+      replay.steps.map((step) => step.requestHash),
+    );
+    expect(upgradedReplay.steps.map((step) => step.responseHash)).toEqual(
+      replay.steps.map((step) => step.responseHash),
+    );
+  });
+
+  it("includes proof and DID binding assertions in issue and presentation replay steps", async () => {
+    const result = await loadResult();
+    const replay = toUniversityScenarioReplayArtifact(result);
+
+    const issueStep = result.steps.find(
+      (step) => step.step === "Issue diploma VC across batches",
+    );
+    const issueReplay = replay.steps.find(
+      (step) => step.step === "Issue diploma VC across batches",
+    );
+    const presentationStep = result.steps.find(
+      (step) => step.step === "Student-to-verifier presentation requests",
+    );
+    const presentationReplay = replay.steps.find(
+      (step) => step.step === "Student-to-verifier presentation requests",
+    );
+    const discountReplay = replay.steps.find(
+      (step) => step.step === "Student-to-mall discount presentations",
+    );
+
+    expect(issueStep?.proofPlaceholders).toBeDefined();
+    expect(issueStep?.didBindingChecks).toBeDefined();
+    expect(issueReplay?.proofPlaceholders).toEqual(
+      issueStep?.proofPlaceholders,
+    );
+    expect(issueReplay?.didBindingChecks).toEqual(issueStep?.didBindingChecks);
+
+    expect(presentationStep?.proofPlaceholders).toBeDefined();
+    expect(presentationStep?.didBindingChecks).toBeDefined();
+    expect(presentationReplay?.proofPlaceholders).toEqual(
+      presentationStep?.proofPlaceholders,
+    );
+    expect(presentationReplay?.didBindingChecks).toEqual(
+      presentationStep?.didBindingChecks,
+    );
+    expect(discountReplay?.proofPlaceholders).toBeUndefined();
+
+    const issueResponse = issueStep?.response as
+      | UniversityIssuanceStepResponse
+      | undefined;
+    const firstIssued = issueResponse?.issuedRequests[0];
+    expect(firstIssued).toBeDefined();
+    expect(issueReplay?.proofPlaceholders).toContainEqual(
+      `issue:${firstIssued?.studentId}:proof-placeholder=compact-eddsa:${firstIssued?.request.requestReference}`,
+    );
+    expect(firstIssued?.response.credential).toBeDefined();
+    expect(issueReplay?.proofPlaceholders).toContainEqual(
+      `issue:${firstIssued?.studentId}:proof-binding=${firstIssued?.response.credential == null ? "" : computeCredentialDigest({ ...firstIssued.response.credential, proofDigest: "" }).slice(0, 16)}`,
+    );
+    expect(issueReplay?.proofPlaceholders).toContainEqual(
+      `issue:${firstIssued?.studentId}:proof-placeholder-digest=${firstIssued?.response.credential?.proofDigest}`,
+    );
+    expect(issueReplay?.didBindingChecks).toContainEqual(
+      `issue:${firstIssued?.studentId}:holder=${firstIssued?.response.credential?.holderDid}:issuer=${firstIssued?.response.credential?.issuerDid}`,
+    );
+
+    const presentationResponse = presentationStep?.response as
+      | UniversityPresentationStepResponse
+      | undefined;
+    const firstPresentation = presentationResponse?.presentationResults[0];
+    expect(firstPresentation).toBeDefined();
+    expect(presentationReplay?.proofPlaceholders).toContainEqual(
+      `presentation:${firstPresentation?.presentationId}:proof-placeholder=${firstPresentation?.credential.id}`,
+    );
+    expect(presentationReplay?.proofPlaceholders).toContainEqual(
+      `presentation:${firstPresentation?.presentationId}:proof-placeholder:issued=${firstPresentation?.response.accepted ? "accepted" : "rejected"}`,
+    );
+    expect(presentationReplay?.didBindingChecks).toContainEqual(
+      `presentation:${firstPresentation?.presentationId}:holder=${firstPresentation?.studentDid}:verifier=${firstPresentation?.verifierDid}:issuer=${firstPresentation?.credential.issuerDid}`,
+    );
+    expect(presentationReplay?.didBindingChecks).toContainEqual(
+      `presentation:${firstPresentation?.presentationId}:credential-holder=${firstPresentation?.credential.holderDid}:student=${firstPresentation?.studentId}`,
+    );
   });
 
   it("guards CI-critical metrics are monotonic and bounded", async () => {

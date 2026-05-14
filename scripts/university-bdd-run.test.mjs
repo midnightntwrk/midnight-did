@@ -113,6 +113,12 @@ test("runs with default fixture and writes artifacts", () => {
   assert.equal(Array.isArray(artifact.steps), true);
   assert.equal(artifact.steps.length, 4);
   assert.equal(artifact.metadata.studentsTargeted, 10);
+  assert.equal(
+    typeof artifact.artifactVersion,
+    "string",
+    "artifactVersion exists",
+  );
+  assert.equal(artifact.artifactVersion.includes("1."), true);
 
   const replay = JSON.parse(readFileSync(replayPath, "utf8"));
   assert.equal(replay.steps.length, artifact.steps.length);
@@ -122,6 +128,11 @@ test("runs with default fixture and writes artifacts", () => {
     typeof replay.steps[0].requestHash,
     "string",
     "requestHash exists",
+  );
+  assert.equal(
+    typeof replay.artifactVersion,
+    "string",
+    "replay artifact version exists",
   );
 
   const summary = readFileSync(summaryPath, "utf8");
@@ -169,6 +180,22 @@ test("supports strict replay assertion and detects drift", () => {
     runCli(["--assert-replay", expectedReplayPath]),
     0,
     "replay assertion passes",
+  );
+
+  const expectedReplayWithoutVersion = JSON.parse(
+    readFileSync(expectedReplayPath, "utf8"),
+  );
+  delete expectedReplayWithoutVersion.artifactVersion;
+  const legacyReplayPath = path.join(tempDir, "legacy-expected-replay.json");
+  writeFileSync(
+    legacyReplayPath,
+    JSON.stringify(expectedReplayWithoutVersion, null, 2),
+    "utf8",
+  );
+  assertResult(
+    runCli(["--assert-replay", legacyReplayPath]),
+    0,
+    "replay assertion supports legacy artifact format",
   );
 
   const expectedReplay = JSON.parse(readFileSync(expectedReplayPath, "utf8"));
@@ -280,8 +307,7 @@ test("canonicalizes DIDs before scenario execution", () => {
     "student DID canonicalized",
   );
   assert.ok(
-    firstIssue?.universityDid ===
-      "did:midnight:edu:midnight-university-state",
+    firstIssue?.universityDid === "did:midnight:edu:midnight-university-state",
     "university DID canonicalized",
   );
 

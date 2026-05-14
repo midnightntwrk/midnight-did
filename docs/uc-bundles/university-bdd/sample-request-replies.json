@@ -1,0 +1,1138 @@
+{
+  "studentToUniversity": [
+    {
+      "senderDid": "did:midnight:user:student-001",
+      "receiverDid": "did:midnight:edu:midnight-university-state",
+      "request": {
+        "student": {
+          "studentId": "S001",
+          "did": "did:midnight:user:student-001",
+          "fullName": "Avery Morgan",
+          "program": "Computer Security",
+          "graduationTerm": "2026-05",
+          "grade": 74
+        },
+        "issuedAt": "2026-05-14T00:00:00.000Z",
+        "credentialStatusRef": "urn:vc-status:midnight:university-diploma:2026",
+        "statusRef": "urn:vc-status:midnight:university-diploma:2026:S001",
+        "studentId": "S001",
+        "studentDid": "did:midnight:user:student-001",
+        "universityDid": "did:midnight:edu:midnight-university-state",
+        "requestReference": "request:did:midnight:edu:midnight-university-state:S001"
+      },
+      "response": {
+        "issued": true,
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S001:diploma",
+          "studentId": "S001",
+          "holderDid": "did:midnight:user:student-001",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 74,
+          "program": "Computer Security",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S001"
+          },
+          "proofDigest": "d8685c66d5cade791f7dde0b07192f195fbb03b73f5948c8ede257e5d769d78c"
+        },
+        "statusState": "active",
+        "statusReason": "active"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-002",
+      "receiverDid": "did:midnight:edu:midnight-university-state",
+      "request": {
+        "student": {
+          "studentId": "S002",
+          "did": "did:midnight:user:student-002",
+          "fullName": "Brook Chen",
+          "program": "Information Systems",
+          "graduationTerm": "2026-05",
+          "grade": 91
+        },
+        "issuedAt": "2026-05-14T00:00:00.000Z",
+        "credentialStatusRef": "urn:vc-status:midnight:university-diploma:2026",
+        "statusRef": "urn:vc-status:midnight:university-diploma:2026:S002",
+        "studentId": "S002",
+        "studentDid": "did:midnight:user:student-002",
+        "universityDid": "did:midnight:edu:midnight-university-state",
+        "requestReference": "request:did:midnight:edu:midnight-university-state:S002"
+      },
+      "response": {
+        "issued": true,
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S002:diploma",
+          "studentId": "S002",
+          "holderDid": "did:midnight:user:student-002",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 91,
+          "program": "Information Systems",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S002"
+          },
+          "proofDigest": "2d7bf17f7023818084d27b395eabb8d15e0cedc6800d77bc9eb10daf5e951528"
+        },
+        "statusState": "active",
+        "statusReason": "active"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-003",
+      "receiverDid": "did:midnight:edu:midnight-university-state",
+      "request": {
+        "student": {
+          "studentId": "S003",
+          "did": "did:midnight:user:student-003",
+          "fullName": "Casey Rivera",
+          "program": "Distributed Systems",
+          "graduationTerm": "2026-05",
+          "grade": 88
+        },
+        "issuedAt": "2026-05-14T00:00:00.000Z",
+        "credentialStatusRef": "urn:vc-status:midnight:university-diploma:2026",
+        "statusRef": "urn:vc-status:midnight:university-diploma:2026:S003",
+        "studentId": "S003",
+        "studentDid": "did:midnight:user:student-003",
+        "universityDid": "did:midnight:edu:midnight-university-state",
+        "requestReference": "request:did:midnight:edu:midnight-university-state:S003"
+      },
+      "response": {
+        "issued": true,
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S003:diploma",
+          "studentId": "S003",
+          "holderDid": "did:midnight:user:student-003",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 88,
+          "program": "Distributed Systems",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S003"
+          },
+          "proofDigest": "e6b77240ecb60cb52a7435a5633d701f3e94dfcd3010e0230f69427800bf142e"
+        },
+        "statusState": "active",
+        "statusReason": "active"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-004",
+      "receiverDid": "did:midnight:edu:midnight-university-state",
+      "request": {
+        "student": {
+          "studentId": "S004",
+          "did": "did:midnight:user:student-004",
+          "fullName": "Devin Patel",
+          "program": "Cryptography",
+          "graduationTerm": "2026-05",
+          "grade": 95
+        },
+        "issuedAt": "2026-05-14T00:00:00.000Z",
+        "credentialStatusRef": "urn:vc-status:midnight:university-diploma:2026",
+        "statusRef": "urn:vc-status:midnight:university-diploma:2026:S004",
+        "studentId": "S004",
+        "studentDid": "did:midnight:user:student-004",
+        "universityDid": "did:midnight:edu:midnight-university-state",
+        "requestReference": "request:did:midnight:edu:midnight-university-state:S004"
+      },
+      "response": {
+        "issued": true,
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S004:diploma",
+          "studentId": "S004",
+          "holderDid": "did:midnight:user:student-004",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 95,
+          "program": "Cryptography",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S004"
+          },
+          "proofDigest": "67a2b580b42177a2ba6a6e57dc1a39739552d2d3f9ca8200191519657f477e9c"
+        },
+        "statusState": "active",
+        "statusReason": "active"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-005",
+      "receiverDid": "did:midnight:edu:midnight-university-state",
+      "request": {
+        "student": {
+          "studentId": "S005",
+          "did": "did:midnight:user:student-005",
+          "fullName": "Eden Scott",
+          "program": "Applied AI",
+          "graduationTerm": "2026-05",
+          "grade": 97
+        },
+        "issuedAt": "2026-05-14T00:00:00.000Z",
+        "credentialStatusRef": "urn:vc-status:midnight:university-diploma:2026",
+        "statusRef": "urn:vc-status:midnight:university-diploma:2026:S005",
+        "studentId": "S005",
+        "studentDid": "did:midnight:user:student-005",
+        "universityDid": "did:midnight:edu:midnight-university-state",
+        "requestReference": "request:did:midnight:edu:midnight-university-state:S005"
+      },
+      "response": {
+        "issued": true,
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S005:diploma",
+          "studentId": "S005",
+          "holderDid": "did:midnight:user:student-005",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 97,
+          "program": "Applied AI",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S005"
+          },
+          "proofDigest": "0beb2b08cb56e53a151297bb0d3f9c38d1202761e2d9c8912f8f31c7050de0fb"
+        },
+        "statusState": "active",
+        "statusReason": "active"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-006",
+      "receiverDid": "did:midnight:edu:midnight-university-state",
+      "request": {
+        "student": {
+          "studentId": "S006",
+          "did": "did:midnight:user:student-006",
+          "fullName": "Frank Li",
+          "program": "Software Engineering",
+          "graduationTerm": "2026-05",
+          "grade": 83
+        },
+        "issuedAt": "2026-05-14T00:00:00.000Z",
+        "credentialStatusRef": "urn:vc-status:midnight:university-diploma:2026",
+        "statusRef": "urn:vc-status:midnight:university-diploma:2026:S006",
+        "studentId": "S006",
+        "studentDid": "did:midnight:user:student-006",
+        "universityDid": "did:midnight:edu:midnight-university-state",
+        "requestReference": "request:did:midnight:edu:midnight-university-state:S006"
+      },
+      "response": {
+        "issued": true,
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S006:diploma",
+          "studentId": "S006",
+          "holderDid": "did:midnight:user:student-006",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 83,
+          "program": "Software Engineering",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S006"
+          },
+          "proofDigest": "f246eb68d7d67643faaa69dcb6f5a237e461f5f1da543acb5bc2d2e44a4cea51"
+        },
+        "statusState": "active",
+        "statusReason": "active"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-007",
+      "receiverDid": "did:midnight:edu:midnight-university-state",
+      "request": {
+        "student": {
+          "studentId": "S007",
+          "did": "did:midnight:user:student-007",
+          "fullName": "Harper Wu",
+          "program": "Data Science",
+          "graduationTerm": "2026-05",
+          "grade": 92
+        },
+        "issuedAt": "2026-05-14T00:00:00.000Z",
+        "credentialStatusRef": "urn:vc-status:midnight:university-diploma:2026",
+        "statusRef": "urn:vc-status:midnight:university-diploma:2026:S007",
+        "studentId": "S007",
+        "studentDid": "did:midnight:user:student-007",
+        "universityDid": "did:midnight:edu:midnight-university-state",
+        "requestReference": "request:did:midnight:edu:midnight-university-state:S007"
+      },
+      "response": {
+        "issued": true,
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S007:diploma",
+          "studentId": "S007",
+          "holderDid": "did:midnight:user:student-007",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 92,
+          "program": "Data Science",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S007"
+          },
+          "proofDigest": "c10aa0f8d632fb0f97924abd9375e00d7f40c20923b8438754b64324d8ee0b86"
+        },
+        "statusState": "active",
+        "statusReason": "active"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-008",
+      "receiverDid": "did:midnight:edu:midnight-university-state",
+      "request": {
+        "student": {
+          "studentId": "S008",
+          "did": "did:midnight:user:student-008",
+          "fullName": "Jordan Bell",
+          "program": "Human Factors",
+          "graduationTerm": "2026-05",
+          "grade": 86
+        },
+        "issuedAt": "2026-05-14T00:00:00.000Z",
+        "credentialStatusRef": "urn:vc-status:midnight:university-diploma:2026",
+        "statusRef": "urn:vc-status:midnight:university-diploma:2026:S008",
+        "studentId": "S008",
+        "studentDid": "did:midnight:user:student-008",
+        "universityDid": "did:midnight:edu:midnight-university-state",
+        "requestReference": "request:did:midnight:edu:midnight-university-state:S008"
+      },
+      "response": {
+        "issued": true,
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S008:diploma",
+          "studentId": "S008",
+          "holderDid": "did:midnight:user:student-008",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 86,
+          "program": "Human Factors",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S008"
+          },
+          "proofDigest": "61995be0471a71c5242a789d4dd98197af0426290a431da60ebeb5010bba0316"
+        },
+        "statusState": "active",
+        "statusReason": "active"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-009",
+      "receiverDid": "did:midnight:edu:midnight-university-state",
+      "request": {
+        "student": {
+          "studentId": "S009",
+          "did": "did:midnight:user:student-009",
+          "fullName": "Kiran Das",
+          "program": "Distributed Privacy",
+          "graduationTerm": "2026-05",
+          "grade": 99
+        },
+        "issuedAt": "2026-05-14T00:00:00.000Z",
+        "credentialStatusRef": "urn:vc-status:midnight:university-diploma:2026",
+        "statusRef": "urn:vc-status:midnight:university-diploma:2026:S009",
+        "studentId": "S009",
+        "studentDid": "did:midnight:user:student-009",
+        "universityDid": "did:midnight:edu:midnight-university-state",
+        "requestReference": "request:did:midnight:edu:midnight-university-state:S009"
+      },
+      "response": {
+        "issued": true,
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S009:diploma",
+          "studentId": "S009",
+          "holderDid": "did:midnight:user:student-009",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 99,
+          "program": "Distributed Privacy",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S009"
+          },
+          "proofDigest": "000d7072c6fc4af0e918274a1b070033e8c56d7e95e36a47e789d993b359d608"
+        },
+        "statusState": "active",
+        "statusReason": "active"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-010",
+      "receiverDid": "did:midnight:edu:midnight-university-state",
+      "request": {
+        "student": {
+          "studentId": "S010",
+          "did": "did:midnight:user:student-010",
+          "fullName": "Noah Kim",
+          "program": "Network Security",
+          "graduationTerm": "2026-05",
+          "grade": 90
+        },
+        "issuedAt": "2026-05-14T00:00:00.000Z",
+        "credentialStatusRef": "urn:vc-status:midnight:university-diploma:2026",
+        "statusRef": "urn:vc-status:midnight:university-diploma:2026:S010",
+        "studentId": "S010",
+        "studentDid": "did:midnight:user:student-010",
+        "universityDid": "did:midnight:edu:midnight-university-state",
+        "requestReference": "request:did:midnight:edu:midnight-university-state:S010"
+      },
+      "response": {
+        "issued": true,
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S010:diploma",
+          "studentId": "S010",
+          "holderDid": "did:midnight:user:student-010",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 90,
+          "program": "Network Security",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S010"
+          },
+          "proofDigest": "c96fe1d165c684f2e4fe0c9771a21dff0eafc83c58ffb523eb9cf752efdea7c7"
+        },
+        "statusState": "active",
+        "statusReason": "active"
+      }
+    }
+  ],
+  "studentToVerifier": [
+    {
+      "senderDid": "did:midnight:user:student-001",
+      "receiverDid": "did:midnight:org:company-one",
+      "request": {
+        "presentationId": "presentation-S001->C001",
+        "applicationId": "S001->C001",
+        "verifierDid": "did:midnight:org:company-one",
+        "studentDid": "did:midnight:user:student-001",
+        "credentialId": "did:midnight:edu:midnight-university-state:vc:S001:diploma",
+        "threshold": 80,
+        "studentId": "S001",
+        "student": {
+          "studentId": "S001",
+          "did": "did:midnight:user:student-001",
+          "fullName": "Avery Morgan",
+          "program": "Computer Security",
+          "graduationTerm": "2026-05",
+          "grade": 74
+        },
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S001:diploma",
+          "studentId": "S001",
+          "holderDid": "did:midnight:user:student-001",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 74,
+          "program": "Computer Security",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S001"
+          },
+          "proofDigest": "d8685c66d5cade791f7dde0b07192f195fbb03b73f5948c8ede257e5d769d78c"
+        },
+        "createdAt": "2026-05-14T00:00:00.000Z"
+      },
+      "response": {
+        "accepted": false,
+        "reasons": [
+          "Verifier role active: yes",
+          "grade below threshold",
+          "status=active"
+        ],
+        "issuerCheck": "active grant by did:midnight:edu:midnight-university-state"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-002",
+      "receiverDid": "did:midnight:org:company-two",
+      "request": {
+        "presentationId": "presentation-S002->C002",
+        "applicationId": "S002->C002",
+        "verifierDid": "did:midnight:org:company-two",
+        "studentDid": "did:midnight:user:student-002",
+        "credentialId": "did:midnight:edu:midnight-university-state:vc:S002:diploma",
+        "threshold": 82,
+        "studentId": "S002",
+        "student": {
+          "studentId": "S002",
+          "did": "did:midnight:user:student-002",
+          "fullName": "Brook Chen",
+          "program": "Information Systems",
+          "graduationTerm": "2026-05",
+          "grade": 91
+        },
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S002:diploma",
+          "studentId": "S002",
+          "holderDid": "did:midnight:user:student-002",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 91,
+          "program": "Information Systems",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S002"
+          },
+          "proofDigest": "2d7bf17f7023818084d27b395eabb8d15e0cedc6800d77bc9eb10daf5e951528"
+        },
+        "createdAt": "2026-05-14T00:00:00.000Z"
+      },
+      "response": {
+        "accepted": true,
+        "reasons": [
+          "Verifier role active: yes",
+          "grade above threshold",
+          "status=active"
+        ],
+        "issuerCheck": "active grant by did:midnight:edu:midnight-university-state"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-003",
+      "receiverDid": "did:midnight:org:company-three",
+      "request": {
+        "presentationId": "presentation-S003->C003",
+        "applicationId": "S003->C003",
+        "verifierDid": "did:midnight:org:company-three",
+        "studentDid": "did:midnight:user:student-003",
+        "credentialId": "did:midnight:edu:midnight-university-state:vc:S003:diploma",
+        "threshold": 78,
+        "studentId": "S003",
+        "student": {
+          "studentId": "S003",
+          "did": "did:midnight:user:student-003",
+          "fullName": "Casey Rivera",
+          "program": "Distributed Systems",
+          "graduationTerm": "2026-05",
+          "grade": 88
+        },
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S003:diploma",
+          "studentId": "S003",
+          "holderDid": "did:midnight:user:student-003",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 88,
+          "program": "Distributed Systems",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S003"
+          },
+          "proofDigest": "e6b77240ecb60cb52a7435a5633d701f3e94dfcd3010e0230f69427800bf142e"
+        },
+        "createdAt": "2026-05-14T00:00:00.000Z"
+      },
+      "response": {
+        "accepted": true,
+        "reasons": [
+          "Verifier role active: yes",
+          "grade above threshold",
+          "status=active"
+        ],
+        "issuerCheck": "active grant by did:midnight:edu:midnight-university-state"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-004",
+      "receiverDid": "did:midnight:org:company-one",
+      "request": {
+        "presentationId": "presentation-S004->C001",
+        "applicationId": "S004->C001",
+        "verifierDid": "did:midnight:org:company-one",
+        "studentDid": "did:midnight:user:student-004",
+        "credentialId": "did:midnight:edu:midnight-university-state:vc:S004:diploma",
+        "threshold": 80,
+        "studentId": "S004",
+        "student": {
+          "studentId": "S004",
+          "did": "did:midnight:user:student-004",
+          "fullName": "Devin Patel",
+          "program": "Cryptography",
+          "graduationTerm": "2026-05",
+          "grade": 95
+        },
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S004:diploma",
+          "studentId": "S004",
+          "holderDid": "did:midnight:user:student-004",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 95,
+          "program": "Cryptography",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S004"
+          },
+          "proofDigest": "67a2b580b42177a2ba6a6e57dc1a39739552d2d3f9ca8200191519657f477e9c"
+        },
+        "createdAt": "2026-05-14T00:00:00.000Z"
+      },
+      "response": {
+        "accepted": true,
+        "reasons": [
+          "Verifier role active: yes",
+          "grade above threshold",
+          "status=active"
+        ],
+        "issuerCheck": "active grant by did:midnight:edu:midnight-university-state"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-005",
+      "receiverDid": "did:midnight:org:company-two",
+      "request": {
+        "presentationId": "presentation-S005->C002",
+        "applicationId": "S005->C002",
+        "verifierDid": "did:midnight:org:company-two",
+        "studentDid": "did:midnight:user:student-005",
+        "credentialId": "did:midnight:edu:midnight-university-state:vc:S005:diploma",
+        "threshold": 82,
+        "studentId": "S005",
+        "student": {
+          "studentId": "S005",
+          "did": "did:midnight:user:student-005",
+          "fullName": "Eden Scott",
+          "program": "Applied AI",
+          "graduationTerm": "2026-05",
+          "grade": 97
+        },
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S005:diploma",
+          "studentId": "S005",
+          "holderDid": "did:midnight:user:student-005",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 97,
+          "program": "Applied AI",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S005"
+          },
+          "proofDigest": "0beb2b08cb56e53a151297bb0d3f9c38d1202761e2d9c8912f8f31c7050de0fb"
+        },
+        "createdAt": "2026-05-14T00:00:00.000Z"
+      },
+      "response": {
+        "accepted": true,
+        "reasons": [
+          "Verifier role active: yes",
+          "grade above threshold",
+          "status=active"
+        ],
+        "issuerCheck": "active grant by did:midnight:edu:midnight-university-state"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-006",
+      "receiverDid": "did:midnight:org:company-three",
+      "request": {
+        "presentationId": "presentation-S006->C003",
+        "applicationId": "S006->C003",
+        "verifierDid": "did:midnight:org:company-three",
+        "studentDid": "did:midnight:user:student-006",
+        "credentialId": "did:midnight:edu:midnight-university-state:vc:S006:diploma",
+        "threshold": 78,
+        "studentId": "S006",
+        "student": {
+          "studentId": "S006",
+          "did": "did:midnight:user:student-006",
+          "fullName": "Frank Li",
+          "program": "Software Engineering",
+          "graduationTerm": "2026-05",
+          "grade": 83
+        },
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S006:diploma",
+          "studentId": "S006",
+          "holderDid": "did:midnight:user:student-006",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 83,
+          "program": "Software Engineering",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S006"
+          },
+          "proofDigest": "f246eb68d7d67643faaa69dcb6f5a237e461f5f1da543acb5bc2d2e44a4cea51"
+        },
+        "createdAt": "2026-05-14T00:00:00.000Z"
+      },
+      "response": {
+        "accepted": true,
+        "reasons": [
+          "Verifier role active: yes",
+          "grade above threshold",
+          "status=active"
+        ],
+        "issuerCheck": "active grant by did:midnight:edu:midnight-university-state"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-007",
+      "receiverDid": "did:midnight:org:company-one",
+      "request": {
+        "presentationId": "presentation-S007->C001",
+        "applicationId": "S007->C001",
+        "verifierDid": "did:midnight:org:company-one",
+        "studentDid": "did:midnight:user:student-007",
+        "credentialId": "did:midnight:edu:midnight-university-state:vc:S007:diploma",
+        "threshold": 80,
+        "studentId": "S007",
+        "student": {
+          "studentId": "S007",
+          "did": "did:midnight:user:student-007",
+          "fullName": "Harper Wu",
+          "program": "Data Science",
+          "graduationTerm": "2026-05",
+          "grade": 92
+        },
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S007:diploma",
+          "studentId": "S007",
+          "holderDid": "did:midnight:user:student-007",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 92,
+          "program": "Data Science",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S007"
+          },
+          "proofDigest": "c10aa0f8d632fb0f97924abd9375e00d7f40c20923b8438754b64324d8ee0b86"
+        },
+        "createdAt": "2026-05-14T00:00:00.000Z"
+      },
+      "response": {
+        "accepted": true,
+        "reasons": [
+          "Verifier role active: yes",
+          "grade above threshold",
+          "status=active"
+        ],
+        "issuerCheck": "active grant by did:midnight:edu:midnight-university-state"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-008",
+      "receiverDid": "did:midnight:org:company-two",
+      "request": {
+        "presentationId": "presentation-S008->C002",
+        "applicationId": "S008->C002",
+        "verifierDid": "did:midnight:org:company-two",
+        "studentDid": "did:midnight:user:student-008",
+        "credentialId": "did:midnight:edu:midnight-university-state:vc:S008:diploma",
+        "threshold": 82,
+        "studentId": "S008",
+        "student": {
+          "studentId": "S008",
+          "did": "did:midnight:user:student-008",
+          "fullName": "Jordan Bell",
+          "program": "Human Factors",
+          "graduationTerm": "2026-05",
+          "grade": 86
+        },
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S008:diploma",
+          "studentId": "S008",
+          "holderDid": "did:midnight:user:student-008",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 86,
+          "program": "Human Factors",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S008"
+          },
+          "proofDigest": "61995be0471a71c5242a789d4dd98197af0426290a431da60ebeb5010bba0316"
+        },
+        "createdAt": "2026-05-14T00:00:00.000Z"
+      },
+      "response": {
+        "accepted": true,
+        "reasons": [
+          "Verifier role active: yes",
+          "grade above threshold",
+          "status=active"
+        ],
+        "issuerCheck": "active grant by did:midnight:edu:midnight-university-state"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-009",
+      "receiverDid": "did:midnight:org:company-three",
+      "request": {
+        "presentationId": "presentation-S009->C003",
+        "applicationId": "S009->C003",
+        "verifierDid": "did:midnight:org:company-three",
+        "studentDid": "did:midnight:user:student-009",
+        "credentialId": "did:midnight:edu:midnight-university-state:vc:S009:diploma",
+        "threshold": 78,
+        "studentId": "S009",
+        "student": {
+          "studentId": "S009",
+          "did": "did:midnight:user:student-009",
+          "fullName": "Kiran Das",
+          "program": "Distributed Privacy",
+          "graduationTerm": "2026-05",
+          "grade": 99
+        },
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S009:diploma",
+          "studentId": "S009",
+          "holderDid": "did:midnight:user:student-009",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 99,
+          "program": "Distributed Privacy",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S009"
+          },
+          "proofDigest": "000d7072c6fc4af0e918274a1b070033e8c56d7e95e36a47e789d993b359d608"
+        },
+        "createdAt": "2026-05-14T00:00:00.000Z"
+      },
+      "response": {
+        "accepted": true,
+        "reasons": [
+          "Verifier role active: yes",
+          "grade above threshold",
+          "status=active"
+        ],
+        "issuerCheck": "active grant by did:midnight:edu:midnight-university-state"
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-010",
+      "receiverDid": "did:midnight:org:company-one",
+      "request": {
+        "presentationId": "presentation-S010->C001",
+        "applicationId": "S010->C001",
+        "verifierDid": "did:midnight:org:company-one",
+        "studentDid": "did:midnight:user:student-010",
+        "credentialId": "did:midnight:edu:midnight-university-state:vc:S010:diploma",
+        "threshold": 80,
+        "studentId": "S010",
+        "student": {
+          "studentId": "S010",
+          "did": "did:midnight:user:student-010",
+          "fullName": "Noah Kim",
+          "program": "Network Security",
+          "graduationTerm": "2026-05",
+          "grade": 90
+        },
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S010:diploma",
+          "studentId": "S010",
+          "holderDid": "did:midnight:user:student-010",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 90,
+          "program": "Network Security",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S010"
+          },
+          "proofDigest": "c96fe1d165c684f2e4fe0c9771a21dff0eafc83c58ffb523eb9cf752efdea7c7"
+        },
+        "createdAt": "2026-05-14T00:00:00.000Z"
+      },
+      "response": {
+        "accepted": true,
+        "reasons": [
+          "Verifier role active: yes",
+          "grade above threshold",
+          "status=active"
+        ],
+        "issuerCheck": "active grant by did:midnight:edu:midnight-university-state"
+      }
+    }
+  ],
+  "studentToMall": [
+    {
+      "senderDid": "did:midnight:user:student-002",
+      "receiverDid": "did:midnight:org:discount-mall",
+      "request": {
+        "offerId": "discount-S002",
+        "mallDid": "did:midnight:org:discount-mall",
+        "studentDid": "did:midnight:user:student-002",
+        "credentialId": "did:midnight:edu:midnight-university-state:vc:S002:diploma",
+        "grade": 91,
+        "couponPercent": 15,
+        "studentId": "S002",
+        "gradeThreshold": 90,
+        "createdAt": "2026-05-14T00:00:00.000Z",
+        "student": {
+          "studentId": "S002",
+          "did": "did:midnight:user:student-002",
+          "fullName": "Brook Chen",
+          "program": "Information Systems",
+          "graduationTerm": "2026-05",
+          "grade": 91
+        },
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S002:diploma",
+          "studentId": "S002",
+          "holderDid": "did:midnight:user:student-002",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 91,
+          "program": "Information Systems",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S002"
+          },
+          "proofDigest": "2d7bf17f7023818084d27b395eabb8d15e0cedc6800d77bc9eb10daf5e951528"
+        }
+      },
+      "response": {
+        "accepted": true,
+        "reasons": ["grade(91) > threshold(90)", "status=active"]
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-004",
+      "receiverDid": "did:midnight:org:discount-mall",
+      "request": {
+        "offerId": "discount-S004",
+        "mallDid": "did:midnight:org:discount-mall",
+        "studentDid": "did:midnight:user:student-004",
+        "credentialId": "did:midnight:edu:midnight-university-state:vc:S004:diploma",
+        "grade": 95,
+        "couponPercent": 15,
+        "studentId": "S004",
+        "gradeThreshold": 90,
+        "createdAt": "2026-05-14T00:00:00.000Z",
+        "student": {
+          "studentId": "S004",
+          "did": "did:midnight:user:student-004",
+          "fullName": "Devin Patel",
+          "program": "Cryptography",
+          "graduationTerm": "2026-05",
+          "grade": 95
+        },
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S004:diploma",
+          "studentId": "S004",
+          "holderDid": "did:midnight:user:student-004",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 95,
+          "program": "Cryptography",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S004"
+          },
+          "proofDigest": "67a2b580b42177a2ba6a6e57dc1a39739552d2d3f9ca8200191519657f477e9c"
+        }
+      },
+      "response": {
+        "accepted": true,
+        "reasons": ["grade(95) > threshold(90)", "status=active"]
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-005",
+      "receiverDid": "did:midnight:org:discount-mall",
+      "request": {
+        "offerId": "discount-S005",
+        "mallDid": "did:midnight:org:discount-mall",
+        "studentDid": "did:midnight:user:student-005",
+        "credentialId": "did:midnight:edu:midnight-university-state:vc:S005:diploma",
+        "grade": 97,
+        "couponPercent": 15,
+        "studentId": "S005",
+        "gradeThreshold": 90,
+        "createdAt": "2026-05-14T00:00:00.000Z",
+        "student": {
+          "studentId": "S005",
+          "did": "did:midnight:user:student-005",
+          "fullName": "Eden Scott",
+          "program": "Applied AI",
+          "graduationTerm": "2026-05",
+          "grade": 97
+        },
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S005:diploma",
+          "studentId": "S005",
+          "holderDid": "did:midnight:user:student-005",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 97,
+          "program": "Applied AI",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S005"
+          },
+          "proofDigest": "0beb2b08cb56e53a151297bb0d3f9c38d1202761e2d9c8912f8f31c7050de0fb"
+        }
+      },
+      "response": {
+        "accepted": true,
+        "reasons": ["grade(97) > threshold(90)", "status=active"]
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-007",
+      "receiverDid": "did:midnight:org:discount-mall",
+      "request": {
+        "offerId": "discount-S007",
+        "mallDid": "did:midnight:org:discount-mall",
+        "studentDid": "did:midnight:user:student-007",
+        "credentialId": "did:midnight:edu:midnight-university-state:vc:S007:diploma",
+        "grade": 92,
+        "couponPercent": 15,
+        "studentId": "S007",
+        "gradeThreshold": 90,
+        "createdAt": "2026-05-14T00:00:00.000Z",
+        "student": {
+          "studentId": "S007",
+          "did": "did:midnight:user:student-007",
+          "fullName": "Harper Wu",
+          "program": "Data Science",
+          "graduationTerm": "2026-05",
+          "grade": 92
+        },
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S007:diploma",
+          "studentId": "S007",
+          "holderDid": "did:midnight:user:student-007",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 92,
+          "program": "Data Science",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S007"
+          },
+          "proofDigest": "c10aa0f8d632fb0f97924abd9375e00d7f40c20923b8438754b64324d8ee0b86"
+        }
+      },
+      "response": {
+        "accepted": true,
+        "reasons": ["grade(92) > threshold(90)", "status=active"]
+      }
+    },
+    {
+      "senderDid": "did:midnight:user:student-009",
+      "receiverDid": "did:midnight:org:discount-mall",
+      "request": {
+        "offerId": "discount-S009",
+        "mallDid": "did:midnight:org:discount-mall",
+        "studentDid": "did:midnight:user:student-009",
+        "credentialId": "did:midnight:edu:midnight-university-state:vc:S009:diploma",
+        "grade": 99,
+        "couponPercent": 15,
+        "studentId": "S009",
+        "gradeThreshold": 90,
+        "createdAt": "2026-05-14T00:00:00.000Z",
+        "student": {
+          "studentId": "S009",
+          "did": "did:midnight:user:student-009",
+          "fullName": "Kiran Das",
+          "program": "Distributed Privacy",
+          "graduationTerm": "2026-05",
+          "grade": 99
+        },
+        "credential": {
+          "id": "did:midnight:edu:midnight-university-state:vc:S009:diploma",
+          "studentId": "S009",
+          "holderDid": "did:midnight:user:student-009",
+          "issuerDid": "did:midnight:edu:midnight-university-state",
+          "issuedAt": "2026-05-14T00:00:00.000Z",
+          "graduationTerm": "2026-05",
+          "grade": 99,
+          "program": "Distributed Privacy",
+          "credentialStatus": {
+            "id": "urn:vc-status:midnight:university-diploma:2026",
+            "type": "MidnightStatusList",
+            "statusPurpose": "revocation",
+            "statusRef": "urn:vc-status:midnight:university-diploma:2026:S009"
+          },
+          "proofDigest": "000d7072c6fc4af0e918274a1b070033e8c56d7e95e36a47e789d993b359d608"
+        }
+      },
+      "response": {
+        "accepted": true,
+        "reasons": ["grade(99) > threshold(90)", "status=active"]
+      }
+    }
+  ]
+}

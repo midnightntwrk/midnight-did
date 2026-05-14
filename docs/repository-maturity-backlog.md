@@ -259,22 +259,62 @@
   - Add explicit tests for invalid fixture paths, invalid ISO timestamps, invalid DID method values, and malformed `students` records.
   - Ensure each failure path returns actionable and stable error messages.
 
-47. Add transport timeout and retry observability
-   - Add optional timeout/retry configuration to `UniversityTransport` option bag.
-   - Record retry counts and timeout events in step checks for CI visibility.
+47. ✅ **Done: Add transport timeout and retry observability**
+   - Added optional timeout/retry configuration to `UniversityTransport` option bag.
+   - Recorded retry counts and timeout events in step checks for CI visibility.
 
-48. Add compact proof and DID binding assertions in scenario payloads
-   - Extend replay artifacts to include proof/signature placeholders for issuance and presentations where relevant.
-   - Ensure deterministic hashes only cover normalized payload fields to avoid non-deterministic fields.
+48. ✅ **Done: Add compact proof and DID binding assertions in scenario payloads**
+   - Added issuance and presentation proof placeholders plus DID-binding assertions to scenario replay steps.
+   - Replay artifacts now persist `proofPlaceholders` and `didBindingChecks` for issue/presentation steps for deterministic, reviewable diffs.
 
-49. Add BDD fixture seed generator and shrinking utility
-   - Add utility to generate stress fixtures (e.g., 100/500 students) with deterministic seed.
-   - Add tests that validate deterministic sorting and subset filtering results.
+49. ✅ **Done: Add BDD fixture seed generator and shrinking utility**
+   - Added `generateUniversityFixture(...)` and `shrinkUniversityFixture(...)` in `api/src/university-bdd.ts` with deterministic seed handling.
+   - Added unit coverage in `api/src/test/university-bdd-flow.test.ts` for deterministic generation, large fixture shape, and deterministic shrink sorting behavior.
 
-50. Add artifact schema versioning and migration tests
+50. ✅ **Done: Add artifact schema versioning and migration tests**
    - Add `artifactVersion` field on report/replay exports.
    - Add compatibility tests for older format readers and upgrade path.
 
-51. Add a documentation and screenshot bundle for use-case flow
-   - Add Mermaid diagram + sample request/reply diagrams into `docs/midnight-did-book-for-dummies.md`.
-   - Include a compact artifact diagram so non-specialists can inspect flow without opening code.
+51. ✅ **Done: Add a documentation and screenshot bundle for use-case flow**
+    - Add Mermaid diagram + sample request/reply diagrams into `docs/midnight-did-book-for-dummies.md`.
+    - Include a compact artifact diagram so non-specialists can inspect flow without opening code.
+
+52. ✅ **Done: Build a rendered screenshot bundle for docs artifacts**
+   - Added `npm run docs:render` and `scripts/docs-mermaid.mjs` to produce deterministic SVG/PNG artifacts.
+   - Commits keep `docs/assets/book-diagrams/*` checked in as reviewable review surfaces for visual diffs.
+
+53. ✅ **Done: Ship a “use-case packet” fixture bundle per PR**
+   - Added `docs/uc-bundles/university-bdd/` with a canonical fixture, request/reply examples, replay artifact, and report snapshot.
+   - Added a synchronization checklist to keep packet inputs and outputs aligned with fixture and scenario changes.
+
+54. ✅ **Done: Create a lightweight docs CI check for Mermaid correctness**
+   - Added `npm run docs:check-mermaid` to validate Mermaid blocks in CI.
+   - PRs now fail fast when malformed diagrams are introduced in docs sources.
+
+55. **Add a PR-ready `README` snippet generator**
+   - Add command to dump ready-to-paste runbook text for CI artifacts and backlog updates.
+   - Keep snippet fields stable (version, metrics, verdict, command used).
+
+56. **Add a canonical replay visualizer script**
+   - Parse report/replay artifacts and output an HTML/mermaid sequence view of each party’s request/reply flow.
+   - Useful for engineering review without opening raw JSON.
+
+57. **Add a “smallest owner + dependencies” badge in specs**
+   - Emit ownership/dependency metadata for each use case in the book annex.
+   - This reduces reviewer ambiguity during implementation PRs.
+
+58. **Expose a machine-readable metrics index**
+   - Add `scripts/university-bdd-metrics.mjs` to aggregate step latencies into CSV/JSON for trends.
+   - Include baseline guardrails for step budget regressions by commit.
+
+59. **Add a PR summary helper for university BDD diffs**
+   - Add template that inserts top-line findings from `university-bdd:diff` into PR description.
+   - Include counts (issued/approved/discounted), duration, and schema version.
+
+60. **Document adapter migration path for real Midnight transport**
+   - Add a one-page guide linking adapter stubs and contract expectations for HTTP/gRPC transition.
+   - Include production readiness checklist for timeout/retry/breaker defaults.
+
+61. **Add docs/contract cross-linking to run.sh and backlog**
+   - Ensure `run.sh --metrics --help` points to the visual book bundle paths and latest spec sections.
+   - Add a check that ensures backlog status is updated from scripts and PR templates.

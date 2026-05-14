@@ -1,0 +1,78 @@
+{
+  "generatedAt": "2026-05-14T12:24:07.651Z",
+  "sources": [
+    "/Users/ysh/iohk/midnight-did/README.md",
+    "/Users/ysh/iohk/midnight-did/docs/midnight-did-book-for-dummies.md",
+    "/Users/ysh/iohk/midnight-did/docs/midnight-did-use-cases.md",
+    "/Users/ysh/iohk/midnight-did/docs/repository-boundary.md",
+    "/Users/ysh/iohk/midnight-did/docs/repository-maturity-backlog.md",
+    "/Users/ysh/iohk/midnight-did/docs/runtime-shim.md",
+    "/Users/ysh/iohk/midnight-did/docs/uc-bundles/university-bdd/README.md"
+  ],
+  "mode": "render",
+  "renderer": "npx",
+  "format": "both",
+  "blocks": [
+    {
+      "sourcePath": "/Users/ysh/iohk/midnight-did/README.md",
+      "sourceHash": "be14be6720cfe12f5c32b9ee49bd4493044dd208067ae43d94e321727c1383b0",
+      "heading": "Midnight DID / Package Dependency Diagram",
+      "diagramType": "graph",
+      "startLine": 22,
+      "endLine": 41,
+      "textHash": "74132601cfaf41512b352a4413612f984b0b2163aef44d0268035ebd0325f03c",
+      "outputs": {
+        "svg": "docs/assets/book-diagrams/readme-md-midnight-did-package-dependency-diagram-block-001.svg",
+        "svgHash": "093a8c212df24df2084640647b6a4941990de37c1a16a9fc6131c637bf1f9740",
+        "png": "docs/assets/book-diagrams/readme-md-midnight-did-package-dependency-diagram-block-001.png",
+        "pngHash": "a3acc368eaf60a60fead72f119049956b7153878ff473807ed40f2cfce6fb186"
+      }
+    },
+    {
+      "sourcePath": "/Users/ysh/iohk/midnight-did/docs/midnight-did-book-for-dummies.md",
+      "sourceHash": "2fa0be4641accffb3470883d2aace27fcdd37f8b006e712b88f0d8b08d550ccd",
+      "heading": "Midnight DID + VC: Book for Dummies / University flow documentation bundle / Mermaid flow overview",
+      "diagramType": "flowchart",
+      "startLine": 81,
+      "endLine": 109,
+      "textHash": "a93934726fffd380a53d2afaf7b095c198d54aff7b55c29183323d2aacae7821",
+      "outputs": {
+        "svg": "docs/assets/book-diagrams/docs-midnight-did-book-for-dummies-md-midnight-did-vc-book-for-dummies-university-flow-documentati-block-001.svg",
+        "svgHash": "ff4bc0419f5a860f0962949cdbbc4e0af7b145e8e63d3418167220aba8faaedc",
+        "png": "docs/assets/book-diagrams/docs-midnight-did-book-for-dummies-md-midnight-did-vc-book-for-dummies-university-flow-documentati-block-001.png",
+        "pngHash": "21769e9929f6cf7955a0817bcb1787283f48c62e45ccb097a89cc17a0099fa91"
+      }
+    },
+    {
+      "sourcePath": "/Users/ysh/iohk/midnight-did/docs/midnight-did-book-for-dummies.md",
+      "sourceHash": "2fa0be4641accffb3470883d2aace27fcdd37f8b006e712b88f0d8b08d550ccd",
+      "heading": "Midnight DID + VC: Book for Dummies / University flow documentation bundle / Request/reply sample diagrams",
+      "diagramType": "sequenceDiagram",
+      "startLine": 113,
+      "endLine": 131,
+      "textHash": "95a6f0dd04559b4a4453c0981d09a59bd48d83d342e50e8aec7fb9b426da96fd",
+      "outputs": {
+        "svg": "docs/assets/book-diagrams/docs-midnight-did-book-for-dummies-md-midnight-did-vc-book-for-dummies-university-flow-documentati-block-002.svg",
+        "svgHash": "8f3274720fdc4708373726f067dff6ef63bfd6ccd033655269020918b5d7813a",
+        "png": "docs/assets/book-diagrams/docs-midnight-did-book-for-dummies-md-midnight-did-vc-book-for-dummies-university-flow-documentati-block-002.png",
+        "pngHash": "b579b0f51423d112d9f91d06d3ee21a2e195533979ea28f24792c05d66ea0418"
+      }
+    },
+    {
+      "sourcePath": "/Users/ysh/iohk/midnight-did/docs/midnight-did-book-for-dummies.md",
+      "sourceHash": "2fa0be4641accffb3470883d2aace27fcdd37f8b006e712b88f0d8b08d550ccd",
+      "heading": "Midnight DID + VC: Book for Dummies / University flow documentation bundle / Compact artifact diagram",
+      "diagramType": "flowchart",
+      "startLine": 135,
+      "endLine": 159,
+      "textHash": "0d6b90bcc7df90e06b722c5f0ca12c14a1124fc5f986e500fd0f73440ed06b77",
+      "outputs": {
+        "svg": "docs/assets/book-diagrams/docs-midnight-did-book-for-dummies-md-midnight-did-vc-book-for-dummies-university-flow-documentati-block-003.svg",
+        "svgHash": "aac67594fc01a9df1be3daf4a6fdb8f7bef349b18ce1715e26cb23ecb1889533",
+        "png": "docs/assets/book-diagrams/docs-midnight-did-book-for-dummies-md-midnight-did-vc-book-for-dummies-university-flow-documentati-block-003.png",
+        "pngHash": "b5b22af020cfb921889a693ec22c76e00cb62a4d8a9cd5b27b0ccaec271d03e7"
+      }
+    }
+  ],
+  "totalBlocks": 4
+}
