@@ -6,4 +6,5 @@ export * from "./logger-utils";
 export * from "./runtime-to-domain";
 export * from "./trust-registry";
 export * from "./types";
+export * from "./university-bdd";
 export * from "./vc-status";

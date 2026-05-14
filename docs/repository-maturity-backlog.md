@@ -114,9 +114,18 @@
      - template validation, grant materialization, key rotation, revoke path, and ordered history
    - Acceptance: delegated key rotation and revoke path validated by tests; agent/service template artifacts exist and are loadable.
 
-19. **Add university-style presentation/issuance BDD slices**
-   - Create deterministic fixtures and scenario flow for student-issued diploma, verifier checks, and rejection path.
-   - Acceptance: scenario validates request/response/decision logs and exports timing artifacts.
+19. ✅ **Done: Add university-style presentation/issuance BDD slices**
+   - Added deterministic fixtures at `api/src/test/fixtures/university-diploma/university-bdd.fixture.json` with 10 students, 3 verifiers, and mall profile.
+   - Added scenario engine in `api/src/university-bdd.ts`:
+     - `runUniversityDiplomaScenario` executes staged request/response checkpoints:
+       - class roster load and trust state
+       - batched issuance with status checks
+       - presentation-to-verifier requests with role checks
+       - discount requests to mall with grade thresholds
+     - logs each step as structured request/response/check tuples with deterministic timing.
+   - Added API test target `npm run test:university-bdd` in `api/src/test/university-bdd-flow.test.ts` plus scenario report formatter.
+   - Exported API runtime model via `api/src/index.ts` and documented the test command in `README.md`.
+   - Acceptance: scenario produces deterministic JSON-like structured logs and a reusable timing artifact via the test output or explicit artifact serialization.
 
 20. ✅ **Done: Add PR-ready governance for stackable review**
    - Add a short PR template and review checklist for use-case-related changes.

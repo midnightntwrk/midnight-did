@@ -85,6 +85,7 @@ See [Repository Boundary and Workspace Policy](docs/repository-boundary.md) for 
 - VC status/revocation fixture checks: `npm run test:vc-status`
 - Trust registry contract scaffold checks: `npm run test:trust-registry`
 - Delegation template + lifecycle scaffold checks: `npm run test:delegation`
+- University-style BDD fixture flow (`issuance + presentation + discount`): `npm run test:university-bdd`
 
 
 ### LICENSE

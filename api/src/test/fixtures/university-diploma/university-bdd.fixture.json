@@ -1,0 +1,183 @@
+{
+  "scenarioVersion": "university-v1",
+  "scenarioTitle": "University Diploma Issuance and Presentation (BDD slice)",
+  "createdAt": "2026-05-14T00:00:00.000Z",
+  "university": {
+    "did": "did:midnight:edu:midnight-university-state",
+    "name": "Midnight State University",
+    "issuerDid": "did:midnight:key:university-issuer",
+    "credentialStatusRef": "urn:vc-status:midnight:university-diploma:2026"
+  },
+  "students": [
+    {
+      "studentId": "S001",
+      "did": "did:midnight:user:student-001",
+      "fullName": "Avery Morgan",
+      "program": "Computer Security",
+      "graduationTerm": "2026-05",
+      "grade": 74
+    },
+    {
+      "studentId": "S002",
+      "did": "did:midnight:user:student-002",
+      "fullName": "Brook Chen",
+      "program": "Information Systems",
+      "graduationTerm": "2026-05",
+      "grade": 91
+    },
+    {
+      "studentId": "S003",
+      "did": "did:midnight:user:student-003",
+      "fullName": "Casey Rivera",
+      "program": "Distributed Systems",
+      "graduationTerm": "2026-05",
+      "grade": 88
+    },
+    {
+      "studentId": "S004",
+      "did": "did:midnight:user:student-004",
+      "fullName": "Devin Patel",
+      "program": "Cryptography",
+      "graduationTerm": "2026-05",
+      "grade": 95
+    },
+    {
+      "studentId": "S005",
+      "did": "did:midnight:user:student-005",
+      "fullName": "Eden Scott",
+      "program": "Applied AI",
+      "graduationTerm": "2026-05",
+      "grade": 97
+    },
+    {
+      "studentId": "S006",
+      "did": "did:midnight:user:student-006",
+      "fullName": "Frank Li",
+      "program": "Software Engineering",
+      "graduationTerm": "2026-05",
+      "grade": 83
+    },
+    {
+      "studentId": "S007",
+      "did": "did:midnight:user:student-007",
+      "fullName": "Harper Wu",
+      "program": "Data Science",
+      "graduationTerm": "2026-05",
+      "grade": 92
+    },
+    {
+      "studentId": "S008",
+      "did": "did:midnight:user:student-008",
+      "fullName": "Jordan Bell",
+      "program": "Human Factors",
+      "graduationTerm": "2026-05",
+      "grade": 86
+    },
+    {
+      "studentId": "S009",
+      "did": "did:midnight:user:student-009",
+      "fullName": "Kiran Das",
+      "program": "Distributed Privacy",
+      "graduationTerm": "2026-05",
+      "grade": 99
+    },
+    {
+      "studentId": "S010",
+      "did": "did:midnight:user:student-010",
+      "fullName": "Noah Kim",
+      "program": "Network Security",
+      "graduationTerm": "2026-05",
+      "grade": 90
+    }
+  ],
+  "companies": [
+    {
+      "companyId": "C001",
+      "did": "did:midnight:org:company-one",
+      "name": "Nexus Systems",
+      "verificationThreshold": 80,
+      "endpoint": "https://company-one.example/ssi"
+    },
+    {
+      "companyId": "C002",
+      "did": "did:midnight:org:company-two",
+      "name": "Aether Finance",
+      "verificationThreshold": 82,
+      "endpoint": "https://company-two.example/ssi"
+    },
+    {
+      "companyId": "C003",
+      "did": "did:midnight:org:company-three",
+      "name": "Blue Ridge Health",
+      "verificationThreshold": 78,
+      "endpoint": "https://company-three.example/ssi"
+    }
+  ],
+  "mall": {
+    "did": "did:midnight:org:discount-mall",
+    "name": "Midnight Commerce Mall",
+    "discountPercent": 15,
+    "gradeThreshold": 90,
+    "endpoint": "https://mall.example/ssi"
+  },
+  "issuanceBatches": [
+    ["S001", "S002", "S003", "S004", "S005"],
+    ["S006", "S007", "S008"],
+    ["S009", "S010"]
+  ],
+  "statusRegistry": {
+    "statusRef": "urn:vc-status:midnight:university-diploma:2026",
+    "statusPurpose": "revocation",
+    "issuedAt": "2026-05-14T00:00:00.000Z",
+    "credentials": {
+      "urn:vc-status:midnight:university-diploma:2026:S001": { "state": "active", "statusReason": "active", "updatedAt": "2026-05-14T00:00:00.000Z" },
+      "urn:vc-status:midnight:university-diploma:2026:S002": { "state": "active", "statusReason": "active", "updatedAt": "2026-05-14T00:00:00.000Z" },
+      "urn:vc-status:midnight:university-diploma:2026:S003": { "state": "active", "statusReason": "active", "updatedAt": "2026-05-14T00:00:00.000Z" },
+      "urn:vc-status:midnight:university-diploma:2026:S004": { "state": "active", "statusReason": "active", "updatedAt": "2026-05-14T00:00:00.000Z" },
+      "urn:vc-status:midnight:university-diploma:2026:S005": { "state": "active", "statusReason": "active", "updatedAt": "2026-05-14T00:00:00.000Z" },
+      "urn:vc-status:midnight:university-diploma:2026:S006": { "state": "active", "statusReason": "active", "updatedAt": "2026-05-14T00:00:00.000Z" },
+      "urn:vc-status:midnight:university-diploma:2026:S007": { "state": "active", "statusReason": "active", "updatedAt": "2026-05-14T00:00:00.000Z" },
+      "urn:vc-status:midnight:university-diploma:2026:S008": { "state": "active", "statusReason": "active", "updatedAt": "2026-05-14T00:00:00.000Z" },
+      "urn:vc-status:midnight:university-diploma:2026:S009": { "state": "active", "statusReason": "active", "updatedAt": "2026-05-14T00:00:00.000Z" },
+      "urn:vc-status:midnight:university-diploma:2026:S010": { "state": "active", "statusReason": "active", "updatedAt": "2026-05-14T00:00:00.000Z" }
+    }
+  },
+  "trustRegistry": {
+    "registryId": "university-flow-trust-v1",
+    "updatedAt": "2026-05-14T00:00:00.000Z",
+    "events": [
+      {
+        "role": "issuer",
+        "partyDid": "did:midnight:edu:midnight-university-state",
+        "actorDid": "did:midnight:gov:state-registry",
+        "action": "grant",
+        "effectiveAt": "2026-05-14T00:00:00.000Z",
+        "reason": "University onboarding"
+      },
+      {
+        "role": "verifier",
+        "partyDid": "did:midnight:org:company-one",
+        "actorDid": "did:midnight:edu:midnight-university-state",
+        "action": "grant",
+        "effectiveAt": "2026-05-14T00:00:00.000Z",
+        "reason": "Verifier onboarding"
+      },
+      {
+        "role": "verifier",
+        "partyDid": "did:midnight:org:company-two",
+        "actorDid": "did:midnight:edu:midnight-university-state",
+        "action": "grant",
+        "effectiveAt": "2026-05-14T00:00:00.000Z",
+        "reason": "Verifier onboarding"
+      },
+      {
+        "role": "verifier",
+        "partyDid": "did:midnight:org:company-three",
+        "actorDid": "did:midnight:edu:midnight-university-state",
+        "action": "grant",
+        "effectiveAt": "2026-05-14T00:00:00.000Z",
+        "reason": "Verifier onboarding"
+      }
+    ]
+  }
+}

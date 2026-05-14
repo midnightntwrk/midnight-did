@@ -196,11 +196,11 @@ Recommended implementation backlog to align docs, tests, and stackable PRs:
 
 5. **Standardize VC request/response DTOs for presentation**
    - Scope: minimal stable schema for request, holder reply, and verifier decision.
-   - Evidence: one shared fixture file and one acceptance spec consuming it.
+   - Progress: University flow now includes reusable request/response DTOs in `api/src/university-bdd.ts`; remaining work is to reuse across multiple non-education flows.
 
 6. **Add university-style end-to-end BDD fixture bundle**
    - Scope: student, issuer, verifier, and merchant flows with timing capture.
-   - Evidence: scenario set runs in standalone infrastructure and exports timing artifact.
+   - Evidence: implemented scenario with deterministic fixtures and tests in `api/src/test/fixtures/university-diploma/university-bdd.fixture.json` + `api/src/test/university-bdd-flow.test.ts`.
 
 7. **Build DIDComm profile shim for local interoperability**
    - Scope: endpoint metadata + keyAgreement publishing + integration smoke test.

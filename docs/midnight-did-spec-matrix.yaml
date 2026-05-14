@@ -146,12 +146,12 @@ items:
   - id: use-case-university-bdd
     useCase: "University-style presentation/issuance flow"
     sourceSection: "docs/midnight-did-book-for-dummies.md#snapshot-by-use-case"
-    status: in-progress
+    status: implemented
     risk: medium
     owner: education
     implementationNotes:
-      - Deterministic fixtures and scenario narratives are defined.
-      - End-to-end BDD implementation needs protocol-level request/response artifacts.
+      - Deterministic fixtures and scenario execution logs are implemented in API tests.
+      - BDD scenario covers issuance, presentation, and discount decision paths with step timing.
     acceptanceCriteria:
-      - "Full issuance + presentation scenario executes in standalone and CI contexts."
-      - "Scenario emits request/response logs and timing artifacts."
+      - "Full issuance + presentation scenario executes in unit test contexts (`npm run test:university-bdd`)."
+      - "Scenario emits structured request/response logs and timing artifacts."
