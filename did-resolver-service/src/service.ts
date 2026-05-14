@@ -29,7 +29,7 @@ export type ResolveResponse =
       };
     }
   | {
-      statusCode: 200 | 500;
+      statusCode: 200 | 500 | 504;
       payload: {
         didDocument: null;
         didDocumentMetadata: {};

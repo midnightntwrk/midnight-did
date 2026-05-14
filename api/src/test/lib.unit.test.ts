@@ -1,8 +1,19 @@
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
+import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
+import {
+  CurveType,
+  KeyType,
+  VerificationMethodType,
+} from "@midnight-ntwrk/midnight-did-domain";
+import {
+  getNetworkId,
+  setNetworkId,
+} from "@midnight-ntwrk/midnight-js-network-id";
 import * as Rx from "rxjs";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  addVerificationMethod,
   hashProverKey,
   initPrivateState,
   randomBytes,
@@ -16,6 +27,63 @@ const logger = {
 } as any;
 
 describe("lib lightweight unit helpers", () => {
+  it("maps verification method type to Compact typ field", async () => {
+    let previousNetworkId: string | undefined;
+    try {
+      previousNetworkId = getNetworkId();
+    } catch {
+      previousNetworkId = undefined;
+    }
+    setNetworkId("undeployed");
+    const contractAddress = "a".repeat(64);
+    const didSubject = `did:midnight:undeployed:${contractAddress}`;
+    const finalized = { txId: "tx-typ-round-trip" };
+    const addVerificationMethodMock = vi.fn().mockResolvedValue({
+      public: finalized,
+    });
+    const didContract = {
+      deployTxData: {
+        public: { contractAddress },
+      },
+      callTx: {
+        addVerificationMethod: addVerificationMethodMock,
+      },
+    } as any;
+
+    try {
+      const result = await addVerificationMethod(didContract, {
+        id: `${didSubject}#key-1`,
+        type: VerificationMethodType.JsonWebKey,
+        controller: didSubject,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.Ed25519,
+          x: "AA",
+        },
+      });
+
+      expect(result).toBe(finalized);
+      expect(addVerificationMethodMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "#key-1",
+          typ: DIDContract.VerificationMethodType.JsonWebKey,
+          publicKeyJwk: expect.objectContaining({
+            kty: DIDContract.KeyType.OKP,
+            crv: DIDContract.CurveType.Ed25519,
+            x: 0n,
+          }),
+        }),
+      );
+      expect(addVerificationMethodMock.mock.calls[0][0]).not.toHaveProperty(
+        "type",
+      );
+    } finally {
+      if (previousNetworkId !== undefined) {
+        setNetworkId(previousNetworkId);
+      }
+    }
+  });
+
   it("hashProverKey is deterministic and returns 32 bytes", async () => {
     const input = new Uint8Array([1, 2, 3, 4]);
     const first = await hashProverKey(input);

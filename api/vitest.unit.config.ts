@@ -31,6 +31,12 @@ export default defineConfig({
         'vitest.unit.config.ts',
         'vitest.api.config.ts',
       ],
+      thresholds: {
+        statements: 75,
+        branches: 70,
+        functions: 75,
+        lines: 75,
+      },
     },
   },
   resolve: {

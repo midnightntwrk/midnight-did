@@ -48,6 +48,7 @@ const resolveResponseSchema = {
     oneOf: [successResolveSchema, errorResolveSchema],
   },
   500: errorResolveSchema,
+  504: errorResolveSchema,
 } as const;
 
 type ResolveQuery = ResolveRequestOptions;

@@ -20,13 +20,13 @@ describe("did-resolver-service resolution errors", () => {
     );
   });
 
-  it("classifies network mismatch and internal errors", () => {
+  it("classifies network mismatch, timeout, and internal errors", () => {
     expect(classifyResolutionError(new Error("Network mismatch"))).toBe(
       "networkMismatch",
     );
     expect(classifyResolutionError(new Error("boom"))).toBe("internalError");
     expect(classifyResolutionError(new ResolutionRequestTimeoutError(25))).toBe(
-      "internalError",
+      "timeout",
     );
     expect(classifyResolutionError("non-error")).toBe("internalError");
   });
@@ -35,6 +35,7 @@ describe("did-resolver-service resolution errors", () => {
     expect(statusCodeForResolutionError("invalidDid")).toBe(200);
     expect(statusCodeForResolutionError("networkMismatch")).toBe(200);
     expect(statusCodeForResolutionError("notFound")).toBe(200);
+    expect(statusCodeForResolutionError("timeout")).toBe(504);
     expect(statusCodeForResolutionError("internalError")).toBe(500);
   });
 });

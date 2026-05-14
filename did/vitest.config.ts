@@ -15,6 +15,12 @@ export default defineConfig({
         "eslint.config.mjs",
         "vitest.config.ts",
       ],
+      thresholds: {
+        statements: 90,
+        branches: 80,
+        functions: 100,
+        lines: 90,
+      },
     },
   },
 });

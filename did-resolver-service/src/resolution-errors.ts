@@ -2,6 +2,7 @@ export type ResolutionErrorCode =
   | "notFound"
   | "invalidDid"
   | "networkMismatch"
+  | "timeout"
   | "internalError";
 
 export class ResolverInputError extends Error {
@@ -33,6 +34,9 @@ export const classifyResolutionError = (
   if (error instanceof ResolverInputError) {
     return "invalidDid";
   }
+  if (error instanceof ResolutionRequestTimeoutError) {
+    return "timeout";
+  }
   if (
     midnightDidInputErrorMessages.some((needle) => message.includes(needle))
   ) {
@@ -46,7 +50,8 @@ export const classifyResolutionError = (
 
 export const statusCodeForResolutionError = (
   errorCode: ResolutionErrorCode,
-): 200 | 500 => {
+): 200 | 500 | 504 => {
+  if (errorCode === "timeout") return 504;
   if (errorCode === "internalError") return 500;
   return 200;
 };

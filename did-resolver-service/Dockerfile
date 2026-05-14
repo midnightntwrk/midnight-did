@@ -43,6 +43,9 @@ RUN chown -R node:node /app
 
 EXPOSE 3001
 
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3001/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+
 WORKDIR /app/did-resolver-service
 USER node
 CMD ["node", "dist/index.js"]

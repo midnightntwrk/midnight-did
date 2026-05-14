@@ -212,7 +212,7 @@ describe("did-resolver-service service", () => {
     );
   });
 
-  it("returns an internal error instead of parking slow resolution forever", async () => {
+  it("returns a timeout error instead of parking slow resolution forever", async () => {
     vi.useFakeTimers();
     resolveResultMock.mockImplementationOnce(
       () => new Promise<never>(() => undefined),
@@ -227,8 +227,8 @@ describe("did-resolver-service service", () => {
     await vi.advanceTimersByTimeAsync(25);
     const result = await resultPromise;
 
-    expect(result.statusCode).toBe(500);
-    expect(result.payload.didResolutionMetadata.error).toBe("internalError");
+    expect(result.statusCode).toBe(504);
+    expect(result.payload.didResolutionMetadata.error).toBe("timeout");
   });
 
   it("uses injected logger for scrubbed debug error output", async () => {

@@ -29,6 +29,14 @@ export default defineConfig({
         'vitest.unit.config.ts',
         'vitest.api.config.ts',
       ],
+      // Integration coverage is intentionally a narrow live-flow smoke gate;
+      // the unit config carries the package-wide API coverage threshold.
+      thresholds: {
+        statements: 20,
+        branches: 20,
+        functions: 20,
+        lines: 20,
+      },
     },
   },
   resolve: {
