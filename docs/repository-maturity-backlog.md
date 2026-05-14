@@ -86,6 +86,6 @@
    - Create deterministic fixtures and scenario flow for student-issued diploma, verifier checks, and rejection path.
    - Acceptance: scenario validates request/response/decision logs and exports timing artifacts.
 
-20. **Add PR-ready governance for stackable review**
+20. ✅ **Done: Add PR-ready governance for stackable review**
    - Add a short PR template and review checklist for use-case-related changes.
    - Acceptance: checklists require matrix link, scenario coverage, and status update in the backlog.

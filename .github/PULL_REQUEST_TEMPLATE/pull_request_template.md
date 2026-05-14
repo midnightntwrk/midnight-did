@@ -15,6 +15,16 @@
 - [ ] Update README.md file (if relevant)
 - [ ] Update documentation (if relevant)
 - [ ] No new todos introduced
+- [ ] Link to `[docs/repository-maturity-backlog.md](./docs/repository-maturity-backlog.md)` is updated
+- [ ] For use-case related work, include a status link to `docs/midnight-did-spec-matrix.yaml`
+- [ ] For credential flow changes, include timing or request/response artifacts (or explain why not generated)
+- [ ] Add one explicit “before/after” check that validates the changed path (test or sample).
+
+## Review Governance
+
+- [ ] Confirm this PR follows the role matrix from [CONTRIBUTING.md](./CONTRIBUTING.md).
+- [ ] If this PR adds/changes use-case behavior, note the resulting risk bucket in the matrix file.
+- [ ] Confirm this PR includes enough detail for future stacked PRs.
 
 ## Links
 
