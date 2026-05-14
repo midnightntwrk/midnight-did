@@ -36,6 +36,13 @@ export interface TestConfiguration {
   cacheFileName: string;
 }
 
+const redactTestConfigurationForLog = (
+  config: TestConfiguration,
+): TestConfiguration => ({
+  ...config,
+  seed: `sha256:${seedFingerprint(config.seed)}`,
+});
+
 export class LocalTestConfig implements TestConfiguration {
   seed = GENESIS_MINT_WALLET_SEED;
   entrypoint = "dist/standalone.js";
@@ -163,7 +170,9 @@ export class TestEnvironment {
         ),
       };
     }
-    this.logger.info(`Configuration:${JSON.stringify(this.testConfig)}`);
+    this.logger.info(
+      `Configuration:${JSON.stringify(redactTestConfigurationForLog(this.testConfig))}`,
+    );
     this.logger.info("Test containers started");
     return this.testConfig;
   };

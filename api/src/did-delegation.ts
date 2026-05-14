@@ -414,13 +414,17 @@ export const evaluateDelegation = (
     }
   >();
 
-  for (const event of sortedByTime(eventsBeforeTime)) {
+  const purgeExpiredMethods = (): void => {
     const expiryEntries = [...activeMethods.entries()];
     for (const [method, details] of expiryEntries) {
       if (!isEffectivelyActive(decisionTime, details.expiresAt)) {
         activeMethods.delete(method);
       }
     }
+  };
+
+  for (const event of sortedByTime(eventsBeforeTime)) {
+    purgeExpiredMethods();
 
     if (
       event.relationship !== query.relationship ||
@@ -455,6 +459,8 @@ export const evaluateDelegation = (
       continue;
     }
   }
+
+  purgeExpiredMethods();
 
   const nowActive =
     normalizedMethod == null

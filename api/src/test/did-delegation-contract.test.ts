@@ -163,6 +163,35 @@ describe("did delegation lifecycle", () => {
     expect(afterExpiry.isActive).toBe(false);
   });
 
+  it("expires a single grant without requiring a later event", () => {
+    const expiringState: DelegationState = applyDelegationTransition(
+      BASELINE_STATE,
+      {
+        action: "grant",
+        delegatorDid: "did:midnight:university:state-college",
+        delegateDid: "did:midnight:agent:grants-ops",
+        actorDid: "did:midnight:university:state-college",
+        relationship: "capabilityInvocation",
+        verificationMethod: "#single-expiring-agent-key",
+        effectiveAt: "2026-06-01T00:00:00.000Z",
+        expiresAt: "2026-06-10T00:00:00.000Z",
+      },
+    );
+
+    const afterExpiry = evaluateDelegation(
+      expiringState,
+      {
+        delegatorDid: "did:midnight:university:state-college",
+        delegateDid: "did:midnight:agent:grants-ops",
+        relationship: "capabilityInvocation",
+        verificationMethod: "#single-expiring-agent-key",
+      },
+      "2026-06-11T00:00:00.000Z",
+    );
+
+    expect(afterExpiry.isActive).toBe(false);
+  });
+
   it("supports revoke and returns an actionable inactive decision", () => {
     const withRevokedState = applyDelegationTransition(BASELINE_STATE, {
       action: "revoke",
