@@ -91,6 +91,10 @@ Apache 2.0.
 
 Provides a brief description for users and developers who want to understand the purpose, setup, and usage of the repository.
 
+### Midnight DID book for dummies
+
+See [Midnight DID + VC: A Book for Dummies](./docs/midnight-did-book-for-dummies.md) for a practical spec review and implementation guide based on the documented use cases.
+
 ### SECURITY.md
 
 Provides a brief description of the Midnight Foundation's security policy and how to properly disclose security issues.

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6" fill="#334155" />
+    </marker>
+    <style>
+      .title { font: 700 22px system-ui, -apple-system, sans-serif; fill: #0f172a; }
+      .step { font: 500 16px system-ui, -apple-system, sans-serif; fill: #0f172a; }
+      .sub { font: 400 14px system-ui, -apple-system, sans-serif; fill: #475569; }
+      .box { fill: #f8fafc; stroke: #334155; stroke-width: 2; rx: 12; }
+      .good { fill: #ecfdf5; stroke: #15803d; }
+      .risk { fill: #fef9c3; stroke: #ca8a04; }
+      .gap { fill: #fee2e2; stroke: #dc2626; }
+    </style>
+  </defs>
+
+  <text x="20" y="40" class="title">From Specs → Implementation (Issue → Improvement → Solution)</text>
+
+  <rect class="box gap" x="40" y="90" width="340" height="130" />
+  <text x="60" y="120" class="step">Issue in Current Repository</text>
+  <text x="60" y="150" class="sub">- No VC schema, proof format, or revocation model</text>
+  <text x="60" y="172" class="sub">- Single-controller DID updates in base contract</text>
+  <text x="60" y="194" class="sub">- No built-in issuer/trust registry</text>
+
+  <line x1="380" y1="155" x2="460" y2="155" stroke="#334155" stroke-width="2" marker-end="url(#arrow)" />
+
+  <rect class="box risk" x="460" y="90" width="340" height="130" />
+  <text x="480" y="120" class="step">Improvement Layer (Current Work Needed)</text>
+  <text x="480" y="150" class="sub">- Define compact credential profile for on-chain proofing</text>
+  <text x="480" y="172" class="sub">- Add registry and governance contract for trust roles</text>
+  <text x="480" y="194" class="sub">- Add issuance, verification, and status flows</text>
+
+  <line x1="800" y1="155" x2="880" y2="155" stroke="#334155" stroke-width="2" marker-end="url(#arrow)" />
+
+  <rect class="box good" x="880" y="90" width="280" height="130" />
+  <text x="900" y="120" class="step">Deliverable Solution</text>
+  <text x="900" y="150" class="sub">- Trustworthy DID + VC ecosystem</text>
+  <text x="900" y="172" class="sub">- Faster onboarding through reusable claims</text>
+  <text x="900" y="194" class="sub">- Real-world dApps: KYC, Finance, Health</text>
+
+  <text x="40" y="285" class="title">Current strong foundation: DID storage, resolution, signing, and service endpoints</text>
+  <rect class="box" x="40" y="300" width="1120" height="40" />
+  <text x="80" y="326" class="sub">w3c-spec + domain + did + contract + api + cli + did-resolver-service form the base SSI identity layer.</text>
+
+</svg>
