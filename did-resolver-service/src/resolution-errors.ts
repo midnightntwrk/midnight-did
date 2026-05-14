@@ -46,8 +46,7 @@ export const classifyResolutionError = (
 
 export const statusCodeForResolutionError = (
   errorCode: ResolutionErrorCode,
-): 400 | 404 | 500 => {
+): 200 | 500 => {
   if (errorCode === "internalError") return 500;
-  if (errorCode === "notFound") return 404;
-  return 400;
+  return 200;
 };

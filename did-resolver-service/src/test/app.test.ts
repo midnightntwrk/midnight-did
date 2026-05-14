@@ -125,6 +125,18 @@ describe("did-resolver-service app", () => {
     await app.close();
   });
 
+  it("does not mount Swagger docs by default", async () => {
+    const service = {
+      resolve: vi.fn(),
+    } as unknown as ResolverService;
+    const app = await createApp(service);
+    const response = await app.inject({ method: "GET", url: "/docs" });
+
+    expect(response.statusCode).toBe(404);
+
+    await app.close();
+  });
+
   it("mounts Swagger docs when docs are enabled", async () => {
     const service = {
       resolve: vi.fn(),
@@ -133,6 +145,31 @@ describe("did-resolver-service app", () => {
     const response = await app.inject({ method: "GET", url: "/docs" });
 
     expect([200, 302]).toContain(response.statusCode);
+
+    await app.close();
+  });
+
+  it("rejects unknown resolver option fields", async () => {
+    const service = {
+      resolve: vi.fn(),
+    } as unknown as ResolverService;
+    const app = await createApp(service);
+    const getResponse = await app.inject({
+      method: "GET",
+      url: "/resolve/did%3Amidnight%3Adevnet%3Aabc?indexerURL=http://127.0.0.1:8088/api/v3/graphql",
+    });
+    const postResponse = await app.inject({
+      method: "POST",
+      url: "/resolve",
+      payload: {
+        did: "did:midnight:devnet:abc",
+        indexerURL: "http://127.0.0.1:8088/api/v3/graphql",
+      },
+    });
+
+    expect(getResponse.statusCode).toBe(400);
+    expect(postResponse.statusCode).toBe(400);
+    expect(service.resolve).not.toHaveBeenCalled();
 
     await app.close();
   });

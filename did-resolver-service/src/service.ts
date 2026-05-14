@@ -29,7 +29,7 @@ export type ResolveResponse =
       };
     }
   | {
-      statusCode: 400 | 404 | 500;
+      statusCode: 200 | 500;
       payload: {
         didDocument: null;
         didDocumentMetadata: {};
@@ -74,6 +74,28 @@ const errorPayload = (error: ResolutionErrorCode) => ({
   didResolutionMetadata: { contentType: null, error },
 });
 
+const redactUrlForLog = (value: string | undefined): string | undefined => {
+  if (value === undefined) return undefined;
+  try {
+    const parsed = new URL(value);
+    if (parsed.username !== "") parsed.username = "redacted";
+    if (parsed.password !== "") parsed.password = "redacted";
+    return parsed.toString();
+  } catch {
+    return "[invalid-url]";
+  }
+};
+
+const scrubResolveOptions = (
+  options: ResolveRequestOptions | undefined,
+): ResolveRequestOptions | undefined => {
+  if (options === undefined) return undefined;
+  return {
+    indexerUrl: redactUrlForLog(options.indexerUrl),
+    indexerWsUrl: redactUrlForLog(options.indexerWsUrl),
+  };
+};
+
 export class ResolverService {
   private readonly expectedNetwork: MidnightNetwork | undefined;
   private readonly endpointPolicy: IndexerEndpointPolicy;
@@ -112,7 +134,7 @@ export class ResolverService {
     const stack = error instanceof Error ? error.stack : undefined;
     this.logger.error("[did-resolver-service] resolve failed", {
       did,
-      options,
+      options: scrubResolveOptions(options),
       errorCode,
       message,
       stack,
@@ -187,7 +209,7 @@ export class ResolverService {
       );
       if (result === null) {
         return {
-          statusCode: 404,
+          statusCode: statusCodeForResolutionError("notFound"),
           payload: errorPayload("notFound"),
         };
       }

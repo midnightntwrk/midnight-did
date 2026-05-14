@@ -414,17 +414,18 @@ export const evaluateDelegation = (
     }
   >();
 
-  const purgeExpiredMethods = (): void => {
+  const purgeExpiredMethods = (at: Date): void => {
     const expiryEntries = [...activeMethods.entries()];
     for (const [method, details] of expiryEntries) {
-      if (!isEffectivelyActive(decisionTime, details.expiresAt)) {
+      if (!isEffectivelyActive(at, details.expiresAt)) {
         activeMethods.delete(method);
       }
     }
   };
 
   for (const event of sortedByTime(eventsBeforeTime)) {
-    purgeExpiredMethods();
+    const eventTime = parseTimestamp(event.effectiveAt, "effectiveAt");
+    purgeExpiredMethods(eventTime);
 
     if (
       event.relationship !== query.relationship ||
@@ -451,6 +452,11 @@ export const evaluateDelegation = (
       const previousGrant = activeMethods.get(event.verificationMethod);
       activeMethods.delete(event.verificationMethod);
       if (previousGrant != null) {
+        if (!isEffectivelyActive(eventTime, previousGrant.expiresAt)) {
+          throw new DelegationTemplateError(
+            `Cannot rotate inactive verificationMethod at ${event.effectiveAt}: ${event.verificationMethod}`,
+          );
+        }
         activeMethods.set(event.replacementVerificationMethod, {
           grantedAt: event.effectiveAt,
           expiresAt: previousGrant.expiresAt,
@@ -460,7 +466,7 @@ export const evaluateDelegation = (
     }
   }
 
-  purgeExpiredMethods();
+  purgeExpiredMethods(decisionTime);
 
   const nowActive =
     normalizedMethod == null

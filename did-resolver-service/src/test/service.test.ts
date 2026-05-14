@@ -82,7 +82,7 @@ describe("did-resolver-service service", () => {
     });
 
     const result = await service.resolve("did:midnight:devnet:abc");
-    expect(result.statusCode).toBe(404);
+    expect(result.statusCode).toBe(200);
     expect(result.payload.didResolutionMetadata.error).toBe("notFound");
   });
 
@@ -114,7 +114,7 @@ describe("did-resolver-service service", () => {
       indexerUrl: "http://169.254.169.254/latest/meta-data",
     });
 
-    expect(result.statusCode).toBe(400);
+    expect(result.statusCode).toBe(200);
     expect(result.payload.didResolutionMetadata.error).toBe("invalidDid");
     expect(providerFactoryMock).not.toHaveBeenCalled();
   });
@@ -198,10 +198,10 @@ describe("did-resolver-service service", () => {
     const networkMismatch = await service.resolve("did:midnight:devnet:abc");
     const internalError = await service.resolve("did:midnight:devnet:abc");
 
-    expect(invalidDid.statusCode).toBe(400);
+    expect(invalidDid.statusCode).toBe(200);
     expect(invalidDid.payload.didResolutionMetadata.error).toBe("invalidDid");
 
-    expect(networkMismatch.statusCode).toBe(400);
+    expect(networkMismatch.statusCode).toBe(200);
     expect(networkMismatch.payload.didResolutionMetadata.error).toBe(
       "networkMismatch",
     );
@@ -231,17 +231,20 @@ describe("did-resolver-service service", () => {
     expect(result.payload.didResolutionMetadata.error).toBe("internalError");
   });
 
-  it("uses injected logger for debug error output", async () => {
+  it("uses injected logger for scrubbed debug error output", async () => {
     const logger = { error: vi.fn() };
     const service = new ResolverService({
       indexerHttpUrl: "http://indexer.example/api/v3/graphql",
       indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
+      allowedIndexerHttpUrls: ["https://indexer.example/api/v3/graphql"],
       debug: true,
       logger,
     });
 
     resolveResultMock.mockRejectedValueOnce(new Error("boom"));
-    await service.resolve("did:midnight:devnet:abc");
+    await service.resolve("did:midnight:devnet:abc", {
+      indexerUrl: "https://user:secret@indexer.example/api/v3/graphql",
+    });
 
     expect(logger.error).toHaveBeenCalledTimes(1);
     expect(logger.error).toHaveBeenCalledWith(
@@ -250,7 +253,13 @@ describe("did-resolver-service service", () => {
         did: "did:midnight:devnet:abc",
         errorCode: "internalError",
         message: "boom",
+        options: {
+          indexerUrl:
+            "https://redacted:redacted@indexer.example/api/v3/graphql",
+          indexerWsUrl: undefined,
+        },
       }),
     );
+    expect(JSON.stringify(logger.error.mock.calls[0])).not.toContain("secret");
   });
 });

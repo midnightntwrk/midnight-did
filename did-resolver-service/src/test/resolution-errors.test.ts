@@ -32,9 +32,9 @@ describe("did-resolver-service resolution errors", () => {
   });
 
   it("maps error codes to status codes", () => {
-    expect(statusCodeForResolutionError("invalidDid")).toBe(400);
-    expect(statusCodeForResolutionError("networkMismatch")).toBe(400);
-    expect(statusCodeForResolutionError("notFound")).toBe(404);
+    expect(statusCodeForResolutionError("invalidDid")).toBe(200);
+    expect(statusCodeForResolutionError("networkMismatch")).toBe(200);
+    expect(statusCodeForResolutionError("notFound")).toBe(200);
     expect(statusCodeForResolutionError("internalError")).toBe(500);
   });
 });

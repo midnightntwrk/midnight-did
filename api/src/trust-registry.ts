@@ -260,7 +260,7 @@ export const loadTrustRegistryFromFile = (
     throw new Error(`Invalid trust registry fixture format: ${fixturePath}`);
   }
   parsed.events.forEach((event) => validateEvent(event));
-  return parsed;
+  return normalizeRegistryState(parsed);
 };
 
 export const trustRegistryFixturePath = (filename: string): string => {

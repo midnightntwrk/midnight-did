@@ -163,6 +163,34 @@ describe("did delegation lifecycle", () => {
     expect(afterExpiry.isActive).toBe(false);
   });
 
+  it("rejects delegated rotation when the source grant expired first", () => {
+    const expiringState: DelegationState = applyDelegationTransition(
+      BASELINE_STATE,
+      {
+        action: "grant",
+        delegatorDid: "did:midnight:university:state-college",
+        delegateDid: "did:midnight:agent:grants-ops",
+        actorDid: "did:midnight:university:state-college",
+        relationship: "capabilityInvocation",
+        verificationMethod: "#temporary-agent-key-v1",
+        effectiveAt: "2026-06-01T00:00:00.000Z",
+        expiresAt: "2026-06-10T00:00:00.000Z",
+      },
+    );
+
+    expect(() =>
+      rotateDelegationKey(expiringState, {
+        delegatorDid: "did:midnight:university:state-college",
+        delegateDid: "did:midnight:agent:grants-ops",
+        actorDid: "did:midnight:university:state-college",
+        relationship: "capabilityInvocation",
+        fromVerificationMethod: "#temporary-agent-key-v1",
+        toVerificationMethod: "#temporary-agent-key-v2",
+        effectiveAt: "2026-06-11T00:00:00.000Z",
+      }),
+    ).toThrow("Cannot rotate inactive method");
+  });
+
   it("expires a single grant without requiring a later event", () => {
     const expiringState: DelegationState = applyDelegationTransition(
       BASELINE_STATE,

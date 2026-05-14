@@ -6,7 +6,7 @@
     "npm": ">=10"
   },
   "scripts": {
-    "check:boundaries": "npm run checkdeps && npm run check:workspaces",
+    "check:boundaries": "npm run checkdeps && npm run check:workspaces && node scripts/check-workspace-dependencies.mjs",
     "audit:repo": "node scripts/repository-audit.mjs",
     "clean": "npm run clean -w contract && npm run clean -w domain && npm run clean -w did && npm run clean -w api && npm run clean -w cli && npm run clean -w did-resolver-service",
     "clean:local-state": "rm -rf .turbo api/.midnight-db docs-site review/.midnight-db did-manager-service/.tmp did-manager-service/playwright-report did-manager-service/test-results 2>/dev/null || true",

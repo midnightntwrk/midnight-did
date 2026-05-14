@@ -23,14 +23,24 @@ import pinoPretty from 'pino-pretty';
 const SECRET_REDACTION_PATHS = [
   'seed',
   '*.seed',
+  '*.*.seed',
+  '*.*.*.seed',
   'mnemonic',
   '*.mnemonic',
+  '*.*.mnemonic',
+  '*.*.*.mnemonic',
   'secretKey',
   '*.secretKey',
+  '*.*.secretKey',
+  '*.*.*.secretKey',
   'privateKey',
   '*.privateKey',
+  '*.*.privateKey',
+  '*.*.*.privateKey',
   'password',
   '*.password',
+  '*.*.password',
+  '*.*.*.password',
 ] as const;
 
 export const createLogger = async (logPath: string): Promise<pino.Logger> => {

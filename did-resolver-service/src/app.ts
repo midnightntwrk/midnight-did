@@ -44,13 +44,14 @@ const errorResolveSchema = {
 } as const;
 
 const resolveResponseSchema = {
-  200: successResolveSchema,
-  400: errorResolveSchema,
-  404: errorResolveSchema,
+  200: {
+    oneOf: [successResolveSchema, errorResolveSchema],
+  },
   500: errorResolveSchema,
 } as const;
 
 type ResolveQuery = ResolveRequestOptions;
+type CreateAppOptions = { logger?: Logger; docsEnabled: boolean };
 
 const resolveDidWithOptions = async (
   resolverService: ResolverService,
@@ -60,14 +61,17 @@ const resolveDidWithOptions = async (
 
 export const createApp = async (
   resolverService: ResolverService,
-  options?: { logger?: Logger; docsEnabled?: boolean },
+  options: CreateAppOptions = { docsEnabled: false },
 ): Promise<FastifyInstance> => {
-  const fastifyOptions: FastifyServerOptions = options?.logger
-    ? { loggerInstance: options.logger }
-    : { logger: true };
+  const fastifyOptions: FastifyServerOptions = options.logger
+    ? {
+        loggerInstance: options.logger,
+        ajv: { customOptions: { removeAdditional: false } },
+      }
+    : { logger: true, ajv: { customOptions: { removeAdditional: false } } };
   const app = Fastify(fastifyOptions);
 
-  if (options?.docsEnabled ?? true) {
+  if (options.docsEnabled === true) {
     await app.register(swagger, {
       openapi: {
         info: {
@@ -114,6 +118,7 @@ export const createApp = async (
         tags: ["Resolver"],
         params: {
           type: "object",
+          additionalProperties: false,
           required: ["did"],
           properties: {
             did: { type: "string" },
@@ -121,6 +126,7 @@ export const createApp = async (
         },
         querystring: {
           type: "object",
+          additionalProperties: false,
           properties: {
             indexerUrl: { type: "string" },
             indexerWsUrl: { type: "string" },
@@ -152,6 +158,7 @@ export const createApp = async (
         tags: ["Resolver"],
         body: {
           type: "object",
+          additionalProperties: false,
           required: ["did"],
           properties: {
             did: { type: "string" },

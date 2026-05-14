@@ -63,6 +63,14 @@ if (!existsSync("package-lock.json")) {
 const declaredCompactRuntime = pkg.dependencies?.["@midnight-ntwrk/compact-runtime"];
 const expectedCompactCompiler = process.env.COMPACT_COMPILER_VERSION ?? "0.30.0";
 
+if (declaredCompactRuntime == null) {
+  console.error(
+    "Missing @midnight-ntwrk/compact-runtime in root dependencies; " +
+      "cannot verify Compact compiler/runtime compatibility.",
+  );
+  process.exit(1);
+}
+
 let compactCompilerVersion;
 try {
   compactCompilerVersion = execSync("compact compile --version", {
@@ -86,29 +94,27 @@ if (compactCompilerVersion !== expectedCompactCompiler) {
   process.exit(1);
 }
 
-if (declaredCompactRuntime != null) {
-  let compilerRuntime;
-  try {
-    compilerRuntime = execSync("compact compile --runtime-version", {
-      encoding: "utf8",
-      stdio: "pipe",
-    }).trim();
-  } catch (error) {
-    console.error(
-      "Unable to read Compact compiler runtime version. " +
-        "Install the Compact compiler before running the pipeline.",
-    );
-    process.exit(1);
-  }
+let compilerRuntime;
+try {
+  compilerRuntime = execSync("compact compile --runtime-version", {
+    encoding: "utf8",
+    stdio: "pipe",
+  }).trim();
+} catch (error) {
+  console.error(
+    "Unable to read Compact compiler runtime version. " +
+      "Install the Compact compiler before running the pipeline.",
+  );
+  process.exit(1);
+}
 
-  if (declaredCompactRuntime !== compilerRuntime) {
-    console.error(
-      `Compact compiler/runtime mismatch: compiler emits ${compilerRuntime}, ` +
-        `but package.json declares @midnight-ntwrk/compact-runtime ${declaredCompactRuntime}. ` +
-        "Update the compiler pin or runtime dependency before running contract tests.",
-    );
-    process.exit(1);
-  }
+if (declaredCompactRuntime !== compilerRuntime) {
+  console.error(
+    `Compact compiler/runtime mismatch: compiler emits ${compilerRuntime}, ` +
+      `but package.json declares @midnight-ntwrk/compact-runtime ${declaredCompactRuntime}. ` +
+      "Update the compiler pin or runtime dependency before running contract tests.",
+  );
+  process.exit(1);
 }
 
 console.log("Toolchain precheck passed.");

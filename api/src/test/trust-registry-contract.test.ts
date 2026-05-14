@@ -1,3 +1,7 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -129,5 +133,34 @@ describe("trust-registry contract scaffold", () => {
         "2026-06-01T00:00:00.000Z",
       ),
     ).toThrowError(TrustRoleTransitionError);
+  });
+
+  it("normalizes loaded fixture updatedAt to the newest event timestamp", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "trust-registry-"));
+    const fixturePath = path.join(dir, "trust-registry.json");
+    try {
+      writeFileSync(
+        fixturePath,
+        JSON.stringify({
+          registryId: "trust-registry:test",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          events: [
+            {
+              role: "issuer",
+              partyDid: "did:midnight:issuer:university-beta",
+              actorDid: "did:midnight:gov:registry-admin",
+              action: "grant",
+              effectiveAt: "2026-06-01T00:00:00.000Z",
+            },
+          ],
+        }),
+      );
+
+      expect(loadTrustRegistryFromFile(fixturePath).updatedAt).toBe(
+        "2026-06-01T00:00:00.000Z",
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

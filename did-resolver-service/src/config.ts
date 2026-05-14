@@ -81,6 +81,17 @@ const parseUrl = (
   return parsed.toString().replace(/\/+$/, "");
 };
 
+const requireProductionUrl = (
+  value: string | undefined,
+  envName: string,
+  nodeEnv: string | undefined,
+): string | undefined => {
+  if (nodeEnv === "production" && (value == null || value.trim() === "")) {
+    throw new Error(`${envName} is required when NODE_ENV=production`);
+  }
+  return value;
+};
+
 const deriveWsUrl = (indexerHttpUrl: string): string => {
   const parsed = new URL(indexerHttpUrl);
   parsed.protocol = parsed.protocol === "https:" ? "wss:" : "ws:";
@@ -138,13 +149,21 @@ export const loadConfig = (
     host: env.RESOLVER_HOST ?? "127.0.0.1",
     port: parsePort(env.RESOLVER_PORT),
     indexerHttpUrl: parseUrl(
-      env.MIDNIGHT_INDEXER_HTTP_URL,
+      requireProductionUrl(
+        env.MIDNIGHT_INDEXER_HTTP_URL,
+        "MIDNIGHT_INDEXER_HTTP_URL",
+        env.NODE_ENV,
+      ),
       "http://127.0.0.1:8088/api/v3/graphql",
       ["http:", "https:"],
       "MIDNIGHT_INDEXER_HTTP_URL",
     ),
     indexerWsUrl: parseUrl(
-      env.MIDNIGHT_INDEXER_WS_URL,
+      requireProductionUrl(
+        env.MIDNIGHT_INDEXER_WS_URL,
+        "MIDNIGHT_INDEXER_WS_URL",
+        env.NODE_ENV,
+      ),
       "ws://127.0.0.1:8088/api/v3/graphql/ws",
       ["ws:", "wss:"],
       "MIDNIGHT_INDEXER_WS_URL",

@@ -86,17 +86,16 @@ describeIntegration("did-resolver-service docker integration", () => {
   it("returns invalidDid for malformed DID request", async () => {
     if (!baseUrl) throw new Error("Resolver base URL is not configured");
     const response = await fetch(`${baseUrl}/resolve/not-a-did`);
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(200);
     const body = (await response.json()) as {
       didResolutionMetadata: { error: string };
     };
     expect(body.didResolutionMetadata.error).toBe("invalidDid");
   });
 
-  it("exposes Swagger UI route", async () => {
+  it("keeps Swagger UI disabled by default in the production container", async () => {
     if (!baseUrl) throw new Error("Resolver base URL is not configured");
     const response = await fetch(`${baseUrl}/docs`);
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-type") ?? "").toContain("text/html");
+    expect(response.status).toBe(404);
   });
 });

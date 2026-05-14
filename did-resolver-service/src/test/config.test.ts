@@ -52,8 +52,24 @@ describe("did-resolver-service config", () => {
   });
 
   it("disables docs by default in production", () => {
-    const cfg = loadConfig({ NODE_ENV: "production" });
+    const cfg = loadConfig({
+      NODE_ENV: "production",
+      MIDNIGHT_INDEXER_HTTP_URL: "https://indexer.example/api/v3/graphql",
+      MIDNIGHT_INDEXER_WS_URL: "wss://indexer.example/api/v3/graphql/ws",
+    });
     expect(cfg.docsEnabled).toBe(false);
+  });
+
+  it("requires explicit indexer urls in production", () => {
+    expect(() => loadConfig({ NODE_ENV: "production" })).toThrow(
+      "MIDNIGHT_INDEXER_HTTP_URL is required when NODE_ENV=production",
+    );
+    expect(() =>
+      loadConfig({
+        NODE_ENV: "production",
+        MIDNIGHT_INDEXER_HTTP_URL: "https://indexer.example/api/v3/graphql",
+      }),
+    ).toThrow("MIDNIGHT_INDEXER_WS_URL is required when NODE_ENV=production");
   });
 
   it("fails on unsupported network", () => {

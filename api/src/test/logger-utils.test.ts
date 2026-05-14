@@ -73,6 +73,11 @@ describe("logger-utils", () => {
         seed: "raw-wallet-seed",
         nested: {
           privateKey: "raw-private-key",
+          body: {
+            config: {
+              seed: "deep-wallet-seed",
+            },
+          },
         },
         password: "raw-password",
       },
@@ -85,6 +90,7 @@ describe("logger-utils", () => {
     expect(contents).toContain("[Redacted]");
     expect(contents).not.toContain("raw-wallet-seed");
     expect(contents).not.toContain("raw-private-key");
+    expect(contents).not.toContain("deep-wallet-seed");
     expect(contents).not.toContain("raw-password");
   });
 });

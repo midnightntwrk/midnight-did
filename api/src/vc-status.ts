@@ -60,6 +60,26 @@ export class VcRevocationError extends Error {
   }
 }
 
+export class VcStatusUnavailableError extends Error {
+  public statusRef: string | undefined;
+  public statusEntry: string | undefined;
+  public statusState = "unknown" as const;
+
+  public constructor(
+    credentialId: string,
+    statusRef: string | undefined,
+    statusEntry: string | undefined,
+    detail: string,
+  ) {
+    super(
+      `Credential status unavailable. credentialId=${credentialId}, statusRef=${statusRef ?? "unknown"}, statusEntry=${statusEntry ?? "unknown"}, ${detail}`,
+    );
+    this.name = "VcStatusUnavailableError";
+    this.statusRef = statusRef;
+    this.statusEntry = statusEntry;
+  }
+}
+
 export const validateStatusReference = (
   credentialStatus: VcStatusReference,
 ): void => {
@@ -169,6 +189,14 @@ export const assertVcNotRevoked = (
       decision.reason,
     );
   }
+  if (decision.state === "unknown") {
+    throw new VcStatusUnavailableError(
+      credential.id,
+      decision.statusRef,
+      decision.statusEntry,
+      decision.reason,
+    );
+  }
   return decision;
 };
 
@@ -189,6 +217,22 @@ export const loadVcStatusRegistryFromFile = (
     parsed.credentials == null
   ) {
     throw new Error(`Invalid status registry fixture format: ${fixturePath}`);
+  }
+
+  if (!VC_STATUS_ENTRY_PATTERN.test(parsed.statusRef)) {
+    throw new Error(
+      "status registry statusRef does not match reference pattern",
+    );
+  }
+  for (const [statusEntry, entry] of Object.entries(parsed.credentials)) {
+    if (!VC_STATUS_ENTRY_PATTERN.test(statusEntry)) {
+      throw new Error(
+        `status registry entry does not match reference pattern: ${statusEntry}`,
+      );
+    }
+    if (entry.state !== "active" && entry.state !== "revoked") {
+      throw new Error(`Invalid status registry entry state: ${statusEntry}`);
+    }
   }
 
   return parsed;

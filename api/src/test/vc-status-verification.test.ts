@@ -7,6 +7,7 @@ import {
   statusRegistryFixturePath,
   VC_STATUS_PURPOSE,
   VcRevocationError,
+  VcStatusUnavailableError,
   type VerifiableCredential,
 } from "../vc-status";
 
@@ -47,5 +48,11 @@ describe("VC status reference verification", () => {
     const decision = evaluateVcStatus(SAMPLE_CREDENTIAL);
     expect(decision.state).toBe("unknown");
     expect(decision.reason).toContain("registry unavailable");
+  });
+
+  it("fails closed when assert path cannot verify status state", () => {
+    expect(() => assertVcNotRevoked(SAMPLE_CREDENTIAL)).toThrow(
+      VcStatusUnavailableError,
+    );
   });
 });
