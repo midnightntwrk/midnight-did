@@ -29,6 +29,15 @@ const assertArtifactObject = (
   return value as Record<string, unknown>;
 };
 
+const assertArtifactString = (
+  value: unknown,
+  label: string,
+  nonEmpty = true,
+): string => assertRequiredString(value, label, nonEmpty, "artifact");
+
+const assertArtifactNumber = (value: unknown, label: string): number =>
+  assertRequiredNumber(value, label, "artifact");
+
 const toArtifactVersion = (value: unknown, fallback: string): string => {
   if (typeof value === "string" && value.trim() !== "") {
     return value.trim();
@@ -48,62 +57,62 @@ export const normalizeUniversityScenarioReportArtifact = (
       artifact.artifactVersion,
       UNIVERSITY_SCENARIO_REPORT_ARTIFACT_VERSION,
     ),
-    scenarioTitle: assertRequiredString(
+    scenarioTitle: assertArtifactString(
       artifact.scenarioTitle,
       "scenarioTitle",
     ),
-    generatedAt: assertRequiredString(artifact.generatedAt, "generatedAt"),
+    generatedAt: assertArtifactString(artifact.generatedAt, "generatedAt"),
     metadata: {
-      mode: assertRequiredString(
+      mode: assertArtifactString(
         metadata.mode,
         "metadata.mode",
       ) as UniversityTransportMode,
-      fixtureVersion: assertRequiredString(
+      fixtureVersion: assertArtifactString(
         metadata.fixtureVersion,
         "metadata.fixtureVersion",
       ),
-      studentsTargeted: assertRequiredNumber(
+      studentsTargeted: assertArtifactNumber(
         metadata.studentsTargeted,
         "metadata.studentsTargeted",
       ),
-      companiesTargeted: assertRequiredNumber(
+      companiesTargeted: assertArtifactNumber(
         metadata.companiesTargeted,
         "metadata.companiesTargeted",
       ),
-      totalStudents: assertRequiredNumber(
+      totalStudents: assertArtifactNumber(
         metadata.totalStudents,
         "metadata.totalStudents",
       ),
-      totalCompanies: assertRequiredNumber(
+      totalCompanies: assertArtifactNumber(
         metadata.totalCompanies,
         "metadata.totalCompanies",
       ),
     },
     timing: {
-      totalSteps: assertRequiredNumber(timing.totalSteps, "timing.totalSteps"),
-      totalLatencyMs: assertRequiredNumber(
+      totalSteps: assertArtifactNumber(timing.totalSteps, "timing.totalSteps"),
+      totalLatencyMs: assertArtifactNumber(
         timing.totalLatencyMs,
         "timing.totalLatencyMs",
       ),
-      avgLatencyMs: assertRequiredNumber(
+      avgLatencyMs: assertArtifactNumber(
         timing.avgLatencyMs,
         "timing.avgLatencyMs",
       ),
     },
-    issuedCount: assertRequiredNumber(artifact.issuedCount, "issuedCount"),
-    applicationCount: assertRequiredNumber(
+    issuedCount: assertArtifactNumber(artifact.issuedCount, "issuedCount"),
+    applicationCount: assertArtifactNumber(
       artifact.applicationCount,
       "applicationCount",
     ),
-    discountCount: assertRequiredNumber(
+    discountCount: assertArtifactNumber(
       artifact.discountCount,
       "discountCount",
     ),
-    approvedApplications: assertRequiredNumber(
+    approvedApplications: assertArtifactNumber(
       artifact.approvedApplications,
       "approvedApplications",
     ),
-    approvedDiscounts: assertRequiredNumber(
+    approvedDiscounts: assertArtifactNumber(
       artifact.approvedDiscounts,
       "approvedDiscounts",
     ),
@@ -111,40 +120,40 @@ export const normalizeUniversityScenarioReportArtifact = (
       ? artifact.steps.map((step) => {
           const entry = assertArtifactObject(step, "step");
           return {
-            step: assertRequiredString(entry.step, "step.step"),
+            step: assertArtifactString(entry.step, "step.step"),
             request: entry.request as unknown,
             response: entry.response as unknown,
             checks: Array.isArray(entry.checks)
-              ? entry.checks.map((item) => assertRequiredString(item, "check"))
+              ? entry.checks.map((item) => assertArtifactString(item, "check"))
               : [],
             involvedDids: Array.isArray(entry.involvedDids)
               ? entry.involvedDids.map((item) =>
-                  assertRequiredString(item, "did"),
+                  assertArtifactString(item, "did"),
                 )
               : [],
-            latencyMs: assertRequiredNumber(entry.latencyMs, "latencyMs"),
-            stepId: assertRequiredString(entry.stepId, "stepId"),
-            requestId: assertRequiredString(entry.requestId, "requestId"),
-            requestHash: assertRequiredString(entry.requestHash, "requestHash"),
-            responseHash: assertRequiredString(
+            latencyMs: assertArtifactNumber(entry.latencyMs, "latencyMs"),
+            stepId: assertArtifactString(entry.stepId, "stepId"),
+            requestId: assertArtifactString(entry.requestId, "requestId"),
+            requestHash: assertArtifactString(entry.requestHash, "requestHash"),
+            responseHash: assertArtifactString(
               entry.responseHash,
               "responseHash",
             ),
-            startedAt: assertRequiredString(entry.startedAt, "startedAt"),
-            endedAt: assertRequiredString(entry.endedAt, "endedAt"),
+            startedAt: assertArtifactString(entry.startedAt, "startedAt"),
+            endedAt: assertArtifactString(entry.endedAt, "endedAt"),
             transportChecks: Array.isArray(entry.transportChecks)
               ? entry.transportChecks.map((item) =>
-                  assertRequiredString(item, "transportCheck"),
+                  assertArtifactString(item, "transportCheck"),
                 )
               : [],
             proofPlaceholders: Array.isArray(entry.proofPlaceholders)
               ? entry.proofPlaceholders.map((item) =>
-                  assertRequiredString(item, "proofPlaceholder"),
+                  assertArtifactString(item, "proofPlaceholder"),
                 )
               : undefined,
             didBindingChecks: Array.isArray(entry.didBindingChecks)
               ? entry.didBindingChecks.map((item) =>
-                  assertRequiredString(item, "didBindingCheck"),
+                  assertArtifactString(item, "didBindingCheck"),
                 )
               : undefined,
           };
@@ -163,12 +172,12 @@ export const normalizeUniversityScenarioReplayArtifact = (
       artifact.artifactVersion,
       UNIVERSITY_SCENARIO_REPLAY_ARTIFACT_VERSION,
     ),
-    scenarioTitle: assertRequiredString(
+    scenarioTitle: assertArtifactString(
       artifact.scenarioTitle,
       "scenarioTitle",
     ),
-    generatedAt: assertRequiredString(artifact.generatedAt, "generatedAt"),
-    mode: assertRequiredString(
+    generatedAt: assertArtifactString(artifact.generatedAt, "generatedAt"),
+    mode: assertArtifactString(
       artifact.mode,
       "mode",
     ) as UniversityTransportMode,
@@ -176,30 +185,30 @@ export const normalizeUniversityScenarioReplayArtifact = (
       ? artifact.steps.map((step) => {
           const entry = assertArtifactObject(step, "step");
           return {
-            step: assertRequiredString(entry.step, "step.step"),
-            stepId: assertRequiredString(entry.stepId, "stepId"),
-            requestId: assertRequiredString(entry.requestId, "requestId"),
-            requestHash: assertRequiredString(entry.requestHash, "requestHash"),
-            responseHash: assertRequiredString(
+            step: assertArtifactString(entry.step, "step.step"),
+            stepId: assertArtifactString(entry.stepId, "stepId"),
+            requestId: assertArtifactString(entry.requestId, "requestId"),
+            requestHash: assertArtifactString(entry.requestHash, "requestHash"),
+            responseHash: assertArtifactString(
               entry.responseHash,
               "responseHash",
             ),
             proofPlaceholders: Array.isArray(entry.proofPlaceholders)
               ? entry.proofPlaceholders.map((item) =>
-                  assertRequiredString(item, "proofPlaceholder"),
+                  assertArtifactString(item, "proofPlaceholder"),
                 )
               : undefined,
             didBindingChecks: Array.isArray(entry.didBindingChecks)
               ? entry.didBindingChecks.map((item) =>
-                  assertRequiredString(item, "didBindingCheck"),
+                  assertArtifactString(item, "didBindingCheck"),
                 )
               : undefined,
-            startedAt: assertRequiredString(entry.startedAt, "startedAt"),
-            endedAt: assertRequiredString(entry.endedAt, "endedAt"),
-            latencyMs: assertRequiredNumber(entry.latencyMs, "latencyMs"),
+            startedAt: assertArtifactString(entry.startedAt, "startedAt"),
+            endedAt: assertArtifactString(entry.endedAt, "endedAt"),
+            latencyMs: assertArtifactNumber(entry.latencyMs, "latencyMs"),
             involvedDids: Array.isArray(entry.involvedDids)
               ? entry.involvedDids.map((item) =>
-                  assertRequiredString(item, "did"),
+                  assertArtifactString(item, "did"),
                 )
               : [],
           };

@@ -1,11 +1,19 @@
 import { createHash } from "node:crypto";
 
+type UniversityBddFormatKind = "artifact" | "fixture";
+
+const invalidUniversityFormatMessage = (
+  kind: UniversityBddFormatKind,
+  label: string,
+): string => `Invalid university ${kind} format: ${label}`;
+
 export const assertPlainObject = (
   value: unknown,
   label: string,
+  kind: UniversityBddFormatKind = "fixture",
 ): Record<string, unknown> => {
   if (value == null || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`Invalid university fixture format: ${label}`);
+    throw new Error(invalidUniversityFormatMessage(kind, label));
   }
   return value as Record<string, unknown>;
 };
@@ -14,25 +22,30 @@ export const assertRequiredString = (
   value: unknown,
   label: string,
   nonEmpty = true,
+  kind: UniversityBddFormatKind = "fixture",
 ): string => {
   if (typeof value !== "string") {
-    throw new Error(`Invalid university fixture format: ${label}`);
+    throw new Error(invalidUniversityFormatMessage(kind, label));
   }
 
   if (nonEmpty && value.trim() === "") {
-    throw new Error(`Invalid university fixture format: ${label}`);
+    throw new Error(invalidUniversityFormatMessage(kind, label));
   }
 
   return value;
 };
 
-export const assertRequiredNumber = (value: unknown, label: string): number => {
+export const assertRequiredNumber = (
+  value: unknown,
+  label: string,
+  kind: UniversityBddFormatKind = "fixture",
+): number => {
   if (
     typeof value !== "number" ||
     Number.isNaN(value) ||
     !Number.isFinite(value)
   ) {
-    throw new Error(`Invalid university fixture format: ${label}`);
+    throw new Error(invalidUniversityFormatMessage(kind, label));
   }
   return value;
 };

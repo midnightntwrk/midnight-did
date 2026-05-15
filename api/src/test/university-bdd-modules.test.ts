@@ -79,6 +79,34 @@ describe("University BDD module boundaries", () => {
     expect(collisions).toEqual([]);
   });
 
+  it("keeps artifact validation diagnostics scoped to artifacts", () => {
+    expect(() =>
+      artifacts.normalizeUniversityScenarioReportArtifact({
+        scenarioTitle: 42,
+        generatedAt: "2026-05-15T00:00:00.000Z",
+        metadata: {
+          mode: "simulator",
+          fixtureVersion: "university-fixture-v1",
+          studentsTargeted: 1,
+          companiesTargeted: 1,
+          totalStudents: 1,
+          totalCompanies: 1,
+        },
+        timing: {
+          totalSteps: 0,
+          totalLatencyMs: 0,
+          avgLatencyMs: 0,
+        },
+        issuedCount: 0,
+        applicationCount: 0,
+        discountCount: 0,
+        approvedApplications: 0,
+        approvedDiscounts: 0,
+        steps: [],
+      }),
+    ).toThrow(/Invalid university artifact format: scenarioTitle/);
+  });
+
   it("exposes readonly DID namespace prefix sets", () => {
     const namespaceSets = [
       ...Object.values(facade.UNIVERSITY_DID_NAMESPACE_PREFIXES),
