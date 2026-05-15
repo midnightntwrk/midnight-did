@@ -1,4 +1,5 @@
 export * from "./config";
+export * from "./did-circuits";
 export * from "./did-delegation";
 export * from "./domain-to-runtime";
 export * from "./lib";

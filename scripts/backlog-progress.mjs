@@ -61,6 +61,11 @@ const CHECKS = [
       "npm run test -w api -- src/test/vc-status-verification.test.ts src/test/trust-registry-contract.test.ts src/test/did-delegation-contract.test.ts",
   },
   {
+    itemNumber: 67,
+    label: "Introduce a circuit-name registry",
+    command: "npm run test:circuit-registry",
+  },
+  {
     itemNumber: 71,
     label: "Validate Compact compiler/runtime compatibility in CI prechecks",
     command: "npm run check:toolchain",

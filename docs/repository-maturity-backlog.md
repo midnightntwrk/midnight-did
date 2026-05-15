@@ -347,9 +347,11 @@
    - Wired VC status, trust registry, delegation state, and delegation template loaders through explicit normalizers before casting to runtime types.
    - Acceptance: tests cover unknown enum values, missing discriminants, malformed event arrays, and non-string template operation entries with stable field diagnostics.
 
-67. **Introduce a circuit-name registry**
-   - Centralize prover-key/circuit names into a typed registry and assert parity with generated contract circuits.
-   - Acceptance: a circuit rename fails at compile time or in a small registry test instead of during a wallet call.
+67. ✅ **Done: Introduce a circuit-name registry**
+   - Added `api/src/did-circuits.ts` with typed contract, pure-circuit, proof-circuit, and prover-key identifiers shared by API and CLI callers.
+   - Replaced direct `"did"` / `"addVerificationMethod"` wallet/prover call sites with the shared registry.
+   - Added `npm run test:circuit-registry` to assert parity against generated `contract-info.json` and prover/verifier key assets.
+   - Acceptance: a circuit rename now fails via TypeScript contract types or the small registry parity test instead of during a wallet call.
 
 68. **Split the university BDD harness into reviewable modules**
    - Extract fixture loading, transport contracts, scenario execution, report building, and artifact helpers from the current monolith.

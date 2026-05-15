@@ -15,11 +15,7 @@
 
 import { createHash, webcrypto } from 'node:crypto';
 
-import {
-  CompiledContract,
-  ProvableCircuitId,
-  type ProvableCircuitId as ProvableCircuitIdType,
-} from '@midnight-ntwrk/compact-js';
+import { CompiledContract, type ProvableCircuitId as ProvableCircuitIdType } from '@midnight-ntwrk/compact-js';
 import { type ContractAddress } from '@midnight-ntwrk/compact-runtime';
 import { unshieldedToken } from '@midnight-ntwrk/ledger-v8';
 import { parseContractAddress } from '@midnight-ntwrk/midnight-did';
@@ -29,6 +25,8 @@ import {
   createStartedMidnightWalletContext,
   createWalletAndMidnightProvider as createSharedWalletAndMidnightProvider,
   isMissingPrivateStateContractAddressError,
+  MIDNIGHT_DID_CONTRACT_NAME,
+  MIDNIGHT_DID_PROOF_CIRCUIT_IDS,
   type MidnightWalletContext,
   waitForWalletFunds,
   waitForWalletSync,
@@ -152,7 +150,7 @@ const seedDisplayValue = (seed: string): string => {
 };
 
 // Pre-compile the DID contract with ZK circuit assets
-const didCompiledContract = CompiledContract.make('did', DIDContract.Contract).pipe(
+const didCompiledContract = CompiledContract.make(MIDNIGHT_DID_CONTRACT_NAME, DIDContract.Contract).pipe(
   CompiledContract.withWitnesses(witnesses),
   CompiledContract.withCompiledFileAssets(contractConfig.zkConfigPath),
 );
@@ -189,9 +187,7 @@ export const initPrivateState = async (providers: DIDProviders): Promise<DIDPriv
   }
 
   logger.info('Creating the new private state..');
-  const proverKey = await providers.zkConfigProvider.getProverKey(
-    ProvableCircuitId<DIDContract.Contract<DIDPrivateState>>('addVerificationMethod'),
-  );
+  const proverKey = await providers.zkConfigProvider.getProverKey(MIDNIGHT_DID_PROOF_CIRCUIT_IDS.addVerificationMethod);
   const secretKey = await hashProverKey(proverKey);
   const privateState: DIDPrivateState = { secretKey };
   try {

@@ -48,6 +48,10 @@ import * as Rx from "rxjs";
 import { WebSocket } from "ws";
 
 import { type Config, contractConfig } from "./config";
+import {
+  MIDNIGHT_DID_CONTRACT_NAME,
+  MIDNIGHT_DID_PROOF_CIRCUIT_IDS,
+} from "./did-circuits";
 import { BigIntReplacer } from "./logger-utils";
 import {
   createMidnightProviders,
@@ -80,7 +84,7 @@ const getPrivateStatePassword = createPrivateStatePasswordProvider();
 
 // Pre-compile contract with assets
 const midnightDIDCompiledContract = CompiledContract.make(
-  "did",
+  MIDNIGHT_DID_CONTRACT_NAME,
   DIDContract.Contract,
 ).pipe(
   CompiledContract.withWitnesses(witnesses),
@@ -122,11 +126,6 @@ const setPrivateStateContractAddress = (
 export async function initPrivateState(
   providers: MidnightDIDProviders,
 ): Promise<MidnightDIDPrivateState> {
-  type ProvidersWithProverKey = MidnightDIDProviders & {
-    zkConfigProvider: {
-      getProverKey: (circuitName: string) => Promise<Uint8Array>;
-    };
-  };
   let providedPrivateState: MidnightDIDPrivateState | null = null;
   try {
     providedPrivateState = await providers.privateStateProvider.get(
@@ -153,9 +152,9 @@ export async function initPrivateState(
   }
 
   logger.info("Creating the new private state..");
-  const proverKey = await (
-    providers as ProvidersWithProverKey
-  ).zkConfigProvider.getProverKey("addVerificationMethod");
+  const proverKey = await providers.zkConfigProvider.getProverKey(
+    MIDNIGHT_DID_PROOF_CIRCUIT_IDS.addVerificationMethod,
+  );
   const secretKey = await hashProverKey(proverKey);
   const privateState: MidnightDIDPrivateState = { secretKey };
   try {
