@@ -1,6 +1,6 @@
 services:
   proof-server:
-    image: "${PROOF_SERVER_IMAGE:-proof-server-bootstrap:7.0.0}"
+    image: "${PROOF_SERVER_IMAGE:-midnightntwrk/proof-server:7.0.0}"
     command: ["midnight-proof-server -v"]
     ports:
       - "0:6300"
