@@ -1,7 +1,6 @@
 import { webcrypto } from "node:crypto";
 
 import { CompiledContract } from "@midnight-ntwrk/compact-js";
-import * as ledger from "@midnight-ntwrk/ledger-v8";
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import {
   type ContractAddress,
@@ -36,40 +35,26 @@ import {
   deployContract,
   findDeployedContract,
 } from "@midnight-ntwrk/midnight-js-contracts";
-import { httpClientProofProvider } from "@midnight-ntwrk/midnight-js-http-client-proof-provider";
-import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-public-data-provider";
-import { levelPrivateStateProvider } from "@midnight-ntwrk/midnight-js-level-private-state-provider";
 import { getNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
-import { NodeZkConfigProvider } from "@midnight-ntwrk/midnight-js-node-zk-config-provider";
-import {
-  type FinalizedTxData,
-  type MidnightProvider,
-  type WalletProvider,
-} from "@midnight-ntwrk/midnight-js-types";
+import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
 import {
   assertIsContractAddress,
   toHex,
 } from "@midnight-ntwrk/midnight-js-utils";
-import { DustWallet } from "@midnight-ntwrk/wallet-sdk-dust-wallet";
 import { WalletFacade } from "@midnight-ntwrk/wallet-sdk-facade";
-import { HDWallet, Roles } from "@midnight-ntwrk/wallet-sdk-hd";
-import { ShieldedWallet } from "@midnight-ntwrk/wallet-sdk-shielded";
-import {
-  createKeystore,
-  InMemoryTransactionHistoryStorage,
-  PublicKey,
-  type UnshieldedKeystore,
-  UnshieldedWallet,
-} from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
-import { Buffer } from "buffer";
+import { type UnshieldedKeystore } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
 import { type Logger } from "pino";
 import * as Rx from "rxjs";
 import { WebSocket } from "ws";
 
 import { type Config, contractConfig } from "./config";
 import { BigIntReplacer } from "./logger-utils";
+import {
+  createMidnightProviders,
+  createPrivateStatePasswordProvider,
+  createStartedMidnightWalletContext,
+} from "./midnight-provider-utils";
 import { RuntimeToDomain } from "./runtime-to-domain";
-import { signTransactionIntents } from "./transaction-intent-signing";
 import {
   type DeployedMidnightDIDContract,
   type MidnightDIDCircuits,
@@ -83,105 +68,12 @@ let logger: Logger;
 // @ts-expect-error assign for apollo/ws
 globalThis.WebSocket = WebSocket;
 
-export const PRIVATE_STATE_PASSWORD_ENV = "MIDNIGHT_DID_PRIVATE_STATE_PASSWORD";
-const LOCAL_PRIVATE_STATE_PASSWORD =
-  "Midnight-DID-local-private-state-password-2026!";
-let warnedAboutLocalPrivateStatePassword = false;
+export {
+  PRIVATE_STATE_PASSWORD_ENV,
+  resolvePrivateStatePassword,
+} from "./midnight-provider-utils";
 
-type PrivateStatePasswordOptions = {
-  readonly networkId?: string;
-  readonly env?: Record<string, string | undefined>;
-  readonly onStandaloneFallback?: () => void;
-};
-
-export const resolvePrivateStatePassword = ({
-  networkId,
-  env = process.env,
-  onStandaloneFallback,
-}: PrivateStatePasswordOptions = {}): string => {
-  const configuredPassword = env[PRIVATE_STATE_PASSWORD_ENV];
-  if (configuredPassword != null && configuredPassword.length > 0) {
-    return configuredPassword;
-  }
-
-  const normalizedNetworkId = String(networkId ?? getNetworkId()).toLowerCase();
-  if (normalizedNetworkId === "undeployed") {
-    onStandaloneFallback?.();
-    return LOCAL_PRIVATE_STATE_PASSWORD;
-  }
-
-  throw new Error(
-    `${PRIVATE_STATE_PASSWORD_ENV} must be set before configuring Midnight DID private state for network ${normalizedNetworkId}.`,
-  );
-};
-
-const warnAboutLocalPrivateStatePasswordOnce = (): void => {
-  if (warnedAboutLocalPrivateStatePassword) return;
-  process.emitWarning(
-    `${PRIVATE_STATE_PASSWORD_ENV} is not set; using the local standalone-only private state password fallback.`,
-    {
-      code: "MIDNIGHT_DID_PRIVATE_STATE_PASSWORD_MISSING",
-    },
-  );
-  warnedAboutLocalPrivateStatePassword = true;
-};
-
-const getPrivateStatePassword = (): string =>
-  resolvePrivateStatePassword({
-    onStandaloneFallback: warnAboutLocalPrivateStatePasswordOnce,
-  });
-
-// HD key derivation from seed
-const deriveKeysFromSeed = (seed: string) => {
-  const hdWallet = HDWallet.fromSeed(Buffer.from(seed, "hex"));
-  if (hdWallet.type !== "seedOk") {
-    throw new Error("Failed to initialize HDWallet from seed");
-  }
-  const derivationResult = hdWallet.hdWallet
-    .selectAccount(0)
-    .selectRoles([Roles.Zswap, Roles.NightExternal, Roles.Dust])
-    .deriveKeysAt(0);
-  if (derivationResult.type !== "keysDerived") {
-    throw new Error("Failed to derive keys");
-  }
-  hdWallet.hdWallet.clear();
-  return derivationResult.keys;
-};
-
-// Build wallet configurations
-const buildShieldedConfig = ({
-  indexer,
-  indexerWS,
-  node,
-  proofServer,
-}: Config) => ({
-  networkId: getNetworkId(),
-  indexerClientConnection: { indexerHttpUrl: indexer, indexerWsUrl: indexerWS },
-  provingServerUrl: new URL(proofServer),
-  relayURL: new URL(node.replace(/^http/, "ws")),
-});
-
-const buildDustConfig = ({
-  indexer,
-  indexerWS,
-  node,
-  proofServer,
-}: Config) => ({
-  networkId: getNetworkId(),
-  costParameters: {
-    additionalFeeOverhead: 300_000_000_000_000n,
-    feeBlocksMargin: 5,
-  },
-  indexerClientConnection: { indexerHttpUrl: indexer, indexerWsUrl: indexerWS },
-  provingServerUrl: new URL(proofServer),
-  relayURL: new URL(node.replace(/^http/, "ws")),
-});
-
-const buildWalletConfig = (config: Config) => ({
-  ...buildShieldedConfig(config),
-  ...buildDustConfig(config),
-  txHistoryStorage: new InMemoryTransactionHistoryStorage(),
-});
+const getPrivateStatePassword = createPrivateStatePasswordProvider();
 
 // Pre-compile contract with assets
 const midnightDIDCompiledContract = CompiledContract.make(
@@ -740,51 +632,6 @@ export const resolve = async (
   return { didDocument, didDocumentMetadata };
 };
 
-export const createWalletAndMidnightProvider = async (
-  ctx: MidnightDIDWalletContext,
-): Promise<WalletProvider & MidnightProvider> => {
-  const state = await Rx.firstValueFrom(
-    ctx.wallet.state().pipe(Rx.filter((s) => s.isSynced)),
-  );
-
-  return {
-    getCoinPublicKey() {
-      return state.shielded.coinPublicKey.toHexString();
-    },
-    getEncryptionPublicKey() {
-      return state.shielded.encryptionPublicKey.toHexString();
-    },
-    async balanceTx(tx, ttl?) {
-      const recipe = await ctx.wallet.balanceUnboundTransaction(
-        tx as any,
-        {
-          shieldedSecretKeys: ctx.shieldedSecretKeys as any,
-          dustSecretKey: ctx.dustSecretKey as any,
-        },
-        { ttl: ttl ?? new Date(Date.now() + 30 * 60 * 1000) },
-      );
-
-      // Manual intent signing (SDK bug workaround)
-      const signFn = (payload: Uint8Array) =>
-        ctx.unshieldedKeystore.signData(payload);
-      signTransactionIntents(recipe.baseTransaction, signFn, "proof");
-      if (recipe.balancingTransaction) {
-        signTransactionIntents(
-          recipe.balancingTransaction,
-          signFn,
-          "pre-proof",
-        );
-      }
-
-      return ctx.wallet.finalizeRecipe(recipe) as any;
-    },
-    submitTx(tx) {
-      // Wallet SDK transaction typing currently lags the v8 transaction shape.
-      return ctx.wallet.submitTransaction(tx as any) as any;
-    },
-  };
-};
-
 export const waitForSync = (wallet: WalletFacade) =>
   Rx.firstValueFrom(
     wallet.state().pipe(
@@ -815,57 +662,18 @@ export const buildWalletAndWaitForFunds = async (
   seed: string,
 ): Promise<MidnightDIDWalletContext> => {
   logger.info("Building wallet from seed");
-
-  // Derive HD keys
-  const keys = deriveKeysFromSeed(seed);
-  const shieldedSecretKeys = ledger.ZswapSecretKeys.fromSeed(keys[Roles.Zswap]);
-  const dustSecretKey = ledger.DustSecretKey.fromSeed(keys[Roles.Dust]);
-  const unshieldedKeystore = createKeystore(
-    keys[Roles.NightExternal],
-    getNetworkId(),
-  );
-
-  const walletConfig = buildWalletConfig(config);
-  const wallet = await WalletFacade.init({
-    configuration: walletConfig,
-    shielded: (configuration) =>
-      ShieldedWallet(configuration).startWithSecretKeys(
-        shieldedSecretKeys as any,
-      ),
-    unshielded: (configuration) =>
-      UnshieldedWallet(configuration).startWithPublicKey(
-        PublicKey.fromKeyStore(unshieldedKeystore),
-      ),
-    dust: (configuration) =>
-      DustWallet(configuration).startWithSecretKey(
-        dustSecretKey as any,
-        ledger.LedgerParameters.initialParameters().dust,
-      ),
-  });
-  await wallet.start(shieldedSecretKeys as any, dustSecretKey as any);
+  const walletContext = await createStartedMidnightWalletContext(config, seed);
 
   // Wait for sync
   logger.info("Waiting for wallet sync...");
-  await Rx.firstValueFrom(
-    wallet.state().pipe(
-      Rx.throttleTime(5_000),
-      Rx.filter((state) => state.isSynced),
-    ),
-  );
+  await waitForSync(walletContext.wallet);
 
   // Wait for funds
   logger.info("Waiting for funds...");
-  const balance = await Rx.firstValueFrom(
-    wallet.state().pipe(
-      Rx.throttleTime(10_000),
-      Rx.filter((state) => state.isSynced),
-      Rx.map((s) => s.unshielded.balances[unshieldedToken().raw] ?? 0n),
-      Rx.filter((balance) => balance > 0n),
-    ),
-  );
+  const balance = await waitForFunds(walletContext.wallet);
   logger.info(`Wallet balance: ${balance}`);
 
-  return { wallet, shieldedSecretKeys, dustSecretKey, unshieldedKeystore };
+  return walletContext;
 };
 
 export const registerForDustGeneration = async (
@@ -938,29 +746,16 @@ export const configureProviders = async (
   ctx: MidnightDIDWalletContext,
   config: Config,
 ) => {
-  const walletAndMidnightProvider = await createWalletAndMidnightProvider(ctx);
-  const zkConfigProvider = new NodeZkConfigProvider<MidnightDIDCircuits>(
-    contractConfig.zkConfigPath,
-  );
-
-  return {
-    privateStateProvider: levelPrivateStateProvider({
-      privateStateStoreName: contractConfig.privateStateStoreName,
-      privateStoragePasswordProvider: getPrivateStatePassword,
-      accountId: String(ctx.unshieldedKeystore.getBech32Address()),
-    }),
-    publicDataProvider: indexerPublicDataProvider(
-      config.indexer,
-      config.indexerWS,
-    ),
-    zkConfigProvider,
-    proofProvider: httpClientProofProvider(
-      config.proofServer,
-      zkConfigProvider,
-    ),
-    walletProvider: walletAndMidnightProvider,
-    midnightProvider: walletAndMidnightProvider,
-  };
+  return createMidnightProviders<
+    MidnightDIDCircuits,
+    typeof MidnightDIDPrivateStateId
+  >({
+    walletContext: ctx,
+    config,
+    zkConfigPath: contractConfig.zkConfigPath,
+    privateStateStoreName: contractConfig.privateStateStoreName,
+    privateStoragePasswordProvider: getPrivateStatePassword,
+  });
 };
 
 export function setLogger(_logger: Logger) {

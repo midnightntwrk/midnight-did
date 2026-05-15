@@ -1,5 +1,4 @@
 import type { ProvableCircuitId } from "@midnight-ntwrk/compact-js";
-import * as ledger from "@midnight-ntwrk/ledger-v8";
 import { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
 import {
   DIDContract,
@@ -11,8 +10,9 @@ import type {
 } from "@midnight-ntwrk/midnight-js-contracts";
 import type { NetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import type { MidnightProviders } from "@midnight-ntwrk/midnight-js-types";
-import type { WalletFacade } from "@midnight-ntwrk/wallet-sdk-facade";
-import type { UnshieldedKeystore } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
+
+import type { MidnightWalletContext } from "./midnight-provider-utils";
+
 export type MidnightDIDPrivateState = DIDPrivateState;
 
 export type MidnightDIDContract = DIDContract.Contract<MidnightDIDPrivateState>;
@@ -31,12 +31,7 @@ export type DeployedMidnightDIDContract =
   | DeployedContract<MidnightDIDContract>
   | FoundContract<MidnightDIDContract>;
 
-export interface MidnightDIDWalletContext {
-  wallet: WalletFacade;
-  shieldedSecretKeys: ledger.ZswapSecretKeys;
-  dustSecretKey: ledger.DustSecretKey;
-  unshieldedKeystore: UnshieldedKeystore;
-}
+export type MidnightDIDWalletContext = MidnightWalletContext;
 
 export const NetworkMapping: Record<NetworkId, MidnightNetwork> = {
   undeployed: MidnightNetwork.Undeployed,

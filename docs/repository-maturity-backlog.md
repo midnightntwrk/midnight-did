@@ -326,9 +326,10 @@
    - Added a guard self-test so exact `typ` wording and missing-file diagnostics do not silently regress.
    - Acceptance: reviewers can tell that legacy deployed DID state is explicitly unsupported until a dedicated migration utility ships.
 
-63. **Extract shared API/CLI Midnight provider utilities**
-   - Remove duplicated wallet/provider/private-state/prover-key setup from `cli/src/api.ts` and `api/src/lib.ts`.
-   - Acceptance: CLI imports shared primitives from the API layer or a small internal module, and v8 SDK boundary casts are isolated.
+63. ✅ **Done: Extract shared API/CLI Midnight provider utilities**
+   - Added `api/src/midnight-provider-utils.ts` as the shared helper module for wallet context startup, wallet/midnight provider bridging, provider wiring, and private-state password handling.
+   - Updated `api/src/lib.ts` and `cli/src/api.ts` to consume the shared helpers instead of maintaining duplicated wallet/provider setup.
+   - Acceptance: CLI imports shared primitives from the API layer, and v8 SDK boundary casts are isolated in one helper module.
 
 64. **Harden resolver-service public input boundaries**
    - Add DID length/pattern validation, safer endpoint policy coverage, rate-limit guidance, and log redaction for option bags.

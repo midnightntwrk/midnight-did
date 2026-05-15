@@ -21,9 +21,17 @@ import {
   type ProvableCircuitId as ProvableCircuitIdType,
 } from '@midnight-ntwrk/compact-js';
 import { type ContractAddress } from '@midnight-ntwrk/compact-runtime';
-import * as ledger from '@midnight-ntwrk/ledger-v8';
 import { unshieldedToken } from '@midnight-ntwrk/ledger-v8';
 import { parseContractAddress } from '@midnight-ntwrk/midnight-did';
+import {
+  createMidnightProviders,
+  createPrivateStatePasswordProvider,
+  createStartedMidnightWalletContext,
+  createWalletAndMidnightProvider as createSharedWalletAndMidnightProvider,
+  type MidnightWalletContext,
+  waitForWalletFunds,
+  waitForWalletSync,
+} from '@midnight-ntwrk/midnight-did-api';
 import { DIDContract, type DIDPrivateState, witnesses } from '@midnight-ntwrk/midnight-did-contract';
 import {
   assertAbsoluteUri,
@@ -38,17 +46,8 @@ import {
   findDeployedContract,
   type FoundContract,
 } from '@midnight-ntwrk/midnight-js-contracts';
-import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
-import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
-import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
 import { getNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
-import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
-import type {
-  FinalizedTxData,
-  MidnightProvider,
-  MidnightProviders,
-  WalletProvider,
-} from '@midnight-ntwrk/midnight-js-types';
+import type { FinalizedTxData, MidnightProviders } from '@midnight-ntwrk/midnight-js-types';
 import { assertIsContractAddress, toHex } from '@midnight-ntwrk/midnight-js-utils';
 import {
   MidnightBech32m,
@@ -56,17 +55,9 @@ import {
   ShieldedCoinPublicKey,
   ShieldedEncryptionPublicKey,
 } from '@midnight-ntwrk/wallet-sdk-address-format';
-import { DustWallet } from '@midnight-ntwrk/wallet-sdk-dust-wallet';
 import { WalletFacade } from '@midnight-ntwrk/wallet-sdk-facade';
-import { generateRandomSeed, HDWallet, Roles } from '@midnight-ntwrk/wallet-sdk-hd';
-import { ShieldedWallet } from '@midnight-ntwrk/wallet-sdk-shielded';
-import {
-  createKeystore,
-  InMemoryTransactionHistoryStorage,
-  PublicKey,
-  type UnshieldedKeystore,
-  UnshieldedWallet,
-} from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
+import { generateRandomSeed } from '@midnight-ntwrk/wallet-sdk-hd';
+import { type UnshieldedKeystore } from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
 import { Buffer } from 'buffer';
 import { type Logger } from 'pino';
 import * as Rx from 'rxjs';
@@ -149,34 +140,7 @@ let logger: Logger;
 // @ts-expect-error: It's needed to enable WebSocket usage through apollo
 globalThis.WebSocket = WebSocket;
 
-const PRIVATE_STATE_PASSWORD_ENV = 'MIDNIGHT_DID_PRIVATE_STATE_PASSWORD';
-const LOCAL_PRIVATE_STATE_PASSWORD = 'Midnight-DID-local-private-state-password-2026!';
-let warnedAboutLocalPrivateStatePassword = false;
-
-const getPrivateStatePassword = (): string => {
-  const configuredPassword = process.env[PRIVATE_STATE_PASSWORD_ENV];
-  if (configuredPassword != null && configuredPassword.length > 0) {
-    return configuredPassword;
-  }
-
-  const networkId = String(getNetworkId()).toLowerCase();
-  if (networkId === 'undeployed') {
-    if (!warnedAboutLocalPrivateStatePassword) {
-      process.emitWarning(
-        `${PRIVATE_STATE_PASSWORD_ENV} is not set; using the local standalone-only private state password fallback.`,
-        {
-          code: 'MIDNIGHT_DID_PRIVATE_STATE_PASSWORD_MISSING',
-        },
-      );
-      warnedAboutLocalPrivateStatePassword = true;
-    }
-    return LOCAL_PRIVATE_STATE_PASSWORD;
-  }
-
-  throw new Error(
-    `${PRIVATE_STATE_PASSWORD_ENV} must be set before configuring Midnight DID private state for network ${networkId}.`,
-  );
-};
+const getPrivateStatePassword = createPrivateStatePasswordProvider();
 
 const seedDisplayValue = (seed: string): string => {
   if (process.env.MIDNIGHT_DID_SHOW_SEED === 'true') {
@@ -249,12 +213,7 @@ export const initPrivateState = async (providers: DIDProviders): Promise<DIDPriv
   return privateState;
 };
 
-export interface WalletContext {
-  wallet: WalletFacade;
-  shieldedSecretKeys: ledger.ZswapSecretKeys;
-  dustSecretKey: ledger.DustSecretKey;
-  unshieldedKeystore: UnshieldedKeystore;
-}
+export type WalletContext = MidnightWalletContext;
 
 export const getDIDLedgerState = async (
   providers: DIDProviders,
@@ -388,167 +347,9 @@ export const displayDIDState = async (
   return { contractAddress, didState };
 };
 
-/**
- * Sign all unshielded offers in a transaction's intents, using the correct
- * proof marker for Intent.deserialize. This works around a bug in the wallet
- * SDK where signRecipe hardcodes 'pre-proof', which fails for proven
- * (UnboundTransaction) intents that contain 'proof' data.
- */
-const signTransactionIntents = (
-  tx: { intents?: Map<number, { serialize: () => Uint8Array }> },
-  signFn: (payload: Uint8Array) => ledger.Signature,
-  proofMarker: 'proof' | 'pre-proof',
-): void => {
-  if (!tx.intents || tx.intents.size === 0) return;
-
-  for (const segment of tx.intents.keys()) {
-    const intent = tx.intents.get(segment);
-    if (!intent) continue;
-
-    // Clone the intent with the correct proof marker.
-    // The wallet SDK bug hardcodes 'pre-proof' here, which fails for
-    // proven (UnboundTransaction) intents that use 'proof'.
-    const cloned = ledger.Intent.deserialize<ledger.SignatureEnabled, ledger.Proofish, ledger.PreBinding>(
-      'signature',
-      proofMarker,
-      'pre-binding',
-      intent.serialize(),
-    );
-
-    const sigData = cloned.signatureData(segment);
-    const signature = signFn(sigData);
-
-    if (cloned.fallibleUnshieldedOffer) {
-      const sigs = cloned.fallibleUnshieldedOffer.inputs.map(
-        (_: ledger.UtxoSpend, i: number) => cloned.fallibleUnshieldedOffer!.signatures.at(i) ?? signature,
-      );
-      cloned.fallibleUnshieldedOffer = cloned.fallibleUnshieldedOffer.addSignatures(sigs);
-    }
-
-    if (cloned.guaranteedUnshieldedOffer) {
-      const sigs = cloned.guaranteedUnshieldedOffer.inputs.map(
-        (_: ledger.UtxoSpend, i: number) => cloned.guaranteedUnshieldedOffer!.signatures.at(i) ?? signature,
-      );
-      cloned.guaranteedUnshieldedOffer = cloned.guaranteedUnshieldedOffer.addSignatures(sigs);
-    }
-
-    tx.intents.set(segment, cloned);
-  }
-};
-
-/**
- * Create the unified WalletProvider & MidnightProvider for midnight-js.
- * This bridges the wallet-sdk-facade to the midnight-js contract API by
- * implementing balance, sign, finalize, and submit operations.
- */
-export const createWalletAndMidnightProvider = async (
-  ctx: WalletContext,
-): Promise<WalletProvider & MidnightProvider> => {
-  const state = await Rx.firstValueFrom(ctx.wallet.state().pipe(Rx.filter((s) => s.isSynced)));
-  return {
-    getCoinPublicKey() {
-      return state.shielded.coinPublicKey.toHexString();
-    },
-    getEncryptionPublicKey() {
-      return state.shielded.encryptionPublicKey.toHexString();
-    },
-    async balanceTx(tx, ttl?) {
-      const recipe = await ctx.wallet.balanceUnboundTransaction(
-        tx as any,
-        { shieldedSecretKeys: ctx.shieldedSecretKeys as any, dustSecretKey: ctx.dustSecretKey as any },
-        { ttl: ttl ?? new Date(Date.now() + 30 * 60 * 1000) },
-      );
-
-      // Work around wallet SDK bug: signRecipe uses hardcoded 'pre-proof'
-      // marker when cloning intents, but proven (UnboundTransaction) intents
-      // have 'proof' data, causing "Failed to clone intent". We sign manually
-      // with the correct proof markers.
-      const signFn = (payload: Uint8Array) => ctx.unshieldedKeystore.signData(payload);
-      signTransactionIntents(recipe.baseTransaction, signFn, 'proof');
-      if (recipe.balancingTransaction) {
-        signTransactionIntents(recipe.balancingTransaction, signFn, 'pre-proof');
-      }
-
-      return ctx.wallet.finalizeRecipe(recipe) as any;
-    },
-    submitTx(tx) {
-      return ctx.wallet.submitTransaction(tx as any) as any;
-    },
-  };
-};
-
-/** Wait until the wallet has fully synced with the network. Returns the synced state. */
-export const waitForSync = (wallet: WalletFacade) =>
-  Rx.firstValueFrom(
-    wallet.state().pipe(
-      Rx.throttleTime(5_000),
-      Rx.filter((state) => state.isSynced),
-    ),
-  );
-
-/** Wait until the wallet has a non-zero unshielded balance. Returns the balance. */
-export const waitForFunds = (wallet: WalletFacade): Promise<bigint> =>
-  Rx.firstValueFrom(
-    wallet.state().pipe(
-      Rx.throttleTime(10_000),
-      Rx.filter((state) => state.isSynced),
-      Rx.map((s) => s.unshielded.balances[unshieldedToken().raw] ?? 0n),
-      Rx.filter((balance) => balance > 0n),
-    ),
-  );
-
-const buildShieldedConfig = ({ indexer, indexerWS, node, proofServer }: Config) => ({
-  networkId: getNetworkId(),
-  indexerClientConnection: {
-    indexerHttpUrl: indexer,
-    indexerWsUrl: indexerWS,
-  },
-  provingServerUrl: new URL(proofServer),
-  relayURL: new URL(node.replace(/^http/, 'ws')),
-});
-
-const buildDustConfig = ({ indexer, indexerWS, node, proofServer }: Config) => ({
-  networkId: getNetworkId(),
-  costParameters: {
-    additionalFeeOverhead: 300_000_000_000_000n,
-    feeBlocksMargin: 5,
-  },
-  indexerClientConnection: {
-    indexerHttpUrl: indexer,
-    indexerWsUrl: indexerWS,
-  },
-  provingServerUrl: new URL(proofServer),
-  relayURL: new URL(node.replace(/^http/, 'ws')),
-});
-
-const buildWalletConfig = (config: Config) => ({
-  ...buildShieldedConfig(config),
-  ...buildDustConfig(config),
-  txHistoryStorage: new InMemoryTransactionHistoryStorage(),
-});
-
-/**
- * Derive HD wallet keys for all three roles (Zswap, NightExternal, Dust)
- * from a hex-encoded seed using BIP-44 style derivation at account 0, index 0.
- */
-const deriveKeysFromSeed = (seed: string) => {
-  const hdWallet = HDWallet.fromSeed(Buffer.from(seed, 'hex'));
-  if (hdWallet.type !== 'seedOk') {
-    throw new Error('Failed to initialize HDWallet from seed');
-  }
-
-  const derivationResult = hdWallet.hdWallet
-    .selectAccount(0)
-    .selectRoles([Roles.Zswap, Roles.NightExternal, Roles.Dust])
-    .deriveKeysAt(0);
-
-  if (derivationResult.type !== 'keysDerived') {
-    throw new Error('Failed to derive keys');
-  }
-
-  hdWallet.hdWallet.clear();
-  return derivationResult.keys;
-};
+export const createWalletAndMidnightProvider = createSharedWalletAndMidnightProvider;
+export const waitForSync = waitForWalletSync;
+export const waitForFunds = waitForWalletFunds;
 
 /**
  * Formats a token balance for display (e.g. 1000000000 -> "1,000,000,000").
@@ -697,29 +498,8 @@ ${DIV}`);
 export const buildWalletAndWaitForFunds = async (config: Config, seed: string): Promise<WalletContext> => {
   console.log('');
 
-  // Derive HD keys and initialize the three sub-wallets
-  const { wallet, shieldedSecretKeys, dustSecretKey, unshieldedKeystore } = await withStatus(
-    'Building wallet',
-    async () => {
-      const keys = deriveKeysFromSeed(seed);
-      const shieldedSecretKeys = ledger.ZswapSecretKeys.fromSeed(keys[Roles.Zswap]);
-      const dustSecretKey = ledger.DustSecretKey.fromSeed(keys[Roles.Dust]);
-      const unshieldedKeystore = createKeystore(keys[Roles.NightExternal], getNetworkId());
-
-      const walletConfig = buildWalletConfig(config);
-      const wallet = await WalletFacade.init({
-        configuration: walletConfig,
-        shielded: (configuration) => ShieldedWallet(configuration).startWithSecretKeys(shieldedSecretKeys),
-        unshielded: (configuration) =>
-          UnshieldedWallet(configuration).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore)),
-        dust: (configuration) =>
-          DustWallet(configuration).startWithSecretKey(dustSecretKey, ledger.LedgerParameters.initialParameters().dust),
-      });
-      await wallet.start(shieldedSecretKeys, dustSecretKey);
-
-      return { wallet, shieldedSecretKeys, dustSecretKey, unshieldedKeystore };
-    },
-  );
+  const walletContext = await withStatus('Building wallet', () => createStartedMidnightWalletContext(config, seed));
+  const { wallet, unshieldedKeystore } = walletContext;
 
   // Show seed and unshielded address immediately so user can fund via faucet while syncing
   const networkId = getNetworkId();
@@ -754,7 +534,7 @@ ${DIV}
   // Register NIGHT UTXOs for dust generation (required for tx fees on Preprod/Preview)
   await registerForDustGeneration(wallet, unshieldedKeystore);
 
-  return { wallet, shieldedSecretKeys, dustSecretKey, unshieldedKeystore };
+  return walletContext;
 };
 
 export const buildFreshWallet = async (config: Config): Promise<WalletContext> =>
@@ -765,20 +545,13 @@ export const buildFreshWallet = async (config: Config): Promise<WalletContext> =
  * This wires together the wallet, proof server, indexer, and private state storage.
  */
 export const configureProviders = async (ctx: WalletContext, config: Config) => {
-  const walletAndMidnightProvider = await createWalletAndMidnightProvider(ctx);
-  const zkConfigProvider = new NodeZkConfigProvider<DIDCircuits>(contractConfig.zkConfigPath);
-  return {
-    privateStateProvider: levelPrivateStateProvider<typeof DIDPrivateStateId>({
-      privateStateStoreName: contractConfig.privateStateStoreName,
-      privateStoragePasswordProvider: getPrivateStatePassword,
-      accountId: String(ctx.unshieldedKeystore.getBech32Address()),
-    }),
-    publicDataProvider: indexerPublicDataProvider(config.indexer, config.indexerWS),
-    zkConfigProvider,
-    proofProvider: httpClientProofProvider(config.proofServer, zkConfigProvider),
-    walletProvider: walletAndMidnightProvider,
-    midnightProvider: walletAndMidnightProvider,
-  };
+  return createMidnightProviders<DIDCircuits, typeof DIDPrivateStateId>({
+    walletContext: ctx,
+    config,
+    zkConfigPath: contractConfig.zkConfigPath,
+    privateStateStoreName: contractConfig.privateStateStoreName,
+    privateStoragePasswordProvider: getPrivateStatePassword,
+  });
 };
 
 /**

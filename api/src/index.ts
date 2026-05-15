@@ -3,6 +3,7 @@ export * from "./did-delegation";
 export * from "./domain-to-runtime";
 export * from "./lib";
 export * from "./logger-utils";
+export * from "./midnight-provider-utils";
 export * from "./runtime-to-domain";
 export * from "./trust-registry";
 export * from "./types";
