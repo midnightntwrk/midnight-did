@@ -174,7 +174,7 @@ const redactUrlForLog = (value: string | undefined): string | undefined => {
 
 const redactUrlCredentialsInText = (value: string): string =>
   value.replace(
-    /\b([a-z][a-z0-9+.-]*:\/\/)([^/?#\s:@]+):([^/?#\s@]+)@/giu,
+    /\b([a-z][a-z0-9+.-]*:\/\/)([^/?#\s@]*)@/giu,
     "$1redacted:redacted@",
   );
 

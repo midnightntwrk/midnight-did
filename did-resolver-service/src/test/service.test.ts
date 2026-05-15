@@ -296,7 +296,7 @@ describe("did-resolver-service service", () => {
 
     resolveResultMock.mockRejectedValueOnce(
       new Error(
-        "upstream failed at https://user:secret@indexer.example/api/v3/graphql",
+        "upstream failed at https://user:secret@indexer.example/api/v3/graphql; retry https://:secret@indexer.example/api/v3/graphql; fallback https://user@indexer.example/api/v3/graphql",
       ),
     );
     // Simulate a runtime option bag with an unexpected secret-bearing field;
@@ -313,7 +313,7 @@ describe("did-resolver-service service", () => {
         did: validDid,
         errorCode: "internalError",
         message:
-          "upstream failed at https://redacted:redacted@indexer.example/api/v3/graphql",
+          "upstream failed at https://redacted:redacted@indexer.example/api/v3/graphql; retry https://redacted:redacted@indexer.example/api/v3/graphql; fallback https://redacted:redacted@indexer.example/api/v3/graphql",
         options: {
           indexerUrl:
             "https://redacted:redacted@indexer.example/api/v3/graphql",
