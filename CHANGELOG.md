@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Resolver HTTP routes now reject malformed or non-canonical `did:midnight` inputs with `400 Bad Request` before dispatching resolver or indexer work.
 - Resolver `indexerUrl`/`indexerWsUrl` request overrides are now restricted to configured defaults or `MIDNIGHT_INDEXER_ALLOWLIST`.
 - Resolver Docker image now runs as the non-root `node` user.
 - API/CLI private-state storage now requires `MIDNIGHT_DID_PRIVATE_STATE_PASSWORD` outside standalone `undeployed` runs.
@@ -35,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking Changes
 
+- Resolver HTTP callers now receive a route-level `400 Bad Request` for malformed `did:midnight` inputs instead of a DID-resolution `200` envelope with `didResolutionMetadata.error = "invalidDid"`. Direct service-layer callers still receive the DID-resolution envelope.
 - The contract update model uses individual circuits rather than the previous batched operation-dispatcher shape.
 - `@midnight-ntwrk/midnight-did-contract` no longer exports the obsolete `ledger-operation-builder` helper; direct callers should call generated Compact circuits or the API package helpers instead.
 - The contract witness private-state type is now exported as `DIDPrivateState`; downstream imports of the previous `MidnightDIDPrivateState` alias must be updated.

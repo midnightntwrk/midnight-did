@@ -1,5 +1,7 @@
 import { ResolverInputError } from "./resolution-errors.js";
 
+// Longest current canonical DID is 88 chars; keep modest slack for future
+// network names while still bounding parser/log work before regex validation.
 export const RESOLVER_DID_MAX_LENGTH = 96;
 export const RESOLVER_DID_PATTERN =
   "^did:midnight:(undeployed|devnet|testnet|mainnet|preview|preprod):[0-9a-f]{64}$";
