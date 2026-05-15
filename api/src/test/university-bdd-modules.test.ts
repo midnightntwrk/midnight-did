@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import * as facade from "../university-bdd";
+import * as artifacts from "../university-bdd-artifacts";
 import * as engine from "../university-bdd-engine";
+import * as fixtures from "../university-bdd-fixtures";
 import * as contracts from "../university-bdd-types";
 
 const sortedRuntimeExports = (
@@ -9,19 +11,29 @@ const sortedRuntimeExports = (
 ): string[] =>
   Object.keys(moduleExports).sort((lhs, rhs) => lhs.localeCompare(rhs));
 
+const sourceModules = {
+  artifacts,
+  engine,
+  fixtures,
+  contracts,
+} as const;
+
 describe("University BDD module boundaries", () => {
   it("keeps the public facade wired to the scenario engine", () => {
     expect(facade.runUniversityDiplomaScenario).toBe(
       engine.runUniversityDiplomaScenario,
     );
     expect(facade.loadUniversityScenarioFromFile).toBe(
-      engine.loadUniversityScenarioFromFile,
+      fixtures.loadUniversityScenarioFromFile,
+    );
+    expect(facade.generateUniversityFixture).toBe(
+      fixtures.generateUniversityFixture,
     );
     expect(facade.toUniversityScenarioArtifact).toBe(
-      engine.toUniversityScenarioArtifact,
+      artifacts.toUniversityScenarioArtifact,
     );
     expect(facade.toUniversityScenarioReplayArtifact).toBe(
-      engine.toUniversityScenarioReplayArtifact,
+      artifacts.toUniversityScenarioReplayArtifact,
     );
   });
 
@@ -42,13 +54,29 @@ describe("University BDD module boundaries", () => {
 
   it("keeps the facade as a pure re-export surface", () => {
     const expectedExports = [
-      ...new Set([
-        ...sortedRuntimeExports(engine),
-        ...sortedRuntimeExports(contracts),
-      ]),
+      ...new Set(Object.values(sourceModules).flatMap(sortedRuntimeExports)),
     ].sort((lhs, rhs) => lhs.localeCompare(rhs));
 
     expect(sortedRuntimeExports(facade)).toEqual(expectedExports);
+  });
+
+  it("keeps runtime export names disjoint across source modules", () => {
+    const seen = new Map<string, string>();
+    const collisions: string[] = [];
+
+    for (const [moduleName, moduleExports] of Object.entries(sourceModules)) {
+      for (const exportName of sortedRuntimeExports(moduleExports)) {
+        const existingModule = seen.get(exportName);
+        if (existingModule != null) {
+          collisions.push(`${exportName}: ${existingModule}, ${moduleName}`);
+          continue;
+        }
+
+        seen.set(exportName, moduleName);
+      }
+    }
+
+    expect(collisions).toEqual([]);
   });
 
   it("exposes readonly DID namespace prefix sets", () => {

@@ -355,9 +355,9 @@
 
 68. ✅ **Done: Split the university BDD harness into reviewable modules**
    - Preserved `api/src/university-bdd.ts` as a stable public facade.
-   - Moved scenario execution, fixture loading, report building, and artifact helpers into `api/src/university-bdd-engine.ts`.
+   - Introduced dedicated engine, artifact, fixture, utility, and types modules behind the facade.
    - Extracted DTOs, report/replay constants, fixture shapes, and transport contracts into `api/src/university-bdd-types.ts`.
-   - Added `npm run test:university-bdd:modules` to assert facade exports remain wired to the engine and contract modules.
+   - Added `npm run test:university-bdd:modules` to assert facade exports remain wired to the engine, artifact, fixture, and contract modules.
    - Deferred deeper engine-internal concern splitting to follow-up item 72.
    - Acceptance: transport/DTO contract changes can now be reviewed without reading the full scenario runner.
 
@@ -375,5 +375,6 @@
    - Acceptance: compiler/runtime drift fails before contract tests import generated managed code.
 
 72. **Decompose university BDD engine internals by concern**
-   - Split `api/src/university-bdd-engine.ts` into fixture normalization, transport/runtime adapters, scenario execution, and report/replay artifact helpers behind the existing facade.
+   - First decomposition slice extracts fixture loading/generation/subsetting into `api/src/university-bdd-fixtures.ts`, report/replay/summary helpers into `api/src/university-bdd-artifacts.ts`, and shared validation/hash helpers into `api/src/university-bdd-utils.ts`.
+   - Remaining follow-up: split transport/runtime adapters from scenario execution inside `api/src/university-bdd-engine.ts`.
    - Acceptance: each concern has focused module tests, and external imports through `api/src/university-bdd.ts` remain unchanged.
