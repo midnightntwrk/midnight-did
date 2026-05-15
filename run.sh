@@ -68,6 +68,7 @@ done
 if [[ "$DRY_RUN" != "1" ]]; then
   node ./scripts/check-workspace-dependencies.mjs
   node ./scripts/check-toolchain.mjs
+  node ./scripts/check-v8-migration-stance.mjs
   node ./scripts/ensure-onchain-runtime-cjs.mjs
 fi
 

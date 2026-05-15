@@ -59,6 +59,7 @@ Why these dependencies
 - `./run.sh` automatically patches `@midnight-ntwrk/onchain-runtime` with a CommonJS shim (see `docs/runtime-shim.md`) so contract tooling continues to work until upstream ships a CJS entrypoint.
 
 See [Repository Boundary and Workspace Policy](docs/repository-boundary.md) for the active package scope and local artifact policy.
+See [v8 Ledger and State Migration Stance](docs/v8-ledger-state-migration.md) for the current `typ` ledger shape, removed dispatcher API, and legacy deployed-state support stance.
 
 ### Testing
 
@@ -81,6 +82,7 @@ See [Repository Boundary and Workspace Policy](docs/repository-boundary.md) for 
 - Repo audit: `npm run audit:repo`
 - run.sh contract checks: `npm run test:run-sh`
 - Toolchain sanity check: `npm run check:toolchain`
+- v8 migration stance check: `npm run docs:check-v8-migration`
 - PR validation snippet: `npm run pr:snippet -- --metrics path/to/metrics.json --command "bash ./run.sh --skip-coverage" --verdict pass`
 - VC schema profile tests: `npm run test:vc-profile`
 - VC status/revocation fixture checks: `npm run test:vc-status`

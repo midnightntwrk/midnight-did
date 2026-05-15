@@ -320,9 +320,10 @@
    - `run.sh --help` now points to the university visual bundle, backlog, and helper commands.
    - `npm run backlog:progress` now checks the new scripts/docs so backlog status cannot drift silently.
 
-62. **Document the v8 ledger/state migration stance**
-   - Add a migration note for the `typ` ledger field shape, removed operation dispatcher types, and non-batched circuit model.
-   - Acceptance: reviewers can tell whether legacy deployed DID state is supported, explicitly unsupported, or needs a migration utility.
+62. ✅ **Done: Document the v8 ledger/state migration stance**
+   - Added `docs/v8-ledger-state-migration.md` covering the `typ` ledger field shape, removed `ledger-operation-builder` export, `DIDPrivateState`, two-phase `removeVerificationMethod`, and non-batched circuit model.
+   - Added `npm run docs:check-v8-migration` plus `run.sh` precheck wiring so the stated migration stance fails fast if docs/source drift.
+   - Acceptance: reviewers can tell that legacy deployed DID state is explicitly unsupported until a dedicated migration utility ships.
 
 63. **Extract shared API/CLI Midnight provider utilities**
    - Remove duplicated wallet/provider/private-state/prover-key setup from `cli/src/api.ts` and `api/src/lib.ts`.

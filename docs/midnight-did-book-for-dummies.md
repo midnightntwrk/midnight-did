@@ -89,6 +89,18 @@ Use this loop for every feature request:
 
 This reduces design churn because each request is mapped to the smallest owning layer.
 
+## v8 ledger/state migration stance
+
+The current implementation is v8-compatible and uses the Compact ledger field
+`typ` at the storage boundary while preserving DID Core `type` in public DTOs.
+The old batched operation-dispatcher shape and `ledger-operation-builder` helper
+are not supported. Existing pre-v8 deployed DID state is not automatically
+migrated by this repository; it needs a dedicated migration utility with
+fixtures, resolver evidence, and operator diagnostics.
+
+See [`docs/v8-ledger-state-migration.md`](./v8-ledger-state-migration.md) for
+the review checklist and current support matrix.
+
 ## University flow documentation bundle
 
 The University Diploma scenario currently has a complete simulator execution path with a transport abstraction that includes a placeholder branch for standalone.
