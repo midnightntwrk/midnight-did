@@ -97,6 +97,7 @@ Migration expectation:
 The current contract update model is decomposed into individual circuits:
 
 - `addVerificationMethod`
+- `updateVerificationMethod`
 - `removeVerificationMethod`
 - `addVerificationMethodRelation`
 - `removeVerificationMethodRelation`

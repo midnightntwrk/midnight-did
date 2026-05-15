@@ -323,6 +323,7 @@
 62. ✅ **Done: Document the v8 ledger/state migration stance**
    - Added `docs/v8-ledger-state-migration.md` covering the `typ` ledger field shape, removed `ledger-operation-builder` export, `DIDPrivateState`, two-phase `removeVerificationMethod`, and non-batched circuit model.
    - Added `npm run docs:check-v8-migration` plus `run.sh` precheck wiring so the stated migration stance fails fast if docs/source drift.
+   - Added a guard self-test so exact `typ` wording and missing-file diagnostics do not silently regress.
    - Acceptance: reviewers can tell that legacy deployed DID state is explicitly unsupported until a dedicated migration utility ships.
 
 63. **Extract shared API/CLI Midnight provider utilities**

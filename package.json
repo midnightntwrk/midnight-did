@@ -6,7 +6,7 @@
     "npm": ">=10"
   },
   "scripts": {
-    "check:boundaries": "npm run checkdeps && npm run check:workspaces && node scripts/check-workspace-dependencies.mjs && npm run docs:check-v8-migration",
+    "check:boundaries": "npm run checkdeps && npm run check:workspaces && node scripts/check-workspace-dependencies.mjs && npm run docs:check-v8-migration && npm run test:v8-migration-stance",
     "audit:repo": "node scripts/repository-audit.mjs",
     "clean": "npm run clean -w contract && npm run clean -w domain && npm run clean -w did && npm run clean -w api && npm run clean -w cli && npm run clean -w did-resolver-service",
     "clean:local-state": "rm -rf .turbo api/.midnight-db docs-site review/.midnight-db did-manager-service/.tmp did-manager-service/playwright-report did-manager-service/test-results 2>/dev/null || true",
@@ -34,6 +34,7 @@
     "test:university-bdd": "npm run test -w api -- src/test/university-bdd-flow.test.ts",
     "docs:check-mermaid": "node scripts/docs-mermaid.mjs check",
     "docs:check-v8-migration": "node scripts/check-v8-migration-stance.mjs",
+    "test:v8-migration-stance": "node --test scripts/check-v8-migration-stance.test.mjs",
     "docs:render": "node scripts/docs-mermaid.mjs render --format both --out-dir docs/assets/book-diagrams --manifest docs/assets/book-diagrams/manifest.json",
     "university-bdd:run": "npm run build -w api && node scripts/university-bdd-run.mjs",
     "university-bdd:diff": "node scripts/university-bdd-diff.mjs",
