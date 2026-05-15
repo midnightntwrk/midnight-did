@@ -81,6 +81,18 @@ assertContains(
   "flag-as-metrics-path stderr",
 );
 
+const shortFlagAsPathResult = runRunSh(["--metrics-json", "-h"]);
+assert.notEqual(
+  shortFlagAsPathResult.exitCode,
+  0,
+  "metrics-json followed by a short flag should fail",
+);
+assertContains(
+  shortFlagAsPathResult.stderr,
+  "--metrics-json requires a file path.",
+  "short flag-as-metrics-path stderr",
+);
+
 const dryRunResult = runRunSh(["--light", "--strict"], {
   MIDNIGHT_DID_DRY_RUN: "1",
 });

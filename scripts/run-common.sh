@@ -52,7 +52,7 @@ run_common_parse_args() {
           return 1
         fi
         shift
-        if [[ "$1" == --* ]]; then
+        if [[ "$1" == -* ]]; then
           echo "--metrics-json requires a file path." >&2
           return 1
         fi
@@ -60,6 +60,8 @@ run_common_parse_args() {
         shift
         ;;
       --skip-coverage)
+        # Compatibility stub for older local workflows; current split lanes do
+        # not run coverage targets.
         export SKIP_COVERAGE=1
         shift
         ;;
@@ -113,6 +115,7 @@ run_common_ensure_contract_artifacts() {
 }
 
 run_common_now_ms() {
+  # Use Node for portable millisecond timestamps across macOS and Linux shells.
   node -e 'process.stdout.write(String(Date.now()))'
 }
 
@@ -144,6 +147,7 @@ run_common_run_step() {
   local start_ms
   local end_ms
   local elapsed_ms
+  local rc=0
 
   echo "[${RUN_COMMON_SCRIPT_NAME}] ${label}"
   start_ms=$(run_common_now_ms)
@@ -154,7 +158,7 @@ run_common_run_step() {
     printf '\n'
     elapsed_ms=0
   else
-    "$@"
+    "$@" || rc=$?
     end_ms=$(run_common_now_ms)
     elapsed_ms=$((end_ms - start_ms))
   fi
@@ -164,6 +168,12 @@ run_common_run_step() {
 
   if [[ "${RUN_COMMON_PRINT_METRICS}" == "1" ]]; then
     printf "  step %03d: %8dms\n" "${#RUN_COMMON_STEP_LABELS[@]}" "${elapsed_ms}"
+  fi
+
+  if [[ "${rc}" != "0" ]]; then
+    echo "[${RUN_COMMON_SCRIPT_NAME}] Step failed after ${elapsed_ms}ms: ${label}" >&2
+    run_common_write_metrics_json
+    return "${rc}"
   fi
 }
 
