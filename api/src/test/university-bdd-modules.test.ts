@@ -17,12 +17,16 @@ const sourceModules = {
   artifacts,
   engine,
   fixtures,
-  transport,
   contracts,
 } as const;
 
-// Keep internal utility exports private unless the facade explicitly opts in.
+// Keep internal utility and transport helpers private unless the facade explicitly opts in.
 const facadeUtilityExports = ["computeCredentialDigest"];
+const facadeTransportExports = [
+  "createUniversityTransport",
+  "createUniversityTransportFactories",
+  "resolveUniversityRuntimeMode",
+];
 
 describe("University BDD module boundaries", () => {
   it("keeps the public facade wired to the scenario engine", () => {
@@ -43,6 +47,9 @@ describe("University BDD module boundaries", () => {
     );
     expect(facade.createUniversityTransport).toBe(
       transport.createUniversityTransport,
+    );
+    expect(facade.createUniversityTransportFactories).toBe(
+      transport.createUniversityTransportFactories,
     );
     expect(facade.resolveUniversityRuntimeMode).toBe(
       transport.resolveUniversityRuntimeMode,
@@ -69,6 +76,7 @@ describe("University BDD module boundaries", () => {
     const expectedExports = [
       ...new Set([
         ...Object.values(sourceModules).flatMap(sortedRuntimeExports),
+        ...facadeTransportExports,
         ...facadeUtilityExports,
       ]),
     ].sort((lhs, rhs) => lhs.localeCompare(rhs));
