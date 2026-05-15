@@ -162,13 +162,8 @@ const hashProverKey = async (proverKey: Uint8Array): Promise<Uint8Array> => {
   return new Uint8Array(hash);
 };
 
-type ContractScopedPrivateStateProvider = DIDProviders['privateStateProvider'] & {
-  setContractAddress?: (address: ContractAddress) => void;
-};
-
 const setPrivateStateContractAddress = (providers: DIDProviders, contractAddress: ContractAddress): void => {
-  const provider = providers.privateStateProvider as ContractScopedPrivateStateProvider;
-  provider.setContractAddress?.(contractAddress);
+  providers.privateStateProvider.setContractAddress(contractAddress);
 };
 
 export const initPrivateState = async (providers: DIDProviders): Promise<DIDPrivateState> => {

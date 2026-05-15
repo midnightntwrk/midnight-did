@@ -112,18 +112,11 @@ export async function hashProverKey(
   return new Uint8Array(hash);
 }
 
-type ContractScopedPrivateStateProvider =
-  MidnightDIDProviders["privateStateProvider"] & {
-    setContractAddress?: (address: ContractAddress) => void;
-  };
-
 const setPrivateStateContractAddress = (
   providers: MidnightDIDProviders,
   contractAddress: ContractAddress,
 ): void => {
-  const provider =
-    providers.privateStateProvider as ContractScopedPrivateStateProvider;
-  provider.setContractAddress?.(contractAddress);
+  providers.privateStateProvider.setContractAddress(contractAddress);
 };
 
 export async function initPrivateState(

@@ -44,6 +44,10 @@ export class MissingPrivateStateContractAddressError extends Error {
   }
 }
 
+/**
+ * Accept the class instance and the project-owned code so bundled API/CLI
+ * copies still recognize the same sentinel without inspecting SDK messages.
+ */
 export const isMissingPrivateStateContractAddressError = (
   error: unknown,
 ): error is MissingPrivateStateContractAddressError =>
@@ -300,29 +304,38 @@ export const createContractScopedPrivateStateProvider = <
 ): PrivateStateProvider<PrivateStateId, PrivateState> => {
   let contractAddressSet = false;
 
-  const assertContractAddressSet = (operation: "get" | "set") => {
+  const requireContractAddress = (operation: "get" | "set") => {
     if (contractAddressSet) return;
     throw new MissingPrivateStateContractAddressError(operation);
   };
 
-  return {
-    ...provider,
-    setContractAddress(address: ContractAddress): void {
-      contractAddressSet = true;
-      provider.setContractAddress(address);
-    },
-    async get(privateStateId: PrivateStateId): Promise<PrivateState | null> {
-      assertContractAddressSet("get");
-      return provider.get(privateStateId);
-    },
-    async set(
-      privateStateId: PrivateStateId,
-      state: PrivateState,
-    ): Promise<void> {
-      assertContractAddressSet("set");
-      await provider.set(privateStateId, state);
-    },
+  const setContractAddress = (address: ContractAddress): void => {
+    contractAddressSet = true;
+    provider.setContractAddress(address);
   };
+  const get = async (
+    privateStateId: PrivateStateId,
+  ): Promise<PrivateState | null> => {
+    requireContractAddress("get");
+    return provider.get(privateStateId);
+  };
+  const set = async (
+    privateStateId: PrivateStateId,
+    state: PrivateState,
+  ): Promise<void> => {
+    requireContractAddress("set");
+    await provider.set(privateStateId, state);
+  };
+
+  return new Proxy(provider, {
+    get(target, property) {
+      if (property === "setContractAddress") return setContractAddress;
+      if (property === "get") return get;
+      if (property === "set") return set;
+      const value = Reflect.get(target, property, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
 };
 
 export const createMidnightProviders = async <
