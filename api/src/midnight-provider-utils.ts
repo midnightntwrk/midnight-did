@@ -33,10 +33,18 @@ const LOCAL_PRIVATE_STATE_PASSWORD =
 export const MISSING_PRIVATE_STATE_CONTRACT_ADDRESS_CODE =
   "MIDNIGHT_DID_PRIVATE_STATE_CONTRACT_ADDRESS_NOT_SET";
 
+export type PrivateStateContractOperation =
+  | "get"
+  | "set"
+  | "remove"
+  | "clear"
+  | "export"
+  | "import";
+
 export class MissingPrivateStateContractAddressError extends Error {
   readonly code = MISSING_PRIVATE_STATE_CONTRACT_ADDRESS_CODE;
 
-  constructor(operation: "get" | "set") {
+  constructor(readonly operation: PrivateStateContractOperation) {
     super(
       `Private state contract address must be set before ${operation} private state.`,
     );
@@ -304,7 +312,7 @@ export const createContractScopedPrivateStateProvider = <
 ): PrivateStateProvider<PrivateStateId, PrivateState> => {
   let contractAddressSet = false;
 
-  const requireContractAddress = (operation: "get" | "set") => {
+  const requireContractAddress = (operation: PrivateStateContractOperation) => {
     if (contractAddressSet) return;
     throw new MissingPrivateStateContractAddressError(operation);
   };
@@ -326,12 +334,44 @@ export const createContractScopedPrivateStateProvider = <
     requireContractAddress("set");
     await provider.set(privateStateId, state);
   };
+  const remove: PrivateStateProvider<
+    PrivateStateId,
+    PrivateState
+  >["remove"] = async (privateStateId) => {
+    requireContractAddress("remove");
+    await provider.remove(privateStateId);
+  };
+  const clear: PrivateStateProvider<
+    PrivateStateId,
+    PrivateState
+  >["clear"] = async () => {
+    requireContractAddress("clear");
+    await provider.clear();
+  };
+  const exportPrivateStates: PrivateStateProvider<
+    PrivateStateId,
+    PrivateState
+  >["exportPrivateStates"] = async (options) => {
+    requireContractAddress("export");
+    return provider.exportPrivateStates(options);
+  };
+  const importPrivateStates: PrivateStateProvider<
+    PrivateStateId,
+    PrivateState
+  >["importPrivateStates"] = async (exportData, options) => {
+    requireContractAddress("import");
+    return provider.importPrivateStates(exportData, options);
+  };
 
   return new Proxy(provider, {
     get(target, property) {
       if (property === "setContractAddress") return setContractAddress;
       if (property === "get") return get;
       if (property === "set") return set;
+      if (property === "remove") return remove;
+      if (property === "clear") return clear;
+      if (property === "exportPrivateStates") return exportPrivateStates;
+      if (property === "importPrivateStates") return importPrivateStates;
       const value = Reflect.get(target, property, target);
       return typeof value === "function" ? value.bind(target) : value;
     },

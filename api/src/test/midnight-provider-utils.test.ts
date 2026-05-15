@@ -150,9 +150,18 @@ describe("midnight provider utility helpers", () => {
       wrapped.set("state-id", { secretKey: new Uint8Array([2]) }),
     ).rejects.toMatchObject({
       code: "MIDNIGHT_DID_PRIVATE_STATE_CONTRACT_ADDRESS_NOT_SET",
+      operation: "set",
+    });
+    await expect(wrapped.remove("state-id")).rejects.toMatchObject({
+      operation: "remove",
+    });
+    await expect(wrapped.clear()).rejects.toMatchObject({
+      operation: "clear",
     });
     expect(provider.get).not.toHaveBeenCalled();
     expect(provider.set).not.toHaveBeenCalled();
+    expect(provider.remove).not.toHaveBeenCalled();
+    expect(provider.clear).not.toHaveBeenCalled();
 
     wrapped.setContractAddress("a".repeat(64));
 
@@ -160,11 +169,15 @@ describe("midnight provider utility helpers", () => {
       secretKey: new Uint8Array([1]),
     });
     await wrapped.set("state-id", { secretKey: new Uint8Array([3]) });
+    await wrapped.remove("state-id");
+    await wrapped.clear();
     expect(provider.setContractAddress).toHaveBeenCalledWith("a".repeat(64));
     expect(provider.get).toHaveBeenCalledWith("state-id");
     expect(provider.set).toHaveBeenCalledWith("state-id", {
       secretKey: new Uint8Array([3]),
     });
+    expect(provider.remove).toHaveBeenCalledWith("state-id");
+    expect(provider.clear).toHaveBeenCalledOnce();
   });
 
   it("detects missing-contract-address errors by typed code, not SDK text", () => {
