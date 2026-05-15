@@ -17,10 +17,12 @@ type GeneratedPureCircuitName = Exclude<
   GeneratedProofCircuitName
 >;
 
+// Pure circuits are callable without prover/verifier key assets.
 export const MIDNIGHT_DID_PURE_CIRCUIT_NAMES = [
   "publicKey",
 ] as const satisfies readonly GeneratedPureCircuitName[];
 
+// Proof circuits must have matching prover/verifier key assets.
 export const MIDNIGHT_DID_PROOF_CIRCUIT_NAMES = [
   "addAlsoKnownAs",
   "removeAlsoKnownAs",
@@ -49,17 +51,20 @@ export type MidnightDIDCircuitName =
 
 type AssertNoMissingCircuits<MissingCircuits extends never> = MissingCircuits;
 
+/** @internal Compile-time guard: all generated pure circuits are registered. */
 export type MidnightDIDPureCircuitRegistryIsComplete = AssertNoMissingCircuits<
   Exclude<GeneratedPureCircuitName, MidnightDIDPureCircuitName>
 >;
+/** @internal Compile-time guard: all generated proof circuits are registered. */
 export type MidnightDIDProofCircuitRegistryIsComplete = AssertNoMissingCircuits<
   Exclude<GeneratedProofCircuitName, MidnightDIDProofCircuitName>
 >;
+/** @internal Compile-time guard: every generated circuit is registered. */
 export type MidnightDIDCircuitRegistryIsComplete = AssertNoMissingCircuits<
   Exclude<GeneratedCircuitName, MidnightDIDCircuitName>
 >;
 
-export const midnightDIDCircuitId = (
+export const midnightDIDProofCircuitId = (
   circuitName: MidnightDIDProofCircuitName,
 ): MidnightDIDCircuits => ProvableCircuitId<MidnightDIDContract>(circuitName);
 
@@ -69,7 +74,7 @@ export const MIDNIGHT_DID_PROOF_CIRCUIT_IDS: Readonly<
   Object.fromEntries(
     MIDNIGHT_DID_PROOF_CIRCUIT_NAMES.map((circuitName) => [
       circuitName,
-      midnightDIDCircuitId(circuitName),
+      midnightDIDProofCircuitId(circuitName),
     ]),
   ) as Record<MidnightDIDProofCircuitName, MidnightDIDCircuits>,
 );

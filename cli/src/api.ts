@@ -15,7 +15,7 @@
 
 import { createHash, webcrypto } from 'node:crypto';
 
-import { CompiledContract, type ProvableCircuitId as ProvableCircuitIdType } from '@midnight-ntwrk/compact-js';
+import { CompiledContract } from '@midnight-ntwrk/compact-js';
 import { type ContractAddress } from '@midnight-ntwrk/compact-runtime';
 import { unshieldedToken } from '@midnight-ntwrk/ledger-v8';
 import { parseContractAddress } from '@midnight-ntwrk/midnight-did';
@@ -27,6 +27,7 @@ import {
   isMissingPrivateStateContractAddressError,
   MIDNIGHT_DID_CONTRACT_NAME,
   MIDNIGHT_DID_PROOF_CIRCUIT_IDS,
+  type MidnightDIDCircuits,
   type MidnightWalletContext,
   waitForWalletFunds,
   waitForWalletSync,
@@ -66,7 +67,7 @@ import { type Config, contractConfig } from './config';
 
 export const DIDPrivateStateId = 'midnightDIDPrivateState' as const;
 export type DIDContractType = DIDContract.Contract<DIDPrivateState>;
-export type DIDCircuits = ProvableCircuitIdType<DIDContractType>;
+export type DIDCircuits = MidnightDIDCircuits;
 export type DIDProviders = MidnightProviders<DIDCircuits, typeof DIDPrivateStateId, DIDPrivateState>;
 export type DeployedDIDContract = DeployedContract<DIDContractType> | FoundContract<DIDContractType>;
 export type VerificationMethod = DIDContract.VerificationMethod;

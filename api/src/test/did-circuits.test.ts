@@ -9,7 +9,7 @@ import {
   MIDNIGHT_DID_PROOF_CIRCUIT_IDS,
   MIDNIGHT_DID_PROOF_CIRCUIT_NAMES,
   MIDNIGHT_DID_PURE_CIRCUIT_NAMES,
-  midnightDIDCircuitId,
+  midnightDIDProofCircuitId,
 } from "../did-circuits";
 
 type ContractInfoCircuit = {
@@ -94,6 +94,6 @@ describe("Midnight DID circuit registry", () => {
     expect(MIDNIGHT_DID_PROOF_CIRCUIT_IDS.addVerificationMethod).toBe(
       "addVerificationMethod",
     );
-    expect(midnightDIDCircuitId("deactivate")).toBe("deactivate");
+    expect(midnightDIDProofCircuitId("deactivate")).toBe("deactivate");
   });
 });
