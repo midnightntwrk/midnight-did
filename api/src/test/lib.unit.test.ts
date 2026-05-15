@@ -21,6 +21,7 @@ import {
   waitForFunds,
   waitForSync,
 } from "../lib";
+import { MissingPrivateStateContractAddressError } from "../midnight-provider-utils";
 
 const logger = {
   info: () => undefined,
@@ -124,13 +125,15 @@ describe("lib lightweight unit helpers", () => {
 
   it("skips private state IO only for the provider missing-contract-address error", async () => {
     setLogger(logger);
-    const providerError = new Error(
-      "Contract address not set. Call setContractAddress() before accessing private state.",
-    );
+    const providerError = new MissingPrivateStateContractAddressError("get");
     const providers = {
       privateStateProvider: {
         get: vi.fn().mockRejectedValue(providerError),
-        set: vi.fn().mockRejectedValue(providerError),
+        set: vi
+          .fn()
+          .mockRejectedValue(
+            new MissingPrivateStateContractAddressError("set"),
+          ),
       },
       zkConfigProvider: {
         getProverKey: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
@@ -145,15 +148,11 @@ describe("lib lightweight unit helpers", () => {
     );
   });
 
-  it("does not swallow unrelated errors that mention contract address text", async () => {
+  it("does not swallow unrelated private-state provider errors", async () => {
     setLogger(logger);
     const providers = {
       privateStateProvider: {
-        get: vi
-          .fn()
-          .mockRejectedValue(
-            new Error("audit cache failed: Contract address not set"),
-          ),
+        get: vi.fn().mockRejectedValue(new Error("audit cache failed")),
         set: vi.fn(),
       },
       zkConfigProvider: {

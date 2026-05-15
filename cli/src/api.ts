@@ -28,6 +28,7 @@ import {
   createPrivateStatePasswordProvider,
   createStartedMidnightWalletContext,
   createWalletAndMidnightProvider as createSharedWalletAndMidnightProvider,
+  isMissingPrivateStateContractAddressError,
   type MidnightWalletContext,
   waitForWalletFunds,
   waitForWalletSync,
@@ -165,9 +166,6 @@ type ContractScopedPrivateStateProvider = DIDProviders['privateStateProvider'] &
   setContractAddress?: (address: ContractAddress) => void;
 };
 
-const isMissingContractAddressError = (error: unknown): error is Error =>
-  error instanceof Error && error.message.includes('Contract address not set');
-
 const setPrivateStateContractAddress = (providers: DIDProviders, contractAddress: ContractAddress): void => {
   const provider = providers.privateStateProvider as ContractScopedPrivateStateProvider;
   provider.setContractAddress?.(contractAddress);
@@ -178,7 +176,7 @@ export const initPrivateState = async (providers: DIDProviders): Promise<DIDPriv
   try {
     providedPrivateState = await providers.privateStateProvider.get(DIDPrivateStateId);
   } catch (error: unknown) {
-    if (isMissingContractAddressError(error)) {
+    if (isMissingPrivateStateContractAddressError(error)) {
       logger.info('Private state restore skipped (contract address not set yet).');
     } else {
       throw error;
@@ -204,7 +202,7 @@ export const initPrivateState = async (providers: DIDProviders): Promise<DIDPriv
   try {
     await providers.privateStateProvider.set(DIDPrivateStateId, privateState);
   } catch (error: unknown) {
-    if (isMissingContractAddressError(error)) {
+    if (isMissingPrivateStateContractAddressError(error)) {
       logger.info('Private state save skipped (contract address not set yet).');
     } else {
       throw error;

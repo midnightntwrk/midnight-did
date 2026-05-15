@@ -53,6 +53,7 @@ import {
   createMidnightProviders,
   createPrivateStatePasswordProvider,
   createStartedMidnightWalletContext,
+  isMissingPrivateStateContractAddressError,
   waitForWalletFunds,
   waitForWalletSync,
 } from "./midnight-provider-utils";
@@ -116,12 +117,6 @@ type ContractScopedPrivateStateProvider =
     setContractAddress?: (address: ContractAddress) => void;
   };
 
-const isMissingContractAddressError = (error: unknown): error is Error =>
-  error instanceof Error &&
-  (error.message === "Contract address not set" ||
-    error.message.startsWith("Contract address not set.") ||
-    (error as Error & { code?: unknown }).code === "CONTRACT_ADDRESS_NOT_SET");
-
 const setPrivateStateContractAddress = (
   providers: MidnightDIDProviders,
   contractAddress: ContractAddress,
@@ -145,7 +140,7 @@ export async function initPrivateState(
       MidnightDIDPrivateStateId,
     );
   } catch (error: unknown) {
-    if (isMissingContractAddressError(error)) {
+    if (isMissingPrivateStateContractAddressError(error)) {
       logger.info(
         "Private state restore skipped (contract address not set yet).",
       );
@@ -176,7 +171,7 @@ export async function initPrivateState(
       privateState,
     );
   } catch (error: unknown) {
-    if (isMissingContractAddressError(error)) {
+    if (isMissingPrivateStateContractAddressError(error)) {
       logger.info("Private state save skipped (contract address not set yet).");
     } else {
       throw error;

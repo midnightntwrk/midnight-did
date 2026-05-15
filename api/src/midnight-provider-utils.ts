@@ -1,3 +1,4 @@
+import type { ContractAddress } from "@midnight-ntwrk/compact-runtime";
 import * as ledger from "@midnight-ntwrk/ledger-v8";
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import { httpClientProofProvider } from "@midnight-ntwrk/midnight-js-http-client-proof-provider";
@@ -7,6 +8,7 @@ import { getNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import { NodeZkConfigProvider } from "@midnight-ntwrk/midnight-js-node-zk-config-provider";
 import type {
   MidnightProvider,
+  PrivateStateProvider,
   WalletProvider,
 } from "@midnight-ntwrk/midnight-js-types";
 import { DustWallet } from "@midnight-ntwrk/wallet-sdk-dust-wallet";
@@ -28,6 +30,28 @@ import { signTransactionIntents } from "./transaction-intent-signing";
 export const PRIVATE_STATE_PASSWORD_ENV = "MIDNIGHT_DID_PRIVATE_STATE_PASSWORD";
 const LOCAL_PRIVATE_STATE_PASSWORD =
   "Midnight-DID-local-private-state-password-2026!";
+export const MISSING_PRIVATE_STATE_CONTRACT_ADDRESS_CODE =
+  "MIDNIGHT_DID_PRIVATE_STATE_CONTRACT_ADDRESS_NOT_SET";
+
+export class MissingPrivateStateContractAddressError extends Error {
+  readonly code = MISSING_PRIVATE_STATE_CONTRACT_ADDRESS_CODE;
+
+  constructor(operation: "get" | "set") {
+    super(
+      `Private state contract address must be set before ${operation} private state.`,
+    );
+    this.name = "MissingPrivateStateContractAddressError";
+  }
+}
+
+export const isMissingPrivateStateContractAddressError = (
+  error: unknown,
+): error is MissingPrivateStateContractAddressError =>
+  error instanceof MissingPrivateStateContractAddressError ||
+  (typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === MISSING_PRIVATE_STATE_CONTRACT_ADDRESS_CODE);
 
 export type PrivateStatePasswordOptions = {
   readonly networkId?: string;
@@ -268,6 +292,39 @@ export type CreateMidnightProvidersOptions = {
   readonly privateStoragePasswordProvider: () => string;
 };
 
+export const createContractScopedPrivateStateProvider = <
+  PrivateStateId extends string,
+  PrivateState,
+>(
+  provider: PrivateStateProvider<PrivateStateId, PrivateState>,
+): PrivateStateProvider<PrivateStateId, PrivateState> => {
+  let contractAddressSet = false;
+
+  const assertContractAddressSet = (operation: "get" | "set") => {
+    if (contractAddressSet) return;
+    throw new MissingPrivateStateContractAddressError(operation);
+  };
+
+  return {
+    ...provider,
+    setContractAddress(address: ContractAddress): void {
+      contractAddressSet = true;
+      provider.setContractAddress(address);
+    },
+    async get(privateStateId: PrivateStateId): Promise<PrivateState | null> {
+      assertContractAddressSet("get");
+      return provider.get(privateStateId);
+    },
+    async set(
+      privateStateId: PrivateStateId,
+      state: PrivateState,
+    ): Promise<void> {
+      assertContractAddressSet("set");
+      await provider.set(privateStateId, state);
+    },
+  };
+};
+
 export const createMidnightProviders = async <
   Circuits extends string,
   PrivateStateId extends string,
@@ -281,13 +338,16 @@ export const createMidnightProviders = async <
   const walletAndMidnightProvider =
     await createWalletAndMidnightProvider(walletContext);
   const zkConfigProvider = new NodeZkConfigProvider<Circuits>(zkConfigPath);
-
-  return {
-    privateStateProvider: levelPrivateStateProvider<PrivateStateId>({
+  const privateStateProvider = createContractScopedPrivateStateProvider(
+    levelPrivateStateProvider<PrivateStateId>({
       privateStateStoreName,
       privateStoragePasswordProvider,
       accountId: String(walletContext.unshieldedKeystore.getBech32Address()),
     }),
+  );
+
+  return {
+    privateStateProvider,
     publicDataProvider: indexerPublicDataProvider(
       config.indexer,
       config.indexerWS,

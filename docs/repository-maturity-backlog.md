@@ -337,9 +337,10 @@
    - Redacted URL credentials from debug option bags and exception text before logging.
    - Acceptance: malformed/oversized DID requests fail before resolver work, and errors cannot print caller secrets.
 
-65. **Replace brittle SDK error-string matching**
-   - Replace substring matching for missing contract-address/private-state behavior with a typed probe, explicit provider state check, or narrow error wrapper.
-   - Acceptance: tests cover the expected pre-deploy private-state path without depending on SDK message text.
+65. ✅ **Done: Replace brittle SDK error-string matching**
+   - Added a typed `MissingPrivateStateContractAddressError` and shared contract-scoped private-state provider wrapper.
+   - Updated API and CLI private-state initialization to branch on the typed error/code instead of SDK message text.
+   - Acceptance: tests cover the expected pre-deploy private-state path and assert raw SDK-style message text is not treated as the sentinel.
 
 66. **Add schema guards for persisted delegation/trust/status state**
    - Validate loader JSON shape before casting persisted data into typed registries.

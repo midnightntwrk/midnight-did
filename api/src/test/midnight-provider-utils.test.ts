@@ -7,7 +7,10 @@ import * as Rx from "rxjs";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  createContractScopedPrivateStateProvider,
   createPrivateStatePasswordProvider,
+  isMissingPrivateStateContractAddressError,
+  MissingPrivateStateContractAddressError,
   PRIVATE_STATE_PASSWORD_ENV,
   resolvePrivateStatePassword,
   waitForWalletFunds,
@@ -117,5 +120,63 @@ describe("midnight provider utility helpers", () => {
     expect(onState).toHaveBeenCalledWith(
       expect.objectContaining({ isSynced: true }),
     );
+  });
+
+  it("wraps private-state get/set with a typed missing-contract-address guard", async () => {
+    const provider = {
+      setContractAddress: vi.fn(),
+      get: vi.fn().mockResolvedValue({ secretKey: new Uint8Array([1]) }),
+      set: vi.fn().mockResolvedValue(undefined),
+      remove: vi.fn(),
+      clear: vi.fn(),
+      setSigningKey: vi.fn(),
+      getSigningKey: vi.fn(),
+      removeSigningKey: vi.fn(),
+      clearSigningKeys: vi.fn(),
+      exportPrivateStates: vi.fn(),
+      importPrivateStates: vi.fn(),
+      exportSigningKeys: vi.fn(),
+      importSigningKeys: vi.fn(),
+    };
+    const wrapped = createContractScopedPrivateStateProvider<
+      "state-id",
+      { secretKey: Uint8Array }
+    >(provider);
+
+    await expect(wrapped.get("state-id")).rejects.toBeInstanceOf(
+      MissingPrivateStateContractAddressError,
+    );
+    await expect(
+      wrapped.set("state-id", { secretKey: new Uint8Array([2]) }),
+    ).rejects.toMatchObject({
+      code: "MIDNIGHT_DID_PRIVATE_STATE_CONTRACT_ADDRESS_NOT_SET",
+    });
+    expect(provider.get).not.toHaveBeenCalled();
+    expect(provider.set).not.toHaveBeenCalled();
+
+    wrapped.setContractAddress("a".repeat(64));
+
+    await expect(wrapped.get("state-id")).resolves.toEqual({
+      secretKey: new Uint8Array([1]),
+    });
+    await wrapped.set("state-id", { secretKey: new Uint8Array([3]) });
+    expect(provider.setContractAddress).toHaveBeenCalledWith("a".repeat(64));
+    expect(provider.get).toHaveBeenCalledWith("state-id");
+    expect(provider.set).toHaveBeenCalledWith("state-id", {
+      secretKey: new Uint8Array([3]),
+    });
+  });
+
+  it("detects missing-contract-address errors by typed code, not SDK text", () => {
+    expect(
+      isMissingPrivateStateContractAddressError({
+        code: "MIDNIGHT_DID_PRIVATE_STATE_CONTRACT_ADDRESS_NOT_SET",
+      }),
+    ).toBe(true);
+    expect(
+      isMissingPrivateStateContractAddressError(
+        new Error("Contract address not set"),
+      ),
+    ).toBe(false);
   });
 });
