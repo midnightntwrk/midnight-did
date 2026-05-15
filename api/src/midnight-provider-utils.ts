@@ -26,7 +26,7 @@ import * as Rx from "rxjs";
 import { signTransactionIntents } from "./transaction-intent-signing";
 
 export const PRIVATE_STATE_PASSWORD_ENV = "MIDNIGHT_DID_PRIVATE_STATE_PASSWORD";
-export const LOCAL_PRIVATE_STATE_PASSWORD =
+const LOCAL_PRIVATE_STATE_PASSWORD =
   "Midnight-DID-local-private-state-password-2026!";
 
 export type PrivateStatePasswordOptions = {
@@ -225,11 +225,17 @@ export const createWalletAndMidnightProvider = async (
 };
 
 export const waitForWalletSync = (wallet: WalletFacade) =>
-  Rx.firstValueFrom(wallet.state().pipe(Rx.filter((state) => state.isSynced)));
+  Rx.firstValueFrom(
+    wallet.state().pipe(
+      Rx.throttleTime(5_000),
+      Rx.filter((state) => state.isSynced),
+    ),
+  );
 
 export const waitForWalletFunds = (wallet: WalletFacade): Promise<bigint> =>
   Rx.firstValueFrom(
     wallet.state().pipe(
+      Rx.throttleTime(10_000),
       Rx.filter((state) => state.isSynced),
       Rx.map((state) => state.unshielded.balances[unshieldedToken().raw] ?? 0n),
       Rx.filter((balance) => balance > 0n),

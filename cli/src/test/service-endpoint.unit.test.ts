@@ -14,7 +14,7 @@
 // limitations under the License.
 
 import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import * as api from '../api';
 
@@ -40,7 +40,11 @@ const makeContract = () =>
   }) as any;
 
 describe('service endpoint serialization', () => {
-  setNetworkId('undeployed');
+  beforeAll(() => {
+    // These helpers normalize DID subjects and need an active local network id.
+    setNetworkId('undeployed');
+  });
+
   api.setLogger(logger);
 
   it('serializes object serviceEndpoint in addService', async () => {
