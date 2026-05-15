@@ -298,6 +298,7 @@ describe("did delegation lifecycle", () => {
           events: [
             {
               action: "grant",
+              templateId: "delegation-agent-initial-v1",
               delegatorDid: "did:midnight:university:state-college",
               delegateDid: "did:midnight:agent:grants-ops",
               actorDid: "did:midnight:university:state-college",
@@ -313,6 +314,68 @@ describe("did delegation lifecycle", () => {
       const loadedState = loadDelegationStateFromFile(fixturePath);
 
       expect(loadedState.events[0].verificationMethod).toBe("#agent-op-key-v1");
+    } finally {
+      rmSync(fixtureDir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects malformed persisted delegation events with field-path diagnostics", () => {
+    const fixtureDir = mkdtempSync(
+      path.join(tmpdir(), "midnight-did-delegation-"),
+    );
+    const fixturePath = path.join(fixtureDir, "delegation-state.json");
+    try {
+      writeFileSync(
+        fixturePath,
+        JSON.stringify({
+          registryId: "did:midnight:delegation-registry:test",
+          updatedAt: "2026-06-01T00:00:00.000Z",
+          events: [
+            {
+              action: "grant",
+              delegatorDid: "did:midnight:university:state-college",
+              delegateDid: "did:midnight:agent:grants-ops",
+              actorDid: "did:midnight:university:state-college",
+              relationship: "capabilityInvocation",
+              verificationMethod: "#agent-op-key-v1",
+              effectiveAt: "2026-06-01T00:00:00.000Z",
+            },
+          ],
+        }),
+      );
+
+      expect(() => loadDelegationStateFromFile(fixturePath)).toThrow(
+        /delegation\.events\[0\]\.templateId must be a string, got undefined/,
+      );
+    } finally {
+      rmSync(fixtureDir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects malformed persisted delegation templates before templating", () => {
+    const fixtureDir = mkdtempSync(
+      path.join(tmpdir(), "midnight-did-delegation-template-"),
+    );
+    const fixturePath = path.join(fixtureDir, "delegation-template.json");
+    try {
+      writeFileSync(
+        fixturePath,
+        JSON.stringify({
+          templateId: "delegation-agent-initial-v1",
+          delegatorDid: "did:midnight:university:state-college",
+          delegateDid: "did:midnight:agent:grants-ops",
+          delegateType: "agent",
+          relationship: "capabilityInvocation",
+          verificationMethod: "#agent-op-key-v1",
+          allowedOperations: ["issueDiploma", 42],
+          actorDid: "did:midnight:university:state-college",
+          validFrom: "2026-06-01T00:00:00.000Z",
+        }),
+      );
+
+      expect(() => loadDelegationTemplateFromFile(fixturePath)).toThrow(
+        /delegationTemplate\.allowedOperations\[1\] must be a string, got number/,
+      );
     } finally {
       rmSync(fixtureDir, { recursive: true, force: true });
     }

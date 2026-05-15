@@ -342,9 +342,10 @@
    - Updated API and CLI private-state initialization to branch on the typed error/code instead of SDK message text.
    - Acceptance: tests cover the expected pre-deploy private-state path and assert raw SDK-style message text is not treated as the sentinel.
 
-66. **Add schema guards for persisted delegation/trust/status state**
-   - Validate loader JSON shape before casting persisted data into typed registries.
-   - Acceptance: unknown enum values, missing discriminants, and malformed event arrays fail with stable field diagnostics.
+66. ✅ **Done: Add schema guards for persisted delegation/trust/status state**
+   - Added shared persisted JSON schema helpers for object/array/string/union/ISO timestamp validation without adding a runtime dependency.
+   - Wired VC status, trust registry, delegation state, and delegation template loaders through explicit normalizers before casting to runtime types.
+   - Acceptance: tests cover unknown enum values, missing discriminants, malformed event arrays, and non-string template operation entries with stable field diagnostics.
 
 67. **Introduce a circuit-name registry**
    - Centralize prover-key/circuit names into a typed registry and assert parity with generated contract circuits.

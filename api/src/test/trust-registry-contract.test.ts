@@ -163,4 +163,54 @@ describe("trust-registry contract scaffold", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("rejects malformed persisted trust events with field-path diagnostics", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "trust-registry-"));
+    const fixturePath = path.join(dir, "trust-registry.json");
+    try {
+      writeFileSync(
+        fixturePath,
+        JSON.stringify({
+          registryId: "trust-registry:test",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          events: [
+            {
+              role: "auditor",
+              partyDid: "did:midnight:issuer:university-beta",
+              actorDid: "did:midnight:gov:registry-admin",
+              action: "grant",
+              effectiveAt: "2026-06-01T00:00:00.000Z",
+            },
+          ],
+        }),
+      );
+
+      expect(() => loadTrustRegistryFromFile(fixturePath)).toThrow(
+        /trustRegistry\.events\[0\]\.role must be one of: issuer, verifier/,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects non-array trust event collections before evaluation", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "trust-registry-"));
+    const fixturePath = path.join(dir, "trust-registry.json");
+    try {
+      writeFileSync(
+        fixturePath,
+        JSON.stringify({
+          registryId: "trust-registry:test",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          events: {},
+        }),
+      );
+
+      expect(() => loadTrustRegistryFromFile(fixturePath)).toThrow(
+        /trustRegistry\.events must be an array, got object/,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

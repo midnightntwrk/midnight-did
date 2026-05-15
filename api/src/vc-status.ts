@@ -2,6 +2,18 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  assertPersistedRecord,
+  parsePersistedJson,
+  readOptionalIsoTimestamp,
+  readOptionalString,
+  readRequiredIsoTimestamp,
+  readRequiredRecord,
+  readRequiredString,
+  readStringUnion,
+  type SchemaErrorFactory,
+} from "./persisted-state-schema";
+
 export const VC_STATUS_PURPOSE = "revocation";
 export const VC_STATUS_TYPE = "MidnightStatusList";
 export const VC_STATUS_ENTRY_PATTERN = /^urn:vc-status:[^\s]+$/i;
@@ -200,6 +212,118 @@ export const assertVcNotRevoked = (
   return decision;
 };
 
+const createStatusRegistrySchemaError =
+  (fixturePath: string): SchemaErrorFactory =>
+  (message) =>
+    new Error(
+      `Invalid status registry fixture format: ${fixturePath}: ${message}`,
+    );
+
+const assertStatusReferencePattern = (
+  value: string,
+  fieldPath: string,
+  createError: SchemaErrorFactory,
+): void => {
+  if (!VC_STATUS_ENTRY_PATTERN.test(value)) {
+    throw createError(`${fieldPath} does not match reference pattern`);
+  }
+};
+
+const normalizeStatusEntry = (
+  value: unknown,
+  fieldPath: string,
+  createError: SchemaErrorFactory,
+): VcStatusEntry => {
+  const raw = assertPersistedRecord(value, fieldPath, createError);
+  const state = readStringUnion(
+    raw,
+    "state",
+    fieldPath,
+    ["active", "revoked"] as const,
+    createError,
+  );
+  const statusReason = readOptionalString(
+    raw,
+    "statusReason",
+    fieldPath,
+    createError,
+  );
+  const updatedAt = readOptionalIsoTimestamp(
+    raw,
+    "updatedAt",
+    fieldPath,
+    createError,
+  );
+  const entry: VcStatusEntry = { state };
+  if (statusReason !== undefined) entry.statusReason = statusReason;
+  if (updatedAt !== undefined) entry.updatedAt = updatedAt;
+  return entry;
+};
+
+export const normalizeVcStatusRegistry = (
+  value: unknown,
+  {
+    source = "status registry",
+    createError = createStatusRegistrySchemaError(source),
+  }: {
+    readonly source?: string;
+    readonly createError?: SchemaErrorFactory;
+  } = {},
+): VcStatusRegistry => {
+  const raw = assertPersistedRecord(value, "statusRegistry", createError);
+  const statusRef = readRequiredString(
+    raw,
+    "statusRef",
+    "statusRegistry",
+    createError,
+  );
+  assertStatusReferencePattern(
+    statusRef,
+    "statusRegistry.statusRef",
+    createError,
+  );
+
+  const statusPurpose = readRequiredString(
+    raw,
+    "statusPurpose",
+    "statusRegistry",
+    createError,
+  );
+  const issuedAt = readRequiredIsoTimestamp(
+    raw,
+    "issuedAt",
+    "statusRegistry",
+    createError,
+  );
+  const credentials = readRequiredRecord(
+    raw,
+    "credentials",
+    "statusRegistry",
+    createError,
+  );
+  const normalizedCredentials: Record<string, VcStatusEntry> = {};
+
+  for (const [statusEntry, entry] of Object.entries(credentials)) {
+    assertStatusReferencePattern(
+      statusEntry,
+      `statusRegistry.credentials.${statusEntry}`,
+      createError,
+    );
+    normalizedCredentials[statusEntry] = normalizeStatusEntry(
+      entry,
+      `statusRegistry.credentials.${statusEntry}`,
+      createError,
+    );
+  }
+
+  return {
+    statusRef,
+    statusPurpose,
+    issuedAt,
+    credentials: normalizedCredentials,
+  };
+};
+
 export const loadVcStatusRegistryFromFile = (
   fixturePath: string,
 ): VcStatusRegistry => {
@@ -207,35 +331,14 @@ export const loadVcStatusRegistryFromFile = (
     throw new Error(`Status registry fixture missing: ${fixturePath}`);
   }
   const raw = readFileSync(fixturePath, "utf8");
-  const parsed = JSON.parse(raw) as VcStatusRegistry;
-
-  if (
-    typeof parsed.statusRef !== "string" ||
-    typeof parsed.statusPurpose !== "string" ||
-    typeof parsed.issuedAt !== "string" ||
-    typeof parsed.credentials !== "object" ||
-    parsed.credentials == null
-  ) {
-    throw new Error(`Invalid status registry fixture format: ${fixturePath}`);
-  }
-
-  if (!VC_STATUS_ENTRY_PATTERN.test(parsed.statusRef)) {
-    throw new Error(
-      "status registry statusRef does not match reference pattern",
-    );
-  }
-  for (const [statusEntry, entry] of Object.entries(parsed.credentials)) {
-    if (!VC_STATUS_ENTRY_PATTERN.test(statusEntry)) {
-      throw new Error(
-        `status registry entry does not match reference pattern: ${statusEntry}`,
-      );
-    }
-    if (entry.state !== "active" && entry.state !== "revoked") {
-      throw new Error(`Invalid status registry entry state: ${statusEntry}`);
-    }
-  }
-
-  return parsed;
+  const createError = createStatusRegistrySchemaError(fixturePath);
+  return normalizeVcStatusRegistry(
+    parsePersistedJson(raw, fixturePath, createError),
+    {
+      createError,
+      source: fixturePath,
+    },
+  );
 };
 
 export const statusRegistryFixturePath = (filename: string): string => {

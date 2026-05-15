@@ -2,6 +2,20 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  assertPersistedArray,
+  assertPersistedRecord,
+  assertPersistedString,
+  parsePersistedJson,
+  readOptionalIsoTimestamp,
+  readOptionalString,
+  readRequiredArray,
+  readRequiredIsoTimestamp,
+  readRequiredString,
+  readStringUnion,
+  type SchemaErrorFactory,
+} from "./persisted-state-schema";
+
 export const DELEGATION_TEMPLATE_VERSION = "v1";
 export const DELEGATION_DID_PATTERN = /^did:[a-z0-9][a-z0-9._-]*:.+$/i;
 export const DELEGATION_RELATIONSHIPS = [
@@ -600,6 +614,168 @@ export const rotateDelegationKey = (
   });
 };
 
+const DELEGATION_ACTIONS = ["grant", "revoke", "rotate"] as const;
+const DELEGATION_ACTOR_TYPES = ["agent", "service"] as const;
+
+const createDelegationSchemaError =
+  (fixturePath: string): SchemaErrorFactory =>
+  (message) =>
+    new DelegationTemplateError(
+      `Invalid delegation fixture format: ${fixturePath}: ${message}`,
+    );
+
+const normalizeDelegationEventFromPersisted = (
+  value: unknown,
+  index: number,
+  createError: SchemaErrorFactory,
+): DelegationEvent => {
+  const fieldPath = `delegation.events[${index}]`;
+  const raw = assertPersistedRecord(value, fieldPath, createError);
+  const action = readStringUnion(
+    raw,
+    "action",
+    fieldPath,
+    DELEGATION_ACTIONS,
+    createError,
+  );
+  const delegatorDid = readRequiredString(
+    raw,
+    "delegatorDid",
+    fieldPath,
+    createError,
+  );
+  const delegateDid = readRequiredString(
+    raw,
+    "delegateDid",
+    fieldPath,
+    createError,
+  );
+  const actorDid = readRequiredString(raw, "actorDid", fieldPath, createError);
+  const relationship = readStringUnion(
+    raw,
+    "relationship",
+    fieldPath,
+    DELEGATION_RELATIONSHIPS,
+    createError,
+  );
+  const verificationMethod = readRequiredString(
+    raw,
+    "verificationMethod",
+    fieldPath,
+    createError,
+  );
+  const effectiveAt = readRequiredIsoTimestamp(
+    raw,
+    "effectiveAt",
+    fieldPath,
+    createError,
+  );
+  const reason = readOptionalString(raw, "reason", fieldPath, createError);
+
+  if (action === "grant") {
+    const templateId = readRequiredString(
+      raw,
+      "templateId",
+      fieldPath,
+      createError,
+    );
+    const expiresAt = readOptionalIsoTimestamp(
+      raw,
+      "expiresAt",
+      fieldPath,
+      createError,
+    );
+    const event: DelegationGrantEvent = {
+      action,
+      templateId,
+      delegatorDid,
+      delegateDid,
+      actorDid,
+      relationship,
+      verificationMethod,
+      effectiveAt,
+    };
+    if (expiresAt !== undefined) event.expiresAt = expiresAt;
+    if (reason !== undefined) event.reason = reason;
+    validateAction(event);
+    return normalizeEvent(event);
+  }
+
+  if (action === "revoke") {
+    const event: DelegationRevokeEvent = {
+      action,
+      delegatorDid,
+      delegateDid,
+      actorDid,
+      relationship,
+      verificationMethod,
+      effectiveAt,
+    };
+    if (reason !== undefined) event.reason = reason;
+    validateAction(event);
+    return normalizeEvent(event);
+  }
+
+  const replacementVerificationMethod = readRequiredString(
+    raw,
+    "replacementVerificationMethod",
+    fieldPath,
+    createError,
+  );
+  const event: DelegationRotateEvent = {
+    action,
+    delegatorDid,
+    delegateDid,
+    actorDid,
+    relationship,
+    verificationMethod,
+    replacementVerificationMethod,
+    effectiveAt,
+  };
+  if (reason !== undefined) event.reason = reason;
+  validateAction(event);
+  return normalizeEvent(event);
+};
+
+export const normalizeDelegationState = (
+  value: unknown,
+  {
+    source = "delegation state",
+    createError = createDelegationSchemaError(source),
+  }: {
+    readonly source?: string;
+    readonly createError?: SchemaErrorFactory;
+  } = {},
+): DelegationState => {
+  const raw = assertPersistedRecord(value, "delegation", createError);
+  const registryId = readRequiredString(
+    raw,
+    "registryId",
+    "delegation",
+    createError,
+  );
+  const updatedAt = readRequiredIsoTimestamp(
+    raw,
+    "updatedAt",
+    "delegation",
+    createError,
+  );
+  const events = readRequiredArray(
+    raw,
+    "events",
+    "delegation",
+    createError,
+  ).map((event, index) =>
+    normalizeDelegationEventFromPersisted(event, index, createError),
+  );
+
+  return {
+    registryId,
+    updatedAt,
+    events,
+  };
+};
+
 export const loadDelegationStateFromFile = (
   fixturePath: string,
 ): DelegationState => {
@@ -609,21 +785,14 @@ export const loadDelegationStateFromFile = (
     );
   }
   const raw = readFileSync(fixturePath, "utf8");
-  const parsed = JSON.parse(raw) as DelegationState;
-  if (
-    typeof parsed.registryId !== "string" ||
-    typeof parsed.updatedAt !== "string" ||
-    !Array.isArray(parsed.events)
-  ) {
-    throw new DelegationTemplateError(
-      `Invalid delegation fixture format: ${fixturePath}`,
-    );
-  }
-  parsed.events = parsed.events.map((event) => {
-    validateAction(event);
-    return normalizeEvent(event);
-  });
-  return parsed;
+  const createError = createDelegationSchemaError(fixturePath);
+  return normalizeDelegationState(
+    parsePersistedJson(raw, fixturePath, createError),
+    {
+      createError,
+      source: fixturePath,
+    },
+  );
 };
 
 export const loadDelegationTemplateFromFile = (
@@ -635,8 +804,101 @@ export const loadDelegationTemplateFromFile = (
     );
   }
   const raw = readFileSync(fixturePath, "utf8");
-  const parsed = JSON.parse(raw) as Omit<DelegationTemplate, "templateVersion">;
-  return buildDelegationTemplate(parsed);
+  const createError = createDelegationSchemaError(fixturePath);
+  const rawTemplate = assertPersistedRecord(
+    parsePersistedJson(raw, fixturePath, createError),
+    "delegationTemplate",
+    createError,
+  );
+  const allowedOperations = assertPersistedArray(
+    rawTemplate.allowedOperations,
+    "delegationTemplate.allowedOperations",
+    createError,
+  ).map((operation, index) =>
+    assertPersistedString(
+      operation,
+      `delegationTemplate.allowedOperations[${index}]`,
+      createError,
+    ),
+  );
+
+  return buildDelegationTemplate({
+    templateId: readRequiredString(
+      rawTemplate,
+      "templateId",
+      "delegationTemplate",
+      createError,
+    ),
+    delegatorDid: readRequiredString(
+      rawTemplate,
+      "delegatorDid",
+      "delegationTemplate",
+      createError,
+    ),
+    delegateDid: readRequiredString(
+      rawTemplate,
+      "delegateDid",
+      "delegationTemplate",
+      createError,
+    ),
+    delegateType: readStringUnion(
+      rawTemplate,
+      "delegateType",
+      "delegationTemplate",
+      DELEGATION_ACTOR_TYPES,
+      createError,
+    ),
+    relationship: readStringUnion(
+      rawTemplate,
+      "relationship",
+      "delegationTemplate",
+      DELEGATION_RELATIONSHIPS,
+      createError,
+    ),
+    verificationMethod: readRequiredString(
+      rawTemplate,
+      "verificationMethod",
+      "delegationTemplate",
+      createError,
+    ),
+    allowedOperations,
+    actorDid: readRequiredString(
+      rawTemplate,
+      "actorDid",
+      "delegationTemplate",
+      createError,
+    ),
+    serviceEndpoint: readOptionalString(
+      rawTemplate,
+      "serviceEndpoint",
+      "delegationTemplate",
+      createError,
+    ),
+    validFrom: readRequiredIsoTimestamp(
+      rawTemplate,
+      "validFrom",
+      "delegationTemplate",
+      createError,
+    ),
+    validUntil: readOptionalIsoTimestamp(
+      rawTemplate,
+      "validUntil",
+      "delegationTemplate",
+      createError,
+    ),
+    issuedAt: readOptionalIsoTimestamp(
+      rawTemplate,
+      "issuedAt",
+      "delegationTemplate",
+      createError,
+    ),
+    notes: readOptionalString(
+      rawTemplate,
+      "notes",
+      "delegationTemplate",
+      createError,
+    ),
+  });
 };
 
 export const delegationTemplateFixturePath = (filename: string): string => {

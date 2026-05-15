@@ -2,6 +2,18 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  assertPersistedRecord,
+  parsePersistedJson,
+  readOptionalIsoTimestamp,
+  readOptionalString,
+  readRequiredArray,
+  readRequiredIsoTimestamp,
+  readRequiredString,
+  readStringUnion,
+  type SchemaErrorFactory,
+} from "./persisted-state-schema";
+
 export const TRUST_ROLE_ISSUER = "issuer";
 export const TRUST_ROLE_VERIFIER = "verifier";
 export const TRUST_ROLE_PATTERN = /^(issuer|verifier)$/;
@@ -243,6 +255,116 @@ export const assertTrustRoleActive = (
   return decision;
 };
 
+const TRUST_ROLE_ACTIONS = ["grant", "revoke"] as const;
+const TRUST_ROLES = [TRUST_ROLE_ISSUER, TRUST_ROLE_VERIFIER] as const;
+
+const createTrustRegistrySchemaError =
+  (fixturePath: string): SchemaErrorFactory =>
+  (message) =>
+    new TrustRoleTransitionError(
+      `Invalid trust registry fixture format: ${fixturePath}: ${message}`,
+    );
+
+const normalizeTrustRoleEvent = (
+  value: unknown,
+  index: number,
+  createError: SchemaErrorFactory,
+): TrustRoleEvent => {
+  const fieldPath = `trustRegistry.events[${index}]`;
+  const raw = assertPersistedRecord(value, fieldPath, createError);
+  const role = readStringUnion(
+    raw,
+    "role",
+    fieldPath,
+    TRUST_ROLES,
+    createError,
+  );
+  const action = readStringUnion(
+    raw,
+    "action",
+    fieldPath,
+    TRUST_ROLE_ACTIONS,
+    createError,
+  );
+  const partyDid = readRequiredString(raw, "partyDid", fieldPath, createError);
+  const actorDid = readRequiredString(raw, "actorDid", fieldPath, createError);
+  const effectiveAt = readRequiredIsoTimestamp(
+    raw,
+    "effectiveAt",
+    fieldPath,
+    createError,
+  );
+  const reason = readOptionalString(raw, "reason", fieldPath, createError);
+
+  if (action === "grant") {
+    const expiresAt = readOptionalIsoTimestamp(
+      raw,
+      "expiresAt",
+      fieldPath,
+      createError,
+    );
+    const event: TrustRoleGrant = {
+      role,
+      partyDid,
+      actorDid,
+      action,
+      effectiveAt,
+    };
+    if (expiresAt !== undefined) event.expiresAt = expiresAt;
+    if (reason !== undefined) event.reason = reason;
+    validateEvent(event);
+    return event;
+  }
+
+  const event: TrustRoleRevoke = {
+    role,
+    partyDid,
+    actorDid,
+    action,
+    effectiveAt,
+  };
+  if (reason !== undefined) event.reason = reason;
+  validateEvent(event);
+  return event;
+};
+
+export const normalizeTrustRegistryState = (
+  value: unknown,
+  {
+    source = "trust registry",
+    createError = createTrustRegistrySchemaError(source),
+  }: {
+    readonly source?: string;
+    readonly createError?: SchemaErrorFactory;
+  } = {},
+): TrustRegistryState => {
+  const raw = assertPersistedRecord(value, "trustRegistry", createError);
+  const registryId = readRequiredString(
+    raw,
+    "registryId",
+    "trustRegistry",
+    createError,
+  );
+  const updatedAt = readRequiredIsoTimestamp(
+    raw,
+    "updatedAt",
+    "trustRegistry",
+    createError,
+  );
+  const events = readRequiredArray(
+    raw,
+    "events",
+    "trustRegistry",
+    createError,
+  ).map((event, index) => normalizeTrustRoleEvent(event, index, createError));
+
+  return normalizeRegistryState({
+    registryId,
+    updatedAt,
+    events,
+  });
+};
+
 export const loadTrustRegistryFromFile = (
   fixturePath: string,
 ): TrustRegistryState => {
@@ -251,16 +373,14 @@ export const loadTrustRegistryFromFile = (
   }
 
   const raw = readFileSync(fixturePath, "utf8");
-  const parsed = JSON.parse(raw) as TrustRegistryState;
-  if (
-    typeof parsed.registryId !== "string" ||
-    typeof parsed.updatedAt !== "string" ||
-    !Array.isArray(parsed.events)
-  ) {
-    throw new Error(`Invalid trust registry fixture format: ${fixturePath}`);
-  }
-  parsed.events.forEach((event) => validateEvent(event));
-  return normalizeRegistryState(parsed);
+  const createError = createTrustRegistrySchemaError(fixturePath);
+  return normalizeTrustRegistryState(
+    parsePersistedJson(raw, fixturePath, createError),
+    {
+      createError,
+      source: fixturePath,
+    },
+  );
 };
 
 export const trustRegistryFixturePath = (filename: string): string => {

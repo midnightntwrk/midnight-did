@@ -1,3 +1,7 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -54,5 +58,53 @@ describe("VC status reference verification", () => {
     expect(() => assertVcNotRevoked(SAMPLE_CREDENTIAL)).toThrow(
       VcStatusUnavailableError,
     );
+  });
+
+  it("rejects malformed persisted registry entries with field-path diagnostics", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "vc-status-registry-"));
+    const fixturePath = path.join(dir, "status-registry.json");
+    try {
+      writeFileSync(
+        fixturePath,
+        JSON.stringify({
+          statusRef: "urn:vc-status:university-diploma:v1",
+          statusPurpose: VC_STATUS_PURPOSE,
+          issuedAt: "2026-05-14T00:00:00Z",
+          credentials: {
+            "urn:vc-status:university-diploma:v1:stu-001": {
+              state: "suspended",
+            },
+          },
+        }),
+      );
+
+      expect(() => loadVcStatusRegistryFromFile(fixturePath)).toThrow(
+        /statusRegistry\.credentials\.urn:vc-status:university-diploma:v1:stu-001\.state must be one of: active, revoked/,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects non-object persisted status credentials before runtime use", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "vc-status-registry-"));
+    const fixturePath = path.join(dir, "status-registry.json");
+    try {
+      writeFileSync(
+        fixturePath,
+        JSON.stringify({
+          statusRef: "urn:vc-status:university-diploma:v1",
+          statusPurpose: VC_STATUS_PURPOSE,
+          issuedAt: "2026-05-14T00:00:00Z",
+          credentials: [],
+        }),
+      );
+
+      expect(() => loadVcStatusRegistryFromFile(fixturePath)).toThrow(
+        /statusRegistry\.credentials must be an object, got array/,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

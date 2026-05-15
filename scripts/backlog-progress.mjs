@@ -55,6 +55,12 @@ const CHECKS = [
       "node -e \"const {spawnSync}=require('child_process'); const r=spawnSync('./run.sh',['--help'],{encoding:'utf8'}); if(r.status!==0 || !r.stdout.includes('docs/uc-bundles/university-bdd/README.md')) process.exit(1)\"",
   },
   {
+    itemNumber: 66,
+    label: "Add schema guards for persisted delegation/trust/status state",
+    command:
+      "npm run test -w api -- src/test/vc-status-verification.test.ts src/test/trust-registry-contract.test.ts src/test/did-delegation-contract.test.ts",
+  },
+  {
     itemNumber: 71,
     label: "Validate Compact compiler/runtime compatibility in CI prechecks",
     command: "npm run check:toolchain",
