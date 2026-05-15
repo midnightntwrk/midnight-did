@@ -47,11 +47,25 @@ export type MidnightDIDProofCircuitName =
 export type MidnightDIDCircuitName =
   (typeof MIDNIGHT_DID_CIRCUIT_NAMES)[number];
 
+type AssertNoMissingCircuits<MissingCircuits extends never> = MissingCircuits;
+
+export type MidnightDIDPureCircuitRegistryIsComplete = AssertNoMissingCircuits<
+  Exclude<GeneratedPureCircuitName, MidnightDIDPureCircuitName>
+>;
+export type MidnightDIDProofCircuitRegistryIsComplete = AssertNoMissingCircuits<
+  Exclude<GeneratedProofCircuitName, MidnightDIDProofCircuitName>
+>;
+export type MidnightDIDCircuitRegistryIsComplete = AssertNoMissingCircuits<
+  Exclude<GeneratedCircuitName, MidnightDIDCircuitName>
+>;
+
 export const midnightDIDCircuitId = (
   circuitName: MidnightDIDProofCircuitName,
 ): MidnightDIDCircuits => ProvableCircuitId<MidnightDIDContract>(circuitName);
 
-export const MIDNIGHT_DID_PROOF_CIRCUIT_IDS = Object.freeze(
+export const MIDNIGHT_DID_PROOF_CIRCUIT_IDS: Readonly<
+  Record<MidnightDIDProofCircuitName, MidnightDIDCircuits>
+> = Object.freeze(
   Object.fromEntries(
     MIDNIGHT_DID_PROOF_CIRCUIT_NAMES.map((circuitName) => [
       circuitName,

@@ -36,6 +36,8 @@ const managedDidDir = join(
 const contractInfoPath = join(managedDidDir, "compiler", "contract-info.json");
 const keysDir = join(managedDidDir, "keys");
 
+// Generated assets are committed and refreshed by contract builds. Reading
+// them directly keeps this API unit test cheap while still catching drift.
 const sorted = (values: readonly string[]): string[] => [...values].sort();
 
 const readContractInfo = (): ContractInfo =>
@@ -84,6 +86,8 @@ describe("Midnight DID circuit registry", () => {
   });
 
   it("exposes stable typed prover-key identifiers", () => {
+    expect(MIDNIGHT_DID_PROOF_CIRCUIT_NAMES).not.toContain("publicKey");
+    expect(MIDNIGHT_DID_PURE_CIRCUIT_NAMES).toEqual(["publicKey"]);
     expect(sorted(Object.keys(MIDNIGHT_DID_PROOF_CIRCUIT_IDS))).toEqual(
       sorted(MIDNIGHT_DID_PROOF_CIRCUIT_NAMES),
     );
