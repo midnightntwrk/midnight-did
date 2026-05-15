@@ -92,6 +92,13 @@ export class VcStatusUnavailableError extends Error {
   }
 }
 
+export class VcStatusRegistryError extends Error {
+  public constructor(message: string) {
+    super(message);
+    this.name = "VcStatusRegistryError";
+  }
+}
+
 export const validateStatusReference = (
   credentialStatus: VcStatusReference,
 ): void => {
@@ -215,7 +222,7 @@ export const assertVcNotRevoked = (
 const createStatusRegistrySchemaError =
   (fixturePath: string): SchemaErrorFactory =>
   (message) =>
-    new Error(
+    new VcStatusRegistryError(
       `Invalid status registry fixture format: ${fixturePath}: ${message}`,
     );
 

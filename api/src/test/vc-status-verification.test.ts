@@ -11,6 +11,7 @@ import {
   statusRegistryFixturePath,
   VC_STATUS_PURPOSE,
   VcRevocationError,
+  VcStatusRegistryError,
   VcStatusUnavailableError,
   type VerifiableCredential,
 } from "../vc-status";
@@ -79,6 +80,9 @@ describe("VC status reference verification", () => {
       );
 
       expect(() => loadVcStatusRegistryFromFile(fixturePath)).toThrow(
+        VcStatusRegistryError,
+      );
+      expect(() => loadVcStatusRegistryFromFile(fixturePath)).toThrow(
         /statusRegistry\.credentials\.urn:vc-status:university-diploma:v1:stu-001\.state must be one of: active, revoked/,
       );
     } finally {
@@ -102,6 +106,57 @@ describe("VC status reference verification", () => {
 
       expect(() => loadVcStatusRegistryFromFile(fixturePath)).toThrow(
         /statusRegistry\.credentials must be an object, got array/,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps optional free-text fields backward compatible when empty", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "vc-status-registry-"));
+    const fixturePath = path.join(dir, "status-registry.json");
+    try {
+      writeFileSync(
+        fixturePath,
+        JSON.stringify({
+          statusRef: "urn:vc-status:university-diploma:v1",
+          statusPurpose: VC_STATUS_PURPOSE,
+          issuedAt: "2026-05-14T00:00:00Z",
+          credentials: {
+            "urn:vc-status:university-diploma:v1:stu-001": {
+              state: "revoked",
+              statusReason: "",
+            },
+          },
+        }),
+      );
+
+      expect(
+        loadVcStatusRegistryFromFile(fixturePath).credentials[
+          "urn:vc-status:university-diploma:v1:stu-001"
+        ]?.statusReason,
+      ).toBe("");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects loose date strings in persisted status timestamps", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "vc-status-registry-"));
+    const fixturePath = path.join(dir, "status-registry.json");
+    try {
+      writeFileSync(
+        fixturePath,
+        JSON.stringify({
+          statusRef: "urn:vc-status:university-diploma:v1",
+          statusPurpose: VC_STATUS_PURPOSE,
+          issuedAt: "May 14 2026",
+          credentials: {},
+        }),
+      );
+
+      expect(() => loadVcStatusRegistryFromFile(fixturePath)).toThrow(
+        /statusRegistry\.issuedAt must be a valid ISO timestamp/,
       );
     } finally {
       rmSync(dir, { recursive: true, force: true });

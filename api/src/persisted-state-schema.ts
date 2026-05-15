@@ -9,6 +9,9 @@ const describeJsonType = (value: unknown): string => {
   return typeof value;
 };
 
+const ISO_TIMESTAMP_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+
 export const parsePersistedJson = (
   raw: string,
   source: string,
@@ -69,7 +72,10 @@ export const assertPersistedIsoTimestamp = (
   createError: SchemaErrorFactory = defaultErrorFactory,
 ): string => {
   const timestamp = assertPersistedString(value, fieldPath, createError);
-  if (Number.isNaN(new Date(timestamp).valueOf())) {
+  if (
+    !ISO_TIMESTAMP_PATTERN.test(timestamp) ||
+    Number.isNaN(new Date(timestamp).valueOf())
+  ) {
     throw createError(`${fieldPath} must be a valid ISO timestamp`);
   }
   return timestamp;
@@ -99,6 +105,7 @@ export const readOptionalString = (
     value,
     `${parentPath}.${fieldName}`,
     createError,
+    { allowEmpty: true },
   );
 };
 
