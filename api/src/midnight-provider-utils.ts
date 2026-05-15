@@ -63,6 +63,21 @@ const isPrivateStateContractOperation = (
     operation as PrivateStateContractOperation,
   );
 
+type CodedPrivateStateContractAddressError = Error & {
+  readonly code?: unknown;
+  readonly operation?: unknown;
+};
+
+const hasMissingPrivateStateContractAddressCode = (
+  error: Error,
+): error is CodedPrivateStateContractAddressError => {
+  const codedError = error as CodedPrivateStateContractAddressError;
+  return (
+    codedError.code === MISSING_PRIVATE_STATE_CONTRACT_ADDRESS_CODE &&
+    isPrivateStateContractOperation(codedError.operation)
+  );
+};
+
 /**
  * Accept the class instance and the project-owned code so bundled API/CLI
  * copies still recognize the same sentinel without inspecting SDK messages.
@@ -71,17 +86,7 @@ export const isMissingPrivateStateContractAddressError = (
   error: unknown,
 ): error is MissingPrivateStateContractAddressError =>
   error instanceof MissingPrivateStateContractAddressError ||
-  (error instanceof Error &&
-    (() => {
-      const codedError = error as Error & {
-        readonly code?: unknown;
-        readonly operation?: unknown;
-      };
-      return (
-        codedError.code === MISSING_PRIVATE_STATE_CONTRACT_ADDRESS_CODE &&
-        isPrivateStateContractOperation(codedError.operation)
-      );
-    })());
+  (error instanceof Error && hasMissingPrivateStateContractAddressCode(error));
 
 export type PrivateStatePasswordOptions = {
   readonly networkId?: string;
@@ -390,6 +395,8 @@ export const createContractScopedPrivateStateProvider = <
       if (property === "clear") return clear;
       if (property === "exportPrivateStates") return exportPrivateStates;
       if (property === "importPrivateStates") return importPrivateStates;
+      // Keep the wrapper forward-compatible with SDK provider extensions while
+      // preserving method `this` binding for the underlying provider instance.
       // Signing-key methods remain delegated: the SDK scopes those operations
       // by their explicit ContractAddress argument, not this contract-state guard.
       const value = Reflect.get(target, property, target);
