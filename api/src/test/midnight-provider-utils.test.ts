@@ -185,6 +185,12 @@ describe("midnight provider utility helpers", () => {
     expect(provider.exportPrivateStates).not.toHaveBeenCalled();
     expect(provider.importPrivateStates).not.toHaveBeenCalled();
 
+    await wrapped.setSigningKey("b".repeat(64), "signing-key" as never);
+    expect(provider.setSigningKey).toHaveBeenCalledWith(
+      "b".repeat(64),
+      "signing-key",
+    );
+
     wrapped.setContractAddress("a".repeat(64));
 
     await expect(wrapped.get("state-id")).resolves.toEqual({

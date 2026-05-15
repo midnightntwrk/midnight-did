@@ -318,8 +318,8 @@ export const createContractScopedPrivateStateProvider = <
   };
 
   const setContractAddress = (address: ContractAddress): void => {
-    contractAddressSet = true;
     provider.setContractAddress(address);
+    contractAddressSet = true;
   };
   const get = async (
     privateStateId: PrivateStateId,
