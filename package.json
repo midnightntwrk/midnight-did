@@ -26,7 +26,8 @@
     "docs:dev": "npm run docs:dev -w docs-site",
     "docs:build": "npm run docs:build -w docs-site",
     "docs:preview": "npm run docs:preview -w docs-site",
-    "artifacts:pack": "./scripts/pack-artifacts.sh"
+    "artifacts:pack": "./scripts/pack-artifacts.sh",
+    "test:run-sh": "node scripts/run-sh-contract.test.mjs"
   },
   "private": true,
   "packageManager": "npm@10.8.2",
