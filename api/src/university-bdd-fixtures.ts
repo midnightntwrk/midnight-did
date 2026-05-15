@@ -35,8 +35,6 @@ import {
 } from "./university-bdd-utils";
 import type { VcStatusRegistry } from "./vc-status";
 
-export { computeCredentialDigest } from "./university-bdd-utils";
-
 const normalizeDid = (value: unknown, label: string): string => {
   const canonical = assertRequiredString(value, label).trim().toLowerCase();
   if (!UNIVERSITY_DID_METHOD_PATTERN.test(canonical)) {

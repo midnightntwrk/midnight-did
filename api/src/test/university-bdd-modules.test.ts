@@ -5,6 +5,7 @@ import * as artifacts from "../university-bdd-artifacts";
 import * as engine from "../university-bdd-engine";
 import * as fixtures from "../university-bdd-fixtures";
 import * as contracts from "../university-bdd-types";
+import { computeCredentialDigest } from "../university-bdd-utils";
 
 const sortedRuntimeExports = (
   moduleExports: Record<string, unknown>,
@@ -17,6 +18,9 @@ const sourceModules = {
   fixtures,
   contracts,
 } as const;
+
+// Keep internal utility exports private unless the facade explicitly opts in.
+const facadeUtilityExports = ["computeCredentialDigest"];
 
 describe("University BDD module boundaries", () => {
   it("keeps the public facade wired to the scenario engine", () => {
@@ -35,6 +39,7 @@ describe("University BDD module boundaries", () => {
     expect(facade.toUniversityScenarioReplayArtifact).toBe(
       artifacts.toUniversityScenarioReplayArtifact,
     );
+    expect(facade.computeCredentialDigest).toBe(computeCredentialDigest);
   });
 
   it("exposes contract constants from the dedicated types module", () => {
@@ -54,7 +59,10 @@ describe("University BDD module boundaries", () => {
 
   it("keeps the facade as a pure re-export surface", () => {
     const expectedExports = [
-      ...new Set(Object.values(sourceModules).flatMap(sortedRuntimeExports)),
+      ...new Set([
+        ...Object.values(sourceModules).flatMap(sortedRuntimeExports),
+        ...facadeUtilityExports,
+      ]),
     ].sort((lhs, rhs) => lhs.localeCompare(rhs));
 
     expect(sortedRuntimeExports(facade)).toEqual(expectedExports);
