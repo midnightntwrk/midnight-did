@@ -17,6 +17,7 @@ import {
 import {
   UNIVERSITY_DID_METHOD_PATTERN,
   UNIVERSITY_DID_NAMESPACE_PREFIXES,
+  UNIVERSITY_DID_TRUST_EVENT_NAMESPACE_PREFIXES,
   UNIVERSITY_SCENARIO_REPLAY_ARTIFACT_VERSION,
   UNIVERSITY_SCENARIO_REPORT_ARTIFACT_VERSION,
   type UniversityDiplomaCredential,
@@ -256,16 +257,6 @@ const normalizeTrustEvents = (events: unknown): TrustRoleEvent[] => {
   if (!Array.isArray(events)) {
     return [];
   }
-  const knownNamespaces = new Set([
-    "did:midnight:edu",
-    "did:midnight:gov",
-    "did:midnight:org",
-    "did:midnight:university",
-    "did:midnight:verifier",
-    "did:midnight:issuer",
-    "did:midnight:key",
-    "did:midnight:user",
-  ]);
 
   return events.map((event, index) => {
     const raw = assertPlainObject(event, `trustRegistry.events[${index}]`);
@@ -279,12 +270,12 @@ const normalizeTrustEvents = (events: unknown): TrustRoleEvent[] => {
       partyDid: assertDidNamespace(
         normalizeDid(raw.partyDid, `trustRegistry.events[${index}].partyDid`),
         `trustRegistry.events[${index}].partyDid`,
-        knownNamespaces,
+        UNIVERSITY_DID_TRUST_EVENT_NAMESPACE_PREFIXES,
       ),
       actorDid: assertDidNamespace(
         normalizeDid(raw.actorDid, `trustRegistry.events[${index}].actorDid`),
         `trustRegistry.events[${index}].actorDid`,
-        knownNamespaces,
+        UNIVERSITY_DID_TRUST_EVENT_NAMESPACE_PREFIXES,
       ),
       action: normalizeTrustAction(
         raw.action,

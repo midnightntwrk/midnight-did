@@ -17,6 +17,7 @@ const readonlyNamespaceSet = (
   values: readonly string[],
 ): ReadonlySet<string> => {
   const set = new Set(values);
+  const boundMethods = new Map<PropertyKey, unknown>();
 
   return new Proxy(set, {
     get(target, property) {
@@ -27,7 +28,18 @@ const readonlyNamespaceSet = (
       }
 
       const value = Reflect.get(target, property, target);
-      return typeof value === "function" ? value.bind(target) : value;
+      if (typeof value !== "function") {
+        return value;
+      }
+
+      const cachedMethod = boundMethods.get(property);
+      if (cachedMethod != null) {
+        return cachedMethod;
+      }
+
+      const boundMethod = value.bind(target);
+      boundMethods.set(property, boundMethod);
+      return boundMethod;
     },
     defineProperty() {
       return false;
@@ -52,6 +64,20 @@ export const UNIVERSITY_DID_NAMESPACE_PREFIXES = {
   company: readonlyNamespaceSet(["did:midnight:org", "did:midnight:gov"]),
   mall: readonlyNamespaceSet(["did:midnight:org"]),
 } as const;
+
+const namespaceValues = (
+  namespaces: Record<string, ReadonlySet<string>>,
+): string[] => Object.values(namespaces).flatMap((namespace) => [...namespace]);
+
+export const UNIVERSITY_DID_TRUST_EVENT_NAMESPACE_PREFIXES =
+  readonlyNamespaceSet([
+    ...new Set([
+      ...namespaceValues(UNIVERSITY_DID_NAMESPACE_PREFIXES),
+      "did:midnight:issuer",
+      "did:midnight:university",
+      "did:midnight:verifier",
+    ]),
+  ]);
 
 export type UniversityRole =
   | "student"
