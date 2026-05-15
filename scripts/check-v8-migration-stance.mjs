@@ -62,13 +62,29 @@ requireIncludes("contract/src/did.compact", compact, [
   "typ: VerificationMethodType",
   "struct Service",
   'typ: Opaque<"string">',
+  "export circuit addVerificationMethod",
   "export circuit updateVerificationMethod",
   "export circuit removeVerificationMethod",
+  "export circuit addVerificationMethodRelation",
+  "export circuit removeVerificationMethodRelation",
+  "export circuit addService",
+  "export circuit updateService",
+  "export circuit removeService",
+  "export circuit addAlsoKnownAs",
+  "export circuit removeAlsoKnownAs",
+  "export circuit deactivate",
 ]);
 
 requireIncludes("contract/src/witnesses.ts", witnesses, [
   "export type DIDPrivateState",
 ]);
+
+if (
+  !contractIndex.includes('export * from "./witnesses') &&
+  !contractIndex.includes("DIDPrivateState")
+) {
+  fail("contract/src/index.ts must re-export DIDPrivateState");
+}
 
 if (contractIndex.includes("ledger-operation-builder")) {
   fail("contract/src/index.ts must not restore ledger-operation-builder export");

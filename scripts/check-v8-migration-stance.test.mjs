@@ -18,6 +18,18 @@ const ROOT_DIR = path.resolve(
   "..",
 );
 const SCRIPT_PATH = path.join(ROOT_DIR, "scripts/check-v8-migration-stance.mjs");
+const VALID_DOC = [
+  "# v8 Ledger and State Migration Stance",
+  "Legacy deployed DID state is not automatically migrated",
+  "`typ`",
+  "typ: VerificationMethodType",
+  "ledger-operation-builder",
+  "`DIDPrivateState`",
+  "removeVerificationMethod",
+  "non-batched",
+  "migration utility",
+  "Unsupported",
+].join("\n");
 
 const runScript = (scriptPath, cwd) =>
   spawnSync("node", [scriptPath], {
@@ -32,7 +44,10 @@ const writeFixtureFile = (rootDir, relativePath, content) => {
   writeFileSync(filePath, content, "utf8");
 };
 
-const createFixtureRoot = ({ doc }) => {
+const createFixtureRoot = ({
+  doc = VALID_DOC,
+  contractIndex = 'export * from "./witnesses.js";\n',
+} = {}) => {
   const rootDir = mkdtempSync(path.join(tmpdir(), "v8-migration-stance-"));
   writeFixtureFile(
     rootDir,
@@ -48,14 +63,23 @@ const createFixtureRoot = ({ doc }) => {
       "typ: VerificationMethodType",
       "struct Service",
       'typ: Opaque<"string">',
+      "export circuit addVerificationMethod",
       "export circuit updateVerificationMethod",
       "export circuit removeVerificationMethod",
+      "export circuit addVerificationMethodRelation",
+      "export circuit removeVerificationMethodRelation",
+      "export circuit addService",
+      "export circuit updateService",
+      "export circuit removeService",
+      "export circuit addAlsoKnownAs",
+      "export circuit removeAlsoKnownAs",
+      "export circuit deactivate",
     ].join("\n"),
   );
   writeFixtureFile(
     rootDir,
     "contract/src/index.ts",
-    "export type { DIDPrivateState } from './witnesses';\n",
+    contractIndex,
   );
   writeFixtureFile(
     rootDir,
@@ -110,6 +134,49 @@ test("v8 migration stance check requires exact typ documentation", () => {
 
   assert.equal(result.status, 1);
   assert.ok(result.stderr.includes("missing required fragment: `typ`"));
+
+  rmSync(rootDir, { recursive: true, force: true });
+});
+
+test("v8 migration stance check rejects restored forbidden exports", () => {
+  for (const forbiddenExport of [
+    'export * from "./ledger-operation-builder.js";',
+    "export type MidnightDIDPrivateState = DIDPrivateState;",
+  ]) {
+    const rootDir = createFixtureRoot({
+      contractIndex: ['export * from "./witnesses.js";', forbiddenExport].join(
+        "\n",
+      ),
+    });
+    const result = runScript(
+      path.join(rootDir, "scripts/check-v8-migration-stance.mjs"),
+      rootDir,
+    );
+
+    assert.equal(result.status, 1);
+    assert.ok(
+      result.stderr.includes("contract/src/index.ts must not restore"),
+      result.stderr,
+    );
+
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test("v8 migration stance check requires DIDPrivateState re-export", () => {
+  const rootDir = createFixtureRoot({
+    contractIndex: "export const currentContractSurface = true;\n",
+  });
+  const result = runScript(
+    path.join(rootDir, "scripts/check-v8-migration-stance.mjs"),
+    rootDir,
+  );
+
+  assert.equal(result.status, 1);
+  assert.ok(
+    result.stderr.includes("contract/src/index.ts must re-export DIDPrivateState"),
+    result.stderr,
+  );
 
   rmSync(rootDir, { recursive: true, force: true });
 });
