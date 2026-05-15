@@ -106,4 +106,99 @@ describe("University BDD transport runtime", () => {
       "Transport operation issueDiploma: attempts=2, retries=1, timeoutEvents=1",
     ]);
   });
+
+  it("rethrows timeout errors after the retry budget is exhausted", async () => {
+    let attempts = 0;
+    const baseTransport: UniversityTransport = {
+      async issueDiploma(): Promise<UniversityIssuanceDecision> {
+        attempts += 1;
+        const error = new Error("timeout always");
+        error.name = "AbortError";
+        throw error;
+      },
+      async requestPresentation() {
+        throw new Error("not used");
+      },
+      async requestDiscount() {
+        throw new Error("not used");
+      },
+    };
+
+    const transport = createTransportWithRetry(baseTransport, {
+      maxRetries: 1,
+      retryDelayMs: 0,
+      timeoutMs: 0,
+    });
+    const before = transport.snapshot();
+
+    await expect(
+      transport.transport.issueDiploma({} as UniversityIssuanceRequestContext),
+    ).rejects.toThrow(/timeout always/);
+
+    expect(attempts).toBe(2);
+    expect(transport.stepChecks(["issueDiploma"], before)).toEqual([
+      "Transport operation issueDiploma: attempts=2, retries=1, timeoutEvents=2",
+    ]);
+  });
+
+  it("does not retry non-timeout transport errors", async () => {
+    let attempts = 0;
+    const baseTransport: UniversityTransport = {
+      async issueDiploma(): Promise<UniversityIssuanceDecision> {
+        attempts += 1;
+        throw new Error("issuer rejected request");
+      },
+      async requestPresentation() {
+        throw new Error("not used");
+      },
+      async requestDiscount() {
+        throw new Error("not used");
+      },
+    };
+
+    const transport = createTransportWithRetry(baseTransport, {
+      maxRetries: 3,
+      retryDelayMs: 0,
+      timeoutMs: 0,
+    });
+    const before = transport.snapshot();
+
+    await expect(
+      transport.transport.issueDiploma({} as UniversityIssuanceRequestContext),
+    ).rejects.toThrow(/issuer rejected request/);
+
+    expect(attempts).toBe(1);
+    expect(transport.stepChecks(["issueDiploma"], before)).toEqual([
+      "Transport operation issueDiploma: attempts=1, retries=0, timeoutEvents=0",
+    ]);
+  });
+
+  it("records timeout metrics when the transport timeout fires", async () => {
+    const baseTransport: UniversityTransport = {
+      async issueDiploma(): Promise<UniversityIssuanceDecision> {
+        return new Promise<UniversityIssuanceDecision>(() => undefined);
+      },
+      async requestPresentation() {
+        throw new Error("not used");
+      },
+      async requestDiscount() {
+        throw new Error("not used");
+      },
+    };
+
+    const transport = createTransportWithRetry(baseTransport, {
+      maxRetries: 0,
+      retryDelayMs: 0,
+      timeoutMs: 1,
+    });
+    const before = transport.snapshot();
+
+    await expect(
+      transport.transport.issueDiploma({} as UniversityIssuanceRequestContext),
+    ).rejects.toThrow(/timed out/);
+
+    expect(transport.stepChecks(["issueDiploma"], before)).toEqual([
+      "Transport operation issueDiploma: attempts=1, retries=0, timeoutEvents=1",
+    ]);
+  });
 });
