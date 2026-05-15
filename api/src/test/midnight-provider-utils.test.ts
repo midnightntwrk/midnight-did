@@ -133,8 +133,16 @@ describe("midnight provider utility helpers", () => {
       getSigningKey: vi.fn(),
       removeSigningKey: vi.fn(),
       clearSigningKeys: vi.fn(),
-      exportPrivateStates: vi.fn(),
-      importPrivateStates: vi.fn(),
+      exportPrivateStates: vi.fn().mockResolvedValue({
+        encryptedPayload: "payload",
+        format: "midnight-private-state-export",
+        salt: "00",
+      }),
+      importPrivateStates: vi.fn().mockResolvedValue({
+        imported: 1,
+        overwritten: 0,
+        skipped: 0,
+      }),
       exportSigningKeys: vi.fn(),
       importSigningKeys: vi.fn(),
     };
@@ -158,10 +166,24 @@ describe("midnight provider utility helpers", () => {
     await expect(wrapped.clear()).rejects.toMatchObject({
       operation: "clear",
     });
+    await expect(wrapped.exportPrivateStates()).rejects.toMatchObject({
+      operation: "export",
+    });
+    await expect(
+      wrapped.importPrivateStates({
+        encryptedPayload: "payload",
+        format: "midnight-private-state-export",
+        salt: "00",
+      }),
+    ).rejects.toMatchObject({
+      operation: "import",
+    });
     expect(provider.get).not.toHaveBeenCalled();
     expect(provider.set).not.toHaveBeenCalled();
     expect(provider.remove).not.toHaveBeenCalled();
     expect(provider.clear).not.toHaveBeenCalled();
+    expect(provider.exportPrivateStates).not.toHaveBeenCalled();
+    expect(provider.importPrivateStates).not.toHaveBeenCalled();
 
     wrapped.setContractAddress("a".repeat(64));
 
@@ -171,13 +193,39 @@ describe("midnight provider utility helpers", () => {
     await wrapped.set("state-id", { secretKey: new Uint8Array([3]) });
     await wrapped.remove("state-id");
     await wrapped.clear();
+    await expect(wrapped.exportPrivateStates()).resolves.toEqual({
+      encryptedPayload: "payload",
+      format: "midnight-private-state-export",
+      salt: "00",
+    });
+    await expect(
+      wrapped.importPrivateStates({
+        encryptedPayload: "payload",
+        format: "midnight-private-state-export",
+        salt: "00",
+      }),
+    ).resolves.toEqual({
+      imported: 1,
+      overwritten: 0,
+      skipped: 0,
+    });
     expect(provider.setContractAddress).toHaveBeenCalledWith("a".repeat(64));
+    expect(provider.setContractAddress).toHaveBeenCalledOnce();
     expect(provider.get).toHaveBeenCalledWith("state-id");
     expect(provider.set).toHaveBeenCalledWith("state-id", {
       secretKey: new Uint8Array([3]),
     });
     expect(provider.remove).toHaveBeenCalledWith("state-id");
     expect(provider.clear).toHaveBeenCalledOnce();
+    expect(provider.exportPrivateStates).toHaveBeenCalledOnce();
+    expect(provider.importPrivateStates).toHaveBeenCalledWith(
+      {
+        encryptedPayload: "payload",
+        format: "midnight-private-state-export",
+        salt: "00",
+      },
+      undefined,
+    );
   });
 
   it("detects missing-contract-address errors by typed code, not SDK text", () => {

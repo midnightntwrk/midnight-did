@@ -372,6 +372,8 @@ export const createContractScopedPrivateStateProvider = <
       if (property === "clear") return clear;
       if (property === "exportPrivateStates") return exportPrivateStates;
       if (property === "importPrivateStates") return importPrivateStates;
+      // Signing-key methods remain delegated: the SDK scopes those operations
+      // by their explicit ContractAddress argument, not this contract-state guard.
       const value = Reflect.get(target, property, target);
       return typeof value === "function" ? value.bind(target) : value;
     },

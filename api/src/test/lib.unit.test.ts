@@ -152,7 +152,11 @@ describe("lib lightweight unit helpers", () => {
     setLogger(logger);
     const providers = {
       privateStateProvider: {
-        get: vi.fn().mockRejectedValue(new Error("audit cache failed")),
+        get: vi
+          .fn()
+          .mockRejectedValue(
+            new Error("audit cache failed: Contract address not set"),
+          ),
         set: vi.fn(),
       },
       zkConfigProvider: {
