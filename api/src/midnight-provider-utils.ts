@@ -52,6 +52,17 @@ export class MissingPrivateStateContractAddressError extends Error {
   }
 }
 
+const PRIVATE_STATE_CONTRACT_OPERATIONS: readonly PrivateStateContractOperation[] =
+  ["get", "set", "remove", "clear", "export", "import"];
+
+const isPrivateStateContractOperation = (
+  operation: unknown,
+): operation is PrivateStateContractOperation =>
+  typeof operation === "string" &&
+  PRIVATE_STATE_CONTRACT_OPERATIONS.includes(
+    operation as PrivateStateContractOperation,
+  );
+
 /**
  * Accept the class instance and the project-owned code so bundled API/CLI
  * copies still recognize the same sentinel without inspecting SDK messages.
@@ -60,10 +71,17 @@ export const isMissingPrivateStateContractAddressError = (
   error: unknown,
 ): error is MissingPrivateStateContractAddressError =>
   error instanceof MissingPrivateStateContractAddressError ||
-  (typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === MISSING_PRIVATE_STATE_CONTRACT_ADDRESS_CODE);
+  (error instanceof Error &&
+    (() => {
+      const codedError = error as Error & {
+        readonly code?: unknown;
+        readonly operation?: unknown;
+      };
+      return (
+        codedError.code === MISSING_PRIVATE_STATE_CONTRACT_ADDRESS_CODE &&
+        isPrivateStateContractOperation(codedError.operation)
+      );
+    })());
 
 export type PrivateStatePasswordOptions = {
   readonly networkId?: string;

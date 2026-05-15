@@ -130,7 +130,7 @@ describe("midnight provider utility helpers", () => {
       remove: vi.fn(),
       clear: vi.fn(),
       setSigningKey: vi.fn(),
-      getSigningKey: vi.fn(),
+      getSigningKey: vi.fn().mockResolvedValue("existing-signing-key"),
       removeSigningKey: vi.fn(),
       clearSigningKeys: vi.fn(),
       exportPrivateStates: vi.fn().mockResolvedValue({
@@ -190,6 +190,10 @@ describe("midnight provider utility helpers", () => {
       "b".repeat(64),
       "signing-key",
     );
+    await expect(wrapped.getSigningKey("c".repeat(64))).resolves.toBe(
+      "existing-signing-key",
+    );
+    expect(provider.getSigningKey).toHaveBeenCalledWith("c".repeat(64));
 
     wrapped.setContractAddress("a".repeat(64));
 
@@ -235,11 +239,33 @@ describe("midnight provider utility helpers", () => {
   });
 
   it("detects missing-contract-address errors by typed code, not SDK text", () => {
+    const duplicateBundleError = Object.assign(
+      new Error("Private state contract address must be set."),
+      {
+        code: "MIDNIGHT_DID_PRIVATE_STATE_CONTRACT_ADDRESS_NOT_SET",
+        operation: "get",
+      },
+    );
+
+    expect(
+      isMissingPrivateStateContractAddressError(duplicateBundleError),
+    ).toBe(true);
     expect(
       isMissingPrivateStateContractAddressError({
         code: "MIDNIGHT_DID_PRIVATE_STATE_CONTRACT_ADDRESS_NOT_SET",
       }),
-    ).toBe(true);
+    ).toBe(false);
+    expect(
+      isMissingPrivateStateContractAddressError(
+        Object.assign(
+          new Error("Private state contract address must be set."),
+          {
+            code: "MIDNIGHT_DID_PRIVATE_STATE_CONTRACT_ADDRESS_NOT_SET",
+            operation: "not-a-private-state-operation",
+          },
+        ),
+      ),
+    ).toBe(false);
     expect(
       isMissingPrivateStateContractAddressError(
         new Error("Contract address not set"),
