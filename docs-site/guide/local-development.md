@@ -23,6 +23,21 @@ This root runner now validates only the Midnight DID workspace:
 - resolver
 - DID manager
 
+Runner flags:
+
+```bash
+./run.sh --light --strict --skip-coverage --metrics --metrics-json /tmp/midnight-did-run.json
+```
+
+- `--light` maps to `SKIP_LONG_RUNNING=1`
+- `--strict` disables automatic lint fixes and is the closest local mode to CI
+- `--skip-coverage` skips coverage-only work while preserving build and test
+  structure
+- `--metrics` prints per-step wall-clock durations
+- `--metrics-json <file>` writes the same step timing contract as JSON
+- metrics JSON is written on success and on a failing step, so failed local or
+  CI runs still expose the last measured step and failure context
+
 CI-aligned core verification (skip auto-fix pass):
 
 ```bash
