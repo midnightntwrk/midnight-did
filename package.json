@@ -34,6 +34,7 @@
     "test:circuit-registry": "npm run test -w api -- src/test/did-circuits.test.ts",
     "test:university-bdd": "npm run test -w api -- src/test/university-bdd-flow.test.ts",
     "test:university-bdd:modules": "npm run test -w api -- src/test/university-bdd-modules.test.ts",
+    "test:university-bdd:transport-runtime": "npm run test -w api -- src/test/university-bdd-transport.test.ts",
     "docs:check-mermaid": "node scripts/docs-mermaid.mjs check",
     "docs:check-v8-migration": "node scripts/check-v8-migration-stance.mjs",
     "test:v8-migration-stance": "node --test scripts/check-v8-migration-stance.test.mjs",

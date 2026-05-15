@@ -75,6 +75,11 @@ const CHECKS = [
     label: "Validate Compact compiler/runtime compatibility in CI prechecks",
     command: "npm run check:toolchain",
   },
+  {
+    itemNumber: 72,
+    label: "Decompose university BDD engine internals by concern",
+    command: "npm run test:university-bdd:transport-runtime",
+  },
 ];
 
 const parseArgs = () => {

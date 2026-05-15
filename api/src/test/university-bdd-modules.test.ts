@@ -4,6 +4,7 @@ import * as facade from "../university-bdd";
 import * as artifacts from "../university-bdd-artifacts";
 import * as engine from "../university-bdd-engine";
 import * as fixtures from "../university-bdd-fixtures";
+import * as transport from "../university-bdd-transport";
 import * as contracts from "../university-bdd-types";
 import { computeCredentialDigest } from "../university-bdd-utils";
 
@@ -16,6 +17,7 @@ const sourceModules = {
   artifacts,
   engine,
   fixtures,
+  transport,
   contracts,
 } as const;
 
@@ -38,6 +40,12 @@ describe("University BDD module boundaries", () => {
     );
     expect(facade.toUniversityScenarioReplayArtifact).toBe(
       artifacts.toUniversityScenarioReplayArtifact,
+    );
+    expect(facade.createUniversityTransport).toBe(
+      transport.createUniversityTransport,
+    );
+    expect(facade.resolveUniversityRuntimeMode).toBe(
+      transport.resolveUniversityRuntimeMode,
     );
     expect(facade.computeCredentialDigest).toBe(computeCredentialDigest);
   });

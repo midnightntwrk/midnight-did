@@ -374,7 +374,8 @@
    - Added a `check:toolchain` guard comparing `compact compile --runtime-version` with the declared `@midnight-ntwrk/compact-runtime`.
    - Acceptance: compiler/runtime drift fails before contract tests import generated managed code.
 
-72. **Decompose university BDD engine internals by concern**
+72. ✅ **Done: Decompose university BDD engine internals by concern**
    - First decomposition slice extracts fixture loading/generation/subsetting into `api/src/university-bdd-fixtures.ts`, report/replay/summary helpers into `api/src/university-bdd-artifacts.ts`, and shared validation/hash helpers into `api/src/university-bdd-utils.ts`.
-   - Remaining follow-up: split transport/runtime adapters from scenario execution inside `api/src/university-bdd-engine.ts`.
+   - Second decomposition slice extracts retry metrics, runtime mode resolution, simulator transport, standalone guard, and transport factory wiring into `api/src/university-bdd-transport.ts`.
+   - Added `npm run test:university-bdd:transport-runtime` for focused transport module coverage.
    - Acceptance: each concern has focused module tests, and external imports through `api/src/university-bdd.ts` remain unchanged.
