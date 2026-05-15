@@ -1,9 +1,10 @@
+import { ContractState } from "@midnight-ntwrk/compact-runtime";
 import {
   MidnightDIDResolver,
   MidnightNetwork,
 } from "@midnight-ntwrk/midnight-did";
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
-import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-public-data-provider";
+import { Buffer } from "buffer";
 
 import { IndexerEndpointPolicy } from "./indexer-endpoint-policy.js";
 import {
@@ -49,6 +50,7 @@ export type ResolverServiceOptions = {
   requestTimeoutMs?: number;
   debug?: boolean;
   logger?: ResolverLogger;
+  indexerClientFactory?: ResolverIndexerClientFactory;
 };
 
 export const RESOLVER_CACHE_MAX_SIZE = 64;
@@ -57,6 +59,28 @@ export const DEFAULT_RESOLVER_REQUEST_TIMEOUT_MS = 10_000;
 export type ResolverLogger = {
   error: (message: string, context?: Record<string, unknown>) => void;
 };
+
+type ResolvedIndexerEndpoints = ReturnType<IndexerEndpointPolicy["resolve"]>;
+
+type ContractStateQueryResponse = {
+  data?: {
+    contractAction?: {
+      state?: string | null;
+    } | null;
+  } | null;
+  errors?: readonly { message?: string }[];
+};
+
+export type ResolverIndexerClient = {
+  queryContractState: (
+    contractAddress: string,
+    signal: AbortSignal,
+  ) => Promise<ContractState | null>;
+};
+
+type ResolverIndexerClientFactory = (
+  endpoints: ResolvedIndexerEndpoints,
+) => ResolverIndexerClient;
 
 const defaultLogger: ResolverLogger = {
   error: (message, context) => {
@@ -67,6 +91,67 @@ const defaultLogger: ResolverLogger = {
     console.error(message, context);
   },
 };
+
+const contractStateQuery = `
+  query CONTRACT_STATE_QUERY($address: HexEncoded!, $offset: ContractActionOffset) {
+    contractAction(address: $address, offset: $offset) {
+      state
+    }
+  }
+`;
+
+const describeGraphQLErrors = (
+  errors: readonly { message?: string }[],
+): string =>
+  errors
+    .map(
+      (error, index) =>
+        `${(index + 1).toString()}. ${error.message ?? "GraphQL error"}`,
+    )
+    .join("; ");
+
+class HttpResolverIndexerClient implements ResolverIndexerClient {
+  constructor(private readonly indexerHttpUrl: string) {}
+
+  async queryContractState(
+    contractAddress: string,
+    signal: AbortSignal,
+  ): Promise<ContractState | null> {
+    const response = await fetch(this.indexerHttpUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({
+        query: contractStateQuery,
+        variables: {
+          address: contractAddress,
+          offset: null,
+        },
+      }),
+      signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Indexer contract-state query failed with HTTP ${response.status.toString()}`,
+      );
+    }
+
+    const payload = (await response.json()) as ContractStateQueryResponse;
+    if (payload.errors !== undefined && payload.errors.length > 0) {
+      throw new Error(
+        `Indexer GraphQL error(s): ${describeGraphQLErrors(payload.errors)}`,
+      );
+    }
+
+    const state = payload.data?.contractAction?.state ?? null;
+    return state === null
+      ? null
+      : ContractState.deserialize(Buffer.from(state, "hex"));
+  }
+}
 
 const errorPayload = (error: ResolutionErrorCode) => ({
   didDocument: null,
@@ -102,7 +187,11 @@ export class ResolverService {
   private readonly requestTimeoutMs: number;
   private readonly debug: boolean;
   private readonly logger: ResolverLogger;
-  private readonly resolverCache = new Map<string, MidnightDIDResolver>();
+  private readonly indexerClientFactory: ResolverIndexerClientFactory;
+  private readonly indexerClientCache = new Map<
+    string,
+    ResolverIndexerClient
+  >();
 
   constructor(options: ResolverServiceOptions) {
     this.expectedNetwork = options.expectedNetwork;
@@ -110,6 +199,9 @@ export class ResolverService {
       options.requestTimeoutMs ?? DEFAULT_RESOLVER_REQUEST_TIMEOUT_MS;
     this.debug = options.debug ?? false;
     this.logger = options.logger ?? defaultLogger;
+    this.indexerClientFactory =
+      options.indexerClientFactory ??
+      ((endpoints) => new HttpResolverIndexerClient(endpoints.indexerHttpUrl));
     this.endpointPolicy = new IndexerEndpointPolicy(
       {
         indexerHttpUrl: options.indexerHttpUrl,
@@ -141,57 +233,76 @@ export class ResolverService {
     });
   }
 
-  private touchCache(cacheKey: string, resolver: MidnightDIDResolver): void {
-    if (this.resolverCache.has(cacheKey)) {
-      this.resolverCache.delete(cacheKey);
+  private touchCache(cacheKey: string, client: ResolverIndexerClient): void {
+    if (this.indexerClientCache.has(cacheKey)) {
+      this.indexerClientCache.delete(cacheKey);
     }
-    this.resolverCache.set(cacheKey, resolver);
-    if (this.resolverCache.size <= RESOLVER_CACHE_MAX_SIZE) {
+    this.indexerClientCache.set(cacheKey, client);
+    if (this.indexerClientCache.size <= RESOLVER_CACHE_MAX_SIZE) {
       return;
     }
-    const oldestKey = this.resolverCache.keys().next().value;
+    const oldestKey = this.indexerClientCache.keys().next().value;
     if (oldestKey !== undefined) {
-      this.resolverCache.delete(oldestKey);
+      this.indexerClientCache.delete(oldestKey);
     }
   }
 
-  private resolverFor(options?: ResolveRequestOptions): MidnightDIDResolver {
+  private indexerClientFor(
+    options?: ResolveRequestOptions,
+  ): ResolverIndexerClient {
     const { indexerHttpUrl, indexerWsUrl } =
       this.endpointPolicy.resolve(options);
     const cacheKey = `${indexerHttpUrl}|${indexerWsUrl}|${this.expectedNetwork ?? "any"}`;
-    const cached = this.resolverCache.get(cacheKey);
+    const cached = this.indexerClientCache.get(cacheKey);
     if (cached !== undefined) {
       this.touchCache(cacheKey, cached);
       return cached;
     }
-    const publicDataProvider = indexerPublicDataProvider(
-      indexerHttpUrl,
-      indexerWsUrl,
-    );
+    const client = this.indexerClientFactory({ indexerHttpUrl, indexerWsUrl });
+    this.touchCache(cacheKey, client);
+    return client;
+  }
+
+  private resolverFor(
+    options: ResolveRequestOptions | undefined,
+    signal: AbortSignal,
+  ): MidnightDIDResolver {
+    const indexerClient = this.indexerClientFor(options);
     const resolver = new MidnightDIDResolver({
       expectedNetwork: this.expectedNetwork,
       ledgerReader: async (contractAddress) => {
-        const contractState =
-          await publicDataProvider.queryContractState(contractAddress);
+        const contractState = await indexerClient.queryContractState(
+          contractAddress,
+          signal,
+        );
         return contractState === null
           ? null
           : DIDContract.ledger(contractState.data);
       },
     });
-    this.touchCache(cacheKey, resolver);
     return resolver;
   }
 
-  private async withResolutionTimeout<T>(operation: Promise<T>): Promise<T> {
+  private async withResolutionTimeout<T>(
+    operation: (signal: AbortSignal) => Promise<T>,
+  ): Promise<T> {
+    const abortController = new AbortController();
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const timeoutOperation = new Promise<never>((_resolve, reject) => {
       timeout = setTimeout(() => {
-        reject(new ResolutionRequestTimeoutError(this.requestTimeoutMs));
+        const timeoutError = new ResolutionRequestTimeoutError(
+          this.requestTimeoutMs,
+        );
+        reject(timeoutError);
+        abortController.abort(timeoutError);
       }, this.requestTimeoutMs);
     });
 
     try {
-      return await Promise.race([operation, timeoutOperation]);
+      return await Promise.race([
+        operation(abortController.signal),
+        timeoutOperation,
+      ]);
     } finally {
       if (timeout !== undefined) {
         clearTimeout(timeout);
@@ -204,8 +315,8 @@ export class ResolverService {
     options?: ResolveRequestOptions,
   ): Promise<ResolveResponse> {
     try {
-      const result = await this.withResolutionTimeout(
-        this.resolverFor(options).resolveResult(did),
+      const result = await this.withResolutionTimeout((signal) =>
+        this.resolverFor(options, signal).resolveResult(did),
       );
       if (result === null) {
         return {

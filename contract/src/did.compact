@@ -181,9 +181,8 @@ export circuit removeVerificationMethod(id: Opaque<"string">): [] {
   assert(!capabilityInvocationRelation.member(disclosedId), "Verification method still referenced in capabilityInvocationRelation");
   assert(!capabilityDelegationRelation.member(disclosedId), "Verification method still referenced in capabilityDelegationRelation");
 
-  // PLAN B: Only remove the verification method itself
-  // Relations should be removed separately by the caller (API layer)
-  // This allows wallet to sync between each relation removal
+  // Removal is intentionally two-phase: callers must remove relations first,
+  // then remove the verification method after wallet/indexer state can sync.
   verificationMethods.remove(disclosedId);
 
   operationCount.increment(1);

@@ -36,5 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Breaking Changes
 
 - The contract update model uses individual circuits rather than the previous batched operation-dispatcher shape.
+- `@midnight-ntwrk/midnight-did-contract` no longer exports the obsolete `ledger-operation-builder` helper; direct callers should call generated Compact circuits or the API package helpers instead.
+- The contract witness private-state type is now exported as `DIDPrivateState`; downstream imports of the previous `MidnightDIDPrivateState` alias must be updated.
+- `removeVerificationMethod` no longer cascades relation removal inside the Compact circuit. Direct contract callers must remove authentication/assertion/key-agreement/capability relations first, then remove the verification method. The API helper preserves convenience behavior by issuing relation-removal calls before the method-removal call.
 - Ledger-facing verification method and service fields use the compact-compatible `typ` storage field and are mapped back to DID Core `type` at API/resolver boundaries.
 - Existing consumers of the previous `Wallet & Resource` provider shape must migrate to `MidnightDIDWalletContext`.

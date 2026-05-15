@@ -16,3 +16,9 @@ Build & Test
 
 Notes
 - Runtime-heavy suites require a full runtime environment; skip with `SKIP_RUNTIME_TESTS=1`
+- Breaking change in the current unreleased contract surface: the old batched
+  `ledger-operation-builder` export has been removed in favor of generated
+  Compact circuits, and `removeVerificationMethod` is now a two-phase removal.
+  Direct contract callers must remove all relation references before removing
+  the verification method. The API package helper performs those relation
+  removals for higher-level callers.

@@ -4,15 +4,22 @@ const resolveResultMock = vi.fn();
 const queryContractStateMock = vi.fn();
 const ledgerFromStateMock = vi.fn();
 const resolverCtorMock = vi.fn();
-const providerFactoryMock = vi.fn();
+const indexerClientFactoryMock = vi.fn();
+
+type ResolverCtorOptions = {
+  ledgerReader: (address: string) => Promise<unknown>;
+};
 
 vi.mock("@midnight-ntwrk/midnight-did", () => {
   class MidnightDIDResolver {
+    private readonly options: unknown;
+
     constructor(options: unknown) {
+      this.options = options;
       resolverCtorMock(options);
     }
 
-    resolveResult = resolveResultMock;
+    resolveResult = (did: string) => resolveResultMock(did, this.options);
   }
 
   return {
@@ -23,15 +30,6 @@ vi.mock("@midnight-ntwrk/midnight-did", () => {
     },
   };
 });
-
-vi.mock("@midnight-ntwrk/midnight-js-indexer-public-data-provider", () => ({
-  indexerPublicDataProvider: (...args: unknown[]) => {
-    providerFactoryMock(...args);
-    return {
-      queryContractState: queryContractStateMock,
-    };
-  },
-}));
 
 vi.mock("@midnight-ntwrk/midnight-did-contract", () => ({
   DIDContract: {
@@ -47,7 +45,10 @@ describe("did-resolver-service service", () => {
     queryContractStateMock.mockReset();
     ledgerFromStateMock.mockReset();
     resolverCtorMock.mockClear();
-    providerFactoryMock.mockClear();
+    indexerClientFactoryMock.mockReset();
+    indexerClientFactoryMock.mockReturnValue({
+      queryContractState: queryContractStateMock,
+    });
   });
 
   afterEach(() => {
@@ -92,16 +93,17 @@ describe("did-resolver-service service", () => {
       indexerHttpUrl: "http://indexer.example/api/v3/graphql",
       indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
       allowedIndexerHttpUrls: ["https://another.example/api/v3/graphql"],
+      indexerClientFactory: indexerClientFactoryMock,
     });
 
     await service.resolve("did:midnight:devnet:abc", {
       indexerUrl: "https://another.example/api/v3/graphql",
     });
 
-    expect(providerFactoryMock).toHaveBeenCalledWith(
-      "https://another.example/api/v3/graphql",
-      "wss://another.example/api/v3/graphql/ws",
-    );
+    expect(indexerClientFactoryMock).toHaveBeenCalledWith({
+      indexerHttpUrl: "https://another.example/api/v3/graphql",
+      indexerWsUrl: "wss://another.example/api/v3/graphql/ws",
+    });
   });
 
   it("rejects unallowlisted indexer overrides before provider creation", async () => {
@@ -116,27 +118,30 @@ describe("did-resolver-service service", () => {
 
     expect(result.statusCode).toBe(200);
     expect(result.payload.didResolutionMetadata.error).toBe("invalidDid");
-    expect(providerFactoryMock).not.toHaveBeenCalled();
+    expect(indexerClientFactoryMock).not.toHaveBeenCalled();
+    expect(resolverCtorMock).not.toHaveBeenCalled();
   });
 
-  it("reuses resolver instances for same endpoint pair", async () => {
+  it("reuses indexer clients for same endpoint pair", async () => {
     resolveResultMock.mockResolvedValue(null);
     const service = new ResolverService({
       indexerHttpUrl: "http://indexer.example/api/v3/graphql",
       indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
+      indexerClientFactory: indexerClientFactoryMock,
     });
 
     await service.resolve("did:midnight:devnet:abc");
     await service.resolve("did:midnight:devnet:def");
 
-    expect(resolverCtorMock).toHaveBeenCalledTimes(1);
+    expect(indexerClientFactoryMock).toHaveBeenCalledTimes(1);
   });
 
-  it("evicts least recently used resolver when cache size is exceeded", async () => {
+  it("evicts least recently used indexer client when cache size is exceeded", async () => {
     resolveResultMock.mockResolvedValue(null);
     const service = new ResolverService({
       indexerHttpUrl: "http://indexer.example/api/v3/graphql",
       indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
+      indexerClientFactory: indexerClientFactoryMock,
       allowedIndexerHttpUrls: Array.from(
         { length: RESOLVER_CACHE_MAX_SIZE + 1 },
         (_value, index) => `http://idx-${index}.example/api/v3/graphql`,
@@ -149,13 +154,17 @@ describe("did-resolver-service service", () => {
       });
     }
 
-    expect(resolverCtorMock).toHaveBeenCalledTimes(RESOLVER_CACHE_MAX_SIZE + 1);
+    expect(indexerClientFactoryMock).toHaveBeenCalledTimes(
+      RESOLVER_CACHE_MAX_SIZE + 1,
+    );
 
     await service.resolve("did:midnight:devnet:abc", {
       indexerUrl: "http://idx-0.example/api/v3/graphql",
     });
 
-    expect(resolverCtorMock).toHaveBeenCalledTimes(RESOLVER_CACHE_MAX_SIZE + 2);
+    expect(indexerClientFactoryMock).toHaveBeenCalledTimes(
+      RESOLVER_CACHE_MAX_SIZE + 2,
+    );
   });
 
   it("maps contract state through DIDContract.ledger in resolver reader", async () => {
@@ -165,15 +174,17 @@ describe("did-resolver-service service", () => {
     const service = new ResolverService({
       indexerHttpUrl: "http://indexer.example/api/v3/graphql",
       indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
+      indexerClientFactory: indexerClientFactoryMock,
     });
 
     await service.resolve("did:midnight:devnet:abc");
 
-    const ctorArgs = resolverCtorMock.mock.calls[0]?.[0] as {
-      ledgerReader: (address: string) => Promise<unknown>;
-    };
+    const ctorArgs = resolverCtorMock.mock.calls[0]?.[0] as ResolverCtorOptions;
     const mappedState = await ctorArgs.ledgerReader("contract-address");
-    expect(queryContractStateMock).toHaveBeenCalledWith("contract-address");
+    expect(queryContractStateMock).toHaveBeenCalledWith(
+      "contract-address",
+      expect.any(AbortSignal),
+    );
     expect(ledgerFromStateMock).toHaveBeenCalledWith({ state: "value" });
     expect(mappedState).toEqual({ ledger: "mapped" });
 
@@ -212,15 +223,24 @@ describe("did-resolver-service service", () => {
     );
   });
 
-  it("returns a timeout error instead of parking slow resolution forever", async () => {
+  it("aborts the upstream indexer query when resolution times out", async () => {
     vi.useFakeTimers();
+    let observedSignal: AbortSignal | undefined;
+    queryContractStateMock.mockImplementation(
+      (_address: string, signal: AbortSignal) => {
+        observedSignal = signal;
+        return new Promise<never>(() => undefined);
+      },
+    );
     resolveResultMock.mockImplementationOnce(
-      () => new Promise<never>(() => undefined),
+      (_did: string, options: ResolverCtorOptions) =>
+        options.ledgerReader("contract-address"),
     );
     const service = new ResolverService({
       indexerHttpUrl: "http://indexer.example/api/v3/graphql",
       indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
       requestTimeoutMs: 25,
+      indexerClientFactory: indexerClientFactoryMock,
     });
 
     const resultPromise = service.resolve("did:midnight:devnet:abc");
@@ -229,6 +249,11 @@ describe("did-resolver-service service", () => {
 
     expect(result.statusCode).toBe(504);
     expect(result.payload.didResolutionMetadata.error).toBe("timeout");
+    expect(queryContractStateMock).toHaveBeenCalledWith(
+      "contract-address",
+      expect.any(AbortSignal),
+    );
+    expect(observedSignal?.aborted).toBe(true);
   });
 
   it("uses injected logger for scrubbed debug error output", async () => {
