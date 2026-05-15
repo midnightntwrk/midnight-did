@@ -353,9 +353,12 @@
    - Added `npm run test:circuit-registry` to assert parity against generated `contract-info.json` and prover/verifier key assets.
    - Acceptance: a circuit rename now fails via TypeScript contract types or the small registry parity test instead of during a wallet call.
 
-68. **Split the university BDD harness into reviewable modules**
-   - Extract fixture loading, transport contracts, scenario execution, report building, and artifact helpers from the current monolith.
-   - Acceptance: new real-transport code can be reviewed without reading the full scenario runner.
+68. ✅ **Done: Split the university BDD harness into reviewable modules**
+   - Preserved `api/src/university-bdd.ts` as a stable public facade.
+   - Moved scenario execution, fixture loading, report building, and artifact helpers into `api/src/university-bdd-engine.ts`.
+   - Extracted DTOs, report/replay constants, fixture shapes, and transport contracts into `api/src/university-bdd-types.ts`.
+   - Added `npm run test:university-bdd:modules` to assert facade exports remain wired to the engine and contract modules.
+   - Acceptance: transport/DTO contract changes can now be reviewed without reading the full scenario runner.
 
 69. **Add a real-transport smoke harness for university BDD**
    - Wire standalone/proof-server transport behind the existing scenario interface and capture real timing metrics.

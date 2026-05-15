@@ -66,6 +66,11 @@ const CHECKS = [
     command: "npm run test:circuit-registry",
   },
   {
+    itemNumber: 68,
+    label: "Split the university BDD harness into reviewable modules",
+    command: "npm run test:university-bdd:modules",
+  },
+  {
     itemNumber: 71,
     label: "Validate Compact compiler/runtime compatibility in CI prechecks",
     command: "npm run check:toolchain",
