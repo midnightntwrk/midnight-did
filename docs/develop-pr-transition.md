@@ -4,9 +4,14 @@ Last updated: 2026-05-15
 
 Target branch: `origin/develop`.
 
-## Current Replacement PR
+## Merged Replacement PR
 
 PR: `#91` (`codex/did-runner-metrics-develop`)
+
+Status:
+
+- merged to `develop` at `2026-05-15T10:12:00Z`
+- merge commit: `b23321176823c63b4693963a8e14b93d322a16e7`
 
 Purpose:
 
@@ -33,12 +38,12 @@ Validation:
 - failed-step metrics probe
 - `git diff --check`
 
-Merge gates:
+Merge gates completed:
 
 - target branch is `develop`, not `main`
-- DCO and GPG signing are required on commits
-- Claude PR review must have no critical open findings
-- GitHub Actions CI must be green before merge
+- DCO and GPG signing were preserved
+- Claude PR review completed with no remaining critical findings
+- GitHub Actions CI was green before merge
 
 ## Superseded PRs
 
@@ -52,7 +57,8 @@ with current branch context rather than retargeting the stale stack.
 
 ## Follow-Up Candidates
 
-Re-evaluate these only after `#91` lands on `develop`:
+Re-evaluate these as fresh `develop`-targeted PRs only if they are still
+useful:
 
 - runtime provider utility hardening
 - resolver input normalization and guardrails
