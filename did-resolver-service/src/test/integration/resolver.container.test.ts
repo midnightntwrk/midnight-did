@@ -88,9 +88,11 @@ describeIntegration("did-resolver-service docker integration", () => {
     const response = await fetch(`${baseUrl}/resolve/not-a-did`);
     expect(response.status).toBe(400);
     const body = (await response.json()) as {
-      message: string;
+      error: string;
+      statusCode: number;
     };
-    expect(body.message).toContain("must match pattern");
+    expect(body.statusCode).toBe(400);
+    expect(body.error).toBe("Bad Request");
   });
 
   it("keeps Swagger UI disabled by default in the production container", async () => {

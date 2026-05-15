@@ -294,6 +294,8 @@ describe("did-resolver-service service", () => {
         "upstream failed at https://user:secret@indexer.example/api/v3/graphql",
       ),
     );
+    // Simulate a runtime option bag with an unexpected secret-bearing field;
+    // the logger should only emit the typed resolver options.
     await service.resolve(validDid, {
       apiKey: "secret-api-key",
       indexerUrl: "https://user:secret@indexer.example/api/v3/graphql",
