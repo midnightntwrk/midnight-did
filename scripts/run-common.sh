@@ -9,6 +9,7 @@ RUN_COMMON_PRINT_METRICS=0
 RUN_COMMON_METRICS_JSON_PATH=""
 RUN_COMMON_SCRIPT_NAME="run"
 RUN_COMMON_DRY_RUN="${MIDNIGHT_DID_DRY_RUN:-0}"
+# Top-level runner state only; subprocess lane scripts are not aggregated.
 RUN_COMMON_STEP_LABELS=()
 RUN_COMMON_STEP_DURATIONS=()
 
@@ -51,6 +52,10 @@ run_common_parse_args() {
           return 1
         fi
         shift
+        if [[ "$1" == --* ]]; then
+          echo "--metrics-json requires a file path." >&2
+          return 1
+        fi
         RUN_COMMON_METRICS_JSON_PATH="$1"
         shift
         ;;
@@ -66,20 +71,6 @@ run_common_parse_args() {
         echo "Unknown argument: $1" >&2
         run_common_usage "${RUN_COMMON_SCRIPT_NAME}" >&2
         return 1
-        ;;
-    esac
-  done
-}
-
-run_common_apply_light_mode() {
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --light)
-        export SKIP_LONG_RUNNING=1
-        shift
-        ;;
-      *)
-        shift
         ;;
     esac
   done
@@ -135,6 +126,17 @@ run_common_json_escape() {
   printf '%s' "$value"
 }
 
+run_common_json_bool() {
+  case "${1:-0}" in
+    1|true|TRUE|yes|YES|on|ON)
+      printf 'true'
+      ;;
+    *)
+      printf 'false'
+      ;;
+  esac
+}
+
 run_common_run_step() {
   local label="$1"
   shift
@@ -183,10 +185,10 @@ run_common_write_metrics_json() {
     printf '  "generatedAt": "%s",\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     printf '  "script": "%s",\n' "$(run_common_json_escape "${RUN_COMMON_SCRIPT_NAME}")"
     printf '  "totalSteps": %d,\n' "${#RUN_COMMON_STEP_LABELS[@]}"
-    printf '  "lightMode": %s,\n' "${SKIP_LONG_RUNNING:-0}"
-    printf '  "strictMode": %s,\n' "${SKIP_LINT_FIX:-0}"
-    printf '  "skipCoverage": %s,\n' "${SKIP_COVERAGE:-0}"
-    printf '  "printMetrics": %s,\n' "${RUN_COMMON_PRINT_METRICS}"
+    printf '  "lightMode": %s,\n' "$(run_common_json_bool "${SKIP_LONG_RUNNING:-0}")"
+    printf '  "strictMode": %s,\n' "$(run_common_json_bool "${SKIP_LINT_FIX:-0}")"
+    printf '  "skipCoverage": %s,\n' "$(run_common_json_bool "${SKIP_COVERAGE:-0}")"
+    printf '  "printMetrics": %s,\n' "$(run_common_json_bool "${RUN_COMMON_PRINT_METRICS}")"
     printf '  "steps": [\n'
     local i
     for i in "${!RUN_COMMON_STEP_LABELS[@]}"; do
