@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,7 +15,6 @@ import {
   UNIVERSITY_DID_METHOD_PATTERN,
   UNIVERSITY_DID_NAMESPACE_PREFIXES,
   UNIVERSITY_DID_TRUST_EVENT_NAMESPACE_PREFIXES,
-  type UniversityDiplomaCredential,
   type UniversityFixture,
   type UniversityFixtureCompany,
   type UniversityFixtureGeneratorOptions,
@@ -32,11 +30,12 @@ import {
   assertPlainObject,
   assertRequiredNumber,
   assertRequiredString,
-  canonicalStringify,
   normalizeIdList,
   parseIso,
 } from "./university-bdd-utils";
 import type { VcStatusRegistry } from "./vc-status";
+
+export { computeCredentialDigest } from "./university-bdd-utils";
 
 const normalizeDid = (value: unknown, label: string): string => {
   const canonical = assertRequiredString(value, label).trim().toLowerCase();
@@ -362,14 +361,6 @@ const pickWithRandom = <T>(items: readonly T[], random: () => number): T => {
   return items[index]!;
 };
 
-const normalizeGradeBounds = (
-  value: unknown,
-  label: string,
-): [number, number] => {
-  const integer = toPositiveInteger(value, label);
-  return [integer, 100];
-};
-
 const generateUniversityEntityDid = (
   namespace: string,
   seed: number,
@@ -378,16 +369,12 @@ const generateUniversityEntityDid = (
   return `did:midnight:${namespace}:seed-${seed.toString(16)}-${String(index).padStart(3, "0")}`;
 };
 
+// Generated fixtures keep institutional DIDs stable so cross-seed reports stay comparable.
+const GENERATED_UNIVERSITY_DID = "did:midnight:edu:midnight-state-university";
+const GENERATED_MALL_DID = "did:midnight:org:midnight-state-mall";
+
 const generateUniversityId = (prefix: string, index: number): string => {
   return `${prefix}${String(index).padStart(3, "0")}`;
-};
-
-export const computeCredentialDigest = (
-  credential: Omit<UniversityDiplomaCredential, "proofDigest">,
-): string => {
-  return createHash("sha256")
-    .update(canonicalStringify(credential), "utf8")
-    .digest("hex");
 };
 
 export const generateUniversityFixture = (
@@ -459,10 +446,7 @@ export const generateUniversityFixture = (
     "Web3 Privacy",
   ];
 
-  const [gradeFloor] = normalizeGradeBounds(
-    options.gradeFloor ?? 60,
-    "gradeFloor",
-  );
+  const gradeFloor = toPositiveInteger(options.gradeFloor ?? 60, "gradeFloor");
   const gradeCeil = Math.min(
     Math.max(
       toPositiveInteger(options.gradeCeil ?? 99, "gradeCeil"),
@@ -537,7 +521,7 @@ export const generateUniversityFixture = (
     events: [
       {
         role: TRUST_ROLE_ISSUER,
-        partyDid: "did:midnight:edu:midnight-state-university",
+        partyDid: GENERATED_UNIVERSITY_DID,
         actorDid: "did:midnight:gov:state-registry",
         action: "grant",
         effectiveAt: createdAt,
@@ -547,7 +531,7 @@ export const generateUniversityFixture = (
         (company): TrustRoleGrant => ({
           role: TRUST_ROLE_VERIFIER as TrustRole,
           partyDid: company.did,
-          actorDid: "did:midnight:edu:midnight-state-university",
+          actorDid: GENERATED_UNIVERSITY_DID,
           action: "grant" as const,
           effectiveAt: createdAt,
           reason: `Verifier onboarding (${company.companyId})`,
@@ -579,7 +563,7 @@ export const generateUniversityFixture = (
     scenarioTitle,
     createdAt,
     university: {
-      did: "did:midnight:edu:midnight-state-university",
+      did: GENERATED_UNIVERSITY_DID,
       name: "Midnight State University",
       issuerDid: "did:midnight:key:university-issuer",
       credentialStatusRef: statusRef,
@@ -587,7 +571,7 @@ export const generateUniversityFixture = (
     students,
     companies,
     mall: {
-      did: "did:midnight:org:midnight-state-mall",
+      did: GENERATED_MALL_DID,
       name: "Midnight Commerce Mall",
       discountPercent: mallDiscountPercent,
       gradeThreshold: mallGradeThreshold,
@@ -614,12 +598,6 @@ export const shrinkUniversityFixture = (
     fixture.companies.length,
     "companyCount",
   );
-
-  if (studentCount === 0 || companyCount === 0) {
-    throw new Error(
-      "Invalid university fixture shrink option: count must be >= 1",
-    );
-  }
 
   const sortedStudentIds = fixture.students
     .map((student) => student.studentId)

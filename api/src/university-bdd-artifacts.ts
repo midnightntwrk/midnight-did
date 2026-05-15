@@ -29,11 +29,8 @@ const assertArtifactObject = (
   return value as Record<string, unknown>;
 };
 
-const assertArtifactString = (
-  value: unknown,
-  label: string,
-  nonEmpty = true,
-): string => assertRequiredString(value, label, nonEmpty, "artifact");
+const assertArtifactString = (value: unknown, label: string): string =>
+  assertRequiredString(value, label, true, "artifact");
 
 const assertArtifactNumber = (value: unknown, label: string): number =>
   assertRequiredNumber(value, label, "artifact");

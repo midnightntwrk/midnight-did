@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import type { UniversityDiplomaCredential } from "./university-bdd-types";
+
 type UniversityBddFormatKind = "artifact" | "fixture";
 
 const invalidUniversityFormatMessage = (
@@ -81,6 +83,10 @@ export const hashPayload = (value: unknown): string => {
   const payload = canonicalStringify(value);
   return createHash("sha256").update(payload).digest("hex");
 };
+
+export const computeCredentialDigest = (
+  credential: Omit<UniversityDiplomaCredential, "proofDigest">,
+): string => hashPayload(credential);
 
 export const toStepId = (stepIndex: number, label: string): string => {
   const safeLabel = label

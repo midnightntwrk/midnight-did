@@ -4,7 +4,6 @@ import {
   TRUST_ROLE_ISSUER,
   TRUST_ROLE_VERIFIER,
 } from "./trust-registry";
-import { computeCredentialDigest } from "./university-bdd-fixtures";
 import {
   type UniversityDiplomaCredential,
   type UniversityDiscountRequest,
@@ -28,6 +27,7 @@ import {
 } from "./university-bdd-types";
 import {
   assertIdentifiersExist,
+  computeCredentialDigest,
   hashPayload,
   normalizeIdList,
   parseIso,
