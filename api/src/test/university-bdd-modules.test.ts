@@ -4,6 +4,11 @@ import * as facade from "../university-bdd";
 import * as engine from "../university-bdd-engine";
 import * as contracts from "../university-bdd-types";
 
+const sortedRuntimeExports = (
+  moduleExports: Record<string, unknown>,
+): string[] =>
+  Object.keys(moduleExports).sort((lhs, rhs) => lhs.localeCompare(rhs));
+
 describe("University BDD module boundaries", () => {
   it("keeps the public facade wired to the scenario engine", () => {
     expect(facade.runUniversityDiplomaScenario).toBe(
@@ -33,5 +38,16 @@ describe("University BDD module boundaries", () => {
     expect(facade.UNIVERSITY_DID_NAMESPACE_PREFIXES).toBe(
       contracts.UNIVERSITY_DID_NAMESPACE_PREFIXES,
     );
+  });
+
+  it("keeps the facade as a pure re-export surface", () => {
+    const expectedExports = [
+      ...new Set([
+        ...sortedRuntimeExports(engine),
+        ...sortedRuntimeExports(contracts),
+      ]),
+    ].sort((lhs, rhs) => lhs.localeCompare(rhs));
+
+    expect(sortedRuntimeExports(facade)).toEqual(expectedExports);
   });
 });
