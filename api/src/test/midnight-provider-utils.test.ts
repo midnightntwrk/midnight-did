@@ -1,13 +1,17 @@
+import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import {
   getNetworkId,
   setNetworkId,
 } from "@midnight-ntwrk/midnight-js-network-id";
+import * as Rx from "rxjs";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   createPrivateStatePasswordProvider,
   PRIVATE_STATE_PASSWORD_ENV,
   resolvePrivateStatePassword,
+  waitForWalletFunds,
+  waitForWalletSync,
 } from "../midnight-provider-utils";
 
 describe("midnight provider utility helpers", () => {
@@ -77,5 +81,41 @@ describe("midnight provider utility helpers", () => {
         setNetworkId(previousNetworkId);
       }
     }
+  });
+
+  it("waitForWalletSync exposes observed wallet states to callers", async () => {
+    const onState = vi.fn();
+    const wallet = {
+      state: () => Rx.of({ isSynced: true }),
+    } as any;
+
+    const state = await waitForWalletSync(wallet, { onState, throttleMs: 0 });
+
+    expect(state.isSynced).toBe(true);
+    expect(onState).toHaveBeenCalledWith(
+      expect.objectContaining({ isSynced: true }),
+    );
+  });
+
+  it("waitForWalletFunds exposes observed wallet states and resolves funded balances", async () => {
+    const onState = vi.fn();
+    const token = unshieldedToken().raw;
+    const wallet = {
+      state: () =>
+        Rx.of({
+          isSynced: true,
+          unshielded: { balances: { [token]: 42n } },
+        }),
+    } as any;
+
+    const balance = await waitForWalletFunds(wallet, {
+      onState,
+      throttleMs: 0,
+    });
+
+    expect(balance).toBe(42n);
+    expect(onState).toHaveBeenCalledWith(
+      expect.objectContaining({ isSynced: true }),
+    );
   });
 });

@@ -53,6 +53,8 @@ import {
   createMidnightProviders,
   createPrivateStatePasswordProvider,
   createStartedMidnightWalletContext,
+  waitForWalletFunds,
+  waitForWalletSync,
 } from "./midnight-provider-utils";
 import { RuntimeToDomain } from "./runtime-to-domain";
 import {
@@ -633,29 +635,19 @@ export const resolve = async (
 };
 
 export const waitForSync = (wallet: WalletFacade) =>
-  Rx.firstValueFrom(
-    wallet.state().pipe(
-      Rx.throttleTime(5_000),
-      Rx.tap((state) => {
-        logger.info(`Waiting for sync... isSynced=${state.isSynced}`);
-      }),
-      Rx.filter((state) => state.isSynced),
-    ),
-  );
+  waitForWalletSync(wallet, {
+    onState: (state) => {
+      logger.info(`Waiting for sync... isSynced=${state.isSynced}`);
+    },
+  });
 
 export const waitForFunds = (wallet: WalletFacade): Promise<bigint> =>
-  Rx.firstValueFrom(
-    wallet.state().pipe(
-      Rx.throttleTime(10_000),
-      Rx.tap((state) => {
-        const balance = state.unshielded.balances[unshieldedToken().raw] ?? 0n;
-        logger.info(`Waiting for funds... balance=${balance}`);
-      }),
-      Rx.filter((state) => state.isSynced),
-      Rx.map((s) => s.unshielded.balances[unshieldedToken().raw] ?? 0n),
-      Rx.filter((balance) => balance > 0n),
-    ),
-  );
+  waitForWalletFunds(wallet, {
+    onState: (state) => {
+      const balance = state.unshielded.balances[unshieldedToken().raw] ?? 0n;
+      logger.info(`Waiting for funds... balance=${balance}`);
+    },
+  });
 
 export const buildWalletAndWaitForFunds = async (
   config: Config,

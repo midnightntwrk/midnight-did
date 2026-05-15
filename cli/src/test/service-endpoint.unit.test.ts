@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { getNetworkId, setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import * as api from '../api';
 
@@ -40,9 +40,22 @@ const makeContract = () =>
   }) as any;
 
 describe('service endpoint serialization', () => {
+  let previousNetworkId: string | undefined;
+
   beforeAll(() => {
+    try {
+      previousNetworkId = getNetworkId();
+    } catch {
+      previousNetworkId = undefined;
+    }
     // These helpers normalize DID subjects and need an active local network id.
     setNetworkId('undeployed');
+  });
+
+  afterAll(() => {
+    if (previousNetworkId !== undefined) {
+      setNetworkId(previousNetworkId);
+    }
   });
 
   api.setLogger(logger);

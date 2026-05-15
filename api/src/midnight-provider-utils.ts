@@ -224,18 +224,36 @@ export const createWalletAndMidnightProvider = async (
   };
 };
 
-export const waitForWalletSync = (wallet: WalletFacade) =>
+type ObservableValue<T> = T extends Rx.Observable<infer Value> ? Value : never;
+type WalletState = ObservableValue<ReturnType<WalletFacade["state"]>>;
+
+export type WaitForWalletSyncOptions = {
+  readonly throttleMs?: number;
+  readonly onState?: (state: WalletState) => void;
+};
+
+export const waitForWalletSync = (
+  wallet: WalletFacade,
+  { throttleMs = 5_000, onState }: WaitForWalletSyncOptions = {},
+) =>
   Rx.firstValueFrom(
     wallet.state().pipe(
-      Rx.throttleTime(5_000),
+      Rx.throttleTime(throttleMs),
+      Rx.tap((state) => onState?.(state)),
       Rx.filter((state) => state.isSynced),
     ),
   );
 
-export const waitForWalletFunds = (wallet: WalletFacade): Promise<bigint> =>
+export type WaitForWalletFundsOptions = WaitForWalletSyncOptions;
+
+export const waitForWalletFunds = (
+  wallet: WalletFacade,
+  { throttleMs = 10_000, onState }: WaitForWalletFundsOptions = {},
+): Promise<bigint> =>
   Rx.firstValueFrom(
     wallet.state().pipe(
-      Rx.throttleTime(10_000),
+      Rx.throttleTime(throttleMs),
+      Rx.tap((state) => onState?.(state)),
       Rx.filter((state) => state.isSynced),
       Rx.map((state) => state.unshielded.balances[unshieldedToken().raw] ?? 0n),
       Rx.filter((balance) => balance > 0n),
