@@ -42,15 +42,14 @@ export const assertRequiredNumber = (
   label: string,
   kind: UniversityBddFormatKind = "fixture",
 ): number => {
-  if (
-    typeof value !== "number" ||
-    Number.isNaN(value) ||
-    !Number.isFinite(value)
-  ) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new Error(invalidUniversityFormatMessage(kind, label));
   }
   return value;
 };
+
+const compareCanonicalKeys = (left: string, right: string): number =>
+  left < right ? -1 : left > right ? 1 : 0;
 
 export const parseIso = (value: string): string => {
   const parsed = new Date(value);
@@ -67,7 +66,7 @@ export const canonicalStringify = (value: unknown): string => {
     }
     if (input != null && typeof input === "object") {
       return Object.entries(input)
-        .sort(([lhs], [rhs]) => lhs.localeCompare(rhs))
+        .sort(([lhs], [rhs]) => compareCanonicalKeys(lhs, rhs))
         .reduce<Record<string, unknown>>((acc, [key, nested]) => {
           acc[key] = normalize(nested);
           return acc;
