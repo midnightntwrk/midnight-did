@@ -331,8 +331,10 @@
    - Updated `api/src/lib.ts` and `cli/src/api.ts` to consume the shared helpers instead of maintaining duplicated wallet/provider setup.
    - Acceptance: CLI imports shared primitives from the API layer, and v8 SDK boundary casts are isolated in one helper module.
 
-64. **Harden resolver-service public input boundaries**
-   - Add DID length/pattern validation, safer endpoint policy coverage, rate-limit guidance, and log redaction for option bags.
+64. ✅ **Done: Harden resolver-service public input boundaries**
+   - Added canonical Midnight DID length/pattern validation at the HTTP schema and service boundary before resolver/indexer work starts.
+   - Capped indexer override URL size, expanded endpoint-policy and app/service tests, and documented rate-limit/reverse-proxy guidance.
+   - Redacted URL credentials from debug option bags and exception text before logging.
    - Acceptance: malformed/oversized DID requests fail before resolver work, and errors cannot print caller secrets.
 
 65. **Replace brittle SDK error-string matching**

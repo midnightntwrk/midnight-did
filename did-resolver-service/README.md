@@ -20,6 +20,12 @@ Environment Variables
 - `MIDNIGHT_NETWORK` (optional strict network filter: `undeployed|devnet|testnet|mainnet|preview|preprod`)
 - `RESOLVER_DEBUG` (optional: `true` to print underlying resolve errors to stderr)
 
+Public Input Hardening
+- Resolver routes only accept canonical Midnight DIDs matching `did:midnight:<network>:<64 hex chars>` and cap DID input length before any resolver/indexer work starts.
+- `indexerUrl` and `indexerWsUrl` overrides are capped to 2048 characters, normalized, stripped of credentials/query/fragment parts, and rejected unless the normalized endpoint is configured by default or listed in `MIDNIGHT_INDEXER_ALLOWLIST`.
+- Debug logs redact URL credentials in option bags and exception messages. Avoid adding secret-bearing fields to resolver options; unknown HTTP fields are rejected by schema validation.
+- The service has a request timeout guard, but it is not a rate limiter. When exposed outside a trusted network, run it behind an authenticated gateway or reverse proxy with IP/client quotas, burst limits, and request-body limits.
+
 Run
 - `npm run build -w did-resolver-service`
 - `npm run start -w did-resolver-service`

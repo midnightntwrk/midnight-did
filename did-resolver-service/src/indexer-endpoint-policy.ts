@@ -11,6 +11,8 @@ export type IndexerEndpointAllowlist = {
   indexerWsUrls?: readonly string[];
 };
 
+export const INDEXER_ENDPOINT_URL_MAX_LENGTH = 2_048;
+
 export class IndexerEndpointPolicy {
   private readonly defaultIndexerHttpUrl: string;
   private readonly defaultIndexerWsUrl: string;
@@ -51,6 +53,14 @@ export class IndexerEndpointPolicy {
     message: string,
   ): string {
     const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      throw new ResolverInputError(message);
+    }
+    if (trimmed.length > INDEXER_ENDPOINT_URL_MAX_LENGTH) {
+      throw new ResolverInputError(
+        `indexer endpoint URL must be at most ${INDEXER_ENDPOINT_URL_MAX_LENGTH.toString()} characters`,
+      );
+    }
     let parsed: URL;
     try {
       parsed = new URL(trimmed);

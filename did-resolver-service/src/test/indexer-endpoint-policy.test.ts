@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { IndexerEndpointPolicy } from "../indexer-endpoint-policy";
+import {
+  INDEXER_ENDPOINT_URL_MAX_LENGTH,
+  IndexerEndpointPolicy,
+} from "../indexer-endpoint-policy";
 import { ResolverInputError } from "../resolution-errors";
 
 describe("did-resolver-service indexer endpoint policy", () => {
@@ -116,6 +119,24 @@ describe("did-resolver-service indexer endpoint policy", () => {
     expect(() =>
       policy.resolve({ indexerWsUrl: "http://example.com/graphql/ws" }),
     ).toThrow("indexerWsUrl must use ws or wss");
+  });
+
+  it("rejects empty and oversized endpoint overrides before URL parsing", () => {
+    const policy = new IndexerEndpointPolicy({
+      indexerHttpUrl: "http://default.example/api/v3/graphql",
+      indexerWsUrl: "ws://default.example/api/v3/graphql/ws",
+    });
+
+    expect(() => policy.resolve({ indexerUrl: "   " })).toThrow(
+      "indexerUrl must use http or https",
+    );
+    expect(() =>
+      policy.resolve({
+        indexerUrl: `https://example.com/${"a".repeat(INDEXER_ENDPOINT_URL_MAX_LENGTH)}`,
+      }),
+    ).toThrow(
+      `indexer endpoint URL must be at most ${INDEXER_ENDPOINT_URL_MAX_LENGTH.toString()} characters`,
+    );
   });
 
   it("rejects endpoint overrides that are not allowlisted", () => {

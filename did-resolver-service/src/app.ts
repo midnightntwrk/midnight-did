@@ -7,6 +7,11 @@ import Fastify, {
 } from "fastify";
 import { type Logger } from "pino";
 
+import { INDEXER_ENDPOINT_URL_MAX_LENGTH } from "./indexer-endpoint-policy.js";
+import {
+  RESOLVER_DID_MAX_LENGTH,
+  RESOLVER_DID_PATTERN,
+} from "./resolver-input-validation.js";
 import { type ResolverService } from "./service.js";
 import { type ResolveRequestOptions } from "./types.js";
 import { resolverPage } from "./ui.js";
@@ -53,6 +58,18 @@ const resolveResponseSchema = {
 
 type ResolveQuery = ResolveRequestOptions;
 type CreateAppOptions = { logger?: Logger; docsEnabled: boolean };
+
+const didParamSchema = {
+  type: "string",
+  maxLength: RESOLVER_DID_MAX_LENGTH,
+  pattern: RESOLVER_DID_PATTERN,
+} as const;
+
+const indexerUrlOverrideSchema = {
+  type: "string",
+  minLength: 1,
+  maxLength: INDEXER_ENDPOINT_URL_MAX_LENGTH,
+} as const;
 
 const resolveDidWithOptions = async (
   resolverService: ResolverService,
@@ -122,15 +139,15 @@ export const createApp = async (
           additionalProperties: false,
           required: ["did"],
           properties: {
-            did: { type: "string" },
+            did: didParamSchema,
           },
         },
         querystring: {
           type: "object",
           additionalProperties: false,
           properties: {
-            indexerUrl: { type: "string" },
-            indexerWsUrl: { type: "string" },
+            indexerUrl: indexerUrlOverrideSchema,
+            indexerWsUrl: indexerUrlOverrideSchema,
           },
         },
         response: resolveResponseSchema,
@@ -162,9 +179,9 @@ export const createApp = async (
           additionalProperties: false,
           required: ["did"],
           properties: {
-            did: { type: "string" },
-            indexerUrl: { type: "string" },
-            indexerWsUrl: { type: "string" },
+            did: didParamSchema,
+            indexerUrl: indexerUrlOverrideSchema,
+            indexerWsUrl: indexerUrlOverrideSchema,
           },
         },
         response: resolveResponseSchema,

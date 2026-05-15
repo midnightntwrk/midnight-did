@@ -13,6 +13,7 @@ import {
   ResolutionRequestTimeoutError,
   statusCodeForResolutionError,
 } from "./resolution-errors.js";
+import { assertResolverDidInput } from "./resolver-input-validation.js";
 import { type ResolveRequestOptions } from "./types.js";
 
 export type MidnightResolutionResult = NonNullable<
@@ -171,6 +172,12 @@ const redactUrlForLog = (value: string | undefined): string | undefined => {
   }
 };
 
+const redactUrlCredentialsInText = (value: string): string =>
+  value.replace(
+    /\b([a-z][a-z0-9+.-]*:\/\/)([^/?#\s:@]+):([^/?#\s@]+)@/giu,
+    "$1redacted:redacted@",
+  );
+
 const scrubResolveOptions = (
   options: ResolveRequestOptions | undefined,
 ): ResolveRequestOptions | undefined => {
@@ -222,8 +229,13 @@ export class ResolverService {
   ): void {
     if (!this.debug) return;
     const message =
-      error instanceof Error ? error.message : "Unexpected resolve error";
-    const stack = error instanceof Error ? error.stack : undefined;
+      error instanceof Error
+        ? redactUrlCredentialsInText(error.message)
+        : "Unexpected resolve error";
+    const stack =
+      error instanceof Error && error.stack !== undefined
+        ? redactUrlCredentialsInText(error.stack)
+        : undefined;
     this.logger.error("[did-resolver-service] resolve failed", {
       did,
       options: scrubResolveOptions(options),
@@ -315,6 +327,7 @@ export class ResolverService {
     options?: ResolveRequestOptions,
   ): Promise<ResolveResponse> {
     try {
+      assertResolverDidInput(did);
       const result = await this.withResolutionTimeout((signal) =>
         this.resolverFor(options, signal).resolveResult(did),
       );

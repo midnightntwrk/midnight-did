@@ -38,6 +38,10 @@ vi.mock("@midnight-ntwrk/midnight-did-contract", () => ({
 }));
 
 import { RESOLVER_CACHE_MAX_SIZE, ResolverService } from "../service";
+import { type ResolveRequestOptions } from "../types";
+
+const validDid = `did:midnight:devnet:${"a".repeat(64)}`;
+const secondValidDid = `did:midnight:devnet:${"b".repeat(64)}`;
 
 describe("did-resolver-service service", () => {
   beforeEach(() => {
@@ -57,7 +61,7 @@ describe("did-resolver-service service", () => {
 
   it("returns resolved DID document with DID content type", async () => {
     resolveResultMock.mockResolvedValue({
-      didDocument: { id: "did:midnight:devnet:abc" },
+      didDocument: { id: validDid },
       didDocumentMetadata: { versionId: "1" },
       didResolutionMetadata: { error: null },
     });
@@ -67,7 +71,7 @@ describe("did-resolver-service service", () => {
       indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
     });
 
-    const result = await service.resolve("did:midnight:devnet:abc");
+    const result = await service.resolve(validDid);
     expect(result.statusCode).toBe(200);
     expect(result.payload.didResolutionMetadata).toEqual({
       contentType: "application/did+ld+json",
@@ -82,7 +86,7 @@ describe("did-resolver-service service", () => {
       indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
     });
 
-    const result = await service.resolve("did:midnight:devnet:abc");
+    const result = await service.resolve(validDid);
     expect(result.statusCode).toBe(200);
     expect(result.payload.didResolutionMetadata.error).toBe("notFound");
   });
@@ -96,7 +100,7 @@ describe("did-resolver-service service", () => {
       indexerClientFactory: indexerClientFactoryMock,
     });
 
-    await service.resolve("did:midnight:devnet:abc", {
+    await service.resolve(validDid, {
       indexerUrl: "https://another.example/api/v3/graphql",
     });
 
@@ -112,7 +116,7 @@ describe("did-resolver-service service", () => {
       indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
     });
 
-    const result = await service.resolve("did:midnight:devnet:abc", {
+    const result = await service.resolve(validDid, {
       indexerUrl: "http://169.254.169.254/latest/meta-data",
     });
 
@@ -130,8 +134,8 @@ describe("did-resolver-service service", () => {
       indexerClientFactory: indexerClientFactoryMock,
     });
 
-    await service.resolve("did:midnight:devnet:abc");
-    await service.resolve("did:midnight:devnet:def");
+    await service.resolve(validDid);
+    await service.resolve(secondValidDid);
 
     expect(indexerClientFactoryMock).toHaveBeenCalledTimes(1);
   });
@@ -149,7 +153,7 @@ describe("did-resolver-service service", () => {
     });
 
     for (let i = 0; i <= RESOLVER_CACHE_MAX_SIZE; i += 1) {
-      await service.resolve("did:midnight:devnet:abc", {
+      await service.resolve(validDid, {
         indexerUrl: `http://idx-${i}.example/api/v3/graphql`,
       });
     }
@@ -158,7 +162,7 @@ describe("did-resolver-service service", () => {
       RESOLVER_CACHE_MAX_SIZE + 1,
     );
 
-    await service.resolve("did:midnight:devnet:abc", {
+    await service.resolve(validDid, {
       indexerUrl: "http://idx-0.example/api/v3/graphql",
     });
 
@@ -177,7 +181,7 @@ describe("did-resolver-service service", () => {
       indexerClientFactory: indexerClientFactoryMock,
     });
 
-    await service.resolve("did:midnight:devnet:abc");
+    await service.resolve(validDid);
 
     const ctorArgs = resolverCtorMock.mock.calls[0]?.[0] as ResolverCtorOptions;
     const mappedState = await ctorArgs.ledgerReader("contract-address");
@@ -199,15 +203,12 @@ describe("did-resolver-service service", () => {
       indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
     });
 
-    resolveResultMock.mockRejectedValueOnce(
-      new Error("Invalid Midnight DID format"),
-    );
     resolveResultMock.mockRejectedValueOnce(new Error("Network mismatch"));
     resolveResultMock.mockRejectedValueOnce(new Error("boom"));
 
     const invalidDid = await service.resolve("did:bad");
-    const networkMismatch = await service.resolve("did:midnight:devnet:abc");
-    const internalError = await service.resolve("did:midnight:devnet:abc");
+    const networkMismatch = await service.resolve(validDid);
+    const internalError = await service.resolve(validDid);
 
     expect(invalidDid.statusCode).toBe(200);
     expect(invalidDid.payload.didResolutionMetadata.error).toBe("invalidDid");
@@ -221,6 +222,28 @@ describe("did-resolver-service service", () => {
     expect(internalError.payload.didResolutionMetadata.error).toBe(
       "internalError",
     );
+  });
+
+  it("rejects malformed and oversized DID inputs before resolver work", async () => {
+    const service = new ResolverService({
+      indexerHttpUrl: "http://indexer.example/api/v3/graphql",
+      indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
+      indexerClientFactory: indexerClientFactoryMock,
+    });
+
+    const malformed = await service.resolve(
+      `did:midnight:devnet:${"a".repeat(63)}`,
+    );
+    const oversized = await service.resolve(
+      `did:midnight:devnet:${"a".repeat(512)}`,
+    );
+
+    expect(malformed.statusCode).toBe(200);
+    expect(malformed.payload.didResolutionMetadata.error).toBe("invalidDid");
+    expect(oversized.statusCode).toBe(200);
+    expect(oversized.payload.didResolutionMetadata.error).toBe("invalidDid");
+    expect(resolverCtorMock).not.toHaveBeenCalled();
+    expect(indexerClientFactoryMock).not.toHaveBeenCalled();
   });
 
   it("aborts the upstream indexer query when resolution times out", async () => {
@@ -243,7 +266,7 @@ describe("did-resolver-service service", () => {
       indexerClientFactory: indexerClientFactoryMock,
     });
 
-    const resultPromise = service.resolve("did:midnight:devnet:abc");
+    const resultPromise = service.resolve(validDid);
     await vi.advanceTimersByTimeAsync(25);
     const result = await resultPromise;
 
@@ -266,18 +289,24 @@ describe("did-resolver-service service", () => {
       logger,
     });
 
-    resolveResultMock.mockRejectedValueOnce(new Error("boom"));
-    await service.resolve("did:midnight:devnet:abc", {
+    resolveResultMock.mockRejectedValueOnce(
+      new Error(
+        "upstream failed at https://user:secret@indexer.example/api/v3/graphql",
+      ),
+    );
+    await service.resolve(validDid, {
+      apiKey: "secret-api-key",
       indexerUrl: "https://user:secret@indexer.example/api/v3/graphql",
-    });
+    } as ResolveRequestOptions);
 
     expect(logger.error).toHaveBeenCalledTimes(1);
     expect(logger.error).toHaveBeenCalledWith(
       "[did-resolver-service] resolve failed",
       expect.objectContaining({
-        did: "did:midnight:devnet:abc",
+        did: validDid,
         errorCode: "internalError",
-        message: "boom",
+        message:
+          "upstream failed at https://redacted:redacted@indexer.example/api/v3/graphql",
         options: {
           indexerUrl:
             "https://redacted:redacted@indexer.example/api/v3/graphql",
