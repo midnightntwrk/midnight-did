@@ -21,8 +21,7 @@ const SCRIPT_PATH = path.join(ROOT_DIR, "scripts/check-v8-migration-stance.mjs")
 const VALID_DOC = [
   "# v8 Ledger and State Migration Stance",
   "Legacy deployed DID state is not automatically migrated",
-  "`typ`",
-  "typ: VerificationMethodType",
+  "The Compact ledger structs use `typ` instead of `type`.",
   "ledger-operation-builder",
   "`DIDPrivateState`",
   "removeVerificationMethod",
@@ -103,17 +102,23 @@ const createFixtureRoot = ({
   return rootDir;
 };
 
-test("v8 migration stance check can run outside the repository cwd", () => {
+test("v8 migration stance check can run outside the fixture cwd", (t) => {
+  const rootDir = createFixtureRoot();
   const tempDir = mkdtempSync(path.join(tmpdir(), "v8-migration-cwd-"));
-  const result = runScript(SCRIPT_PATH, tempDir);
+  t.after(() => {
+    rmSync(rootDir, { recursive: true, force: true });
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+  const result = runScript(
+    path.join(rootDir, "scripts/check-v8-migration-stance.mjs"),
+    tempDir,
+  );
 
   assert.equal(result.status, 0, result.stderr);
   assert.ok(result.stdout.includes("v8 migration stance validated"));
-
-  rmSync(tempDir, { recursive: true, force: true });
 });
 
-test("v8 migration stance check requires exact typ documentation", () => {
+test("v8 migration stance check requires exact typ documentation", (t) => {
   const rootDir = createFixtureRoot({
     doc: [
       "# v8 Ledger and State Migration Stance",
@@ -127,18 +132,22 @@ test("v8 migration stance check requires exact typ documentation", () => {
       "Unsupported",
     ].join("\n"),
   });
+  t.after(() => rmSync(rootDir, { recursive: true, force: true }));
   const result = runScript(
     path.join(rootDir, "scripts/check-v8-migration-stance.mjs"),
     rootDir,
   );
 
   assert.equal(result.status, 1);
-  assert.ok(result.stderr.includes("missing required fragment: `typ`"));
-
-  rmSync(rootDir, { recursive: true, force: true });
+  assert.ok(
+    result.stderr.includes(
+      "missing required fragment: The Compact ledger structs use `typ` instead of `type`.",
+    ),
+    result.stderr,
+  );
 });
 
-test("v8 migration stance check rejects restored forbidden exports", () => {
+test("v8 migration stance check rejects restored forbidden exports", (t) => {
   for (const forbiddenExport of [
     'export * from "./ledger-operation-builder.js";',
     "export type MidnightDIDPrivateState = DIDPrivateState;",
@@ -148,6 +157,7 @@ test("v8 migration stance check rejects restored forbidden exports", () => {
         "\n",
       ),
     });
+    t.after(() => rmSync(rootDir, { recursive: true, force: true }));
     const result = runScript(
       path.join(rootDir, "scripts/check-v8-migration-stance.mjs"),
       rootDir,
@@ -158,15 +168,31 @@ test("v8 migration stance check rejects restored forbidden exports", () => {
       result.stderr.includes("contract/src/index.ts must not restore"),
       result.stderr,
     );
-
-    rmSync(rootDir, { recursive: true, force: true });
   }
 });
 
-test("v8 migration stance check requires DIDPrivateState re-export", () => {
+test("v8 migration stance check ignores forbidden names outside export lines", (t) => {
+  const rootDir = createFixtureRoot({
+    contractIndex: [
+      'export * from "./witnesses.js";',
+      "// removed: ledger-operation-builder",
+      "// removed: MidnightDIDPrivateState",
+    ].join("\n"),
+  });
+  t.after(() => rmSync(rootDir, { recursive: true, force: true }));
+  const result = runScript(
+    path.join(rootDir, "scripts/check-v8-migration-stance.mjs"),
+    rootDir,
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test("v8 migration stance check requires DIDPrivateState re-export", (t) => {
   const rootDir = createFixtureRoot({
     contractIndex: "export const currentContractSurface = true;\n",
   });
+  t.after(() => rmSync(rootDir, { recursive: true, force: true }));
   const result = runScript(
     path.join(rootDir, "scripts/check-v8-migration-stance.mjs"),
     rootDir,
@@ -177,12 +203,11 @@ test("v8 migration stance check requires DIDPrivateState re-export", () => {
     result.stderr.includes("contract/src/index.ts must re-export DIDPrivateState"),
     result.stderr,
   );
-
-  rmSync(rootDir, { recursive: true, force: true });
 });
 
-test("v8 migration stance check reports missing files without a node stack", () => {
+test("v8 migration stance check reports missing files without a node stack", (t) => {
   const rootDir = mkdtempSync(path.join(tmpdir(), "v8-migration-missing-"));
+  t.after(() => rmSync(rootDir, { recursive: true, force: true }));
   writeFixtureFile(
     rootDir,
     "scripts/check-v8-migration-stance.mjs",
@@ -201,6 +226,4 @@ test("v8 migration stance check reports missing files without a node stack", () 
     result.stderr,
   );
   assert.ok(!result.stderr.includes("Error: ENOENT"), result.stderr);
-
-  rmSync(rootDir, { recursive: true, force: true });
 });

@@ -36,6 +36,19 @@ const requireIncludes = (label, text, fragments) => {
   }
 };
 
+const requireMatches = (label, text, patterns) => {
+  for (const pattern of patterns) {
+    if (!pattern.test(text)) {
+      fail(`${label} is missing required pattern: ${pattern}`);
+    }
+  }
+};
+
+const hasExportLine = (text, fragment) =>
+  text
+    .split(/\r?\n/u)
+    .some((line) => /^\s*export\b/u.test(line) && line.includes(fragment));
+
 const docPath = "docs/v8-ledger-state-migration.md";
 const doc = read(docPath);
 const compact = read("contract/src/did.compact");
@@ -47,8 +60,7 @@ const backlog = read("docs/repository-maturity-backlog.md");
 requireIncludes(docPath, doc, [
   "# v8 Ledger and State Migration Stance",
   "Legacy deployed DID state is not automatically migrated",
-  "`typ`",
-  "typ: VerificationMethodType",
+  "The Compact ledger structs use `typ` instead of `type`.",
   "ledger-operation-builder",
   "`DIDPrivateState`",
   "removeVerificationMethod",
@@ -59,9 +71,7 @@ requireIncludes(docPath, doc, [
 
 requireIncludes("contract/src/did.compact", compact, [
   "struct VerificationMethod",
-  "typ: VerificationMethodType",
   "struct Service",
-  'typ: Opaque<"string">',
   "export circuit addVerificationMethod",
   "export circuit updateVerificationMethod",
   "export circuit removeVerificationMethod",
@@ -73,6 +83,10 @@ requireIncludes("contract/src/did.compact", compact, [
   "export circuit addAlsoKnownAs",
   "export circuit removeAlsoKnownAs",
   "export circuit deactivate",
+]);
+requireMatches("contract/src/did.compact", compact, [
+  /typ:\s*VerificationMethodType/u,
+  /typ:\s*Opaque<["']string["']>/u,
 ]);
 
 requireIncludes("contract/src/witnesses.ts", witnesses, [
@@ -86,11 +100,11 @@ if (
   fail("contract/src/index.ts must re-export DIDPrivateState");
 }
 
-if (contractIndex.includes("ledger-operation-builder")) {
+if (hasExportLine(contractIndex, "ledger-operation-builder")) {
   fail("contract/src/index.ts must not restore ledger-operation-builder export");
 }
 
-if (contractIndex.includes("MidnightDIDPrivateState")) {
+if (hasExportLine(contractIndex, "MidnightDIDPrivateState")) {
   fail("contract/src/index.ts must not restore MidnightDIDPrivateState alias");
 }
 
