@@ -139,6 +139,11 @@ The generated tarballs are intentionally gitignored under [`artifacts/`](./artif
 
 Fast mode:
 - Skip long-running integration/e2e targets: `SKIP_LONG_RUNNING=1 ./run.sh`
+- Equivalent CLI flag: `./run.sh --light`
+- CI-shaped local run with timings:
+  `./run.sh --light --strict --skip-coverage --metrics --metrics-json /tmp/midnight-did-run.json`
+- See [`docs/develop-pr-transition.md`](./docs/develop-pr-transition.md) for
+  the current `develop`-targeted PR transition notes.
 
 Related repositories:
 - Midnight Verifiable Credentials and the Passport prototype now live outside this repository.
