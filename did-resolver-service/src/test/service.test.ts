@@ -224,7 +224,7 @@ describe("did-resolver-service service", () => {
     );
   });
 
-  it("rejects malformed and oversized DID inputs before resolver work", async () => {
+  it("rejects non-canonical and oversized DID inputs before resolver work", async () => {
     const service = new ResolverService({
       indexerHttpUrl: "http://indexer.example/api/v3/graphql",
       indexerWsUrl: "ws://indexer.example/api/v3/graphql/ws",
@@ -237,11 +237,16 @@ describe("did-resolver-service service", () => {
     const oversized = await service.resolve(
       `did:midnight:devnet:${"a".repeat(512)}`,
     );
+    const uppercase = await service.resolve(
+      `did:midnight:devnet:${"A".repeat(64)}`,
+    );
 
     expect(malformed.statusCode).toBe(200);
     expect(malformed.payload.didResolutionMetadata.error).toBe("invalidDid");
     expect(oversized.statusCode).toBe(200);
     expect(oversized.payload.didResolutionMetadata.error).toBe("invalidDid");
+    expect(uppercase.statusCode).toBe(200);
+    expect(uppercase.payload.didResolutionMetadata.error).toBe("invalidDid");
     expect(resolverCtorMock).not.toHaveBeenCalled();
     expect(indexerClientFactoryMock).not.toHaveBeenCalled();
   });
@@ -314,6 +319,9 @@ describe("did-resolver-service service", () => {
             "https://redacted:redacted@indexer.example/api/v3/graphql",
           indexerWsUrl: undefined,
         },
+        stack: expect.stringContaining(
+          "https://redacted:redacted@indexer.example/api/v3/graphql",
+        ),
       }),
     );
     expect(JSON.stringify(logger.error.mock.calls[0])).not.toContain("secret");

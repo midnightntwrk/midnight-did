@@ -51,10 +51,11 @@ export class IndexerEndpointPolicy {
     value: string,
     protocols: readonly string[],
     message: string,
+    emptyMessage: string,
   ): string {
     const trimmed = value.trim();
     if (trimmed.length === 0) {
-      throw new ResolverInputError(message);
+      throw new ResolverInputError(emptyMessage);
     }
     if (trimmed.length > INDEXER_ENDPOINT_URL_MAX_LENGTH) {
       throw new ResolverInputError(
@@ -82,6 +83,7 @@ export class IndexerEndpointPolicy {
       value,
       ["http:", "https:"],
       "indexerUrl must use http or https",
+      "indexerUrl must be a non-empty URL",
     );
   }
 
@@ -90,6 +92,7 @@ export class IndexerEndpointPolicy {
       value,
       ["ws:", "wss:"],
       "indexerWsUrl must use ws or wss",
+      "indexerWsUrl must be a non-empty URL",
     );
   }
 

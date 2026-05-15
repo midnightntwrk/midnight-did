@@ -128,7 +128,10 @@ describe("did-resolver-service indexer endpoint policy", () => {
     });
 
     expect(() => policy.resolve({ indexerUrl: "   " })).toThrow(
-      "indexerUrl must use http or https",
+      "indexerUrl must be a non-empty URL",
+    );
+    expect(() => policy.resolve({ indexerWsUrl: "" })).toThrow(
+      "indexerWsUrl must be a non-empty URL",
     );
     expect(() =>
       policy.resolve({

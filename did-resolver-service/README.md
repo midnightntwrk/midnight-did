@@ -21,7 +21,7 @@ Environment Variables
 - `RESOLVER_DEBUG` (optional: `true` to print underlying resolve errors to stderr)
 
 Public Input Hardening
-- Resolver routes only accept canonical Midnight DIDs matching `did:midnight:<network>:<64 hex chars>` and cap DID input length before any resolver/indexer work starts.
+- Resolver routes only accept canonical Midnight DIDs matching `did:midnight:<network>:<64 lowercase hex chars>` and cap DID input length before any resolver/indexer work starts.
 - Malformed HTTP DID inputs return `400 Bad Request` at the route boundary. Direct service-layer callers still receive a DID-resolution `invalidDid` envelope.
 - `indexerUrl` and `indexerWsUrl` overrides are capped to 2048 characters, normalized, stripped of credentials/query/fragment parts, and rejected unless the normalized endpoint is configured by default or listed in `MIDNIGHT_INDEXER_ALLOWLIST`.
 - Debug logs redact URL credentials in option bags and exception messages. Avoid adding secret-bearing fields to resolver options; unknown HTTP fields are rejected by schema validation.

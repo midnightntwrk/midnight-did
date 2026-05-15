@@ -177,7 +177,7 @@ describe("did-resolver-service app", () => {
     await app.close();
   });
 
-  it("rejects malformed and oversized DIDs before service dispatch", async () => {
+  it("rejects non-canonical and oversized DIDs before service dispatch", async () => {
     const service = {
       resolve: vi.fn(),
     } as unknown as ResolverService;
@@ -193,9 +193,14 @@ describe("did-resolver-service app", () => {
         did: `did:midnight:devnet:${"a".repeat(512)}`,
       },
     });
+    const uppercase = await app.inject({
+      method: "GET",
+      url: `/resolve/${encodeURIComponent(`did:midnight:devnet:${"A".repeat(64)}`)}`,
+    });
 
     expect(malformed.statusCode).toBe(400);
     expect(oversized.statusCode).toBe(400);
+    expect(uppercase.statusCode).toBe(400);
     expect(service.resolve).not.toHaveBeenCalled();
 
     await app.close();
