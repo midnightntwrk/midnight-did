@@ -7,12 +7,50 @@ export const UNIVERSITY_SCENARIO_REPLAY_ARTIFACT_VERSION = "1.1.0";
 export const UNIVERSITY_DID_METHOD_PATTERN =
   /^did:midnight:[a-z0-9][a-z0-9._-]*:[a-zA-Z0-9._-]+$/;
 
+const UNIVERSITY_DID_NAMESPACE_MUTATORS = new Set<PropertyKey>([
+  "add",
+  "clear",
+  "delete",
+]);
+
+const readonlyNamespaceSet = (
+  values: readonly string[],
+): ReadonlySet<string> => {
+  const set = new Set(values);
+
+  return new Proxy(set, {
+    get(target, property) {
+      if (UNIVERSITY_DID_NAMESPACE_MUTATORS.has(property)) {
+        return () => {
+          throw new TypeError("University DID namespace prefixes are readonly");
+        };
+      }
+
+      const value = Reflect.get(target, property, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+    defineProperty() {
+      return false;
+    },
+    deleteProperty() {
+      return false;
+    },
+    set() {
+      return false;
+    },
+  }) as ReadonlySet<string>;
+};
+
 export const UNIVERSITY_DID_NAMESPACE_PREFIXES = {
-  university: new Set(["did:midnight:edu", "did:midnight:gov"]),
-  issuer: new Set(["did:midnight:key", "did:midnight:gov", "did:midnight:edu"]),
-  student: new Set(["did:midnight:user"]),
-  company: new Set(["did:midnight:org", "did:midnight:gov"]),
-  mall: new Set(["did:midnight:org"]),
+  university: readonlyNamespaceSet(["did:midnight:edu", "did:midnight:gov"]),
+  issuer: readonlyNamespaceSet([
+    "did:midnight:key",
+    "did:midnight:gov",
+    "did:midnight:edu",
+  ]),
+  student: readonlyNamespaceSet(["did:midnight:user"]),
+  company: readonlyNamespaceSet(["did:midnight:org", "did:midnight:gov"]),
+  mall: readonlyNamespaceSet(["did:midnight:org"]),
 } as const;
 
 export type UniversityRole =
@@ -262,6 +300,10 @@ export type UniversityTransportOperationMetrics = {
   timeoutEvents: number;
 };
 
+export type UniversityRuntimeMode = "simulator" | "standalone";
+
+export type UniversityTransportMode = UniversityRuntimeMode;
+
 export type UniversityTransportContext = {
   fixture: UniversityFixture;
   now: string;
@@ -273,8 +315,6 @@ export type UniversityTransportFactory = (
   fixture: UniversityFixture,
   context: UniversityTransportContext,
 ) => UniversityTransport;
-
-export type UniversityTransportMode = UniversityRuntimeMode;
 
 export type UniversityTransportFactoryByMode = {
   [mode in UniversityTransportMode]: UniversityTransportFactory;
@@ -344,8 +384,6 @@ export type UniversityScenarioResult = {
   approvedDiscounts: number;
   credentials: UniversityDiplomaCredential[];
 };
-
-export type UniversityRuntimeMode = "simulator" | "standalone";
 
 export type UniversityScenarioFilter = {
   studentIds?: string[];

@@ -108,7 +108,7 @@ const didNamespace = (did: string): string =>
 const assertDidNamespace = (
   did: string,
   label: string,
-  allowed: Set<string>,
+  allowed: ReadonlySet<string>,
 ): string => {
   const namespace = didNamespace(did);
   if (!allowed.has(namespace)) {

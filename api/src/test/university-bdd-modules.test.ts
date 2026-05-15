@@ -50,4 +50,13 @@ describe("University BDD module boundaries", () => {
 
     expect(sortedRuntimeExports(facade)).toEqual(expectedExports);
   });
+
+  it("exposes readonly DID namespace prefix sets", () => {
+    const studentPrefixes = facade.UNIVERSITY_DID_NAMESPACE_PREFIXES
+      .student as Set<string>;
+
+    expect(studentPrefixes.has("did:midnight:user")).toBe(true);
+    expect(() => studentPrefixes.add("did:midnight:evil")).toThrow(/readonly/);
+    expect(studentPrefixes.has("did:midnight:evil")).toBe(false);
+  });
 });
