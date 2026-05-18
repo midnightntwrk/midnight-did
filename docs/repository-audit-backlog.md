@@ -3,8 +3,6 @@
 Status: current simplification and maintenance backlog for the `develop`
 branch.
 
-Last reviewed: 2026-05-19.
-
 ## Scope
 
 This audit covers:
@@ -78,8 +76,8 @@ Backlog:
 Current state:
 
 - README says VC and Passport work now live outside this repository
-- VC still consumes DID packages through tarballs, sibling checkouts, or
-  local package aliases depending on the developer workflow
+- downstream VC consumers may use DID packages through tarballs, sibling
+  checkouts, or local package aliases depending on the developer workflow
 - the active integration mode is not reported by one DID-side command
 
 Backlog:
@@ -132,6 +130,9 @@ Current state:
 - `npm run ci` runs lint, build, and package tests
 - `./run.sh` runs core, API, resolver, and manager pipelines
 - CI workflow may call one path while local contributors call another
+- the existing `scripts/run-sh-contract.test.mjs` checks runner behavior, but
+  does not yet prove parity between README guidance, root `npm run ci`, and
+  workflow entrypoints
 
 Backlog:
 
@@ -175,6 +176,10 @@ Backlog:
 3. include these checks in `ci:core` or the root lint lane once stable
 
 ## Next 10 Simplification Items
+
+This is the punch-list view of the priority findings above. It repeats the
+highest-value actions as PR-sized names so follow-up branches can map directly
+back to the audit.
 
 1. `runner-target-catalog`
 - centralize DID runner/package target definitions and validate scripts against
