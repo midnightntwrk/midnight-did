@@ -2,6 +2,8 @@
 
 <!-- Describe your changes briefly here, with some context as to why this is needed. -->
 
+Target branch: `develop`
+
 ## Submission Checklist
 
 <!-- Please check all the boxes that apply to your pull request. -->
@@ -15,6 +17,16 @@
 - [ ] Update README.md file (if relevant)
 - [ ] Update documentation (if relevant)
 - [ ] No new todos introduced
+
+## DID Surface Checklist
+
+Complete this section when the PR changes any public DID surface:
+
+- [ ] Contract circuits, generated Compact artifacts, or package exports are documented
+- [ ] Domain/API/secret-storage type or runtime behavior changes are covered by tests
+- [ ] Runner or CI behavior changes update the local command documentation
+- [ ] Package artifact changes were checked with `npm run check:did-surface-discipline`
+- [ ] Changelog entry added for reviewer-visible behavior or packaging changes
 
 ## Links
 

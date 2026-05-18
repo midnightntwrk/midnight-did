@@ -33,12 +33,13 @@ The config is implemented in:
 The workflow:
 
 1. checks out the repository
-2. installs dependencies with `npm ci`
-3. syncs repository markdown into internal docs pages
-4. generates API reference from TypeScript entry points
-5. builds the site with `npm run docs:build`
-6. uploads the VitePress output as a Pages artifact
-7. deploys it to GitHub Pages
+2. installs the Compact toolchain used by generated API documentation
+3. installs dependencies with `npm ci`
+4. syncs repository markdown into internal docs pages
+5. generates API reference from TypeScript entry points
+6. builds the site with `npm run docs:build`
+7. uploads the VitePress output as a Pages artifact on publishable `main` runs
+8. deploys it to GitHub Pages on publishable `main` runs
 
 Workflow file:
 
@@ -68,8 +69,12 @@ Reason:
 
 - pushes to `main`:
   - build and deploy
+- pushes to `develop`:
+  - build only; Pages configuration, artifact upload, and deploy are skipped
+- pull requests targeting `main` or `develop`:
+  - build only; Pages configuration, artifact upload, and deploy are skipped
 - `workflow_dispatch`:
   - build on the selected ref
-  - deploy only when the ref is `main`
+  - deploy only when the selected ref is `main`
 
 This keeps manual docs verification available on branches without accidentally publishing preview content as the production Pages site.

@@ -50,6 +50,7 @@ export default defineConfig({
             { text: "DID Manager Getting Started", link: "/guide/getting-started-did-manager" },
             { text: "DID Resolver Getting Started", link: "/guide/getting-started-did-resolver" },
             { text: "Testing Strategy", link: "/guide/testing-strategy" },
+            { text: "DID Surface Change Discipline", link: "/guide/did-surface-change-discipline" },
             { text: "Publishing", link: "/guide/publishing" },
           ],
         },
