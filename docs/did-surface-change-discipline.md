@@ -64,6 +64,7 @@ contracts that are easy to drift:
 
 - root scripts wire the guard into `ci:core`
 - workflow branch filters include `develop`
+- docs publication steps run only for `main` pushes or manual `main` dispatches
 - the README workspace matrix covers every root workspace
 - artifact packaging includes all library tarball workspaces
 - library packages expose explicit export maps and `files` manifests

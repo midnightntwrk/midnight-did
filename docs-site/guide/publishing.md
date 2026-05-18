@@ -69,9 +69,9 @@ Reason:
 - pushes to `main`:
   - build and deploy
 - pushes to `develop`:
-  - build only
+  - build only; Pages configuration, artifact upload, and deploy are skipped
 - pull requests targeting `main` or `develop`:
-  - build only
+  - build only; Pages configuration, artifact upload, and deploy are skipped
 - `workflow_dispatch`:
   - build on the selected ref
   - deploy only when the selected ref is `main`

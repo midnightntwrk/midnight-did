@@ -40,6 +40,24 @@ function assertArrayIncludes(array, expected, label) {
   }
 }
 
+function assertExportMap(exportMap, label, requiredKeys) {
+  assert(
+    exportMap && typeof exportMap === "object" && !Array.isArray(exportMap),
+    `${label} must be an object export map`,
+  );
+
+  if (!exportMap || typeof exportMap !== "object" || Array.isArray(exportMap)) {
+    return;
+  }
+
+  for (const key of requiredKeys) {
+    assert(
+      typeof exportMap[key] === "string" && exportMap[key].length > 0,
+      `${label} must define a non-empty ${key} target`,
+    );
+  }
+}
+
 const rootPackage = readJson("package.json");
 const rootWorkspaces = rootPackage.workspaces ?? [];
 const libraryWorkspaces = [
@@ -147,6 +165,12 @@ assertIncludes(
   ".github/workflows/scan.yaml",
 );
 
+assertIncludes(
+  readText(".github/workflows/docs.yml"),
+  "(github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'",
+  ".github/workflows/docs.yml",
+);
+
 const packArtifacts = readText("scripts/pack-artifacts.sh");
 for (const workspace of libraryWorkspaces) {
   assertIncludes(packArtifacts, `  ${workspace}`, "pack-artifacts workspaces");
@@ -166,7 +190,11 @@ for (const workspace of libraryWorkspaces) {
 
   assert(packageJson.main === "dist/index.js", `${packageLabel} main must point to dist/index.js`);
   assert(packageJson.types === "./dist/index.d.ts", `${packageLabel} types must point to dist/index.d.ts`);
-  assert(packageJson.exports?.["."], `${packageLabel} must expose the root export`);
+  assertExportMap(
+    packageJson.exports?.["."],
+    `${packageLabel} root export`,
+    ["types", "require", "import", "default"],
+  );
 
   for (const fileEntry of requiredPackageFiles) {
     assertArrayIncludes(packageJson.files, fileEntry, `${packageLabel} files`);
@@ -174,15 +202,17 @@ for (const workspace of libraryWorkspaces) {
 }
 
 const domainPackage = readJson("domain/package.json");
-assert(
+assertExportMap(
   domainPackage.exports?.["./midnight"],
-  "domain/package.json must keep the ./midnight export",
+  "domain/package.json ./midnight export",
+  ["types", "require", "import", "default"],
 );
 
 const jubjubPackage = readJson("jubjub-schnorr/package.json");
-assert(
+assertExportMap(
   jubjubPackage.exports?.["./managed/jubjub-schnorr/contract"],
-  "jubjub-schnorr/package.json must keep the generated contract export",
+  "jubjub-schnorr/package.json generated contract export",
+  ["types", "import", "default"],
 );
 assertArrayIncludes(
   jubjubPackage.files,
