@@ -10,12 +10,13 @@ Use this section for local setup, runner selection, and understanding how the wo
 2. Read [DID Manager Getting Started](/guide/getting-started-did-manager) for a full UI operator path.
 3. Read [DID Resolver Getting Started](/guide/getting-started-did-resolver) for a complete resolver run/validate flow.
 4. Read [Testing Strategy](/guide/testing-strategy) to choose the right runner depth.
-5. Use [Packages](/packages/) when you need library-level responsibilities and integration points.
-6. Use [Services](/services/) when you need runtime entry points.
-7. Use [Use Cases](/use-cases/) when you need product-facing scenarios grounded in the current implementation.
-8. Use [Architecture](/architecture/) when you need the system view.
-9. Use [Specification](/spec/) when you need the DID method and traits context.
-10. Use [Source Documents](/source/) when you want to read the mirrored repository markdown without leaving the site.
+5. Read [DID Surface Change Discipline](/guide/did-surface-change-discipline) before changing contract, package, runner, or artifact surfaces.
+6. Use [Packages](/packages/) when you need library-level responsibilities and integration points.
+7. Use [Services](/services/) when you need runtime entry points.
+8. Use [Use Cases](/use-cases/) when you need product-facing scenarios grounded in the current implementation.
+9. Use [Architecture](/architecture/) when you need the system view.
+10. Use [Specification](/spec/) when you need the DID method and traits context.
+11. Use [Source Documents](/source/) when you want to read the mirrored repository markdown without leaving the site.
 
 ## Source documents already in the repository
 

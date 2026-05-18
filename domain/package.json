@@ -39,6 +39,13 @@
     "@midnight-ntwrk/compact-runtime": "*",
     "zod": "^4.1.0"
   },
+  "files": [
+    "dist/**",
+    "README.md",
+    "package.json",
+    "tsconfig.json",
+    "tsconfig.build.json"
+  ],
   "devDependencies": {
     "base64-js": "^1.5.1"
   }

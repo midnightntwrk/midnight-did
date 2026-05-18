@@ -8,12 +8,14 @@ This repository contains the smart contract, domain model, resolver/conversion l
 | Component | Package | Responsibility |
 |---|---|---|
 | [`contract`](contract/README.md) | `@midnight-ntwrk/midnight-did-contract` | On-ledger DID state and circuit rules |
+| [`jubjub-schnorr`](jubjub-schnorr/README.md) | `@midnight-ntwrk/midnight-did-jubjub-schnorr` | Shared Compact/TypeScript JubJub Schnorr transcript and signature helpers |
 | [`domain`](domain/README.md) | `@midnight-ntwrk/midnight-did-domain` | DID schemas, validation, canonicalization |
 | [`did`](did/README.md) | `@midnight-ntwrk/midnight-did` | Ledger ↔ domain mapping and resolver helpers |
 | [`api`](api/README.md) | `@midnight-ntwrk/midnight-did-api` | Programmatic DID operations and orchestration |
 | [`secret-storage`](secret-storage/README.md) | `@midnight-ntwrk/midnight-did-secret-storage` | Encrypted key storage + sign/verify/HD derivation |
 | [`did-resolver-service`](did-resolver-service/README.md) | `@midnight-ntwrk/midnight-did-resolver-service` | REST/Swagger/UI DID resolver service |
 | [`did-manager-service`](did-manager-service/README.md) | `@midnight-ntwrk/midnight-did-manager-service` | Web DID management backend + minimal UI |
+| [`docs-site`](docs-site/) | `docs-site` | VitePress developer documentation and generated API reference |
 
 ## Architecture
 
@@ -110,6 +112,7 @@ Pipelines:
 - DID manager only: `./run-manager.sh`
 - Root `./run.sh` validates only the DID/API/resolver/manager workspace. It does not execute VC or Passport pipelines.
 - Docs pipeline: `./run-docs.sh`
+- DID surface guard: `npm run check:did-surface-discipline`
 - Manager app: `./start-manager.sh [--standalone|--preprod|--mainnet]`
 - Resolver app: `./start-resolver.sh [--standalone|--preprod|--mainnet]`
 - Docs dev server: `./start-docs.sh`
@@ -144,6 +147,9 @@ Fast mode:
   `./run.sh --light --strict --skip-coverage --metrics --metrics-json /tmp/midnight-did-run.json`
 - See [`docs/develop-pr-transition.md`](./docs/develop-pr-transition.md) for
   the current `develop`-targeted PR transition notes.
+- See [`docs/did-surface-change-discipline.md`](./docs/did-surface-change-discipline.md)
+  before changing contract circuits, package exports, runner behavior, or
+  generated artifacts.
 
 Related repositories:
 - Midnight Verifiable Credentials and the Passport prototype now live outside this repository.
