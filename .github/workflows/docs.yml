@@ -16,6 +16,9 @@ permissions:
   pages: write
   id-token: write
 
+env:
+  COMPACT_COMPILER_VERSION: 0.30.0
+
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -34,6 +37,14 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: package-lock.json
+
+      - name: Set up Compact toolchain
+        uses: midnightntwrk/setup-compact-action@v1
+        with:
+          compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
+
+      - name: Verify Compact installation
+        run: compact compile --version
 
       - name: Configure GitHub Pages
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'

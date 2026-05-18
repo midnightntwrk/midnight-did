@@ -1,6 +1,6 @@
 # DID Surface Change Discipline
 
-Target branch: `origin/develop`.
+Target branch: `develop`.
 
 This guide defines the DID repository surfaces that downstream applications
 depend on and the checks that should move with each change.
@@ -65,6 +65,7 @@ contracts that are easy to drift:
 - root scripts wire the guard into `ci:core`
 - workflow branch filters include `develop`
 - docs publication steps run only for `main` pushes or manual `main` dispatches
+- docs builds install the Compact toolchain before generating API reference
 - the README workspace matrix covers every root workspace
 - artifact packaging includes all library tarball workspaces
 - library packages expose explicit export maps and `files` manifests

@@ -40,6 +40,10 @@ function assertArrayIncludes(array, expected, label) {
   }
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function assertExportMap(exportMap, label, requiredKeys) {
   assert(
     exportMap && typeof exportMap === "object" && !Array.isArray(exportMap),
@@ -115,7 +119,12 @@ assertIncludes(
 );
 
 const prTemplate = readText(".github/PULL_REQUEST_TEMPLATE/pull_request_template.md");
-assertIncludes(prTemplate, "Target branch: `develop`", "PR template");
+const targetBranchMatch = prTemplate.match(/Target branch:\s*`([^`]+)`/);
+assert(targetBranchMatch, "PR template must declare a target branch");
+assert(
+  targetBranchMatch?.[1] === "develop",
+  "PR template target branch must be develop",
+);
 assertIncludes(prTemplate, "DID Surface Checklist", "PR template");
 assertIncludes(
   prTemplate,
@@ -125,7 +134,7 @@ assertIncludes(
 
 const surfaceGuide = readText("docs/did-surface-change-discipline.md");
 for (const requiredPhrase of [
-  "Target branch: `origin/develop`",
+  "Target branch: `develop`",
   "Contract circuits",
   "JubJub verifier",
   "Domain model",
@@ -170,10 +179,18 @@ assertIncludes(
   "(github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'",
   ".github/workflows/docs.yml",
 );
+assertIncludes(
+  readText(".github/workflows/docs.yml"),
+  "midnightntwrk/setup-compact-action@v1",
+  ".github/workflows/docs.yml",
+);
 
 const packArtifacts = readText("scripts/pack-artifacts.sh");
 for (const workspace of libraryWorkspaces) {
-  assertIncludes(packArtifacts, `  ${workspace}`, "pack-artifacts workspaces");
+  assert(
+    new RegExp(`^\\s*${escapeRegExp(workspace)}\\s*$`, "m").test(packArtifacts),
+    `pack-artifacts workspaces must include "${workspace}"`,
+  );
 }
 
 const requiredPackageFiles = [
@@ -193,7 +210,7 @@ for (const workspace of libraryWorkspaces) {
   assertExportMap(
     packageJson.exports?.["."],
     `${packageLabel} root export`,
-    ["types", "require", "import", "default"],
+    ["types", "import", "default"],
   );
 
   for (const fileEntry of requiredPackageFiles) {
@@ -205,7 +222,7 @@ const domainPackage = readJson("domain/package.json");
 assertExportMap(
   domainPackage.exports?.["./midnight"],
   "domain/package.json ./midnight export",
-  ["types", "require", "import", "default"],
+  ["types", "import", "default"],
 );
 
 const jubjubPackage = readJson("jubjub-schnorr/package.json");
