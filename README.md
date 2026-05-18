@@ -150,6 +150,9 @@ Fast mode:
 - See [`docs/did-surface-change-discipline.md`](./docs/did-surface-change-discipline.md)
   before changing contract circuits, package exports, runner behavior, or
   generated artifacts.
+- See [`docs/repository-audit-backlog.md`](./docs/repository-audit-backlog.md)
+  for the current simplification backlog covering runners, artifacts,
+  docs-site boundaries, and DID/VC split-repo integration.
 
 Related repositories:
 - Midnight Verifiable Credentials and the Passport prototype now live outside this repository.
