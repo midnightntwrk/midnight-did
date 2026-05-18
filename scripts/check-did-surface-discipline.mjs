@@ -1,0 +1,208 @@
+#!/usr/bin/env node
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const ROOT_DIR = path.dirname(path.dirname(__filename));
+
+const failures = [];
+
+function fromRoot(...parts) {
+  return path.join(ROOT_DIR, ...parts);
+}
+
+function readText(relativePath) {
+  return readFileSync(fromRoot(relativePath), "utf8");
+}
+
+function readJson(relativePath) {
+  return JSON.parse(readText(relativePath));
+}
+
+function assert(condition, message) {
+  if (!condition) {
+    failures.push(message);
+  }
+}
+
+function assertIncludes(haystack, needle, label) {
+  assert(haystack.includes(needle), `${label} must include "${needle}"`);
+}
+
+function assertArrayIncludes(array, expected, label) {
+  assert(Array.isArray(array), `${label} must be an array`);
+  if (Array.isArray(array)) {
+    assert(
+      array.includes(expected),
+      `${label} must include "${expected}"`,
+    );
+  }
+}
+
+const rootPackage = readJson("package.json");
+const rootWorkspaces = rootPackage.workspaces ?? [];
+const libraryWorkspaces = [
+  "api",
+  "domain",
+  "did",
+  "jubjub-schnorr",
+  "contract",
+  "secret-storage",
+];
+const serviceWorkspaces = ["did-resolver-service", "did-manager-service"];
+
+assert(
+  rootPackage.scripts?.["check:did-surface-discipline"] ===
+    "node scripts/check-did-surface-discipline.mjs",
+  "package.json must expose check:did-surface-discipline",
+);
+assertIncludes(
+  rootPackage.scripts?.["ci:core"] ?? "",
+  "npm run check:did-surface-discipline",
+  "ci:core",
+);
+
+for (const workspace of [...libraryWorkspaces, ...serviceWorkspaces, "docs-site"]) {
+  assertArrayIncludes(rootWorkspaces, workspace, "root package workspaces");
+}
+
+const readme = readText("README.md");
+for (const workspace of rootWorkspaces) {
+  assertIncludes(readme, `\`${workspace}\``, "README workspace matrix");
+}
+assertIncludes(
+  readme,
+  "docs/did-surface-change-discipline.md",
+  "README developer entry points",
+);
+
+const changelog = readText("CHANGELOG.md");
+assertIncludes(
+  changelog,
+  "DID surface-change discipline",
+  "CHANGELOG.md",
+);
+
+const contributing = readText("CONTRIBUTING.md");
+assertIncludes(
+  contributing,
+  "DID Surface Change Discipline",
+  "CONTRIBUTING.md",
+);
+assertIncludes(
+  contributing,
+  "npm run check:did-surface-discipline",
+  "CONTRIBUTING.md",
+);
+
+const prTemplate = readText(".github/PULL_REQUEST_TEMPLATE/pull_request_template.md");
+assertIncludes(prTemplate, "Target branch: `develop`", "PR template");
+assertIncludes(prTemplate, "DID Surface Checklist", "PR template");
+assertIncludes(
+  prTemplate,
+  "Package artifact changes were checked with `npm run check:did-surface-discipline`",
+  "PR template",
+);
+
+const surfaceGuide = readText("docs/did-surface-change-discipline.md");
+for (const requiredPhrase of [
+  "Target branch: `origin/develop`",
+  "Contract circuits",
+  "JubJub verifier",
+  "Domain model",
+  "DID mapper",
+  "API orchestration",
+  "Secret storage",
+  "Local runners",
+  "Packaging",
+  "CI and docs",
+]) {
+  assertIncludes(surfaceGuide, requiredPhrase, "surface discipline guide");
+}
+
+const docsGuide = readText("docs-site/guide/did-surface-change-discipline.md");
+assertIncludes(docsGuide, "Use `develop`", "docs-site surface guide");
+assertIncludes(
+  docsGuide,
+  "npm run check:did-surface-discipline",
+  "docs-site surface guide",
+);
+assertIncludes(
+  readText("docs-site/.vitepress/config.ts"),
+  "/guide/did-surface-change-discipline",
+  "docs-site sidebar",
+);
+
+for (const workflow of [
+  ".github/workflows/ci.yml",
+  ".github/workflows/docs.yml",
+]) {
+  const workflowText = readText(workflow);
+  assertIncludes(workflowText, "- develop", workflow);
+}
+assertIncludes(
+  readText(".github/workflows/scan.yaml"),
+  "branches: [develop, main]",
+  ".github/workflows/scan.yaml",
+);
+
+const packArtifacts = readText("scripts/pack-artifacts.sh");
+for (const workspace of libraryWorkspaces) {
+  assertIncludes(packArtifacts, `  ${workspace}`, "pack-artifacts workspaces");
+}
+
+const requiredPackageFiles = [
+  "dist/**",
+  "README.md",
+  "package.json",
+  "tsconfig.json",
+  "tsconfig.build.json",
+];
+
+for (const workspace of libraryWorkspaces) {
+  const packageJson = readJson(`${workspace}/package.json`);
+  const packageLabel = `${workspace}/package.json`;
+
+  assert(packageJson.main === "dist/index.js", `${packageLabel} main must point to dist/index.js`);
+  assert(packageJson.types === "./dist/index.d.ts", `${packageLabel} types must point to dist/index.d.ts`);
+  assert(packageJson.exports?.["."], `${packageLabel} must expose the root export`);
+
+  for (const fileEntry of requiredPackageFiles) {
+    assertArrayIncludes(packageJson.files, fileEntry, `${packageLabel} files`);
+  }
+}
+
+const domainPackage = readJson("domain/package.json");
+assert(
+  domainPackage.exports?.["./midnight"],
+  "domain/package.json must keep the ./midnight export",
+);
+
+const jubjubPackage = readJson("jubjub-schnorr/package.json");
+assert(
+  jubjubPackage.exports?.["./managed/jubjub-schnorr/contract"],
+  "jubjub-schnorr/package.json must keep the generated contract export",
+);
+assertArrayIncludes(
+  jubjubPackage.files,
+  "src/**/*.compact",
+  "jubjub-schnorr/package.json files",
+);
+
+const contractPackage = readJson("contract/package.json");
+assertArrayIncludes(
+  contractPackage.files,
+  "scripts/*.mjs",
+  "contract/package.json files",
+);
+
+if (failures.length > 0) {
+  console.error("DID surface discipline check failed:");
+  for (const failure of failures) {
+    console.error(`- ${failure}`);
+  }
+  process.exit(1);
+}
+
+console.log("DID surface discipline check passed.");

@@ -35,6 +35,30 @@ Ensure the title is a clear summary of the requirement and provides enough conte
 * **Code Review:** All pull requests undergo code review by project maintainers.
   Be prepared to address feedback from reviewers.
 
+## DID Surface Change Discipline
+
+Use `develop` as the default target branch for repository changes unless a
+maintainer asks for a release or hotfix branch.
+
+Run the surface guard before opening PRs that change public DID behavior:
+
+```bash
+npm run check:did-surface-discipline
+```
+
+Treat these as DID surface changes:
+
+* Compact circuits, generated contract artifacts, or package export maps.
+* Domain/API/secret-storage types or runtime behavior consumed by downstream
+  applications.
+* `./run.sh`, CI workflow, artifact packaging, or local tarball behavior.
+* Documentation that defines how integrators consume the DID packages or
+  services.
+
+For these changes, update the changelog, tests, and documentation in the same
+PR. The PR template includes a dedicated checklist so reviewers can see which
+surface was touched and how it was validated.
+
 ## Requirements for Acceptable Contributions:
 
 * **Coding Standards:** Code must adhere to the coding style guides defined in our documentation

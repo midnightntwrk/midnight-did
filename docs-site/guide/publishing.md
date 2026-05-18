@@ -68,8 +68,12 @@ Reason:
 
 - pushes to `main`:
   - build and deploy
+- pushes to `develop`:
+  - build only
+- pull requests targeting `main` or `develop`:
+  - build only
 - `workflow_dispatch`:
   - build on the selected ref
-  - deploy only when the ref is `main`
+  - deploy only when the selected ref is `main`
 
 This keeps manual docs verification available on branches without accidentally publishing preview content as the production Pages site.
