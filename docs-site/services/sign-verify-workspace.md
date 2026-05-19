@@ -81,6 +81,10 @@ Cross-profile verification is intentional:
 
 This works because the public key is resolved from the Midnight DID document, not from the original local key store.
 
+## Current limits
+
+Sign & Verify produces and checks detached signatures. It verifies that the signature matches the resolved public key, but v1 does not enforce DID Core proof-purpose relationships such as `authentication` or `assertionMethod`. Use application-level policy when a flow requires a specific proof purpose.
+
 ## Related docs
 
 - [DID Manager Getting Started](/guide/getting-started-did-manager)

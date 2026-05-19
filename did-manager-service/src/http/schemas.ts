@@ -145,6 +145,11 @@ export const routeSchemas = {
     type: 'object',
     additionalProperties: false,
     required: ['payloadType', 'payload', 'signatureBase64Url'],
+    oneOf: [
+      { required: ['keyRef'] },
+      { required: ['publicJwk'] },
+      { required: ['verificationMethodId'] },
+    ],
     properties: {
       payloadType: { type: 'string', enum: payloadTypes },
       payload: { type: 'string' },

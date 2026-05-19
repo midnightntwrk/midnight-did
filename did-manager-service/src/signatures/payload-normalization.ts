@@ -1,8 +1,8 @@
-import { Buffer } from "node:buffer";
+import { Buffer } from 'node:buffer';
 
-import canonicalize from "canonicalize";
+import canonicalize from 'canonicalize';
 
-import type { PayloadType } from "../types.js";
+import type { PayloadType } from '../types.js';
 
 export type NormalizedPayload = {
   type: PayloadType;
@@ -16,11 +16,9 @@ const encoder = new TextEncoder();
 const decodeHex = (value: string): Uint8Array => {
   if (value.length === 0) return new Uint8Array(0);
   if (!/^[0-9a-fA-F]+$/.test(value) || value.length % 2 !== 0) {
-    throw new Error(
-      "Bytes payload must be a non-empty even-length hexadecimal string",
-    );
+    throw new Error('Bytes payload must be an even-length hexadecimal string');
   }
-  return new Uint8Array(Buffer.from(value, "hex"));
+  return new Uint8Array(Buffer.from(value, 'hex'));
 };
 
 const normalizeJson = (value: string): string => {
@@ -28,14 +26,13 @@ const normalizeJson = (value: string): string => {
   try {
     parsed = JSON.parse(value);
   } catch (error) {
-    const detail =
-      error instanceof Error ? `: ${error.message}` : "";
+    const detail = error instanceof Error ? `: ${error.message}` : '';
     throw new Error(`JSON payload is invalid${detail}`);
   }
 
   const canonical = canonicalize(parsed);
   if (canonical === undefined) {
-    throw new Error("JSON payload could not be canonicalized with RFC 8785");
+    throw new Error('JSON payload could not be canonicalized with RFC 8785');
   }
   return canonical;
 };
@@ -49,17 +46,17 @@ export const normalizePayload = (
     return {
       type,
       bytes,
-      canonicalHex: Buffer.from(bytes).toString("hex"),
+      canonicalHex: Buffer.from(bytes).toString('hex'),
       canonicalText: null,
     };
   }
 
-  if (type === "string") {
+  if (type === 'string') {
     const bytes = encoder.encode(payload);
     return {
       type,
       bytes,
-      canonicalHex: Buffer.from(bytes).toString("hex"),
+      canonicalHex: Buffer.from(bytes).toString('hex'),
       canonicalText: payload,
     };
   }
@@ -69,7 +66,7 @@ export const normalizePayload = (
   return {
     type,
     bytes,
-    canonicalHex: Buffer.from(bytes).toString("hex"),
+    canonicalHex: Buffer.from(bytes).toString('hex'),
     canonicalText,
   };
 };

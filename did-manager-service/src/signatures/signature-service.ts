@@ -76,7 +76,7 @@ export const signPayload = async (input: {
   const key = await findStoredKey(secretStore, request.keyRef);
   if (key.did !== undefined && key.did !== null && key.did !== didDocument.id) {
     throw new Error(
-      `Selected key is associated with ${key.did ?? 'no DID'}, not the active DID ${didDocument.id}.`,
+      `Selected key is associated with ${key.did}, not the active DID ${didDocument.id}.`,
     );
   }
 
@@ -148,19 +148,17 @@ export const verifyPayload = async (input: {
   } else if (request.publicJwk !== undefined) {
     publicJwk = request.publicJwk;
     source = 'publicJwk';
-  } else if (request.verificationMethodId !== undefined) {
+  } else {
     if (resolveVerificationMethod === undefined) {
       throw new Error('DID verification requires a verification method resolver.');
     }
-    const resolved = await resolveVerificationMethod(request.verificationMethodId);
+    const resolved = await resolveVerificationMethod(
+      request.verificationMethodId as string,
+    );
     did = resolved.did;
     verificationMethodId = resolved.verificationMethodId;
     publicJwk = resolved.publicJwk;
     source = 'didDocument';
-  } else {
-    throw new Error(
-      'Verification requires one of: keyRef, publicJwk, or verificationMethodId.',
-    );
   }
 
   const verified = await verifyWithPublicJwk(
