@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { pipelineSteps, targets } from "./run-target-catalog.mjs";
+import { laneTargets, pipelineSteps, stepsForTarget, targets } from "./run-target-catalog.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.dirname(path.dirname(__filename));
@@ -31,6 +31,20 @@ for (const step of pipelineSteps) {
   assert.ok(existsSync(path.join(repoRoot, step.command)), `pipeline step command is missing: ${step.command}`);
 }
 
+for (const laneTarget of laneTargets) {
+  assert.ok(laneTarget.name, "lane target must have a name");
+  assert.ok(laneTarget.label, `lane target '${laneTarget.name}' must have a label`);
+  assert.ok(laneTarget.command, `lane target '${laneTarget.name}' must have a command`);
+  assert.ok(
+    !/\s/u.test(laneTarget.command),
+    `lane target command must be one executable path; add args support before using spaces: ${laneTarget.name}`,
+  );
+  assert.ok(
+    existsSync(path.join(repoRoot, laneTarget.command)),
+    `lane target command is missing: ${laneTarget.command}`,
+  );
+}
+
 const targetsResult = run(["targets"]);
 assert.equal(targetsResult.status, 0, "targets command should exit successfully");
 
@@ -48,6 +62,13 @@ for (const step of pipelineSteps) {
   );
 }
 
+for (const laneTarget of laneTargets) {
+  assert.ok(
+    targetsResult.stdout.includes(laneTarget.command),
+    `targets output should include lane command '${laneTarget.command}'`,
+  );
+}
+
 const metricsDir = mkdtempSync(path.join(tmpdir(), "midnight-did-catalog-"));
 const metricsPath = path.join(metricsDir, "metrics.json");
 const dryRunResult = run(["--light", "--strict", "--metrics-json", metricsPath], {
@@ -59,10 +80,37 @@ assert.equal(dryRunResult.status, 0, "dry-run validation should exit successfull
 const metrics = JSON.parse(readFileSync(metricsPath, "utf8"));
 assert.deepEqual(
   metrics.steps.map((step) => step.label),
-  pipelineSteps.map((step) => step.label),
+  stepsForTarget("full").map((step) => step.label),
   "run.sh pipeline step labels must match the catalog",
 );
 
 rmSync(metricsDir, { recursive: true, force: true });
+
+for (const laneTarget of laneTargets) {
+  const laneMetricsDir = mkdtempSync(path.join(tmpdir(), "midnight-did-lane-catalog-"));
+  const laneMetricsPath = path.join(laneMetricsDir, "metrics.json");
+  const laneArgs = [laneTarget.name];
+  if (laneTarget.supportsLight) {
+    laneArgs.push("--light");
+  }
+  if (laneTarget.supportsStrict) {
+    laneArgs.push("--strict");
+  }
+  laneArgs.push("--metrics-json", laneMetricsPath);
+  const laneResult = run(laneArgs, {
+    MIDNIGHT_DID_DRY_RUN: "1",
+  });
+
+  assert.equal(laneResult.status, 0, `${laneTarget.name} dry-run validation should exit successfully`);
+
+  const laneMetrics = JSON.parse(readFileSync(laneMetricsPath, "utf8"));
+  assert.deepEqual(
+    laneMetrics.steps.map((step) => step.label),
+    stepsForTarget(laneTarget.name).map((step) => step.label),
+    `run.sh ${laneTarget.name} step labels must match the catalog`,
+  );
+
+  rmSync(laneMetricsDir, { recursive: true, force: true });
+}
 
 console.log("run target catalog checks passed.");

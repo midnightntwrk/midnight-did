@@ -54,7 +54,7 @@ jobs:
         run: npm ci
 
       - name: Build docs site
-        run: npm run docs:build
+        run: ./run.sh docs
 
       - name: Upload Pages artifact
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'

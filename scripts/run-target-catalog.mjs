@@ -3,28 +3,65 @@ import { stdout } from "node:process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const pipelineSteps = [
+// `command` is intentionally one executable path. Add a separate args field
+// before introducing commands that need arguments.
+export const laneTargets = [
   {
+    name: "core",
     label: "Core pipeline",
     command: "./run-core.sh",
     description: "DID core package lint, build, and unit-test lane.",
+    supportsLight: true,
+    supportsStrict: true,
+    supportsMetrics: true,
   },
   {
+    name: "api",
     label: "API pipeline",
     command: "./run-api.sh",
     description: "DID API package build and API tests.",
+    supportsLight: true,
+    supportsStrict: true,
+    supportsMetrics: true,
   },
   {
+    name: "resolver",
     label: "Resolver pipeline",
     command: "./run-resolver.sh",
     description: "Resolver service build, tests, and optional integration lane.",
+    supportsLight: true,
+    supportsStrict: true,
+    supportsMetrics: true,
   },
   {
+    name: "manager",
     label: "DID manager pipeline",
     command: "./run-manager.sh",
     description: "Manager service build, tests, and optional browser E2E lane.",
+    supportsLight: true,
+    supportsStrict: true,
+    supportsMetrics: true,
+  },
+  {
+    name: "docs",
+    label: "Docs pipeline",
+    command: "./run-docs.sh",
+    description: "DID documentation site build lane.",
+    supportsLight: false,
+    supportsStrict: false,
+    supportsMetrics: true,
   },
 ];
+
+export const laneTargetByName = new Map(laneTargets.map((target) => [target.name, target]));
+export const fullPipelineOrder = ["core", "api", "resolver", "manager"];
+export const pipelineSteps = fullPipelineOrder.map((name) => {
+  const laneTarget = laneTargetByName.get(name);
+  if (!laneTarget) {
+    throw new Error(`Missing full pipeline lane target: ${name}`);
+  }
+  return laneTarget;
+});
 
 export const targets = [
   {
@@ -34,6 +71,13 @@ export const targets = [
     supportsStrict: true,
     supportsMetrics: true,
   },
+  ...laneTargets.map(({ name, description, supportsLight, supportsStrict, supportsMetrics }) => ({
+    name,
+    description,
+    supportsLight,
+    supportsStrict,
+    supportsMetrics,
+  })),
   {
     name: "clean-artifacts",
     description: "Remove generated build/test artifacts without deleting dependencies or local secrets.",
@@ -72,6 +116,20 @@ export const targets = [
 ];
 
 export const targetNames = new Set(targets.map((target) => target.name));
+export const targetByName = new Map(targets.map((target) => [target.name, target]));
+
+export const stepsForTarget = (targetName = "full") => {
+  if (targetName === "full") {
+    return pipelineSteps;
+  }
+
+  const laneTarget = laneTargetByName.get(targetName);
+  if (!laneTarget) {
+    throw new Error(`Unknown executable target: ${targetName}`);
+  }
+
+  return [laneTarget];
+};
 
 const printRows = (rows) => {
   const width = Math.max(...rows.map(([name]) => name.length));
@@ -85,6 +143,8 @@ export const printTargets = () => {
   printRows(targets.map((target) => [target.name, target.description]));
   stdout.write("\nPipeline steps for target 'full':\n");
   printRows(pipelineSteps.map((step) => [step.command, `${step.label}: ${step.description}`]));
+  stdout.write("\nSingle-lane target commands:\n");
+  printRows(laneTargets.map((target) => [target.name, target.command]));
 };
 
 export const printLightTargets = () => {
@@ -106,14 +166,20 @@ if (isDirectExecution) {
     case "--has-target":
       process.exit(targetNames.has(value) ? 0 : 1);
       break;
+    case "--supports-light":
+      process.exit(targetByName.get(value)?.supportsLight ? 0 : 1);
+      break;
+    case "--supports-strict":
+      process.exit(targetByName.get(value)?.supportsStrict ? 0 : 1);
+      break;
     case "--light-targets":
       printLightTargets();
       break;
     case "--step-labels":
-      stdout.write(`${pipelineSteps.map((step) => step.label).join("\n")}\n`);
+      stdout.write(`${stepsForTarget(value).map((step) => step.label).join("\n")}\n`);
       break;
     case "--step-commands":
-      stdout.write(`${pipelineSteps.map((step) => step.command).join("\n")}\n`);
+      stdout.write(`${stepsForTarget(value).map((step) => step.command).join("\n")}\n`);
       break;
     case "--targets":
     case "--help":
