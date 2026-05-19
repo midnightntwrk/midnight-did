@@ -1,10 +1,11 @@
 import { didContent } from './did-content.js';
 import { sharedScript } from './script.js';
 import { secretStorageContent } from './secret-storage-content.js';
+import { signaturesContent } from './signatures-content.js';
 import { styles } from './styles.js';
 import { walletContent } from './wallet-content.js';
 
-const renderPage = (page: 'wallet' | 'secret-storage' | 'did', title: string, intro: string, content: string): string => `<!doctype html>
+const renderPage = (page: 'wallet' | 'secret-storage' | 'signatures' | 'did', title: string, intro: string, content: string): string => `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -24,6 +25,7 @@ const renderPage = (page: 'wallet' | 'secret-storage' | 'did', title: string, in
           <div class="tab-nav" role="tablist" aria-label="Primary navigation">
             <a href="/wallet" class="${page === 'wallet' ? 'active' : ''}" aria-current="${page === 'wallet' ? 'page' : 'false'}">Wallet Setup</a>
             <a href="/secret-storage" class="${page === 'secret-storage' ? 'active' : ''}" aria-current="${page === 'secret-storage' ? 'page' : 'false'}">Secret Storage</a>
+            <a href="/signatures" class="${page === 'signatures' ? 'active' : ''}" aria-current="${page === 'signatures' ? 'page' : 'false'}">Sign & Verify</a>
             <a href="/did" class="${page === 'did' ? 'active' : ''}" aria-current="${page === 'did' ? 'page' : 'false'}">DID Management</a>
           </div>
           <div class="nav-meta">
@@ -68,6 +70,13 @@ export const didPage = renderPage(
   'Midnight DID Manager | DID',
   'Manage the DID only after the wallet has been prepared and the session is started for the configured backend setup.',
   didContent,
+);
+
+export const signaturesPage = renderPage(
+  'signatures',
+  'Midnight DID Manager | Sign & Verify',
+  'Sign normalized payloads with DID-associated local keys and verify them with local keys, direct public JWKs, or Midnight DID verification methods.',
+  signaturesContent,
 );
 
 export const secretStoragePage = renderPage(

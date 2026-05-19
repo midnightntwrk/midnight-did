@@ -30,6 +30,19 @@ const upstreamFailurePatterns = [
   "socket hang up",
 ];
 
+const invalidRequestMessagePatterns = [
+  "Active DID is deactivated",
+  "Selected key ",
+  "Bytes payload ",
+  "JSON payload ",
+  "Verification method ",
+  "Local key verification requires ",
+  "DID verification requires ",
+  "Verification requires exactly one source",
+  "Unsupported signature curve ",
+  "Signature must be a valid base64url-encoded byte string",
+];
+
 export const classifyManagerHttpError = (error: unknown): ManagerHttpError => {
   const zodMessage = zodLikeMessage(error);
   const message =
@@ -66,7 +79,10 @@ export const classifyManagerHttpError = (error: unknown): ManagerHttpError => {
     };
   }
 
-  if (errorName === "SecretNotFoundError") {
+  if (
+    errorName === "SecretNotFoundError" ||
+    message.startsWith("Key not found in secret storage:")
+  ) {
     return {
       statusCode: 404,
       errorCode: "secretNotFound",
@@ -123,7 +139,8 @@ export const classifyManagerHttpError = (error: unknown): ManagerHttpError => {
     message.includes("Seed mode generated is not allowed for Start session") ||
     message.includes("verificationMethod") ||
     message.includes("serviceEndpoint") ||
-    message.includes("relation ")
+    message.includes("relation ") ||
+    invalidRequestMessagePatterns.some((pattern) => message.startsWith(pattern))
   ) {
     return {
       statusCode: 400,
@@ -132,7 +149,10 @@ export const classifyManagerHttpError = (error: unknown): ManagerHttpError => {
     };
   }
 
-  if (message.includes("was not found on")) {
+  if (
+    message.startsWith("Active DID contract could not be resolved") ||
+    message.includes("was not found on")
+  ) {
     return {
       statusCode: 404,
       errorCode: "contractNotFound",

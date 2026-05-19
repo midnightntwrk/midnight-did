@@ -22,6 +22,7 @@ vi.mock('@midnight-ntwrk/midnight-did-api', async () => {
     waitForWalletSync: vi.fn(),
     waitForWalletFunds: vi.fn(),
     configureProviders: vi.fn(),
+    resolve: vi.fn(),
     serializeWalletState: vi.fn().mockResolvedValue({
       shieldedState: 'shielded',
       unshieldedState: 'unshielded',
@@ -302,6 +303,51 @@ describe('DidManagerService', () => {
     await expect(manager.unlock({ seedMode: 'generated' })).rejects.toThrow(
       'Seed mode generated is not allowed for Start session. Click Prepare funding first.',
     );
+  });
+
+  it('rejects signing through a deactivated active DID', async () => {
+    const manager = new DidManagerService(createConfig(dataDir), pino({ enabled: false }));
+    const providers = { id: 'providers' } as never;
+    const didContract = {
+      deployTxData: {
+        public: {
+          contractAddress: 'f'.repeat(64),
+        },
+      },
+    } as never;
+    const secretStore = {
+      getPublicKey: vi.fn(),
+      sign: vi.fn(),
+    } as never;
+
+    (manager as any).runtime.attachReadySession({
+      walletCtx: {
+        wallet: { stop: vi.fn() },
+      },
+      providers,
+      secretStore,
+      seedHash: 'aaaaaa',
+      reusedPersistedState: false,
+    });
+    (manager as any).runtime.setDidContract(didContract);
+    vi.mocked(api.resolve).mockResolvedValue({
+      didDocument: {
+        id: `did:midnight:preprod:${'f'.repeat(64)}`,
+        verificationMethod: [],
+      },
+      didDocumentMetadata: {
+        deactivated: true,
+      },
+    } as never);
+
+    await expect(
+      manager.signPayload({
+        keyRef: 'key-ref-1',
+        payloadType: 'string',
+        payload: 'hello midnight',
+      }),
+    ).rejects.toThrow('Active DID is deactivated and cannot sign payloads.');
+    expect(secretStore.getPublicKey).not.toHaveBeenCalled();
   });
 
   it('falls back to fresh wallet sync when persisted wallet state is incompatible', async () => {
