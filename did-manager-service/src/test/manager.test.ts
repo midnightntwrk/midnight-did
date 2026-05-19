@@ -10,13 +10,26 @@ import type { ManagerConfig } from '../config.js';
 import { DidManagerService } from '../manager.js';
 import { seedHashPrefix } from '../wallet-state-store.js';
 
+const apiMockState = vi.hoisted(() => ({
+  preprodConfigConstructed: false,
+}));
+
 vi.mock('@midnight-ntwrk/midnight-did-api', async () => {
   return {
     setLogger: vi.fn(),
     StandaloneConfig: class StandaloneConfig {},
-    PreprodConfig: class PreprodConfig {},
+    PreprodConfig: class PreprodConfig {
+      constructor() {
+        apiMockState.preprodConfigConstructed = true;
+      }
+    },
     MainnetConfig: class MainnetConfig {},
-    deriveUnshieldedAddressFromSeed: vi.fn(() => 'mn_addr_preprod1derived'),
+    deriveUnshieldedAddressFromSeed: vi.fn(() => {
+      if (!apiMockState.preprodConfigConstructed) {
+        throw new Error('Network ID has not been configured. Call setNetworkId() before any wallet or contract operation.');
+      }
+      return 'mn_addr_preprod1derived';
+    }),
     buildWallet: vi.fn(),
     restoreWalletFromState: vi.fn(),
     waitForWalletSync: vi.fn(),
@@ -73,6 +86,7 @@ describe('DidManagerService', () => {
   beforeEach(async () => {
     dataDir = await mkdtemp(path.join(os.tmpdir(), 'did-manager-service-test-'));
     vi.clearAllMocks();
+    apiMockState.preprodConfigConstructed = false;
   });
 
   afterEach(async () => {

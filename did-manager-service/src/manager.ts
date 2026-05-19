@@ -531,12 +531,12 @@ export class DidManagerService {
     if (preparedSeed !== seed) {
       throw new Error('Provided seed does not match the prepared funding seed for this profile. Click Prepare funding again.');
     }
+    this.profileConfig();
     const expectedUnshieldedAddress = deriveUnshieldedAddress(seed);
     if (profileState.unshieldedAddress !== expectedUnshieldedAddress) {
       throw new Error('Prepared funding state is inconsistent for this profile. Click Prepare funding again.');
     }
 
-    this.profileConfig();
     if (typeof input.rememberUnlockedSession === 'boolean') {
       await this.profileStore.updateRememberUnlockedSession(input.rememberUnlockedSession);
     }
