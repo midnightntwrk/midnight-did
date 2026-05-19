@@ -1,1 +1,1 @@
-export { didPage, secretStoragePage, walletPage } from './page.js';
+export { didPage, secretStoragePage, signaturesPage, walletPage } from './page.js';

@@ -72,6 +72,33 @@ describe('did-manager-service app', () => {
       lock: vi.fn(),
       closeSession: vi.fn().mockResolvedValue(defaultSessionStatus),
       updatePreferences: vi.fn(),
+      signPayload: vi.fn().mockResolvedValue({
+        did: `did:midnight:preprod:${'a'.repeat(64)}`,
+        verificationMethodId: `did:midnight:preprod:${'a'.repeat(64)}#key-1`,
+        keyRef: 'key-ref-1',
+        algorithm: { kty: 'OKP', crv: 'Ed25519' },
+        payloadType: 'string',
+        canonicalText: 'hello midnight',
+        canonicalHex: '68656c6c6f206d69646e69676874',
+        canonicalPayloadBase64Url: 'aGVsbG8gbWlkbmlnaHQ',
+        signatureBase64Url: 'c2ln',
+        signatureFormat: 'ed25519-raw',
+        publicJwk: { kty: 'OKP', crv: 'Ed25519', x: 'abc' },
+      }),
+      verifyPayload: vi.fn().mockResolvedValue({
+        verified: true,
+        source: 'didDocument',
+        did: `did:midnight:preprod:${'a'.repeat(64)}`,
+        verificationMethodId: `did:midnight:preprod:${'a'.repeat(64)}#key-1`,
+        algorithm: { kty: 'OKP', crv: 'Ed25519' },
+        payloadType: 'string',
+        canonicalText: 'hello midnight',
+        canonicalHex: '68656c6c6f206d69646e69676874',
+        canonicalPayloadBase64Url: 'aGVsbG8gbWlkbmlnaHQ',
+        signatureBase64Url: 'c2ln',
+        signatureFormat: 'ed25519-raw',
+        publicJwk: { kty: 'OKP', crv: 'Ed25519', x: 'abc' },
+      }),
       deployDid: vi.fn(),
       joinDid: vi.fn(),
       getDidState: vi.fn(),
@@ -103,6 +130,127 @@ describe('did-manager-service app', () => {
     expect(wallet.statusCode).toBe(200);
     const secretStorage = await app.inject({ method: 'GET', url: '/secret-storage' });
     expect(secretStorage.statusCode).toBe(200);
+    const signatures = await app.inject({ method: 'GET', url: '/signatures' });
+    expect(signatures.statusCode).toBe(200);
+    expect(signatures.body).toContain('Sign & Verify');
+    const signed = await app.inject({
+      method: 'POST',
+      url: '/api/signatures/sign',
+      payload: {
+        keyRef: 'key-ref-1',
+        payloadType: 'string',
+        payload: 'hello midnight',
+      },
+    });
+    expect(signed.statusCode).toBe(200);
+    expect(signed.json()).toEqual({
+      ok: true,
+      data: {
+        did: `did:midnight:preprod:${'a'.repeat(64)}`,
+        verificationMethodId: `did:midnight:preprod:${'a'.repeat(64)}#key-1`,
+        keyRef: 'key-ref-1',
+        algorithm: { kty: 'OKP', crv: 'Ed25519' },
+        payloadType: 'string',
+        canonicalText: 'hello midnight',
+        canonicalHex: '68656c6c6f206d69646e69676874',
+        canonicalPayloadBase64Url: 'aGVsbG8gbWlkbmlnaHQ',
+        signatureBase64Url: 'c2ln',
+        signatureFormat: 'ed25519-raw',
+        publicJwk: { kty: 'OKP', crv: 'Ed25519', x: 'abc' },
+      },
+    });
+    const verified = await app.inject({
+      method: 'POST',
+      url: '/api/signatures/verify',
+      payload: {
+        payloadType: 'string',
+        payload: 'hello midnight',
+        signatureBase64Url: 'c2ln',
+        verificationMethodId: `did:midnight:preprod:${'a'.repeat(64)}#key-1`,
+      },
+    });
+    expect(verified.statusCode).toBe(200);
+    expect(verified.json()).toEqual({
+      ok: true,
+      data: {
+        verified: true,
+        source: 'didDocument',
+        did: `did:midnight:preprod:${'a'.repeat(64)}`,
+        verificationMethodId: `did:midnight:preprod:${'a'.repeat(64)}#key-1`,
+        algorithm: { kty: 'OKP', crv: 'Ed25519' },
+        payloadType: 'string',
+        canonicalText: 'hello midnight',
+        canonicalHex: '68656c6c6f206d69646e69676874',
+        canonicalPayloadBase64Url: 'aGVsbG8gbWlkbmlnaHQ',
+        signatureBase64Url: 'c2ln',
+        signatureFormat: 'ed25519-raw',
+        publicJwk: { kty: 'OKP', crv: 'Ed25519', x: 'abc' },
+      },
+    });
+
+    const verifiedWithStandardJwkMetadata = await app.inject({
+      method: 'POST',
+      url: '/api/signatures/verify',
+      payload: {
+        payloadType: 'string',
+        payload: 'hello midnight',
+        signatureBase64Url: 'c2ln',
+        publicJwk: {
+          kty: 'OKP',
+          crv: 'Ed25519',
+          x: 'abc',
+          kid: 'key-1',
+          alg: 'EdDSA',
+          use: 'sig',
+          key_ops: ['verify'],
+          ext: true,
+        },
+      },
+    });
+    expect(verifiedWithStandardJwkMetadata.statusCode).toBe(200);
+    expect(manager.verifyPayload).toHaveBeenCalledWith(expect.objectContaining({
+      publicJwk: expect.objectContaining({
+        kid: 'key-1',
+        alg: 'EdDSA',
+        key_ops: ['verify'],
+      }),
+    }));
+
+    const missingVerifySource = await app.inject({
+      method: 'POST',
+      url: '/api/signatures/verify',
+      payload: {
+        payloadType: 'string',
+        payload: 'hello midnight',
+        signatureBase64Url: 'c2ln',
+      },
+    });
+    expect(missingVerifySource.statusCode).toBe(400);
+
+    const ambiguousVerifySource = await app.inject({
+      method: 'POST',
+      url: '/api/signatures/verify',
+      payload: {
+        payloadType: 'string',
+        payload: 'hello midnight',
+        signatureBase64Url: 'c2ln',
+        keyRef: 'key-ref-1',
+        verificationMethodId: `did:midnight:preprod:${'a'.repeat(64)}#key-1`,
+      },
+    });
+    expect(ambiguousVerifySource.statusCode).toBe(400);
+
+    const malformedSignature = await app.inject({
+      method: 'POST',
+      url: '/api/signatures/verify',
+      payload: {
+        payloadType: 'string',
+        payload: 'hello midnight',
+        signatureBase64Url: 'not valid!',
+        verificationMethodId: `did:midnight:preprod:${'a'.repeat(64)}#key-1`,
+      },
+    });
+    expect(malformedSignature.statusCode).toBe(400);
 
     const health = await app.inject({ method: 'GET', url: '/health' });
     expect(health.statusCode).toBe(200);

@@ -24,12 +24,16 @@ This guide walks through the complete DID Manager flow and links each step to th
 3. Start the wallet session and wait for `Ready`.
 4. Open **Secret Storage** and create/import a key.
 5. Open **DID Management** and deploy/join a DID contract.
-6. Publish and update methods/services/aliases.
+6. Publish verification methods for the key types you want to demo (`Ed25519`, `Jubjub`, `P-256`).
+7. Open **Sign & Verify** and test detached signing and verification.
+8. Optionally switch to another profile and verify using the absolute `verificationMethodId`.
+9. Return to **DID Management** for additional methods/services/aliases.
 
 ## Detailed guides
 
 - [Wallet Setup workspace](/services/wallet-setup)
 - [Secret Storage workspace](/services/secret-storage-workspace)
+- [Sign & Verify workspace](/services/sign-verify-workspace)
 - [DID Management workspace](/services/did-management-workspace)
 
 ## Seed model
