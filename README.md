@@ -105,13 +105,15 @@ Install dependencies:
 - `compact update 0.30.0`
 
 Pipelines:
-- Root DID workspace: `./run.sh`
-- Core pipeline only: `SKIP_LINT_FIX=1 ./run-core.sh`
-- API only: `./run-api.sh`
-- Resolver only: `./run-resolver.sh`
-- DID manager only: `./run-manager.sh`
+- Root DID workspace: `./run.sh` or `./run.sh full`
+- Core pipeline only: `./run.sh core --strict`
+- API only: `./run.sh api`
+- Resolver only: `./run.sh resolver`
+- DID manager only: `./run.sh manager`
+- Docs pipeline: `./run.sh docs`
 - Root `./run.sh` validates only the DID/API/resolver/manager workspace. It does not execute VC or Passport pipelines.
-- Docs pipeline: `./run-docs.sh`
+- Legacy `run-core.sh`, `run-api.sh`, `run-resolver.sh`, `run-manager.sh`, and
+  `run-docs.sh` scripts remain thin lane implementations behind `./run.sh`.
 - DID surface guard: `npm run check:did-surface-discipline`
 - Manager app: `./start-manager.sh [--standalone|--preprod|--mainnet]`
 - Resolver app: `./start-resolver.sh [--standalone|--preprod|--mainnet]`
@@ -144,7 +146,9 @@ Fast mode:
 - Skip long-running integration/e2e targets: `SKIP_LONG_RUNNING=1 ./run.sh`
 - Equivalent CLI flag: `./run.sh --light`
 - CI-shaped local run with timings:
-  `./run.sh --light --strict --skip-coverage --metrics --metrics-json /tmp/midnight-did-run.json`
+  `./run.sh --light --strict --metrics --metrics-json /tmp/midnight-did-run.json`
+- `--skip-coverage` is still accepted for older local command history, but the
+  current split lanes do not run coverage by default.
 - See [`docs/develop-pr-transition.md`](./docs/develop-pr-transition.md) for
   the current `develop`-targeted PR transition notes.
 - See [`docs/did-surface-change-discipline.md`](./docs/did-surface-change-discipline.md)
@@ -170,13 +174,13 @@ Bootstrapped proof server image (faster Docker-backed runs):
 If you are new to the repository, start here:
 
 1. `./start-docs.sh`
-2. `SKIP_LONG_RUNNING=1 ./run.sh`
-3. the component-specific runner for the area you are changing
+2. `./run.sh --light --strict`
+3. the component-specific `./run.sh` target for the area you are changing
 4. if you are working on credentials or Passport, use the split-repo runners instead of expecting root `./run.sh` to cover them
 
 Docs helpers:
 
-- `./run-docs.sh` runs the full docs preparation and build workflow
+- `./run.sh docs` runs the full docs preparation and build workflow
 - `./start-docs.sh` starts the local VitePress site
 
 When you need direct package/service documentation:
@@ -194,7 +198,9 @@ When you need direct package/service documentation:
 - Compact circuits are compiled via workspace scripts in `contract`.
 - Integration tests use Testcontainers and docker-compose based topologies.
 - Teardown logic now performs best-effort `docker compose down --volumes --remove-orphans` to reduce leaked resources.
-- CI is split into one `core` job and a parallel service matrix (`run-api.sh`, `run-resolver.sh`, `run-manager.sh`) to reduce wall-clock duration.
+- CI is split into one `./run.sh core` job and a parallel service matrix
+  (`./run.sh api`, `./run.sh resolver`, `./run.sh manager`) to reduce
+  wall-clock duration.
 - CI uses cache layers for npm, Compact toolchain, and Playwright browsers (manager pipeline).
 - Service runners now prepare missing generated artifacts/dependencies explicitly so standalone service jobs are reproducible.
 - HD seed derivation for `Ed25519`, `Jubjub`, and `P-256` is documented in [`secret-storage/README.md`](secret-storage/README.md).

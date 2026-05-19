@@ -51,7 +51,7 @@ npm run check:did-surface-discipline
 For broader changes, also run:
 
 ```bash
-SKIP_LONG_RUNNING=1 ./run.sh --strict --metrics
+./run.sh --light --strict --metrics
 ```
 
 Use `./run.sh --light --strict --metrics-json /tmp/midnight-did-run.json` when
