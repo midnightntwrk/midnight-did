@@ -59,6 +59,13 @@ const walk = (directory) => {
     const absolutePath = path.join(directory, entry.name);
 
     if (entry.isSymbolicLink()) {
+      if (
+        isGeneratedDirectory(absolutePath, entry.name) ||
+        entry.name.endsWith(".tsbuildinfo") ||
+        entry.name.endsWith(".tgz")
+      ) {
+        removePath(absolutePath);
+      }
       continue;
     }
 
