@@ -45,6 +45,11 @@ assert.equal(helpResult.exitCode, 0, "help should exit successfully");
 assertContains(helpResult.stdout, "Usage: ./run.sh", "help output");
 assertContains(helpResult.stdout, "--metrics-json", "help output");
 assertContains(helpResult.stdout, "clean-artifacts", "help output");
+assertContains(helpResult.stdout, "./run-core.sh", "help output");
+assertContains(helpResult.stdout, "./run-api.sh", "help output");
+assertContains(helpResult.stdout, "./run-resolver.sh", "help output");
+assertContains(helpResult.stdout, "./run-manager.sh", "help output");
+assertContains(helpResult.stdout, "./run-docs.sh", "help output");
 
 const shortHelpResult = runRunSh(["-h"]);
 assert.equal(shortHelpResult.exitCode, 0, "short help should exit successfully");
@@ -54,6 +59,7 @@ const targetsResult = runRunSh(["targets"]);
 assert.equal(targetsResult.exitCode, 0, "targets should exit successfully");
 assertContains(targetsResult.stdout, "Pipeline steps", "targets output");
 assertContains(targetsResult.stdout, "./run-core.sh", "targets output");
+assertContains(targetsResult.stdout, "./run-docs.sh", "targets output");
 
 const invalidResult = runRunSh(["--unknown-option"]);
 assert.notEqual(invalidResult.exitCode, 0, "unknown option should fail");
@@ -118,6 +124,48 @@ assertNotContains(
   dryRunResult.stdout,
   "[core] Turbo-aware core lane",
   "dry-run stdout",
+);
+
+const coreDryRunResult = runRunSh(["core", "--light", "--strict"], {
+  MIDNIGHT_DID_DRY_RUN: "1",
+});
+assert.equal(coreDryRunResult.exitCode, 0, "core dry run should succeed");
+assertContains(coreDryRunResult.stdout, "./run-core.sh", "core dry-run stdout");
+assertNotContains(coreDryRunResult.stdout, "./run-api.sh", "core dry-run stdout");
+
+for (const [target, expectedCommand] of [
+  ["api", "./run-api.sh"],
+  ["resolver", "./run-resolver.sh"],
+  ["manager", "./run-manager.sh"],
+]) {
+  const laneDryRunResult = runRunSh([target, "--light", "--strict"], {
+    MIDNIGHT_DID_DRY_RUN: "1",
+  });
+  assert.equal(laneDryRunResult.exitCode, 0, `${target} dry run should succeed`);
+  assertContains(laneDryRunResult.stdout, expectedCommand, `${target} dry-run stdout`);
+  assertNotContains(laneDryRunResult.stdout, "./run-core.sh", `${target} dry-run stdout`);
+}
+
+const docsDryRunResult = runRunSh(["docs", "--metrics"], {
+  MIDNIGHT_DID_DRY_RUN: "1",
+});
+assert.equal(docsDryRunResult.exitCode, 0, "docs dry run should succeed");
+assertContains(docsDryRunResult.stdout, "./run-docs.sh", "docs dry-run stdout");
+assertNotContains(docsDryRunResult.stdout, "./run-core.sh", "docs dry-run stdout");
+
+const docsUnsupportedFlagsResult = runRunSh(["docs", "--light", "--strict"], {
+  MIDNIGHT_DID_DRY_RUN: "1",
+});
+assert.equal(docsUnsupportedFlagsResult.exitCode, 0, "docs with ignored flags should succeed");
+assertContains(
+  docsUnsupportedFlagsResult.stderr,
+  "Warning: --light is ignored by target 'docs'",
+  "docs unsupported flag stderr",
+);
+assertContains(
+  docsUnsupportedFlagsResult.stderr,
+  "Warning: --strict is ignored by target 'docs'",
+  "docs unsupported flag stderr",
 );
 
 const metricsOnlyResult = runRunSh(["--metrics"], {

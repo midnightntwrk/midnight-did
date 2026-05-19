@@ -23,7 +23,7 @@ Purpose:
 Scope:
 
 - shared runner flag parsing in `scripts/run-common.sh`
-- `--light`, `--strict`, `--skip-coverage`, `--metrics`, and
+- `--light`, `--strict`, `--skip-coverage` compatibility, `--metrics`, and
   `--metrics-json <file>` support
 - per-step duration output for local bottleneck triage
 - partial metrics JSON even when a step fails, so CI failures preserve the

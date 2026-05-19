@@ -9,6 +9,8 @@ RUN_COMMON_PRINT_METRICS=0
 RUN_COMMON_METRICS_JSON_PATH=""
 RUN_COMMON_SCRIPT_NAME="run"
 RUN_COMMON_TARGET="full"
+RUN_COMMON_LIGHT_REQUESTED=0
+RUN_COMMON_STRICT_REQUESTED=0
 RUN_COMMON_DRY_RUN="${MIDNIGHT_DID_DRY_RUN:-0}"
 # Top-level runner state only; subprocess lane scripts are not aggregated.
 RUN_COMMON_STEP_LABELS=()
@@ -42,6 +44,28 @@ run_common_target_exists() {
   run_common_catalog --has-target "${target}" >/dev/null 2>&1
 }
 
+run_common_target_supports_light() {
+  local target="$1"
+  run_common_catalog --supports-light "${target}" >/dev/null 2>&1
+}
+
+run_common_target_supports_strict() {
+  local target="$1"
+  run_common_catalog --supports-strict "${target}" >/dev/null 2>&1
+}
+
+run_common_warn_unsupported_flags() {
+  local target="$1"
+
+  if [[ "${RUN_COMMON_LIGHT_REQUESTED}" == "1" ]] && ! run_common_target_supports_light "${target}"; then
+    echo "[${RUN_COMMON_SCRIPT_NAME}] Warning: --light is ignored by target '${target}'" >&2
+  fi
+
+  if [[ "${RUN_COMMON_STRICT_REQUESTED}" == "1" ]] && ! run_common_target_supports_strict "${target}"; then
+    echo "[${RUN_COMMON_SCRIPT_NAME}] Warning: --strict is ignored by target '${target}'" >&2
+  fi
+}
+
 run_common_parse_args() {
   RUN_COMMON_SCRIPT_NAME="${1:-run}"
   shift || true
@@ -60,10 +84,12 @@ run_common_parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --light)
+        RUN_COMMON_LIGHT_REQUESTED=1
         export SKIP_LONG_RUNNING=1
         shift
         ;;
       --strict)
+        RUN_COMMON_STRICT_REQUESTED=1
         export SKIP_LINT_FIX=1
         shift
         ;;
