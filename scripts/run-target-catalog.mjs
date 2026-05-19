@@ -1,0 +1,121 @@
+#!/usr/bin/env node
+import { stdout } from "node:process";
+
+export const pipelineSteps = [
+  {
+    label: "Core pipeline",
+    command: "./run-core.sh",
+    description: "DID core package lint, build, and unit-test lane.",
+  },
+  {
+    label: "API pipeline",
+    command: "./run-api.sh",
+    description: "DID API package build and API tests.",
+  },
+  {
+    label: "Resolver pipeline",
+    command: "./run-resolver.sh",
+    description: "Resolver service build, tests, and optional integration lane.",
+  },
+  {
+    label: "DID manager pipeline",
+    command: "./run-manager.sh",
+    description: "Manager service build, tests, and optional browser E2E lane.",
+  },
+];
+
+export const targets = [
+  {
+    name: "full",
+    description: "Run the full DID repository validation pipeline. This is the default target.",
+    supportsLight: true,
+    supportsStrict: true,
+    supportsMetrics: true,
+  },
+  {
+    name: "clean-artifacts",
+    description: "Remove generated build/test artifacts without deleting dependencies or local secrets.",
+    supportsLight: false,
+    supportsStrict: false,
+    supportsMetrics: false,
+  },
+  {
+    name: "integration-report",
+    description: "Print a DID package and sibling VC integration readiness report.",
+    supportsLight: false,
+    supportsStrict: false,
+    supportsMetrics: false,
+  },
+  {
+    name: "check-integration",
+    description: "Fail if sibling VC references cannot be satisfied by this DID checkout/vendor set.",
+    supportsLight: false,
+    supportsStrict: false,
+    supportsMetrics: false,
+  },
+  {
+    name: "targets",
+    description: "Print this runner target catalog.",
+    supportsLight: false,
+    supportsStrict: false,
+    supportsMetrics: false,
+  },
+  {
+    name: "help",
+    description: "Print runner usage and target details.",
+    supportsLight: false,
+    supportsStrict: false,
+    supportsMetrics: false,
+  },
+];
+
+export const targetNames = new Set(targets.map((target) => target.name));
+
+const printRows = (rows) => {
+  const width = Math.max(...rows.map(([name]) => name.length));
+  for (const [name, description] of rows) {
+    stdout.write(`  ${name.padEnd(width)}  ${description}\n`);
+  }
+};
+
+export const printTargets = () => {
+  stdout.write("Targets:\n");
+  printRows(targets.map((target) => [target.name, target.description]));
+  stdout.write("\nPipeline steps for target 'full':\n");
+  printRows(pipelineSteps.map((step) => [step.command, `${step.label}: ${step.description}`]));
+};
+
+export const printLightTargets = () => {
+  stdout.write(`${targets.filter((target) => target.supportsLight).map((target) => target.name).join(", ")}\n`);
+};
+
+const [command, value] = process.argv.slice(2);
+
+switch (command) {
+  case "--json":
+    stdout.write(`${JSON.stringify({ targets, pipelineSteps }, null, 2)}\n`);
+    break;
+  case "--names":
+    stdout.write(`${targets.map((target) => target.name).join("\n")}\n`);
+    break;
+  case "--has-target":
+    process.exit(targetNames.has(value) ? 0 : 1);
+    break;
+  case "--light-targets":
+    printLightTargets();
+    break;
+  case "--step-labels":
+    stdout.write(`${pipelineSteps.map((step) => step.label).join("\n")}\n`);
+    break;
+  case "--step-commands":
+    stdout.write(`${pipelineSteps.map((step) => step.command).join("\n")}\n`);
+    break;
+  case "--targets":
+  case "--help":
+  case undefined:
+    printTargets();
+    break;
+  default:
+    console.error(`Unknown run target catalog command: ${command}`);
+    process.exit(1);
+}
