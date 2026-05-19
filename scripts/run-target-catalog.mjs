@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { stdout } from "node:process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const pipelineSteps = [
   {
@@ -89,33 +91,37 @@ export const printLightTargets = () => {
   stdout.write(`${targets.filter((target) => target.supportsLight).map((target) => target.name).join(", ")}\n`);
 };
 
+const isDirectExecution =
+  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 const [command, value] = process.argv.slice(2);
 
-switch (command) {
-  case "--json":
-    stdout.write(`${JSON.stringify({ targets, pipelineSteps }, null, 2)}\n`);
-    break;
-  case "--names":
-    stdout.write(`${targets.map((target) => target.name).join("\n")}\n`);
-    break;
-  case "--has-target":
-    process.exit(targetNames.has(value) ? 0 : 1);
-    break;
-  case "--light-targets":
-    printLightTargets();
-    break;
-  case "--step-labels":
-    stdout.write(`${pipelineSteps.map((step) => step.label).join("\n")}\n`);
-    break;
-  case "--step-commands":
-    stdout.write(`${pipelineSteps.map((step) => step.command).join("\n")}\n`);
-    break;
-  case "--targets":
-  case "--help":
-  case undefined:
-    printTargets();
-    break;
-  default:
-    console.error(`Unknown run target catalog command: ${command}`);
-    process.exit(1);
+if (isDirectExecution) {
+  switch (command) {
+    case "--json":
+      stdout.write(`${JSON.stringify({ targets, pipelineSteps }, null, 2)}\n`);
+      break;
+    case "--names":
+      stdout.write(`${targets.map((target) => target.name).join("\n")}\n`);
+      break;
+    case "--has-target":
+      process.exit(targetNames.has(value) ? 0 : 1);
+      break;
+    case "--light-targets":
+      printLightTargets();
+      break;
+    case "--step-labels":
+      stdout.write(`${pipelineSteps.map((step) => step.label).join("\n")}\n`);
+      break;
+    case "--step-commands":
+      stdout.write(`${pipelineSteps.map((step) => step.command).join("\n")}\n`);
+      break;
+    case "--targets":
+    case "--help":
+    case undefined:
+      printTargets();
+      break;
+    default:
+      console.error(`Unknown run target catalog command: ${command}`);
+      process.exit(1);
+  }
 }
