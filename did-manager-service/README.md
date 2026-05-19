@@ -88,6 +88,12 @@ Shared infrastructure:
    - `DUST`
 10. Move to `/did` and deploy or join a DID contract.
 
+Preprod and mainnet session startup can spend several minutes in `syncing`.
+That phase means the Midnight wallet facade is catching up from the node and
+indexer before DID providers are configured. Restoring an older persisted wallet
+snapshot may take longer than starting from a recent snapshot; the wallet page
+shows the active connection phase and elapsed time while this is happening.
+
 For preprod faucet funding:
 - `https://faucet.preprod.midnight.network/`
 
@@ -127,6 +133,12 @@ Stored data:
 - persisted wallet snapshots for reusable networks
 - Midnight private state DB scoped by network/profile/seed
 - migration/restore backups of wallet snapshots
+
+The `wallet-state/<seedHash6>/` snapshot is used to resume wallet sync. The
+`midnight-level-db/<seedHash16>/` directory is the LevelDB-backed Midnight
+private-state provider store for DID contract private state. The manager does
+not keep its own blockchain mirror; it syncs wallet state from the configured
+node/indexer.
 
 Treat this directory as sensitive local state and do not commit it.
 

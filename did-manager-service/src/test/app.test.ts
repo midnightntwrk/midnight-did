@@ -23,6 +23,8 @@ describe('did-manager-service app', () => {
         phase: 'locked',
         reusedPersistedState: false,
         walletStateKey: null,
+        phaseStartedAt: '2026-01-01T00:00:00.000Z',
+        phaseElapsedMs: 0,
         lastError: null,
       },
       did: {
@@ -272,6 +274,8 @@ describe('did-manager-service app', () => {
 
     const session = await app.inject({ method: 'GET', url: '/api/session' });
     expect(session.statusCode).toBe(200);
+    expect(session.json().data.connection.phaseStartedAt).toBe('2026-01-01T00:00:00.000Z');
+    expect(session.json().data.connection.phaseElapsedMs).toBe(0);
     expect(session.json()).toEqual({
       ok: true,
       data: defaultSessionStatus,
@@ -382,7 +386,11 @@ describe('did-manager-service app', () => {
       unlock: vi.fn().mockResolvedValue({
         status: {
           unlocked: false,
-          connection: { phase: 'starting' },
+          connection: {
+            phase: 'starting',
+            phaseStartedAt: '2026-01-01T00:00:01.000Z',
+            phaseElapsedMs: 0,
+          },
         },
       }),
       getSessionStatus: vi.fn().mockResolvedValue({
@@ -400,6 +408,8 @@ describe('did-manager-service app', () => {
           phase: 'locked',
           reusedPersistedState: false,
           walletStateKey: null,
+          phaseStartedAt: '2026-01-01T00:00:02.000Z',
+          phaseElapsedMs: 0,
           lastError: null,
         },
         did: {

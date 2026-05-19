@@ -252,11 +252,15 @@ describe('DidManagerService', () => {
     vi.mocked(api.configureProviders).mockResolvedValue({ id: 'providers' } as never);
     const accepted = await manager.unlock({ seedMode: 'reuse' });
     expect(accepted.status.connection.phase).toBe('starting');
+    expect(accepted.status.connection.phaseStartedAt).toEqual(expect.any(String));
+    expect(accepted.status.connection.phaseElapsedMs).toBeGreaterThanOrEqual(0);
 
     for (let attempt = 0; attempt < 100; attempt += 1) {
       const status = await manager.getSessionStatus();
       if (status.connection.phase === 'ready') {
         expect(status.unlocked).toBe(true);
+        expect(status.connection.phaseStartedAt).toEqual(expect.any(String));
+        expect(status.connection.phaseElapsedMs).toBeGreaterThanOrEqual(0);
         expect(status.did.phase).toBe('stored');
         expect(status.did.lastError).toBeNull();
         expect(status.walletBalances).toEqual({
@@ -332,14 +336,14 @@ describe('DidManagerService', () => {
     const secretStore = {
       getPublicKey: vi.fn(),
       sign: vi.fn(),
-    } as never;
+    };
 
     (manager as any).runtime.attachReadySession({
       walletCtx: {
         wallet: { stop: vi.fn() },
       },
       providers,
-      secretStore,
+      secretStore: secretStore as never,
       seedHash: 'aaaaaa',
       reusedPersistedState: false,
     });

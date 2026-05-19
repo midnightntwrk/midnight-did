@@ -21,6 +21,7 @@ export class ManagerRuntimeState {
   private walletSubscription: Subscription | null = null;
   private idleTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   private connectionPhase: SessionStatus['connection']['phase'] = 'locked';
+  private connectionPhaseStartedAtMs = Date.now();
   private connectionLastError: string | null = null;
   private reusedPersistedState = false;
   private activeSeedHash: string | null = null;
@@ -65,10 +66,13 @@ export class ManagerRuntimeState {
   }
 
   getConnection(): SessionStatus['connection'] {
+    const phaseElapsedMs = Math.max(0, Date.now() - this.connectionPhaseStartedAtMs);
     return {
       phase: this.connectionPhase,
       reusedPersistedState: this.reusedPersistedState,
       walletStateKey: null,
+      phaseStartedAt: new Date(this.connectionPhaseStartedAtMs).toISOString(),
+      phaseElapsedMs,
       lastError: this.connectionLastError,
     };
   }
@@ -137,9 +141,13 @@ export class ManagerRuntimeState {
     options: {
       lastError?: string | null;
       reusedPersistedState?: boolean;
+      resetPhaseTiming?: boolean;
       seedHash?: string | null;
     } = {},
   ): void {
+    if (phase !== this.connectionPhase || options.resetPhaseTiming === true) {
+      this.connectionPhaseStartedAtMs = Date.now();
+    }
     this.connectionPhase = phase;
     if (options.lastError !== undefined) this.connectionLastError = options.lastError;
     if (options.reusedPersistedState !== undefined) {
@@ -214,10 +222,10 @@ export class ManagerRuntimeState {
         this.connectionLastError = null;
         if (state.isSynced) {
           if (this.connectionPhase === 'syncing' || this.connectionPhase === 'restoring' || this.connectionPhase === 'starting') {
-            this.connectionPhase = 'waitingForFunds';
+            this.setConnectionState('waitingForFunds');
           }
         } else if (this.connectionPhase === 'restoring' || this.connectionPhase === 'starting' || this.connectionPhase === 'waitingForFunds') {
-          this.connectionPhase = 'syncing';
+          this.setConnectionState('syncing');
         }
       },
       error: (error) => {
@@ -252,12 +260,17 @@ export class ManagerRuntimeState {
     this.reusedPersistedState = false;
     this.didLastError = null;
     this.walletBalances = { night: null, dust: null };
-    this.setConnectionState('locked', { lastError: null, reusedPersistedState: false, seedHash: null });
+    this.setConnectionState('locked', {
+      lastError: null,
+      reusedPersistedState: false,
+      resetPhaseTiming: true,
+      seedHash: null,
+    });
   }
 
   markUnlockFailed(error: unknown): void {
-    this.connectionLastError = error instanceof Error ? error.message : 'Start session failed';
-    this.connectionPhase = 'error';
+    const message = error instanceof Error ? error.message : 'Start session failed';
+    this.setConnectionState('error', { lastError: message });
     this.unlocked = false;
     this.walletCtx = null;
     this.providers = null;

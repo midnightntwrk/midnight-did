@@ -93,6 +93,23 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'signatures' | 
         return String(value);
       }
     };
+    const formatDuration = (value) => {
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return '-';
+      const totalSeconds = Math.floor(value / 1000);
+      const seconds = totalSeconds % 60;
+      const totalMinutes = Math.floor(totalSeconds / 60);
+      const minutes = totalMinutes % 60;
+      const hours = Math.floor(totalMinutes / 60);
+      if (hours > 0) return hours + 'h ' + minutes + 'm ' + seconds + 's';
+      if (minutes > 0) return minutes + 'm ' + seconds + 's';
+      return seconds + 's';
+    };
+    const formatConnectionTiming = (connection) => {
+      if (!connection) return '-';
+      const elapsed = formatDuration(connection.phaseElapsedMs);
+      const started = connection.phaseStartedAt ? 'since ' + new Date(connection.phaseStartedAt).toLocaleTimeString() : 'start unknown';
+      return connection.phase + ' for ' + elapsed + ' (' + started + ')';
+    };
     const setFundingUiForProfile = (profile) => {
       const normalized = String(profile || '').toLowerCase();
       if (faucetRowEl) {
@@ -419,7 +436,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'signatures' | 
           : operation.status === 'failed'
             ? operation.type + ' · failed'
             : operation.type + ' · succeeded';
-      setText('indicatorConnection', connectionPhase);
+      setText('indicatorConnection', formatConnectionTiming(session?.connection));
       setText('indicatorDid', didPhase);
       setText('indicatorOperation', operationLabel);
       setText('indicatorRefresh', lastDidRefreshAt || nowLabel());
@@ -604,6 +621,7 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'signatures' | 
       setText('walletKnownContracts', formatContracts(data?.knownContractAddresses));
       setText('walletNightBalance', formatBalance(data?.walletBalances?.night));
       setText('walletDustBalance', formatBalance(data?.walletBalances?.dust));
+      setText('walletConnectionTiming', formatConnectionTiming(data?.connection));
       setText('profileBadgeText', data?.profileName ? data.profile + ' / ' + data.profileName : data?.profile || '-');
       setText('profileAvatar', (data?.profileName || data?.profile || '-').slice(0, 2).toUpperCase());
       const knownContractsSummary = document.getElementById('knownContractsSummary');
@@ -633,12 +651,16 @@ export const sharedScript = (page: 'wallet' | 'secret-storage' | 'signatures' | 
       }
       const badge = document.getElementById('walletStatusBadge');
       if (badge) {
+        const connectionElapsed = formatDuration(data?.connection?.phaseElapsedMs);
+        const connectionElapsedSuffix = connectionElapsed === '-' ? '' : ' for ' + connectionElapsed;
         badge.textContent = data?.unlocked
           ? 'Wallet session is ready for DID operations'
           : connectionPhase === 'error'
             ? 'Wallet session failed: ' + (data?.connection?.lastError || 'check session status')
             : isTransitionalConnectionPhase(connectionPhase)
                 ? 'Wallet session is ' + formatWalletSessionState(data).toLowerCase()
+                  + connectionElapsedSuffix
+                  + (connectionPhase === 'syncing' ? '. Preprod/mainnet restores can take several minutes.' : '')
                 : data?.fundingPrepared
                 ? 'Funding prepared, start-session pending'
                 : data?.seedAvailable

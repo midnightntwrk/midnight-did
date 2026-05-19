@@ -60,6 +60,8 @@ export type SessionStatus = {
       | 'error';
     reusedPersistedState: boolean;
     walletStateKey: string | null;
+    phaseStartedAt: string;
+    phaseElapsedMs: number;
     lastError: string | null;
   };
   did: {

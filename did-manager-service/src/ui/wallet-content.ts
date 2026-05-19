@@ -106,6 +106,7 @@ export const walletContent = String.raw`
         <div class="value-list">
           <div class="value"><strong>Session file</strong><span class="mono">Configured on backend</span></div>
           <div class="value"><strong>Seed continuity</strong><span id="walletSeedContinuity">The same seed will be reused for wallet + DID.</span></div>
+          <div class="value"><strong>Connection timing</strong><span id="walletConnectionTiming" class="mono">-</span></div>
           <div class="value"><strong>Known Midnight DID Contracts</strong><span id="walletKnownContracts" class="mono">-</span></div>
         </div>
       </div>
