@@ -22,8 +22,13 @@ Use this skill from the `midnight-did` repository, whether cloned independently 
 ## Validation
 
 ```bash
+./run.sh targets
 ./run.sh --light
 ./run.sh --light --strict --skip-coverage --metrics
+./run.sh clean-artifacts
+./run.sh integration-report
+./run.sh check-integration
+npm run check:run-target-catalog
 PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh
 ./run-core.sh
 ./run-api.sh
