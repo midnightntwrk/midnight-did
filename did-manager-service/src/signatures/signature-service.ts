@@ -31,8 +31,14 @@ type ResolveVerificationMethod = (
 const toBase64Url = (bytes: Uint8Array): string =>
   Buffer.from(bytes).toString('base64url');
 
-const fromBase64Url = (value: string): Uint8Array =>
-  new Uint8Array(Buffer.from(value, 'base64url'));
+const base64UrlPattern = /^[A-Za-z0-9_-]+$/;
+
+const fromBase64Url = (value: string): Uint8Array => {
+  if (!base64UrlPattern.test(value) || value.length % 4 === 1) {
+    throw new Error('Signature must be a valid base64url-encoded byte string.');
+  }
+  return new Uint8Array(Buffer.from(value, 'base64url'));
+};
 
 const samePublicJwk = (left: PublicJwk, right: PublicJwk): boolean =>
   left.kty === right.kty &&
@@ -152,9 +158,8 @@ export const verifyPayload = async (input: {
     if (resolveVerificationMethod === undefined) {
       throw new Error('DID verification requires a verification method resolver.');
     }
-    const resolved = await resolveVerificationMethod(
-      request.verificationMethodId as string,
-    );
+    const requestedVerificationMethodId = request.verificationMethodId!;
+    const resolved = await resolveVerificationMethod(requestedVerificationMethodId);
     did = resolved.did;
     verificationMethodId = resolved.verificationMethodId;
     publicJwk = resolved.publicJwk;
