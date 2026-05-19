@@ -49,7 +49,8 @@ const samePublicJwk = (left: PublicJwk, right: PublicJwk): boolean =>
 const signatureFormatFor = (publicJwk: Pick<PublicJwk, 'crv'>): SignatureFormat => {
   if (publicJwk.crv === 'Ed25519') return 'ed25519-raw';
   if (publicJwk.crv === 'Jubjub') return 'jubjub-raw-96';
-  return 'ecdsa-der';
+  if (publicJwk.crv === 'P-256') return 'ecdsa-der';
+  throw new Error(`Unsupported signature curve ${String(publicJwk.crv)}`);
 };
 
 const findStoredKey = async (
@@ -154,21 +155,19 @@ export const verifyPayload = async (input: {
   } else if (request.publicJwk !== undefined) {
     publicJwk = request.publicJwk;
     source = 'publicJwk';
-  } else {
+  } else if (request.verificationMethodId !== undefined) {
     if (resolveVerificationMethod === undefined) {
       throw new Error('DID verification requires a verification method resolver.');
     }
-    const requestedVerificationMethodId = request.verificationMethodId;
-    if (requestedVerificationMethodId === undefined) {
-      throw new Error(
-        'Verification requires exactly one source: keyRef, publicJwk, or verificationMethodId.',
-      );
-    }
-    const resolved = await resolveVerificationMethod(requestedVerificationMethodId);
+    const resolved = await resolveVerificationMethod(request.verificationMethodId);
     did = resolved.did;
     verificationMethodId = resolved.verificationMethodId;
     publicJwk = resolved.publicJwk;
     source = 'didDocument';
+  } else {
+    throw new Error(
+      'Verification requires exactly one source: keyRef, publicJwk, or verificationMethodId.',
+    );
   }
 
   const verified = await verifyWithPublicJwk(
