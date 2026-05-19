@@ -207,4 +207,25 @@ describe('signature-service', () => {
       'Verification requires exactly one source: keyRef, publicJwk, or verificationMethodId.',
     );
   });
+
+  it('rejects malformed base64url signatures before verification', async () => {
+    const generated = await secretStore.generateKey({
+      id: 'bad-signature',
+      kty: 'OKP',
+      crv: 'Ed25519',
+    });
+
+    await expect(
+      verifyPayload({
+        request: {
+          payloadType: 'string',
+          payload: 'hello midnight',
+          signatureBase64Url: 'not valid!',
+          publicJwk: generated.publicJwk,
+        },
+      }),
+    ).rejects.toThrow(
+      'Signature must be a valid base64url-encoded byte string.',
+    );
+  });
 });

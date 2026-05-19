@@ -11,6 +11,11 @@ const relationTypes = [
 ] as const;
 
 export const stringRequired = { type: 'string', minLength: 1 } as const;
+const base64UrlRequired = {
+  type: 'string',
+  minLength: 1,
+  pattern: '^[A-Za-z0-9_-]+$',
+} as const;
 export const keyRefParamSchema = {
   type: 'object',
   additionalProperties: false,
@@ -153,7 +158,7 @@ export const routeSchemas = {
     properties: {
       payloadType: { type: 'string', enum: payloadTypes },
       payload: { type: 'string' },
-      signatureBase64Url: stringRequired,
+      signatureBase64Url: base64UrlRequired,
       keyRef: { type: 'string', minLength: 1 },
       publicJwk: publicJwkSchema,
       verificationMethodId: { type: 'string', minLength: 1 },

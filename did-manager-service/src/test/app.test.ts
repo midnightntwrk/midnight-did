@@ -212,6 +212,18 @@ describe('did-manager-service app', () => {
     });
     expect(ambiguousVerifySource.statusCode).toBe(400);
 
+    const malformedSignature = await app.inject({
+      method: 'POST',
+      url: '/api/signatures/verify',
+      payload: {
+        payloadType: 'string',
+        payload: 'hello midnight',
+        signatureBase64Url: 'not valid!',
+        verificationMethodId: `did:midnight:preprod:${'a'.repeat(64)}#key-1`,
+      },
+    });
+    expect(malformedSignature.statusCode).toBe(400);
+
     const health = await app.inject({ method: 'GET', url: '/health' });
     expect(health.statusCode).toBe(200);
 
