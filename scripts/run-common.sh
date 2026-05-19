@@ -8,15 +8,22 @@ MIDNIGHT_RUN_COMMON_SH_LOADED=1
 RUN_COMMON_PRINT_METRICS=0
 RUN_COMMON_METRICS_JSON_PATH=""
 RUN_COMMON_SCRIPT_NAME="run"
+RUN_COMMON_TARGET="full"
 RUN_COMMON_DRY_RUN="${MIDNIGHT_DID_DRY_RUN:-0}"
 # Top-level runner state only; subprocess lane scripts are not aggregated.
 RUN_COMMON_STEP_LABELS=()
 RUN_COMMON_STEP_DURATIONS=()
 
+run_common_catalog() {
+  node ./scripts/run-target-catalog.mjs "$@"
+}
+
 run_common_usage() {
   local script_name="${1:-run}"
   cat <<EOF
-Usage: ./${script_name}.sh [--light] [--strict] [--metrics] [--metrics-json <file>] [--skip-coverage] [-h|--help]
+Usage: ./${script_name}.sh [target] [--light] [--strict] [--metrics] [--metrics-json <file>] [--skip-coverage] [-h|--help]
+
+Target defaults to 'full'.
 
 Options:
   --light         Skip long-running integration/UI targets.
@@ -25,12 +32,30 @@ Options:
   --metrics-json  Export per-step timings as JSON.
   --skip-coverage Accepted for compatibility with older local workflows.
   -h, --help      Show this help text.
+
 EOF
+  run_common_catalog --targets
+}
+
+run_common_target_exists() {
+  local target="$1"
+  run_common_catalog --has-target "${target}" >/dev/null 2>&1
 }
 
 run_common_parse_args() {
   RUN_COMMON_SCRIPT_NAME="${1:-run}"
   shift || true
+
+  if [[ $# -gt 0 && "$1" != -* ]]; then
+    if run_common_target_exists "$1"; then
+      RUN_COMMON_TARGET="$1"
+      shift
+    else
+      echo "Unknown target: $1" >&2
+      run_common_usage "${RUN_COMMON_SCRIPT_NAME}" >&2
+      return 1
+    fi
+  fi
 
   while [[ $# -gt 0 ]]; do
     case "$1" in

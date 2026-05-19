@@ -44,10 +44,16 @@ const helpResult = runRunSh(["--help"]);
 assert.equal(helpResult.exitCode, 0, "help should exit successfully");
 assertContains(helpResult.stdout, "Usage: ./run.sh", "help output");
 assertContains(helpResult.stdout, "--metrics-json", "help output");
+assertContains(helpResult.stdout, "clean-artifacts", "help output");
 
 const shortHelpResult = runRunSh(["-h"]);
 assert.equal(shortHelpResult.exitCode, 0, "short help should exit successfully");
 assertContains(shortHelpResult.stdout, "Usage: ./run.sh", "short help output");
+
+const targetsResult = runRunSh(["targets"]);
+assert.equal(targetsResult.exitCode, 0, "targets should exit successfully");
+assertContains(targetsResult.stdout, "Pipeline steps", "targets output");
+assertContains(targetsResult.stdout, "./run-core.sh", "targets output");
 
 const invalidResult = runRunSh(["--unknown-option"]);
 assert.notEqual(invalidResult.exitCode, 0, "unknown option should fail");
@@ -55,6 +61,14 @@ assertContains(
   invalidResult.stderr,
   "Unknown argument: --unknown-option",
   "unknown option stderr",
+);
+
+const invalidTargetResult = runRunSh(["not-a-target"]);
+assert.notEqual(invalidTargetResult.exitCode, 0, "unknown target should fail");
+assertContains(
+  invalidTargetResult.stderr,
+  "Unknown target: not-a-target",
+  "unknown target stderr",
 );
 
 const missingMetricsPathResult = runRunSh(["--metrics-json"]);

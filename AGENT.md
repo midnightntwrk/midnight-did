@@ -158,16 +158,26 @@ git commit -S --signoff -m "<type>: <subject>"
 Main runner:
 
 ```bash
-./run.sh [--light] [--strict] [--metrics] [--metrics-json <file>] [--skip-coverage]
+./run.sh [target] [--light] [--strict] [--metrics] [--metrics-json <file>] [--skip-coverage]
 ```
 
 Useful forms:
 
 ```bash
+./run.sh targets
 ./run.sh --light
 ./run.sh --light --strict --skip-coverage --metrics
 ./run.sh --light --strict --skip-coverage --metrics --metrics-json /tmp/midnight-did-run.json
+./run.sh clean-artifacts
+./run.sh integration-report
+./run.sh check-integration
 PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh
+```
+
+Target catalog and contract checks:
+
+```bash
+npm run check:run-target-catalog
 ```
 
 Lane scripts:
@@ -194,6 +204,10 @@ npm run typecheck:all
 npm run test:all
 npm run ci:core
 npm run check:did-surface-discipline
+npm run check:run-target-catalog
+npm run clean:artifacts
+npm run report:integration
+npm run check:integration
 npm run artifacts:pack
 ```
 
