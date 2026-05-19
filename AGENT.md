@@ -166,13 +166,21 @@ Useful forms:
 ```bash
 ./run.sh targets
 ./run.sh --light
-./run.sh --light --strict --skip-coverage --metrics
-./run.sh --light --strict --skip-coverage --metrics --metrics-json /tmp/midnight-did-run.json
+./run.sh --light --strict --metrics
+./run.sh --light --strict --metrics --metrics-json /tmp/midnight-did-run.json
+./run.sh core --strict
+./run.sh api --light
+./run.sh resolver --light
+./run.sh manager --light
+./run.sh docs
 ./run.sh clean-artifacts
 ./run.sh integration-report
 ./run.sh check-integration
 PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh
 ```
+
+`--skip-coverage` remains accepted for older local command history, but the
+current split lanes do not run coverage by default.
 
 Target catalog and contract checks:
 
@@ -180,15 +188,15 @@ Target catalog and contract checks:
 npm run check:run-target-catalog
 ```
 
-Lane scripts:
+Lane scripts are implementation details behind `./run.sh` targets:
 
-| Script | Purpose |
-| --- | --- |
-| `./run-core.sh` | Core package lint/build/test path. |
-| `./run-api.sh` | DID API lane. |
-| `./run-resolver.sh` | Resolver service lane. |
-| `./run-manager.sh` | DID manager service and browser UI lane. |
-| `./run-docs.sh` | Docs generation/build lane. |
+| Target | Script | Purpose |
+| --- | --- | --- |
+| `./run.sh core` | `./run-core.sh` | Core package lint/build/test path. |
+| `./run.sh api` | `./run-api.sh` | DID API lane. |
+| `./run.sh resolver` | `./run-resolver.sh` | Resolver service lane. |
+| `./run.sh manager` | `./run-manager.sh` | DID manager service and browser UI lane. |
+| `./run.sh docs` | `./run-docs.sh` | Docs generation/build lane. |
 
 `./run.sh` validates DID core/API/resolver/manager only. It does not run VC or Passport pipelines.
 

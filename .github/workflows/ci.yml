@@ -52,7 +52,7 @@ jobs:
         run: npm ci --prefer-offline
 
       - name: Run core workflow
-        run: npm run ci:core
+        run: ./run.sh core --strict
 
   services:
     name: ${{ matrix.name }}
@@ -64,13 +64,13 @@ jobs:
         include:
           - id: api
             name: API pipeline
-            script: ./run-api.sh
+            target: api
           - id: resolver
             name: Resolver pipeline
-            script: ./run-resolver.sh
+            target: resolver
           - id: manager
             name: DID manager pipeline
-            script: ./run-manager.sh
+            target: manager
     env:
       COMPACT_COMPILER_VERSION: 0.30.0
       PLAYWRIGHT_BROWSERS_PATH: ~/.cache/ms-playwright
@@ -108,11 +108,8 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline
 
-      - name: Prepare contract package build outputs
-        run: npm run build:prepared -w contract
-
       - name: Run service workflow
-        run: bash ${{ matrix.script }}
+        run: ./run.sh ${{ matrix.target }} --strict
 
   run-pipeline:
     name: Build, Lint, Test, and Coverage
