@@ -41,7 +41,7 @@ export const normalizePayload = (
   type: PayloadType,
   payload: string,
 ): NormalizedPayload => {
-  if (type === "bytes") {
+  if (type === 'bytes') {
     const bytes = decodeHex(payload);
     return {
       type,

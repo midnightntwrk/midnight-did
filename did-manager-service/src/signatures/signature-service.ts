@@ -80,7 +80,7 @@ export const signPayload = async (input: {
 }): Promise<SignPayloadResponse> => {
   const { secretStore, didDocument, request } = input;
   const key = await findStoredKey(secretStore, request.keyRef);
-  if (key.did !== undefined && key.did !== null && key.did !== didDocument.id) {
+  if (key.did !== undefined && key.did !== didDocument.id) {
     throw new Error(
       `Selected key is associated with ${key.did}, not the active DID ${didDocument.id}.`,
     );
@@ -158,7 +158,12 @@ export const verifyPayload = async (input: {
     if (resolveVerificationMethod === undefined) {
       throw new Error('DID verification requires a verification method resolver.');
     }
-    const requestedVerificationMethodId = request.verificationMethodId!;
+    const requestedVerificationMethodId = request.verificationMethodId;
+    if (requestedVerificationMethodId === undefined) {
+      throw new Error(
+        'Verification requires exactly one source: keyRef, publicJwk, or verificationMethodId.',
+      );
+    }
     const resolved = await resolveVerificationMethod(requestedVerificationMethodId);
     did = resolved.did;
     verificationMethodId = resolved.verificationMethodId;
