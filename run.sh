@@ -5,6 +5,28 @@ source ./scripts/run-common.sh
 
 run_common_parse_args "run" "$@"
 
+case "${RUN_COMMON_TARGET}" in
+  targets|help)
+    run_common_usage "run"
+    exit 0
+    ;;
+  clean-artifacts)
+    run_common_ensure_node
+    node ./scripts/clean-artifacts.mjs
+    exit 0
+    ;;
+  integration-report)
+    run_common_ensure_node
+    node ./scripts/report-integration.mjs
+    exit 0
+    ;;
+  check-integration)
+    run_common_ensure_node
+    node ./scripts/report-integration.mjs --check
+    exit 0
+    ;;
+esac
+
 if [[ "${RUN_COMMON_DRY_RUN}" != "1" ]]; then
   run_common_setup_cleanup_trap
   run_common_ensure_node

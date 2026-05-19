@@ -1,5 +1,6 @@
 # Node.js
 node_modules/
+dist
 dist/
 build/
 npm-debug.log*
