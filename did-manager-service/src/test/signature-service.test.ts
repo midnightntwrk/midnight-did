@@ -93,6 +93,17 @@ describe('signature-service', () => {
       expect(verified.verified).toBe(true);
       expect(verified.source).toBe('publicJwk');
       expect(verified.signatureFormat).toBe(curve.format);
+
+      const tampered = await verifyPayload({
+        request: {
+          payloadType: 'json',
+          payload: '{"a":2,"z":999}',
+          signatureBase64Url: signed.signatureBase64Url,
+          publicJwk: generated.publicJwk,
+        },
+      });
+
+      expect(tampered.verified).toBe(false);
     });
   }
 

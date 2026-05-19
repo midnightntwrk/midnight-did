@@ -70,7 +70,7 @@ export const createDidVerificationMethodResolver = (input: {
       didDocument.verificationMethod?.find(
         (entry) =>
           entry.id === parsed.verificationMethodId ||
-          entry.id === `${parsed.did}${parsed.fragment}`,
+          entry.id === parsed.fragment,
       ) ?? null;
 
     if (method === null) {

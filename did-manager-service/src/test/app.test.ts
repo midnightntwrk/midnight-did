@@ -188,6 +188,30 @@ describe('did-manager-service app', () => {
       },
     });
 
+    const missingVerifySource = await app.inject({
+      method: 'POST',
+      url: '/api/signatures/verify',
+      payload: {
+        payloadType: 'string',
+        payload: 'hello midnight',
+        signatureBase64Url: 'c2ln',
+      },
+    });
+    expect(missingVerifySource.statusCode).toBe(400);
+
+    const ambiguousVerifySource = await app.inject({
+      method: 'POST',
+      url: '/api/signatures/verify',
+      payload: {
+        payloadType: 'string',
+        payload: 'hello midnight',
+        signatureBase64Url: 'c2ln',
+        keyRef: 'key-ref-1',
+        verificationMethodId: `did:midnight:preprod:${'a'.repeat(64)}#key-1`,
+      },
+    });
+    expect(ambiguousVerifySource.statusCode).toBe(400);
+
     const health = await app.inject({ method: 'GET', url: '/health' });
     expect(health.statusCode).toBe(200);
 
