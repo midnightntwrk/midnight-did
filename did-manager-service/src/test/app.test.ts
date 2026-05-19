@@ -188,6 +188,34 @@ describe('did-manager-service app', () => {
       },
     });
 
+    const verifiedWithStandardJwkMetadata = await app.inject({
+      method: 'POST',
+      url: '/api/signatures/verify',
+      payload: {
+        payloadType: 'string',
+        payload: 'hello midnight',
+        signatureBase64Url: 'c2ln',
+        publicJwk: {
+          kty: 'OKP',
+          crv: 'Ed25519',
+          x: 'abc',
+          kid: 'key-1',
+          alg: 'EdDSA',
+          use: 'sig',
+          key_ops: ['verify'],
+          ext: true,
+        },
+      },
+    });
+    expect(verifiedWithStandardJwkMetadata.statusCode).toBe(200);
+    expect(manager.verifyPayload).toHaveBeenCalledWith(expect.objectContaining({
+      publicJwk: expect.objectContaining({
+        kid: 'key-1',
+        alg: 'EdDSA',
+        key_ops: ['verify'],
+      }),
+    }));
+
     const missingVerifySource = await app.inject({
       method: 'POST',
       url: '/api/signatures/verify',

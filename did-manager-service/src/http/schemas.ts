@@ -56,6 +56,14 @@ export const publicJwkSchema = {
     crv: { type: 'string', enum: keyCurves },
     x: stringRequired,
     y: { type: 'string' },
+    kid: { type: 'string' },
+    alg: { type: 'string' },
+    use: { type: 'string' },
+    key_ops: {
+      type: 'array',
+      items: { type: 'string' },
+    },
+    ext: { type: 'boolean' },
   },
 } as const;
 

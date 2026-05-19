@@ -124,6 +124,7 @@ export const classifyManagerHttpError = (error: unknown): ManagerHttpError => {
     message.includes("verificationMethod") ||
     message.includes("serviceEndpoint") ||
     message.includes("relation ") ||
+    message.startsWith("Active DID is deactivated") ||
     message.startsWith("Signature must be a valid base64url-encoded byte string")
   ) {
     return {

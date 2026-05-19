@@ -639,6 +639,9 @@ export class DidManagerService {
     if (resolution === null) {
       throw new Error('Active DID contract could not be resolved on the current network.');
     }
+    if (resolution.didDocumentMetadata.deactivated === true) {
+      throw new Error('Active DID is deactivated and cannot sign payloads.');
+    }
     return await signDetachedPayload({
       secretStore,
       didDocument: resolution.didDocument,
