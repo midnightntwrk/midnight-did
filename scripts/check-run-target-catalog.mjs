@@ -22,8 +22,40 @@ const run = (args, env = {}) =>
 
 const targetNames = targets.map((target) => target.name);
 const duplicateTargetNames = targetNames.filter((name, index) => targetNames.indexOf(name) !== index);
+const rootPackage = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf8"));
+const readRepoText = (relativePath) => readFileSync(path.join(repoRoot, relativePath), "utf8");
 
 assert.deepEqual(duplicateTargetNames, [], "runner target catalog must not contain duplicate targets");
+assert.equal(
+  rootPackage.scripts?.ci,
+  "./run.sh --light --strict",
+  "npm run ci must remain the documented local PR validation contract; update README and PR template if this command changes",
+);
+assert.equal(
+  rootPackage.scripts?.["ci:packages"],
+  "npm run lint && npm run build:all && npm run test:all",
+  "ci:packages must preserve the legacy package-only lint/build/test lane",
+);
+
+const readme = readRepoText("README.md");
+assert.ok(
+  readme.includes("`./run.sh --light --strict`"),
+  "README must document ./run.sh --light --strict as the local PR validation contract",
+);
+assert.ok(
+  readme.includes("`npm run ci`"),
+  "README must document npm run ci as the local PR validation alias",
+);
+
+const prTemplate = readRepoText(".github/PULL_REQUEST_TEMPLATE/pull_request_template.md");
+assert.ok(
+  prTemplate.includes("`./run.sh --light --strict`"),
+  "PR template must require ./run.sh --light --strict as the local PR validation contract",
+);
+assert.ok(
+  prTemplate.includes("`npm run ci`"),
+  "PR template must mention npm run ci as the local PR validation alias",
+);
 
 for (const step of pipelineSteps) {
   assert.ok(step.label, "pipeline step must have a label");
