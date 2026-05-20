@@ -16,6 +16,7 @@
 pragma language_version >= 0.20;
 
 import CompactStandardLibrary;
+// The Schnorr package is a workspace sibling under packages/.
 import "../../jubjub-schnorr/src/schnorr" prefix Schnorr_;
 
 // Ledger state - Full DID Document
