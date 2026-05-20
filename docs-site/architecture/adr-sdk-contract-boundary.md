@@ -16,7 +16,7 @@ Split responsibilities:
   - enforce on-ledger state transitions
   - enforce controller/secret-key authorization
   - prevent impossible or unsafe relation/method states where feasible
-- SDK/domain/resolver layers:
+- SDK/packages/domain/resolver layers:
   - canonicalize identifiers
   - reconstruct DID documents
   - enforce method-level shape and serialization rules
@@ -37,7 +37,7 @@ Split responsibilities:
 
 ## Main implementation points
 
-- `contract/src/did.compact`
-- `domain/src/did-document.ts`
-- `did/src/ledger-to-domain.ts`
-- `api/src/lib.ts`
+- `packages/contract/src/did.compact`
+- `packages/domain/src/did-document.ts`
+- `packages/did/src/ledger-to-domain.ts`
+- `packages/api/src/lib.ts`

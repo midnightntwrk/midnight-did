@@ -20,11 +20,11 @@ validation in the same slice.
 
 | Surface | Files | Reviewer question |
 |---|---|---|
-| Contract circuits | `contract/src/did.compact`, `contract/src/managed/**` | Are on-ledger invariants and generated artifacts still aligned? |
-| JubJub verifier | `jubjub-schnorr/src/**` | Is the Compact transcript still compatible with TypeScript signing? |
-| Domain model | `domain/src/**`, `domain/package.json` | Do schemas and canonicalization still match DID Core expectations? |
-| DID mapper | `did/src/**`, `did/package.json` | Does ledger-to-domain conversion preserve canonical DID URLs and metadata? |
-| API orchestration | `api/src/**`, `api/package.json` | Are runtime providers, circuit calls, and resolution outputs still stable? |
+| Contract circuits | `packages/contract/src/did.compact`, `packages/contract/src/managed/**` | Are on-ledger invariants and generated artifacts still aligned? |
+| JubJub verifier | `packages/jubjub-schnorr/src/**` | Is the Compact transcript still compatible with TypeScript signing? |
+| Domain model | `packages/domain/src/**`, `packages/domain/package.json` | Do schemas and canonicalization still match DID Core expectations? |
+| DID mapper | `packages/did/src/**`, `packages/did/package.json` | Does ledger-to-domain conversion preserve canonical DID URLs and metadata? |
+| API orchestration | `packages/api/src/**`, `packages/api/package.json` | Are runtime providers, circuit calls, and resolution outputs still stable? |
 | Local runners | `run*.sh`, `scripts/run-common.sh` | Can developers reproduce CI and collect timings locally? |
 | Packaging | `scripts/pack-artifacts.sh`, package `files` manifests | Do tarballs contain the intended public runtime surface only? |
 | CI and docs | `.github/workflows/**`, `docs-site/**` | Do `develop` PRs get the same verification as the active branch? |

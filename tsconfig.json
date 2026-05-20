@@ -1,10 +1,10 @@
 {
 //   "files": [],
   "include": [
-    "./contract/vitest.config.ts"
+    "./packages/contract/vitest.config.ts"
   ],
   "references": [
-    { "path": "./contract" }
+    { "path": "./packages/contract" }
   ],
   "compilerOptions": {
     "composite": true,

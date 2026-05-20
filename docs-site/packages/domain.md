@@ -17,9 +17,9 @@
 
 ## Main repository paths
 
-- `domain/src/did-document.ts`
-- `domain/src/midnight.ts`
-- `domain/README.md`
+- `packages/domain/src/did-document.ts`
+- `packages/domain/src/midnight.ts`
+- `packages/domain/README.md`
 
 ## Full source doc
 

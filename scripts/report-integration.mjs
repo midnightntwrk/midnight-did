@@ -113,7 +113,7 @@ if (siblingVc.present) {
 
         const didPackage = didPackages.get(dependencyName);
         const expectedTarball = didPackage.tarball;
-        const expectedFileSpec = `file:../../../tooling/vendor/midnight-did/${expectedTarball}`;
+        const expectedFileSpec = `file:../../../tooling/vendor/midnight-packages/did/${expectedTarball}`;
         const vcRelativePackageJson = path.relative(siblingVcRoot, packageJsonPath);
         const reference = {
           dependencyName,

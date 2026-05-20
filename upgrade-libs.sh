@@ -11,7 +11,7 @@ Usage: $0 --destination <path>
 Build packed midnight-did tarballs and copy them into a destination directory.
 The destination may be:
   - a downstream repo root (writes to libs/midnight-did)
-  - a libs/ root (writes to midnight-did/)
+  - a libs/ root (writes to midnight-packages/did/)
   - a concrete output dir
 USAGE
 }

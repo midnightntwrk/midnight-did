@@ -14,7 +14,7 @@ Programmatic API for creating, updating, deactivating, and resolving Midnight DI
 
 - you need programmatic DID deployment or mutation flows
 - you need provider bootstrap for standalone, preprod, or env-driven mainnet
-- you are building a higher-level application and do not want to manage raw contract/runtime wiring
+- you are building a higher-level application and do not want to manage raw packages/contract/runtime wiring
 
 ## Architecture
 
@@ -65,9 +65,9 @@ API enforces lifecycle rules around:
 
 ## Build & Test
 
-- Build: `npm run build -w api`
-- Unit tests: `npm run test -w api`
-- Integration tests: `npm run test-api -w api`
+- Build: `npm run build -w ./packages/api`
+- Unit tests: `npm run test -w ./packages/api`
+- Integration tests: `npm run test-api -w ./packages/api`
 
 ## Runtime Profiles
 
@@ -90,7 +90,7 @@ You can still override `MainnetConfig` endpoints explicitly when needed.
 
 ## Integration Teardown
 
-`api/src/test/commons.ts` now uses:
+`packages/api/src/test/commons.ts` now uses:
 - unique compose project names per run
 - `env.down({ removeVolumes: true })`
 - fallback `docker compose down --volumes --remove-orphans`

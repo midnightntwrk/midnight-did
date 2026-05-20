@@ -33,7 +33,7 @@ jspm_packages/
 # Optional local npm cache used by packaging scripts
 .npm-cache
 cli/.npm-cache
-contract/.npm-cache
+packages/contract/.npm-cache
 .turbo/
 
 # Optional eslint cache
@@ -54,7 +54,7 @@ contract/.npm-cache
 .env.*.local
 
 # Local app state and secrets
-.midnight-did/
+.midnight-packages/did/
 **/manager-session.json
 **/manager-secrets.json
 
