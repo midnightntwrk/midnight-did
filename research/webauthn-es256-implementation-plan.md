@@ -6,8 +6,8 @@ methods using ES256 (P-256 / secp256r1) JWKs, so offline signing flows can use
 passkeys while the DID remains the authoritative on-chain anchor for DID state.
 
 ## Inputs and references
-- Issue: https://github.com/midnightntwrk/midnight-packages/did/issues/32
-- Discussion: https://github.com/midnightntwrk/midnight-packages/did/discussions/23
+- Issue: https://github.com/midnightntwrk/midnight-did/issues/32
+- Discussion: https://github.com/midnightntwrk/midnight-did/discussions/23
 - Prior research: `feature/webauthn` branch `research/webauthn-integration.md`
 
 ## Scope

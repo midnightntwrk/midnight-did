@@ -67,9 +67,9 @@ export default defineConfig({
           text: "API Reference",
           items: [
             { text: "Overview", link: "/packages/api/" },
-            { text: "Domain", link: "/packages/api/reference/packages/domain/" },
-            { text: "DID", link: "/packages/api/reference/packages/did/" },
-            { text: "API Package", link: "/packages/api/reference/packages/api/" },
+            { text: "Domain", link: "/api/reference/domain/" },
+            { text: "DID", link: "/api/reference/did/" },
+            { text: "API Package", link: "/api/reference/api/" },
           ],
         },
       ],

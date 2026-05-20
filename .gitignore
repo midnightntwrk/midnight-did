@@ -54,7 +54,7 @@ packages/contract/.npm-cache
 .env.*.local
 
 # Local app state and secrets
-.midnight-packages/did/
+.midnight-did/
 **/manager-session.json
 **/manager-secrets.json
 

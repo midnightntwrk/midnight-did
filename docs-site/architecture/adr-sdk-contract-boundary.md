@@ -16,7 +16,7 @@ Split responsibilities:
   - enforce on-ledger state transitions
   - enforce controller/secret-key authorization
   - prevent impossible or unsafe relation/method states where feasible
-- SDK/packages/domain/resolver layers:
+- SDK/domain/resolver layers:
   - canonicalize identifiers
   - reconstruct DID documents
   - enforce method-level shape and serialization rules
