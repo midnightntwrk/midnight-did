@@ -29,7 +29,7 @@ assert.deepEqual(duplicateTargetNames, [], "runner target catalog must not conta
 assert.equal(
   rootPackage.scripts?.ci,
   "./run.sh --light --strict",
-  "npm run ci must remain the documented local PR validation contract",
+  "npm run ci must remain the documented local PR validation contract; update README and PR template if this command changes",
 );
 assert.equal(
   rootPackage.scripts?.["ci:packages"],
@@ -39,14 +39,22 @@ assert.equal(
 
 const readme = readRepoText("README.md");
 assert.ok(
-  readme.includes("`./run.sh --light --strict`") && readme.includes("`npm run ci`"),
-  "README must document the local PR validation contract and npm alias",
+  readme.includes("`./run.sh --light --strict`"),
+  "README must document ./run.sh --light --strict as the local PR validation contract",
+);
+assert.ok(
+  readme.includes("`npm run ci`"),
+  "README must document npm run ci as the local PR validation alias",
 );
 
 const prTemplate = readRepoText(".github/PULL_REQUEST_TEMPLATE/pull_request_template.md");
 assert.ok(
-  prTemplate.includes("`./run.sh --light --strict`") && prTemplate.includes("`npm run ci`"),
-  "PR template must require the local PR validation contract",
+  prTemplate.includes("`./run.sh --light --strict`"),
+  "PR template must require ./run.sh --light --strict as the local PR validation contract",
+);
+assert.ok(
+  prTemplate.includes("`npm run ci`"),
+  "PR template must mention npm run ci as the local PR validation alias",
 );
 
 for (const step of pipelineSteps) {
