@@ -4,45 +4,51 @@ The repository deliberately separates fast checks from long-running environment-
 
 ## Fast path
 
-Use this first while iterating on code or docs:
+Use this before opening or updating a PR:
 
 ```bash
-SKIP_LONG_RUNNING=1 ./run.sh
+./run.sh --light --strict
 ```
 
-This is the quickest way to catch build, lint, unit-test, and integration drift
-for the root Midnight DID workspace:
+`npm run ci` is an alias for the same local PR validation contract. This is the
+quickest strict way to catch build, lint, unit-test, and integration drift for
+the root Midnight DID workspace. Use `npm run ci:packages` only when you need
+the legacy package-only lint/build/test lane:
 
 - core packages
 - API
 - resolver
 - DID manager
 
-For CI-parity core checks (without mutating files with auto-fixes):
+For focused core checks while iterating:
 
 ```bash
-SKIP_LINT_FIX=1 ./run-core.sh
+./run.sh core --strict
 ```
 
 ## Component runners
 
 Use these when you are working on one area:
 
-- `./run-api.sh`
-- `./run-resolver.sh`
-- `./run-manager.sh`
+- `./run.sh core --strict`
+- `./run.sh api --light`
+- `./run.sh resolver --light`
+- `./run.sh manager --light`
+- `./run.sh docs`
 
-Each runner includes infra cleanup traps and explicit dependency preparation to make clean, per-job execution reproducible.
+The legacy `run-*.sh` scripts are thin implementation details behind these
+cataloged `./run.sh` targets. Each lane includes infra cleanup traps and
+explicit dependency preparation to make clean, per-job execution reproducible.
 
 ## CI graph
 
 GitHub Actions runs these in a parallel graph:
 
-1. `core` (lint + contract/domain/did/secret-storage pipeline)
+1. `core` (`./run.sh core --strict`)
 2. service matrix in parallel:
-   - API pipeline (`./run-api.sh`)
-   - resolver pipeline (`./run-resolver.sh`)
-   - DID manager pipeline (`./run-manager.sh`)
+   - API pipeline (`./run.sh api --strict`)
+   - resolver pipeline (`./run.sh resolver --strict`)
+   - DID manager pipeline (`./run.sh manager --strict`)
 3. final aggregation job
 
 This reduces total CI wall-clock time versus a fully sequential pipeline.
@@ -59,8 +65,10 @@ These are slower because they rely on docker-backed topologies, Playwright, or i
 ## Recommended workflow
 
 1. run fast checks
-2. run the component-specific runner
-3. run the full pipeline only before final integration/commit
+2. run the component-specific `./run.sh` target
+3. run `./run.sh --light --strict` or `npm run ci` before final integration/commit
+4. run `./run.sh docs` as well when the change touches docs-site content
+5. use `npm run ci:packages` only for the legacy package-only lane
 
 ## Docs-specific checks
 
