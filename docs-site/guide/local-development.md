@@ -16,7 +16,7 @@ Local PR validation:
 ./run.sh --light --strict
 ```
 
-`npm run ci` runs the same command.
+`npm run ci` runs the same command. Use `npm run ci:packages` only when you need the legacy package-only lint/build/test lane.
 
 This root runner now validates only the Midnight DID workspace:
 
@@ -250,7 +250,7 @@ For local PR validation, start with the strict fast pipeline:
 ./run.sh --light --strict
 ```
 
-`npm run ci` runs the same command.
+`npm run ci` runs the same command. Use `npm run ci:packages` only when you need the legacy package-only lint/build/test lane.
 
 Then run the specific component you are changing:
 

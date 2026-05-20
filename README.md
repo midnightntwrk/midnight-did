@@ -106,7 +106,7 @@ Install dependencies:
 
 Pipelines:
 - Local PR validation contract: `./run.sh --light --strict` (or `npm run ci`)
-- Root DID workspace full pipeline: `./run.sh` or `./run.sh full`
+- Root DID workspace full pipeline: `./run.sh` or `./run.sh full` (long-running superset of the PR gate)
 - Core pipeline only: `./run.sh core --strict`
 - API only: `./run.sh api`
 - Resolver only: `./run.sh resolver`
@@ -147,6 +147,7 @@ Fast mode:
 - Skip long-running integration/e2e targets: `SKIP_LONG_RUNNING=1 ./run.sh`
 - Equivalent CLI flag: `./run.sh --light`
 - PR validation uses strict fast mode: `./run.sh --light --strict` or `npm run ci`
+- Legacy package-only lint/build/test lane: `npm run ci:packages`
 - CI-shaped local run with timings:
   `./run.sh --light --strict --metrics --metrics-json /tmp/midnight-did-run.json`
 - `--skip-coverage` is still accepted for older local command history, but the

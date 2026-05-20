@@ -12,7 +12,8 @@ Use this before opening or updating a PR:
 
 `npm run ci` is an alias for the same local PR validation contract. This is the
 quickest strict way to catch build, lint, unit-test, and integration drift for
-the root Midnight DID workspace:
+the root Midnight DID workspace. Use `npm run ci:packages` only when you need
+the legacy package-only lint/build/test lane:
 
 - core packages
 - API
@@ -66,6 +67,7 @@ These are slower because they rely on docker-backed topologies, Playwright, or i
 1. run fast checks
 2. run the component-specific `./run.sh` target
 3. run `./run.sh --light --strict` or `npm run ci` before final integration/commit
+4. use `npm run ci:packages` only for the legacy package-only lane
 
 ## Docs-specific checks
 
