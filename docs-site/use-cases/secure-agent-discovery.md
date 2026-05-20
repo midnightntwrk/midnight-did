@@ -4,7 +4,7 @@ Core DID packages provide the method state needed to publish and read service en
 
 Relevant DID-owned packages:
 
-- `contract/`
-- `domain/`
-- `did/`
-- `api/`
+- `packages/contract/`
+- `packages/domain/`
+- `packages/did/`
+- `packages/api/`

@@ -1,4 +1,4 @@
 interface:
   display_name: "Midnight Identity DID"
   short_description: "DID repository development, validation, services, Compact artifacts, and packaging"
-  default_prompt: "Use this for midnight-did contract/domain/API/service work, run.sh validation, package artifacts, and DID/VC boundary decisions."
+  default_prompt: "Use this for midnight-did contract/domain/API package work, run.sh validation, package artifacts, and DID/VC boundary decisions."

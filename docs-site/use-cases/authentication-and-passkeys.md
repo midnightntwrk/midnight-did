@@ -4,9 +4,9 @@
 
 Implementation surfaces in this repository:
 
-- `contract/` for on-ledger verification method state.
-- `domain/` for DID Core validation and canonicalization.
-- `did/` for ledger-to-DID document mapping.
-- `api/` for publishing DID updates.
+- `packages/contract/` for on-ledger verification method state.
+- `packages/domain/` for DID Core validation and canonicalization.
+- `packages/did/` for ledger-to-DID document mapping.
+- `packages/api/` for publishing DID updates.
 
 Service-side key custody, resolver HTTP APIs, and manager workflows live in [`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver).

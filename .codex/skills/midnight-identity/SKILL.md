@@ -1,6 +1,6 @@
 ---
 name: midnight-identity
-description: "Use this skill for midnight-did repository work: DID contract/domain/API/service development, run.sh validation, Compact artifacts, DID manager/resolver workflows, secret storage, package distribution, and DID/VC split-boundary decisions."
+description: "Use this skill for midnight-did repository work: DID contract/domain/API package development, run.sh validation, Compact artifacts, DID manager/resolver workflows, secret storage, package distribution, and DID/VC split-boundary decisions."
 ---
 
 # Midnight Identity DID Skill
@@ -37,7 +37,7 @@ npm run check:run-target-catalog
 PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh
 ```
 
-For shared JubJub Schnorr or contract changes, run `npm run test -w contract`.
+For shared JubJub Schnorr or contract changes, run `npm run test -w ./packages/contract`.
 
 ## Packaging
 

@@ -6,8 +6,8 @@ methods using ES256 (P-256 / secp256r1) JWKs, so offline signing flows can use
 passkeys while the DID remains the authoritative on-chain anchor for DID state.
 
 ## Inputs and references
-- Issue: https://github.com/midnightntwrk/midnight-did/issues/32
-- Discussion: https://github.com/midnightntwrk/midnight-did/discussions/23
+- Issue: https://github.com/midnightntwrk/midnight-packages/did/issues/32
+- Discussion: https://github.com/midnightntwrk/midnight-packages/did/discussions/23
 - Prior research: `feature/webauthn` branch `research/webauthn-integration.md`
 
 ## Scope
@@ -38,37 +38,37 @@ passkeys while the DID remains the authoritative on-chain anchor for DID state.
 
 ### 1) Schema and enum extensions
 - Add new curve to domain model:
-  - `domain/src/did-document.ts`: extend `CurveType` enum with `P256` (or
+  - `packages/domain/src/did-document.ts`: extend `CurveType` enum with `P256` (or
     `Secp256r1`) and allow `KeyType.EC` with `P-256`.
   - Update `PublicKeyJwkSchema` validation so EC keys accept `P-256` and require
     `x`/`y` coordinates.
 - Add new curve to DID contract schema:
-  - `contract/src/did.compact`: extend `CurveType` enum.
+  - `packages/contract/src/did.compact`: extend `CurveType` enum.
   - Regenerate bindings if needed and update any ABI references.
 
 ### 2) Translators and operation builders
 Update enum mappings and conversions:
-- `did/src/domain-to-ledger.ts`: map new curve to ledger enum.
-- `did/src/ledger-to-domain.ts`: map ledger enum back to `P-256`.
-- `contract/src/ledger-operation-builder.ts`: allow building operations with
+- `packages/did/src/domain-to-ledger.ts`: map new curve to ledger enum.
+- `packages/did/src/ledger-to-domain.ts`: map ledger enum back to `P-256`.
+- `packages/contract/src/ledger-operation-builder.ts`: allow building operations with
   EC + P-256 keys.
 
 ### 3) Tests and fixtures
 - Add new fixtures with ES256 JWKs:
-  - `domain/src/test/fixtures/did.ts`
-  - `contract/src/test/fixtures/simulator.ts`
+  - `packages/domain/src/test/fixtures/did.ts`
+  - `packages/contract/src/test/fixtures/simulator.ts`
 - Expand tests to accept P-256:
-  - `domain/src/test/did-document.verification-method.test.ts`
-  - `did/src/test/midnight-did-document.test.ts`
-  - `did/src/test/domain-to-ledger.unit.test.ts`
-  - `did/src/test/ledger-to-domain.unit.test.ts`
-  - `api/src/test/did.api.test.ts` (if API validates curve)
+  - `packages/domain/src/test/did-document.verification-method.test.ts`
+  - `packages/did/src/test/midnight-did-document.test.ts`
+  - `packages/did/src/test/domain-to-ledger.unit.test.ts`
+  - `packages/did/src/test/ledger-to-domain.unit.test.ts`
+  - `packages/api/src/test/did.api.test.ts` (if API validates curve)
 
 ### 4) CLI and API surface changes
 - CLI: allow `P-256` in verification method JWK inputs.
   - `cli/src/cli.ts` parsing/validation as needed.
 - API: ensure request validation accepts P-256 in JWK payloads.
-  - `api/src/...` any schema validators or request handlers.
+  - `packages/api/src/...` any schema validators or request handlers.
 
 ### 5) Documentation updates
 - Update DID traits docs and method spec to advertise

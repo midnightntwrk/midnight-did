@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const contractRoot = path.resolve(scriptDir, '..');
-const repoRoot = path.resolve(contractRoot, '..');
+const repoRoot = path.resolve(contractRoot, '..', '..');
 const runtimePackage = JSON.parse(
   await readFile(path.join(repoRoot, 'node_modules', '@midnight-ntwrk', 'compact-runtime', 'package.json'), 'utf8'),
 );

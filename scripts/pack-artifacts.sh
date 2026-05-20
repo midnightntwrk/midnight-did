@@ -5,11 +5,11 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DEST_DIR="${1:-$ROOT_DIR/artifacts/npm}"
 
 workspaces=(
-  api
-  domain
-  did
-  jubjub-schnorr
-  contract
+  packages/api
+  packages/domain
+  packages/did
+  packages/jubjub-schnorr
+  packages/contract
 )
 
 mkdir -p "$DEST_DIR"

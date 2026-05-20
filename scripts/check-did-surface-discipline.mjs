@@ -65,11 +65,11 @@ function assertExportMap(exportMap, label, requiredKeys) {
 const rootPackage = readJson("package.json");
 const rootWorkspaces = rootPackage.workspaces ?? [];
 const libraryWorkspaces = [
-  "api",
-  "domain",
-  "did",
-  "jubjub-schnorr",
-  "contract",
+  "packages/api",
+  "packages/domain",
+  "packages/did",
+  "packages/jubjub-schnorr",
+  "packages/contract",
 ];
 const serviceWorkspaces = [];
 
@@ -216,30 +216,30 @@ for (const workspace of libraryWorkspaces) {
   }
 }
 
-const domainPackage = readJson("domain/package.json");
+const domainPackage = readJson("packages/domain/package.json");
 assertExportMap(
   domainPackage.exports?.["./midnight"],
-  "domain/package.json ./midnight export",
+  "packages/domain/package.json ./midnight export",
   ["types", "import", "default"],
 );
 
-const jubjubPackage = readJson("jubjub-schnorr/package.json");
+const jubjubPackage = readJson("packages/jubjub-schnorr/package.json");
 assertExportMap(
   jubjubPackage.exports?.["./managed/jubjub-schnorr/contract"],
-  "jubjub-schnorr/package.json generated contract export",
+  "packages/jubjub-schnorr/package.json generated contract export",
   ["types", "import", "default"],
 );
 assertArrayIncludes(
   jubjubPackage.files,
   "src/**/*.compact",
-  "jubjub-schnorr/package.json files",
+  "packages/jubjub-schnorr/package.json files",
 );
 
-const contractPackage = readJson("contract/package.json");
+const contractPackage = readJson("packages/contract/package.json");
 assertArrayIncludes(
   contractPackage.files,
   "scripts/*.mjs",
-  "contract/package.json files",
+  "packages/contract/package.json files",
 );
 
 if (failures.length > 0) {

@@ -22,11 +22,11 @@ The canonical source remains:
 
 | Spec concern | Primary implementation location |
 |---|---|
-| DID syntax and DID parsing | `domain/src/midnight.ts` |
-| DID document validation | `domain/src/did-document.ts` |
-| Ledger-to-document reconstruction | `did/src/ledger-to-domain.ts` |
-| Runtime operations and orchestration | `api/src/lib.ts` |
-| Contract state transitions | `contract/src/did.compact` |
+| DID syntax and DID parsing | `packages/domain/src/midnight.ts` |
+| DID document validation | `packages/domain/src/did-document.ts` |
+| Ledger-to-document reconstruction | `packages/did/src/ledger-to-domain.ts` |
+| Runtime operations and orchestration | `packages/api/src/lib.ts` |
+| Contract state transitions | `packages/contract/src/did.compact` |
 
 ## Read this when
 
