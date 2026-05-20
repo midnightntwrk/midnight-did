@@ -1,3 +1,5 @@
+import "./polyfills.js";
+
 export { setLogger } from "./api-logger.js";
 export {
   createDID,
