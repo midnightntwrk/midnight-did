@@ -1,11 +1,22 @@
 #!/usr/bin/env node
 import { strict as assert } from "node:assert";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { laneTargets, pipelineSteps, stepsForTarget, targets } from "./run-target-catalog.mjs";
+import {
+  laneTargets,
+  pipelineSteps,
+  stepsForTarget,
+  targets,
+} from "./run-target-catalog.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.dirname(path.dirname(__filename));
@@ -21,11 +32,20 @@ const run = (args, env = {}) =>
   });
 
 const targetNames = targets.map((target) => target.name);
-const duplicateTargetNames = targetNames.filter((name, index) => targetNames.indexOf(name) !== index);
-const rootPackage = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf8"));
-const readRepoText = (relativePath) => readFileSync(path.join(repoRoot, relativePath), "utf8");
+const duplicateTargetNames = targetNames.filter(
+  (name, index) => targetNames.indexOf(name) !== index,
+);
+const rootPackage = JSON.parse(
+  readFileSync(path.join(repoRoot, "package.json"), "utf8"),
+);
+const readRepoText = (relativePath) =>
+  readFileSync(path.join(repoRoot, relativePath), "utf8");
 
-assert.deepEqual(duplicateTargetNames, [], "runner target catalog must not contain duplicate targets");
+assert.deepEqual(
+  duplicateTargetNames,
+  [],
+  "runner target catalog must not contain duplicate targets",
+);
 assert.equal(
   rootPackage.scripts?.ci,
   "./run.sh --light --strict",
@@ -47,7 +67,9 @@ assert.ok(
   "README must document npm run ci as the local PR validation alias",
 );
 
-const prTemplate = readRepoText(".github/PULL_REQUEST_TEMPLATE/pull_request_template.md");
+const prTemplate = readRepoText(
+  ".github/PULL_REQUEST_TEMPLATE/pull_request_template.md",
+);
 assert.ok(
   prTemplate.includes("`./run.sh --light --strict`"),
   "PR template must require ./run.sh --light --strict as the local PR validation contract",
@@ -60,13 +82,22 @@ assert.ok(
 for (const step of pipelineSteps) {
   assert.ok(step.label, "pipeline step must have a label");
   assert.ok(step.command, `pipeline step '${step.label}' must have a command`);
-  assert.ok(existsSync(path.join(repoRoot, step.command)), `pipeline step command is missing: ${step.command}`);
+  assert.ok(
+    existsSync(path.join(repoRoot, step.command)),
+    `pipeline step command is missing: ${step.command}`,
+  );
 }
 
 for (const laneTarget of laneTargets) {
   assert.ok(laneTarget.name, "lane target must have a name");
-  assert.ok(laneTarget.label, `lane target '${laneTarget.name}' must have a label`);
-  assert.ok(laneTarget.command, `lane target '${laneTarget.name}' must have a command`);
+  assert.ok(
+    laneTarget.label,
+    `lane target '${laneTarget.name}' must have a label`,
+  );
+  assert.ok(
+    laneTarget.command,
+    `lane target '${laneTarget.name}' must have a command`,
+  );
   assert.ok(
     !/\s/u.test(laneTarget.command),
     `lane target command must be one executable path; add args support before using spaces: ${laneTarget.name}`,
@@ -78,7 +109,11 @@ for (const laneTarget of laneTargets) {
 }
 
 const targetsResult = run(["targets"]);
-assert.equal(targetsResult.status, 0, "targets command should exit successfully");
+assert.equal(
+  targetsResult.status,
+  0,
+  "targets command should exit successfully",
+);
 
 for (const target of targets) {
   assert.ok(
@@ -103,11 +138,18 @@ for (const laneTarget of laneTargets) {
 
 const metricsDir = mkdtempSync(path.join(tmpdir(), "midnight-did-catalog-"));
 const metricsPath = path.join(metricsDir, "metrics.json");
-const dryRunResult = run(["--light", "--strict", "--metrics-json", metricsPath], {
-  MIDNIGHT_DID_DRY_RUN: "1",
-});
+const dryRunResult = run(
+  ["--light", "--strict", "--metrics-json", metricsPath],
+  {
+    MIDNIGHT_DID_DRY_RUN: "1",
+  },
+);
 
-assert.equal(dryRunResult.status, 0, "dry-run validation should exit successfully");
+assert.equal(
+  dryRunResult.status,
+  0,
+  "dry-run validation should exit successfully",
+);
 
 const metrics = JSON.parse(readFileSync(metricsPath, "utf8"));
 assert.deepEqual(
@@ -118,8 +160,56 @@ assert.deepEqual(
 
 rmSync(metricsDir, { recursive: true, force: true });
 
+const logsDir = path.join(repoRoot, "logs");
+const createdLogsRoot = !existsSync(logsDir);
+
+mkdirSync(logsDir, { recursive: true });
+const cleanupProbeDir = mkdtempSync(
+  path.join(logsDir, "run-target-catalog-probe-"),
+);
+
+try {
+  const cleanArtifactsDryRun = spawnSync(
+    "node",
+    ["./scripts/clean-artifacts.mjs", "--dry-run", "--json"],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+    },
+  );
+  assert.equal(
+    cleanArtifactsDryRun.status,
+    0,
+    "clean-artifacts dry-run JSON should exit successfully",
+  );
+
+  const cleanArtifactsReport = JSON.parse(cleanArtifactsDryRun.stdout);
+  assert.equal(
+    cleanArtifactsReport.dryRun,
+    true,
+    "clean-artifacts dry-run JSON should report dryRun=true",
+  );
+  assert.ok(
+    cleanArtifactsReport.removed.includes("logs"),
+    "clean-artifacts dry-run JSON should include root logs cleanup coverage",
+  );
+  assert.ok(
+    !cleanArtifactsReport.skippedTracked.some((relativePath) =>
+      relativePath.startsWith("logs"),
+    ),
+    "clean-artifacts dry-run JSON should not skip the generated log probe",
+  );
+} finally {
+  rmSync(cleanupProbeDir, { recursive: true, force: true });
+  if (createdLogsRoot) {
+    rmSync(logsDir, { recursive: true, force: true });
+  }
+}
+
 for (const laneTarget of laneTargets) {
-  const laneMetricsDir = mkdtempSync(path.join(tmpdir(), "midnight-did-lane-catalog-"));
+  const laneMetricsDir = mkdtempSync(
+    path.join(tmpdir(), "midnight-did-lane-catalog-"),
+  );
   const laneMetricsPath = path.join(laneMetricsDir, "metrics.json");
   const laneArgs = [laneTarget.name];
   if (laneTarget.supportsLight) {
@@ -133,7 +223,11 @@ for (const laneTarget of laneTargets) {
     MIDNIGHT_DID_DRY_RUN: "1",
   });
 
-  assert.equal(laneResult.status, 0, `${laneTarget.name} dry-run validation should exit successfully`);
+  assert.equal(
+    laneResult.status,
+    0,
+    `${laneTarget.name} dry-run validation should exit successfully`,
+  );
 
   const laneMetrics = JSON.parse(readFileSync(laneMetricsPath, "utf8"));
   assert.deepEqual(
