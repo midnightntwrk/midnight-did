@@ -10,11 +10,13 @@
 
 ## Main workspace commands
 
-Fast verification:
+Local PR validation:
 
 ```bash
-SKIP_LONG_RUNNING=1 ./run.sh
+./run.sh --light --strict
 ```
+
+`npm run ci` runs the same command.
 
 This root runner now validates only the Midnight DID workspace:
 
@@ -38,18 +40,19 @@ Runner flags:
 - metrics JSON is written on success and on a failing step, so failed local or
   CI runs still expose the last measured step and failure context
 
-CI-aligned core verification (skip auto-fix pass):
+CI-aligned core verification:
 
 ```bash
-SKIP_LINT_FIX=1 ./run-core.sh
+./run.sh core --strict
 ```
 
 Targeted runners:
 
 ```bash
-./run-api.sh
-./run-resolver.sh
-./run-manager.sh
+./run.sh api --light
+./run.sh resolver --light
+./run.sh manager --light
+./run.sh docs
 ./start-resolver.sh
 ./start-manager.sh
 ```
@@ -241,17 +244,21 @@ Avoid committing or sharing files from this directory.
 
 ## Developer workflow
 
-For quick verification, start with the fast pipeline:
+For local PR validation, start with the strict fast pipeline:
 
 ```bash
-SKIP_LONG_RUNNING=1 ./run.sh
+./run.sh --light --strict
 ```
+
+`npm run ci` runs the same command.
 
 Then run the specific component you are changing:
 
-- `./run-api.sh`
-- `./start-resolver.sh`
-- `./start-manager.sh`
+- `./run.sh core --strict`
+- `./run.sh api --light`
+- `./run.sh resolver --light`
+- `./run.sh manager --light`
+- `./run.sh docs`
 
 Use the preprod helpers only when you are intentionally exercising preprod-specific flows such as funding and long-lived profiles.
 
@@ -259,8 +266,8 @@ Use the preprod helpers only when you are intentionally exercising preprod-speci
 
 The CI workflow is split to reduce wall-clock time:
 
-1. `core` job: lint, contract/domain/did/secret-storage build/tests/coverage
-2. `services` matrix: `run-api.sh`, `run-resolver.sh`, and `run-manager.sh` in parallel
+1. `core` job: `./run.sh core --strict`
+2. `services` matrix: `./run.sh api --strict`, `./run.sh resolver --strict`, and `./run.sh manager --strict` in parallel
 3. final aggregation job that fails if any dependency job fails
 
 Performance behavior:
@@ -293,7 +300,7 @@ npm run docs:build
 Run the full docs pipeline:
 
 ```bash
-./run-docs.sh
+./run.sh docs
 ```
 
 Preview the built site:

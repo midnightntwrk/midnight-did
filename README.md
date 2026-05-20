@@ -105,7 +105,8 @@ Install dependencies:
 - `compact update 0.30.0`
 
 Pipelines:
-- Root DID workspace: `./run.sh` or `./run.sh full`
+- Local PR validation contract: `./run.sh --light --strict` (or `npm run ci`)
+- Root DID workspace full pipeline: `./run.sh` or `./run.sh full`
 - Core pipeline only: `./run.sh core --strict`
 - API only: `./run.sh api`
 - Resolver only: `./run.sh resolver`
@@ -145,6 +146,7 @@ The generated tarballs are intentionally gitignored under [`artifacts/`](./artif
 Fast mode:
 - Skip long-running integration/e2e targets: `SKIP_LONG_RUNNING=1 ./run.sh`
 - Equivalent CLI flag: `./run.sh --light`
+- PR validation uses strict fast mode: `./run.sh --light --strict` or `npm run ci`
 - CI-shaped local run with timings:
   `./run.sh --light --strict --metrics --metrics-json /tmp/midnight-did-run.json`
 - `--skip-coverage` is still accepted for older local command history, but the
@@ -174,7 +176,7 @@ Bootstrapped proof server image (faster Docker-backed runs):
 If you are new to the repository, start here:
 
 1. `./start-docs.sh`
-2. `./run.sh --light --strict`
+2. `./run.sh --light --strict` or `npm run ci`
 3. the component-specific `./run.sh` target for the area you are changing
 4. if you are working on credentials or Passport, use the split-repo runners instead of expecting root `./run.sh` to cover them
 
