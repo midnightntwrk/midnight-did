@@ -1,3 +1,5 @@
+import "./polyfills.js";
+
 import * as ledger from "@midnight-ntwrk/ledger-v8";
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import { httpClientProofProvider } from "@midnight-ntwrk/midnight-js-http-client-proof-provider";
@@ -26,7 +28,6 @@ import {
 } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
 import { Buffer } from "buffer";
 import * as Rx from "rxjs";
-import { WebSocket } from "ws";
 
 import { getLogger } from "./api-logger.js";
 import { type Config, contractConfig } from "./config.js";
@@ -40,8 +41,6 @@ import {
   type MidnightWalletStateSnapshot,
 } from "./types.js";
 
-// @ts-expect-error assign for apollo/ws
-globalThis.WebSocket = WebSocket;
 const deriveKeysFromSeed = (seed: string) => {
   const hdWallet = HDWallet.fromSeed(Buffer.from(parseSeed(seed), "hex"));
   if (hdWallet.type !== "seedOk") {

@@ -1,3 +1,5 @@
+import "./polyfills.js";
+
 import { CompiledContract } from "@midnight-ntwrk/compact-js";
 import {
   type ContractAddress,

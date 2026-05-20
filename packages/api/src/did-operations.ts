@@ -1,3 +1,5 @@
+import "./polyfills.js";
+
 import {
   createMidnightDIDString,
   LedgerToDomain,
