@@ -16,7 +16,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | Trait | Status | Notes |
 | --- | --- | --- |
 | Create | ✔ | Contract deployment creates DID state. |
-| Read / Resolve | ✔ | `did/src/ledger-to-domain.ts` reconstructs DID Document from ledger state. |
+| Read / Resolve | ✔ | `packages/did/src/ledger-to-domain.ts` reconstructs DID Document from ledger state. |
 | Update | ✔ | Individual contract circuits handle adds/updates/removals with secret-key authorization. |
 | Deactivate | ✔ | Deactivation operation prevents further updates. |
 | Recover | △ | No explicit recovery; requires redeployment/new DID. |

@@ -17,10 +17,10 @@
 
 ## Main repository paths
 
-- `api/src/lib.ts`
-- `api/src/index.ts`
-- `api/src/test/`
-- `api/README.md`
+- `packages/api/src/lib.ts`
+- `packages/api/src/index.ts`
+- `packages/api/src/test/`
+- `packages/api/README.md`
 
 ## Full source doc
 

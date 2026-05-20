@@ -12,7 +12,7 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
 
 ## Follow-Up Items
 
-1. Review `api/src/lib.ts` for smaller provider/wallet modules without changing public exports.
+1. Review `packages/api/src/lib.ts` for smaller provider/wallet modules without changing public exports.
 2. Add package-level examples for API deploy/update flows that do not depend on service UI code.
 3. Audit generated artifact freshness checks for `contract` and `jubjub-schnorr`.
 4. Tighten `docs-site` links so moved service pages are referenced only as external repository pointers.

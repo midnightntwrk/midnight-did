@@ -11,7 +11,7 @@ Use `develop` for ordinary DID repository PRs.
 
 | Surface | Examples |
 |---|---|
-| Contract | `contract/src/did.compact`, generated managed artifacts, circuit names |
+| Contract | `packages/contract/src/did.compact`, generated managed artifacts, circuit names |
 | Package API | `domain`, `did`, `api`, and `jubjub-schnorr` exports |
 | Runtime behavior | provider setup, DID update orchestration, and resolution helpers |
 | Local workflow | `./run.sh`, split runners, metrics output, artifact packaging |

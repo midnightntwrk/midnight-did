@@ -17,11 +17,11 @@ compact update 0.30.0
 
 | Path | Responsibility |
 | --- | --- |
-| `contract/` | Compact DID contract and generated runtime package. |
-| `jubjub-schnorr/` | Shared Compact/TypeScript Schnorr helpers. |
-| `domain/` | DID document/domain schemas and validation. |
-| `did/` | Ledger-to-domain mapping and DID helpers. |
-| `api/` | Wallet/provider/contract orchestration and network profiles. |
+| `packages/contract/` | Compact DID contract and generated runtime package. |
+| `packages/jubjub-schnorr/` | Shared Compact/TypeScript Schnorr helpers. |
+| `packages/domain/` | DID document/domain schemas and validation. |
+| `packages/did/` | Ledger-to-domain mapping and DID helpers. |
+| `packages/api/` | Wallet/provider/contract orchestration and network profiles. |
 | `docs-site/` | VitePress docs and generated API reference. |
 
 Resolver service, DID manager, and secret-storage validation moved to `midnight-did-resolver`.

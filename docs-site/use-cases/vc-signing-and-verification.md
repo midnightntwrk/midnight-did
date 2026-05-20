@@ -4,9 +4,9 @@ VC/VP envelope, claims, status, and presentation protocol work lives in [`midnig
 
 This DID repository contributes the DID method packages used by VC implementations:
 
-- `contract/` for DID state.
-- `domain/` for DID document validation.
-- `did/` for resolution helpers.
-- `api/` for DID operations.
+- `packages/contract/` for DID state.
+- `packages/domain/` for DID document validation.
+- `packages/did/` for resolution helpers.
+- `packages/api/` for DID operations.
 
 Local key custody and service-side signing helpers live in [`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver).
