@@ -120,8 +120,8 @@ Helpers:
 ### For application code
 
 Use this package directly when you need DID-owned Schnorr signing helpers. The
-resolver repository may re-export the same helpers from its secret-storage
-package for service code.
+resolver repository is expected to consume the same helpers from its service
+packages instead of reimplementing transcript logic.
 
 This package exposes:
 
