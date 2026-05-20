@@ -1,36 +1,10 @@
 # Secure Agent Discovery
 
-## Fit
+Core DID packages provide the method state needed to publish and read service endpoints. This repository owns the contract/domain/API pieces; deployable resolver and discovery service surfaces live in [`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver).
 
-Partial but practical.
+Relevant DID-owned packages:
 
-## Why it fits
-
-The current DID model already supports the two main primitives needed for agent discovery:
-
-- `service`
-- `keyAgreement`
-
-That is enough to publish discoverable service endpoints and key-agreement material.
-
-## What works now
-
-- resolving a DID to discover service endpoints
-- publishing key-agreement verification methods
-- using the resolver service as a discovery entry point
-
-## What is still external
-
-- DIDComm or another messaging protocol
-- mediation and routing logic
-- a stable interoperable crypto profile for messaging
-
-## Practical interpretation
-
-Treat Midnight DID as the discovery and trust anchor layer, not as a full messaging stack.
-
-## Main implementation anchors
-
+- `contract/`
 - `domain/`
 - `did/`
-- `did-resolver-service/`
+- `api/`

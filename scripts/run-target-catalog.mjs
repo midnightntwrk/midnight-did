@@ -25,24 +25,6 @@ export const laneTargets = [
     supportsMetrics: true,
   },
   {
-    name: "resolver",
-    label: "Resolver pipeline",
-    command: "./run-resolver.sh",
-    description: "Resolver service build, tests, and optional integration lane.",
-    supportsLight: true,
-    supportsStrict: true,
-    supportsMetrics: true,
-  },
-  {
-    name: "manager",
-    label: "DID manager pipeline",
-    command: "./run-manager.sh",
-    description: "Manager service build, tests, and optional browser E2E lane.",
-    supportsLight: true,
-    supportsStrict: true,
-    supportsMetrics: true,
-  },
-  {
     name: "docs",
     label: "Docs pipeline",
     command: "./run-docs.sh",
@@ -54,7 +36,7 @@ export const laneTargets = [
 ];
 
 export const laneTargetByName = new Map(laneTargets.map((target) => [target.name, target]));
-export const fullPipelineOrder = ["core", "api", "resolver", "manager"];
+export const fullPipelineOrder = ["core", "api"];
 export const pipelineSteps = fullPipelineOrder.map((name) => {
   const laneTarget = laneTargetByName.get(name);
   if (!laneTarget) {

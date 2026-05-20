@@ -1,37 +1,21 @@
----
-layout: home
+# Midnight DID
 
-hero:
-  name: Midnight DID
-  text: Developer documentation for the reference implementation
-  tagline: Contract, packages, services, testing flows, and specification work for the did:midnight method.
-  actions:
-    - theme: brand
-      text: Start with the guide
-      link: /guide/
-    - theme: alt
-      text: Explore packages
-      link: /packages/
-    - theme: alt
-      text: Review architecture
-      link: /architecture/
+Midnight DID is the reference implementation of the `did:midnight` method.
 
-features:
-  - title: Package-first
-    details: Domain, DID, API, and secret-storage documentation aligned with the actual workspace boundaries.
-  - title: Service-ready
-    details: Resolver and DID manager docs focus on how to run, test, configure, and extend the applications.
-  - title: Spec-aware
-    details: The docs site links the implementation back to the Midnight DID method and traits documents.
----
+This docs site covers the core DID repository:
 
-## What you get here
+- Compact contract and generated runtime artifacts.
+- Shared JubJub Schnorr helpers.
+- DID domain schemas and canonicalization.
+- Ledger-to-domain mapping and DID helpers.
+- TypeScript API orchestration for wallet, providers, contracts, and network profiles.
 
-- local development and execution entry points
-- package and service responsibilities
-- architecture overviews and workflow maps
-- pointers into the repository specifications
+Resolver services, the DID manager UI/backend, and secret storage moved to [`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver).
 
-## Repository
+## Start Here
 
-- [midnightntwrk/midnight-did](https://github.com/midnightntwrk/midnight-did)
+- [Local Development](/guide/local-development)
+- [Testing Strategy](/guide/testing-strategy)
+- [Packages](/packages/)
+- [API Reference](/api/)
+- [Method Specification](/spec/midnight-method)

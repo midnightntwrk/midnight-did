@@ -14,7 +14,7 @@ Status:
 
 ## Goal
 
-Add a higher-level verification helper above the contract and secret-storage
+Add a higher-level verification helper above the contract and service-side signing packages
 layers so application code can verify a DID-facing JubJub signature without
 manually handling:
 
@@ -41,7 +41,7 @@ verifyJubjubDidSignature({
 2. normalize the JWK into a JubJub public key point
 3. derive the canonical `Vector<4, Field>` payload digest
 4. decode the 96-byte Schnorr signature
-5. call the shared verifier exposed through `secret-storage`
+5. call the shared verifier exposed through a service-side signing package
 
 ## Candidate locations
 
@@ -53,12 +53,12 @@ verifyJubjubDidSignature({
 ## Why deferred
 
 - current callers already have the correct public helper surface via
-  `secret-storage`
+  service-side signing package
 - there is no concrete external caller in `did` or `api` yet
 - adding another wrapper now would mostly duplicate the new shared surface
 
 ## Completion trigger
 
-Implement this helper when a real caller appears outside `secret-storage`, or
+Implement this helper when a real caller appears outside a service-side signing package, or
 when API/service code starts repeating the same payload/JWK/signature
 normalization steps.
