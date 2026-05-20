@@ -46,9 +46,7 @@ remove_compose_project_containers() {
     docker ps -a --format '{{.ID}} {{.Label "com.docker.compose.project"}}' \
       | awk '
         $2 ~ /^did-api-test-/ ||
-        $2 ~ /^did-cli-test-/ ||
-        $2 ~ /^did-resolver-int-/ ||
-        $2 ~ /^did-resolver-e2e-/ {
+        $2 ~ /^did-cli-test-/ {
           print $1
         }
       '
@@ -67,13 +65,11 @@ remove_ryuk_containers() {
 
 main() {
   run_compose_down "$ROOT_DIR/api" "standalone.yml"
-  run_compose_down "$ROOT_DIR" "infrastructure/preprod-proof-server.yml"
 
   remove_named_containers \
     "did-node" \
     "did-indexer" \
-    "did-proof-server" \
-    "did-preprod-proof-server"
+    "did-proof-server"
 
   remove_compose_project_containers
   remove_ryuk_containers

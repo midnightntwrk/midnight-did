@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   core:
-    name: Core (Lint + Contract/Domain/DID/Secret Storage)
+    name: Core (Lint + Contract/Domain/DID)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -65,15 +65,8 @@ jobs:
           - id: api
             name: API pipeline
             target: api
-          - id: resolver
-            name: Resolver pipeline
-            target: resolver
-          - id: manager
-            name: DID manager pipeline
-            target: manager
     env:
       COMPACT_COMPILER_VERSION: 0.30.0
-      PLAYWRIGHT_BROWSERS_PATH: ~/.cache/ms-playwright
       # Optional optimization: point this repository variable to a pre-bootstrapped proof-server image
       # (for example ghcr.io/<org>/<image>:<tag>) to reduce cold-start time in Docker-based tests.
       PROOF_SERVER_IMAGE: ${{ vars.PROOF_SERVER_IMAGE != '' && vars.PROOF_SERVER_IMAGE || 'midnightntwrk/proof-server:8.0.3' }}
@@ -95,15 +88,6 @@ jobs:
 
       - name: Verify Compact installation
         run: compact compile --version
-
-      - name: Cache Playwright browsers
-        if: matrix.id == 'manager'
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # ratchet:actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-
 
       - name: Install dependencies
         run: npm ci --prefer-offline

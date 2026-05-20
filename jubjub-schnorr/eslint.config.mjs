@@ -47,8 +47,6 @@ export default [
             '@midnight-ntwrk/midnight-did',
             '@midnight-ntwrk/midnight-did-contract',
             '@midnight-ntwrk/midnight-did-api',
-            '@midnight-ntwrk/midnight-did-resolver-service',
-            '@midnight-ntwrk/midnight-did-secret-storage',
           ],
         },
       ],

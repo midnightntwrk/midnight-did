@@ -12,17 +12,11 @@ const docs = [
   { source: "api/README.md", slug: "api-readme", title: "API README Source" },
   { source: "domain/README.md", slug: "domain-readme", title: "Domain README Source" },
   { source: "did/README.md", slug: "did-readme", title: "DID README Source" },
-  { source: "secret-storage/README.md", slug: "secret-storage-readme", title: "Secret Storage README Source" },
-  { source: "did-resolver-service/README.md", slug: "did-resolver-service-readme", title: "Resolver Service README Source" },
-  { source: "did-manager-service/README.md", slug: "did-manager-service-readme", title: "Manager Service README Source" },
   { source: "w3c-spec/midnight-method.md", slug: "spec-midnight-method", title: "Midnight DID Method Source" },
   { source: "w3c-spec/midnight-did-traits.md", slug: "spec-midnight-did-traits", title: "Midnight DID Traits Source" },
 ];
 
-const routeMap = Object.fromEntries(
-  docs.map((doc) => [doc.source, `/source/${doc.slug}`]),
-);
-
+const routeMap = Object.fromEntries(docs.map((doc) => [doc.source, `/source/${doc.slug}`]));
 const toPosix = (value) => value.replaceAll("\\", "/");
 
 const resolveRepoPath = (fromSource, target) => {
@@ -32,7 +26,7 @@ const resolveRepoPath = (fromSource, target) => {
 };
 
 const rewriteLinks = (content, fromSource) =>
-  content.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label, target) => {
+  content.replace(/\[([^\]]+)]\(([^)]+)\)/g, (_match, label, target) => {
     if (target.startsWith("http://") || target.startsWith("https://") || target.startsWith("#")) {
       return `[${label}](${target})`;
     }

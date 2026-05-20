@@ -47,8 +47,6 @@ assertContains(helpResult.stdout, "--metrics-json", "help output");
 assertContains(helpResult.stdout, "clean-artifacts", "help output");
 assertContains(helpResult.stdout, "./run-core.sh", "help output");
 assertContains(helpResult.stdout, "./run-api.sh", "help output");
-assertContains(helpResult.stdout, "./run-resolver.sh", "help output");
-assertContains(helpResult.stdout, "./run-manager.sh", "help output");
 assertContains(helpResult.stdout, "./run-docs.sh", "help output");
 
 const shortHelpResult = runRunSh(["-h"]);
@@ -135,8 +133,6 @@ assertNotContains(coreDryRunResult.stdout, "./run-api.sh", "core dry-run stdout"
 
 for (const [target, expectedCommand] of [
   ["api", "./run-api.sh"],
-  ["resolver", "./run-resolver.sh"],
-  ["manager", "./run-manager.sh"],
 ]) {
   const laneDryRunResult = runRunSh([target, "--light", "--strict"], {
     MIDNIGHT_DID_DRY_RUN: "1",
@@ -194,13 +190,13 @@ assert.ok(existsSync(metricsPath), "metrics JSON should be written");
 
 const metrics = JSON.parse(readFileSync(metricsPath, "utf8"));
 assert.equal(metrics.script, "run", "metrics script name");
-assert.equal(metrics.totalSteps, 4, "metrics step count");
+assert.equal(metrics.totalSteps, 2, "metrics step count");
 assert.equal(metrics.lightMode, true, "metrics light mode flag");
 assert.equal(metrics.strictMode, true, "metrics strict mode flag");
 assert.equal(metrics.skipCoverage, true, "metrics skip coverage flag");
 assert.deepEqual(
   metrics.steps.map((step) => step.label),
-  ["Core pipeline", "API pipeline", "Resolver pipeline", "DID manager pipeline"],
+  ["Core pipeline", "API pipeline"],
   "metrics step labels",
 );
 assert.ok(
