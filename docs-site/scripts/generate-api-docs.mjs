@@ -11,20 +11,20 @@ const packages = [
   {
     slug: "domain",
     displayName: "@midnight-ntwrk/midnight-did-domain",
-    entryPoint: resolve(repoRoot, "domain", "src", "index.ts"),
-    tsconfig: resolve(repoRoot, "domain", "tsconfig.build.json"),
+    entryPoint: resolve(repoRoot, "packages", "domain", "src", "index.ts"),
+    tsconfig: resolve(repoRoot, "packages", "domain", "tsconfig.build.json"),
   },
   {
     slug: "did",
     displayName: "@midnight-ntwrk/midnight-did",
-    entryPoint: resolve(repoRoot, "did", "src", "index.ts"),
-    tsconfig: resolve(repoRoot, "did", "tsconfig.build.json"),
+    entryPoint: resolve(repoRoot, "packages", "did", "src", "index.ts"),
+    tsconfig: resolve(repoRoot, "packages", "did", "tsconfig.build.json"),
   },
   {
     slug: "api",
     displayName: "@midnight-ntwrk/midnight-did-api",
-    entryPoint: resolve(repoRoot, "api", "src", "index.ts"),
-    tsconfig: resolve(repoRoot, "api", "tsconfig.build.json"),
+    entryPoint: resolve(repoRoot, "packages", "api", "src", "index.ts"),
+    tsconfig: resolve(repoRoot, "packages", "api", "tsconfig.build.json"),
   },
 ];
 
@@ -52,7 +52,7 @@ const rewriteReadmeLinks = async (rootDir) => {
 
 mkdirSync(outputRoot, { recursive: true });
 
-const buildWorkspaces = ["contract", "domain", "did", "api"];
+const buildWorkspaces = ["./packages/contract", "./packages/domain", "./packages/did", "./packages/api"];
 
 for (const workspace of buildWorkspaces) {
   execFileSync(process.platform === "win32" ? "npm.cmd" : "npm", ["run", "build", "-w", workspace], {

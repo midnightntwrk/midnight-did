@@ -8,10 +8,10 @@ const outputRoot = resolve(docsRoot, "source");
 
 const docs = [
   { source: "README.md", slug: "repository-overview", title: "Repository Overview Source" },
-  { source: "contract/README.md", slug: "contract-readme", title: "Contract README Source" },
-  { source: "api/README.md", slug: "api-readme", title: "API README Source" },
-  { source: "domain/README.md", slug: "domain-readme", title: "Domain README Source" },
-  { source: "did/README.md", slug: "did-readme", title: "DID README Source" },
+  { source: "packages/contract/README.md", slug: "contract-readme", title: "Contract README Source" },
+  { source: "packages/api/README.md", slug: "api-readme", title: "API README Source" },
+  { source: "packages/domain/README.md", slug: "domain-readme", title: "Domain README Source" },
+  { source: "packages/did/README.md", slug: "did-readme", title: "DID README Source" },
   { source: "w3c-spec/midnight-method.md", slug: "spec-midnight-method", title: "Midnight DID Method Source" },
   { source: "w3c-spec/midnight-did-traits.md", slug: "spec-midnight-did-traits", title: "Midnight DID Traits Source" },
 ];

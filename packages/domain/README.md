@@ -48,9 +48,9 @@ stateDiagram-v2
 
 ## Build & Test
 
-- Build: `npm run build -w domain`
-- Test: `npm run test -w domain`
-- Coverage: `npm run coverage -w domain`
+- Build: `npm run build -w ./packages/domain`
+- Test: `npm run test -w ./packages/domain`
+- Coverage: `npm run coverage -w ./packages/domain`
 
 ## Notes
 

@@ -506,7 +506,7 @@ Each update operation corresponds to a dedicated exported circuit in the `did.co
 
 Each circuit increments the version counter and updates the `updated` timestamp.
 
-The circuit implementations are in [`contract/src/did.compact`](../contract/src/did.compact), and the API helpers that call these circuits are in [`api/src/lib.ts`](../api/src/lib.ts).
+The circuit implementations are in [`packages/contract/src/did.compact`](../packages/contract/src/did.compact), and the API helpers that call these circuits are in [`packages/api/src/lib.ts`](../packages/api/src/lib.ts).
 
 ### 7.3.1 Add Verification Method
 

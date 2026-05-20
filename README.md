@@ -10,11 +10,11 @@ VC packages and use cases live in [`midnight-verifiable-credentials`](https://gi
 
 | Component | Package | Responsibility |
 | --- | --- | --- |
-| [`contract`](contract/README.md) | `@midnight-ntwrk/midnight-did-contract` | On-ledger DID state and circuit rules |
-| [`jubjub-schnorr`](jubjub-schnorr/README.md) | `@midnight-ntwrk/midnight-did-jubjub-schnorr` | Shared Compact/TypeScript JubJub Schnorr transcript and signature helpers |
-| [`domain`](domain/README.md) | `@midnight-ntwrk/midnight-did-domain` | DID schemas, validation, canonicalization |
-| [`did`](did/README.md) | `@midnight-ntwrk/midnight-did` | Ledger to domain mapping and DID resolution helpers |
-| [`api`](api/README.md) | `@midnight-ntwrk/midnight-did-api` | Programmatic DID operations, wallet/provider orchestration, and network profiles |
+| [`packages/contract`](packages/contract/README.md) | `@midnight-ntwrk/midnight-did-contract` | On-ledger DID state and circuit rules |
+| [`packages/jubjub-schnorr`](packages/jubjub-schnorr/README.md) | `@midnight-ntwrk/midnight-did-jubjub-schnorr` | Shared Compact/TypeScript JubJub Schnorr transcript and signature helpers |
+| [`packages/domain`](packages/domain/README.md) | `@midnight-ntwrk/midnight-did-domain` | DID schemas, validation, canonicalization |
+| [`packages/did`](packages/did/README.md) | `@midnight-ntwrk/midnight-did` | Ledger to domain mapping and DID resolution helpers |
+| [`packages/api`](packages/api/README.md) | `@midnight-ntwrk/midnight-did-api` | Programmatic DID operations, wallet/provider orchestration, and network profiles |
 | [`docs-site`](docs-site/) | `docs-site` | VitePress documentation and generated API reference |
 
 ## Architecture
@@ -148,18 +148,18 @@ Docs helpers:
 
 Direct package documentation:
 
-- `api/README.md`
-- `domain/README.md`
-- `did/README.md`
-- `jubjub-schnorr/README.md`
-- `contract/README.md`
+- `packages/api/README.md`
+- `packages/domain/README.md`
+- `packages/did/README.md`
+- `packages/jubjub-schnorr/README.md`
+- `packages/contract/README.md`
 
 ## Notes
 
-- Compact circuits are compiled via workspace scripts in `contract` and `jubjub-schnorr`.
+- Compact circuits are compiled via workspace scripts in `packages/contract` and `packages/jubjub-schnorr`.
 - Integration tests use Testcontainers and Docker compose topologies from the API package.
 - CI is split into a core job and an API job.
-- Shared JubJub Schnorr transcript and the 96-byte signature wire format are documented in [`jubjub-schnorr/README.md`](jubjub-schnorr/README.md).
+- Shared JubJub Schnorr transcript and the 96-byte signature wire format are documented in [`packages/jubjub-schnorr/README.md`](packages/jubjub-schnorr/README.md).
 - DID Resolution responses follow the DID Core shape: `didDocument`, `didResolutionMetadata`, and `didDocumentMetadata`.
 
 ## Related Repositories

@@ -37,7 +37,7 @@ Split responsibilities:
 
 ## Main implementation points
 
-- `contract/src/did.compact`
-- `domain/src/did-document.ts`
-- `did/src/ledger-to-domain.ts`
-- `api/src/lib.ts`
+- `packages/contract/src/did.compact`
+- `packages/domain/src/did-document.ts`
+- `packages/did/src/ledger-to-domain.ts`
+- `packages/api/src/lib.ts`

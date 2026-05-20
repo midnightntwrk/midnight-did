@@ -45,9 +45,9 @@ verifyJubjubDidSignature({
 
 ## Candidate locations
 
-- `did/`
+- `packages/did/`
   - good if this becomes part of the DID-domain utility surface
-- `api/`
+- `packages/api/`
   - good if verification is mostly service-facing
 
 ## Why deferred

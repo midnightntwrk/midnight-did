@@ -16,9 +16,9 @@
 
 ## Main repository paths
 
-- `did/src/ledger-to-domain.ts`
-- `did/src/index.ts`
-- `did/README.md`
+- `packages/did/src/ledger-to-domain.ts`
+- `packages/did/src/index.ts`
+- `packages/did/README.md`
 
 ## Full source doc
 

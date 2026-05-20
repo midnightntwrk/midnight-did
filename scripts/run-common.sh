@@ -159,9 +159,9 @@ run_common_auto_proof_server_image() {
 
 run_common_ensure_contract_artifacts() {
   local caller="${1:-run}"
-  if [[ ! -f "contract/dist/managed/did/contract/index.js" ]]; then
+  if [[ ! -f "packages/contract/dist/managed/did/contract/index.js" ]]; then
     echo "[${caller}] Build contract package outputs"
-    npm run build:prepared -w contract
+    npm run build:prepared -w ./packages/contract
   fi
 }
 

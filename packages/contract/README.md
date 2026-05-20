@@ -49,10 +49,10 @@ stateDiagram-v2
 
 ## Build & Test
 
-- Compile compact artifacts only: `npm run contract -w contract`
-- Build prepared package outputs: `npm run build:prepared -w contract`
-- Tests: `npm run test -w contract -- --pool=threads`
-- Coverage: `npm run coverage -w contract`
+- Compile compact artifacts only: `npm run contract -w ./packages/contract`
+- Build prepared package outputs: `npm run build:prepared -w ./packages/contract`
+- Tests: `npm run test -w ./packages/contract -- --pool=threads`
+- Coverage: `npm run coverage -w ./packages/contract`
 
 ## Notes
 

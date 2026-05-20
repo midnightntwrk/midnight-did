@@ -54,11 +54,11 @@ Use it to inspect Compact entry points, generated `src/managed` outputs, TypeScr
 
 | Path | Package | Responsibility |
 | --- | --- | --- |
-| `contract` | `@midnight-ntwrk/midnight-did-contract` | Compact contract for on-ledger DID state and circuit rules. |
-| `jubjub-schnorr` | `@midnight-ntwrk/midnight-did-jubjub-schnorr` | Shared Compact/TS JubJub Schnorr transcript, digest, signature, and verification helpers. |
-| `domain` | `@midnight-ntwrk/midnight-did-domain` | DID document schemas, validation, canonicalization, field encoding, and method-specific domain types. |
-| `did` | `@midnight-ntwrk/midnight-did` | Ledger-to-domain mapping, DID resolution helpers, and method-specific conversion logic. |
-| `api` | `@midnight-ntwrk/midnight-did-api` | Runtime orchestration for wallets, providers, contracts, network profiles, and DID operations. |
+| `packages/contract` | `@midnight-ntwrk/midnight-did-contract` | Compact contract for on-ledger DID state and circuit rules. |
+| `packages/jubjub-schnorr` | `@midnight-ntwrk/midnight-did-jubjub-schnorr` | Shared Compact/TS JubJub Schnorr transcript, digest, signature, and verification helpers. |
+| `packages/domain` | `@midnight-ntwrk/midnight-did-domain` | DID document schemas, validation, canonicalization, field encoding, and method-specific domain types. |
+| `packages/did` | `@midnight-ntwrk/midnight-did` | Ledger-to-domain mapping, DID resolution helpers, and method-specific conversion logic. |
+| `packages/api` | `@midnight-ntwrk/midnight-did-api` | Runtime orchestration for wallets, providers, contracts, network profiles, and DID operations. |
 | `docs-site` | `docs-site` | VitePress documentation site and generated API reference for DID-owned packages. |
 
 ## Architecture Boundaries
@@ -75,7 +75,7 @@ api -> did/domain/contract + wallet/provider/runtime orchestration
 
 Rules:
 
-- Keep DID method semantics in `contract`, `domain`, `did`, and `api`.
+- Keep DID method semantics in `packages/contract`, `packages/domain`, `packages/did`, and `packages/api`.
 - Keep resolver service, manager service, and local secret custody in `midnight-did-resolver`.
 - Keep VC/VP semantics in `midnight-verifiable-credentials`.
 - Keep Passport/product flows in examples/product repos.
@@ -85,10 +85,10 @@ Rules:
 
 Important source files:
 
-- `contract/src/did.compact`: DID contract source of truth.
-- `jubjub-schnorr/src/schnorr.compact`: shared Schnorr Compact module.
-- `jubjub-schnorr/src/jubjub-schnorr.compact`: managed-wrapper contract used for TS `pureCircuits`.
-- `jubjub-schnorr/src/signing.ts`: TypeScript signer/verifier helper source of truth.
+- `packages/contract/src/did.compact`: DID contract source of truth.
+- `packages/jubjub-schnorr/src/schnorr.compact`: shared Schnorr Compact module.
+- `packages/jubjub-schnorr/src/jubjub-schnorr.compact`: managed-wrapper contract used for TS `pureCircuits`.
+- `packages/jubjub-schnorr/src/signing.ts`: TypeScript signer/verifier helper source of truth.
 
 Generated outputs:
 
@@ -108,7 +108,7 @@ When changing Compact circuits:
 For shared Schnorr changes, run:
 
 ```bash
-npm run test -w contract
+npm run test -w ./packages/contract
 ```
 
 ## Development Cycle
@@ -184,14 +184,14 @@ npm run artifacts:pack
 Package examples:
 
 ```bash
-npm run build -w contract
-npm run test:ci -w contract
-npm run build -w domain
-npm run test:ci -w domain
-npm run build -w did
-npm run test:ci -w did
-npm run build -w api
-npm run test:ci -w api
+npm run build -w ./packages/contract
+npm run test:ci -w ./packages/contract
+npm run build -w ./packages/domain
+npm run test:ci -w ./packages/domain
+npm run build -w ./packages/did
+npm run test:ci -w ./packages/did
+npm run build -w ./packages/api
+npm run test:ci -w ./packages/api
 ```
 
 ## Services and Manual Testing

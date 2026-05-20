@@ -12,16 +12,16 @@ echo "[api] Build dependencies"
 npm run build:service-prereqs
 
 echo "[api] Build API"
-npm run build -w api
+npm run build -w ./packages/api
 
 echo "[api] Run API unit tests"
-npm run test -w api
+npm run test -w ./packages/api
 
 if [[ "${SKIP_LONG_RUNNING:-0}" == "1" ]]; then
   echo "[api] Skip API integration tests (SKIP_LONG_RUNNING=1)"
 else
   echo "[api] Run API integration tests"
-  npm run test-api -w api
+  npm run test-api -w ./packages/api
 fi
 
 echo "[api] Done"

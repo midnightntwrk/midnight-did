@@ -50,6 +50,6 @@ while compact fragment identifiers may still be used in ledger storage.
 
 ## Build & Test
 
-- Build: `npm run build -w did`
-- Test: `npm run test -w did -- --pool=threads`
-- Coverage: `npm run coverage -w did`
+- Build: `npm run build -w ./packages/did`
+- Test: `npm run test -w ./packages/did -- --pool=threads`
+- Coverage: `npm run coverage -w ./packages/did`
