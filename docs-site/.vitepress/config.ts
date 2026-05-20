@@ -79,6 +79,7 @@ export default defineConfig({
           items: [
             { text: "Overview", link: "/source/" },
             { text: "Repository README", link: "/source/repository-overview" },
+            { text: "Contract README", link: "/source/contract-readme" },
             { text: "API README", link: "/source/api-readme" },
             { text: "Domain README", link: "/source/domain-readme" },
             { text: "DID README", link: "/source/did-readme" },
