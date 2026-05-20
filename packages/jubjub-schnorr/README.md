@@ -19,14 +19,14 @@ This package fixes that split.
 
 ## Package split
 
-- [src/schnorr.compact](/Users/ysh/iohk/midnight-did/packages/jubjub-schnorr/src/schnorr.compact)
+- [src/schnorr.compact](./src/schnorr.compact)
   - reusable Compact Schnorr module
   - owns challenge construction
   - owns witness-assisted reduction to a JubJub-safe scalar
-- [src/jubjub-schnorr.compact](/Users/ysh/iohk/midnight-did/packages/jubjub-schnorr/src/jubjub-schnorr.compact)
+- [src/jubjub-schnorr.compact](./src/jubjub-schnorr.compact)
   - thin wrapper contract
   - exists so generated TS exposes `pureCircuits.schnorrChallengeDigest(...)`
-- [src/signing.ts](/Users/ysh/iohk/midnight-did/packages/jubjub-schnorr/src/signing.ts)
+- [src/signing.ts](./src/signing.ts)
   - TS digest adapter
   - TS signing / verification
   - 96-byte wire encoding
@@ -143,7 +143,7 @@ random nonce when no `nonceSeed` is supplied.
 
 Use the digest-based verifier in:
 
-- [packages/contract/src/did.compact](/Users/ysh/iohk/midnight-did/packages/contract/src/did.compact)
+- [packages/contract/src/did.compact](../contract/src/did.compact)
 
 Preferred:
 
