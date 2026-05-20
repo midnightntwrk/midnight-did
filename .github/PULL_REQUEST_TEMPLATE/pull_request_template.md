@@ -10,6 +10,7 @@ Target branch: `develop`
 
 - [ ] Useful pull request description
 - [ ] Tests are provided (if possible)
+- [ ] Local PR validation passed with `./run.sh --light --strict` or `npm run ci`
 - [ ] Key commits have useful messages
 - [ ] All check jobs of the CI have succeeded
 - [ ] Self-reviewed the diff
