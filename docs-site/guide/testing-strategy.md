@@ -67,7 +67,8 @@ These are slower because they rely on docker-backed topologies, Playwright, or i
 1. run fast checks
 2. run the component-specific `./run.sh` target
 3. run `./run.sh --light --strict` or `npm run ci` before final integration/commit
-4. use `npm run ci:packages` only for the legacy package-only lane
+4. run `./run.sh docs` as well when the change touches docs-site content
+5. use `npm run ci:packages` only for the legacy package-only lane
 
 ## Docs-specific checks
 
