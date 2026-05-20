@@ -10,7 +10,7 @@
     "lint": "turbo run lint --filter=./jubjub-schnorr --filter=./contract --filter=./domain --filter=./did --filter=./api --continue",
     "lint:fix": "turbo run lint:fix --filter=./jubjub-schnorr --filter=./contract --filter=./domain --filter=./did --filter=./api --continue",
     "lint:core": "turbo run lint --filter=./jubjub-schnorr --filter=./contract --filter=./domain --filter=./did --continue",
-    "build:all": "npm run build:service-prereqs",
+    "build:all": "npm run build -w jubjub-schnorr && npm run build:service-prereqs",
     "typecheck:all": "turbo run typecheck --filter=./jubjub-schnorr --filter=./contract --filter=./domain --filter=./did --filter=./api --continue",
     "test:all": "turbo run test:ci --filter=./contract --filter=./api --continue",
     "coverage": "npm run coverage -w contract",
