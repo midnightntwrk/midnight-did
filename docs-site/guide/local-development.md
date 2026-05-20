@@ -2,13 +2,32 @@
 
 ## Prerequisites
 
-- Node.js 24+
-- npm 10+
-- Docker for integration flows
-- Compact compiler `0.5.1`
-- Compact toolchain `0.30.0` (`compact update 0.30.0`)
+- Node.js 24 and npm 10.
+- Midnight Compact compiler `0.30.0`.
+- Docker for API integration tests.
 
-## Main workspace commands
+## Setup
+
+```bash
+npm ci
+compact update 0.30.0
+```
+
+## Repository Layout
+
+| Path | Responsibility |
+| --- | --- |
+| `contract/` | Compact DID contract and generated runtime package. |
+| `jubjub-schnorr/` | Shared Compact/TypeScript Schnorr helpers. |
+| `domain/` | DID document/domain schemas and validation. |
+| `did/` | Ledger-to-domain mapping and DID helpers. |
+| `api/` | Wallet/provider/contract orchestration and network profiles. |
+| `docs-site/` | VitePress docs and generated API reference. |
+
+Resolver service, DID manager, and secret-storage validation moved to `midnight-did-resolver`.
+Credential and Passport work lives in the VC and solution-example repositories.
+
+## Validation
 
 Local PR validation:
 
@@ -18,272 +37,50 @@ Local PR validation:
 
 `npm run ci` runs the same command. Use `npm run ci:packages` only when you need the legacy package-only lint/build/test lane.
 
-This root runner now validates only the Midnight DID workspace:
-
-- core packages
-- API
-- resolver
-- DID manager
-
-Runner flags:
+Focused lanes:
 
 ```bash
-./run.sh --light --strict --skip-coverage --metrics --metrics-json /tmp/midnight-did-run.json
-```
-
-- `--light` maps to `SKIP_LONG_RUNNING=1`
-- `--strict` disables automatic lint fixes and is the closest local mode to CI
-- `--skip-coverage` skips coverage-only work while preserving build and test
-  structure
-- `--metrics` prints per-step wall-clock durations
-- `--metrics-json <file>` writes the same step timing contract as JSON
-- metrics JSON is written on success and on a failing step, so failed local or
-  CI runs still expose the last measured step and failure context
-
-CI-aligned core verification:
-
-```bash
+./run.sh targets
 ./run.sh core --strict
-```
-
-Targeted runners:
-
-```bash
-./run.sh api --light
-./run.sh resolver --light
-./run.sh manager --light
+./run.sh api --light --strict
 ./run.sh docs
-./start-resolver.sh
-./start-manager.sh
 ```
 
-Preprod helpers:
+Metrics:
 
 ```bash
-./start-resolver.sh --preprod
-./start-manager.sh --preprod
+./run.sh --light --strict --metrics --metrics-json /tmp/midnight-did-run.json
 ```
 
-Mainnet launchers use sane defaults and can be overridden if needed:
+Surface and integration guards:
 
 ```bash
-./start-resolver.sh --mainnet
-
-./start-manager.sh --mainnet
+npm run check:did-surface-discipline
+npm run check:run-target-catalog
+npm run check:integration
 ```
 
-Resolver defaults:
-- `MIDNIGHT_INDEXER_HTTP_URL=https://indexer.mainnet.midnight.network/api/v4/graphql`
-- `MIDNIGHT_INDEXER_WS_URL=wss://indexer.mainnet.midnight.network/api/v4/graphql/ws`
+## Full Local Loop
 
-Manager defaults:
-- `DID_MANAGER_MAINNET_INDEXER=https://indexer.mainnet.midnight.network/api/v4/graphql`
-- `DID_MANAGER_MAINNET_INDEXER_WS=wss://indexer.mainnet.midnight.network/api/v4/graphql/ws`
-- `DID_MANAGER_MAINNET_NODE=https://rpc.mainnet.midnight.network`
-- `DID_MANAGER_MAINNET_PROOF_SERVER=http://127.0.0.1:6300` (local)
-
-Mainnet note:
-- no faucet is shown in Wallet Setup
-- use the same seed as a funded Midnight Wallet
-
-Shared runtime infrastructure:
-
-- standalone stack: `api/standalone.yml`
-- preprod proof server: `infrastructure/preprod-proof-server.yml`
-
-## Midnight Credentials and Passport prototype
-
-Credential and Passport work no longer live inside this repository.
-
-Use the separate Midnight identity workspace or the split repositories directly
-when changing the Compact credential model, credential families, standalone
-integration tests, or the Passport prototype.
-
-This runner validates:
-
-- Passport-specific credential package lint/build/tests
-- `credentials-openid` build and tests
-- the TypeScript browser-session backend
-- Playwright browser flow through the Digital National ID and Screening issuer
-  redirects
-- standalone explicit and hidden-holder Passport credential integrations when Docker is available
-
-Start the browser prototype:
+Use the full loop for API/provider/runtime changes that need Docker-backed integration coverage.
 
 ```bash
-./start-passport-prototype.sh
+PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh --strict
 ```
 
-Default local URL:
-
-- `http://127.0.0.1:5174`
-
-The prototype is not just a static page. It uses the TypeScript server in
-`midnight-passport-prototype/src/serve-app.ts`, with actors for the wallet,
-Digital National ID issuer, Screening VC issuer, DApp, verifier contract stub,
-and external crypto wallet stub.
-
-The Digital National ID issuer flow intentionally mocks document upload,
-liveness, and profile approval checks while keeping the protocol exchange close
-to the target shape:
-
-1. wallet starts issuer session
-2. browser redirects to `national-id-issuer.html`
-3. user completes mocked checks
-4. issuer redirects back with `credential_offer_uri`, `issuer_session`, and `state`
-5. wallet validates callback state/session
-6. wallet exchanges pre-authorized token and credential request messages
-7. wallet stores the Midnight Compact credential response
-
-The Screening VC issuer follows the same redirect and offer redemption pattern,
-but starts only after the wallet holds the National ID credential:
-
-1. wallet starts screening issuer session
-2. browser redirects to `screening-issuer.html`
-3. user completes mocked National-ID-verification, sanctions, PEP, and approval
-   checks
-4. issuer redirects back with `credential_offer_uri`, `issuer_session`,
-   `issuer_kind=screening`, and `state`
-5. wallet validates callback state/session
-6. wallet exchanges pre-authorized token and credential request messages
-7. wallet stores the Midnight Compact Screening VC response
-## Bootstrapped proof server image (local optimization)
-
-### Purpose
-
-Proof server cold start can be slow because startup downloads proving resources.
-A bootstrapped image preloads those resources so local startup is faster and more stable.
-
-### Build the local bootstrapped image
+## Local Artifacts
 
 ```bash
-python3 proof-server-bootstrap/bootstrap.py
+npm run artifacts:pack
 ```
 
-Expected local tag:
+This writes local tarballs under `artifacts/npm/` for the DID packages owned by this repository.
 
-- `proof-server-bootstrap:8.0.3`
-
-### Use the bootstrapped image
-
-Set this env var in your shell before running local Docker-based flows:
-
-```bash
-export PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3
-```
-
-This env var is already consumed by:
-
-- `api/standalone.yml`
-- `api/standalone-latest.yml`
-- `infrastructure/preprod-proof-server.yml`
-- CI service jobs (when repository variable `PROOF_SERVER_IMAGE` is set)
-
-### Revert to default image
-
-```bash
-unset PROOF_SERVER_IMAGE
-```
-
-## `~/.midnight-did` directory layout
-
-By default, manager runtime data is stored under:
-
-```text
-~/.midnight-did/
-```
-
-You can override this with `DID_MANAGER_DATA_DIR`.
-
-### Structure
-
-```text
-~/.midnight-did/
-├─ did-manager-service.log
-├─ manager-profiles.json
-├─ profiles/
-│  └─ <network>/                       # standalone | preprod | mainnet
-│     └─ <profile-name>/
-│        ├─ manager-session.json
-│        ├─ manager-secrets.json
-│        ├─ wallet-state/
-│        │  └─ <seedHash6>/
-│        │     ├─ meta.json
-│        │     ├─ shielded.json
-│        │     ├─ unshielded.json
-│        │     ├─ dust.json
-│        │     └─ unshielded-history.json
-│        └─ midnight-level-db/
-│           └─ <seedHash16>/           # private state DB for contract ops
-└─ backup/
-   └─ wallet-state/
-      └─ <network>/<profile-name>/<timestamp>/
-```
-
-### What is stored here
-
-| Path | Stored data | Notes |
-|---|---|---|
-| `did-manager-service.log` | service logs | defaults to this location unless `DID_MANAGER_LOG_FILE` is set |
-| `manager-profiles.json` | selected profile per network + migration flags | profile index metadata |
-| `profiles/<network>/<profile>/manager-session.json` | profile session state | includes seed, unshielded address, known/current contract addresses, remember-started-session preference |
-| `profiles/<network>/<profile>/manager-secrets.json` | encrypted local secret store | key metadata + encrypted private key material |
-| `profiles/<network>/<profile>/wallet-state/<seedHash6>/...` | serialized wallet snapshot | used for fast restore on reusable networks (for example preprod) |
-| `profiles/<network>/<profile>/midnight-level-db/<seedHash16>/` | Midnight private state DB | network/profile/seed-isolated private contract state |
-| `backup/wallet-state/...` | auto-backups of wallet snapshots | used during migration/incompatible restore fallback |
-
-### Security note
-
-Treat `~/.midnight-did` as sensitive local state:
-
-- it can contain seed-derived wallet/session data
-- it can contain encrypted private key material
-- it may reveal contract addresses and operational history
-
-Avoid committing or sharing files from this directory.
-
-## Developer workflow
-
-For local PR validation, start with the strict fast pipeline:
-
-```bash
-./run.sh --light --strict
-```
-
-`npm run ci` runs the same command. Use `npm run ci:packages` only when you need the legacy package-only lint/build/test lane.
-
-Then run the specific component you are changing:
-
-- `./run.sh core --strict`
-- `./run.sh api --light`
-- `./run.sh resolver --light`
-- `./run.sh manager --light`
-- `./run.sh docs`
-
-Use the preprod helpers only when you are intentionally exercising preprod-specific flows such as funding and long-lived profiles.
-
-## GitHub Actions CI topology
-
-The CI workflow is split to reduce wall-clock time:
-
-1. `core` job: `./run.sh core --strict`
-2. `services` matrix: `./run.sh api --strict`, `./run.sh resolver --strict`, and `./run.sh manager --strict` in parallel
-3. final aggregation job that fails if any dependency job fails
-
-Performance behavior:
-
-- npm package cache is enabled through `actions/setup-node`
-- Compact toolchain is cached via `setup-compact-action`
-- Playwright browser binaries are cached for manager e2e
-- manager runner prepares shared dependencies once, then runs build/test without repeating `prepare:deps`
-- service runners guard against missing generated managed contract artifacts in clean CI checkouts
-
-## Running this docs site
+## Running This Docs Site
 
 From the repository root:
 
 ```bash
-npm install
 ./start-docs.sh
 ```
 
@@ -327,14 +124,13 @@ Sync mirrored source markdown into the docs site:
 npm run docs:sync-source
 ```
 
-## Important repository paths
+## Important Repository Paths
 
 | Path | Purpose |
-|---|---|
-| `contract/` | Compact contract and contract-focused tests |
-| `domain/` | DID schemas and normalization rules |
-| `did/` | Ledger-to-domain mapping and resolver helpers |
-| `api/` | Runtime orchestration over node, indexer, proof server, and contract |
-| `secret-storage/` | Reusable encrypted key storage and HD derivation |
-| `did-resolver-service/` | Resolver HTTP service and UI |
-| `did-manager-service/` | Wallet/DID management HTTP service and UI |
+| --- | --- |
+| `contract/` | Compact contract and contract-focused tests. |
+| `domain/` | DID schemas and normalization rules. |
+| `did/` | Ledger-to-domain mapping and resolver helpers. |
+| `api/` | Runtime orchestration over node, indexer, proof server, and contract. |
+| `jubjub-schnorr/` | Shared Schnorr Compact and TypeScript helpers. |
+| `docs-site/` | Documentation site and generated API reference. |

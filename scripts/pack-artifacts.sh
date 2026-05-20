@@ -10,7 +10,6 @@ workspaces=(
   did
   jubjub-schnorr
   contract
-  secret-storage
 )
 
 mkdir -p "$DEST_DIR"

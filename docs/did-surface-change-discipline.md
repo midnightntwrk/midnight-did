@@ -8,8 +8,7 @@ depend on and the checks that should move with each change.
 ## Why This Exists
 
 The DID repository is now the canonical home for the `did:midnight` method,
-contract package, resolver mapping, API orchestration, reusable secret storage,
-and service runners. Small changes in any of those areas can break downstream
+contract package, resolver mapping, and API orchestration. Small changes in any of those areas can break downstream
 Verifiable Credential, Passport, or app integrations even when unit tests still
 pass.
 
@@ -26,7 +25,6 @@ validation in the same slice.
 | Domain model | `domain/src/**`, `domain/package.json` | Do schemas and canonicalization still match DID Core expectations? |
 | DID mapper | `did/src/**`, `did/package.json` | Does ledger-to-domain conversion preserve canonical DID URLs and metadata? |
 | API orchestration | `api/src/**`, `api/package.json` | Are runtime providers, circuit calls, and resolution outputs still stable? |
-| Secret storage | `secret-storage/src/**`, `secret-storage/package.json` | Are key references, curve support, and wire signatures still compatible? |
 | Local runners | `run*.sh`, `scripts/run-common.sh` | Can developers reproduce CI and collect timings locally? |
 | Packaging | `scripts/pack-artifacts.sh`, package `files` manifests | Do tarballs contain the intended public runtime surface only? |
 | CI and docs | `.github/workflows/**`, `docs-site/**` | Do `develop` PRs get the same verification as the active branch? |

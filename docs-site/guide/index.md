@@ -1,33 +1,24 @@
 # Guide
 
-This site is the top-level entry point for Midnight DID documentation.
+Use these pages when changing DID contract, package, API, runner, packaging, or documentation behavior.
 
-Use this section for local setup, runner selection, and understanding how the workspace is supposed to be used by developers.
+1. Install dependencies with `npm ci`.
+2. Run `compact update 0.30.0` if your local Compact toolchain is not already pinned.
+3. Run `./run.sh --light --strict` before opening a PR.
+4. Use focused targets such as `./run.sh core --strict` or `./run.sh api --light --strict` while iterating.
+5. Use the split repositories for resolver/manager/secret-storage or VC work.
 
-## Start path
+## Pages
 
-1. Read [Local Development](/guide/local-development) for installation and runner commands.
-2. Read [DID Manager Getting Started](/guide/getting-started-did-manager) for a full UI operator path.
-3. Read [DID Resolver Getting Started](/guide/getting-started-did-resolver) for a complete resolver run/validate flow.
-4. Read [Testing Strategy](/guide/testing-strategy) to choose the right runner depth.
-5. Read [DID Surface Change Discipline](/guide/did-surface-change-discipline) before changing contract, package, runner, or artifact surfaces.
-6. Use [Packages](/packages/) when you need library-level responsibilities and integration points.
-7. Use [Services](/services/) when you need runtime entry points.
-8. Use [Use Cases](/use-cases/) when you need product-facing scenarios grounded in the current implementation.
-9. Use [Architecture](/architecture/) when you need the system view.
-10. Use [Specification](/spec/) when you need the DID method and traits context.
-11. Use [Source Documents](/source/) when you want to read the mirrored repository markdown without leaving the site.
+- [Local Development](/guide/local-development)
+- [Testing Strategy](/guide/testing-strategy)
+- [DID Surface Change Discipline](/guide/did-surface-change-discipline)
+- [Publishing](/guide/publishing)
 
-## Source documents already in the repository
-
-The docs site is the publication layer. The source material is also mirrored into internal site pages under [Source Documents](/source/):
+## Source Documents
 
 - [Repository README](/source/repository-overview)
-- [API README](/source/api-readme)
+- [Contract README](/source/contract-readme)
 - [Domain README](/source/domain-readme)
 - [DID README](/source/did-readme)
-- [Secret Storage README](/source/secret-storage-readme)
-- [Resolver README](/source/did-resolver-service-readme)
-- [Manager README](/source/did-manager-service-readme)
-- [Method Spec Source](/source/spec-midnight-method)
-- [Traits Source](/source/spec-midnight-did-traits)
+- [API README](/source/api-readme)

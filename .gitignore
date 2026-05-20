@@ -17,7 +17,6 @@ logs/*.log
 midnight-level-db
 **/midnight-level-db/
 **/.midnight-db/
-**/did-manager-service.log
 coverage
 playwright-report/
 test-results/

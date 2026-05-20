@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-export const SEED_HEX_BYTES = 32;
-export const SEED_HEX_LENGTH = SEED_HEX_BYTES * 2;
+const SEED_HEX_BYTES = 32;
+const SEED_HEX_LENGTH = SEED_HEX_BYTES * 2;
 
-export const SeedSchema = z
+const SeedSchema = z
   .string()
   .trim()
   .transform((value) => value.toLowerCase())
@@ -17,9 +17,4 @@ export const SeedSchema = z
       ),
   );
 
-export type Seed = z.infer<typeof SeedSchema>;
-
-export const parseSeed = (value: string): Seed => SeedSchema.parse(value);
-
-export const seedToBuffer = (value: string): Buffer =>
-  Buffer.from(parseSeed(value), "hex");
+export const parseSeed = (value: string): string => SeedSchema.parse(value);

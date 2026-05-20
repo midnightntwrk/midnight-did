@@ -7,10 +7,10 @@ same protocol surface.
 
 ## Purpose
 
-Before this package, JubJub support in `midnight-did` was split incorrectly:
+Before this package, JubJub support in the identity stack was split incorrectly:
 
 - `contract/src/did.compact` only verified the final EC equation
-- `secret-storage/src/curve-support.ts` defined the real transcript and challenge
+- service-side key custody defined the real transcript and challenge
 
 That meant the protocol semantics lived off-chain while the contract only
 checked a caller-supplied `challenge`.
@@ -56,8 +56,8 @@ transientHash<SchnorrHashInput<4>>({
 Compact-native Schnorr verification works cleanly over field vectors, not
 arbitrary byte arrays.
 
-`midnight-did` still needs to sign arbitrary payload bytes in `secret-storage`,
-so the public application path is:
+Identity applications still need to sign arbitrary payload bytes, so the public
+application path is:
 
 1. payload bytes
 2. SHA-256 digest
@@ -119,11 +119,11 @@ Helpers:
 
 ### For application code
 
-Use the re-exported helpers from `secret-storage`:
+Use this package directly when you need DID-owned Schnorr signing helpers. The
+resolver repository is expected to consume the same helpers from its service
+packages instead of reimplementing transcript logic.
 
-- [secret-storage/src/index.ts](/Users/ysh/iohk/midnight-did/secret-storage/src/index.ts)
-
-That is the intended public surface for:
+This package exposes:
 
 - `payloadToJubjubDigest`
 - `signJubjubDigestFromSeed`

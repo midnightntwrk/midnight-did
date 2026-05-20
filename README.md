@@ -1,217 +1,172 @@
 # Midnight DID
 
-Midnight DID is a reference implementation of the `did:midnight` method.
-This repository contains the smart contract, domain model, resolver/conversion logic, API, web services, and reusable secret storage.
+Midnight DID is the reference implementation of the `did:midnight` method.
+This repository owns the core DID contract, domain model, ledger mapping, and TypeScript API orchestration.
+
+Resolver services, DID manager UI/backend, and reusable secret storage now live in [`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver).
+VC packages and use cases live in [`midnight-verifiable-credentials`](https://github.com/midnightntwrk/midnight-verifiable-credentials).
 
 ## Workspace Components
 
 | Component | Package | Responsibility |
-|---|---|---|
+| --- | --- | --- |
 | [`contract`](contract/README.md) | `@midnight-ntwrk/midnight-did-contract` | On-ledger DID state and circuit rules |
 | [`jubjub-schnorr`](jubjub-schnorr/README.md) | `@midnight-ntwrk/midnight-did-jubjub-schnorr` | Shared Compact/TypeScript JubJub Schnorr transcript and signature helpers |
 | [`domain`](domain/README.md) | `@midnight-ntwrk/midnight-did-domain` | DID schemas, validation, canonicalization |
-| [`did`](did/README.md) | `@midnight-ntwrk/midnight-did` | Ledger ↔ domain mapping and resolver helpers |
-| [`api`](api/README.md) | `@midnight-ntwrk/midnight-did-api` | Programmatic DID operations and orchestration |
-| [`secret-storage`](secret-storage/README.md) | `@midnight-ntwrk/midnight-did-secret-storage` | Encrypted key storage + sign/verify/HD derivation |
-| [`did-resolver-service`](did-resolver-service/README.md) | `@midnight-ntwrk/midnight-did-resolver-service` | REST/Swagger/UI DID resolver service |
-| [`did-manager-service`](did-manager-service/README.md) | `@midnight-ntwrk/midnight-did-manager-service` | Web DID management backend + minimal UI |
-| [`docs-site`](docs-site/) | `docs-site` | VitePress developer documentation and generated API reference |
+| [`did`](did/README.md) | `@midnight-ntwrk/midnight-did` | Ledger to domain mapping and DID resolution helpers |
+| [`api`](api/README.md) | `@midnight-ntwrk/midnight-did-api` | Programmatic DID operations, wallet/provider orchestration, and network profiles |
+| [`docs-site`](docs-site/) | `docs-site` | VitePress documentation and generated API reference |
 
 ## Architecture
 
 ```mermaid
 graph TD
-  U[User / Integrator]
-
+  U[Integrator]
   API[API]
-  ResolverSvc[Resolver Service]
-  ManagerSvc[Manager Service]
   DidPkg[DID package]
   Domain[Domain]
   Contract[Contract]
-  Secrets[Secret Storage]
-
+  Schnorr[JubJub Schnorr]
   Indexer[(Indexer)]
   Node[(Midnight Node)]
   Proof[(Proof Server)]
 
   U --> API
-  U --> ResolverSvc
-  U --> ManagerSvc
-
   API --> DidPkg
   API --> Domain
   API --> Contract
-
-  ResolverSvc --> DidPkg
-  ResolverSvc --> Domain
-  ManagerSvc --> API
-  ManagerSvc --> Secrets
-
+  Contract --> Schnorr
   DidPkg --> Domain
   DidPkg --> Contract
-
   API --> Indexer
   API --> Node
   API --> Proof
-  ResolverSvc --> Indexer
 ```
 
 ## DID Update and Resolution Sequence
 
 ```mermaid
 sequenceDiagram
-  participant User
-  participant App as Manager / App
+  participant App
   participant API
   participant Contract
   participant Indexer
-  participant Resolver
+  participant Resolver as Resolver repo/service
 
-  User->>App: add verification method (from keyRef)
-  App->>API: validate command + current state
-  API->>Contract: submit addVerificationMethod circuit
+  App->>API: submit DID update command
+  API->>Contract: submit circuit transaction
   Contract-->>API: tx accepted
   API->>Indexer: wait/read updated ledger state
-  API-->>App: operation result + hints
+  API-->>App: operation result
 
-  User->>Resolver: DID Resolution request (GET /resolve/{did})
+  App->>Resolver: resolve did:midnight
   Resolver->>Indexer: read latest ledger state
-  Resolver-->>User: DID Resolution Result
-```
-
-## DID Lifecycle State Machine
-
-```mermaid
-stateDiagram-v2
-  [*] --> NoContract
-  NoContract --> DidActive : deploy/join
-  DidActive --> DidActive : add/update/remove methods, services, aliases, relations
-  DidActive --> DidDeactivated : deactivate
-  DidDeactivated --> [*]
+  Resolver-->>App: DID Resolution Result
 ```
 
 ## Running
 
 Prerequisites:
-- [Nix](https://nixos.org/download) (with [flakes enabled](https://nixos.wiki/wiki/Flakes))
-- Docker (for integration tests)
 
-Enter the development shell:
-- `nix develop` (Provides Node.js 24, Docker tooling, Playwright browser binaries, and the **Compact compiler 0.5.1**)
+- Node.js 24 and npm 10.
+- Docker for standalone API integration tests.
+- Midnight Compact toolchain.
 
 Install dependencies:
-- `npm ci`
-- `compact update 0.30.0`
 
-Pipelines:
-- Local PR validation contract: `./run.sh --light --strict` (or `npm run ci`)
-- Root DID workspace full pipeline: `./run.sh` or `./run.sh full` (long-running superset of the PR gate)
-- Core pipeline only: `./run.sh core --strict`
-- API only: `./run.sh api`
-- Resolver only: `./run.sh resolver`
-- DID manager only: `./run.sh manager`
-- Docs pipeline: `./run.sh docs`
-- Root `./run.sh` validates only the DID/API/resolver/manager workspace. It does not execute VC or Passport pipelines.
-- Legacy `run-core.sh`, `run-api.sh`, `run-resolver.sh`, `run-manager.sh`, and
-  `run-docs.sh` scripts remain thin lane implementations behind `./run.sh`.
-- DID surface guard: `npm run check:did-surface-discipline`
-- Manager app: `./start-manager.sh [--standalone|--preprod|--mainnet]`
-- Resolver app: `./start-resolver.sh [--standalone|--preprod|--mainnet]`
-- Docs dev server: `./start-docs.sh`
+```bash
+npm ci
+compact update 0.30.0
+```
 
-Network defaults:
-- `standalone` uses local Docker indexer endpoints (`/api/v3/graphql`)
-- `preprod` and `mainnet` use public indexer v4 endpoints (`/api/v4/graphql`)
-- manager `--mainnet` defaults to local proof server (`http://127.0.0.1:6300`) and expects a funded seed (no faucet)
+Local validation:
+
+```bash
+./run.sh targets
+./run.sh --light --strict
+./run.sh core --strict
+./run.sh api --light --strict
+./run.sh docs
+```
+
+Runner notes:
+
+- Local PR validation contract: `./run.sh --light --strict` or `npm run ci`.
+- `npm run ci:packages` keeps the legacy package-only lint/build/test lane.
+- `./run.sh` and `./run.sh full` validate DID core and API lanes.
+- `./run.sh docs` validates the documentation site.
+- `run-core.sh`, `run-api.sh`, and `run-docs.sh` remain implementation details behind cataloged `./run.sh` targets.
+- Root `./run.sh` validates only DID core/API/docs. Resolver service, manager service, and secret-storage validation moved to `midnight-did-resolver`.
+- `--skip-coverage` is still accepted for older local command history, but current split lanes do not run coverage by default.
+
+Metrics example:
+
+```bash
+./run.sh --light --strict --metrics --metrics-json /tmp/midnight-did-run.json
+```
+
+Surface guards:
+
+```bash
+npm run check:did-surface-discipline
+npm run check:run-target-catalog
+npm run check:integration
+```
 
 ## Artifact Packaging
 
 Use `artifacts/npm/` as the stable local tarball output for unpublished DID packages.
 
-Commands:
-- `npm run artifacts:pack`
-- `./upgrade-libs.sh --destination /path/to/downstream-repo`
+```bash
+npm run artifacts:pack
+./upgrade-libs.sh --destination /path/to/downstream-repo
+```
 
-What gets packed:
+Packed packages:
+
 - `@midnight-ntwrk/midnight-did-api`
 - `@midnight-ntwrk/midnight-did-domain`
 - `@midnight-ntwrk/midnight-did`
 - `@midnight-ntwrk/midnight-did-jubjub-schnorr`
 - `@midnight-ntwrk/midnight-did-contract`
-- `@midnight-ntwrk/midnight-did-secret-storage`
 
-The generated tarballs are intentionally gitignored under [`artifacts/`](./artifacts/README.md).
-
-Fast mode:
-- Skip long-running integration/e2e targets: `SKIP_LONG_RUNNING=1 ./run.sh`
-- Equivalent CLI flag: `./run.sh --light`
-- PR validation uses strict fast mode: `./run.sh --light --strict` or `npm run ci`
-- Legacy package-only lint/build/test lane: `npm run ci:packages`
-- CI-shaped local run with timings:
-  `./run.sh --light --strict --metrics --metrics-json /tmp/midnight-did-run.json`
-- `--skip-coverage` is still accepted for older local command history, but the
-  current split lanes do not run coverage by default.
-- See [`docs/develop-pr-transition.md`](./docs/develop-pr-transition.md) for
-  the current `develop`-targeted PR transition notes.
-- See [`docs/did-surface-change-discipline.md`](./docs/did-surface-change-discipline.md)
-  before changing contract circuits, package exports, runner behavior, or
-  generated artifacts.
-- See [`docs/repository-audit-backlog.md`](./docs/repository-audit-backlog.md)
-  for the current simplification backlog covering runners, artifacts,
-  docs-site boundaries, and DID/VC split-repo integration.
-
-Related repositories:
-- Midnight Verifiable Credentials and the Passport prototype now live outside this repository.
-- Use the separate identity workspace sandbox or the split repositories directly for VC and Passport work.
-
-Docs site local URL:
-- `http://127.0.0.1:4173`
-
-Bootstrapped proof server image (faster Docker-backed runs):
-- `export PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3`
-- used by standalone/preprod compose flows and CI (when configured as a repo variable)
+The generated tarballs are gitignored under [`artifacts/`](./artifacts/README.md).
 
 ## Developer Entry Points
 
-If you are new to the repository, start here:
-
 1. `./start-docs.sh`
 2. `./run.sh --light --strict` or `npm run ci`
-3. the component-specific `./run.sh` target for the area you are changing
-4. if you are working on credentials or Passport, use the split-repo runners instead of expecting root `./run.sh` to cover them
+3. `./run.sh core --strict` or `./run.sh api --light --strict` for focused work
+4. Use the split repositories for resolver/manager/secret-storage or VC work
 
 Docs helpers:
 
-- `./run.sh docs` runs the full docs preparation and build workflow
-- `./start-docs.sh` starts the local VitePress site
+- `./run.sh docs` runs the docs preparation and build workflow.
+- `./start-docs.sh` starts the local VitePress site.
+- See [`docs/did-surface-change-discipline.md`](docs/did-surface-change-discipline.md) before changing contract circuits, package exports, runner behavior, or generated artifacts.
+- See [`docs/repository-audit-backlog.md`](docs/repository-audit-backlog.md) for the current simplification backlog.
 
-When you need direct package/service documentation:
+Direct package documentation:
 
 - `api/README.md`
 - `domain/README.md`
 - `did/README.md`
 - `jubjub-schnorr/README.md`
-- `secret-storage/README.md`
-- `did-resolver-service/README.md`
-- `did-manager-service/README.md`
+- `contract/README.md`
 
 ## Notes
 
-- Compact circuits are compiled via workspace scripts in `contract`.
-- Integration tests use Testcontainers and docker-compose based topologies.
-- Teardown logic now performs best-effort `docker compose down --volumes --remove-orphans` to reduce leaked resources.
-- CI is split into one `./run.sh core` job and a parallel service matrix
-  (`./run.sh api`, `./run.sh resolver`, `./run.sh manager`) to reduce
-  wall-clock duration.
-- CI uses cache layers for npm, Compact toolchain, and Playwright browsers (manager pipeline).
-- Service runners now prepare missing generated artifacts/dependencies explicitly so standalone service jobs are reproducible.
-- HD seed derivation for `Ed25519`, `Jubjub`, and `P-256` is documented in [`secret-storage/README.md`](secret-storage/README.md).
+- Compact circuits are compiled via workspace scripts in `contract` and `jubjub-schnorr`.
+- Integration tests use Testcontainers and Docker compose topologies from the API package.
+- CI is split into a core job and an API job.
 - Shared JubJub Schnorr transcript and the 96-byte signature wire format are documented in [`jubjub-schnorr/README.md`](jubjub-schnorr/README.md).
-- DID Resolution responses follow the DID Core shape:
-  - `didDocument`
-  - `didResolutionMetadata`
-  - `didDocumentMetadata`
+- DID Resolution responses follow the DID Core shape: `didDocument`, `didResolutionMetadata`, and `didDocumentMetadata`.
+
+## Related Repositories
+
+- [`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver): resolver services, DID manager, and secret storage.
+- [`midnight-verifiable-credentials`](https://github.com/midnightntwrk/midnight-verifiable-credentials): VC/VP packages and use cases.
+- [`midnight-trust-registry`](https://github.com/midnightntwrk/midnight-trust-registry): trust registry and governance integrations.
 
 ## License
 
