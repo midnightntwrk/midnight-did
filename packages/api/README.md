@@ -14,7 +14,7 @@ Programmatic API for creating, updating, deactivating, and resolving Midnight DI
 
 - you need programmatic DID deployment or mutation flows
 - you need provider bootstrap for standalone, preprod, or env-driven mainnet
-- you are building a higher-level application and do not want to manage raw packages/contract/runtime wiring
+- you are building a higher-level application and do not want to manage raw contract/runtime wiring
 
 ## Architecture
 

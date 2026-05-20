@@ -156,7 +156,7 @@ Direct package documentation:
 
 ## Notes
 
-- Compact circuits are compiled via workspace scripts in `packages/contract` and `jubjub-schnorr`.
+- Compact circuits are compiled via workspace scripts in `packages/contract` and `packages/jubjub-schnorr`.
 - Integration tests use Testcontainers and Docker compose topologies from the API package.
 - CI is split into a core job and an API job.
 - Shared JubJub Schnorr transcript and the 96-byte signature wire format are documented in [`packages/jubjub-schnorr/README.md`](packages/jubjub-schnorr/README.md).

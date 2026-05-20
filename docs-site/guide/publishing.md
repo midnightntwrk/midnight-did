@@ -22,7 +22,7 @@ When the docs workflow runs on GitHub Actions, the VitePress `base` path is set 
 For this repository that means:
 
 - local: `/`
-- GitHub Pages: `/midnight-packages/did/`
+- GitHub Pages: `/midnight-did/`
 
 The config is implemented in:
 
