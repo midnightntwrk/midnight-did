@@ -11,6 +11,7 @@ Target branch: `develop`
 - [ ] Useful pull request description
 - [ ] Tests are provided (if possible)
 - [ ] Local PR validation passed with `./run.sh --light --strict` or `npm run ci`
+  - If you used `npm run ci:packages` as a package-only fallback, explain why in the PR body.
 - [ ] Key commits have useful messages
 - [ ] All check jobs of the CI have succeeded
 - [ ] Self-reviewed the diff
