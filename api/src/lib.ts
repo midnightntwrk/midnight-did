@@ -30,7 +30,6 @@ import {
   VerificationMethodRelationType,
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
-import { parseSeed } from "@midnight-ntwrk/midnight-did-secret-storage";
 import {
   deployContract,
   findDeployedContract,
@@ -76,6 +75,7 @@ import {
 } from "./lightweight.js";
 import { BigIntReplacer } from "./logger-utils.js";
 import { RuntimeToDomain } from "./runtime-to-domain.js";
+import { parseSeed } from "./seed.js";
 import {
   type DeployedMidnightDIDContract,
   type MidnightDIDCircuits,

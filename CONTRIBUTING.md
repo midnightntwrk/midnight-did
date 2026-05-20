@@ -49,7 +49,7 @@ npm run check:did-surface-discipline
 Treat these as DID surface changes:
 
 * Compact circuits, generated contract artifacts, or package export maps.
-* Domain/API/secret-storage types or runtime behavior consumed by downstream
+* Domain/API types or runtime behavior consumed by downstream
   applications.
 * `./run.sh`, CI workflow, artifact packaging, or local tarball behavior.
 * Documentation that defines how integrators consume the DID packages or

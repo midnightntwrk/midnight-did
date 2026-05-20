@@ -70,9 +70,8 @@ const libraryWorkspaces = [
   "did",
   "jubjub-schnorr",
   "contract",
-  "secret-storage",
 ];
-const serviceWorkspaces = ["did-resolver-service", "did-manager-service"];
+const serviceWorkspaces = [];
 
 assert(
   rootPackage.scripts?.["check:did-surface-discipline"] ===
@@ -140,7 +139,6 @@ for (const requiredPhrase of [
   "Domain model",
   "DID mapper",
   "API orchestration",
-  "Secret storage",
   "Local runners",
   "Packaging",
   "CI and docs",

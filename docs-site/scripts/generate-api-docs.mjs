@@ -26,12 +26,6 @@ const packages = [
     entryPoint: resolve(repoRoot, "api", "src", "index.ts"),
     tsconfig: resolve(repoRoot, "api", "tsconfig.build.json"),
   },
-  {
-    slug: "secret-storage",
-    displayName: "@midnight-ntwrk/midnight-did-secret-storage",
-    entryPoint: resolve(repoRoot, "secret-storage", "src", "index.ts"),
-    tsconfig: resolve(repoRoot, "secret-storage", "tsconfig.build.json"),
-  },
 ];
 
 const rewriteReadmeLinks = async (rootDir) => {
@@ -58,18 +52,14 @@ const rewriteReadmeLinks = async (rootDir) => {
 
 mkdirSync(outputRoot, { recursive: true });
 
-const buildWorkspaces = ["contract", "domain", "did", "secret-storage", "api"];
+const buildWorkspaces = ["contract", "domain", "did", "api"];
 
 for (const workspace of buildWorkspaces) {
-  execFileSync(
-    process.platform === "win32" ? "npm.cmd" : "npm",
-    ["run", "build", "-w", workspace],
-    {
-      cwd: repoRoot,
-      stdio: "inherit",
-      env: process.env,
-    },
-  );
+  execFileSync(process.platform === "win32" ? "npm.cmd" : "npm", ["run", "build", "-w", workspace], {
+    cwd: repoRoot,
+    stdio: "inherit",
+    env: process.env,
+  });
 }
 
 for (const entry of readdirSync(outputRoot)) {
@@ -105,18 +95,12 @@ for (const pkg of packages) {
       "--exclude",
       "**/test/**",
     ],
-    {
-      cwd: docsRoot,
-      stdio: "inherit",
-      env: process.env,
-    },
+    { cwd: docsRoot, stdio: "inherit", env: process.env },
   );
 
   const readmePath = join(outDir, "README.md");
   const indexPath = join(outDir, "index.md");
-  if (existsSync(readmePath)) {
-    renameSync(readmePath, indexPath);
-  }
+  if (existsSync(readmePath)) renameSync(readmePath, indexPath);
 
   if (existsSync(indexPath)) {
     const content = `# ${pkg.displayName}\n\nGenerated API reference.\n\n`;
