@@ -23,19 +23,45 @@ const generatedDirectoryNames = new Set([
   "test-results",
 ]);
 const generatedRelativeDirectories = new Set([
+  "logs",
   "docs-site/.vitepress/.temp",
   "docs-site/.vitepress/cache",
   "docs-site/.vitepress/dist",
   "docs-site/api/reference",
   "docs-site/source",
 ]);
+const trackedFiles = new Set(
+  execFileSync("git", ["ls-files"], { cwd: repoRoot, encoding: "utf8" })
+    .split(/\r?\n/u)
+    .filter(Boolean),
+);
+const trackedPaths = new Set();
+for (const file of trackedFiles) {
+  trackedPaths.add(file);
+
+  let directory = path.posix.dirname(file);
+  while (directory !== ".") {
+    trackedPaths.add(directory);
+    directory = path.posix.dirname(directory);
+  }
+}
 const removed = new Set();
 const missing = [];
+const skippedTracked = new Set();
 
-const toRelative = (absolutePath) => path.relative(repoRoot, absolutePath).split(path.sep).join("/");
+const toRelative = (absolutePath) =>
+  path.relative(repoRoot, absolutePath).split(path.sep).join("/");
+
+const containsTrackedFile = (relativePath) => trackedPaths.has(relativePath);
 
 const removePath = (absolutePath) => {
   const relativePath = toRelative(absolutePath);
+
+  if (containsTrackedFile(relativePath)) {
+    skippedTracked.add(relativePath);
+    return;
+  }
+
   removed.add(relativePath);
 
   if (!dryRun) {
@@ -83,7 +109,10 @@ const walk = (directory) => {
       continue;
     }
 
-    if (entry.isFile() && (entry.name.endsWith(".tsbuildinfo") || entry.name.endsWith(".tgz"))) {
+    if (
+      entry.isFile() &&
+      (entry.name.endsWith(".tsbuildinfo") || entry.name.endsWith(".tgz"))
+    ) {
       removePath(absolutePath);
     }
   }
@@ -103,15 +132,38 @@ for (const relativePath of generatedRelativeDirectories) {
 walk(repoRoot);
 
 const removedPaths = [...removed].sort();
+const skippedTrackedPaths = [...skippedTracked].sort();
 
 if (json) {
-  console.log(JSON.stringify({ dryRun, removed: removedPaths, missing }, null, 2));
-} else if (removedPaths.length === 0) {
+  console.log(
+    JSON.stringify(
+      {
+        dryRun,
+        removed: removedPaths,
+        missing,
+        skippedTracked: skippedTrackedPaths,
+      },
+      null,
+      2,
+    ),
+  );
+} else if (removedPaths.length === 0 && skippedTrackedPaths.length === 0) {
   console.log("[clean-artifacts] No generated artifacts found.");
 } else {
-  const action = dryRun ? "Would remove" : "Removed";
-  console.log(`[clean-artifacts] ${action} ${removedPaths.length} generated artifact paths:`);
-  for (const relativePath of removedPaths) {
-    console.log(`  ${relativePath}`);
+  if (removedPaths.length > 0) {
+    const action = dryRun ? "Would remove" : "Removed";
+    console.log(
+      `[clean-artifacts] ${action} ${removedPaths.length} generated artifact paths:`,
+    );
+    for (const relativePath of removedPaths) {
+      console.log(`  ${relativePath}`);
+    }
+  }
+
+  if (skippedTrackedPaths.length > 0) {
+    console.log("[clean-artifacts] Skipped tracked artifact paths:");
+    for (const relativePath of skippedTrackedPaths) {
+      console.log(`  ${relativePath}`);
+    }
   }
 }
