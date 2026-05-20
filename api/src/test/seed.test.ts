@@ -13,6 +13,12 @@ describe("parseSeed", () => {
     );
   });
 
+  it("keeps the parsed seed suitable for wallet seed buffers", () => {
+    const seed = "11".repeat(32);
+
+    expect(Buffer.from(parseSeed(seed), "hex").toString("hex")).toBe(seed);
+  });
+
   it("rejects non-hexadecimal seeds", () => {
     expect(() => parseSeed("zz")).toThrow(
       "Seed must contain only hexadecimal characters",

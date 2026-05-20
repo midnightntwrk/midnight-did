@@ -19,3 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `./run.sh --light --strict` as the local PR validation contract.
 - Include explicit package `files` manifests for the `domain` and `did`
   library packages so local tarballs expose the intended runtime surface only.
+
+### Removed
+
+- Move resolver service, DID manager service, and reusable secret-storage
+  workspaces out of this repository. Their package and service surfaces now
+  live in the `midnight-did-resolver` repository.
