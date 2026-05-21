@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   normalizeServiceEndpointValue,
   normalizeUriString,
-} from "../uri-normalization";
+} from "../uri-normalization.js";
 
 describe("URI normalization helpers", () => {
   it("normalizes HTTP(S) URIs", () => {

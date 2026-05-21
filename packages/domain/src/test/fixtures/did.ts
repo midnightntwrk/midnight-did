@@ -1,4 +1,8 @@
-import { CurveType, KeyType, VerificationMethodType } from "../../did-document";
+import {
+  CurveType,
+  KeyType,
+  VerificationMethodType,
+} from "../../did-document.js";
 
 export const exampleDid = "did:example:123";
 export const exampleDidUrl = `${exampleDid}/path?query#frag`;
