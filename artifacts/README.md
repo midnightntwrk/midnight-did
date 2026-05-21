@@ -18,5 +18,5 @@ node scripts/clean-artifacts.mjs --dry-run --json
 Notes:
 - `artifacts/npm/*.tgz` are generated outputs and are gitignored.
 - These tarballs are a bootstrap/distribution seam, not a replacement for real published packages.
-- Use the dry-run cleanup report before deleting generated artifacts from a
-  worktree that may contain historical package shells.
+- Use the dry-run cleanup report before deleting generated artifacts, nested
+  local log directories, or historical package shells from a worktree.
