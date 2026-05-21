@@ -9,6 +9,8 @@ const expectSameExports = (
   shim: Record<string, unknown>,
   source: Record<string, unknown>,
 ) => {
+  // Type-only exports are erased at runtime; this checks runtime shim drift.
+  expect(Object.keys(source).length).toBeGreaterThan(0);
   expect(Object.keys(shim).sort()).toEqual(Object.keys(source).sort());
   for (const name of Object.keys(source)) {
     expect(shim[name]).toBe(source[name]);
