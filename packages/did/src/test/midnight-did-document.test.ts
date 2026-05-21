@@ -7,11 +7,11 @@ import {
 } from "@midnight-ntwrk/midnight-did-domain";
 import { describe, expect, it } from "vitest";
 
-import { MidnightDIDSchema } from "../midnight";
+import { MidnightDIDSchema } from "../midnight.js";
 import {
   createMidnightDIDDocument,
   parseMidnightDIDDocument,
-} from "../midnight-did-document";
+} from "../midnight-did-document.js";
 
 const exampleMidnightDid = MidnightDIDSchema.parse(
   "did:midnight:testnet:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",

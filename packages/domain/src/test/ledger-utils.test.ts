@@ -6,7 +6,7 @@ import {
   normalizeFragmentId,
   serviceEndpointToLedger,
   serviceTypeToLedger,
-} from "../ledger-utils";
+} from "../ledger-utils.js";
 
 describe("ledger-utils", () => {
   const did =

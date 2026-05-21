@@ -2,7 +2,7 @@ import * as base64js from "base64-js";
 import { describe, expect, it } from "vitest";
 import { z } from "zod/v4-mini";
 
-import { FieldCodec } from "../crypto-codecs";
+import { FieldCodec } from "../crypto-codecs.js";
 
 describe("FieldCodec (domain)", () => {
   const roundtrip = (v: bigint) => {
