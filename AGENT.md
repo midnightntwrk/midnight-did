@@ -184,6 +184,7 @@ npm run typecheck:all
 npm run test:all
 npm run ci:core
 npm run check:did-surface-discipline
+npm run test:workspace-manifests
 npm run check:workspace-manifests
 npm run check:run-target-catalog
 npm run check:managed-artifacts
