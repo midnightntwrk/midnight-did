@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { execFileSync } from "node:child_process";
 import {
   existsSync,
   readdirSync,
@@ -10,10 +9,23 @@ import path from "node:path";
 import { stderr, stdout } from "node:process";
 import { fileURLToPath } from "node:url";
 
-const repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
-  encoding: "utf8",
-}).trim();
 const thisFile = fileURLToPath(import.meta.url);
+const repoRoot = path.resolve(path.dirname(thisFile), "..");
+
+// This is a developer/CI freshness guard, not a content stamp. It catches the
+// usual "changed Compact/source inputs without rebuilding managed artifacts"
+// workflow, but content-hash stamping would be needed for tamper-proof checks.
+const contractInputs = [
+  "packages/contract/src/did.compact",
+  "packages/contract/package.json",
+  "packages/contract/scripts",
+];
+const jubjubSchnorrInputs = [
+  "packages/jubjub-schnorr/src/jubjub-schnorr.compact",
+  "packages/jubjub-schnorr/src/schnorr.compact",
+  "packages/jubjub-schnorr/package.json",
+  "packages/jubjub-schnorr/scripts",
+];
 
 const output = (relativePath, inputs) => ({
   path: relativePath,
@@ -24,16 +36,11 @@ export const artifactProfiles = {
   contract: {
     buildCommand: "npm run build:prepared -w ./packages/contract",
     outputs: [
-      output("packages/contract/src/managed/did/contract/index.js", [
-        "packages/contract/src/did.compact",
-        "packages/contract/package.json",
-        "packages/contract/scripts",
-      ]),
-      output("packages/contract/src/managed/did/compiler/contract-info.json", [
-        "packages/contract/src/did.compact",
-        "packages/contract/package.json",
-        "packages/contract/scripts",
-      ]),
+      output("packages/contract/src/managed/did/contract/index.js", contractInputs),
+      output(
+        "packages/contract/src/managed/did/compiler/contract-info.json",
+        contractInputs,
+      ),
     ],
   },
   "jubjub-schnorr": {
@@ -41,21 +48,11 @@ export const artifactProfiles = {
     outputs: [
       output(
         "packages/jubjub-schnorr/src/managed/jubjub-schnorr/contract/index.js",
-        [
-          "packages/jubjub-schnorr/src/jubjub-schnorr.compact",
-          "packages/jubjub-schnorr/src/schnorr.compact",
-          "packages/jubjub-schnorr/package.json",
-          "packages/jubjub-schnorr/scripts",
-        ],
+        jubjubSchnorrInputs,
       ),
       output(
         "packages/jubjub-schnorr/src/managed/jubjub-schnorr/compiler/contract-info.json",
-        [
-          "packages/jubjub-schnorr/src/jubjub-schnorr.compact",
-          "packages/jubjub-schnorr/src/schnorr.compact",
-          "packages/jubjub-schnorr/package.json",
-          "packages/jubjub-schnorr/scripts",
-        ],
+        jubjubSchnorrInputs,
       ),
     ],
   },
@@ -207,10 +204,17 @@ const explainAllProfiles = () =>
 
 const isDirectExecution =
   process.argv[1] && path.resolve(process.argv[1]) === thisFile;
-const [command, value] = process.argv.slice(2);
+const [command, value, ...extraArgs] = process.argv.slice(2);
 
 if (isDirectExecution) {
   try {
+    if (extraArgs.length > 0) {
+      stderr.write(
+        `[managed-artifact-catalog] Unexpected arguments: ${extraArgs.join(" ")}\n`,
+      );
+      process.exit(2);
+    }
+
     switch (command) {
       case "--profile-names":
         stdout.write(`${profileNames.join("\n")}\n`);
