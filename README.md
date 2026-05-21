@@ -100,8 +100,8 @@ Runner notes:
 - `--skip-coverage` is still accepted for older local command history, but current split lanes do not run coverage by default.
 - `./run.sh clean-artifacts` removes generated outputs and disposable
   historical top-level package/service shells left by pre-`packages/` layouts;
-  non-disposable shell contents are reported and preserved as whole directories
-  until a human confirms they are safe to delete.
+  tracked or non-disposable shell contents are reported and preserved as whole
+  directories until a human confirms they are safe to delete.
 
 Metrics example:
 
