@@ -21,6 +21,9 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
    - 2026-05-22: `codex/did-api-private-state-provider-boundary` isolates
      DID private-state storage account/password wiring from `providers.ts` and
      adds focused unit tests around the derived provider options.
+   - 2026-05-22: `codex/did-wallet-dust-registration-boundary` isolates dust
+     registration from wallet build/serialization orchestration and adds unit
+     tests around the eligible NIGHT UTXO and wait/register paths.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
 4. Keep generated artifact freshness checks for `contract` and
