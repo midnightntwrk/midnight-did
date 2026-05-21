@@ -52,14 +52,14 @@ Use it to inspect Compact entry points, generated `src/managed` outputs, TypeScr
 
 ## Package Map
 
-| Path | Package | Responsibility |
-| --- | --- | --- |
-| `packages/contract` | `@midnight-ntwrk/midnight-did-contract` | Compact contract for on-ledger DID state and circuit rules. |
-| `packages/jubjub-schnorr` | `@midnight-ntwrk/midnight-did-jubjub-schnorr` | Shared Compact/TS JubJub Schnorr transcript, digest, signature, and verification helpers. |
-| `packages/domain` | `@midnight-ntwrk/midnight-did-domain` | DID document schemas, validation, canonicalization, field encoding, and method-specific domain types. |
-| `packages/did` | `@midnight-ntwrk/midnight-did` | Ledger-to-domain mapping, DID resolution helpers, and method-specific conversion logic. |
-| `packages/api` | `@midnight-ntwrk/midnight-did-api` | Runtime orchestration for wallets, providers, contracts, network profiles, and DID operations. |
-| `docs-site` | `docs-site` | VitePress documentation site and generated API reference for DID-owned packages. |
+| Path                      | Package                                       | Responsibility                                                                                        |
+| ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `packages/contract`       | `@midnight-ntwrk/midnight-did-contract`       | Compact contract for on-ledger DID state and circuit rules.                                           |
+| `packages/jubjub-schnorr` | `@midnight-ntwrk/midnight-did-jubjub-schnorr` | Shared Compact/TS JubJub Schnorr transcript, digest, signature, and verification helpers.             |
+| `packages/domain`         | `@midnight-ntwrk/midnight-did-domain`         | DID document schemas, validation, canonicalization, field encoding, and method-specific domain types. |
+| `packages/did`            | `@midnight-ntwrk/midnight-did`                | Ledger-to-domain mapping, DID resolution helpers, and method-specific conversion logic.               |
+| `packages/api`            | `@midnight-ntwrk/midnight-did-api`            | Runtime orchestration for wallets, providers, contracts, network profiles, and DID operations.        |
+| `docs-site`               | `docs-site`                                   | VitePress documentation site and generated API reference for DID-owned packages.                      |
 
 ## Architecture Boundaries
 
@@ -166,11 +166,11 @@ npm run check:run-target-catalog
 
 Lane scripts:
 
-| Target | Script | Purpose |
-| --- | --- | --- |
+| Target          | Script          | Purpose                            |
+| --------------- | --------------- | ---------------------------------- |
 | `./run.sh core` | `./run-core.sh` | Core package lint/build/test path. |
-| `./run.sh api` | `./run-api.sh` | DID API lane. |
-| `./run.sh docs` | `./run-docs.sh` | Docs generation/build lane. |
+| `./run.sh api`  | `./run-api.sh`  | DID API lane.                      |
+| `./run.sh docs` | `./run-docs.sh` | Docs generation/build lane.        |
 
 ## NPM Scripts
 
@@ -184,6 +184,8 @@ npm run typecheck:all
 npm run test:all
 npm run ci:core
 npm run check:did-surface-discipline
+npm run test:workspace-manifests
+npm run check:workspace-manifests
 npm run check:run-target-catalog
 npm run check:managed-artifacts
 npm run clean:artifacts
