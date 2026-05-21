@@ -48,13 +48,13 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      drift is caught in `ci:core`.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
+   - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era
+     `build:service-prereqs` root script to `build:api-prereqs` and extends the
+     surface-discipline guard so API runner/build docs stay aligned with the
+     repository's DID-core-only scope.
 4. Keep generated artifact freshness checks for `contract` and
    `jubjub-schnorr` aligned with Compact source/build-script inputs through
    `npm run check:managed-artifacts`.
 5. Tighten `docs-site` links so moved service pages are referenced only as external repository pointers.
 6. Keep `upgrade-libs.sh` aligned with the packages packed by `scripts/pack-artifacts.sh`.
 7. Continue reducing stale historical docs when they no longer help explain DID method evolution.
-   - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era
-     `build:service-prereqs` root script to `build:api-prereqs` and extends the
-     surface-discipline guard so API runner/build docs stay aligned with the
-     repository's DID-core-only scope.
