@@ -24,6 +24,9 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
    - 2026-05-22: `codex/did-wallet-dust-registration-boundary` isolates dust
      registration from wallet build/serialization orchestration and adds unit
      tests around the eligible NIGHT UTXO and wait/register paths.
+   - 2026-05-22: `codex/did-wallet-state-boundary` isolates wallet
+     snapshot/sync/balance/funding-wait helpers from wallet construction and
+     adds focused unit tests around the state helper contract.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
 4. Keep generated artifact freshness checks for `contract` and
