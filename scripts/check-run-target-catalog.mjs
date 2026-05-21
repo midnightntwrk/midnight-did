@@ -164,55 +164,70 @@ rmSync(metricsDir, { recursive: true, force: true });
 const cleanArtifactsFixtureDir = mkdtempSync(
   path.join(tmpdir(), "midnight-did-clean-fixture-"),
 );
-mkdirSync(path.join(cleanArtifactsFixtureDir, "logs"), { recursive: true });
-mkdirSync(path.join(cleanArtifactsFixtureDir, ".midnight-test", "probe"), {
-  recursive: true,
-});
-mkdirSync(path.join(cleanArtifactsFixtureDir, ".midnight-db", "probe"), {
-  recursive: true,
-});
-mkdirSync(path.join(cleanArtifactsFixtureDir, "midnight-level-db", "probe"), {
-  recursive: true,
-});
-mkdirSync(
-  path.join(cleanArtifactsFixtureDir, "contract", "src", "managed"),
-  { recursive: true },
-);
-mkdirSync(path.join(cleanArtifactsFixtureDir, "cli"), { recursive: true });
-mkdirSync(path.join(cleanArtifactsFixtureDir, "api", "dist"), {
-  recursive: true,
-});
-writeFileSync(
-  path.join(cleanArtifactsFixtureDir, "cli", "not-generated.txt"),
-  "not generated\n",
-);
-writeFileSync(
-  path.join(cleanArtifactsFixtureDir, "api", "tracked.txt"),
-  "tracked content\n",
-);
-writeFileSync(
-  path.join(cleanArtifactsFixtureDir, "api", "dist", "generated.txt"),
-  "generated content\n",
-);
-
-assert.equal(
-  spawnSync("git", ["init", "-q", "-b", "main"], {
-    cwd: cleanArtifactsFixtureDir,
-    encoding: "utf8",
-  }).status,
-  0,
-  "clean-artifacts fixture git init should exit successfully",
-);
-assert.equal(
-  spawnSync("git", ["add", "api/tracked.txt"], {
-    cwd: cleanArtifactsFixtureDir,
-    encoding: "utf8",
-  }).status,
-  0,
-  "clean-artifacts fixture git add should exit successfully",
-);
 
 try {
+  mkdirSync(path.join(cleanArtifactsFixtureDir, "logs"), { recursive: true });
+  mkdirSync(path.join(cleanArtifactsFixtureDir, ".midnight-test", "probe"), {
+    recursive: true,
+  });
+  mkdirSync(path.join(cleanArtifactsFixtureDir, ".midnight-db", "probe"), {
+    recursive: true,
+  });
+  mkdirSync(path.join(cleanArtifactsFixtureDir, "midnight-level-db", "probe"), {
+    recursive: true,
+  });
+  mkdirSync(
+    path.join(cleanArtifactsFixtureDir, "contract", "src", "managed"),
+    { recursive: true },
+  );
+  mkdirSync(
+    path.join(cleanArtifactsFixtureDir, "domain", "node_modules", "cache"),
+    { recursive: true },
+  );
+  mkdirSync(path.join(cleanArtifactsFixtureDir, "cli"), { recursive: true });
+  mkdirSync(path.join(cleanArtifactsFixtureDir, "api", "dist"), {
+    recursive: true,
+  });
+  writeFileSync(
+    path.join(cleanArtifactsFixtureDir, "cli", "not-generated.txt"),
+    "not generated\n",
+  );
+  writeFileSync(
+    path.join(cleanArtifactsFixtureDir, "api", "tracked.txt"),
+    "tracked content\n",
+  );
+  writeFileSync(
+    path.join(cleanArtifactsFixtureDir, "api", "dist", "generated.txt"),
+    "generated content\n",
+  );
+  writeFileSync(
+    path.join(
+      cleanArtifactsFixtureDir,
+      "domain",
+      "node_modules",
+      "cache",
+      "generated.js",
+    ),
+    "generated content\n",
+  );
+
+  assert.equal(
+    spawnSync("git", ["init", "-q", "-b", "main"], {
+      cwd: cleanArtifactsFixtureDir,
+      encoding: "utf8",
+    }).status,
+    0,
+    "clean-artifacts fixture git init should exit successfully",
+  );
+  assert.equal(
+    spawnSync("git", ["add", "api/tracked.txt"], {
+      cwd: cleanArtifactsFixtureDir,
+      encoding: "utf8",
+    }).status,
+    0,
+    "clean-artifacts fixture git add should exit successfully",
+  );
+
   const cleanArtifactsDryRun = spawnSync(
     "node",
     [
@@ -258,7 +273,11 @@ try {
     "clean-artifacts dry-run JSON should include historical package shell cleanup coverage",
   );
   assert.ok(
-    cleanArtifactsReport.skippedDeadShells.includes("cli"),
+    cleanArtifactsReport.removed.includes("domain"),
+    "clean-artifacts dry-run JSON should include node_modules-only historical shell cleanup coverage",
+  );
+  assert.ok(
+    cleanArtifactsReport.skippedNonDisposableShells.includes("cli"),
     "clean-artifacts dry-run JSON should preserve non-disposable historical shell candidates",
   );
   assert.ok(
