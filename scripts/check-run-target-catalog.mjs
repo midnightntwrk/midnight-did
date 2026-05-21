@@ -178,10 +178,23 @@ const cleanupTestProbeDir = path.join(
   "run-target-catalog-probe",
 );
 const createdMidnightTestRoot = !existsSync(midnightTestDir);
+const midnightDbDir = path.join(repoRoot, ".midnight-db");
+const cleanupMidnightDbProbeDir = path.join(
+  midnightDbDir,
+  "run-target-catalog-probe",
+);
+const createdMidnightDbRoot = !existsSync(midnightDbDir);
+const midnightLevelDbDir = path.join(repoRoot, "midnight-level-db");
+const cleanupMidnightLevelDbProbeDir = path.join(
+  midnightLevelDbDir,
+  "run-target-catalog-probe",
+);
+const createdMidnightLevelDbRoot = !existsSync(midnightLevelDbDir);
 const legacyShellDir = path.join(repoRoot, "contract");
 const legacyShellSrcDir = path.join(legacyShellDir, "src");
 const legacyShellManagedDir = path.join(legacyShellSrcDir, "managed");
 const createdLegacyShellRoot = !existsSync(legacyShellDir);
+const createdLegacyShellSrcDir = !existsSync(legacyShellSrcDir);
 const legacyShellHasTrackedContent = hasTrackedPath("contract");
 const skippedLegacyShellDir = path.join(repoRoot, "cli");
 const skippedLegacyShellProbe = path.join(
@@ -196,6 +209,8 @@ const cleanupProbeDir = mkdtempSync(
   path.join(logsDir, "run-target-catalog-probe-"),
 );
 mkdirSync(cleanupTestProbeDir, { recursive: true });
+mkdirSync(cleanupMidnightDbProbeDir, { recursive: true });
+mkdirSync(cleanupMidnightLevelDbProbeDir, { recursive: true });
 mkdirSync(legacyShellManagedDir, { recursive: true });
 mkdirSync(skippedLegacyShellDir, { recursive: true });
 writeFileSync(skippedLegacyShellProbe, "not generated\n");
@@ -228,6 +243,14 @@ try {
   assert.ok(
     cleanArtifactsReport.removed.includes(".midnight-test"),
     "clean-artifacts dry-run JSON should include local midnight test-state cleanup coverage",
+  );
+  assert.ok(
+    cleanArtifactsReport.removed.includes(".midnight-db"),
+    "clean-artifacts dry-run JSON should include local midnight database cleanup coverage",
+  );
+  assert.ok(
+    cleanArtifactsReport.removed.includes("midnight-level-db"),
+    "clean-artifacts dry-run JSON should include local midnight level database cleanup coverage",
   );
   if (legacyShellHasTrackedContent) {
     assert.ok(
@@ -266,6 +289,18 @@ try {
   rmSync(cleanupTestProbeDir, { recursive: true, force: true });
   if (createdMidnightTestRoot) {
     rmSync(midnightTestDir, { recursive: true, force: true });
+  }
+  rmSync(cleanupMidnightDbProbeDir, { recursive: true, force: true });
+  if (createdMidnightDbRoot) {
+    rmSync(midnightDbDir, { recursive: true, force: true });
+  }
+  rmSync(cleanupMidnightLevelDbProbeDir, { recursive: true, force: true });
+  if (createdMidnightLevelDbRoot) {
+    rmSync(midnightLevelDbDir, { recursive: true, force: true });
+  }
+  rmSync(legacyShellManagedDir, { recursive: true, force: true });
+  if (createdLegacyShellSrcDir) {
+    rmSync(legacyShellSrcDir, { recursive: true, force: true });
   }
   rmSync(skippedLegacyShellProbe, { force: true });
   if (createdSkippedLegacyShellRoot) {

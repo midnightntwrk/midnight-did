@@ -101,7 +101,9 @@ Generated outputs:
 Generated outputs are build artifacts. Do not manually edit them. Use
 `./run.sh clean-artifacts` when old root-level package or service shells remain
 after refactors; the cleaner deletes only disposable generated shells and
-preserves non-disposable contents.
+preserves non-disposable contents. When a historical shell is reported as
+non-disposable, the cleaner preserves the whole shell, including generated
+children such as `dist/`, so inspect and remove it manually if it is safe.
 
 When changing Compact circuits:
 
