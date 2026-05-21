@@ -32,15 +32,6 @@ const run = (args, env = {}) =>
     },
   });
 
-const hasTrackedPath = (relativePath) => {
-  const result = spawnSync("git", ["ls-files", "--", relativePath], {
-    cwd: repoRoot,
-    encoding: "utf8",
-  });
-
-  return result.status === 0 && result.stdout.trim().length > 0;
-};
-
 const targetNames = targets.map((target) => target.name);
 const duplicateTargetNames = targetNames.filter(
   (name, index) => targetNames.indexOf(name) !== index,
@@ -170,57 +161,67 @@ assert.deepEqual(
 
 rmSync(metricsDir, { recursive: true, force: true });
 
-const logsDir = path.join(repoRoot, "logs");
-const createdLogsRoot = !existsSync(logsDir);
-const midnightTestDir = path.join(repoRoot, ".midnight-test");
-const cleanupTestProbeDir = path.join(
-  midnightTestDir,
-  "run-target-catalog-probe",
+const cleanArtifactsFixtureDir = mkdtempSync(
+  path.join(tmpdir(), "midnight-did-clean-fixture-"),
 );
-const createdMidnightTestRoot = !existsSync(midnightTestDir);
-const midnightDbDir = path.join(repoRoot, ".midnight-db");
-const cleanupMidnightDbProbeDir = path.join(
-  midnightDbDir,
-  "run-target-catalog-probe",
+mkdirSync(path.join(cleanArtifactsFixtureDir, "logs"), { recursive: true });
+mkdirSync(path.join(cleanArtifactsFixtureDir, ".midnight-test", "probe"), {
+  recursive: true,
+});
+mkdirSync(path.join(cleanArtifactsFixtureDir, ".midnight-db", "probe"), {
+  recursive: true,
+});
+mkdirSync(path.join(cleanArtifactsFixtureDir, "midnight-level-db", "probe"), {
+  recursive: true,
+});
+mkdirSync(
+  path.join(cleanArtifactsFixtureDir, "contract", "src", "managed"),
+  { recursive: true },
 );
-const createdMidnightDbRoot = !existsSync(midnightDbDir);
-const midnightLevelDbDir = path.join(repoRoot, "midnight-level-db");
-const cleanupMidnightLevelDbProbeDir = path.join(
-  midnightLevelDbDir,
-  "run-target-catalog-probe",
+mkdirSync(path.join(cleanArtifactsFixtureDir, "cli"), { recursive: true });
+mkdirSync(path.join(cleanArtifactsFixtureDir, "api", "dist"), {
+  recursive: true,
+});
+writeFileSync(
+  path.join(cleanArtifactsFixtureDir, "cli", "not-generated.txt"),
+  "not generated\n",
 );
-const createdMidnightLevelDbRoot = !existsSync(midnightLevelDbDir);
-const legacyShellDir = path.join(repoRoot, "contract");
-const legacyShellSrcDir = path.join(legacyShellDir, "src");
-const legacyShellManagedDir = path.join(legacyShellSrcDir, "managed");
-const createdLegacyShellRoot = !existsSync(legacyShellDir);
-const createdLegacyShellSrcDir = !existsSync(legacyShellSrcDir);
-const legacyShellHasTrackedContent = hasTrackedPath("contract");
-const skippedLegacyShellDir = path.join(repoRoot, "cli");
-const skippedLegacyShellProbe = path.join(
-  skippedLegacyShellDir,
-  `run-target-catalog-nondisposable-${process.pid}.txt`,
+writeFileSync(
+  path.join(cleanArtifactsFixtureDir, "api", "tracked.txt"),
+  "tracked content\n",
 );
-const createdSkippedLegacyShellRoot = !existsSync(skippedLegacyShellDir);
-const skippedLegacyShellHasTrackedContent = hasTrackedPath("cli");
+writeFileSync(
+  path.join(cleanArtifactsFixtureDir, "api", "dist", "generated.txt"),
+  "generated content\n",
+);
 
-mkdirSync(logsDir, { recursive: true });
-const cleanupProbeDir = mkdtempSync(
-  path.join(logsDir, "run-target-catalog-probe-"),
+assert.equal(
+  spawnSync("git", ["init", "-q"], {
+    cwd: cleanArtifactsFixtureDir,
+    encoding: "utf8",
+  }).status,
+  0,
+  "clean-artifacts fixture git init should exit successfully",
 );
-mkdirSync(cleanupTestProbeDir, { recursive: true });
-mkdirSync(cleanupMidnightDbProbeDir, { recursive: true });
-mkdirSync(cleanupMidnightLevelDbProbeDir, { recursive: true });
-mkdirSync(legacyShellManagedDir, { recursive: true });
-mkdirSync(skippedLegacyShellDir, { recursive: true });
-writeFileSync(skippedLegacyShellProbe, "not generated\n");
+assert.equal(
+  spawnSync("git", ["add", "api/tracked.txt"], {
+    cwd: cleanArtifactsFixtureDir,
+    encoding: "utf8",
+  }).status,
+  0,
+  "clean-artifacts fixture git add should exit successfully",
+);
 
 try {
   const cleanArtifactsDryRun = spawnSync(
     "node",
-    ["./scripts/clean-artifacts.mjs", "--dry-run", "--json"],
+    [
+      path.join(repoRoot, "scripts", "clean-artifacts.mjs"),
+      "--dry-run",
+      "--json",
+    ],
     {
-      cwd: repoRoot,
+      cwd: cleanArtifactsFixtureDir,
       encoding: "utf8",
     },
   );
@@ -252,29 +253,18 @@ try {
     cleanArtifactsReport.removed.includes("midnight-level-db"),
     "clean-artifacts dry-run JSON should include local midnight level database cleanup coverage",
   );
-  if (legacyShellHasTrackedContent) {
-    assert.ok(
-      cleanArtifactsReport.skippedTracked.includes("contract"),
-      "clean-artifacts dry-run JSON should preserve tracked historical package shell content",
-    );
-  } else {
-    assert.ok(
-      cleanArtifactsReport.removed.includes("contract"),
-      "clean-artifacts dry-run JSON should include historical package shell cleanup coverage",
-    );
-  }
-
-  if (skippedLegacyShellHasTrackedContent) {
-    assert.ok(
-      cleanArtifactsReport.skippedTracked.includes("cli"),
-      "clean-artifacts dry-run JSON should preserve tracked historical package shell candidates",
-    );
-  } else {
-    assert.ok(
-      cleanArtifactsReport.skippedDeadShells.includes("cli"),
-      "clean-artifacts dry-run JSON should preserve non-disposable historical shell candidates",
-    );
-  }
+  assert.ok(
+    cleanArtifactsReport.removed.includes("contract"),
+    "clean-artifacts dry-run JSON should include historical package shell cleanup coverage",
+  );
+  assert.ok(
+    cleanArtifactsReport.skippedDeadShells.includes("cli"),
+    "clean-artifacts dry-run JSON should preserve non-disposable historical shell candidates",
+  );
+  assert.ok(
+    cleanArtifactsReport.skippedTracked.includes("api"),
+    "clean-artifacts dry-run JSON should preserve tracked historical package shell candidates",
+  );
   assert.ok(
     !cleanArtifactsReport.skippedTracked.some((relativePath) =>
       relativePath.startsWith("logs"),
@@ -282,33 +272,7 @@ try {
     "clean-artifacts dry-run JSON should not skip the generated log probe",
   );
 } finally {
-  rmSync(cleanupProbeDir, { recursive: true, force: true });
-  if (createdLogsRoot) {
-    rmSync(logsDir, { recursive: true, force: true });
-  }
-  rmSync(cleanupTestProbeDir, { recursive: true, force: true });
-  if (createdMidnightTestRoot) {
-    rmSync(midnightTestDir, { recursive: true, force: true });
-  }
-  rmSync(cleanupMidnightDbProbeDir, { recursive: true, force: true });
-  if (createdMidnightDbRoot) {
-    rmSync(midnightDbDir, { recursive: true, force: true });
-  }
-  rmSync(cleanupMidnightLevelDbProbeDir, { recursive: true, force: true });
-  if (createdMidnightLevelDbRoot) {
-    rmSync(midnightLevelDbDir, { recursive: true, force: true });
-  }
-  rmSync(legacyShellManagedDir, { recursive: true, force: true });
-  if (createdLegacyShellSrcDir) {
-    rmSync(legacyShellSrcDir, { recursive: true, force: true });
-  }
-  rmSync(skippedLegacyShellProbe, { force: true });
-  if (createdSkippedLegacyShellRoot) {
-    rmSync(skippedLegacyShellDir, { recursive: true, force: true });
-  }
-  if (createdLegacyShellRoot) {
-    rmSync(legacyShellDir, { recursive: true, force: true });
-  }
+  rmSync(cleanArtifactsFixtureDir, { recursive: true, force: true });
 }
 
 for (const laneTarget of laneTargets) {
