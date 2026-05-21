@@ -3,11 +3,40 @@ import { execFileSync } from "node:child_process";
 import { readdirSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
 
+const usage = `Usage: node scripts/clean-artifacts.mjs [--dry-run] [--json] [-h|--help]
+
+Remove generated build/test artifacts, local Midnight runtime state, and
+disposable historical top-level package/service shells.
+
+Options:
+  --dry-run  Report paths that would be removed without deleting them.
+  --json     Print a machine-readable cleanup report.
+  -h, --help Show this help text.
+`;
+
+const allowedArgs = new Set(["--dry-run", "--json", "-h", "--help"]);
+const rawArgs = process.argv.slice(2);
+const unknownArgs = rawArgs.filter((arg) => !allowedArgs.has(arg));
+
+if (unknownArgs.length > 0) {
+  const argumentLabel = unknownArgs.length === 1 ? "argument" : "arguments";
+  console.error(
+    `Unknown clean-artifacts ${argumentLabel}: ${unknownArgs.join(", ")}`,
+  );
+  console.error("Run `node scripts/clean-artifacts.mjs --help` for usage.");
+  process.exit(1);
+}
+
+const args = new Set(rawArgs);
+if (args.has("-h") || args.has("--help")) {
+  console.log(usage.trimEnd());
+  process.exit(0);
+}
+
 const repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
   encoding: "utf8",
 }).trim();
 
-const args = new Set(process.argv.slice(2));
 const dryRun = args.has("--dry-run");
 const json = args.has("--json");
 const skipDirectoryNames = new Set([".git", "node_modules"]);
