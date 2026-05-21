@@ -90,6 +90,7 @@ You can still override `MainnetConfig` endpoints explicitly when needed.
 - `src/lib.ts` public compatibility facade
 - `src/deploy.ts` contract deployment, join, and private-state initialization
 - `src/providers.ts` wallet-to-provider wiring
+- `src/transaction-intents.ts` manual unshielded intent signing workaround
 - `src/wallet.ts` wallet construction, restore, sync, funding, and balance helpers
 - `src/wallet-keys.ts` seed parsing, HD key derivation, and unshielded address helpers
 - `src/wallet-sdk-config.ts` shared wallet SDK configuration builders

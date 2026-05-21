@@ -1,6 +1,5 @@
 import "./polyfills.js";
 
-import * as ledger from "@midnight-ntwrk/ledger-v8";
 import { httpClientProofProvider } from "@midnight-ntwrk/midnight-js-http-client-proof-provider";
 import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-public-data-provider";
 import { levelPrivateStateProvider } from "@midnight-ntwrk/midnight-js-level-private-state-provider";
@@ -14,55 +13,11 @@ import { Buffer } from "buffer";
 import * as Rx from "rxjs";
 
 import { type Config, contractConfig } from "./config.js";
+import { signTransactionIntents } from "./transaction-intents.js";
 import {
   type MidnightDIDCircuits,
   type MidnightDIDWalletContext,
 } from "./types.js";
-
-// Manual transaction intent signing works around an upstream SDK signing bug.
-// Remove this when wallet-sdk signs balanced unshielded intents directly.
-const signTransactionIntents = (
-  tx: { intents?: Map<number, { serialize: () => Uint8Array }> },
-  signFn: (payload: Uint8Array) => ledger.Signature,
-  proofMarker: "proof" | "pre-proof",
-): void => {
-  if (!tx.intents || tx.intents.size === 0) return;
-
-  for (const segment of tx.intents.keys()) {
-    const intent = tx.intents.get(segment);
-    if (!intent) continue;
-
-    const cloned = ledger.Intent.deserialize(
-      "signature",
-      proofMarker,
-      "pre-binding",
-      intent.serialize(),
-    );
-
-    const sigData = cloned.signatureData(segment);
-    const signature = signFn(sigData);
-
-    if (cloned.fallibleUnshieldedOffer) {
-      const sigs = cloned.fallibleUnshieldedOffer.inputs.map(
-        (_: ledger.UtxoSpend, i: number) =>
-          cloned.fallibleUnshieldedOffer!.signatures.at(i) ?? signature,
-      );
-      cloned.fallibleUnshieldedOffer =
-        cloned.fallibleUnshieldedOffer.addSignatures(sigs);
-    }
-
-    if (cloned.guaranteedUnshieldedOffer) {
-      const sigs = cloned.guaranteedUnshieldedOffer.inputs.map(
-        (_: ledger.UtxoSpend, i: number) =>
-          cloned.guaranteedUnshieldedOffer!.signatures.at(i) ?? signature,
-      );
-      cloned.guaranteedUnshieldedOffer =
-        cloned.guaranteedUnshieldedOffer.addSignatures(sigs);
-    }
-
-    tx.intents.set(segment, cloned);
-  }
-};
 
 export const createWalletAndMidnightProvider = async (
   ctx: MidnightDIDWalletContext,
