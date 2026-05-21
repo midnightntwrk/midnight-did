@@ -1,6 +1,6 @@
 ---
 name: midnight-identity
-description: "Use this skill for midnight-did repository work: DID contract/domain/API package development, run.sh validation, Compact artifacts, DID manager/resolver workflows, secret storage, package distribution, and DID/VC split-boundary decisions."
+description: "Use this skill for midnight-did repository work: DID contract/domain/API package development, run.sh validation, Compact artifacts, package distribution, and DID/VC split-boundary decisions."
 ---
 
 # Midnight Identity DID Skill
@@ -27,8 +27,6 @@ Use this skill from the `midnight-did` repository, whether cloned independently 
 ./run.sh --light --strict --metrics
 ./run.sh core --strict
 ./run.sh api --light
-./run.sh resolver --light
-./run.sh manager --light
 ./run.sh docs
 ./run.sh clean-artifacts
 ./run.sh integration-report
@@ -36,6 +34,9 @@ Use this skill from the `midnight-did` repository, whether cloned independently 
 npm run check:run-target-catalog
 PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh
 ```
+
+Resolver service, DID manager, and secret-storage validation moved to the
+`midnight-did-resolver` repository; do not add those targets back here.
 
 For shared JubJub Schnorr or contract changes, run `npm run test -w ./packages/contract`.
 

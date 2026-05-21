@@ -238,6 +238,9 @@ const cleanArtifactsFixtureDir = mkdtempSync(
 
 try {
   mkdirSync(path.join(cleanArtifactsFixtureDir, "logs"), { recursive: true });
+  mkdirSync(path.join(cleanArtifactsFixtureDir, "packages", "logs"), {
+    recursive: true,
+  });
   mkdirSync(path.join(cleanArtifactsFixtureDir, ".midnight-test", "probe"), {
     recursive: true,
   });
@@ -322,6 +325,10 @@ try {
   assert.ok(
     cleanArtifactsReport.removed.includes("logs"),
     "clean-artifacts dry-run JSON should include root logs cleanup coverage",
+  );
+  assert.ok(
+    cleanArtifactsReport.removed.includes("packages/logs"),
+    "clean-artifacts dry-run JSON should include nested logs cleanup coverage",
   );
   assert.ok(
     cleanArtifactsReport.removed.includes(".midnight-test"),
