@@ -5,22 +5,22 @@ import * as deploy from "../deploy.js";
 import * as didOperations from "../did-operations.js";
 import * as update from "../update.js";
 
+const expectSameExports = (
+  shim: Record<string, unknown>,
+  source: Record<string, unknown>,
+) => {
+  expect(Object.keys(shim).sort()).toEqual(Object.keys(source).sort());
+  for (const name of Object.keys(source)) {
+    expect(shim[name]).toBe(source[name]);
+  }
+};
+
 describe("api compatibility shims", () => {
   it("keeps contract-lifecycle wired to deploy exports", () => {
-    expect(contractLifecycle.deploy).toBe(deploy.deploy);
-    expect(contractLifecycle.joinContract).toBe(deploy.joinContract);
-    expect(contractLifecycle.getMidnightDIDLedgerState).toBe(
-      deploy.getMidnightDIDLedgerState,
-    );
+    expectSameExports(contractLifecycle, deploy);
   });
 
   it("keeps did-operations wired to update exports", () => {
-    expect(didOperations.addVerificationMethod).toBe(
-      update.addVerificationMethod,
-    );
-    expect(didOperations.updateVerificationMethod).toBe(
-      update.updateVerificationMethod,
-    );
-    expect(didOperations.resolve).toBe(update.resolve);
+    expectSameExports(didOperations, update);
   });
 });
