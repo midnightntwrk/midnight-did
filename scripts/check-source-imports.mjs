@@ -56,8 +56,11 @@ const hasAllowedExtension = (specifier) =>
 
 const violations = [];
 
+const resolveSourceRoot = (sourceRoot) =>
+  path.isAbsolute(sourceRoot) ? sourceRoot : path.join(repoRoot, sourceRoot);
+
 for (const sourceRoot of sourceRoots) {
-  for (const file of walk(path.join(repoRoot, sourceRoot))) {
+  for (const file of walk(resolveSourceRoot(sourceRoot))) {
     const text = fs.readFileSync(file, "utf8");
     const relativeFile = path.relative(repoRoot, file);
 
