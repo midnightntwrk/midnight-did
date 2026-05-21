@@ -6,7 +6,7 @@ import {
   parseContractAddress,
   parseMidnightDID,
   parseMidnightDIDString,
-} from "../midnight";
+} from "../midnight.js";
 
 const sampleAddress = "c".repeat(64);
 
