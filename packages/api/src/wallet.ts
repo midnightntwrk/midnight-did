@@ -37,8 +37,6 @@ import {
   buildUnshieldedConfig,
 } from "./wallet-sdk-config.js";
 
-export { deriveUnshieldedAddressFromSeed } from "./wallet-keys.js";
-
 const createWalletContext = async (
   config: Config,
   seed: string,
