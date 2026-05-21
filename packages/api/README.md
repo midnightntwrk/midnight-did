@@ -90,7 +90,9 @@ You can still override `MainnetConfig` endpoints explicitly when needed.
 - `src/deploy.ts` contract deployment, join, and private-state initialization
 - `src/providers.ts` wallet-to-provider wiring
 - `src/wallet.ts` wallet construction, restore, sync, funding, and balance helpers
-- `src/update.ts` DID document update, deactivate, resolve, and ledger mapping helpers
+- `src/did-subject.ts` DID subject and bound fragment normalization
+- `src/ledger-mappers.ts` DID document domain-to-ledger DTO mapping helpers
+- `src/update.ts` DID document update, deactivate, and resolve orchestration
 - `src/types.ts`
 - `src/test/`
 
