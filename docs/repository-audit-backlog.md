@@ -39,6 +39,9 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
    - 2026-05-22: `codex/did-package-source-import-discipline` extends that
      guard across DID-owned TypeScript package sources and normalizes remaining
      domain/DID test imports to the same emitted ESM-style specifiers.
+   - 2026-05-22: `codex/did-source-import-check-tests` adds a contract test
+     for the generalized source-import checker so valid `.js` specifiers and
+     invalid extensionless specifiers stay covered in CI.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
 4. Keep generated artifact freshness checks for `contract` and
