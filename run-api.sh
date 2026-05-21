@@ -14,6 +14,9 @@ npm run build:service-prereqs
 echo "[api] Build API"
 npm run build -w ./packages/api
 
+echo "[api] Typecheck API examples"
+npm run typecheck:examples -w ./packages/api
+
 echo "[api] Run API unit tests"
 npm run test -w ./packages/api
 

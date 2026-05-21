@@ -67,6 +67,7 @@ API enforces lifecycle rules around:
 ## Build & Test
 
 - Build: `npm run build -w ./packages/api`
+- Typecheck examples: `npm run typecheck:examples -w ./packages/api`
 - Unit tests: `npm run test -w ./packages/api`
 - Integration tests: `npm run test-api -w ./packages/api`
 
@@ -103,9 +104,10 @@ import from `@midnight-ntwrk/midnight-did-api`.
 
 ## Deploy And Update Example
 
-See `examples/deploy-and-update.md` for a package-local deploy/update flow that
-uses only API package exports. Resolver services, DID manager UI, and reusable
-secret storage stay in `midnight-did-resolver`.
+See `examples/README.md`, `examples/deploy-did.ts`, and
+`examples/update-did.ts` for package-local deploy/update flows that use only API
+package exports. Resolver services, DID manager UI, and reusable secret storage
+stay in `midnight-did-resolver`.
 
 ## Integration Teardown
 
