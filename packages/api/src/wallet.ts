@@ -13,7 +13,6 @@ import { ShieldedWallet } from "@midnight-ntwrk/wallet-sdk-shielded";
 import {
   InMemoryTransactionHistoryStorage,
   PublicKey,
-  type UnshieldedKeystore,
   UnshieldedWallet,
 } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
 import * as Rx from "rxjs";
@@ -36,6 +35,8 @@ import {
   buildShieldedConfig,
   buildUnshieldedConfig,
 } from "./wallet-sdk-config.js";
+
+export { registerForDustGeneration } from "./wallet-dust.js";
 
 const createWalletContext = async (
   config: Config,
@@ -178,61 +179,6 @@ export const buildWalletAndWaitForFunds = async (
   await waitForWalletSync(walletContext);
   await waitForWalletFunds(walletContext);
   return walletContext;
-};
-
-export const registerForDustGeneration = async (
-  wallet: WalletFacade,
-  unshieldedKeystore: UnshieldedKeystore,
-): Promise<void> => {
-  const state = await Rx.firstValueFrom(
-    wallet.state().pipe(Rx.filter((s) => s.isSynced)),
-  );
-
-  // Check if dust already available
-  if (state.dust.availableCoins.length > 0) {
-    const dustBal = state.dust.balance(new Date());
-    getLogger().info(`Dust already available: ${dustBal}`);
-    return;
-  }
-
-  // Get unregistered NIGHT UTXOs
-  const nightUtxos = state.unshielded.availableCoins.filter(
-    (coin: any) => coin.meta?.registeredForDustGeneration !== true,
-  );
-
-  if (nightUtxos.length === 0) {
-    getLogger().info("Waiting for existing dust generation...");
-    await Rx.firstValueFrom(
-      wallet.state().pipe(
-        Rx.throttleTime(5_000),
-        Rx.filter((s) => s.dust.balance(new Date()) > 0n),
-      ),
-    );
-    return;
-  }
-
-  // Register UTXOs
-  getLogger().info(
-    `Registering ${nightUtxos.length} NIGHT UTXOs for dust generation`,
-  );
-  const recipe = await wallet.registerNightUtxosForDustGeneration(
-    nightUtxos,
-    unshieldedKeystore.getPublicKey(),
-    (payload) => unshieldedKeystore.signData(payload),
-  );
-  const finalized = await wallet.finalizeRecipe(recipe);
-  await wallet.submitTransaction(finalized as any);
-
-  // Wait for dust to generate
-  getLogger().info("Waiting for dust generation...");
-  await Rx.firstValueFrom(
-    wallet.state().pipe(
-      Rx.throttleTime(5_000),
-      Rx.filter((s) => s.dust.balance(new Date()) > 0n),
-    ),
-  );
-
-  getLogger().info("Dust generation complete");
 };
 
 export const buildFreshWallet = async (
