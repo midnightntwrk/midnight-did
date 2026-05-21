@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `./run.sh --light --strict` as the local PR validation contract.
 - Make `scripts/clean-artifacts.mjs` self-documenting and fail safely when an
   unknown cleanup flag is provided.
+- Extend artifact cleanup to nested generated `logs/` directories and prune
+  stale local-development surfaces that no longer match the `packages/` layout.
 - Include explicit package `files` manifests for the `domain` and `did`
   library packages so local tarballs expose the intended runtime surface only.
 
