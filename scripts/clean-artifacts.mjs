@@ -55,6 +55,8 @@ const skippedDeadShells = new Set();
 const processedTopLevelShells = new Set();
 
 // Migration-only allow-list for disposable shells left by the pre-packages layout.
+// Delete this set after pre-packages branches are retired and contributor
+// worktrees no longer report these shell names during cleanup.
 const historicalTopLevelShells = new Set([
   "api",
   "cli",
@@ -97,6 +99,8 @@ const isDisposableDeadShell = (absolutePath) => {
 
     if (entry.isDirectory()) {
       if (disposableShellDirectoryNames.has(entry.name)) {
+        // Generated-directory names are trusted by convention; do not keep
+        // hand-written source under these paths inside historical shells.
         continue;
       }
 
@@ -107,7 +111,7 @@ const isDisposableDeadShell = (absolutePath) => {
       return false;
     }
 
-    // These are generated or local-only file types covered by repository ignore rules.
+    // Local-only or build-output files allowed inside an otherwise empty shell.
     if (
       entry.isFile() &&
       (entry.name === ".DS_Store" ||
