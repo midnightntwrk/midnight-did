@@ -16,7 +16,7 @@
     "coverage": "npm run coverage -w ./packages/contract",
     "ci": "./run.sh --light --strict",
     "ci:packages": "npm run lint && npm run build:all && npm run test:all",
-    "ci:core": "npm run check:did-surface-discipline && npm run test:source-imports && npm run check:source-imports && npm run check:run-target-catalog && SKIP_LINT_FIX=1 npm run lint:core && npm run build -w ./packages/jubjub-schnorr && npm run test:ci -w ./packages/jubjub-schnorr && npm run build:prepared -w ./packages/contract && SKIP_RUNTIME_TESTS=1 npm run test:ci -w ./packages/contract && npm run check:managed-artifacts && npm run build -w ./packages/domain && npm run test:ci -w ./packages/domain && npm run build -w ./packages/did && npm run test:ci -w ./packages/did",
+    "ci:core": "npm run check:did-surface-discipline && npm run check:workspace-manifests && npm run test:source-imports && npm run check:source-imports && npm run check:run-target-catalog && SKIP_LINT_FIX=1 npm run lint:core && npm run build -w ./packages/jubjub-schnorr && npm run test:ci -w ./packages/jubjub-schnorr && npm run build:prepared -w ./packages/contract && SKIP_RUNTIME_TESTS=1 npm run test:ci -w ./packages/contract && npm run check:managed-artifacts && npm run build -w ./packages/domain && npm run test:ci -w ./packages/domain && npm run build -w ./packages/did && npm run test:ci -w ./packages/did",
     "build:service-prereqs": "npm run build:prepared -w ./packages/contract && npm run build -w ./packages/did && npm run build -w ./packages/api",
     "pack:contract": "npm_config_cache=.npm-cache bash -lc 'cd packages/contract && npm pack'",
     "pack:all": "npm run pack:contract && echo 'Artifacts:' && ls -1 *.tgz || true && ls -1 packages/contract/*.tgz || true",
@@ -36,6 +36,7 @@
     "test:run-sh": "node scripts/run-sh-contract.test.mjs",
     "check:run-target-catalog": "node scripts/check-run-target-catalog.mjs",
     "check:did-surface-discipline": "node scripts/check-did-surface-discipline.mjs",
+    "check:workspace-manifests": "node scripts/check-workspace-manifests.mjs",
     "check:source-imports": "node scripts/check-source-imports.mjs",
     "test:source-imports": "node scripts/check-source-imports.test.mjs"
   },
