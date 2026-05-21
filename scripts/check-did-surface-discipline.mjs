@@ -30,13 +30,14 @@ function assertIncludes(haystack, needle, label) {
   assert(haystack.includes(needle), `${label} must include "${needle}"`);
 }
 
+function assertNotIncludes(haystack, needle, label) {
+  assert(!haystack.includes(needle), `${label} must not include "${needle}"`);
+}
+
 function assertArrayIncludes(array, expected, label) {
   assert(Array.isArray(array), `${label} must be an array`);
   if (Array.isArray(array)) {
-    assert(
-      array.includes(expected),
-      `${label} must include "${expected}"`,
-    );
+    assert(array.includes(expected), `${label} must include "${expected}"`);
   }
 }
 
@@ -93,8 +94,26 @@ assertIncludes(
   "npm run check:managed-artifacts",
   "ci:core",
 );
+assert(
+  rootPackage.scripts?.["build:api-prereqs"] ===
+    "npm run build:prepared -w ./packages/contract && npm run build -w ./packages/did && npm run build -w ./packages/api",
+  "package.json must expose build:api-prereqs for DID API build dependencies",
+);
+assertIncludes(
+  rootPackage.scripts?.["build:all"] ?? "",
+  "npm run build:api-prereqs",
+  "build:all",
+);
+assert(
+  rootPackage.scripts?.["build:service-prereqs"] == null,
+  "package.json must not reintroduce service-era build:service-prereqs",
+);
 
-for (const workspace of [...libraryWorkspaces, ...serviceWorkspaces, "docs-site"]) {
+for (const workspace of [
+  ...libraryWorkspaces,
+  ...serviceWorkspaces,
+  "docs-site",
+]) {
   assertArrayIncludes(rootWorkspaces, workspace, "root package workspaces");
 }
 
@@ -109,11 +128,7 @@ assertIncludes(
 );
 
 const changelog = readText("CHANGELOG.md");
-assertIncludes(
-  changelog,
-  "DID surface-change discipline",
-  "CHANGELOG.md",
-);
+assertIncludes(changelog, "DID surface-change discipline", "CHANGELOG.md");
 
 const contributing = readText("CONTRIBUTING.md");
 assertIncludes(
@@ -127,7 +142,9 @@ assertIncludes(
   "CONTRIBUTING.md",
 );
 
-const prTemplate = readText(".github/PULL_REQUEST_TEMPLATE/pull_request_template.md");
+const prTemplate = readText(
+  ".github/PULL_REQUEST_TEMPLATE/pull_request_template.md",
+);
 const targetBranchMatch = prTemplate.match(/Target branch:\s*`([^`]+)`/);
 assert(targetBranchMatch, "PR template must declare a target branch");
 assert(
@@ -213,13 +230,19 @@ for (const workspace of libraryWorkspaces) {
   const packageJson = readJson(`${workspace}/package.json`);
   const packageLabel = `${workspace}/package.json`;
 
-  assert(packageJson.main === "dist/index.js", `${packageLabel} main must point to dist/index.js`);
-  assert(packageJson.types === "./dist/index.d.ts", `${packageLabel} types must point to dist/index.d.ts`);
-  assertExportMap(
-    packageJson.exports?.["."],
-    `${packageLabel} root export`,
-    ["types", "import", "default"],
+  assert(
+    packageJson.main === "dist/index.js",
+    `${packageLabel} main must point to dist/index.js`,
   );
+  assert(
+    packageJson.types === "./dist/index.d.ts",
+    `${packageLabel} types must point to dist/index.d.ts`,
+  );
+  assertExportMap(packageJson.exports?.["."], `${packageLabel} root export`, [
+    "types",
+    "import",
+    "default",
+  ]);
 
   for (const fileEntry of requiredPackageFiles) {
     assertArrayIncludes(packageJson.files, fileEntry, `${packageLabel} files`);
@@ -263,7 +286,21 @@ assertArrayIncludes(
   "examples/**",
   "packages/api/package.json files",
 );
-assertIncludes(readText("run-api.sh"), "npm run typecheck:examples -w ./packages/api", "run-api.sh");
+assertIncludes(
+  readText("run-api.sh"),
+  "npm run typecheck:examples -w ./packages/api",
+  "run-api.sh",
+);
+assertIncludes(
+  readText("run-api.sh"),
+  "npm run build:api-prereqs",
+  "run-api.sh",
+);
+assertNotIncludes(
+  readText("run-api.sh"),
+  "build:service-prereqs",
+  "run-api.sh",
+);
 
 if (failures.length > 0) {
   console.error("DID surface discipline check failed:");
