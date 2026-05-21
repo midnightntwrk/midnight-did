@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -160,20 +161,82 @@ assert.deepEqual(
 
 rmSync(metricsDir, { recursive: true, force: true });
 
-const logsDir = path.join(repoRoot, "logs");
-const createdLogsRoot = !existsSync(logsDir);
-
-mkdirSync(logsDir, { recursive: true });
-const cleanupProbeDir = mkdtempSync(
-  path.join(logsDir, "run-target-catalog-probe-"),
+const cleanArtifactsFixtureDir = mkdtempSync(
+  path.join(tmpdir(), "midnight-did-clean-fixture-"),
 );
 
 try {
+  mkdirSync(path.join(cleanArtifactsFixtureDir, "logs"), { recursive: true });
+  mkdirSync(path.join(cleanArtifactsFixtureDir, ".midnight-test", "probe"), {
+    recursive: true,
+  });
+  mkdirSync(path.join(cleanArtifactsFixtureDir, ".midnight-db", "probe"), {
+    recursive: true,
+  });
+  mkdirSync(path.join(cleanArtifactsFixtureDir, "midnight-level-db", "probe"), {
+    recursive: true,
+  });
+  mkdirSync(
+    path.join(cleanArtifactsFixtureDir, "contract", "src", "managed"),
+    { recursive: true },
+  );
+  mkdirSync(
+    path.join(cleanArtifactsFixtureDir, "domain", "node_modules", "cache"),
+    { recursive: true },
+  );
+  mkdirSync(path.join(cleanArtifactsFixtureDir, "cli"), { recursive: true });
+  mkdirSync(path.join(cleanArtifactsFixtureDir, "api", "dist"), {
+    recursive: true,
+  });
+  writeFileSync(
+    path.join(cleanArtifactsFixtureDir, "cli", "not-generated.txt"),
+    "not generated\n",
+  );
+  writeFileSync(
+    path.join(cleanArtifactsFixtureDir, "api", "tracked.txt"),
+    "tracked content\n",
+  );
+  writeFileSync(
+    path.join(cleanArtifactsFixtureDir, "api", "dist", "generated.txt"),
+    "generated content\n",
+  );
+  writeFileSync(
+    path.join(
+      cleanArtifactsFixtureDir,
+      "domain",
+      "node_modules",
+      "cache",
+      "generated.js",
+    ),
+    "generated content\n",
+  );
+
+  assert.equal(
+    spawnSync("git", ["init", "-q", "-b", "main"], {
+      cwd: cleanArtifactsFixtureDir,
+      encoding: "utf8",
+    }).status,
+    0,
+    "clean-artifacts fixture git init should exit successfully",
+  );
+  assert.equal(
+    spawnSync("git", ["add", "api/tracked.txt"], {
+      cwd: cleanArtifactsFixtureDir,
+      encoding: "utf8",
+    }).status,
+    0,
+    "clean-artifacts fixture git add should exit successfully",
+  );
+
   const cleanArtifactsDryRun = spawnSync(
     "node",
-    ["./scripts/clean-artifacts.mjs", "--dry-run", "--json"],
+    [
+      path.join(repoRoot, "scripts", "clean-artifacts.mjs"),
+      "--dry-run",
+      "--json",
+    ],
     {
-      cwd: repoRoot,
+      cwd: cleanArtifactsFixtureDir,
       encoding: "utf8",
     },
   );
@@ -194,16 +257,53 @@ try {
     "clean-artifacts dry-run JSON should include root logs cleanup coverage",
   );
   assert.ok(
+    cleanArtifactsReport.removed.includes(".midnight-test"),
+    "clean-artifacts dry-run JSON should include local midnight test-state cleanup coverage",
+  );
+  assert.ok(
+    cleanArtifactsReport.removed.includes(".midnight-db"),
+    "clean-artifacts dry-run JSON should include local midnight database cleanup coverage",
+  );
+  assert.ok(
+    cleanArtifactsReport.removed.includes("midnight-level-db"),
+    "clean-artifacts dry-run JSON should include local midnight level database cleanup coverage",
+  );
+  assert.ok(
+    cleanArtifactsReport.removed.includes("contract"),
+    "clean-artifacts dry-run JSON should include historical package shell cleanup coverage",
+  );
+  assert.ok(
+    cleanArtifactsReport.removed.includes("domain"),
+    "clean-artifacts dry-run JSON should include node_modules-only historical shell cleanup coverage",
+  );
+  assert.ok(
+    cleanArtifactsReport.skippedNonDisposableShells.includes("cli"),
+    "clean-artifacts dry-run JSON should preserve non-disposable historical shell candidates",
+  );
+  assert.ok(
+    cleanArtifactsReport.skippedTracked.includes("api"),
+    "clean-artifacts dry-run JSON should preserve tracked historical package shell candidates",
+  );
+  assert.ok(
+    !cleanArtifactsReport.removed.some((relativePath) =>
+      relativePath.startsWith("cli/"),
+    ),
+    "clean-artifacts dry-run JSON should preserve all contents of non-disposable historical shells",
+  );
+  assert.ok(
+    !cleanArtifactsReport.removed.some((relativePath) =>
+      relativePath.startsWith("api/"),
+    ),
+    "clean-artifacts dry-run JSON should preserve all contents of tracked historical shells",
+  );
+  assert.ok(
     !cleanArtifactsReport.skippedTracked.some((relativePath) =>
       relativePath.startsWith("logs"),
     ),
     "clean-artifacts dry-run JSON should not skip the generated log probe",
   );
 } finally {
-  rmSync(cleanupProbeDir, { recursive: true, force: true });
-  if (createdLogsRoot) {
-    rmSync(logsDir, { recursive: true, force: true });
-  }
+  rmSync(cleanArtifactsFixtureDir, { recursive: true, force: true });
 }
 
 for (const laneTarget of laneTargets) {
