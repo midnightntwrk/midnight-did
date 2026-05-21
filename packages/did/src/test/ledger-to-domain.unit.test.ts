@@ -26,7 +26,11 @@ vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
 
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 
-import { LedgerToDomain, MidnightNetwork, parseContractAddress } from "..";
+import {
+  LedgerToDomain,
+  MidnightNetwork,
+  parseContractAddress,
+} from "../index.js";
 
 function makeIterablePairs<K, V>(entries: Array<[K, V]>) {
   return {
