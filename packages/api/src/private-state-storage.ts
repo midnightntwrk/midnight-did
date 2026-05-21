@@ -10,6 +10,8 @@ import {
   type MidnightDIDWalletContext,
 } from "./types.js";
 
+// Kept from the original SDK wiring: the level provider expects a password
+// shape with at least one non-hex suffix character.
 const PRIVATE_STORAGE_PASSWORD_SUFFIX = "!A";
 
 export type DIDPrivateStateProviderOptions = {
@@ -23,7 +25,7 @@ export const derivePrivateStoragePassword = (secretKey: Uint8Array): string =>
   `${toHex(Buffer.from(secretKey))}${PRIVATE_STORAGE_PASSWORD_SUFFIX}`;
 
 export const createPrivateStateProviderOptions = (
-  ctx: MidnightDIDWalletContext,
+  ctx: Pick<MidnightDIDWalletContext, "unshieldedKeystore">,
   config: Pick<Config, "midnightDbName">,
   accountId: string,
 ): DIDPrivateStateProviderOptions => {
@@ -40,7 +42,7 @@ export const createPrivateStateProviderOptions = (
 };
 
 export const createDIDPrivateStateProvider = (
-  ctx: MidnightDIDWalletContext,
+  ctx: Pick<MidnightDIDWalletContext, "unshieldedKeystore">,
   config: Pick<Config, "midnightDbName">,
   accountId: string,
 ): MidnightDIDProviders["privateStateProvider"] =>
