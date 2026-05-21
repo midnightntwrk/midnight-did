@@ -104,6 +104,9 @@ Runner notes:
   pre-`packages/` layouts; tracked or non-disposable shell contents are reported
   and preserved as whole directories until a human confirms they are safe to
   delete.
+- Inspect cleanup candidates without deleting anything with
+  `node scripts/clean-artifacts.mjs --dry-run --json`; unknown cleaner flags
+  fail before any filesystem changes.
 
 Metrics example:
 
