@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { BigIntReplacer, createLogger } from "../logger-utils";
+import { BigIntReplacer, createLogger } from "../logger-utils.js";
 
 const readFileEventually = async (
   filePath: string,

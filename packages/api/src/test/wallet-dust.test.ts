@@ -1,11 +1,11 @@
 import * as Rx from "rxjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { setLogger } from "../api-logger";
+import { setLogger } from "../api-logger.js";
 import {
   filterUnregisteredNightUtxos,
   registerForDustGeneration,
-} from "../wallet-dust";
+} from "../wallet-dust.js";
 
 const syncedState = ({
   dustAvailable = [],

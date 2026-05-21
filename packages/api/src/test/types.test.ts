@@ -1,7 +1,7 @@
 import { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
 import { describe, expect, it } from "vitest";
 
-import { MidnightDIDPrivateStateId, NetworkMapping } from "../types";
+import { MidnightDIDPrivateStateId, NetworkMapping } from "../types.js";
 
 describe("types", () => {
   it("exposes expected private state id", () => {
