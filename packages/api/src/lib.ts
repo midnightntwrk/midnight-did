@@ -8,7 +8,11 @@ export {
   initPrivateState,
   joinContract,
   midnightDIDContractInstance,
-} from "./contract-lifecycle.js";
+} from "./deploy.js";
+export {
+  configureProviders,
+  createWalletAndMidnightProvider,
+} from "./providers.js";
 export {
   addAlsoKnownAs,
   addService,
@@ -23,13 +27,11 @@ export {
   resolve,
   updateService,
   updateVerificationMethod,
-} from "./did-operations.js";
+} from "./update.js";
 export {
   buildFreshWallet,
   buildWallet,
   buildWalletAndWaitForFunds,
-  configureProviders,
-  createWalletAndMidnightProvider,
   deriveUnshieldedAddressFromSeed,
   getWalletBalances,
   registerForDustGeneration,
