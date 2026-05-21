@@ -15,8 +15,8 @@ import {
   createDIDPrivateStateProvider,
   createPrivateStateProviderOptions,
   derivePrivateStoragePassword,
-} from "../private-state-storage";
-import { type MidnightDIDWalletContext } from "../types";
+} from "../private-state-storage.js";
+import { type MidnightDIDWalletContext } from "../types.js";
 
 const makeWalletContext = (
   secretKey: Uint8Array,
