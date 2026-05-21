@@ -2,17 +2,15 @@ import "./polyfills.js";
 
 import { httpClientProofProvider } from "@midnight-ntwrk/midnight-js-http-client-proof-provider";
 import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-public-data-provider";
-import { levelPrivateStateProvider } from "@midnight-ntwrk/midnight-js-level-private-state-provider";
 import { NodeZkConfigProvider } from "@midnight-ntwrk/midnight-js-node-zk-config-provider";
 import {
   type MidnightProvider,
   type WalletProvider,
 } from "@midnight-ntwrk/midnight-js-types";
-import { toHex } from "@midnight-ntwrk/midnight-js-utils";
-import { Buffer } from "buffer";
 import * as Rx from "rxjs";
 
 import { type Config, contractConfig } from "./config.js";
+import { createDIDPrivateStateProvider } from "./private-state-storage.js";
 import { signTransactionIntents } from "./transaction-intents.js";
 import {
   type MidnightDIDCircuits,
@@ -71,17 +69,9 @@ export const configureProviders = async (
     contractConfig.zkConfigPath,
   );
   const accountId = walletAndMidnightProvider.getCoinPublicKey();
-  const storagePassword = `${toHex(
-    Buffer.from(ctx.unshieldedKeystore.getSecretKey()),
-  )}!A`;
 
   return {
-    privateStateProvider: levelPrivateStateProvider({
-      midnightDbName: config.midnightDbName,
-      privateStateStoreName: contractConfig.privateStateStoreName,
-      accountId,
-      privateStoragePasswordProvider: () => storagePassword,
-    }),
+    privateStateProvider: createDIDPrivateStateProvider(ctx, config, accountId),
     publicDataProvider: indexerPublicDataProvider(
       config.indexer,
       config.indexerWS,
