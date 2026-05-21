@@ -24,7 +24,7 @@ export const deriveMidnightWalletKeys = (seed: string) => {
   return derivationResult.keys;
 };
 
-type MidnightWalletKeys = ReturnType<typeof deriveMidnightWalletKeys>;
+export type MidnightWalletKeys = ReturnType<typeof deriveMidnightWalletKeys>;
 
 export const createUnshieldedKeystoreFromKeys = (
   keys: MidnightWalletKeys,
@@ -32,10 +32,7 @@ export const createUnshieldedKeystoreFromKeys = (
   return createKeystore(keys[Roles.NightExternal], getNetworkId());
 };
 
-export const createUnshieldedKeystoreFromSeed = (
-  seed: string,
-): UnshieldedKeystore =>
-  createUnshieldedKeystoreFromKeys(deriveMidnightWalletKeys(seed));
-
 export const deriveUnshieldedAddressFromSeed = (seed: string): string =>
-  createUnshieldedKeystoreFromSeed(seed).getBech32Address().toString();
+  createUnshieldedKeystoreFromKeys(deriveMidnightWalletKeys(seed))
+    .getBech32Address()
+    .toString();
