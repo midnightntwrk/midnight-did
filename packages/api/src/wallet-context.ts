@@ -47,36 +47,38 @@ export const createWalletContext = async (
           snapshot.unshieldedHistory,
         )
       : new InMemoryTransactionHistoryStorage();
+  const shieldedConfig = buildShieldedConfig(config);
+  const unshieldedConfig = buildUnshieldedConfig(
+    config,
+    unshieldedHistoryStorage,
+  );
+  const dustConfig = buildDustConfig(config);
 
   const shieldedWallet =
     snapshot?.shieldedState !== undefined
-      ? ShieldedWallet(buildShieldedConfig(config)).restore(
-          snapshot.shieldedState,
-        )
-      : ShieldedWallet(buildShieldedConfig(config)).startWithSecretKeys(
+      ? ShieldedWallet(shieldedConfig).restore(snapshot.shieldedState)
+      : ShieldedWallet(shieldedConfig).startWithSecretKeys(
           shieldedSecretKeys as any,
         );
   const unshieldedWallet =
     snapshot?.unshieldedState !== undefined
-      ? UnshieldedWallet(
-          buildUnshieldedConfig(config, unshieldedHistoryStorage),
-        ).restore(snapshot.unshieldedState)
-      : UnshieldedWallet(
-          buildUnshieldedConfig(config, unshieldedHistoryStorage),
-        ).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore));
+      ? UnshieldedWallet(unshieldedConfig).restore(snapshot.unshieldedState)
+      : UnshieldedWallet(unshieldedConfig).startWithPublicKey(
+          PublicKey.fromKeyStore(unshieldedKeystore),
+        );
   const dustWallet =
     snapshot?.dustState !== undefined
-      ? DustWallet(buildDustConfig(config)).restore(snapshot.dustState)
-      : DustWallet(buildDustConfig(config)).startWithSecretKey(
+      ? DustWallet(dustConfig).restore(snapshot.dustState)
+      : DustWallet(dustConfig).startWithSecretKey(
           dustSecretKey as any,
           ledger.LedgerParameters.initialParameters().dust,
         );
 
   const wallet = await WalletFacade.init({
     configuration: {
-      ...buildShieldedConfig(config),
-      ...buildUnshieldedConfig(config, unshieldedHistoryStorage),
-      ...buildDustConfig(config),
+      ...shieldedConfig,
+      ...unshieldedConfig,
+      ...dustConfig,
     },
     shielded: async () => shieldedWallet,
     unshielded: async () => unshieldedWallet,
