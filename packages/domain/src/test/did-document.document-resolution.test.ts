@@ -6,7 +6,7 @@ import {
   createVerificationMethod,
   parseDIDResolutionResult,
   parseDIDURL,
-} from "../did-document";
+} from "../did-document.js";
 import {
   exampleDid,
   exampleEcJsonWebKey,
@@ -18,7 +18,7 @@ import {
   exampleServiceObjectInput,
   exampleServiceSet,
   exampleVerificationMethodInput,
-} from "./fixtures/did";
+} from "./fixtures/did.js";
 
 describe("DID document construction", () => {
   it("creates and validates a Service", () => {

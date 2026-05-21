@@ -13,7 +13,7 @@ import {
   parseVerificationMethodRelation,
   parseVerificationMethodType,
   VerificationMethodType,
-} from "../did-document";
+} from "../did-document.js";
 import {
   exampleDid,
   exampleDidUrl,
@@ -23,7 +23,7 @@ import {
   exampleServiceObjectInput,
   exampleVerificationMethodInput,
   invalidDidStrings,
-} from "./fixtures/did";
+} from "./fixtures/did.js";
 
 describe("DID parsing utilities", () => {
   it("parses valid DID", () => {

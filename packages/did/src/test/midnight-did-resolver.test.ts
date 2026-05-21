@@ -23,7 +23,7 @@ vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
 
 import { parseMidnightDIDString } from "@midnight-ntwrk/midnight-did-domain";
 
-import { MidnightDIDResolver, MidnightNetwork } from "..";
+import { MidnightDIDResolver, MidnightNetwork } from "../index.js";
 
 function makeIterablePairs<K, V>(entries: Array<[K, V]>) {
   return {
