@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Align `npm run ci`, README guidance, and the PR template around
   `./run.sh --light --strict` as the local PR validation contract.
+- Make `scripts/clean-artifacts.mjs` self-documenting and fail safely when an
+  unknown cleanup flag is provided.
 - Include explicit package `files` manifests for the `domain` and `did`
   library packages so local tarballs expose the intended runtime surface only.
 
