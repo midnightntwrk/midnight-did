@@ -192,6 +192,26 @@ assert.ok(
   "clean-artifacts help should document --json",
 );
 
+const cleanArtifactsShortHelp = spawnSync(
+  "node",
+  [cleanArtifactsScript, "-h"],
+  {
+    cwd: repoRoot,
+    encoding: "utf8",
+  },
+);
+assert.equal(
+  cleanArtifactsShortHelp.status,
+  0,
+  "clean-artifacts short help should exit successfully",
+);
+assert.ok(
+  cleanArtifactsShortHelp.stdout.includes(
+    "Usage: node scripts/clean-artifacts.mjs",
+  ),
+  "clean-artifacts short help should print usage",
+);
+
 const cleanArtifactsUnknownArg = spawnSync(
   "node",
   [cleanArtifactsScript, "--dryrun"],

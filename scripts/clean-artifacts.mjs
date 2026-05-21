@@ -19,8 +19,9 @@ const rawArgs = process.argv.slice(2);
 const unknownArgs = rawArgs.filter((arg) => !allowedArgs.has(arg));
 
 if (unknownArgs.length > 0) {
+  const argumentLabel = unknownArgs.length === 1 ? "argument" : "arguments";
   console.error(
-    `Unknown clean-artifacts argument: ${unknownArgs.join(", ")}`,
+    `Unknown clean-artifacts ${argumentLabel}: ${unknownArgs.join(", ")}`,
   );
   console.error("Run `node scripts/clean-artifacts.mjs --help` for usage.");
   process.exit(1);
