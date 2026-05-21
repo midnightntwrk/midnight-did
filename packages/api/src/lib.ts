@@ -32,7 +32,6 @@ export {
   buildFreshWallet,
   buildWallet,
   buildWalletAndWaitForFunds,
-  deriveUnshieldedAddressFromSeed,
   getWalletBalances,
   registerForDustGeneration,
   restoreWalletFromState,
@@ -40,3 +39,4 @@ export {
   waitForWalletFunds,
   waitForWalletSync,
 } from "./wallet.js";
+export { deriveUnshieldedAddressFromSeed } from "./wallet-keys.js";

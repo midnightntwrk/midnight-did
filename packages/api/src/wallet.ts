@@ -2,96 +2,40 @@ import "./polyfills.js";
 
 import * as ledger from "@midnight-ntwrk/ledger-v8";
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
-import { getNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import { toHex } from "@midnight-ntwrk/midnight-js-utils";
 import { DustWallet } from "@midnight-ntwrk/wallet-sdk-dust-wallet";
 import {
   type FacadeState,
   WalletFacade,
 } from "@midnight-ntwrk/wallet-sdk-facade";
-import { HDWallet, Roles } from "@midnight-ntwrk/wallet-sdk-hd";
+import { Roles } from "@midnight-ntwrk/wallet-sdk-hd";
 import { ShieldedWallet } from "@midnight-ntwrk/wallet-sdk-shielded";
 import {
-  createKeystore,
   InMemoryTransactionHistoryStorage,
   PublicKey,
   type UnshieldedKeystore,
   UnshieldedWallet,
 } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
-import { Buffer } from "buffer";
 import * as Rx from "rxjs";
 
 import { getLogger } from "./api-logger.js";
 import { type Config } from "./config.js";
 import { randomBytes } from "./lightweight.js";
-import { parseSeed } from "./seed.js";
 import {
   type MidnightDIDWalletContext,
   type MidnightWalletBalances,
   type MidnightWalletFacadeState,
   type MidnightWalletStateSnapshot,
 } from "./types.js";
-
-const deriveKeysFromSeed = (seed: string) => {
-  const hdWallet = HDWallet.fromSeed(Buffer.from(parseSeed(seed), "hex"));
-  if (hdWallet.type !== "seedOk") {
-    throw new Error("Failed to initialize HDWallet from seed");
-  }
-  const derivationResult = hdWallet.hdWallet
-    .selectAccount(0)
-    .selectRoles([Roles.Zswap, Roles.NightExternal, Roles.Dust])
-    .deriveKeysAt(0);
-  if (derivationResult.type !== "keysDerived") {
-    throw new Error("Failed to derive keys");
-  }
-  hdWallet.hdWallet.clear();
-  return derivationResult.keys;
-};
-
-export const deriveUnshieldedAddressFromSeed = (seed: string): string => {
-  const keys = deriveKeysFromSeed(seed);
-  return createKeystore(keys[Roles.NightExternal], getNetworkId())
-    .getBech32Address()
-    .toString();
-};
-
-// Build wallet configurations
-const buildShieldedConfig = ({
-  indexer,
-  indexerWS,
-  node,
-  proofServer,
-}: Config) => ({
-  networkId: getNetworkId(),
-  indexerClientConnection: { indexerHttpUrl: indexer, indexerWsUrl: indexerWS },
-  provingServerUrl: new URL(proofServer),
-  relayURL: new URL(node.replace(/^http/, "ws")),
-});
-
-const buildUnshieldedConfig = (
-  { indexer, indexerWS }: Config,
-  txHistoryStorage: InMemoryTransactionHistoryStorage,
-) => ({
-  networkId: getNetworkId(),
-  indexerClientConnection: { indexerHttpUrl: indexer, indexerWsUrl: indexerWS },
-  txHistoryStorage,
-});
-
-const buildDustConfig = ({
-  indexer,
-  indexerWS,
-  node,
-  proofServer,
-}: Config) => ({
-  networkId: getNetworkId(),
-  costParameters: {
-    additionalFeeOverhead: 300_000_000_000_000n,
-    feeBlocksMargin: 5,
-  },
-  indexerClientConnection: { indexerHttpUrl: indexer, indexerWsUrl: indexerWS },
-  provingServerUrl: new URL(proofServer),
-  relayURL: new URL(node.replace(/^http/, "ws")),
-});
+import {
+  createUnshieldedKeystoreFromKeys,
+  deriveMidnightWalletKeys,
+} from "./wallet-keys.js";
+import {
+  buildDustConfig,
+  buildShieldedConfig,
+  buildUnshieldedConfig,
+} from "./wallet-sdk-config.js";
 
 const createWalletContext = async (
   config: Config,
@@ -104,13 +48,10 @@ const createWalletContext = async (
       : "Building wallet from seed",
   );
 
-  const keys = deriveKeysFromSeed(seed);
+  const keys = deriveMidnightWalletKeys(seed);
   const shieldedSecretKeys = ledger.ZswapSecretKeys.fromSeed(keys[Roles.Zswap]);
   const dustSecretKey = ledger.DustSecretKey.fromSeed(keys[Roles.Dust]);
-  const unshieldedKeystore = createKeystore(
-    keys[Roles.NightExternal],
-    getNetworkId(),
-  );
+  const unshieldedKeystore = createUnshieldedKeystoreFromKeys(keys);
 
   const unshieldedHistoryStorage =
     snapshot?.unshieldedHistory !== undefined
