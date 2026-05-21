@@ -83,6 +83,16 @@ assertIncludes(
   "npm run check:did-surface-discipline",
   "ci:core",
 );
+assert(
+  rootPackage.scripts?.["check:managed-artifacts"] ===
+    "node scripts/managed-artifact-catalog.mjs --check",
+  "package.json must expose check:managed-artifacts",
+);
+assertIncludes(
+  rootPackage.scripts?.["ci:core"] ?? "",
+  "npm run check:managed-artifacts",
+  "ci:core",
+);
 
 for (const workspace of [...libraryWorkspaces, ...serviceWorkspaces, "docs-site"]) {
   assertArrayIncludes(rootWorkspaces, workspace, "root package workspaces");
@@ -241,6 +251,19 @@ assertArrayIncludes(
   "scripts/*.mjs",
   "packages/contract/package.json files",
 );
+
+const apiPackage = readJson("packages/api/package.json");
+assert(
+  apiPackage.scripts?.["typecheck:examples"] ===
+    "tsc -p tsconfig.examples.json --noEmit",
+  "packages/api/package.json must expose typecheck:examples",
+);
+assertArrayIncludes(
+  apiPackage.files,
+  "examples/**",
+  "packages/api/package.json files",
+);
+assertIncludes(readText("run-api.sh"), "npm run typecheck:examples -w ./packages/api", "run-api.sh");
 
 if (failures.length > 0) {
   console.error("DID surface discipline check failed:");

@@ -185,6 +185,7 @@ npm run test:all
 npm run ci:core
 npm run check:did-surface-discipline
 npm run check:run-target-catalog
+npm run check:managed-artifacts
 npm run clean:artifacts
 npm run report:integration
 npm run check:integration
@@ -202,6 +203,7 @@ npm run build -w ./packages/did
 npm run test:ci -w ./packages/did
 npm run build -w ./packages/api
 npm run test:ci -w ./packages/api
+npm run typecheck:examples -w ./packages/api
 ```
 
 ## Services and Manual Testing

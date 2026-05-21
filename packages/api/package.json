@@ -23,12 +23,13 @@
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc -b tsconfig.build.json --force",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:examples": "tsc -p tsconfig.examples.json --noEmit",
     "test": "vitest run -c vitest.unit.config.ts --pool=threads --passWithNoTests",
     "test:ci": "vitest run -c vitest.unit.config.ts --pool=threads --passWithNoTests",
     "test-api": "vitest run -c vitest.api.config.ts --pool=threads",
     "coverage": "vitest run -c vitest.unit.config.ts --coverage",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix",
+    "lint": "eslint src examples",
+    "lint:fix": "eslint src examples --fix",
     "prepack": "npm run build"
   },
   "dependencies": {
