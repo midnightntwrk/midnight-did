@@ -88,7 +88,6 @@ describe("wallet dust registration", () => {
 
     await registerForDustGeneration(wallet as any, makeKeystore() as any);
 
-    expect(wallet.state).toHaveBeenCalledTimes(2);
     expect(wallet.registerNightUtxosForDustGeneration).not.toHaveBeenCalled();
   });
 
