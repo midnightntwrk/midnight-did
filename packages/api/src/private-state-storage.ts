@@ -1,6 +1,8 @@
-import { levelPrivateStateProvider } from "@midnight-ntwrk/midnight-js-level-private-state-provider";
+import {
+  levelPrivateStateProvider,
+  type LevelPrivateStateProviderConfig,
+} from "@midnight-ntwrk/midnight-js-level-private-state-provider";
 import { toHex } from "@midnight-ntwrk/midnight-js-utils";
-import { Buffer } from "buffer";
 
 import { type Config, contractConfig } from "./config.js";
 import {
@@ -14,15 +16,14 @@ import {
 // shape with at least one non-hex suffix character.
 const PRIVATE_STORAGE_PASSWORD_SUFFIX = "!A";
 
-type DIDPrivateStateProviderOptions = {
-  midnightDbName?: string;
-  privateStateStoreName: string;
-  accountId: string;
-  privateStoragePasswordProvider: () => string;
-};
+type DIDPrivateStateProviderOptions = Partial<LevelPrivateStateProviderConfig> &
+  Pick<
+    LevelPrivateStateProviderConfig,
+    "accountId" | "privateStoragePasswordProvider"
+  >;
 
 export const derivePrivateStoragePassword = (secretKey: Uint8Array): string =>
-  `${toHex(Buffer.from(secretKey))}${PRIVATE_STORAGE_PASSWORD_SUFFIX}`;
+  `${toHex(secretKey)}${PRIVATE_STORAGE_PASSWORD_SUFFIX}`;
 
 export const createPrivateStateProviderOptions = (
   ctx: Pick<MidnightDIDWalletContext, "unshieldedKeystore">,
