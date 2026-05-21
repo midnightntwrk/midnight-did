@@ -138,6 +138,7 @@ so runnable docs do not silently drift from the published API surface.
 The workspace manifest guard keeps package distribution metadata aligned:
 
 ```bash
+npm run test:workspace-manifests
 npm run check:workspace-manifests
 ```
 
