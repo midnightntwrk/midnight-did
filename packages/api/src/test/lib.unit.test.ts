@@ -2,14 +2,14 @@ import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import * as Rx from "rxjs";
 import { describe, expect, it } from "vitest";
 
-import { getWalletBalances } from "../lib";
+import { getWalletBalances } from "../lib.js";
 import {
   hashProverKey,
   randomBytes,
   setLightweightLogger,
   waitForFunds,
   waitForSync,
-} from "../lightweight";
+} from "../lightweight.js";
 
 const logger = {
   info: () => undefined,

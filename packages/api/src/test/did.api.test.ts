@@ -20,14 +20,14 @@ import {
 import path from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import * as api from "..";
+import { currentDir } from "../config.js";
+import * as api from "../index.js";
 import {
   type DeployedMidnightDIDContract,
   type MidnightDIDProviders,
-} from "..";
-import { currentDir } from "../config";
-import { createLogger } from "../logger-utils";
-import { TestEnvironment } from "./commons";
+} from "../index.js";
+import { createLogger } from "../logger-utils.js";
+import { TestEnvironment } from "./commons.js";
 
 const logDir = path.resolve(
   currentDir,

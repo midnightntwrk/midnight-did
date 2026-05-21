@@ -32,6 +32,7 @@
     "check:integration": "node scripts/report-integration.mjs --check",
     "artifacts:status": "node scripts/managed-artifact-catalog.mjs --json",
     "check:managed-artifacts": "node scripts/managed-artifact-catalog.mjs --check",
+    "check:api-source-imports": "node scripts/check-api-source-imports.mjs",
     "test:run-sh": "node scripts/run-sh-contract.test.mjs",
     "check:run-target-catalog": "node scripts/check-run-target-catalog.mjs",
     "check:did-surface-discipline": "node scripts/check-did-surface-discipline.mjs"

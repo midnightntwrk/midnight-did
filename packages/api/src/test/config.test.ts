@@ -11,7 +11,7 @@ import {
   StandaloneConfig,
   TestnetLocalConfig,
   TestnetRemoteConfig,
-} from "../config";
+} from "../config.js";
 
 describe("config", () => {
   it("resolves workspace directories", () => {
