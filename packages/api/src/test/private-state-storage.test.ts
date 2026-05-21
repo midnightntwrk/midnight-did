@@ -16,6 +16,15 @@ import {
   createPrivateStateProviderOptions,
   derivePrivateStoragePassword,
 } from "../private-state-storage";
+import { type MidnightDIDWalletContext } from "../types";
+
+const makeWalletContext = (
+  secretKey: Uint8Array,
+): Pick<MidnightDIDWalletContext, "unshieldedKeystore"> => ({
+  unshieldedKeystore: {
+    getSecretKey: vi.fn(() => secretKey),
+  } as unknown as MidnightDIDWalletContext["unshieldedKeystore"],
+});
 
 describe("private-state storage wiring", () => {
   it("derives the level private-state password from the wallet secret key", () => {
@@ -25,11 +34,7 @@ describe("private-state storage wiring", () => {
   });
 
   it("builds deterministic private-state provider options", () => {
-    const ctx = {
-      unshieldedKeystore: {
-        getSecretKey: vi.fn(() => new Uint8Array([1, 2, 3])),
-      },
-    } as any;
+    const ctx = makeWalletContext(new Uint8Array([1, 2, 3]));
 
     const options = createPrivateStateProviderOptions(
       ctx,
@@ -47,11 +52,7 @@ describe("private-state storage wiring", () => {
   });
 
   it("creates the runtime provider through the isolated options builder", () => {
-    const ctx = {
-      unshieldedKeystore: {
-        getSecretKey: vi.fn(() => new Uint8Array([4, 5, 6])),
-      },
-    } as any;
+    const ctx = makeWalletContext(new Uint8Array([4, 5, 6]));
 
     const provider = createDIDPrivateStateProvider(
       ctx,
