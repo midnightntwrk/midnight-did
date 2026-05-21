@@ -92,6 +92,9 @@ const newestInputMtimeMs = (inputs) => {
   return newest;
 };
 
+const missingInputsFor = (inputs) =>
+  inputs.filter((input) => !existsSync(path.join(repoRoot, input)));
+
 export const explainProfile = (profileName) => {
   const profile = artifactProfiles[profileName];
   if (!profile) {
@@ -100,15 +103,27 @@ export const explainProfile = (profileName) => {
       ready: false,
       missing: [],
       stale: [],
+      missingInputs: [],
       outputs: [],
     };
   }
 
   const missing = [];
+  const missingInputs = [];
   const stale = [];
 
   for (const artifact of profile.outputs) {
     const absolutePath = path.join(repoRoot, artifact.path);
+    const missingArtifactInputs = missingInputsFor(artifact.inputs);
+    if (missingArtifactInputs.length > 0) {
+      missingInputs.push(
+        ...missingArtifactInputs.map(
+          (input) => `${artifact.path} depends on missing input ${input}`,
+        ),
+      );
+      continue;
+    }
+
     if (!existsSync(absolutePath)) {
       missing.push(artifact.path);
       continue;
@@ -122,9 +137,13 @@ export const explainProfile = (profileName) => {
 
   return {
     known: true,
-    ready: missing.length === 0 && stale.length === 0,
+    ready:
+      missing.length === 0 &&
+      missingInputs.length === 0 &&
+      stale.length === 0,
     buildCommand: profile.buildCommand,
     missing,
+    missingInputs,
     stale,
     outputs: profile.outputs.map((artifact) => artifact.path),
   };
@@ -236,6 +255,9 @@ if (isDirectExecution) {
         for (const [profileName, report] of Object.entries(reports)) {
           for (const missing of report.missing) {
             errors.push(`${profileName} missing generated artifact: ${missing}`);
+          }
+          for (const missingInput of report.missingInputs) {
+            errors.push(`${profileName} ${missingInput}`);
           }
           for (const stale of report.stale) {
             errors.push(`${profileName} stale generated artifact: ${stale}`);
