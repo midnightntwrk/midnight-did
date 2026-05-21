@@ -19,6 +19,7 @@ import {
   type MidnightDIDWalletContext,
 } from "./types.js";
 
+// Manual transaction intent signing works around an upstream SDK signing gap.
 const signTransactionIntents = (
   tx: { intents?: Map<number, { serialize: () => Uint8Array }> },
   signFn: (payload: Uint8Array) => ledger.Signature,
