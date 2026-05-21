@@ -196,7 +196,7 @@ writeFileSync(
 );
 
 assert.equal(
-  spawnSync("git", ["init", "-q"], {
+  spawnSync("git", ["init", "-q", "-b", "main"], {
     cwd: cleanArtifactsFixtureDir,
     encoding: "utf8",
   }).status,
@@ -264,6 +264,18 @@ try {
   assert.ok(
     cleanArtifactsReport.skippedTracked.includes("api"),
     "clean-artifacts dry-run JSON should preserve tracked historical package shell candidates",
+  );
+  assert.ok(
+    !cleanArtifactsReport.removed.some((relativePath) =>
+      relativePath.startsWith("cli/"),
+    ),
+    "clean-artifacts dry-run JSON should preserve all contents of non-disposable historical shells",
+  );
+  assert.ok(
+    !cleanArtifactsReport.removed.some((relativePath) =>
+      relativePath.startsWith("api/"),
+    ),
+    "clean-artifacts dry-run JSON should preserve all contents of tracked historical shells",
   );
   assert.ok(
     !cleanArtifactsReport.skippedTracked.some((relativePath) =>

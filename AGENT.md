@@ -95,6 +95,8 @@ Generated outputs:
 - `src/managed/**`
 - `dist/**`
 - `*.tsbuildinfo`
+- local runtime/test state such as `.midnight-db/`, `.midnight-test/`, and
+  `midnight-level-db/`
 - disposable historical top-level package/service shells created before the
   `packages/` layout
 
