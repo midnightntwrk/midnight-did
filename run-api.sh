@@ -9,7 +9,7 @@ run_common_ensure_runtime_helpers
 run_common_ensure_contract_artifacts "api"
 
 echo "[api] Build dependencies"
-npm run build:service-prereqs
+npm run build:api-prereqs
 
 echo "[api] Build API"
 npm run build -w ./packages/api

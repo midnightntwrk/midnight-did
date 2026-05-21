@@ -54,3 +54,7 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
 5. Tighten `docs-site` links so moved service pages are referenced only as external repository pointers.
 6. Keep `upgrade-libs.sh` aligned with the packages packed by `scripts/pack-artifacts.sh`.
 7. Continue reducing stale historical docs when they no longer help explain DID method evolution.
+   - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era
+     `build:service-prereqs` root script to `build:api-prereqs` and extends the
+     surface-discipline guard so API runner/build docs stay aligned with the
+     repository's DID-core-only scope.
