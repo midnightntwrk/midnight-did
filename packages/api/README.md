@@ -58,6 +58,7 @@ sequenceDiagram
 ## State Model
 
 API enforces lifecycle rules around:
+
 - active DID: allows updates
 - deactivated DID: mutating operations rejected
 
@@ -76,6 +77,7 @@ API enforces lifecycle rules around:
 - `MainnetConfig`
 
 Defaults:
+
 - `PreprodConfig` and `MainnetConfig` use public indexer v4 endpoints (`/api/v4/graphql` + `/ws`).
 - `MainnetConfig` defaults to local proof server (`http://127.0.0.1:6300`) so it can be used with local proving while targeting mainnet indexer/node.
 
@@ -93,8 +95,9 @@ You can still override `MainnetConfig` endpoints explicitly when needed.
 - `src/test/`
 
 Legacy deep source files `src/contract-lifecycle.ts` and `src/did-operations.ts`
-remain as re-export shims for nearby tests and source imports. Package consumers
-should import from `@midnight-ntwrk/midnight-did-api`.
+remain as short-lived deprecation shims for external deep source-path imports.
+Internal code should use the split modules above, and package consumers should
+import from `@midnight-ntwrk/midnight-did-api`.
 
 ## Deploy And Update Example
 
@@ -105,6 +108,7 @@ secret storage stay in `midnight-did-resolver`.
 ## Integration Teardown
 
 `packages/api/src/test/commons.ts` now uses:
+
 - unique compose project names per run
 - `env.down({ removeVolumes: true })`
 - fallback `docker compose down --volumes --remove-orphans`
