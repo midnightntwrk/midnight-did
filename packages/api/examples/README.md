@@ -8,7 +8,7 @@ They do not import resolver service, manager service, or UI code.
 Run against a funded standalone wallet seed and local standalone network:
 
 ```bash
-MIDNIGHT_WALLET_SEED=<hex-seed> node --loader ts-node/esm examples/deploy-did.ts
+MIDNIGHT_WALLET_SEED=<hex-seed> npm exec -- ts-node --esm examples/deploy-did.ts
 ```
 
 The example builds a wallet, configures providers, initializes DID private state,
@@ -21,7 +21,7 @@ Run after deployment with the deployed contract address:
 ```bash
 MIDNIGHT_WALLET_SEED=<hex-seed> \
 MIDNIGHT_DID_CONTRACT_ADDRESS=<contract-address> \
-node --loader ts-node/esm examples/update-did.ts
+npm exec -- ts-node --esm examples/update-did.ts
 ```
 
 The example joins an existing DID contract, adds a verification method and
