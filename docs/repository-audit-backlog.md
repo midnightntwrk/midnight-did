@@ -29,6 +29,10 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      adds focused unit tests around the state helper contract.
    - 2026-05-22: `codex/did-wallet-context-boundary` isolates SDK wallet
      construction and restore context assembly from the public wallet facade.
+   - 2026-05-22: `codex/did-wallet-provider-boundary` isolates the wallet
+     facade to Midnight wallet/provider adapter from provider composition and
+     adds unit tests for public-key exposure, transaction balancing, signing,
+     finalization, and submission wiring.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
 4. Keep generated artifact freshness checks for `contract` and
