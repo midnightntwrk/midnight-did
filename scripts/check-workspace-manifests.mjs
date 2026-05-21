@@ -4,8 +4,14 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const repoRoot = process.cwd();
+const scriptRepoRoot = path.dirname(
+  path.dirname(fileURLToPath(import.meta.url)),
+);
+const repoRoot = process.env.DID_WORKSPACE_MANIFEST_REPO_ROOT
+  ? path.resolve(process.env.DID_WORKSPACE_MANIFEST_REPO_ROOT)
+  : scriptRepoRoot;
 
 const readJson = (relativePath) =>
   JSON.parse(fs.readFileSync(path.join(repoRoot, relativePath), "utf8"));
@@ -26,7 +32,6 @@ const expectedPackages = new Map([
     "packages/api",
     {
       name: "@midnight-ntwrk/midnight-did-api",
-      packageClass: "dist",
       files: [
         "dist/**",
         "README.md",
@@ -42,7 +47,6 @@ const expectedPackages = new Map([
     "packages/domain",
     {
       name: "@midnight-ntwrk/midnight-did-domain",
-      packageClass: "dist",
       files: [
         "dist/**",
         "README.md",
@@ -57,7 +61,6 @@ const expectedPackages = new Map([
     "packages/did",
     {
       name: "@midnight-ntwrk/midnight-did",
-      packageClass: "dist",
       files: [
         "dist/**",
         "README.md",
@@ -72,7 +75,6 @@ const expectedPackages = new Map([
     "packages/jubjub-schnorr",
     {
       name: "@midnight-ntwrk/midnight-did-jubjub-schnorr",
-      packageClass: "dist-with-compact-source",
       files: [
         "dist/**",
         "src/**/*.compact",
@@ -89,7 +91,6 @@ const expectedPackages = new Map([
     "packages/contract",
     {
       name: "@midnight-ntwrk/midnight-did-contract",
-      packageClass: "dist",
       files: [
         "dist/**",
         "README.md",
@@ -158,6 +159,9 @@ for (const [workspace, expected] of expectedPackages.entries()) {
   for (const exportKey of expected.exports) {
     const exportEntry = packageJson.exports?.[exportKey];
     if (!exportEntry || typeof exportEntry !== "object") {
+      // DID packages use object exports so types/import/default targets can be
+      // checked independently; string shorthand exports are valid npm but not
+      // the convention for this repository.
       errors.push(`${label} export ${exportKey}: missing object export entry`);
       continue;
     }
