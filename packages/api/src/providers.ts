@@ -12,7 +12,7 @@ import {
 } from "./types.js";
 import { createWalletAndMidnightProvider } from "./wallet-provider.js";
 
-export { createWalletAndMidnightProvider } from "./wallet-provider.js";
+export { createWalletAndMidnightProvider };
 
 export const configureProviders = async (
   ctx: MidnightDIDWalletContext,

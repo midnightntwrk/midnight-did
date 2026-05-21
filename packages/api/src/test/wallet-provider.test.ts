@@ -18,7 +18,6 @@ const makeWalletContext = (
       readonly baseTransaction: unknown;
       readonly balancingTransaction?: unknown;
     };
-    readonly state$?: Rx.Observable<unknown>;
   } = {},
 ): {
   readonly ctx: MidnightDIDWalletContext;
@@ -37,21 +36,19 @@ const makeWalletContext = (
     balancingTransaction: { kind: "balancing-tx" },
   };
   const wallet = {
-    state: vi.fn(
-      () =>
-        overrides.state$ ??
-        Rx.of(
-          { isSynced: false },
-          {
-            isSynced: true,
-            shielded: {
-              coinPublicKey: { toHexString: () => "coin-public-key" },
-              encryptionPublicKey: {
-                toHexString: () => "encryption-public-key",
-              },
+    state: vi.fn(() =>
+      Rx.of(
+        { isSynced: false },
+        {
+          isSynced: true,
+          shielded: {
+            coinPublicKey: { toHexString: () => "coin-public-key" },
+            encryptionPublicKey: {
+              toHexString: () => "encryption-public-key",
             },
           },
-        ),
+        },
+      ),
     ),
     balanceUnboundTransaction: vi.fn(async () => recipe),
     finalizeRecipe: vi.fn(async () => ({ kind: "finalized-tx", recipe })),
@@ -150,6 +147,7 @@ describe("wallet and midnight provider wiring", () => {
       recipe: { baseTransaction: { kind: "base-only" } },
     });
     const provider = await createWalletAndMidnightProvider(ctx);
+    const startedAt = Date.now();
 
     await provider.balanceTx({ kind: "unbalanced-tx" } as any);
 
@@ -160,6 +158,16 @@ describe("wallet and midnight provider wiring", () => {
       { kind: "base-only" },
       expect.any(Function),
       "proof",
+    );
+    const [, , balanceOptions] = (
+      ctx.wallet.balanceUnboundTransaction as ReturnType<typeof vi.fn>
+    ).mock.calls[0];
+    expect(balanceOptions.ttl).toBeInstanceOf(Date);
+    expect(balanceOptions.ttl.getTime()).toBeGreaterThanOrEqual(
+      startedAt + 30 * 60 * 1000,
+    );
+    expect(balanceOptions.ttl.getTime()).toBeLessThanOrEqual(
+      Date.now() + 30 * 60 * 1000,
     );
   });
 
