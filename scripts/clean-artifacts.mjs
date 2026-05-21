@@ -51,7 +51,7 @@ for (const file of trackedFiles) {
 const removed = new Set();
 const missing = [];
 const skippedTracked = new Set();
-const skippedDeadShells = new Set();
+const skippedNonDisposableShells = new Set();
 const processedTopLevelShells = new Set();
 
 // Migration-only allow-list for disposable shells left by the pre-packages layout.
@@ -89,7 +89,7 @@ const toRelative = (absolutePath) =>
 
 const containsTrackedFile = (relativePath) => trackedPaths.has(relativePath);
 
-const isDisposableDeadShell = (absolutePath) => {
+const shellHasOnlyDisposableContent = (absolutePath) => {
   for (const entry of readdirSync(absolutePath, { withFileTypes: true })) {
     const entryPath = path.join(absolutePath, entry.name);
 
@@ -104,7 +104,7 @@ const isDisposableDeadShell = (absolutePath) => {
         continue;
       }
 
-      if (entry.name === "src" && isDisposableDeadShell(entryPath)) {
+      if (entry.name === "src" && shellHasOnlyDisposableContent(entryPath)) {
         continue;
       }
 
@@ -223,8 +223,8 @@ for (const relativePath of historicalTopLevelShells) {
       processedTopLevelShells.add(relativePath);
       if (containsTrackedFile(relativePath)) {
         skippedTracked.add(relativePath);
-      } else if (!isDisposableDeadShell(absolutePath)) {
-        skippedDeadShells.add(relativePath);
+      } else if (!shellHasOnlyDisposableContent(absolutePath)) {
+        skippedNonDisposableShells.add(relativePath);
       } else {
         removePath(absolutePath);
       }
@@ -243,7 +243,7 @@ walk(repoRoot);
 
 const removedPaths = [...removed].sort();
 const skippedTrackedPaths = [...skippedTracked].sort();
-const skippedDeadShellPaths = [...skippedDeadShells].sort();
+const skippedNonDisposableShellPaths = [...skippedNonDisposableShells].sort();
 
 if (json) {
   console.log(
@@ -253,7 +253,7 @@ if (json) {
         removed: removedPaths,
         missing,
         skippedTracked: skippedTrackedPaths,
-        skippedDeadShells: skippedDeadShellPaths,
+        skippedNonDisposableShells: skippedNonDisposableShellPaths,
       },
       null,
       2,
@@ -262,7 +262,7 @@ if (json) {
 } else if (
   removedPaths.length === 0 &&
   skippedTrackedPaths.length === 0 &&
-  skippedDeadShellPaths.length === 0
+  skippedNonDisposableShellPaths.length === 0
 ) {
   console.log("[clean-artifacts] No generated artifacts found.");
 } else {
@@ -283,11 +283,11 @@ if (json) {
     }
   }
 
-  if (skippedDeadShellPaths.length > 0) {
+  if (skippedNonDisposableShellPaths.length > 0) {
     console.log(
       "[clean-artifacts] Skipped non-disposable historical shell candidates:",
     );
-    for (const relativePath of skippedDeadShellPaths) {
+    for (const relativePath of skippedNonDisposableShellPaths) {
       console.log(`  ${relativePath}`);
     }
   }
