@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { createVerificationMethod, CurveType, KeyType } from "../did-document";
+import {
+  createVerificationMethod,
+  CurveType,
+  KeyType,
+} from "../did-document.js";
 import {
   exampleEcJsonWebKey,
   exampleJsonWebKey,
   exampleP256JsonWebKey,
   exampleRelativeVerificationMethodInput,
   exampleVerificationMethodInput,
-} from "./fixtures/did";
+} from "./fixtures/did.js";
 
 describe("createVerificationMethod", () => {
   it("creates a valid verification method", () => {
