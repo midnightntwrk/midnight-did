@@ -51,6 +51,7 @@ try {
     publicKeyJwk: {
       kty: KeyType.OKP,
       crv: CurveType.Ed25519,
+      // Example-only placeholder key material. Use a real holder/issuer key in applications.
       x: encodeFieldElement(1n),
     },
   });
