@@ -8,14 +8,14 @@ VC packages and use cases live in [`midnight-verifiable-credentials`](https://gi
 
 ## Workspace Components
 
-| Component | Package | Responsibility |
-| --- | --- | --- |
-| [`packages/contract`](packages/contract/README.md) | `@midnight-ntwrk/midnight-did-contract` | On-ledger DID state and circuit rules |
-| [`packages/jubjub-schnorr`](packages/jubjub-schnorr/README.md) | `@midnight-ntwrk/midnight-did-jubjub-schnorr` | Shared Compact/TypeScript JubJub Schnorr transcript and signature helpers |
-| [`packages/domain`](packages/domain/README.md) | `@midnight-ntwrk/midnight-did-domain` | DID schemas, validation, canonicalization |
-| [`packages/did`](packages/did/README.md) | `@midnight-ntwrk/midnight-did` | Ledger to domain mapping and DID resolution helpers |
-| [`packages/api`](packages/api/README.md) | `@midnight-ntwrk/midnight-did-api` | Programmatic DID operations, wallet/provider orchestration, and network profiles |
-| [`docs-site`](docs-site/) | `docs-site` | VitePress documentation and generated API reference |
+| Component                                                      | Package                                       | Responsibility                                                                   |
+| -------------------------------------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------- |
+| [`packages/contract`](packages/contract/README.md)             | `@midnight-ntwrk/midnight-did-contract`       | On-ledger DID state and circuit rules                                            |
+| [`packages/jubjub-schnorr`](packages/jubjub-schnorr/README.md) | `@midnight-ntwrk/midnight-did-jubjub-schnorr` | Shared Compact/TypeScript JubJub Schnorr transcript and signature helpers        |
+| [`packages/domain`](packages/domain/README.md)                 | `@midnight-ntwrk/midnight-did-domain`         | DID schemas, validation, canonicalization                                        |
+| [`packages/did`](packages/did/README.md)                       | `@midnight-ntwrk/midnight-did`                | Ledger to domain mapping and DID resolution helpers                              |
+| [`packages/api`](packages/api/README.md)                       | `@midnight-ntwrk/midnight-did-api`            | Programmatic DID operations, wallet/provider orchestration, and network profiles |
+| [`docs-site`](docs-site/)                                      | `docs-site`                                   | VitePress documentation and generated API reference                              |
 
 ## Architecture
 
@@ -134,6 +134,15 @@ npm run typecheck:examples -w ./packages/api
 
 The example guard compiles package-level snippets against built package exports
 so runnable docs do not silently drift from the published API surface.
+
+The workspace manifest guard keeps package distribution metadata aligned:
+
+```bash
+npm run check:workspace-manifests
+```
+
+It validates the root workspace list, package names, export maps, tarball
+`files`, and README ownership for the DID-owned packages.
 
 ## Artifact Packaging
 
