@@ -235,7 +235,6 @@ if (isDirectExecution) {
           process.exit(2);
         }
         process.exit(report.ready ? 0 : 1);
-        break;
       }
       case "--explain":
         stdout.write(`${JSON.stringify(explainProfile(value), null, 2)}\n`);
