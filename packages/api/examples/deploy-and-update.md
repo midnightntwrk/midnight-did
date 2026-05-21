@@ -18,8 +18,9 @@ import { createService } from "@midnight-ntwrk/midnight-did-domain";
 const seed = process.env.MIDNIGHT_WALLET_SEED;
 if (seed === undefined) throw new Error("MIDNIGHT_WALLET_SEED is required");
 
-const walletContext = await buildWalletAndWaitForFunds(StandaloneConfig, seed);
-const providers = await configureProviders(walletContext, StandaloneConfig);
+const config = new StandaloneConfig();
+const walletContext = await buildWalletAndWaitForFunds(config, seed);
+const providers = await configureProviders(walletContext, config);
 const privateState = await initPrivateState(providers);
 const didContract = await createDID(providers, privateState);
 
