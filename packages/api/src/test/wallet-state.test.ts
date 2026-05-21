@@ -2,13 +2,13 @@ import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import * as Rx from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { setLogger } from "../api-logger";
+import { setLogger } from "../api-logger.js";
 import {
   getWalletBalances,
   serializeWalletState,
   waitForWalletFunds,
   waitForWalletSync,
-} from "../wallet-state";
+} from "../wallet-state.js";
 
 describe("wallet state helpers", () => {
   beforeEach(() => {

@@ -68,8 +68,13 @@ API enforces lifecycle rules around:
 
 - Build: `npm run build -w ./packages/api`
 - Typecheck examples: `npm run typecheck:examples -w ./packages/api`
+- Import discipline: `npm run check:api-source-imports`
 - Unit tests: `npm run test -w ./packages/api`
 - Integration tests: `npm run test-api -w ./packages/api`
+
+API TypeScript source and tests use explicit `.js` or `.json` extensions for
+relative imports, including Vitest mocks. This keeps the package aligned with
+the emitted ESM graph and avoids resolver-only test behavior.
 
 ## Runtime Profiles
 

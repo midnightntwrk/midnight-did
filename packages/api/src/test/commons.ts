@@ -12,13 +12,13 @@ import {
 } from "testcontainers";
 import { expect } from "vitest";
 
-import * as api from "..";
 import {
   type Config,
   currentDir,
   StandaloneConfig,
   TestnetRemoteConfig,
-} from "../config";
+} from "../config.js";
+import * as api from "../index.js";
 
 const GENESIS_MINT_WALLET_SEED =
   "0000000000000000000000000000000000000000000000000000000000000001";

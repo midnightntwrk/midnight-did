@@ -10,7 +10,7 @@ vi.mock("@midnight-ntwrk/ledger-v8", () => ({
   },
 }));
 
-import { signTransactionIntents } from "../transaction-intents";
+import { signTransactionIntents } from "../transaction-intents.js";
 
 const offerWithSignatures = (signatures: unknown[] = []) => ({
   inputs: [{}, {}],
