@@ -18,8 +18,11 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
    module.
 2. Continue reviewing `packages/api/src/lib.ts`, `providers.ts`, and `wallet.ts`
    for smaller modules without changing public exports.
-3. Add package-level examples for API deploy/update flows that do not depend on service UI code.
-4. Audit generated artifact freshness checks for `contract` and `jubjub-schnorr`.
+3. Keep package-level API deploy/update examples compiling against built
+   package exports; `run-api.sh` now runs `typecheck:examples`.
+4. Keep generated artifact freshness checks for `contract` and
+   `jubjub-schnorr` aligned with Compact source/build-script inputs through
+   `npm run check:managed-artifacts`.
 5. Tighten `docs-site` links so moved service pages are referenced only as external repository pointers.
 6. Keep `upgrade-libs.sh` aligned with the packages packed by `scripts/pack-artifacts.sh`.
 7. Continue reducing stale historical docs when they no longer help explain DID method evolution.
