@@ -12,11 +12,14 @@ const dryRun = args.has("--dry-run");
 const json = args.has("--json");
 const skipDirectoryNames = new Set([".git", "node_modules"]);
 const generatedDirectoryNames = new Set([
+  ".midnight-db",
+  ".midnight-test",
   ".npm-cache",
   ".turbo",
   "build",
   "coverage",
   "dist",
+  "midnight-level-db",
   "playwright-report",
   "reports",
   "target",
@@ -48,11 +51,83 @@ for (const file of trackedFiles) {
 const removed = new Set();
 const missing = [];
 const skippedTracked = new Set();
+const skippedNonDisposableShells = new Set();
+const processedTopLevelShells = new Set();
+
+// Migration-only allow-list for disposable shells left by the pre-packages layout.
+// Delete this set after pre-packages branches are retired and contributor
+// worktrees no longer report these shell names during cleanup.
+const historicalTopLevelShells = new Set([
+  "api",
+  "cli",
+  "contract",
+  "credentials",
+  "credentials-birth",
+  "credentials-birth-secret",
+  "credentials-demo-contract",
+  "credentials-iso-registry",
+  "credentials-openid",
+  "credentials-protocol",
+  "credentials-same-holder",
+  "did",
+  "did-manager-service",
+  "did-resolver-service",
+  "domain",
+  "jubjub-schnorr",
+  "secret-storage",
+]);
+// The walker skips node_modules globally; the shell classifier treats it as
+// disposable only when it appears inside an already allow-listed historical shell.
+const disposableShellDirectoryNames = new Set([
+  ...generatedDirectoryNames,
+  "managed",
+  "node_modules",
+]);
 
 const toRelative = (absolutePath) =>
   path.relative(repoRoot, absolutePath).split(path.sep).join("/");
 
 const containsTrackedFile = (relativePath) => trackedPaths.has(relativePath);
+
+const shellHasOnlyDisposableContent = (absolutePath) => {
+  for (const entry of readdirSync(absolutePath, { withFileTypes: true })) {
+    const entryPath = path.join(absolutePath, entry.name);
+
+    if (entry.isSymbolicLink()) {
+      return false;
+    }
+
+    if (entry.isDirectory()) {
+      if (disposableShellDirectoryNames.has(entry.name)) {
+        // Generated-directory names are trusted by convention; do not keep
+        // hand-written source under these paths inside historical shells.
+        continue;
+      }
+
+      if (entry.name === "src" && shellHasOnlyDisposableContent(entryPath)) {
+        continue;
+      }
+
+      return false;
+    }
+
+    // Local-only or build-output files allowed inside an otherwise empty shell.
+    if (
+      entry.isFile() &&
+      (entry.name === ".DS_Store" ||
+        entry.name.endsWith(".log") ||
+        entry.name.endsWith(".tgz") ||
+        entry.name.endsWith(".tsbuildinfo"))
+    ) {
+      continue;
+    }
+
+    return false;
+  }
+
+  // Empty historical shells are disposable because they cannot contain source.
+  return true;
+};
 
 const removePath = (absolutePath) => {
   const relativePath = toRelative(absolutePath);
@@ -100,6 +175,13 @@ const walk = (directory) => {
         continue;
       }
 
+      if (
+        directory === repoRoot &&
+        processedTopLevelShells.has(toRelative(absolutePath))
+      ) {
+        continue;
+      }
+
       if (isGeneratedDirectory(absolutePath, entry.name)) {
         removePath(absolutePath);
         continue;
@@ -124,8 +206,36 @@ for (const relativePath of generatedRelativeDirectories) {
     if (statSync(absolutePath).isDirectory()) {
       removePath(absolutePath);
     }
-  } catch {
-    missing.push(relativePath);
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      missing.push(relativePath);
+      continue;
+    }
+
+    throw error;
+  }
+}
+
+for (const relativePath of historicalTopLevelShells) {
+  const absolutePath = path.join(repoRoot, relativePath);
+  try {
+    if (statSync(absolutePath).isDirectory()) {
+      processedTopLevelShells.add(relativePath);
+      if (containsTrackedFile(relativePath)) {
+        skippedTracked.add(relativePath);
+      } else if (!shellHasOnlyDisposableContent(absolutePath)) {
+        skippedNonDisposableShells.add(relativePath);
+      } else {
+        removePath(absolutePath);
+      }
+    }
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      // Missing historical package/service shells do not need cleanup.
+      continue;
+    }
+
+    throw error;
   }
 }
 
@@ -133,6 +243,7 @@ walk(repoRoot);
 
 const removedPaths = [...removed].sort();
 const skippedTrackedPaths = [...skippedTracked].sort();
+const skippedNonDisposableShellPaths = [...skippedNonDisposableShells].sort();
 
 if (json) {
   console.log(
@@ -142,12 +253,17 @@ if (json) {
         removed: removedPaths,
         missing,
         skippedTracked: skippedTrackedPaths,
+        skippedNonDisposableShells: skippedNonDisposableShellPaths,
       },
       null,
       2,
     ),
   );
-} else if (removedPaths.length === 0 && skippedTrackedPaths.length === 0) {
+} else if (
+  removedPaths.length === 0 &&
+  skippedTrackedPaths.length === 0 &&
+  skippedNonDisposableShellPaths.length === 0
+) {
   console.log("[clean-artifacts] No generated artifacts found.");
 } else {
   if (removedPaths.length > 0) {
@@ -163,6 +279,15 @@ if (json) {
   if (skippedTrackedPaths.length > 0) {
     console.log("[clean-artifacts] Skipped tracked artifact paths:");
     for (const relativePath of skippedTrackedPaths) {
+      console.log(`  ${relativePath}`);
+    }
+  }
+
+  if (skippedNonDisposableShellPaths.length > 0) {
+    console.log(
+      "[clean-artifacts] Skipped non-disposable historical shell candidates:",
+    );
+    for (const relativePath of skippedNonDisposableShellPaths) {
       console.log(`  ${relativePath}`);
     }
   }
