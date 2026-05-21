@@ -120,8 +120,20 @@ Surface guards:
 ```bash
 npm run check:did-surface-discipline
 npm run check:run-target-catalog
+npm run check:managed-artifacts
+npm run artifacts:status
 npm run check:integration
 ```
+
+API examples:
+
+```bash
+npm run build:service-prereqs
+npm run typecheck:examples -w ./packages/api
+```
+
+The example guard compiles package-level snippets against built package exports
+so runnable docs do not silently drift from the published API surface.
 
 ## Artifact Packaging
 
@@ -141,6 +153,9 @@ Packed packages:
 - `@midnight-ntwrk/midnight-did-contract`
 
 The generated tarballs are gitignored under [`artifacts/`](./artifacts/README.md).
+Use `npm run artifacts:status` to inspect generated Compact output readiness
+for `contract` and `jubjub-schnorr`, and `npm run check:managed-artifacts` to
+fail on missing or stale generated artifacts after a local build.
 
 ## Developer Entry Points
 
