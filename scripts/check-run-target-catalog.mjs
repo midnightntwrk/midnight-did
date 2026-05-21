@@ -41,6 +41,11 @@ const rootPackage = JSON.parse(
 );
 const readRepoText = (relativePath) =>
   readFileSync(path.join(repoRoot, relativePath), "utf8");
+const cleanArtifactsScript = path.join(
+  repoRoot,
+  "scripts",
+  "clean-artifacts.mjs",
+);
 
 assert.deepEqual(
   duplicateTargetNames,
@@ -161,6 +166,72 @@ assert.deepEqual(
 
 rmSync(metricsDir, { recursive: true, force: true });
 
+const cleanArtifactsHelp = spawnSync(
+  "node",
+  [cleanArtifactsScript, "--help"],
+  {
+    cwd: repoRoot,
+    encoding: "utf8",
+  },
+);
+assert.equal(
+  cleanArtifactsHelp.status,
+  0,
+  "clean-artifacts help should exit successfully",
+);
+assert.ok(
+  cleanArtifactsHelp.stdout.includes("Usage: node scripts/clean-artifacts.mjs"),
+  "clean-artifacts help should print usage",
+);
+assert.ok(
+  cleanArtifactsHelp.stdout.includes("--dry-run"),
+  "clean-artifacts help should document --dry-run",
+);
+assert.ok(
+  cleanArtifactsHelp.stdout.includes("--json"),
+  "clean-artifacts help should document --json",
+);
+
+const cleanArtifactsShortHelp = spawnSync(
+  "node",
+  [cleanArtifactsScript, "-h"],
+  {
+    cwd: repoRoot,
+    encoding: "utf8",
+  },
+);
+assert.equal(
+  cleanArtifactsShortHelp.status,
+  0,
+  "clean-artifacts short help should exit successfully",
+);
+assert.ok(
+  cleanArtifactsShortHelp.stdout.includes(
+    "Usage: node scripts/clean-artifacts.mjs",
+  ),
+  "clean-artifacts short help should print usage",
+);
+
+const cleanArtifactsUnknownArg = spawnSync(
+  "node",
+  [cleanArtifactsScript, "--dryrun"],
+  {
+    cwd: repoRoot,
+    encoding: "utf8",
+  },
+);
+assert.notEqual(
+  cleanArtifactsUnknownArg.status,
+  0,
+  "clean-artifacts should reject unknown arguments",
+);
+assert.ok(
+  cleanArtifactsUnknownArg.stderr.includes(
+    "Unknown clean-artifacts argument: --dryrun",
+  ),
+  "clean-artifacts should report the unknown argument",
+);
+
 const cleanArtifactsFixtureDir = mkdtempSync(
   path.join(tmpdir(), "midnight-did-clean-fixture-"),
 );
@@ -230,11 +301,7 @@ try {
 
   const cleanArtifactsDryRun = spawnSync(
     "node",
-    [
-      path.join(repoRoot, "scripts", "clean-artifacts.mjs"),
-      "--dry-run",
-      "--json",
-    ],
+    [cleanArtifactsScript, "--dry-run", "--json"],
     {
       cwd: cleanArtifactsFixtureDir,
       encoding: "utf8",
