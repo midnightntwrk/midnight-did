@@ -69,10 +69,13 @@ try {
     serviceEndpoint: "https://example.com/didcomm",
   });
   await addService(didContract, service);
-  await updateService(didContract, {
-    ...service,
-    serviceEndpoint: "https://example.com/didcomm/v2",
-  });
+  await updateService(
+    didContract,
+    createService({
+      ...service,
+      serviceEndpoint: "https://example.com/didcomm/v2",
+    }),
+  );
 
   const after = await resolve(providers, didContract);
   console.log(JSON.stringify(after, bigintReplacer, 2));
