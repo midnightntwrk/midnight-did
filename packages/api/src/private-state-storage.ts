@@ -14,7 +14,7 @@ import {
 // shape with at least one non-hex suffix character.
 const PRIVATE_STORAGE_PASSWORD_SUFFIX = "!A";
 
-export type DIDPrivateStateProviderOptions = {
+type DIDPrivateStateProviderOptions = {
   midnightDbName?: string;
   privateStateStoreName: string;
   accountId: string;

@@ -48,6 +48,7 @@ describe("private-state storage wiring", () => {
       accountId: "account-1",
     });
     expect(options.privateStoragePasswordProvider()).toBe("010203!A");
+    expect(options.privateStoragePasswordProvider()).toBe("010203!A");
     expect(ctx.unshieldedKeystore.getSecretKey).toHaveBeenCalledTimes(1);
   });
 
