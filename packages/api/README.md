@@ -89,11 +89,12 @@ You can still override `MainnetConfig` endpoints explicitly when needed.
 - `src/index.ts`
 - `src/lib.ts` public compatibility facade
 - `src/deploy.ts` contract deployment, join, and private-state initialization
-- `src/providers.ts` wallet-to-provider wiring
+- `src/providers.ts` provider composition for DID runtime dependencies
 - `src/private-state-storage.ts` private-state storage account/password wiring
 - `src/transaction-intents.ts` manual unshielded intent signing workaround
 - `src/wallet-context.ts` SDK wallet construction and restore context assembly
 - `src/wallet-dust.ts` dust-registration workflow helper
+- `src/wallet-provider.ts` wallet facade to Midnight wallet/provider adapter
 - `src/wallet-state.ts` wallet snapshot, sync, balance, and funding wait helpers
 - `src/wallet.ts` wallet construction and restore facade
 - `src/wallet-keys.ts` seed parsing, HD key derivation, and unshielded address helpers
