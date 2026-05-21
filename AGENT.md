@@ -95,8 +95,13 @@ Generated outputs:
 - `src/managed/**`
 - `dist/**`
 - `*.tsbuildinfo`
+- disposable historical top-level package/service shells created before the
+  `packages/` layout
 
-Generated outputs are build artifacts. Do not manually edit them.
+Generated outputs are build artifacts. Do not manually edit them. Use
+`./run.sh clean-artifacts` when old root-level package or service shells remain
+after refactors; the cleaner deletes only disposable generated shells and
+preserves non-disposable contents.
 
 When changing Compact circuits:
 

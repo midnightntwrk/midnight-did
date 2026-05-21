@@ -98,6 +98,9 @@ Runner notes:
 - `run-core.sh`, `run-api.sh`, and `run-docs.sh` remain implementation details behind cataloged `./run.sh` targets.
 - Root `./run.sh` validates only DID core/API/docs. Resolver service, manager service, and secret-storage validation moved to `midnight-did-resolver`.
 - `--skip-coverage` is still accepted for older local command history, but current split lanes do not run coverage by default.
+- `./run.sh clean-artifacts` removes generated outputs and disposable
+  historical top-level package/service shells left by pre-`packages/` layouts;
+  non-disposable shell contents are reported and preserved.
 
 Metrics example:
 

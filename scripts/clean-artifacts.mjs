@@ -12,11 +12,14 @@ const dryRun = args.has("--dry-run");
 const json = args.has("--json");
 const skipDirectoryNames = new Set([".git", "node_modules"]);
 const generatedDirectoryNames = new Set([
+  ".midnight-db",
+  ".midnight-test",
   ".npm-cache",
   ".turbo",
   "build",
   "coverage",
   "dist",
+  "midnight-level-db",
   "playwright-report",
   "reports",
   "target",
@@ -48,11 +51,74 @@ for (const file of trackedFiles) {
 const removed = new Set();
 const missing = [];
 const skippedTracked = new Set();
+const skippedDeadShells = new Set();
+const classifiedTopLevelShells = new Set();
+
+const historicalTopLevelShells = new Set([
+  "api",
+  "cli",
+  "contract",
+  "credentials",
+  "credentials-birth",
+  "credentials-birth-secret",
+  "credentials-demo-contract",
+  "credentials-iso-registry",
+  "credentials-openid",
+  "credentials-protocol",
+  "credentials-same-holder",
+  "did",
+  "did-manager-service",
+  "did-resolver-service",
+  "domain",
+  "jubjub-schnorr",
+  "secret-storage",
+]);
+const disposableShellDirectoryNames = new Set([
+  ...generatedDirectoryNames,
+  "managed",
+  "node_modules",
+]);
 
 const toRelative = (absolutePath) =>
   path.relative(repoRoot, absolutePath).split(path.sep).join("/");
 
 const containsTrackedFile = (relativePath) => trackedPaths.has(relativePath);
+
+const isDisposableDeadShell = (absolutePath) => {
+  for (const entry of readdirSync(absolutePath, { withFileTypes: true })) {
+    const entryPath = path.join(absolutePath, entry.name);
+
+    if (entry.isSymbolicLink()) {
+      return false;
+    }
+
+    if (entry.isDirectory()) {
+      if (disposableShellDirectoryNames.has(entry.name)) {
+        continue;
+      }
+
+      if (entry.name === "src" && isDisposableDeadShell(entryPath)) {
+        continue;
+      }
+
+      return false;
+    }
+
+    if (
+      entry.isFile() &&
+      (entry.name === ".DS_Store" ||
+        entry.name.endsWith(".log") ||
+        entry.name.endsWith(".tgz") ||
+        entry.name.endsWith(".tsbuildinfo"))
+    ) {
+      continue;
+    }
+
+    return false;
+  }
+
+  return true;
+};
 
 const removePath = (absolutePath) => {
   const relativePath = toRelative(absolutePath);
@@ -100,6 +166,13 @@ const walk = (directory) => {
         continue;
       }
 
+      if (
+        directory === repoRoot &&
+        classifiedTopLevelShells.has(toRelative(absolutePath))
+      ) {
+        continue;
+      }
+
       if (isGeneratedDirectory(absolutePath, entry.name)) {
         removePath(absolutePath);
         continue;
@@ -129,10 +202,29 @@ for (const relativePath of generatedRelativeDirectories) {
   }
 }
 
+for (const relativePath of historicalTopLevelShells) {
+  const absolutePath = path.join(repoRoot, relativePath);
+  try {
+    if (statSync(absolutePath).isDirectory()) {
+      classifiedTopLevelShells.add(relativePath);
+      if (containsTrackedFile(relativePath)) {
+        skippedTracked.add(relativePath);
+      } else if (!isDisposableDeadShell(absolutePath)) {
+        skippedDeadShells.add(relativePath);
+      } else {
+        removePath(absolutePath);
+      }
+    }
+  } catch {
+    // Missing historical package/service shells do not need cleanup.
+  }
+}
+
 walk(repoRoot);
 
 const removedPaths = [...removed].sort();
 const skippedTrackedPaths = [...skippedTracked].sort();
+const skippedDeadShellPaths = [...skippedDeadShells].sort();
 
 if (json) {
   console.log(
@@ -142,12 +234,17 @@ if (json) {
         removed: removedPaths,
         missing,
         skippedTracked: skippedTrackedPaths,
+        skippedDeadShells: skippedDeadShellPaths,
       },
       null,
       2,
     ),
   );
-} else if (removedPaths.length === 0 && skippedTrackedPaths.length === 0) {
+} else if (
+  removedPaths.length === 0 &&
+  skippedTrackedPaths.length === 0 &&
+  skippedDeadShellPaths.length === 0
+) {
   console.log("[clean-artifacts] No generated artifacts found.");
 } else {
   if (removedPaths.length > 0) {
@@ -163,6 +260,15 @@ if (json) {
   if (skippedTrackedPaths.length > 0) {
     console.log("[clean-artifacts] Skipped tracked artifact paths:");
     for (const relativePath of skippedTrackedPaths) {
+      console.log(`  ${relativePath}`);
+    }
+  }
+
+  if (skippedDeadShellPaths.length > 0) {
+    console.log(
+      "[clean-artifacts] Skipped non-disposable historical shell candidates:",
+    );
+    for (const relativePath of skippedDeadShellPaths) {
       console.log(`  ${relativePath}`);
     }
   }

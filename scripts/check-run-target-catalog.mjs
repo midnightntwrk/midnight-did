@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -162,11 +163,31 @@ rmSync(metricsDir, { recursive: true, force: true });
 
 const logsDir = path.join(repoRoot, "logs");
 const createdLogsRoot = !existsSync(logsDir);
+const midnightTestDir = path.join(repoRoot, ".midnight-test");
+const cleanupTestProbeDir = path.join(
+  midnightTestDir,
+  "run-target-catalog-probe",
+);
+const createdMidnightTestRoot = !existsSync(midnightTestDir);
+const legacyShellDir = path.join(repoRoot, "contract");
+const legacyShellSrcDir = path.join(legacyShellDir, "src");
+const legacyShellManagedDir = path.join(legacyShellSrcDir, "managed");
+const createdLegacyShellRoot = !existsSync(legacyShellDir);
+const skippedLegacyShellDir = path.join(repoRoot, "cli");
+const skippedLegacyShellProbe = path.join(
+  skippedLegacyShellDir,
+  `run-target-catalog-nondisposable-${process.pid}.txt`,
+);
+const createdSkippedLegacyShellRoot = !existsSync(skippedLegacyShellDir);
 
 mkdirSync(logsDir, { recursive: true });
 const cleanupProbeDir = mkdtempSync(
   path.join(logsDir, "run-target-catalog-probe-"),
 );
+mkdirSync(cleanupTestProbeDir, { recursive: true });
+mkdirSync(legacyShellManagedDir, { recursive: true });
+mkdirSync(skippedLegacyShellDir, { recursive: true });
+writeFileSync(skippedLegacyShellProbe, "not generated\n");
 
 try {
   const cleanArtifactsDryRun = spawnSync(
@@ -194,6 +215,18 @@ try {
     "clean-artifacts dry-run JSON should include root logs cleanup coverage",
   );
   assert.ok(
+    cleanArtifactsReport.removed.includes(".midnight-test"),
+    "clean-artifacts dry-run JSON should include local midnight test-state cleanup coverage",
+  );
+  assert.ok(
+    cleanArtifactsReport.removed.includes("contract"),
+    "clean-artifacts dry-run JSON should include historical package shell cleanup coverage",
+  );
+  assert.ok(
+    cleanArtifactsReport.skippedDeadShells.includes("cli"),
+    "clean-artifacts dry-run JSON should preserve non-disposable historical shell candidates",
+  );
+  assert.ok(
     !cleanArtifactsReport.skippedTracked.some((relativePath) =>
       relativePath.startsWith("logs"),
     ),
@@ -203,6 +236,17 @@ try {
   rmSync(cleanupProbeDir, { recursive: true, force: true });
   if (createdLogsRoot) {
     rmSync(logsDir, { recursive: true, force: true });
+  }
+  rmSync(cleanupTestProbeDir, { recursive: true, force: true });
+  if (createdMidnightTestRoot) {
+    rmSync(midnightTestDir, { recursive: true, force: true });
+  }
+  rmSync(skippedLegacyShellProbe, { force: true });
+  if (createdSkippedLegacyShellRoot) {
+    rmSync(skippedLegacyShellDir, { recursive: true, force: true });
+  }
+  if (createdLegacyShellRoot) {
+    rmSync(legacyShellDir, { recursive: true, force: true });
   }
 }
 
