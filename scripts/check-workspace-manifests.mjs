@@ -143,8 +143,11 @@ for (const [workspace, expected] of expectedPackages.entries()) {
 
   assertEqual(`${label} name`, packageJson.name, expected.name);
   assertEqual(`${label} version`, packageJson.version, rootPackage.version);
+  assertEqual(`${label} license`, packageJson.license, "Apache-2.0");
   assertEqual(`${label} private`, packageJson.private, true);
   assertEqual(`${label} type`, packageJson.type, "module");
+  assertEqual(`${label} engines.node`, packageJson.engines?.node, ">=24");
+  assertEqual(`${label} engines.npm`, packageJson.engines?.npm, ">=10");
   assertEqual(`${label} main`, packageJson.main, "dist/index.js");
   assertEqual(`${label} module`, packageJson.module, "dist/index.js");
   assertEqual(`${label} types`, packageJson.types, "./dist/index.d.ts");
@@ -168,6 +171,14 @@ for (const [workspace, expected] of expectedPackages.entries()) {
 
     if (!String(exportEntry.types ?? "").startsWith("./dist/")) {
       errors.push(`${label} export ${exportKey}: types must point into ./dist`);
+    }
+    if (
+      Object.hasOwn(exportEntry, "require") &&
+      !String(exportEntry.require ?? "").startsWith("./dist/")
+    ) {
+      errors.push(
+        `${label} export ${exportKey}: require must point into ./dist`,
+      );
     }
     if (!String(exportEntry.import ?? "").startsWith("./dist/")) {
       errors.push(

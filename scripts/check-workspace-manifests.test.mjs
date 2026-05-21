@@ -33,8 +33,13 @@ const writeReadme = (workspace) => {
 const distPackage = ({ name, files, exports }) => ({
   name,
   version: "0.1.0",
+  license: "Apache-2.0",
   private: true,
   type: "module",
+  engines: {
+    node: ">=24",
+    npm: ">=10",
+  },
   main: "dist/index.js",
   module: "dist/index.js",
   types: "./dist/index.d.ts",
@@ -151,7 +156,7 @@ const runCheck = () =>
     },
   });
 
-try {
+const writeFixture = () => {
   writeJson("package.json", rootPackage);
   for (const [workspace, packageJson] of Object.entries(packageFixtures)) {
     writeJson(path.join(workspace, "package.json"), packageJson);
@@ -162,6 +167,25 @@ try {
     private: true,
     type: "module",
   });
+};
+
+const readFixtureJson = (relativePath) =>
+  JSON.parse(readFileSync(path.join(fixtureRoot, relativePath), "utf8"));
+
+const expectFailure = (mutateFixture, expectedMessage) => {
+  writeFixture();
+  mutateFixture();
+  const fail = runCheck();
+  if (fail.status === 0) {
+    throw new Error(`expected fixture to fail with ${expectedMessage}`);
+  }
+  if (!fail.stderr.includes(expectedMessage)) {
+    throw new Error(`unexpected failure output:\n${fail.stdout}${fail.stderr}`);
+  }
+};
+
+try {
+  writeFixture();
 
   const pass = runCheck();
   if (pass.status !== 0) {
@@ -170,20 +194,38 @@ try {
     );
   }
 
-  const apiPackagePath = path.join(fixtureRoot, "packages/api/package.json");
-  const apiPackage = JSON.parse(readFileSync(apiPackagePath, "utf8"));
-  writeJson("packages/api/package.json", {
-    ...apiPackage,
-    name: "@midnight-ntwrk/broken-did-api",
-  });
+  expectFailure(() => {
+    writeJson("packages/api/package.json", {
+      ...readFixtureJson("packages/api/package.json"),
+      name: "@midnight-ntwrk/broken-did-api",
+    });
+  }, "packages/api/package.json name");
 
-  const fail = runCheck();
-  if (fail.status === 0) {
-    throw new Error("expected invalid package name fixture to fail");
-  }
-  if (!fail.stderr.includes("packages/api/package.json name")) {
-    throw new Error(`unexpected failure output:\n${fail.stdout}${fail.stderr}`);
-  }
+  expectFailure(() => {
+    const apiPackage = readFixtureJson("packages/api/package.json");
+    writeJson("packages/api/package.json", {
+      ...apiPackage,
+      files: [...apiPackage.files, "unexpected/**"],
+    });
+  }, "packages/api/package.json files");
+
+  expectFailure(() => {
+    const apiPackage = readFixtureJson("packages/api/package.json");
+    writeJson("packages/api/package.json", {
+      ...apiPackage,
+      exports: {
+        ...apiPackage.exports,
+        ".": {
+          ...apiPackage.exports["."],
+          types: "./src/index.ts",
+        },
+      },
+    });
+  }, "packages/api/package.json export .: types must point into ./dist");
+
+  expectFailure(() => {
+    rmSync(path.join(fixtureRoot, "packages/api/README.md"), { force: true });
+  }, "packages/api README: missing packages/api/README.md");
 
   console.log("check-workspace-manifests contract passed");
 } finally {
