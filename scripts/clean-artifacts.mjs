@@ -48,6 +48,7 @@ const generatedDirectoryNames = new Set([
   "build",
   "coverage",
   "dist",
+  "logs",
   "midnight-level-db",
   "playwright-report",
   "reports",
@@ -55,7 +56,6 @@ const generatedDirectoryNames = new Set([
   "test-results",
 ]);
 const generatedRelativeDirectories = new Set([
-  "logs",
   "docs-site/.vitepress/.temp",
   "docs-site/.vitepress/cache",
   "docs-site/.vitepress/dist",
