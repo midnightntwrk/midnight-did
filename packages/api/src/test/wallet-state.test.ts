@@ -1,6 +1,6 @@
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import * as Rx from "rxjs";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setLogger } from "../api-logger";
 import {
@@ -14,6 +14,10 @@ describe("wallet state helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setLogger({ info: vi.fn() } as any);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("serializes each wallet component into a restorable snapshot", async () => {
@@ -82,17 +86,38 @@ describe("wallet state helpers", () => {
   });
 
   it("waits until a synced wallet state exposes NIGHT funds", async () => {
+    vi.useFakeTimers();
     const token = unshieldedToken().raw;
+    const states = new Rx.Subject<unknown>();
     const wallet = {
-      state: vi.fn(() =>
-        Rx.of({
-          isSynced: true,
-          unshielded: { balances: { [token]: 5n } },
-          dust: { balance: vi.fn(() => 0n) },
-        }),
-      ),
+      state: vi.fn(() => states.asObservable()),
     };
+    const result = waitForWalletFunds({ wallet } as any);
+    let resolved = false;
+    result.then(() => {
+      resolved = true;
+    });
 
-    await expect(waitForWalletFunds({ wallet } as any)).resolves.toBe(5n);
+    states.next({
+      isSynced: true,
+      unshielded: { balances: { [token]: 0n } },
+      dust: { balance: vi.fn(() => 0n) },
+    });
+    states.next({
+      isSynced: true,
+      unshielded: { balances: { [token]: 5n } },
+      dust: { balance: vi.fn(() => 0n) },
+    });
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(resolved).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
+    states.next({
+      isSynced: true,
+      unshielded: { balances: { [token]: 5n } },
+      dust: { balance: vi.fn(() => 0n) },
+    });
+
+    await expect(result).resolves.toBe(5n);
   });
 });

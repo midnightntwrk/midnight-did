@@ -11,7 +11,13 @@ import {
 } from "./types.js";
 
 export const serializeWalletState = async (
-  ctx: MidnightDIDWalletContext,
+  ctx: Pick<
+    MidnightDIDWalletContext,
+    | "shieldedWallet"
+    | "unshieldedWallet"
+    | "dustWallet"
+    | "unshieldedHistoryStorage"
+  >,
 ): Promise<MidnightWalletStateSnapshot> => ({
   shieldedState: await ctx.shieldedWallet.serializeState(),
   unshieldedState: await ctx.unshieldedWallet.serializeState(),
