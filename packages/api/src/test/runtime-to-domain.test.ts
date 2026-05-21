@@ -1,8 +1,8 @@
 import { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
 import { describe, expect, it } from "vitest";
 
-import { DomainToRuntime } from "../domain-to-runtime";
-import { RuntimeToDomain } from "../runtime-to-domain";
+import { DomainToRuntime } from "../domain-to-runtime.js";
+import { RuntimeToDomain } from "../runtime-to-domain.js";
 
 describe("RuntimeToDomain.NetworkMap", () => {
   it("maps all NetworkId values to MidnightNetwork", () => {

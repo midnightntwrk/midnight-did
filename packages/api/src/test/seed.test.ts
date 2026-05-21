@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseSeed } from "../seed";
+import { parseSeed } from "../seed.js";
 
 describe("parseSeed", () => {
   it("normalizes valid seeds", () => {
