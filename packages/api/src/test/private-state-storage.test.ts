@@ -52,6 +52,15 @@ describe("private-state storage wiring", () => {
     expect(ctx.unshieldedKeystore.getSecretKey).toHaveBeenCalledTimes(1);
   });
 
+  it("allows the SDK default database when no db name is configured", () => {
+    const ctx = makeWalletContext(new Uint8Array([7, 8, 9]));
+
+    const options = createPrivateStateProviderOptions(ctx, {}, "account-3");
+
+    expect(options.midnightDbName).toBeUndefined();
+    expect(options.privateStoragePasswordProvider()).toBe("070809!A");
+  });
+
   it("creates the runtime provider through the isolated options builder", () => {
     const ctx = makeWalletContext(new Uint8Array([4, 5, 6]));
 
