@@ -128,7 +128,7 @@ npm run check:integration
 API examples:
 
 ```bash
-npm run build:service-prereqs
+npm run build:api-prereqs
 npm run typecheck:examples -w ./packages/api
 ```
 
