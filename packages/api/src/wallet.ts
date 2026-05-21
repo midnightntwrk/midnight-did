@@ -298,8 +298,3 @@ export const buildFreshWallet = async (
   config: Config,
 ): Promise<MidnightDIDWalletContext> =>
   await buildWalletAndWaitForFunds(config, toHex(randomBytes(32)));
-
-export {
-  configureProviders,
-  createWalletAndMidnightProvider,
-} from "./providers.js";
