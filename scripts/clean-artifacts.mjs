@@ -52,8 +52,9 @@ const removed = new Set();
 const missing = [];
 const skippedTracked = new Set();
 const skippedDeadShells = new Set();
-const classifiedTopLevelShells = new Set();
+const processedTopLevelShells = new Set();
 
+// Migration-only allow-list for disposable shells left by the pre-packages layout.
 const historicalTopLevelShells = new Set([
   "api",
   "cli",
@@ -73,6 +74,8 @@ const historicalTopLevelShells = new Set([
   "jubjub-schnorr",
   "secret-storage",
 ]);
+// The walker skips node_modules globally; the shell classifier treats it as
+// disposable only when it appears inside an already allow-listed historical shell.
 const disposableShellDirectoryNames = new Set([
   ...generatedDirectoryNames,
   "managed",
@@ -104,6 +107,7 @@ const isDisposableDeadShell = (absolutePath) => {
       return false;
     }
 
+    // These are generated or local-only file types covered by repository ignore rules.
     if (
       entry.isFile() &&
       (entry.name === ".DS_Store" ||
@@ -117,6 +121,7 @@ const isDisposableDeadShell = (absolutePath) => {
     return false;
   }
 
+  // Empty historical shells are disposable because they cannot contain source.
   return true;
 };
 
@@ -168,7 +173,7 @@ const walk = (directory) => {
 
       if (
         directory === repoRoot &&
-        classifiedTopLevelShells.has(toRelative(absolutePath))
+        processedTopLevelShells.has(toRelative(absolutePath))
       ) {
         continue;
       }
@@ -197,8 +202,13 @@ for (const relativePath of generatedRelativeDirectories) {
     if (statSync(absolutePath).isDirectory()) {
       removePath(absolutePath);
     }
-  } catch {
-    missing.push(relativePath);
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      missing.push(relativePath);
+      continue;
+    }
+
+    throw error;
   }
 }
 
@@ -206,7 +216,7 @@ for (const relativePath of historicalTopLevelShells) {
   const absolutePath = path.join(repoRoot, relativePath);
   try {
     if (statSync(absolutePath).isDirectory()) {
-      classifiedTopLevelShells.add(relativePath);
+      processedTopLevelShells.add(relativePath);
       if (containsTrackedFile(relativePath)) {
         skippedTracked.add(relativePath);
       } else if (!isDisposableDeadShell(absolutePath)) {
@@ -215,8 +225,13 @@ for (const relativePath of historicalTopLevelShells) {
         removePath(absolutePath);
       }
     }
-  } catch {
-    // Missing historical package/service shells do not need cleanup.
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      // Missing historical package/service shells do not need cleanup.
+      continue;
+    }
+
+    throw error;
   }
 }
 

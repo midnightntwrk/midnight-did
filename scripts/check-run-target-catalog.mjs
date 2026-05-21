@@ -32,6 +32,15 @@ const run = (args, env = {}) =>
     },
   });
 
+const hasTrackedPath = (relativePath) => {
+  const result = spawnSync("git", ["ls-files", "--", relativePath], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+
+  return result.status === 0 && result.stdout.trim().length > 0;
+};
+
 const targetNames = targets.map((target) => target.name);
 const duplicateTargetNames = targetNames.filter(
   (name, index) => targetNames.indexOf(name) !== index,
@@ -173,12 +182,14 @@ const legacyShellDir = path.join(repoRoot, "contract");
 const legacyShellSrcDir = path.join(legacyShellDir, "src");
 const legacyShellManagedDir = path.join(legacyShellSrcDir, "managed");
 const createdLegacyShellRoot = !existsSync(legacyShellDir);
+const legacyShellHasTrackedContent = hasTrackedPath("contract");
 const skippedLegacyShellDir = path.join(repoRoot, "cli");
 const skippedLegacyShellProbe = path.join(
   skippedLegacyShellDir,
   `run-target-catalog-nondisposable-${process.pid}.txt`,
 );
 const createdSkippedLegacyShellRoot = !existsSync(skippedLegacyShellDir);
+const skippedLegacyShellHasTrackedContent = hasTrackedPath("cli");
 
 mkdirSync(logsDir, { recursive: true });
 const cleanupProbeDir = mkdtempSync(
@@ -218,14 +229,29 @@ try {
     cleanArtifactsReport.removed.includes(".midnight-test"),
     "clean-artifacts dry-run JSON should include local midnight test-state cleanup coverage",
   );
-  assert.ok(
-    cleanArtifactsReport.removed.includes("contract"),
-    "clean-artifacts dry-run JSON should include historical package shell cleanup coverage",
-  );
-  assert.ok(
-    cleanArtifactsReport.skippedDeadShells.includes("cli"),
-    "clean-artifacts dry-run JSON should preserve non-disposable historical shell candidates",
-  );
+  if (legacyShellHasTrackedContent) {
+    assert.ok(
+      cleanArtifactsReport.skippedTracked.includes("contract"),
+      "clean-artifacts dry-run JSON should preserve tracked historical package shell content",
+    );
+  } else {
+    assert.ok(
+      cleanArtifactsReport.removed.includes("contract"),
+      "clean-artifacts dry-run JSON should include historical package shell cleanup coverage",
+    );
+  }
+
+  if (skippedLegacyShellHasTrackedContent) {
+    assert.ok(
+      cleanArtifactsReport.skippedTracked.includes("cli"),
+      "clean-artifacts dry-run JSON should preserve tracked historical package shell candidates",
+    );
+  } else {
+    assert.ok(
+      cleanArtifactsReport.skippedDeadShells.includes("cli"),
+      "clean-artifacts dry-run JSON should preserve non-disposable historical shell candidates",
+    );
+  }
   assert.ok(
     !cleanArtifactsReport.skippedTracked.some((relativePath) =>
       relativePath.startsWith("logs"),
