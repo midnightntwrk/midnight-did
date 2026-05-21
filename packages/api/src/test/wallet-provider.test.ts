@@ -5,12 +5,12 @@ const transactionIntentMocks = vi.hoisted(() => ({
   signTransactionIntents: vi.fn(),
 }));
 
-vi.mock("../transaction-intents", () => ({
+vi.mock("../transaction-intents.js", () => ({
   signTransactionIntents: transactionIntentMocks.signTransactionIntents,
 }));
 
-import { type MidnightDIDWalletContext } from "../types";
-import { createWalletAndMidnightProvider } from "../wallet-provider";
+import { type MidnightDIDWalletContext } from "../types.js";
+import { createWalletAndMidnightProvider } from "../wallet-provider.js";
 
 const makeWalletContext = (
   overrides: {
