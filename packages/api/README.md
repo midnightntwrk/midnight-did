@@ -84,9 +84,23 @@ You can still override `MainnetConfig` endpoints explicitly when needed.
 ## Main Source Files
 
 - `src/index.ts`
-- `src/lib.ts`
+- `src/lib.ts` public compatibility facade
+- `src/deploy.ts` contract deployment, join, and private-state initialization
+- `src/providers.ts` wallet-to-provider wiring
+- `src/wallet.ts` wallet construction, restore, sync, funding, and balance helpers
+- `src/update.ts` DID document update, deactivate, resolve, and ledger mapping helpers
 - `src/types.ts`
 - `src/test/`
+
+Legacy deep source files `src/contract-lifecycle.ts` and `src/did-operations.ts`
+remain as re-export shims for nearby tests and source imports. Package consumers
+should import from `@midnight-ntwrk/midnight-did-api`.
+
+## Deploy And Update Example
+
+See `examples/deploy-and-update.md` for a package-local deploy/update flow that
+uses only API package exports. Resolver services, DID manager UI, and reusable
+secret storage stay in `midnight-did-resolver`.
 
 ## Integration Teardown
 

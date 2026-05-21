@@ -51,6 +51,7 @@
   "files": [
     "dist/**",
     "README.md",
+    "examples/**",
     "package.json",
     "tsconfig.json",
     "tsconfig.build.json"
