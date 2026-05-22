@@ -53,6 +53,10 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      runtime/domain network maps by making `DomainToRuntime`,
      `RuntimeToDomain`, and the legacy `NetworkMapping` export read from one
      checked API catalog.
+   - 2026-05-22: `codex/did-api-package-paths` isolates API package-root and
+     managed-artifact path resolution from `config.ts`, adds URL-decoding
+     coverage for workspaces with spaces in their path, and keeps
+     `contractConfig` derivation under focused unit tests.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
    - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era
