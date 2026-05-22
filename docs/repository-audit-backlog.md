@@ -121,6 +121,9 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      artifact workspace list and destination resolver into a shared shell
      catalog used by both pack and upgrade scripts, adds `--list-packages`, and
      wires a contract test into `ci:core`.
+   - 2026-05-22: `codex/did-workspace-catalog-authority` moves root workspace,
+     package-manifest, and artifact-tarball package metadata into a shared Node
+     catalog consumed by manifest checks and the shell artifact bridge.
 7. Continue reducing stale historical docs when they no longer help explain DID
    method evolution.
    - 2026-05-22: `codex/did-archive-stale-transition-docs` moves historical
