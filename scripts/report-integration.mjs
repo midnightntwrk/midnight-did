@@ -56,6 +56,11 @@ const readJson = (absolutePath) =>
 const formatCounterValue = (value) =>
   value === undefined ? "missing" : JSON.stringify(value);
 
+const referenceLabel = (reference) =>
+  `${reference.consumer ?? "<unknown consumer>"} ${
+    reference.dependencyName ?? "<unknown dependency>"
+  }`;
+
 export const npmPackFileName = (packageName, version) =>
   `${packageName.replace(/^@/u, "").replaceAll("/", "-")}-${version}.tgz`;
 
@@ -319,7 +324,13 @@ export const validateIntegrationReportContract = (report) => {
     );
   }
 
-  const references = report.siblingVc?.references ?? [];
+  const references = Array.isArray(report.siblingVc?.references)
+    ? report.siblingVc.references
+    : [];
+  if (!Array.isArray(report.siblingVc?.references)) {
+    contractErrors.push("siblingVc.references must be an array");
+  }
+
   const summary = report.siblingVc?.summary;
   if (!summary) {
     contractErrors.push("siblingVc.summary is required");
@@ -327,6 +338,7 @@ export const validateIntegrationReportContract = (report) => {
     const requiredSummaryCounters = [
       "referenceCount",
       ...INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.partitionedCounters,
+      ...INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.independentCounters,
     ];
     for (const counterName of requiredSummaryCounters) {
       if (!Number.isFinite(summary[counterName])) {
@@ -336,8 +348,8 @@ export const validateIntegrationReportContract = (report) => {
       }
     }
 
-    const summaryCountersAreFinite = requiredSummaryCounters.every((counterName) =>
-      Number.isFinite(summary[counterName]),
+    const summaryCountersAreFinite = requiredSummaryCounters.every(
+      (counterName) => Number.isFinite(summary[counterName]),
     );
     const partitionedReferenceCount = summaryCountersAreFinite
       ? INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.partitionedCounters.reduce(
@@ -367,7 +379,7 @@ export const validateIntegrationReportContract = (report) => {
   for (const reference of references) {
     if (!allowedReferenceKinds.has(reference.referenceKind)) {
       contractErrors.push(
-        `${reference.consumer} ${reference.dependencyName} has unsupported referenceKind ${reference.referenceKind}`,
+        `${referenceLabel(reference)} has unsupported referenceKind ${reference.referenceKind}`,
       );
       continue;
     }
@@ -377,7 +389,7 @@ export const validateIntegrationReportContract = (report) => {
       reference.fileSpecMatchesCurrentVersion !== true
     ) {
       contractErrors.push(
-        `${reference.consumer} ${reference.dependencyName} matching-file reference must set fileSpecMatchesCurrentVersion=true`,
+        `${referenceLabel(reference)} matching-file reference must set fileSpecMatchesCurrentVersion=true`,
       );
     }
 
@@ -386,7 +398,7 @@ export const validateIntegrationReportContract = (report) => {
       reference.fileSpecMatchesCurrentVersion !== false
     ) {
       contractErrors.push(
-        `${reference.consumer} ${reference.dependencyName} stale-file reference must set fileSpecMatchesCurrentVersion=false`,
+        `${referenceLabel(reference)} stale-file reference must set fileSpecMatchesCurrentVersion=false`,
       );
     }
 
@@ -395,7 +407,7 @@ export const validateIntegrationReportContract = (report) => {
       reference.fileSpecMatchesCurrentVersion !== null
     ) {
       contractErrors.push(
-        `${reference.consumer} ${reference.dependencyName} external reference must set fileSpecMatchesCurrentVersion=null`,
+        `${referenceLabel(reference)} external reference must set fileSpecMatchesCurrentVersion=null`,
       );
     }
   }
