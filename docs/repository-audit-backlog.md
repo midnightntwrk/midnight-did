@@ -85,7 +85,7 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
    - 2026-05-22: `codex/did-api-deploy-shim-import-discipline` moves internal
      API call sites from the `deploy.ts` compatibility shim to focused
      ledger-state modules and extends the surface-discipline guard so only
-     public compatibility barrels/tests import the shim.
+     public compatibility barrels/tests import API shims.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
    - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era

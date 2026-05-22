@@ -28,7 +28,7 @@ function listFiles(relativeDir) {
     if (statSync(absolutePath).isDirectory()) {
       return listFiles(relativePath);
     }
-    return [relativePath];
+    return [relativePath.split(path.sep).join("/")];
   });
 }
 
@@ -451,28 +451,31 @@ assertNotIncludes(
   "run-api.sh",
 );
 
-const deployShimAllowedImporters = new Set([
-  "packages/api/src/contract-lifecycle.ts",
-  "packages/api/src/lib.ts",
-  "packages/api/src/test/compatibility-shims.test.ts",
-]);
+const apiShimAllowedImporters = {
+  deploy: new Set([
+    "packages/api/src/contract-lifecycle.ts",
+    "packages/api/src/lib.ts",
+    "packages/api/src/test/compatibility-shims.test.ts",
+  ]),
+  update: new Set([
+    "packages/api/src/did-operations.ts",
+    "packages/api/src/lib.ts",
+    "packages/api/src/test/compatibility-shims.test.ts",
+  ]),
+};
 for (const sourcePath of listFiles("packages/api/src").filter((filePath) =>
   filePath.endsWith(".ts"),
 )) {
-  if (deployShimAllowedImporters.has(sourcePath)) {
-    continue;
-  }
   const sourceText = readText(sourcePath);
-  for (const deployImport of [
-    'from "./deploy.js"',
-    'from "../deploy.js"',
-    'from "./deploy"',
-    'from "../deploy"',
-  ]) {
-    assertNotIncludes(
-      sourceText,
-      deployImport,
-      `${sourcePath} internal API imports`,
+  for (const [shimName, allowedImporters] of Object.entries(
+    apiShimAllowedImporters,
+  )) {
+    if (allowedImporters.has(sourcePath)) {
+      continue;
+    }
+    assert(
+      !new RegExp(`["']\\.\\.?/${shimName}(?:\\.js)?["']`).test(sourceText),
+      `${sourcePath} must not import the ${shimName}.ts compatibility shim`,
     );
   }
 }
