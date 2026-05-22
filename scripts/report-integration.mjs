@@ -46,15 +46,8 @@ const gitValue = (repoRoot, args) => {
 
 const findPackageJsonFiles = (root) => {
   const results = [];
-  const skip = new Set([
-    ".git",
-    "node_modules",
-    "dist",
-    "coverage",
-    "reports",
-    "target",
-    "vendor",
-  ]);
+  const skip = new Set([".git", "node_modules", "dist", "coverage", "reports", "target"]);
+  const skippedVendorRoot = "tooling/vendor/midnight-did";
 
   const walk = (directory) => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -65,7 +58,8 @@ const findPackageJsonFiles = (root) => {
       }
 
       if (entry.isDirectory()) {
-        if (!skip.has(entry.name)) {
+        const relativeDirectory = path.relative(root, absolutePath).split(path.sep).join("/");
+        if (!skip.has(entry.name) && relativeDirectory !== skippedVendorRoot) {
           walk(absolutePath);
         }
         continue;
@@ -191,6 +185,7 @@ const collectSiblingVcReferences = ({
           referencedVendorTarballPresent: referencedTarball
             ? siblingVc.vendorTarballs.includes(referencedTarball)
             : null,
+          vendorTarballPresent: currentVendorTarballPresent,
         };
 
         siblingVc.references.push(reference);
@@ -312,6 +307,7 @@ export const printIntegrationReport = (report) => {
 
 const parseArgs = (argv) => {
   const args = new Set(argv);
+  // Make usage reachable even when a caller also passes a stale or misspelled flag.
   if (args.has("--help") || args.has("-h")) {
     return {
       check: false,
