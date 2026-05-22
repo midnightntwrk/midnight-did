@@ -161,3 +161,7 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      sibling VC reference policy explicit by classifying dependencies as
      matching file specs, stale file specs, or external specs, and documents
      that missing vendor tarballs are an independent error dimension.
+   - 2026-05-22: `codex/did-integration-report-schema-contract` adds a
+     versioned integration-report schema descriptor, a `--schema` CLI mode, and
+     a report-contract validator so JSON consumers can detect future
+     reference-kind or summary-counter shape changes.
