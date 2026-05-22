@@ -1,6 +1,8 @@
-import { type Logger } from "pino";
+import pino, { type Logger } from "pino";
 
-let logger: Logger;
+const defaultLogger: Logger = pino({ level: "silent" });
+
+let logger: Logger = defaultLogger;
 
 export const getLogger = (): Logger => logger;
 

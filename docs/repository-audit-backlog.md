@@ -100,6 +100,9 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      `lightweight.ts` as a stateless crypto-helper module, removes its obsolete
      wallet wait/logger coupling, and extends the surface-discipline guard so
      wallet sync/funding behavior stays in `wallet-state.ts`.
+   - 2026-05-22: `codex/did-api-default-logger` makes `setLogger()` optional
+     for embedders by installing a no-op default logger and covering the
+     preconfiguration path with a focused API unit test.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
    - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era
