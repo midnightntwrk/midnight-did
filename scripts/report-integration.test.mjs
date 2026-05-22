@@ -90,6 +90,7 @@ try {
   assert.deepEqual(report.siblingVc.summary.notes, [
     "referenceCount is partitioned by matching-file-specs, stale-file-specs, and external-specs.",
     "missing-vendor-tarballs is independent and can overlap with stale or matching file specs.",
+    "fileSpecMatchesCurrentVersion is null for external package specs because no file path is being compared.",
   ]);
   assert.equal(report.siblingVc.references[0].referenceKind, "matching-file");
   assert.equal(report.siblingVc.references[0].fileSpecMatchesCurrentVersion, true);
