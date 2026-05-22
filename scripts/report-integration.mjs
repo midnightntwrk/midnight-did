@@ -15,6 +15,9 @@ references.
 Summary counters partition references by matching/stale/external specs; missing
 vendor tarballs are an independent error dimension.
 
+Modes:
+  --schema prints the schema descriptor only and cannot be combined with --check or --json.
+
 Environment overrides for tests and workspace automation:
   MIDNIGHT_DID_REPO_ROOT          DID repository root to inspect.
   MIDNIGHT_DID_SIBLING_VC_ROOT    VC repository root to inspect.
@@ -48,6 +51,9 @@ const defaultRepoRoot = () =>
 
 const readJson = (absolutePath) =>
   JSON.parse(readFileSync(absolutePath, "utf8"));
+
+const formatCounterValue = (value) =>
+  value === undefined ? "missing" : JSON.stringify(value);
 
 export const npmPackFileName = (packageName, version) =>
   `${packageName.replace(/^@/u, "").replaceAll("/", "-")}-${version}.tgz`;
@@ -319,17 +325,40 @@ export const validateIntegrationReportContract = (report) => {
     return contractErrors;
   }
 
-  const partitionedReferenceCount =
-    summary.matchingFileSpecCount +
-    summary.staleFileSpecCount +
-    summary.externalSpecCount;
-  if (partitionedReferenceCount !== summary.referenceCount) {
+  const requiredSummaryCounters = [
+    "referenceCount",
+    ...INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.partitionedCounters,
+  ];
+  for (const counterName of requiredSummaryCounters) {
+    if (!Number.isFinite(summary[counterName])) {
+      contractErrors.push(
+        `summary.${counterName} must be a finite number; received ${formatCounterValue(summary[counterName])}`,
+      );
+    }
+  }
+
+  const summaryCountersAreFinite = requiredSummaryCounters.every((counterName) =>
+    Number.isFinite(summary[counterName]),
+  );
+  const partitionedReferenceCount = summaryCountersAreFinite
+    ? INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.partitionedCounters.reduce(
+        (total, counterName) => total + summary[counterName],
+        0,
+      )
+    : null;
+  if (
+    summaryCountersAreFinite &&
+    partitionedReferenceCount !== summary.referenceCount
+  ) {
     contractErrors.push(
       `summary partition counters must add up to referenceCount; received ${partitionedReferenceCount} for ${summary.referenceCount}`,
     );
   }
 
-  if (references.length !== summary.referenceCount) {
+  if (
+    Number.isFinite(summary.referenceCount) &&
+    references.length !== summary.referenceCount
+  ) {
     contractErrors.push(
       `summary.referenceCount must match references.length; received ${summary.referenceCount} for ${references.length}`,
     );
@@ -423,10 +452,11 @@ export const printIntegrationReport = (report) => {
     }
   }
 
-  if (report.contractErrors.length > 0) {
+  const contractErrors = report.contractErrors ?? [];
+  if (contractErrors.length > 0) {
     console.log("");
     console.log("## Contract Errors");
-    for (const contractError of report.contractErrors) {
+    for (const contractError of contractErrors) {
       console.log(`- ${contractError}`);
     }
   }
@@ -449,6 +479,9 @@ const parseArgs = (argv) => {
   );
   if (unknownArgs.length > 0) {
     throw new Error(`Unknown report-integration argument: ${unknownArgs.join(", ")}`);
+  }
+  if (args.has("--schema") && (args.has("--check") || args.has("--json"))) {
+    throw new Error("--schema cannot be combined with --check or --json");
   }
   return {
     check: args.has("--check"),
@@ -483,9 +516,9 @@ if (isDirectExecution) {
 
     if (
       args.check &&
-      (report.errors.length > 0 || report.contractErrors.length > 0)
+      (report.errors.length > 0 || (report.contractErrors ?? []).length > 0)
     ) {
-      for (const contractError of report.contractErrors) {
+      for (const contractError of report.contractErrors ?? []) {
         console.error(`[report-integration] Contract error: ${contractError}`);
       }
       process.exit(1);
