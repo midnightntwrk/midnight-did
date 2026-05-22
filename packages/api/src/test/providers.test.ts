@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const providerMocks = vi.hoisted(() => ({
   contractConfig: { zkConfigPath: "/tmp/midnight-did/zk" },
@@ -60,14 +60,21 @@ vi.mock("@midnight-ntwrk/midnight-js-node-zk-config-provider", () => ({
 
 import { configureProviders } from "../providers.js";
 
+const makeConfig = () =>
+  ({
+    indexer: "https://indexer.example.test",
+    indexerWS: "wss://indexer.example.test",
+    proofServer: "https://proof.example.test",
+  }) as any;
+
 describe("provider composition", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("loads runtime provider adapters only when configuring providers", async () => {
     const ctx = { kind: "wallet-context" } as any;
-    const config = {
-      indexer: "https://indexer.example.test",
-      indexerWS: "wss://indexer.example.test",
-      proofServer: "https://proof.example.test",
-    } as any;
+    const config = makeConfig();
 
     const providers = await configureProviders(ctx, config);
 
@@ -111,5 +118,20 @@ describe("provider composition", () => {
         zkConfigPath: "/tmp/midnight-did/zk",
       },
     });
+  });
+
+  it("bubbles wallet setup failures before constructing providers", async () => {
+    providerMocks.createWalletAndMidnightProvider.mockRejectedValueOnce(
+      new Error("wallet unavailable"),
+    );
+
+    await expect(
+      configureProviders({ kind: "wallet-context" } as any, makeConfig()),
+    ).rejects.toThrow("wallet unavailable");
+
+    expect(providerMocks.NodeZkConfigProvider).not.toHaveBeenCalled();
+    expect(providerMocks.createDIDPrivateStateProvider).not.toHaveBeenCalled();
+    expect(providerMocks.indexerPublicDataProvider).not.toHaveBeenCalled();
+    expect(providerMocks.httpClientProofProvider).not.toHaveBeenCalled();
   });
 });
