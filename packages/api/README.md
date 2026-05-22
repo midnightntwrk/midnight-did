@@ -144,17 +144,20 @@ preconfiguring logging.
 - `src/wallet-sdk-config.ts` shared wallet SDK configuration builders
 - `src/lightweight.ts` stateless crypto helpers only; wallet wait behavior lives
   in `src/wallet-state.ts`
-
-Production API source must not use `as any` casts, and `as unknown as` casts
-must be explicitly allowlisted in `npm run check:did-surface-discipline`. Keep
-SDK type mismatches localized behind narrow adapter helpers and update the
-surface-discipline guard when an intentional compatibility escape hatch is
-unavoidable.
 - `src/did-subject.ts` DID subject and bound fragment normalization
 - `src/ledger-mappers.ts` DID document domain-to-ledger DTO mapping helpers
 - `src/update.ts` DID document update, deactivate, and resolve orchestration
 - `src/types.ts`
 - `src/test/`
+
+Type-safety policy:
+
+- production API source must not use `as any` casts
+- `as unknown as` casts must be explicitly allowlisted in
+  `npm run check:did-surface-discipline`
+- keep SDK type mismatches localized behind narrow adapter helpers and update
+  the surface-discipline guard when an intentional compatibility escape hatch is
+  unavoidable
 
 Legacy deep source files `src/contract-lifecycle.ts` and `src/did-operations.ts`
 remain as short-lived deprecation shims for external deep source-path imports.
