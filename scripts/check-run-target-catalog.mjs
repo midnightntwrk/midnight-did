@@ -268,6 +268,33 @@ assert.equal(
   "package script should keep the managed artifact freshness checker available after artifact builds",
 );
 
+const integrationReportSchemaResult = run(["integration-report-schema"]);
+assert.equal(
+  integrationReportSchemaResult.status,
+  0,
+  "integration-report-schema target should exit successfully",
+);
+const integrationReportSchema = JSON.parse(integrationReportSchemaResult.stdout);
+assert.equal(
+  integrationReportSchema.id,
+  "midnight-did-integration-report",
+  "integration-report-schema target should expose the report schema id",
+);
+assert.deepEqual(
+  integrationReportSchema.referenceKinds,
+  ["matching-file", "stale-file", "external"],
+  "integration-report-schema target should expose the reference-kind partition",
+);
+assert.ok(
+  runSh.includes("node ./scripts/report-integration.mjs --schema"),
+  "run.sh should wire integration-report-schema to the report schema CLI",
+);
+assert.equal(
+  rootPackage.scripts?.["report:integration:schema"],
+  "node scripts/report-integration.mjs --schema",
+  "package script should keep the integration report schema CLI available",
+);
+
 const cleanArtifactsFixtureDir = mkdtempSync(
   path.join(tmpdir(), "midnight-did-clean-fixture-"),
 );
