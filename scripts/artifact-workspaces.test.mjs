@@ -37,6 +37,33 @@ assert.deepEqual(
   "upgrade-libs should expose the shared artifact workspace catalog",
 );
 
+const missingCatalogResult = spawnSync(
+  "bash",
+  [
+    "-c",
+    [
+      "export DID_WORKSPACE_CATALOG_SCRIPT=/tmp/missing-did-workspace-catalog.mjs",
+      "bash ./scripts/pack-artifacts.sh \"$1\"",
+    ].join("; "),
+    "bash",
+    path.join(mkdtempSync(path.join(tmpdir(), "did-pack-missing-")), "npm"),
+  ],
+  {
+    cwd: repoRoot,
+    encoding: "utf8",
+  },
+);
+assert.equal(
+  missingCatalogResult.status,
+  1,
+  "pack-artifacts should fail closed when the workspace catalog is unavailable",
+);
+assert.match(
+  missingCatalogResult.stderr,
+  /DID artifact workspace catalog is empty or unavailable/u,
+  "pack-artifacts should explain empty catalog failures",
+);
+
 const fixtureRoot = mkdtempSync(path.join(tmpdir(), "did-artifacts-"));
 try {
   const downstreamRepo = path.join(fixtureRoot, "consumer");
