@@ -28,6 +28,7 @@ describe("DID production cast rules", () => {
       /* const unsafe = value as unknown as Wallet; */
       const text = "do not flag as any inside a diagnostic";
       const template = \`do not flag as unknown as inside docs\`;
+      const pattern = /as any/u;
       const typed = value as WalletProvider;
     `;
 
@@ -35,6 +36,18 @@ describe("DID production cast rules", () => {
     assert.deepEqual(
       productionCastViolationsForSource("packages/api/src/wallet.ts", source),
       [],
+    );
+  });
+
+  it("scans template interpolation expressions as production code", () => {
+    assert.deepEqual(
+      productionCastViolationsForSource(
+        "packages/api/src/wallet.ts",
+        "const message = `wallet ${value as any}`;",
+      ),
+      [
+        "packages/api/src/wallet.ts production API source must not use `as any` casts",
+      ],
     );
   });
 
@@ -46,6 +59,22 @@ describe("DID production cast rules", () => {
       ),
       [
         "packages/api/src/wallet.ts production API source must not use `as any` casts",
+      ],
+    );
+  });
+
+  it("reports every cast violation found in one source file", () => {
+    assert.deepEqual(
+      productionCastViolationsForSource(
+        "packages/api/src/wallet.ts",
+        `
+          const unsafe = value as any;
+          const wallet = value as unknown as Wallet;
+        `,
+      ),
+      [
+        "packages/api/src/wallet.ts production API source must not use `as any` casts",
+        "packages/api/src/wallet.ts production API source must not use `as unknown as` casts",
       ],
     );
   });
