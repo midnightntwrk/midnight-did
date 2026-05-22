@@ -2,7 +2,7 @@ import { parseContractAddress } from "@midnight-ntwrk/midnight-did";
 import { type DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import { VerificationMethodRelationType } from "@midnight-ntwrk/midnight-did-domain";
 
-import { getMidnightDIDLedgerState } from "./deploy.js";
+import { requireMidnightDIDLedgerState } from "./deploy.js";
 import {
   LedgerVerificationMethodRelationMap,
   relationSetFromState,
@@ -18,27 +18,21 @@ export const VerificationMethodRelations = Object.freeze([
   VerificationMethodRelationType.KeyAgreement,
   VerificationMethodRelationType.CapabilityInvocation,
   VerificationMethodRelationType.CapabilityDelegation,
-]);
+] as const satisfies readonly VerificationMethodRelationType[]);
 
 export type VerificationMethodRelationMembership = {
   readonly relation: VerificationMethodRelationType;
   readonly member: boolean;
 };
 
-export const requireMidnightDIDLedgerState = async (
+const requireDeployedMidnightDIDLedgerState = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
 ): Promise<DIDContract.Ledger> => {
   const contractAddress = parseContractAddress(
     didContract.deployTxData.public.contractAddress,
   );
-  const didState = await getMidnightDIDLedgerState(providers, contractAddress);
-
-  if (!didState) {
-    throw new Error("Cannot query DID state");
-  }
-
-  return didState;
+  return await requireMidnightDIDLedgerState(providers, contractAddress);
 };
 
 export const verificationMethodRelationMemberships = (
@@ -95,7 +89,10 @@ export const removeVerificationMethodRelationMemberships = async (
   providers: MidnightDIDProviders,
   normalizedMethodId: string,
 ): Promise<void> => {
-  const didState = await requireMidnightDIDLedgerState(didContract, providers);
+  const didState = await requireDeployedMidnightDIDLedgerState(
+    didContract,
+    providers,
+  );
   const memberships = verificationMethodRelationMemberships(
     didState,
     normalizedMethodId,

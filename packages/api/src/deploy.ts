@@ -51,6 +51,17 @@ export const getMidnightDIDLedgerState = async (
   return state;
 };
 
+export const requireMidnightDIDLedgerState = async (
+  providers: MidnightDIDProviders,
+  contractAddress: ContractAddress,
+): Promise<DIDContract.Ledger> => {
+  const didState = await getMidnightDIDLedgerState(providers, contractAddress);
+  if (!didState) {
+    throw new Error("Cannot query DID state");
+  }
+  return didState;
+};
+
 export const midnightDIDContractInstance: MidnightDIDContract =
   new (DIDContract.Contract as unknown as new (
     ...args: any[]
