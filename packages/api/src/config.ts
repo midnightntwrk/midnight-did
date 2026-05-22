@@ -1,11 +1,10 @@
-import path from "node:path";
-
 import {
   applyMidnightNetworkProfile,
   type MidnightEndpointOverrides,
   type MidnightNetworkProfileName,
   resolveMidnightNetworkConfig,
 } from "./config-profiles.js";
+import { contractConfig, currentDir } from "./package-paths.js";
 
 export {
   applyMidnightNetworkProfile,
@@ -20,23 +19,7 @@ export {
   type ResolvedMidnightNetworkConfig,
   resolveMidnightNetworkConfig,
 } from "./config-profiles.js";
-// Resolve to the package root whether running from src or dist/src
-const fileDir = path.resolve(new URL(import.meta.url).pathname, "..");
-const upOne = path.resolve(fileDir, "..");
-export const currentDir =
-  path.basename(upOne) === "dist" ? path.resolve(upOne, "..") : upOne;
-
-export const contractConfig = {
-  privateStateStoreName: "did-private-state",
-  zkConfigPath: path.resolve(
-    currentDir,
-    "..",
-    "contract",
-    "src",
-    "managed",
-    "did",
-  ),
-};
+export { contractConfig, currentDir };
 
 export interface Config {
   readonly logDir: string;
