@@ -150,3 +150,10 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      use the current API/docs/scan PR job names and docs-site spec paths, then
      extends the surface-discipline guard so service-era CI wording and removed
      `w3c-spec` paths do not come back.
+9. Keep sibling VC integration reporting fixture-testable so DID package
+   tarball/reference drift can be caught without depending on a developer's
+   local checkout layout.
+   - 2026-05-22: `codex/did-integration-report-contract` refactors
+     `scripts/report-integration.mjs` into an importable report builder, adds
+     environment-overridable roots for fixture tests, fails closed on unknown
+     CLI arguments, and wires a contract test into `ci:core`.
