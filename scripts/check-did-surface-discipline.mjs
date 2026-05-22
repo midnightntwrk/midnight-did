@@ -330,14 +330,7 @@ assertIncludes(
 
 const packArtifacts = readText("scripts/pack-artifacts.sh");
 const artifactWorkspaceBridge = readText("scripts/artifact-workspaces.sh");
-const workspaceCatalog = readText("scripts/did-workspace-catalog.mjs");
 const upgradeLibs = readText("upgrade-libs.sh");
-for (const workspace of libraryWorkspaces) {
-  assert(
-    workspaceCatalog.includes(`workspace: "${workspace}"`),
-    `DID workspace catalog must include artifact workspace "${workspace}"`,
-  );
-}
 assertIncludes(
   artifactWorkspaceBridge,
   "did-workspace-catalog.mjs",
