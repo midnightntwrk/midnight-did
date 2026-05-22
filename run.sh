@@ -16,6 +16,16 @@ case "${RUN_COMMON_TARGET}" in
     node ./scripts/clean-artifacts.mjs
     exit 0
     ;;
+  artifact-status)
+    run_common_ensure_node
+    node ./scripts/managed-artifact-catalog.mjs --json
+    exit 0
+    ;;
+  check-managed-artifacts)
+    run_common_ensure_node
+    node ./scripts/managed-artifact-catalog.mjs --check
+    exit 0
+    ;;
   integration-report)
     run_common_ensure_node
     node ./scripts/report-integration.mjs

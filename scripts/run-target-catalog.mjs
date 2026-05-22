@@ -68,6 +68,20 @@ export const targets = [
     supportsMetrics: false,
   },
   {
+    name: "artifact-status",
+    description: "Print managed Compact artifact readiness and source manifest JSON.",
+    supportsLight: false,
+    supportsStrict: false,
+    supportsMetrics: false,
+  },
+  {
+    name: "check-managed-artifacts",
+    description: "Fail if managed Compact artifacts are missing, stale, or miscataloged.",
+    supportsLight: false,
+    supportsStrict: false,
+    supportsMetrics: false,
+  },
+  {
     name: "integration-report",
     description: "Print a DID package and sibling VC integration readiness report.",
     supportsLight: false,
