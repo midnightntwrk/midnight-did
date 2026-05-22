@@ -12,7 +12,7 @@ references.
 Environment overrides for tests and workspace automation:
   MIDNIGHT_DID_REPO_ROOT          DID repository root to inspect.
   MIDNIGHT_DID_SIBLING_VC_ROOT    VC repository root to inspect.
-  MIDNIGHT_DID_INTEGRATION_NOW    Stable generatedAt timestamp.
+  MIDNIGHT_DID_INTEGRATION_NOW    Stable ISO-8601 generatedAt timestamp.
 `;
 
 const defaultRepoRoot = () =>
@@ -40,7 +40,15 @@ const gitValue = (repoRoot, args) => {
 
 const findPackageJsonFiles = (root) => {
   const results = [];
-  const skip = new Set([".git", "node_modules", "dist", "coverage", "reports", "target"]);
+  const skip = new Set([
+    ".git",
+    "node_modules",
+    "dist",
+    "coverage",
+    "reports",
+    "target",
+    "vendor",
+  ]);
 
   const walk = (directory) => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -155,16 +163,26 @@ const collectSiblingVcReferences = ({
         const didPackage = didPackageByName.get(dependencyName);
         const expectedTarball = didPackage.tarball;
         const expectedFileSpec = `file:${path.relative(path.dirname(packageJsonPath), path.join(didVendorRoot, expectedTarball)).split(path.sep).join("/")}`;
+        const referencedTarball = spec.startsWith("file:")
+          ? spec.slice("file:".length).split("/").at(-1)
+          : null;
         const vcRelativePackageJson = path.relative(siblingVcRoot, packageJsonPath);
+        const currentVendorTarballPresent =
+          siblingVc.vendorTarballs.includes(expectedTarball);
         const reference = {
           dependencyName,
           spec,
           expectedFileSpec,
           expectedTarball,
+          referencedTarball,
           consumer: packageJson.name ?? vcRelativePackageJson,
           packageJson: vcRelativePackageJson,
           fileSpecMatchesCurrentVersion: spec === expectedFileSpec,
-          vendorTarballPresent: siblingVc.vendorTarballs.includes(expectedTarball),
+          currentVendorTarballPresent,
+          referencedVendorTarballPresent: referencedTarball
+            ? siblingVc.vendorTarballs.includes(referencedTarball)
+            : null,
+          vendorTarballPresent: currentVendorTarballPresent,
         };
 
         siblingVc.references.push(reference);
@@ -183,7 +201,7 @@ const collectSiblingVcReferences = ({
           );
         }
 
-        if (spec.startsWith("file:") && !reference.vendorTarballPresent) {
+        if (spec.startsWith("file:") && !reference.currentVendorTarballPresent) {
           siblingVc.summary.missingVendorTarballCount += 1;
           errors.push(
             `${reference.consumer} references ${dependencyName}, but vendor tarball is missing: ${expectedTarball}`,
@@ -262,7 +280,7 @@ export const printIntegrationReport = (report) => {
     );
     for (const reference of report.siblingVc.references) {
       console.log(
-        `- ${reference.consumer}: ${reference.dependencyName} -> ${reference.spec} vendor=${reference.vendorTarballPresent ? "yes" : "no"}`,
+        `- ${reference.consumer}: ${reference.dependencyName} -> ${reference.spec} current-vendor=${reference.currentVendorTarballPresent ? "yes" : "no"} referenced-vendor=${reference.referencedVendorTarballPresent === null ? "n/a" : reference.referencedVendorTarballPresent ? "yes" : "no"}`,
       );
     }
   }

@@ -135,6 +135,7 @@ try {
     siblingVcRoot: vcRoot,
   });
   assert.equal(missingTarballReport.siblingVc.summary.referenceCount, 3);
+  assert.equal(missingTarballReport.siblingVc.summary.matchingFileSpecCount, 2);
   assert.equal(missingTarballReport.siblingVc.summary.missingVendorTarballCount, 1);
   assert.match(
     missingTarballReport.errors.join("\n"),
@@ -171,6 +172,15 @@ try {
   );
   assert.match(failingCheck.stdout, /stale-file-specs=1/u);
   assert.match(failingCheck.stdout, /missing-vendor-tarballs=1/u);
+  const staleReferenceReport = buildIntegrationReport({
+    repoRoot: didRoot,
+    siblingVcRoot: vcRoot,
+  });
+  const staleReference = staleReferenceReport.siblingVc.references.find(
+    (reference) => reference.consumer === "stale-did-consumer",
+  );
+  assert.equal(staleReference.currentVendorTarballPresent, true);
+  assert.equal(staleReference.referencedVendorTarballPresent, false);
 
   const unknownArg = spawnSync("node", [scriptPath, "--dryrun"], {
     cwd: repoRoot,
@@ -185,6 +195,7 @@ try {
   });
   assert.equal(helpWins.status, 0, "help should win over unknown arguments");
   assert.match(helpWins.stdout, /Usage: node scripts\/report-integration\.mjs/u);
+  assert.match(helpWins.stdout, /Stable ISO-8601 generatedAt timestamp/u);
 } finally {
   rmSync(fixtureRoot, { recursive: true, force: true });
 }
