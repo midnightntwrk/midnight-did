@@ -134,6 +134,7 @@ const collectSiblingVcReferences = ({
       notes: [
         "referenceCount is partitioned by matching-file-specs, stale-file-specs, and external-specs.",
         "missing-vendor-tarballs is independent and can overlap with stale or matching file specs.",
+        "fileSpecMatchesCurrentVersion is null for external package specs because no file path is being compared.",
       ],
     },
   };
@@ -171,7 +172,7 @@ const collectSiblingVcReferences = ({
         const fileSpecMatchesCurrentVersion = isFileSpec
           ? spec === expectedFileSpec
           : null;
-        const referencedFileName = spec.startsWith("file:")
+        const referencedFileName = isFileSpec
           ? spec.slice("file:".length).split("/").filter(Boolean).at(-1)
           : null;
         const referencedTarball = referencedFileName?.endsWith(".tgz")
