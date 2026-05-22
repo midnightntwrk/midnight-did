@@ -1,4 +1,7 @@
-import { type FinalizedTransaction } from "@midnight-ntwrk/ledger-v8";
+import {
+  type FinalizedTransaction,
+  type TransactionId,
+} from "@midnight-ntwrk/ledger-v8";
 import {
   type MidnightProvider,
   type UnboundTransaction,
@@ -49,7 +52,7 @@ export const createWalletAndMidnightProvider = async (
 
       return ctx.wallet.finalizeRecipe(recipe);
     },
-    submitTx(tx) {
+    submitTx(tx: FinalizedTransaction): Promise<TransactionId> {
       return ctx.wallet.submitTransaction(tx);
     },
   };
