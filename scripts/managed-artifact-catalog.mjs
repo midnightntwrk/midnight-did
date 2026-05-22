@@ -5,6 +5,7 @@ import {
   readFileSync,
   statSync,
 } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { stderr, stdout } from "node:process";
 import { fileURLToPath } from "node:url";
@@ -92,6 +93,54 @@ const newestInputMtimeMs = (inputs) => {
 const missingInputsFor = (inputs) =>
   inputs.filter((input) => !existsSync(path.join(repoRoot, input)));
 
+const collectInputFiles = (inputs, root = repoRoot) => {
+  const files = [];
+
+  const visit = (relativePath) => {
+    const absolutePath = path.join(root, relativePath);
+    if (!existsSync(absolutePath)) {
+      return;
+    }
+
+    const stat = statSync(absolutePath);
+    if (stat.isDirectory()) {
+      for (const entry of readdirSync(absolutePath).sort()) {
+        visit(path.join(relativePath, entry));
+      }
+      return;
+    }
+
+    files.push(relativePath);
+  };
+
+  for (const input of inputs) {
+    visit(input);
+  }
+
+  return files.sort();
+};
+
+export const createInputSourceManifest = (inputs, root = repoRoot) => {
+  const files = collectInputFiles(inputs, root);
+  const digest = createHash("sha256");
+
+  for (const file of files) {
+    digest.update(file);
+    digest.update("\0");
+    digest.update(readFileSync(path.join(root, file)));
+    digest.update("\0");
+  }
+
+  return {
+    algorithm: "sha256",
+    digest: digest.digest("hex"),
+    files,
+  };
+};
+
+const uniqueInputsForProfile = (profile) =>
+  [...new Set(profile.outputs.flatMap((artifact) => artifact.inputs))].sort();
+
 export const explainProfile = (profileName) => {
   const profile = artifactProfiles[profileName];
   if (!profile) {
@@ -102,6 +151,7 @@ export const explainProfile = (profileName) => {
       stale: [],
       missingInputs: [],
       outputs: [],
+      sourceManifest: null,
     };
   }
 
@@ -142,7 +192,9 @@ export const explainProfile = (profileName) => {
     missing,
     missingInputs,
     stale,
+    inputs: uniqueInputsForProfile(profile),
     outputs: profile.outputs.map((artifact) => artifact.path),
+    sourceManifest: createInputSourceManifest(uniqueInputsForProfile(profile)),
   };
 };
 

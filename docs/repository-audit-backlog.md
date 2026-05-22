@@ -58,6 +58,9 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
 4. Keep generated artifact freshness checks for `contract` and
    `jubjub-schnorr` aligned with Compact source/build-script inputs through
    `npm run check:managed-artifacts`.
+   - 2026-05-22: `codex/did-managed-artifact-source-manifest` adds
+     deterministic SHA-256 source manifests to `artifacts:status` and covers
+     the manifest contract with `npm run test:managed-artifacts`.
 5. Tighten `docs-site` links so moved service pages are referenced only as external repository pointers.
    - 2026-05-22: `codex/did-docs-resolver-boundary-links` adds a docs-site
      repository-boundary guide, links service/runtime mentions to
