@@ -25,15 +25,11 @@ const providerMocks = vi.hoisted(() => ({
     kind: "public-data-provider",
   })),
   NodeZkConfigProvider: vi.fn(function NodeZkConfigProvider(
-    this: { readonly kind?: string; readonly zkConfigPath?: string },
+    this: { kind?: string; zkConfigPath?: string },
     zkConfigPath: string,
   ) {
-    Object.defineProperty(this, "kind", {
-      value: "zk-config-provider",
-    });
-    Object.defineProperty(this, "zkConfigPath", {
-      value: zkConfigPath,
-    });
+    this.kind = "zk-config-provider";
+    this.zkConfigPath = zkConfigPath;
   }),
 }));
 
