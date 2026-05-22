@@ -457,6 +457,16 @@ assertNotIncludes(
   "packages/api/src/api-logger.ts",
 );
 
+for (const sourcePath of listFiles("packages/api/src").filter(
+  (filePath) => filePath.endsWith(".ts") && !filePath.includes("/test/"),
+)) {
+  assertNotIncludes(
+    readText(sourcePath),
+    " as any",
+    `${sourcePath} production API source`,
+  );
+}
+
 const apiShimAllowedImporters = {
   deploy: new Set([
     "packages/api/src/contract-lifecycle.ts",

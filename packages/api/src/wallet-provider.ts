@@ -1,5 +1,7 @@
+import { type FinalizedTransaction } from "@midnight-ntwrk/ledger-v8";
 import {
   type MidnightProvider,
+  type UnboundTransaction,
   type WalletProvider,
 } from "@midnight-ntwrk/midnight-js-types";
 import * as Rx from "rxjs";
@@ -21,12 +23,15 @@ export const createWalletAndMidnightProvider = async (
     getEncryptionPublicKey() {
       return state.shielded.encryptionPublicKey.toHexString();
     },
-    async balanceTx(tx, ttl?) {
+    async balanceTx(
+      tx: UnboundTransaction,
+      ttl?: Date,
+    ): Promise<FinalizedTransaction> {
       const recipe = await ctx.wallet.balanceUnboundTransaction(
-        tx as any,
+        tx,
         {
-          shieldedSecretKeys: ctx.shieldedSecretKeys as any,
-          dustSecretKey: ctx.dustSecretKey as any,
+          shieldedSecretKeys: ctx.shieldedSecretKeys,
+          dustSecretKey: ctx.dustSecretKey,
         },
         { ttl: ttl ?? new Date(Date.now() + 30 * 60 * 1000) },
       );
@@ -42,10 +47,10 @@ export const createWalletAndMidnightProvider = async (
         );
       }
 
-      return ctx.wallet.finalizeRecipe(recipe) as any;
+      return ctx.wallet.finalizeRecipe(recipe);
     },
     submitTx(tx) {
-      return ctx.wallet.submitTransaction(tx as any) as any;
+      return ctx.wallet.submitTransaction(tx);
     },
   };
 };

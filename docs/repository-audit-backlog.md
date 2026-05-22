@@ -103,6 +103,10 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
    - 2026-05-22: `codex/did-api-default-logger` makes `setLogger()` optional
      for embedders by installing a no-op default logger and covering the
      preconfiguration path with a focused API unit test.
+   - 2026-05-22: `codex/did-wallet-sdk-cast-boundary` removes avoidable
+     `as any` casts from production wallet SDK integration paths and extends
+     the surface-discipline guard so future production API source keeps SDK
+     transaction and secret-key types explicit.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
    - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era
