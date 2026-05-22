@@ -89,6 +89,7 @@ Local validation:
 ./run.sh docs
 ./run.sh artifact-status
 ./run.sh check-managed-artifacts
+./run.sh integration-report-schema
 ```
 
 Runner notes:
@@ -159,6 +160,8 @@ and `MIDNIGHT_DID_INTEGRATION_NOW`. JSON consumers should read
 current reference-kind and summary-counter contract. The first versioned schema
 is `midnight-did-integration-report@1`; earlier unversioned reports carried
 human-readable `summary.notes`, which now live only in the schema output.
+The same schema is available through `./run.sh integration-report-schema` for
+runner-only automation.
 
 ## Artifact Packaging
 
