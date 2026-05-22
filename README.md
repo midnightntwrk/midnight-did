@@ -125,6 +125,7 @@ npm run test:did-surface-discipline
 npm run check:run-target-catalog
 npm run check:managed-artifacts
 npm run artifacts:status
+npm run report:integration
 npm run check:integration
 ```
 
@@ -147,6 +148,12 @@ npm run check:workspace-manifests
 
 It validates the root workspace list, package names, export maps, tarball
 `files`, and README ownership for the DID-owned packages.
+
+The integration report checks the sibling
+`../midnight-verifiable-credentials` checkout for file-based DID package
+references and matching vendored tarballs. Fixture tests can override the
+default roots with `MIDNIGHT_DID_REPO_ROOT`, `MIDNIGHT_DID_SIBLING_VC_ROOT`,
+and `MIDNIGHT_DID_INTEGRATION_NOW`.
 
 ## Artifact Packaging
 
