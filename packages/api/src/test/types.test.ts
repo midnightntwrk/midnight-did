@@ -11,6 +11,7 @@ describe("types", () => {
 
   it("maps runtime network ids to MidnightNetwork", () => {
     expect(NetworkMapping).toBe(RuntimeToDomain.NetworkMap);
+    expect(Object.isFrozen(NetworkMapping)).toBe(true);
     expect(NetworkMapping.undeployed).toBe(MidnightNetwork.Undeployed);
     expect(NetworkMapping.devnet).toBe(MidnightNetwork.DevNet);
     expect(NetworkMapping.testnet).toBe(MidnightNetwork.Testnet);
