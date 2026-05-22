@@ -65,6 +65,10 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      import lightweight by loading proof/indexer/zk provider adapters only when
      `configureProviders()` is called, with a focused composition test covering
      the runtime adapter handoff.
+   - 2026-05-22: `codex/did-api-network-mapping-docs` documents the preferred
+     direction-specific network mapping helpers, marks the legacy
+     `NetworkMapping` alias as compatibility-only, and records the lazy
+     provider-adapter barrel import contract for API consumers.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
    - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era
