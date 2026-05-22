@@ -144,6 +144,11 @@ preconfiguring logging.
 - `src/wallet-sdk-config.ts` shared wallet SDK configuration builders
 - `src/lightweight.ts` stateless crypto helpers only; wallet wait behavior lives
   in `src/wallet-state.ts`
+
+Production API source should not use broad `as any` casts around wallet SDK
+transactions or secret keys. Keep SDK type mismatches localized behind narrow
+adapter helpers and update `npm run check:did-surface-discipline` when an
+intentional compatibility escape hatch is unavoidable.
 - `src/did-subject.ts` DID subject and bound fragment normalization
 - `src/ledger-mappers.ts` DID document domain-to-ledger DTO mapping helpers
 - `src/update.ts` DID document update, deactivate, and resolve orchestration
