@@ -59,7 +59,7 @@ export const registerForDustGeneration = async (
     (payload) => unshieldedKeystore.signData(payload),
   );
   const finalized = await wallet.finalizeRecipe(recipe);
-  await wallet.submitTransaction(finalized as any);
+  await wallet.submitTransaction(finalized);
 
   getLogger().info("Waiting for dust generation...");
   await waitForDustBalance(wallet);

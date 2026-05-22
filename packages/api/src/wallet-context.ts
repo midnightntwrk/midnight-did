@@ -57,9 +57,7 @@ export const createWalletContext = async (
   const shieldedWallet =
     snapshot?.shieldedState !== undefined
       ? ShieldedWallet(shieldedConfig).restore(snapshot.shieldedState)
-      : ShieldedWallet(shieldedConfig).startWithSecretKeys(
-          shieldedSecretKeys as any,
-        );
+      : ShieldedWallet(shieldedConfig).startWithSecretKeys(shieldedSecretKeys);
   const unshieldedWallet =
     snapshot?.unshieldedState !== undefined
       ? UnshieldedWallet(unshieldedConfig).restore(snapshot.unshieldedState)
@@ -70,7 +68,7 @@ export const createWalletContext = async (
     snapshot?.dustState !== undefined
       ? DustWallet(dustConfig).restore(snapshot.dustState)
       : DustWallet(dustConfig).startWithSecretKey(
-          dustSecretKey as any,
+          dustSecretKey,
           ledger.LedgerParameters.initialParameters().dust,
         );
 
@@ -84,7 +82,7 @@ export const createWalletContext = async (
     unshielded: async () => unshieldedWallet,
     dust: async () => dustWallet,
   });
-  await wallet.start(shieldedSecretKeys as any, dustSecretKey as any);
+  await wallet.start(shieldedSecretKeys, dustSecretKey);
 
   return {
     wallet,
