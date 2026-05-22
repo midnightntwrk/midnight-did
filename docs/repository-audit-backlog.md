@@ -61,6 +61,10 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      network-map contract to `Readonly<Record<...>>`, matching the frozen
      runtime objects used by `DomainToRuntime`, `RuntimeToDomain`, and the
      legacy `NetworkMapping` export.
+   - 2026-05-22: `codex/did-api-lazy-provider-adapters` keeps the API barrel
+     import lightweight by loading proof/indexer/zk provider adapters only when
+     `configureProviders()` is called, with a focused composition test covering
+     the runtime adapter handoff.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
    - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era
