@@ -248,6 +248,7 @@ Main jobs:
 
 - `Core (Lint + Contract/Domain/DID)`: core package validation.
 - `API pipeline`: API integration and example validation.
+- `Build, Lint, Test, and Coverage`: aggregate CI gate for `core` and `api`.
 - `Build Docs Site`: docs-site build.
 - `Deploy Docs Site`: GitHub Pages deployment from `main` pushes only.
 - `Scan / build`: security scanning.
