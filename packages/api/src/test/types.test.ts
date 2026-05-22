@@ -4,6 +4,12 @@ import { describe, expect, it } from "vitest";
 import { RuntimeToDomain } from "../runtime-to-domain.js";
 import { MidnightDIDPrivateStateId, NetworkMapping } from "../types.js";
 
+const assertReadonlyNetworkMappingType = () => {
+  // @ts-expect-error NetworkMapping is a readonly compatibility surface.
+  NetworkMapping.devnet = MidnightNetwork.Mainnet;
+};
+void assertReadonlyNetworkMappingType;
+
 describe("types", () => {
   it("exposes expected private state id", () => {
     expect(MidnightDIDPrivateStateId).toBe("midnightDIDPrivateState");

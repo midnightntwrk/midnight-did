@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@midnight-ntwrk/midnight-js-http-client-proof-provider", () => ({
+  httpClientProofProvider: vi.fn(),
+}));
 
 import * as api from "../index.js";
 
