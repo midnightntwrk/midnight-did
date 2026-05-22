@@ -280,6 +280,11 @@ assert.equal(
   "midnight-did-integration-report",
   "integration-report-schema target should expose the report schema id",
 );
+assert.equal(
+  integrationReportSchema.version,
+  1,
+  "integration-report-schema target should expose the current report schema version",
+);
 assert.deepEqual(
   integrationReportSchema.referenceKinds,
   ["matching-file", "stale-file", "external"],
