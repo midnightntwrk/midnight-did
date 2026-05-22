@@ -30,4 +30,4 @@ Use it when you need to answer:
 
 1. Read the traits page for the high-level support picture.
 2. Read the method spec page for exact normative detail.
-3. Use the package/service docs to find the implementation boundary.
+3. Use the package docs and [repository boundary guide](/guide/repository-boundaries) to find the implementation boundary.

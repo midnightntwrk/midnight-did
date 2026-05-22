@@ -18,7 +18,9 @@ Use this before opening or updating a PR:
 ./run.sh docs
 ```
 
-The root runner validates DID core/API/docs only. Resolver service, manager service, and secret-storage checks live in `midnight-did-resolver`.
+The root runner validates DID core/API/docs only. Resolver service, manager
+service, and secret-storage checks live in
+[`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver).
 
 ## Full Local Loop
 
