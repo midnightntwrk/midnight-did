@@ -20,6 +20,7 @@ Environment overrides for tests and workspace automation:
   MIDNIGHT_DID_SIBLING_VC_ROOT    VC repository root to inspect.
   MIDNIGHT_DID_INTEGRATION_NOW    Stable ISO-8601 generatedAt timestamp.
 `;
+const DID_VENDOR_RELATIVE_ROOT = "tooling/vendor/midnight-did";
 
 const defaultRepoRoot = () =>
   execFileSync("git", ["rev-parse", "--show-toplevel"], {
@@ -47,7 +48,6 @@ const gitValue = (repoRoot, args) => {
 const findPackageJsonFiles = (root) => {
   const results = [];
   const skip = new Set([".git", "node_modules", "dist", "coverage", "reports", "target"]);
-  const skippedVendorRoot = "tooling/vendor/midnight-did";
 
   const walk = (directory) => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -59,7 +59,7 @@ const findPackageJsonFiles = (root) => {
 
       if (entry.isDirectory()) {
         const relativeDirectory = path.relative(root, absolutePath).split(path.sep).join("/");
-        if (!skip.has(entry.name) && relativeDirectory !== skippedVendorRoot) {
+        if (!skip.has(entry.name) && relativeDirectory !== DID_VENDOR_RELATIVE_ROOT) {
           walk(absolutePath);
         }
         continue;
@@ -131,6 +131,11 @@ const collectSiblingVcReferences = ({
       staleFileSpecCount: 0,
       missingVendorTarballCount: 0,
       externalSpecCount: 0,
+      notes: [
+        "referenceCount is partitioned by matching-file-specs, stale-file-specs, and external-specs.",
+        "missing-vendor-tarballs is independent and can overlap with stale or matching file specs.",
+        "fileSpecMatchesCurrentVersion is null for external package specs because no file path is being compared.",
+      ],
     },
   };
 
@@ -163,7 +168,11 @@ const collectSiblingVcReferences = ({
         const didPackage = didPackageByName.get(dependencyName);
         const expectedTarball = didPackage.tarball;
         const expectedFileSpec = `file:${path.relative(path.dirname(packageJsonPath), path.join(didVendorRoot, expectedTarball)).split(path.sep).join("/")}`;
-        const referencedFileName = spec.startsWith("file:")
+        const isFileSpec = spec.startsWith("file:");
+        const fileSpecMatchesCurrentVersion = isFileSpec
+          ? spec === expectedFileSpec
+          : null;
+        const referencedFileName = isFileSpec
           ? spec.slice("file:".length).split("/").filter(Boolean).at(-1)
           : null;
         const referencedTarball = referencedFileName?.endsWith(".tgz")
@@ -178,9 +187,15 @@ const collectSiblingVcReferences = ({
           expectedFileSpec,
           expectedTarball,
           referencedTarball,
+          referenceKind:
+            fileSpecMatchesCurrentVersion === true
+              ? "matching-file"
+              : isFileSpec
+                ? "stale-file"
+                : "external",
           consumer: packageJson.name ?? vcRelativePackageJson,
           packageJson: vcRelativePackageJson,
-          fileSpecMatchesCurrentVersion: spec === expectedFileSpec,
+          fileSpecMatchesCurrentVersion,
           currentVendorTarballPresent,
           referencedVendorTarballPresent: referencedTarball
             ? siblingVc.vendorTarballs.includes(referencedTarball)
@@ -190,21 +205,21 @@ const collectSiblingVcReferences = ({
 
         siblingVc.references.push(reference);
 
-        if (spec === expectedFileSpec) {
+        if (reference.referenceKind === "matching-file") {
           siblingVc.summary.matchingFileSpecCount += 1;
-        } else if (!spec.startsWith("file:")) {
+        } else if (reference.referenceKind === "external") {
           siblingVc.summary.externalSpecCount += 1;
         } else {
           siblingVc.summary.staleFileSpecCount += 1;
         }
 
-        if (spec.startsWith("file:") && !reference.fileSpecMatchesCurrentVersion) {
+        if (reference.referenceKind === "stale-file") {
           errors.push(
             `${reference.consumer} references ${dependencyName} as ${spec}; expected ${expectedFileSpec}`,
           );
         }
 
-        if (spec.startsWith("file:") && !reference.currentVendorTarballPresent) {
+        if (isFileSpec && !reference.currentVendorTarballPresent) {
           siblingVc.summary.missingVendorTarballCount += 1;
           errors.push(
             `${reference.consumer} references ${dependencyName}, but vendor tarball is missing: ${expectedTarball}`,
@@ -235,7 +250,7 @@ export const buildIntegrationReport = ({
 } = {}) => {
   const errors = [];
   const warnings = [];
-  const didVendorRoot = path.join(siblingVcRoot, "tooling/vendor/midnight-did");
+  const didVendorRoot = path.join(siblingVcRoot, DID_VENDOR_RELATIVE_ROOT);
   const packages = collectDidPackages(repoRoot, warnings);
   const siblingVc = collectSiblingVcReferences({
     didPackages: packages,
@@ -281,9 +296,12 @@ export const printIntegrationReport = (report) => {
     console.log(
       `- references=${report.siblingVc.summary.referenceCount} matching-file-specs=${report.siblingVc.summary.matchingFileSpecCount} stale-file-specs=${report.siblingVc.summary.staleFileSpecCount} external-specs=${report.siblingVc.summary.externalSpecCount} missing-vendor-tarballs=${report.siblingVc.summary.missingVendorTarballCount}`,
     );
+    for (const note of report.siblingVc.summary.notes) {
+      console.log(`- note: ${note}`);
+    }
     for (const reference of report.siblingVc.references) {
       console.log(
-        `- ${reference.consumer}: ${reference.dependencyName} -> ${reference.spec} current-vendor=${reference.currentVendorTarballPresent ? "yes" : "no"} referenced-vendor=${reference.referencedVendorTarballPresent === null ? "n/a" : reference.referencedVendorTarballPresent ? "yes" : "no"}`,
+        `- ${reference.consumer}: ${reference.dependencyName} -> ${reference.spec} kind=${reference.referenceKind} current-vendor=${reference.currentVendorTarballPresent ? "yes" : "no"} referenced-vendor=${reference.referencedVendorTarballPresent === null ? "n/a" : reference.referencedVendorTarballPresent ? "yes" : "no"}`,
       );
     }
   }
