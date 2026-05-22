@@ -6,8 +6,8 @@ import {
 import { DIDDocumentMetadata } from "@midnight-ntwrk/midnight-did-domain";
 
 import { getLogger } from "./api-logger.js";
-import { getMidnightDIDLedgerState } from "./deploy.js";
 import { getMidnightNetwork } from "./did-subject.js";
+import { getMidnightDIDLedgerState } from "./ledger-state.js";
 import { BigIntReplacer } from "./logger-utils.js";
 import {
   type DeployedMidnightDIDContract,
