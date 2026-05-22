@@ -77,6 +77,11 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      as the compatibility/public export surface while moving verification
      method, service, document alias/lifecycle, and resolution transaction
      wrappers into small operation modules.
+   - 2026-05-22: `codex/did-api-contract-lifecycle-boundary` keeps
+     `deploy.ts` as the compatibility/public export surface while moving
+     compiled-contract instance wiring, ledger-state reads, private-state
+     restore/derive/save logic, and deploy/join/create operations into focused
+     modules with private-state lifecycle tests.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
    - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era
