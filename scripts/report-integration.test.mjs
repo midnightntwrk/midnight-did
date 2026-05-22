@@ -206,6 +206,10 @@ try {
     failingCheck.stdout,
     /expected file:\.\.\/\.\.\/tooling\/vendor\/midnight-did\/midnight-ntwrk-midnight-did-domain-0\.1\.0\.tgz/u,
   );
+  assert.match(
+    failingCheck.stderr,
+    /\[report-integration\] Error: stale-did-consumer references @midnight-ntwrk\/midnight-did-domain/u,
+  );
   assert.match(failingCheck.stdout, /stale-file-specs=1/u);
   assert.match(failingCheck.stdout, /missing-vendor-tarballs=1/u);
   const staleReferenceReport = buildIntegrationReport({
@@ -412,6 +416,20 @@ try {
     printedLines.join("\n"),
     /# DID Integration Report/u,
     "printer should still render hand-constructed reports without contractErrors",
+  );
+  printedLines.length = 0;
+  console.log = (line = "") => {
+    printedLines.push(String(line));
+  };
+  try {
+    printIntegrationReport({ ...report, contractErrors: ["schema drift"] });
+  } finally {
+    console.log = originalConsoleLog;
+  }
+  assert.match(
+    printedLines.join("\n"),
+    /## Contract Errors\n- schema drift/u,
+    "printer should render contract errors when present",
   );
 
   const unknownArg = spawnSync("node", [scriptPath, "--dryrun"], {

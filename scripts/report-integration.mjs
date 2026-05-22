@@ -518,6 +518,9 @@ if (isDirectExecution) {
       args.check &&
       (report.errors.length > 0 || (report.contractErrors ?? []).length > 0)
     ) {
+      for (const error of report.errors) {
+        console.error(`[report-integration] Error: ${error}`);
+      }
       for (const contractError of report.contractErrors ?? []) {
         console.error(`[report-integration] Contract error: ${contractError}`);
       }
