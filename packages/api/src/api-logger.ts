@@ -1,6 +1,10 @@
 import { type Logger } from "pino";
 
-let logger: Logger;
+const defaultLogger = {
+  info: () => undefined,
+} as unknown as Logger;
+
+let logger: Logger = defaultLogger;
 
 export const getLogger = (): Logger => logger;
 
