@@ -333,7 +333,7 @@ const artifactWorkspaceBridge = readText("scripts/artifact-workspaces.sh");
 const upgradeLibs = readText("upgrade-libs.sh");
 assertIncludes(
   artifactWorkspaceBridge,
-  "did-workspace-catalog.mjs",
+  'node "$DID_WORKSPACE_CATALOG_SCRIPT" --artifact-workspaces',
   "scripts/artifact-workspaces.sh",
 );
 assertIncludes(

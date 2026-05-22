@@ -9,7 +9,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { artifactWorkspaces } from "./did-workspace-catalog.mjs";
+import {
+  artifactWorkspaces,
+  workspaceCatalog,
+} from "./did-workspace-catalog.mjs";
 
 const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const artifactCatalog = path.join(repoRoot, "scripts/artifact-workspaces.sh");
@@ -25,6 +28,20 @@ assert.deepEqual(
   artifactWorkspaces,
   "artifact workspace catalog should list DID package tarballs in pack order",
 );
+
+assert.equal(
+  new Set(workspaceCatalog.map(({ workspace }) => workspace)).size,
+  workspaceCatalog.length,
+  "workspace catalog paths must be unique",
+);
+for (const entry of workspaceCatalog) {
+  if (entry.artifactPackage) {
+    assert.ok(
+      entry.manifest,
+      `${entry.workspace} artifact package must define manifest expectations`,
+    );
+  }
+}
 
 const listResult = spawnSync("./upgrade-libs.sh", ["--list-packages"], {
   cwd: repoRoot,
