@@ -19,9 +19,7 @@ export const isRestorableDIDPrivateState = (
   privateState: MidnightDIDPrivateState | null | undefined,
 ): privateState is MidnightDIDPrivateState =>
   privateState != null &&
-  privateState.secretKey != null &&
-  privateState.secretKey.buffer instanceof ArrayBuffer &&
-  privateState.secretKey.BYTES_PER_ELEMENT === 1 &&
+  privateState.secretKey instanceof Uint8Array &&
   privateState.secretKey.length === 32;
 
 export async function initPrivateState(
