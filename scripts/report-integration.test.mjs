@@ -82,6 +82,7 @@ try {
   assert.equal(report.schemaId, INTEGRATION_REPORT_SCHEMA.id);
   assert.equal(report.schemaVersion, INTEGRATION_REPORT_SCHEMA.version);
   assert.deepEqual(validateIntegrationReportContract(report), []);
+  assert.deepEqual(report.contractErrors, []);
   assert.deepEqual(report.errors, []);
   assert.deepEqual(report.warnings, [
     "Workspace package is missing package.json: packages/missing",
@@ -246,6 +247,123 @@ try {
   assert.deepEqual(validateIntegrationReportContract(contractErrorReport), [
     `${report.siblingVc.references[0].consumer} ${didDomainPackage.name} external reference must set fileSpecMatchesCurrentVersion=null`,
   ]);
+
+  const baseReference = report.siblingVc.references[0];
+  const baseSummary = report.siblingVc.summary;
+  const reportWithReference = (reference, summary) => ({
+    ...report,
+    siblingVc: {
+      ...report.siblingVc,
+      references: [reference],
+      summary,
+    },
+  });
+  const matchingSummary = {
+    ...baseSummary,
+    referenceCount: 1,
+    matchingFileSpecCount: 1,
+    staleFileSpecCount: 0,
+    externalSpecCount: 0,
+  };
+  const staleSummary = {
+    ...baseSummary,
+    referenceCount: 1,
+    matchingFileSpecCount: 0,
+    staleFileSpecCount: 1,
+    externalSpecCount: 0,
+  };
+
+  const contractErrorCases = [
+    {
+      report: { ...report, schemaId: "wrong-schema" },
+      errors: [
+        `schemaId must be ${INTEGRATION_REPORT_SCHEMA.id}; received wrong-schema`,
+      ],
+    },
+    {
+      report: { ...report, schemaVersion: 999 },
+      errors: [
+        `schemaVersion must be ${INTEGRATION_REPORT_SCHEMA.version}; received 999`,
+      ],
+    },
+    {
+      report: {
+        ...report,
+        siblingVc: { ...report.siblingVc, summary: undefined },
+      },
+      errors: ["siblingVc.summary is required"],
+    },
+    {
+      report: {
+        ...report,
+        siblingVc: {
+          ...report.siblingVc,
+          summary: {
+            ...baseSummary,
+            matchingFileSpecCount: 0,
+            staleFileSpecCount: 0,
+            externalSpecCount: 0,
+          },
+        },
+      },
+      errors: [
+        "summary partition counters must add up to referenceCount; received 0 for 1",
+      ],
+    },
+    {
+      report: {
+        ...report,
+        siblingVc: {
+          ...report.siblingVc,
+          summary: {
+            ...baseSummary,
+            referenceCount: 2,
+            matchingFileSpecCount: 2,
+          },
+        },
+      },
+      errors: [
+        "summary.referenceCount must match references.length; received 2 for 1",
+      ],
+    },
+    {
+      report: reportWithReference(
+        { ...baseReference, referenceKind: "unsupported" },
+        matchingSummary,
+      ),
+      errors: [
+        `${baseReference.consumer} ${baseReference.dependencyName} has unsupported referenceKind unsupported`,
+      ],
+    },
+    {
+      report: reportWithReference(
+        { ...baseReference, fileSpecMatchesCurrentVersion: false },
+        matchingSummary,
+      ),
+      errors: [
+        `${baseReference.consumer} ${baseReference.dependencyName} matching-file reference must set fileSpecMatchesCurrentVersion=true`,
+      ],
+    },
+    {
+      report: reportWithReference(
+        {
+          ...baseReference,
+          referenceKind: "stale-file",
+          fileSpecMatchesCurrentVersion: true,
+        },
+        staleSummary,
+      ),
+      errors: [
+        `${baseReference.consumer} ${baseReference.dependencyName} stale-file reference must set fileSpecMatchesCurrentVersion=false`,
+      ],
+    },
+  ];
+  for (const contractErrorCase of contractErrorCases) {
+    assert.deepEqual(
+      validateIntegrationReportContract(contractErrorCase.report),
+      contractErrorCase.errors,
+    );
+  }
 
   const unknownArg = spawnSync("node", [scriptPath, "--dryrun"], {
     cwd: repoRoot,

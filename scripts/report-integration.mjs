@@ -22,7 +22,7 @@ Environment overrides for tests and workspace automation:
 `;
 export const INTEGRATION_REPORT_SCHEMA = Object.freeze({
   id: "midnight-did-integration-report",
-  version: 2,
+  version: 1,
   referenceKinds: Object.freeze(["matching-file", "stale-file", "external"]),
   summaryCounterPolicy: Object.freeze({
     partitionedCounters: Object.freeze([
@@ -274,7 +274,7 @@ export const buildIntegrationReport = ({
     warnings,
   });
 
-  return {
+  const report = {
     schemaId: INTEGRATION_REPORT_SCHEMA.id,
     schemaVersion: INTEGRATION_REPORT_SCHEMA.version,
     repository: "midnight-did",
@@ -287,7 +287,10 @@ export const buildIntegrationReport = ({
     siblingVc,
     errors,
     warnings,
+    contractErrors: [],
   };
+  report.contractErrors = validateIntegrationReportContract(report);
+  return report;
 };
 
 export const validateIntegrationReportContract = (report) => {
@@ -416,6 +419,14 @@ export const printIntegrationReport = (report) => {
       console.log(`- ${error}`);
     }
   }
+
+  if (report.contractErrors.length > 0) {
+    console.log("");
+    console.log("## Contract Errors");
+    for (const contractError of report.contractErrors) {
+      console.log(`- ${contractError}`);
+    }
+  }
 };
 
 const parseArgs = (argv) => {
@@ -461,15 +472,14 @@ if (isDirectExecution) {
     }
 
     const report = buildIntegrationReport();
-    const contractErrors = validateIntegrationReportContract(report);
     if (args.json) {
       console.log(JSON.stringify(report, null, 2));
     } else {
       printIntegrationReport(report);
     }
 
-    if (args.check && [...report.errors, ...contractErrors].length > 0) {
-      for (const contractError of contractErrors) {
+    if (args.check && [...report.errors, ...report.contractErrors].length > 0) {
+      for (const contractError of report.contractErrors) {
         console.error(`[report-integration] Contract error: ${contractError}`);
       }
       process.exit(1);
