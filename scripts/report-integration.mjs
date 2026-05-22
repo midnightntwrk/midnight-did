@@ -274,7 +274,7 @@ export const buildIntegrationReport = ({
     warnings,
   });
 
-  const report = {
+  const draftReport = {
     schemaId: INTEGRATION_REPORT_SCHEMA.id,
     schemaVersion: INTEGRATION_REPORT_SCHEMA.version,
     repository: "midnight-did",
@@ -287,16 +287,19 @@ export const buildIntegrationReport = ({
     siblingVc,
     errors,
     warnings,
-    contractErrors: [],
   };
-  report.contractErrors = validateIntegrationReportContract(report);
-  return report;
+  return {
+    ...draftReport,
+    contractErrors: validateIntegrationReportContract(draftReport),
+  };
 };
 
 export const validateIntegrationReportContract = (report) => {
   const contractErrors = [];
   const allowedReferenceKinds = new Set(INTEGRATION_REPORT_SCHEMA.referenceKinds);
 
+  // buildIntegrationReport() sets these from the same constants. These checks
+  // are for hand-constructed reports, stale JSON fixtures, and downstream tools.
   if (report.schemaId !== INTEGRATION_REPORT_SCHEMA.id) {
     contractErrors.push(
       `schemaId must be ${INTEGRATION_REPORT_SCHEMA.id}; received ${report.schemaId ?? "missing"}`,
@@ -478,7 +481,10 @@ if (isDirectExecution) {
       printIntegrationReport(report);
     }
 
-    if (args.check && [...report.errors, ...report.contractErrors].length > 0) {
+    if (
+      args.check &&
+      (report.errors.length > 0 || report.contractErrors.length > 0)
+    ) {
       for (const contractError of report.contractErrors) {
         console.error(`[report-integration] Contract error: ${contractError}`);
       }
