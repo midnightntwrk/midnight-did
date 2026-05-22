@@ -52,6 +52,10 @@ Focused lanes:
 ./run.sh integration-report-schema
 ```
 
+`artifact-status` prints managed artifact freshness, `check-managed-artifacts`
+fails on missing or stale generated Compact outputs, and
+`integration-report-schema` prints the current integration-report schema.
+
 Metrics:
 
 ```bash
@@ -71,8 +75,8 @@ npm run check:integration
 ```
 
 Use `report:integration:schema` or `./run.sh integration-report-schema` when a
-dashboard, CI job, or sibling VC automation needs the versioned integration
-report contract but should not depend on local checkout layout.
+dashboard, CI job, or sibling VC automation needs the integration-report schema
+(`schemaId@schemaVersion`) but should not depend on local checkout layout.
 
 ## Full Local Loop
 
