@@ -1,6 +1,25 @@
 import path from "node:path";
 
-import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
+import {
+  applyMidnightNetworkProfile,
+  type MidnightEndpointOverrides,
+  type MidnightNetworkProfileName,
+  resolveMidnightNetworkConfig,
+} from "./config-profiles.js";
+
+export {
+  applyMidnightNetworkProfile,
+  getMidnightNetworkProfile,
+  isMidnightNetworkProfileName,
+  MIDNIGHT_NETWORK_PROFILE_NAMES,
+  MIDNIGHT_NETWORK_PROFILES,
+  type MidnightEndpointConfig,
+  type MidnightEndpointOverrides,
+  type MidnightNetworkProfile,
+  type MidnightNetworkProfileName,
+  type ResolvedMidnightNetworkConfig,
+  resolveMidnightNetworkConfig,
+} from "./config-profiles.js";
 // Resolve to the package root whether running from src or dist/src
 const fileDir = path.resolve(new URL(import.meta.url).pathname, "..");
 const upOne = path.resolve(fileDir, "..");
@@ -19,9 +38,6 @@ export const contractConfig = {
   ),
 };
 
-const midnightDbPath = (profile: string): string =>
-  path.resolve(currentDir, ".midnight-db", profile);
-
 export interface Config {
   readonly logDir: string;
   readonly indexer: string;
@@ -31,81 +47,8 @@ export interface Config {
   readonly midnightDbName?: string;
 }
 
-export class TestnetLocalConfig implements Config {
-  logDir = path.resolve(
-    currentDir,
-    "logs",
-    "testnet-local",
-    `${new Date().toISOString()}.log`,
-  );
-  indexer = "http://127.0.0.1:8088/api/v3/graphql";
-  indexerWS = "ws://127.0.0.1:8088/api/v3/graphql/ws";
-  node = "http://127.0.0.1:9944";
-  proofServer = "http://127.0.0.1:6300";
-  midnightDbName = midnightDbPath("testnet-local");
-  constructor() {
-    setNetworkId("testnet");
-  }
-}
-
-export class StandaloneConfig implements Config {
-  logDir = path.resolve(
-    currentDir,
-    "logs",
-    "standalone",
-    `${new Date().toISOString()}.log`,
-  );
-  indexer = "http://127.0.0.1:8088/api/v3/graphql";
-  indexerWS = "ws://127.0.0.1:8088/api/v3/graphql/ws";
-  node = "http://127.0.0.1:9944";
-  proofServer = "http://127.0.0.1:6300";
-  midnightDbName = midnightDbPath("standalone");
-  constructor() {
-    setNetworkId("undeployed");
-  }
-}
-
-export class TestnetRemoteConfig implements Config {
-  logDir = path.resolve(
-    currentDir,
-    "logs",
-    "testnet-remote",
-    `${new Date().toISOString()}.log`,
-  );
-  indexer = "https://indexer.testnet-02.midnight.network/api/v3/graphql";
-  indexerWS = "wss://indexer.testnet-02.midnight.network/api/v3/graphql/ws";
-  node = "https://rpc.testnet-02.midnight.network";
-  proofServer = "http://127.0.0.1:6300";
-  midnightDbName = midnightDbPath("testnet-remote");
-  constructor() {
-    setNetworkId("testnet");
-  }
-}
-
-export class PreprodConfig implements Config {
-  logDir = path.resolve(
-    currentDir,
-    "logs",
-    "preprod",
-    `${new Date().toISOString()}.log`,
-  );
-  indexer = "https://indexer.preprod.midnight.network/api/v4/graphql";
-  indexerWS = "wss://indexer.preprod.midnight.network/api/v4/graphql/ws";
-  node = "https://rpc.preprod.midnight.network";
-  proofServer = "http://127.0.0.1:6300";
-  midnightDbName = midnightDbPath("preprod");
-  constructor() {
-    setNetworkId("preprod");
-  }
-}
-
-export class MainnetConfig implements Config {
-  readonly logDir = path.resolve(
-    currentDir,
-    "logs",
-    "mainnet",
-    `${new Date().toISOString()}.log`,
-  );
+export class ProfileConfig implements Config {
+  readonly logDir: string;
   readonly indexer: string;
   readonly indexerWS: string;
   readonly node: string;
@@ -113,22 +56,51 @@ export class MainnetConfig implements Config {
   readonly midnightDbName: string;
 
   constructor(
-    input: Partial<{
-      indexer: string;
-      indexerWS: string;
-      node: string;
-      proofServer: string;
-    }> = {},
+    readonly profileName: MidnightNetworkProfileName,
+    endpointOverrides: MidnightEndpointOverrides = {},
   ) {
-    this.indexer =
-      input.indexer ??
-      "https://indexer.mainnet.midnight.network/api/v4/graphql";
-    this.indexerWS =
-      input.indexerWS ??
-      "wss://indexer.mainnet.midnight.network/api/v4/graphql/ws";
-    this.node = input.node ?? "https://rpc.mainnet.midnight.network";
-    this.proofServer = input.proofServer ?? "http://127.0.0.1:6300";
-    this.midnightDbName = midnightDbPath("mainnet");
-    setNetworkId("mainnet");
+    const values = resolveMidnightNetworkConfig(
+      currentDir,
+      profileName,
+      endpointOverrides,
+    );
+
+    this.logDir = values.logDir;
+    this.indexer = values.indexer;
+    this.indexerWS = values.indexerWS;
+    this.node = values.node;
+    this.proofServer = values.proofServer;
+    this.midnightDbName = values.midnightDbName;
+    applyMidnightNetworkProfile(profileName);
+  }
+}
+
+export class TestnetLocalConfig extends ProfileConfig {
+  constructor() {
+    super("testnet-local");
+  }
+}
+
+export class StandaloneConfig extends ProfileConfig {
+  constructor() {
+    super("standalone");
+  }
+}
+
+export class TestnetRemoteConfig extends ProfileConfig {
+  constructor() {
+    super("testnet-remote");
+  }
+}
+
+export class PreprodConfig extends ProfileConfig {
+  constructor() {
+    super("preprod");
+  }
+}
+
+export class MainnetConfig extends ProfileConfig {
+  constructor(input: MidnightEndpointOverrides = {}) {
+    super("mainnet", input);
   }
 }
