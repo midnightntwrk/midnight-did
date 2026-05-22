@@ -96,6 +96,10 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
    - 2026-05-22: `codex/did-api-index-surface-catalog` adds a package-root
      runtime export catalog test so future API splits cannot silently add,
      remove, or leak runtime exports from `index.ts`.
+   - 2026-05-22: `codex/did-lightweight-crypto-boundary` keeps
+     `lightweight.ts` as a stateless crypto-helper module, removes its obsolete
+     wallet wait/logger coupling, and extends the surface-discipline guard so
+     wallet sync/funding behavior stays in `wallet-state.ts`.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
    - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era
