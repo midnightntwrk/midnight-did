@@ -8,6 +8,7 @@ import { RuntimeToDomain } from "../runtime-to-domain.js";
 describe("RuntimeToDomain.NetworkMap", () => {
   it("maps all NetworkId values to MidnightNetwork", () => {
     expect(RuntimeToDomain.NetworkMap).toBe(RUNTIME_TO_DOMAIN_NETWORK_MAP);
+    expect(Object.isFrozen(RuntimeToDomain.NetworkMap)).toBe(true);
     expect(RuntimeToDomain.NetworkMap["undeployed"]).toBe(
       MidnightNetwork.Undeployed,
     );
