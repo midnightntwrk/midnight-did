@@ -150,6 +150,15 @@ preconfiguring logging.
 - `src/types.ts`
 - `src/test/`
 
+Type-safety policy:
+
+- production API source must not use `as any` casts
+- `as unknown as` casts must be explicitly allowlisted in
+  `npm run check:did-surface-discipline`
+- keep SDK type mismatches localized behind narrow adapter helpers and update
+  the surface-discipline guard when an intentional compatibility escape hatch is
+  unavoidable
+
 Legacy deep source files `src/contract-lifecycle.ts` and `src/did-operations.ts`
 remain as short-lived deprecation shims for external deep source-path imports.
 Internal code should use the split modules above, and package consumers should
