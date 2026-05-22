@@ -23,6 +23,7 @@ Environment overrides for tests and workspace automation:
   MIDNIGHT_DID_SIBLING_VC_ROOT    VC repository root to inspect.
   MIDNIGHT_DID_INTEGRATION_NOW    Stable ISO-8601 generatedAt timestamp.
 `;
+
 export const INTEGRATION_REPORT_SCHEMA = Object.freeze({
   id: "midnight-did-integration-report",
   version: 1,
@@ -322,46 +323,45 @@ export const validateIntegrationReportContract = (report) => {
   const summary = report.siblingVc?.summary;
   if (!summary) {
     contractErrors.push("siblingVc.summary is required");
-    return contractErrors;
-  }
+  } else {
+    const requiredSummaryCounters = [
+      "referenceCount",
+      ...INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.partitionedCounters,
+    ];
+    for (const counterName of requiredSummaryCounters) {
+      if (!Number.isFinite(summary[counterName])) {
+        contractErrors.push(
+          `summary.${counterName} must be a finite number; received ${formatCounterValue(summary[counterName])}`,
+        );
+      }
+    }
 
-  const requiredSummaryCounters = [
-    "referenceCount",
-    ...INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.partitionedCounters,
-  ];
-  for (const counterName of requiredSummaryCounters) {
-    if (!Number.isFinite(summary[counterName])) {
+    const summaryCountersAreFinite = requiredSummaryCounters.every((counterName) =>
+      Number.isFinite(summary[counterName]),
+    );
+    const partitionedReferenceCount = summaryCountersAreFinite
+      ? INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.partitionedCounters.reduce(
+          (total, counterName) => total + summary[counterName],
+          0,
+        )
+      : null;
+    if (
+      summaryCountersAreFinite &&
+      partitionedReferenceCount !== summary.referenceCount
+    ) {
       contractErrors.push(
-        `summary.${counterName} must be a finite number; received ${formatCounterValue(summary[counterName])}`,
+        `summary partition counters must add up to referenceCount; received ${partitionedReferenceCount} for ${summary.referenceCount}`,
       );
     }
-  }
 
-  const summaryCountersAreFinite = requiredSummaryCounters.every((counterName) =>
-    Number.isFinite(summary[counterName]),
-  );
-  const partitionedReferenceCount = summaryCountersAreFinite
-    ? INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.partitionedCounters.reduce(
-        (total, counterName) => total + summary[counterName],
-        0,
-      )
-    : null;
-  if (
-    summaryCountersAreFinite &&
-    partitionedReferenceCount !== summary.referenceCount
-  ) {
-    contractErrors.push(
-      `summary partition counters must add up to referenceCount; received ${partitionedReferenceCount} for ${summary.referenceCount}`,
-    );
-  }
-
-  if (
-    Number.isFinite(summary.referenceCount) &&
-    references.length !== summary.referenceCount
-  ) {
-    contractErrors.push(
-      `summary.referenceCount must match references.length; received ${summary.referenceCount} for ${references.length}`,
-    );
+    if (
+      Number.isFinite(summary.referenceCount) &&
+      references.length !== summary.referenceCount
+    ) {
+      contractErrors.push(
+        `summary.referenceCount must match references.length; received ${summary.referenceCount} for ${references.length}`,
+      );
+    }
   }
 
   for (const reference of references) {

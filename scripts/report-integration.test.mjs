@@ -100,6 +100,11 @@ try {
     "missing-vendor-tarballs is independent and can overlap with stale or matching file specs.",
     "fileSpecMatchesCurrentVersion is null for external package specs because no file path is being compared.",
   ]);
+  assert.equal(
+    INTEGRATION_REPORT_SCHEMA.referenceKinds.length,
+    INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.partitionedCounters.length,
+    "each partitioned reference kind should have one summary counter",
+  );
   assert.equal(report.siblingVc.references[0].referenceKind, "matching-file");
   assert.equal(report.siblingVc.references[0].fileSpecMatchesCurrentVersion, true);
   assert.equal(report.siblingVc.references[0].expectedFileSpec, domainFileSpec);
@@ -295,6 +300,16 @@ try {
       errors: ["siblingVc.summary is required"],
     },
     {
+      report: reportWithReference(
+        { ...baseReference, referenceKind: "unsupported" },
+        undefined,
+      ),
+      errors: [
+        "siblingVc.summary is required",
+        `${baseReference.consumer} ${baseReference.dependencyName} has unsupported referenceKind unsupported`,
+      ],
+    },
+    {
       report: {
         ...report,
         siblingVc: {
@@ -429,6 +444,23 @@ try {
   );
   assert.match(
     conflictingSchemaMode.stderr,
+    /--schema cannot be combined with --check or --json/u,
+  );
+  const conflictingSchemaJsonMode = spawnSync(
+    "node",
+    [scriptPath, "--schema", "--json"],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+    },
+  );
+  assert.equal(
+    conflictingSchemaJsonMode.status,
+    1,
+    "schema mode should reject conflicting JSON report flags",
+  );
+  assert.match(
+    conflictingSchemaJsonMode.stderr,
     /--schema cannot be combined with --check or --json/u,
   );
 } finally {
