@@ -73,6 +73,10 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      verification-method relation membership checks and relation cleanup out of
      `update.ts`, with focused tests for duplicate/missing relation guards and
      the remove-from-present-relations transaction sequence.
+   - 2026-05-22: `codex/did-api-update-operation-modules` keeps `update.ts`
+     as the compatibility/public export surface while moving verification
+     method, service, document alias/lifecycle, and resolution transaction
+     wrappers into small operation modules.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
    - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era
