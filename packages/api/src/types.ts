@@ -1,6 +1,5 @@
 import type { ProvableCircuitId } from "@midnight-ntwrk/compact-js";
 import * as ledger from "@midnight-ntwrk/ledger-v8";
-import type { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
 import {
   DIDContract,
   type DIDPrivateState,
@@ -9,7 +8,6 @@ import type {
   DeployedContract,
   FoundContract,
 } from "@midnight-ntwrk/midnight-js-contracts";
-import type { NetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import type { MidnightProviders } from "@midnight-ntwrk/midnight-js-types";
 import type { DustWallet } from "@midnight-ntwrk/wallet-sdk-dust-wallet";
 import type {
@@ -23,7 +21,10 @@ import type {
   UnshieldedWallet,
 } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
 
-import { RUNTIME_TO_DOMAIN_NETWORK_MAP } from "./network-mapping.js";
+import {
+  RUNTIME_TO_DOMAIN_NETWORK_MAP,
+  type RuntimeToDomainNetworkMap,
+} from "./network-mapping.js";
 
 export type MidnightDIDPrivateState = DIDPrivateState;
 
@@ -74,5 +75,5 @@ export interface MidnightWalletBalances {
 
 export type MidnightWalletFacadeState = FacadeState;
 
-export const NetworkMapping: Record<NetworkId, MidnightNetwork> =
+export const NetworkMapping: RuntimeToDomainNetworkMap =
   RUNTIME_TO_DOMAIN_NETWORK_MAP;
