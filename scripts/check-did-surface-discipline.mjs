@@ -89,9 +89,19 @@ assert(
     "node scripts/managed-artifact-catalog.mjs --check",
   "package.json must expose check:managed-artifacts",
 );
+assert(
+  rootPackage.scripts?.["test:managed-artifacts"] ===
+    "node scripts/managed-artifact-catalog.test.mjs",
+  "package.json must expose test:managed-artifacts",
+);
 assertIncludes(
   rootPackage.scripts?.["ci:core"] ?? "",
   "npm run check:managed-artifacts",
+  "ci:core",
+);
+assertIncludes(
+  rootPackage.scripts?.["ci:core"] ?? "",
+  "npm run test:managed-artifacts",
   "ci:core",
 );
 assert(
@@ -198,6 +208,18 @@ for (const requiredPhrase of [
 ]) {
   assertIncludes(surfaceGuide, requiredPhrase, "surface discipline guide");
 }
+
+const managedArtifactCatalog = readText("scripts/managed-artifact-catalog.mjs");
+assertIncludes(
+  managedArtifactCatalog,
+  "createInputSourceManifest",
+  "managed artifact catalog",
+);
+assertIncludes(
+  managedArtifactCatalog,
+  "sourceManifest",
+  "managed artifact catalog",
+);
 
 const docsGuide = readText("docs-site/guide/did-surface-change-discipline.md");
 assertIncludes(docsGuide, "Use `develop`", "docs-site surface guide");
