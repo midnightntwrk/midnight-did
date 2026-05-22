@@ -1,6 +1,11 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+export interface ApiContractConfig {
+  readonly privateStateStoreName: "did-private-state";
+  readonly zkConfigPath: string;
+}
+
 export const resolveApiPackageRoot = (moduleUrl: string): string => {
   const fileDir = path.dirname(fileURLToPath(moduleUrl));
   const parentDir = path.resolve(fileDir, "..");
@@ -9,14 +14,12 @@ export const resolveApiPackageRoot = (moduleUrl: string): string => {
     return path.resolve(parentDir, "..");
   }
 
-  if (path.basename(fileDir) === "src" || path.basename(fileDir) === "dist") {
-    return parentDir;
-  }
-
   return parentDir;
 };
 
-export const createContractConfig = (apiPackageRoot: string) => ({
+export const createContractConfig = (
+  apiPackageRoot: string,
+): ApiContractConfig => ({
   privateStateStoreName: "did-private-state",
   zkConfigPath: path.resolve(
     apiPackageRoot,
