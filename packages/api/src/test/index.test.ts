@@ -29,4 +29,54 @@ describe("api package barrel", () => {
     expect(api.RuntimeToDomain).toBeDefined();
     expectTypeOf<RuntimeToDomainNetworkMap>().toEqualTypeOf<InternalRuntimeToDomainNetworkMap>();
   });
+
+  it("keeps public lib runtime exports available through the package barrel", async () => {
+    const [api, lib] = await Promise.all([
+      import("../index.js"),
+      import("../lib.js"),
+    ]);
+    // Intentional tripwire: adding or removing a lib runtime export requires
+    // updating the public barrel and this list together.
+    const libRuntimeExportNames = [
+      "addAlsoKnownAs",
+      "addService",
+      "addVerificationMethod",
+      "addVerificationMethodRelation",
+      "buildFreshWallet",
+      "buildWallet",
+      "buildWalletAndWaitForFunds",
+      "configureProviders",
+      "createDID",
+      "createWalletAndMidnightProvider",
+      "deactivate",
+      "deploy",
+      "deriveUnshieldedAddressFromSeed",
+      "getMidnightDIDLedgerState",
+      "getMidnightNetwork",
+      "getWalletBalances",
+      "initPrivateState",
+      "joinContract",
+      "midnightDIDContractInstance",
+      "registerForDustGeneration",
+      "removeAlsoKnownAs",
+      "removeService",
+      "removeVerificationMethod",
+      "removeVerificationMethodRelation",
+      "resolve",
+      "restoreWalletFromState",
+      "serializeWalletState",
+      "setLogger",
+      "updateService",
+      "updateVerificationMethod",
+      "waitForWalletFunds",
+      "waitForWalletSync",
+    ];
+
+    expect(Object.keys(lib).sort()).toEqual([...libRuntimeExportNames].sort());
+    for (const exportName of libRuntimeExportNames) {
+      expect(api[exportName as keyof typeof api]).toBe(
+        lib[exportName as keyof typeof lib],
+      );
+    }
+  });
 });
