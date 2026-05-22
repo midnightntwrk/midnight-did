@@ -157,6 +157,7 @@ Useful forms:
 ./run.sh artifact-status
 ./run.sh check-managed-artifacts
 ./run.sh integration-report
+./run.sh integration-report-schema
 ./run.sh check-integration
 ```
 
@@ -195,6 +196,7 @@ npm run check:managed-artifacts
 npm run artifacts:status
 npm run clean:artifacts
 npm run report:integration
+npm run report:integration:schema
 npm run check:integration
 npm run artifacts:pack
 ```

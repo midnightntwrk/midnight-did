@@ -31,6 +31,11 @@ case "${RUN_COMMON_TARGET}" in
     node ./scripts/report-integration.mjs
     exit 0
     ;;
+  integration-report-schema)
+    run_common_ensure_node
+    node ./scripts/report-integration.mjs --schema
+    exit 0
+    ;;
   check-integration)
     run_common_ensure_node
     node ./scripts/report-integration.mjs --check
