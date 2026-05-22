@@ -69,6 +69,10 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      direction-specific network mapping helpers, marks the legacy
      `NetworkMapping` alias as compatibility-only, and records the lazy
      provider-adapter barrel import contract for API consumers.
+   - 2026-05-22: `codex/did-api-relation-operations-boundary` moves
+     verification-method relation membership checks and relation cleanup out of
+     `update.ts`, with focused tests for duplicate/missing relation guards and
+     the remove-from-present-relations transaction sequence.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
    - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era
