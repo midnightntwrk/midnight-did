@@ -35,6 +35,8 @@ describe("api package barrel", () => {
       import("../index.js"),
       import("../lib.js"),
     ]);
+    // Intentional tripwire: adding or removing a lib runtime export requires
+    // updating the public barrel and this list together.
     const libRuntimeExportNames = [
       "addAlsoKnownAs",
       "addService",
