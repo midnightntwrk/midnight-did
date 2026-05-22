@@ -118,6 +118,7 @@ for (const workspace of [
 }
 
 const readme = readText("README.md");
+const agentGuide = readText("AGENT.md");
 for (const workspace of rootWorkspaces) {
   assertIncludes(readme, `\`${workspace}\``, "README workspace matrix");
 }
@@ -126,6 +127,22 @@ assertIncludes(
   "docs/did-surface-change-discipline.md",
   "README developer entry points",
 );
+for (const requiredPhrase of [
+  "`API pipeline`: API integration and example validation.",
+  "`Build Docs Site`: docs-site build.",
+  "`docs-site/spec/midnight-method.md`",
+  "`docs-site/spec/midnight-did-traits.md`",
+  "`docs/archive/README.md`",
+]) {
+  assertIncludes(agentGuide, requiredPhrase, "AGENT.md");
+}
+for (const stalePhrase of [
+  "`services`: API lane.",
+  "`w3c-spec/midnight-method.md`",
+  "`w3c-spec/midnight-did-traits.md`",
+]) {
+  assertNotIncludes(agentGuide, stalePhrase, "AGENT.md");
+}
 
 const changelog = readText("CHANGELOG.md");
 assertIncludes(changelog, "DID surface-change discipline", "CHANGELOG.md");
