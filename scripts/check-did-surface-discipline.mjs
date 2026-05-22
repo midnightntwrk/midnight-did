@@ -128,8 +128,12 @@ assertIncludes(
   "README developer entry points",
 );
 for (const requiredPhrase of [
+  "`Core (Lint + Contract/Domain/DID)`: core package validation.",
   "`API pipeline`: API integration and example validation.",
   "`Build Docs Site`: docs-site build.",
+  "`Deploy Docs Site`: GitHub Pages deployment from `main` pushes only.",
+  "`Scan / build`: security scanning.",
+  "`Check PR`: semantic PR title and non-empty PR body checks.",
   "`docs-site/spec/midnight-method.md`",
   "`docs-site/spec/midnight-did-traits.md`",
   "`docs/archive/README.md`",
@@ -137,7 +141,11 @@ for (const requiredPhrase of [
   assertIncludes(agentGuide, requiredPhrase, "AGENT.md");
 }
 for (const stalePhrase of [
-  "`services`: API lane.",
+  "`core`: lint plus contract/domain/DID validation",
+  "`services`: API lane",
+  "`docs`: docs build",
+  "`scan`: security scanning",
+  "`pr-check`: semantic PR title",
   "`w3c-spec/midnight-method.md`",
   "`w3c-spec/midnight-did-traits.md`",
 ]) {
