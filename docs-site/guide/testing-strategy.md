@@ -46,9 +46,10 @@ npm run check:integration
 ```
 
 These guards keep the repository surface, runner catalog, generated Compact
-artifacts, and sibling VC integration assumptions aligned. JSON consumers
-should read `schemaId` and `schemaVersion` before processing integration-report
-payloads; `./run.sh integration-report-schema` and
+artifacts, and sibling VC integration assumptions aligned.
+
+JSON consumers should read `schemaId` and `schemaVersion` before processing
+integration-report payloads. `./run.sh integration-report-schema` and
 `npm run report:integration:schema` print the current report contract without
 requiring a sibling VC checkout.
 
