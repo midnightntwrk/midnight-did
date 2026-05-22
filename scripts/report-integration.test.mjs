@@ -304,6 +304,23 @@ try {
       errors: ["siblingVc.summary is required"],
     },
     {
+      report: {
+        ...report,
+        siblingVc: {
+          ...report.siblingVc,
+          references: undefined,
+          summary: {
+            ...baseSummary,
+            referenceCount: 0,
+            matchingFileSpecCount: 0,
+            staleFileSpecCount: 0,
+            externalSpecCount: 0,
+          },
+        },
+      },
+      errors: ["siblingVc.references must be an array"],
+    },
+    {
       report: reportWithReference(
         { ...baseReference, referenceKind: "unsupported" },
         undefined,
@@ -326,6 +343,21 @@ try {
       },
       errors: [
         "summary.matchingFileSpecCount must be a finite number; received missing",
+      ],
+    },
+    {
+      report: {
+        ...report,
+        siblingVc: {
+          ...report.siblingVc,
+          summary: {
+            ...baseSummary,
+            missingVendorTarballCount: undefined,
+          },
+        },
+      },
+      errors: [
+        "summary.missingVendorTarballCount must be a finite number; received missing",
       ],
     },
     {
