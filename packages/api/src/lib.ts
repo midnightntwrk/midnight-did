@@ -1,33 +1,37 @@
 import "./polyfills.js";
 
 export { setLogger } from "./api-logger.js";
+export { midnightDIDContractInstance } from "./contract-instance.js";
 export {
   createDID,
   deploy,
-  getMidnightDIDLedgerState,
-  initPrivateState,
   joinContract,
-  midnightDIDContractInstance,
-} from "./deploy.js";
+} from "./contract-lifecycle-operations.js";
+export { getMidnightNetwork } from "./did-subject.js";
+export {
+  addAlsoKnownAs,
+  deactivate,
+  removeAlsoKnownAs,
+} from "./document-operations.js";
+export { getMidnightDIDLedgerState } from "./ledger-state.js";
+export { initPrivateState } from "./private-state.js";
 export {
   configureProviders,
   createWalletAndMidnightProvider,
 } from "./providers.js";
+export { resolve } from "./resolution.js";
 export {
-  addAlsoKnownAs,
   addService,
+  removeService,
+  updateService,
+} from "./service-operations.js";
+export {
   addVerificationMethod,
   addVerificationMethodRelation,
-  deactivate,
-  getMidnightNetwork,
-  removeAlsoKnownAs,
-  removeService,
   removeVerificationMethod,
   removeVerificationMethodRelation,
-  resolve,
-  updateService,
   updateVerificationMethod,
-} from "./update.js";
+} from "./verification-method-operations.js";
 export {
   buildFreshWallet,
   buildWallet,
