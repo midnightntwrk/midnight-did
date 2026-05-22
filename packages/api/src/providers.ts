@@ -1,9 +1,5 @@
 import "./polyfills.js";
 
-import { httpClientProofProvider } from "@midnight-ntwrk/midnight-js-http-client-proof-provider";
-import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-public-data-provider";
-import { NodeZkConfigProvider } from "@midnight-ntwrk/midnight-js-node-zk-config-provider";
-
 import { type Config, contractConfig } from "./config.js";
 import { createDIDPrivateStateProvider } from "./private-state-storage.js";
 import {
@@ -14,10 +10,33 @@ import { createWalletAndMidnightProvider } from "./wallet-provider.js";
 
 export { createWalletAndMidnightProvider };
 
+const loadProviderAdapters = async () => {
+  const [
+    { httpClientProofProvider },
+    { indexerPublicDataProvider },
+    { NodeZkConfigProvider },
+  ] = await Promise.all([
+    import("@midnight-ntwrk/midnight-js-http-client-proof-provider"),
+    import("@midnight-ntwrk/midnight-js-indexer-public-data-provider"),
+    import("@midnight-ntwrk/midnight-js-node-zk-config-provider"),
+  ]);
+
+  return {
+    httpClientProofProvider,
+    indexerPublicDataProvider,
+    NodeZkConfigProvider,
+  };
+};
+
 export const configureProviders = async (
   ctx: MidnightDIDWalletContext,
   config: Config,
 ) => {
+  const {
+    httpClientProofProvider,
+    indexerPublicDataProvider,
+    NodeZkConfigProvider,
+  } = await loadProviderAdapters();
   const walletAndMidnightProvider = await createWalletAndMidnightProvider(ctx);
   const zkConfigProvider = new NodeZkConfigProvider<MidnightDIDCircuits>(
     contractConfig.zkConfigPath,
