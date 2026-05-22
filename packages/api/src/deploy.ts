@@ -11,7 +11,4 @@ export {
   requireDeployedMidnightDIDLedgerState,
   requireMidnightDIDLedgerState,
 } from "./ledger-state.js";
-export {
-  initPrivateState,
-  isRestorableDIDPrivateState,
-} from "./private-state.js";
+export { initPrivateState } from "./private-state.js";
