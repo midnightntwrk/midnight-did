@@ -63,6 +63,12 @@ try {
     },
   });
   writeText(path.join(vcRoot, "tooling/vendor/midnight-did", domainTarball));
+  writeJson(path.join(vcRoot, "tooling/vendor/midnight-did/package.json"), {
+    name: "ignored-vendor-metadata",
+    dependencies: {
+      [didDomainPackage.name]: "^999.0.0",
+    },
+  });
 
   const report = buildIntegrationReport({
     repoRoot: didRoot,
@@ -165,6 +171,7 @@ try {
         ...process.env,
         MIDNIGHT_DID_REPO_ROOT: didRoot,
         MIDNIGHT_DID_SIBLING_VC_ROOT: vcRoot,
+        MIDNIGHT_DID_INTEGRATION_NOW: "2026-05-22T00:00:00.000Z",
       },
     },
   );
@@ -189,9 +196,10 @@ try {
   const staleReference = staleReferenceReport.siblingVc.references.find(
     (reference) => reference.consumer === "stale-did-consumer",
   );
+  assert.equal(staleReferenceReport.errors.length, 2);
   assert.equal(staleReference.currentVendorTarballPresent, true);
   assert.equal(staleReference.referencedVendorTarballPresent, false);
-  assert.equal("vendorTarballPresent" in staleReference, false);
+  assert.equal(staleReference.vendorTarballPresent, true);
 
   const unknownArg = spawnSync("node", [scriptPath, "--dryrun"], {
     cwd: repoRoot,
