@@ -82,20 +82,30 @@ TypeScript package sources outside generated `src/managed` artifacts.
 ## Runtime Profiles
 
 - `StandaloneConfig`
+- `TestnetLocalConfig`
+- `TestnetRemoteConfig`
 - `PreprodConfig`
 - `MainnetConfig`
+- `ProfileConfig`
 
 Defaults:
 
+- all profile defaults live in `src/config-profiles.ts`
 - `PreprodConfig` and `MainnetConfig` use public indexer v4 endpoints (`/api/v4/graphql` + `/ws`).
 - `MainnetConfig` defaults to local proof server (`http://127.0.0.1:6300`) so it can be used with local proving while targeting mainnet indexer/node.
+- constructing any profile config calls `setNetworkId()` through `applyMidnightNetworkProfile()`, so wallet and contract operations see the correct Midnight network before they start.
 
-You can still override `MainnetConfig` endpoints explicitly when needed.
+You can still override `MainnetConfig` endpoints explicitly when needed. New
+tooling should use `ProfileConfig` when the profile name is data-driven rather
+than hard-coded in a class constructor. Every `ProfileConfig` instance exposes
+the resolved `profileName` so logs and operator tooling can report the active
+profile without inferring it from URLs.
 
 ## Main Source Files
 
 - `src/index.ts`
 - `src/lib.ts` public compatibility facade
+- `src/config-profiles.ts` network profile catalog and network-id application
 - `src/deploy.ts` contract deployment, join, and private-state initialization
 - `src/providers.ts` provider composition for DID runtime dependencies
 - `src/private-state-storage.ts` private-state storage account/password wiring
