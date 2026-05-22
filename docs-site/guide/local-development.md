@@ -15,17 +15,20 @@ compact update 0.30.0
 
 ## Repository Layout
 
-| Path | Responsibility |
-| --- | --- |
-| `packages/contract/` | Compact DID contract and generated runtime package. |
-| `packages/jubjub-schnorr/` | Shared Compact/TypeScript Schnorr helpers. |
-| `packages/domain/` | DID document/domain schemas and validation. |
-| `packages/did/` | Ledger-to-domain mapping and DID helpers. |
-| `packages/api/` | Wallet/provider/contract orchestration and network profiles. |
-| `docs-site/` | VitePress docs and generated API reference. |
+| Path                       | Responsibility                                               |
+| -------------------------- | ------------------------------------------------------------ |
+| `packages/contract/`       | Compact DID contract and generated runtime package.          |
+| `packages/jubjub-schnorr/` | Shared Compact/TypeScript Schnorr helpers.                   |
+| `packages/domain/`         | DID document/domain schemas and validation.                  |
+| `packages/did/`            | Ledger-to-domain mapping and DID helpers.                    |
+| `packages/api/`            | Wallet/provider/contract orchestration and network profiles. |
+| `docs-site/`               | VitePress docs and generated API reference.                  |
 
-Resolver service, DID manager, and secret-storage validation moved to `midnight-did-resolver`.
+Resolver service, DID manager, and secret-storage validation moved to
+[`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver).
 Credential and Passport work lives in the VC and solution-example repositories.
+See [Repository Boundaries](/guide/repository-boundaries) before adding new
+cross-repository docs or scripts.
 
 ## Validation
 
@@ -126,11 +129,11 @@ npm run docs:sync-source
 
 ## Important Repository Paths
 
-| Path | Purpose |
-| --- | --- |
-| `contract/` | Compact contract and contract-focused tests. |
-| `domain/` | DID schemas and normalization rules. |
-| `did/` | Ledger-to-domain mapping and resolver helpers. |
-| `api/` | Runtime orchestration over node, indexer, proof server, and contract. |
-| `jubjub-schnorr/` | Shared Schnorr Compact and TypeScript helpers. |
-| `docs-site/` | Documentation site and generated API reference. |
+| Path              | Purpose                                                               |
+| ----------------- | --------------------------------------------------------------------- |
+| `contract/`       | Compact contract and contract-focused tests.                          |
+| `domain/`         | DID schemas and normalization rules.                                  |
+| `did/`            | Ledger-to-domain mapping and resolver helpers.                        |
+| `api/`            | Runtime orchestration over node, indexer, proof server, and contract. |
+| `jubjub-schnorr/` | Shared Schnorr Compact and TypeScript helpers.                        |
+| `docs-site/`      | Documentation site and generated API reference.                       |
