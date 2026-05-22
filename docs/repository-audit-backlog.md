@@ -65,4 +65,8 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      artifact workspace list and destination resolver into a shared shell
      catalog used by both pack and upgrade scripts, adds `--list-packages`, and
      wires a contract test into `ci:core`.
-7. Continue reducing stale historical docs when they no longer help explain DID method evolution.
+7. Continue reducing stale historical docs when they no longer help explain DID
+   method evolution.
+   - 2026-05-22: `codex/did-archive-stale-transition-docs` moves historical
+     develop-transition and ledger-migration notes under `docs/archive/` so the
+     top-level docs directory stays focused on current DID-core guidance.
