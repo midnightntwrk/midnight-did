@@ -19,7 +19,6 @@ import { getMidnightDIDLedgerState } from "./deploy.js";
 import { getMidnightNetwork, normalizeBoundFragmentId } from "./did-subject.js";
 import {
   LedgerVerificationMethodRelationMap,
-  relationSetFromState,
   serviceToLedger,
   verificationMethodToLedger,
 } from "./ledger-mappers.js";
@@ -28,6 +27,12 @@ import {
   type DeployedMidnightDIDContract,
   type MidnightDIDProviders,
 } from "./types.js";
+import {
+  assertVerificationMethodRelationAbsent,
+  assertVerificationMethodRelationPresent,
+  removeVerificationMethodRelationMemberships,
+  requireMidnightDIDLedgerState,
+} from "./verification-method-relations.js";
 
 export { getMidnightNetwork } from "./did-subject.js";
 
@@ -61,48 +66,11 @@ export const removeVerificationMethod = async (
     methodId,
     "methodId",
   );
-  const contractAddress = parseContractAddress(
-    didContract.deployTxData.public.contractAddress,
+  await removeVerificationMethodRelationMemberships(
+    didContract,
+    providers,
+    normalizedMethodId,
   );
-  const didState = await getMidnightDIDLedgerState(providers, contractAddress);
-
-  if (!didState) {
-    throw new Error("Cannot query DID state");
-  }
-
-  const relationsToCheck: Array<{
-    relation: VerificationMethodRelationType;
-    member: boolean;
-  }> = [
-    {
-      relation: VerificationMethodRelationType.Authentication,
-      member: didState.authenticationRelation.member(normalizedMethodId),
-    },
-    {
-      relation: VerificationMethodRelationType.AssertionMethod,
-      member: didState.assertionMethodRelation.member(normalizedMethodId),
-    },
-    {
-      relation: VerificationMethodRelationType.KeyAgreement,
-      member: didState.keyAgreementRelation.member(normalizedMethodId),
-    },
-    {
-      relation: VerificationMethodRelationType.CapabilityInvocation,
-      member: didState.capabilityInvocationRelation.member(normalizedMethodId),
-    },
-    {
-      relation: VerificationMethodRelationType.CapabilityDelegation,
-      member: didState.capabilityDelegationRelation.member(normalizedMethodId),
-    },
-  ];
-
-  for (const { relation, member } of relationsToCheck) {
-    if (!member) continue;
-    await didContract.callTx.removeVerificationMethodRelation(
-      LedgerVerificationMethodRelationMap[relation],
-      normalizedMethodId,
-    );
-  }
 
   const result =
     await didContract.callTx.removeVerificationMethod(normalizedMethodId);
@@ -120,19 +88,12 @@ export const addVerificationMethodRelation = async (
     methodId,
     "methodId",
   );
-  const contractAddress = parseContractAddress(
-    didContract.deployTxData.public.contractAddress,
+  const didState = await requireMidnightDIDLedgerState(didContract, providers);
+  assertVerificationMethodRelationAbsent(
+    didState,
+    relation,
+    normalizedMethodId,
   );
-  const didState = await getMidnightDIDLedgerState(providers, contractAddress);
-  if (!didState) {
-    throw new Error("Cannot query DID state");
-  }
-  const relationSet = relationSetFromState(didState, relation);
-  if (relationSet.member(normalizedMethodId)) {
-    throw new Error(
-      `relation ${relation} already contains verification method ${normalizedMethodId}`,
-    );
-  }
   const result = await didContract.callTx.addVerificationMethodRelation(
     LedgerVerificationMethodRelationMap[relation],
     normalizedMethodId,
@@ -151,19 +112,12 @@ export const removeVerificationMethodRelation = async (
     methodId,
     "methodId",
   );
-  const contractAddress = parseContractAddress(
-    didContract.deployTxData.public.contractAddress,
+  const didState = await requireMidnightDIDLedgerState(didContract, providers);
+  assertVerificationMethodRelationPresent(
+    didState,
+    relation,
+    normalizedMethodId,
   );
-  const didState = await getMidnightDIDLedgerState(providers, contractAddress);
-  if (!didState) {
-    throw new Error("Cannot query DID state");
-  }
-  const relationSet = relationSetFromState(didState, relation);
-  if (!relationSet.member(normalizedMethodId)) {
-    throw new Error(
-      `relation ${relation} does not contain verification method ${normalizedMethodId}`,
-    );
-  }
   const result = await didContract.callTx.removeVerificationMethodRelation(
     LedgerVerificationMethodRelationMap[relation],
     normalizedMethodId,
