@@ -13,9 +13,9 @@ import { fileURLToPath } from "node:url";
 const thisFile = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(thisFile), "..");
 
-// This is a developer/CI freshness guard, not a content stamp. It catches the
-// usual "changed Compact/source inputs without rebuilding managed artifacts"
-// workflow, but content-hash stamping would be needed for tamper-proof checks.
+// This is a developer/CI freshness guard. The mtime check is the local rebuild
+// gate, and sourceManifest gives external consumers a deterministic source
+// content stamp for the inputs behind each managed artifact profile.
 const contractInputs = [
   "packages/contract/src/did.compact",
   "packages/contract/package.json",
@@ -93,6 +93,8 @@ const newestInputMtimeMs = (inputs) => {
 const missingInputsFor = (inputs) =>
   inputs.filter((input) => !existsSync(path.join(repoRoot, input)));
 
+const portablePath = (relativePath) => relativePath.split(path.sep).join("/");
+
 const collectInputFiles = (inputs, root = repoRoot) => {
   const files = [];
 
@@ -110,7 +112,7 @@ const collectInputFiles = (inputs, root = repoRoot) => {
       return;
     }
 
-    files.push(relativePath);
+    files.push(portablePath(relativePath));
   };
 
   for (const input of inputs) {
@@ -123,6 +125,7 @@ const collectInputFiles = (inputs, root = repoRoot) => {
 export const createInputSourceManifest = (inputs, root = repoRoot) => {
   const files = collectInputFiles(inputs, root);
   const digest = createHash("sha256");
+  const missingInputs = inputs.filter((input) => !existsSync(path.join(root, input)));
 
   for (const file of files) {
     digest.update(file);
@@ -135,6 +138,7 @@ export const createInputSourceManifest = (inputs, root = repoRoot) => {
     algorithm: "sha256",
     digest: digest.digest("hex"),
     files,
+    missingInputs,
   };
 };
 
@@ -158,6 +162,7 @@ export const explainProfile = (profileName) => {
   const missing = [];
   const missingInputs = [];
   const stale = [];
+  const profileInputs = uniqueInputsForProfile(profile);
 
   for (const artifact of profile.outputs) {
     const absolutePath = path.join(repoRoot, artifact.path);
@@ -192,9 +197,9 @@ export const explainProfile = (profileName) => {
     missing,
     missingInputs,
     stale,
-    inputs: uniqueInputsForProfile(profile),
+    inputs: profileInputs,
     outputs: profile.outputs.map((artifact) => artifact.path),
-    sourceManifest: createInputSourceManifest(uniqueInputsForProfile(profile)),
+    sourceManifest: createInputSourceManifest(profileInputs),
   };
 };
 
