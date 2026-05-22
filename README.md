@@ -126,6 +126,7 @@ npm run check:run-target-catalog
 npm run check:managed-artifacts
 npm run artifacts:status
 npm run report:integration
+npm run report:integration:schema
 npm run check:integration
 ```
 
@@ -153,7 +154,11 @@ The integration report checks the sibling
 `../midnight-verifiable-credentials` checkout for file-based DID package
 references and matching vendored tarballs. Fixture tests can override the
 default roots with `MIDNIGHT_DID_REPO_ROOT`, `MIDNIGHT_DID_SIBLING_VC_ROOT`,
-and `MIDNIGHT_DID_INTEGRATION_NOW`.
+and `MIDNIGHT_DID_INTEGRATION_NOW`. JSON consumers should read
+`schemaId`/`schemaVersion` first; `npm run report:integration:schema` prints the
+current reference-kind and summary-counter contract. The first versioned schema
+is `midnight-did-integration-report@1`; earlier unversioned reports carried
+human-readable `summary.notes`, which now live only in the schema output.
 
 ## Artifact Packaging
 
