@@ -154,6 +154,8 @@ Useful forms:
 ./run.sh api --light --strict
 ./run.sh docs
 ./run.sh clean-artifacts
+./run.sh artifact-status
+./run.sh check-managed-artifacts
 ./run.sh integration-report
 ./run.sh check-integration
 ```
@@ -188,6 +190,7 @@ npm run test:workspace-manifests
 npm run check:workspace-manifests
 npm run check:run-target-catalog
 npm run check:managed-artifacts
+npm run artifacts:status
 npm run clean:artifacts
 npm run report:integration
 npm run check:integration

@@ -232,6 +232,37 @@ assert.ok(
   "clean-artifacts should report the unknown argument",
 );
 
+const artifactStatusResult = run(["artifact-status"]);
+assert.equal(
+  artifactStatusResult.status,
+  0,
+  "artifact-status target should exit successfully",
+);
+const artifactStatus = JSON.parse(artifactStatusResult.stdout);
+assert.equal(
+  artifactStatus.contract.sourceManifest.algorithm,
+  "sha256",
+  "artifact-status should include the contract source manifest",
+);
+assert.match(
+  artifactStatus["jubjub-schnorr"].sourceManifest.digest,
+  /^[0-9a-f]{64}$/u,
+  "artifact-status should include the jubjub-schnorr source manifest digest",
+);
+
+const checkManagedArtifactsResult = run(["check-managed-artifacts"]);
+assert.equal(
+  checkManagedArtifactsResult.status,
+  0,
+  "check-managed-artifacts target should exit successfully",
+);
+assert.ok(
+  checkManagedArtifactsResult.stdout.includes(
+    "Verified 2 fresh artifact profiles",
+  ),
+  "check-managed-artifacts should print the managed artifact freshness summary",
+);
+
 const cleanArtifactsFixtureDir = mkdtempSync(
   path.join(tmpdir(), "midnight-did-clean-fixture-"),
 );
