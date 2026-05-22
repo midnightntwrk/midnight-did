@@ -90,6 +90,9 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      API package barrel from `deploy.ts`/`update.ts` compatibility shims to the
      focused implementation modules, shrinking shim import allowlists to only
      compatibility barrels and parity tests.
+   - 2026-05-22: `codex/did-api-lib-barrel-parity` adds a focused public
+     barrel parity test so every runtime export from `lib.ts` remains available
+     through `index.ts` without widening the compatibility-shim allowlist.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
    - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era
