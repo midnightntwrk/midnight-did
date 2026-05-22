@@ -11,7 +11,10 @@ import { fileURLToPath } from "node:url";
 
 import {
   buildIntegrationReport,
+  INTEGRATION_REPORT_SCHEMA,
   npmPackFileName,
+  printIntegrationReport,
+  validateIntegrationReportContract,
 } from "./report-integration.mjs";
 
 const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -77,6 +80,10 @@ try {
   });
 
   assert.equal(report.generatedAt, "2026-05-22T00:00:00.000Z");
+  assert.equal(report.schemaId, INTEGRATION_REPORT_SCHEMA.id);
+  assert.equal(report.schemaVersion, INTEGRATION_REPORT_SCHEMA.version);
+  assert.deepEqual(validateIntegrationReportContract(report), []);
+  assert.deepEqual(report.contractErrors, []);
   assert.deepEqual(report.errors, []);
   assert.deepEqual(report.warnings, [
     "Workspace package is missing package.json: packages/missing",
@@ -87,11 +94,17 @@ try {
   assert.equal(report.siblingVc.summary.staleFileSpecCount, 0);
   assert.equal(report.siblingVc.summary.externalSpecCount, 0);
   assert.equal(report.siblingVc.summary.missingVendorTarballCount, 0);
-  assert.deepEqual(report.siblingVc.summary.notes, [
+  assert.equal(report.siblingVc.summary.notes, undefined);
+  assert.deepEqual(INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.notes, [
     "referenceCount is partitioned by matching-file-specs, stale-file-specs, and external-specs.",
     "missing-vendor-tarballs is independent and can overlap with stale or matching file specs.",
     "fileSpecMatchesCurrentVersion is null for external package specs because no file path is being compared.",
   ]);
+  assert.equal(
+    INTEGRATION_REPORT_SCHEMA.referenceKinds.length,
+    INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.partitionedCounters.length,
+    "each partitioned reference kind should have one summary counter",
+  );
   assert.equal(report.siblingVc.references[0].referenceKind, "matching-file");
   assert.equal(report.siblingVc.references[0].fileSpecMatchesCurrentVersion, true);
   assert.equal(report.siblingVc.references[0].expectedFileSpec, domainFileSpec);
@@ -143,6 +156,7 @@ try {
   );
   assert.equal(externalReference.referenceKind, "external");
   assert.equal(externalReference.fileSpecMatchesCurrentVersion, null);
+  assert.deepEqual(validateIntegrationReportContract(externalReport), []);
 
   writeJson(path.join(vcRoot, "packages/missing-tarball/package.json"), {
     name: "missing-tarball-consumer",
@@ -192,6 +206,10 @@ try {
     failingCheck.stdout,
     /expected file:\.\.\/\.\.\/tooling\/vendor\/midnight-did\/midnight-ntwrk-midnight-did-domain-0\.1\.0\.tgz/u,
   );
+  assert.match(
+    failingCheck.stderr,
+    /\[report-integration\] Error: stale-did-consumer references @midnight-ntwrk\/midnight-did-domain/u,
+  );
   assert.match(failingCheck.stdout, /stale-file-specs=1/u);
   assert.match(failingCheck.stdout, /missing-vendor-tarballs=1/u);
   const staleReferenceReport = buildIntegrationReport({
@@ -214,6 +232,237 @@ try {
   assert.equal(staleReference.currentVendorTarballPresent, true);
   assert.equal(staleReference.referencedVendorTarballPresent, false);
   assert.equal(staleReference.vendorTarballPresent, true);
+  assert.deepEqual(validateIntegrationReportContract(staleReferenceReport), []);
+
+  const schemaResult = spawnSync("node", [scriptPath, "--schema"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  assert.equal(schemaResult.status, 0, schemaResult.stderr);
+  assert.deepEqual(JSON.parse(schemaResult.stdout), INTEGRATION_REPORT_SCHEMA);
+
+  const contractErrorReport = {
+    ...report,
+    siblingVc: {
+      ...report.siblingVc,
+      references: [
+        {
+          ...report.siblingVc.references[0],
+          referenceKind: "external",
+          fileSpecMatchesCurrentVersion: true,
+        },
+      ],
+    },
+  };
+  assert.deepEqual(validateIntegrationReportContract(contractErrorReport), [
+    `${report.siblingVc.references[0].consumer} ${didDomainPackage.name} external reference must set fileSpecMatchesCurrentVersion=null`,
+  ]);
+
+  const baseReference = report.siblingVc.references[0];
+  const baseSummary = report.siblingVc.summary;
+  const reportWithReference = (reference, summary) => ({
+    ...report,
+    siblingVc: {
+      ...report.siblingVc,
+      references: [reference],
+      summary,
+    },
+  });
+  const matchingSummary = {
+    ...baseSummary,
+    referenceCount: 1,
+    matchingFileSpecCount: 1,
+    staleFileSpecCount: 0,
+    externalSpecCount: 0,
+  };
+  const staleSummary = {
+    ...baseSummary,
+    referenceCount: 1,
+    matchingFileSpecCount: 0,
+    staleFileSpecCount: 1,
+    externalSpecCount: 0,
+  };
+
+  const contractErrorCases = [
+    {
+      report: { ...report, schemaId: "wrong-schema" },
+      errors: [
+        `schemaId must be ${INTEGRATION_REPORT_SCHEMA.id}; received wrong-schema`,
+      ],
+    },
+    {
+      report: { ...report, schemaVersion: 999 },
+      errors: [
+        `schemaVersion must be ${INTEGRATION_REPORT_SCHEMA.version}; received 999`,
+      ],
+    },
+    {
+      report: {
+        ...report,
+        siblingVc: { ...report.siblingVc, summary: undefined },
+      },
+      errors: ["siblingVc.summary is required"],
+    },
+    {
+      report: {
+        ...report,
+        siblingVc: {
+          ...report.siblingVc,
+          references: undefined,
+          summary: {
+            ...baseSummary,
+            referenceCount: 0,
+            matchingFileSpecCount: 0,
+            staleFileSpecCount: 0,
+            externalSpecCount: 0,
+          },
+        },
+      },
+      errors: ["siblingVc.references must be an array"],
+    },
+    {
+      report: reportWithReference(
+        { ...baseReference, referenceKind: "unsupported" },
+        undefined,
+      ),
+      errors: [
+        "siblingVc.summary is required",
+        `${baseReference.consumer} ${baseReference.dependencyName} has unsupported referenceKind unsupported`,
+      ],
+    },
+    {
+      report: {
+        ...report,
+        siblingVc: {
+          ...report.siblingVc,
+          summary: {
+            ...baseSummary,
+            matchingFileSpecCount: undefined,
+          },
+        },
+      },
+      errors: [
+        "summary.matchingFileSpecCount must be a finite number; received missing",
+      ],
+    },
+    {
+      report: {
+        ...report,
+        siblingVc: {
+          ...report.siblingVc,
+          summary: {
+            ...baseSummary,
+            missingVendorTarballCount: undefined,
+          },
+        },
+      },
+      errors: [
+        "summary.missingVendorTarballCount must be a finite number; received missing",
+      ],
+    },
+    {
+      report: {
+        ...report,
+        siblingVc: {
+          ...report.siblingVc,
+          summary: {
+            ...baseSummary,
+            matchingFileSpecCount: 0,
+            staleFileSpecCount: 0,
+            externalSpecCount: 0,
+          },
+        },
+      },
+      errors: [
+        "summary partition counters must add up to referenceCount; received 0 for 1",
+      ],
+    },
+    {
+      report: {
+        ...report,
+        siblingVc: {
+          ...report.siblingVc,
+          summary: {
+            ...baseSummary,
+            referenceCount: 2,
+            matchingFileSpecCount: 2,
+          },
+        },
+      },
+      errors: [
+        "summary.referenceCount must match references.length; received 2 for 1",
+      ],
+    },
+    {
+      report: reportWithReference(
+        { ...baseReference, referenceKind: "unsupported" },
+        matchingSummary,
+      ),
+      errors: [
+        `${baseReference.consumer} ${baseReference.dependencyName} has unsupported referenceKind unsupported`,
+      ],
+    },
+    {
+      report: reportWithReference(
+        { ...baseReference, fileSpecMatchesCurrentVersion: false },
+        matchingSummary,
+      ),
+      errors: [
+        `${baseReference.consumer} ${baseReference.dependencyName} matching-file reference must set fileSpecMatchesCurrentVersion=true`,
+      ],
+    },
+    {
+      report: reportWithReference(
+        {
+          ...baseReference,
+          referenceKind: "stale-file",
+          fileSpecMatchesCurrentVersion: true,
+        },
+        staleSummary,
+      ),
+      errors: [
+        `${baseReference.consumer} ${baseReference.dependencyName} stale-file reference must set fileSpecMatchesCurrentVersion=false`,
+      ],
+    },
+  ];
+  for (const contractErrorCase of contractErrorCases) {
+    assert.deepEqual(
+      validateIntegrationReportContract(contractErrorCase.report),
+      contractErrorCase.errors,
+    );
+  }
+
+  const originalConsoleLog = console.log;
+  const printedLines = [];
+  console.log = (line = "") => {
+    printedLines.push(String(line));
+  };
+  try {
+    assert.doesNotThrow(() =>
+      printIntegrationReport({ ...report, contractErrors: undefined }),
+    );
+  } finally {
+    console.log = originalConsoleLog;
+  }
+  assert.match(
+    printedLines.join("\n"),
+    /# DID Integration Report/u,
+    "printer should still render hand-constructed reports without contractErrors",
+  );
+  printedLines.length = 0;
+  console.log = (line = "") => {
+    printedLines.push(String(line));
+  };
+  try {
+    printIntegrationReport({ ...report, contractErrors: ["schema drift"] });
+  } finally {
+    console.log = originalConsoleLog;
+  }
+  assert.match(
+    printedLines.join("\n"),
+    /## Contract Errors\n- schema drift/u,
+    "printer should render contract errors when present",
+  );
 
   const unknownArg = spawnSync("node", [scriptPath, "--dryrun"], {
     cwd: repoRoot,
@@ -229,6 +478,41 @@ try {
   assert.equal(helpWins.status, 0, "help should win over unknown arguments");
   assert.match(helpWins.stdout, /Usage: node scripts\/report-integration\.mjs/u);
   assert.match(helpWins.stdout, /Stable ISO-8601 generatedAt timestamp/u);
+
+  const conflictingSchemaMode = spawnSync(
+    "node",
+    [scriptPath, "--schema", "--check"],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+    },
+  );
+  assert.equal(
+    conflictingSchemaMode.status,
+    1,
+    "schema mode should reject conflicting report execution flags",
+  );
+  assert.match(
+    conflictingSchemaMode.stderr,
+    /--schema cannot be combined with --check or --json/u,
+  );
+  const conflictingSchemaJsonMode = spawnSync(
+    "node",
+    [scriptPath, "--schema", "--json"],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+    },
+  );
+  assert.equal(
+    conflictingSchemaJsonMode.status,
+    1,
+    "schema mode should reject conflicting JSON report flags",
+  );
+  assert.match(
+    conflictingSchemaJsonMode.stderr,
+    /--schema cannot be combined with --check or --json/u,
+  );
 } finally {
   rmSync(fixtureRoot, { recursive: true, force: true });
 }
