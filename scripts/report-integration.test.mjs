@@ -33,10 +33,15 @@ try {
     name: "@midnight-ntwrk/midnight-did-domain",
     version: "0.1.0",
   };
+  const didApiPackage = {
+    name: "@midnight-ntwrk/midnight-did-api",
+    version: "0.1.0",
+  };
   const domainTarball = npmPackFileName(
     didDomainPackage.name,
     didDomainPackage.version,
   );
+  const apiTarball = npmPackFileName(didApiPackage.name, didApiPackage.version);
   const domainFileSpec = `file:tooling/vendor/midnight-did/${domainTarball}`;
 
   writeJson(path.join(didRoot, "package.json"), {
@@ -47,10 +52,7 @@ try {
     didDomainPackage,
   );
   writeText(path.join(didRoot, "packages/domain/dist/index.js"));
-  writeJson(path.join(didRoot, "packages/api/package.json"), {
-    name: "@midnight-ntwrk/midnight-did-api",
-    version: "0.1.0",
-  });
+  writeJson(path.join(didRoot, "packages/api/package.json"), didApiPackage);
   writeJson(path.join(vcRoot, "package.json"), {
     name: "midnight-vc-fixture",
     dependencies: {
@@ -73,8 +75,20 @@ try {
   assert.equal(report.packages.length, 2);
   assert.equal(report.siblingVc.summary.referenceCount, 1);
   assert.equal(report.siblingVc.summary.matchingFileSpecCount, 1);
+  assert.equal(report.siblingVc.summary.staleFileSpecCount, 0);
+  assert.equal(report.siblingVc.summary.externalSpecCount, 0);
   assert.equal(report.siblingVc.summary.missingVendorTarballCount, 0);
   assert.equal(report.siblingVc.references[0].expectedFileSpec, domainFileSpec);
+
+  const missingSiblingReport = buildIntegrationReport({
+    repoRoot: didRoot,
+    siblingVcRoot: path.join(fixtureRoot, "missing-vc"),
+  });
+  assert.equal(missingSiblingReport.siblingVc.present, false);
+  assert.deepEqual(missingSiblingReport.warnings, [
+    "Workspace package is missing package.json: packages/missing",
+    "Sibling midnight-verifiable-credentials checkout was not found; VC reference checks skipped.",
+  ]);
 
   const checkResult = spawnSync(
     "node",
@@ -93,6 +107,42 @@ try {
   assert.equal(checkResult.status, 0, checkResult.stderr);
   assert.equal(JSON.parse(checkResult.stdout).siblingVc.summary.referenceCount, 1);
 
+  writeJson(path.join(vcRoot, "packages/external/package.json"), {
+    name: "external-did-consumer",
+    dependencies: {
+      [didDomainPackage.name]: "^0.1.0",
+    },
+  });
+
+  const externalReport = buildIntegrationReport({
+    repoRoot: didRoot,
+    siblingVcRoot: vcRoot,
+  });
+  assert.deepEqual(externalReport.errors, []);
+  assert.equal(externalReport.siblingVc.summary.referenceCount, 2);
+  assert.equal(externalReport.siblingVc.summary.matchingFileSpecCount, 1);
+  assert.equal(externalReport.siblingVc.summary.externalSpecCount, 1);
+
+  writeJson(path.join(vcRoot, "packages/missing-tarball/package.json"), {
+    name: "missing-tarball-consumer",
+    dependencies: {
+      [didApiPackage.name]: `file:../../tooling/vendor/midnight-did/${apiTarball}`,
+    },
+  });
+
+  const missingTarballReport = buildIntegrationReport({
+    repoRoot: didRoot,
+    siblingVcRoot: vcRoot,
+  });
+  assert.equal(missingTarballReport.siblingVc.summary.referenceCount, 3);
+  assert.equal(missingTarballReport.siblingVc.summary.missingVendorTarballCount, 1);
+  assert.match(
+    missingTarballReport.errors.join("\n"),
+    /missing-tarball-consumer references @midnight-ntwrk\/midnight-did-api, but vendor tarball is missing/u,
+  );
+
+  // The report walks all package.json files, not only declared workspaces, so
+  // stale nested consumers remain visible during layout migrations.
   writeJson(path.join(vcRoot, "packages/consumer/package.json"), {
     name: "stale-did-consumer",
     dependencies: {
@@ -119,6 +169,8 @@ try {
     failingCheck.stdout,
     /expected file:\.\.\/\.\.\/tooling\/vendor\/midnight-did\/midnight-ntwrk-midnight-did-domain-0\.1\.0\.tgz/u,
   );
+  assert.match(failingCheck.stdout, /stale-file-specs=1/u);
+  assert.match(failingCheck.stdout, /missing-vendor-tarballs=1/u);
 
   const unknownArg = spawnSync("node", [scriptPath, "--dryrun"], {
     cwd: repoRoot,
@@ -126,6 +178,13 @@ try {
   });
   assert.equal(unknownArg.status, 1, "unknown arguments should fail closed");
   assert.match(unknownArg.stderr, /Unknown report-integration argument: --dryrun/u);
+
+  const helpWins = spawnSync("node", [scriptPath, "--help", "--dryrun"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  assert.equal(helpWins.status, 0, "help should win over unknown arguments");
+  assert.match(helpWins.stdout, /Usage: node scripts\/report-integration\.mjs/u);
 } finally {
   rmSync(fixtureRoot, { recursive: true, force: true });
 }
