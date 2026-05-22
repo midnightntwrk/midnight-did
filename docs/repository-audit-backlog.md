@@ -56,5 +56,9 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
    `jubjub-schnorr` aligned with Compact source/build-script inputs through
    `npm run check:managed-artifacts`.
 5. Tighten `docs-site` links so moved service pages are referenced only as external repository pointers.
+   - 2026-05-22: `codex/did-docs-resolver-boundary-links` adds a docs-site
+     repository-boundary guide, links service/runtime mentions to
+     `midnight-did-resolver`, and extends the surface-discipline guard so
+     deployable resolver/manager/secret-storage wording stays external.
 6. Keep `upgrade-libs.sh` aligned with the packages packed by `scripts/pack-artifacts.sh`.
 7. Continue reducing stale historical docs when they no longer help explain DID method evolution.

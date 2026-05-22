@@ -18,4 +18,4 @@ For now, the repository markdown files remain canonical:
 
 - read **Midnight DID Method** for syntax, document shape, operations, and metadata rules
 - read **Midnight DID Traits** for a capability summary against DID method traits
-- use the package/service docs when you need to know where the repository implements those rules
+- use the package docs and [repository boundary guide](/guide/repository-boundaries) when you need to know where those rules are implemented
