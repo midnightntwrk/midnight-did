@@ -15,12 +15,12 @@ Deferred here:
 
 ## Current shortlist
 
-| Use case | Current fit | Why it belongs now |
-|---|---|---|
-| Authentication and passkeys | Strong near-term fit | `P-256` keys, `authentication`, resolver, and service-side flows already exist |
-| VC signing and verification | Strong foundation | `assertionMethod` and off-chain signing support are present; VC profile still needs to be designed |
-| Delegated agent authorization | Good near-term extension | `capabilityDelegation`, `capabilityInvocation`, and service endpoints are already part of the DID model |
-| Secure agent discovery | Partial but practical | service endpoints and `keyAgreement` are present; messaging profile is still external |
+| Use case                      | Current fit              | Why it belongs now                                                                                                                                                                                        |
+| ----------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authentication and passkeys   | Strong near-term fit     | `P-256` keys, `authentication`, and in-process DID resolver helpers exist here; deployable service-side flows belong in [`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver) |
+| VC signing and verification   | Strong foundation        | `assertionMethod` and off-chain signing support are present; VC profile still needs to be designed                                                                                                        |
+| Delegated agent authorization | Good near-term extension | `capabilityDelegation`, `capabilityInvocation`, and service endpoints are already part of the DID model                                                                                                   |
+| Secure agent discovery        | Partial but practical    | service endpoints and `keyAgreement` are present; messaging profile is still external                                                                                                                     |
 
 ## Source basis
 

@@ -186,6 +186,70 @@ assertIncludes(
   "docs-site sidebar",
 );
 
+const resolverRepoUrl =
+  "https://github.com/midnightntwrk/midnight-did-resolver";
+const repositoryBoundaryGuide = readText(
+  "docs-site/guide/repository-boundaries.md",
+);
+assertIncludes(
+  repositoryBoundaryGuide,
+  resolverRepoUrl,
+  "docs-site repository boundary guide",
+);
+assertIncludes(
+  repositoryBoundaryGuide,
+  "https://github.com/midnightntwrk/midnight-verifiable-credentials",
+  "docs-site repository boundary guide",
+);
+assertIncludes(
+  repositoryBoundaryGuide,
+  "https://github.com/midnightntwrk/midnight-trust-registry",
+  "docs-site repository boundary guide",
+);
+assertIncludes(
+  readText("docs-site/.vitepress/config.ts"),
+  "/guide/repository-boundaries",
+  "docs-site sidebar",
+);
+assertIncludes(
+  readText("docs-site/guide/index.md"),
+  "/guide/repository-boundaries",
+  "docs-site guide index",
+);
+
+for (const [docsPath, label] of [
+  ["docs-site/index.md", "docs-site landing page"],
+  ["docs-site/guide/local-development.md", "docs-site local development guide"],
+  ["docs-site/guide/testing-strategy.md", "docs-site testing strategy"],
+  ["docs-site/packages/index.md", "docs-site packages overview"],
+  ["docs-site/architecture/index.md", "docs-site architecture overview"],
+  [
+    "docs-site/use-cases/delegated-agent-authorization.md",
+    "docs-site delegated-agent use case",
+  ],
+  [
+    "docs-site/use-cases/vc-signing-and-verification.md",
+    "docs-site VC signing use case",
+  ],
+]) {
+  assertIncludes(readText(docsPath), resolverRepoUrl, label);
+}
+assertNotIncludes(
+  readText("docs-site/use-cases/index.md"),
+  "service-side flows already exist",
+  "docs-site use-case overview",
+);
+assertNotIncludes(
+  readText("docs-site/spec/index.md"),
+  "package/service docs",
+  "docs-site spec index",
+);
+assertNotIncludes(
+  readText("docs-site/spec/midnight-did-traits.md"),
+  "package/service docs",
+  "docs-site DID traits page",
+);
+
 for (const workflow of [
   ".github/workflows/ci.yml",
   ".github/workflows/docs.yml",
