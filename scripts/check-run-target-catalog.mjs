@@ -18,6 +18,7 @@ import {
   stepsForTarget,
   targets,
 } from "./run-target-catalog.mjs";
+import { profileNames } from "./managed-artifact-catalog.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.dirname(path.dirname(__filename));
@@ -258,7 +259,7 @@ assert.equal(
 );
 assert.ok(
   checkManagedArtifactsResult.stdout.includes(
-    "Verified 2 fresh artifact profiles",
+    `Verified ${profileNames.length} fresh artifact profiles`,
   ),
   "check-managed-artifacts should print the managed artifact freshness summary",
 );
