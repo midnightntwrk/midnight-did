@@ -1,11 +1,21 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { setLogger } from "../api-logger.js";
+import { getLogger, setLogger } from "../api-logger.js";
 import {
   initPrivateState,
   isRestorableDIDPrivateState,
 } from "../private-state.js";
 import { MidnightDIDPrivateStateId } from "../types.js";
+
+const makeLogger = () =>
+  ({
+    debug: vi.fn(),
+    error: vi.fn(),
+    fatal: vi.fn(),
+    info: vi.fn(),
+    trace: vi.fn(),
+    warn: vi.fn(),
+  }) as any;
 
 const makeProviders = ({
   storedPrivateState = null,
@@ -41,9 +51,18 @@ const makeProviders = ({
 };
 
 describe("DID private state lifecycle", () => {
+  let previousLogger: unknown;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    setLogger({ info: vi.fn() } as any);
+    previousLogger = getLogger();
+    setLogger(makeLogger());
+  });
+
+  afterEach(() => {
+    if (previousLogger) {
+      setLogger(previousLogger as any);
+    }
   });
 
   it("accepts only 32-byte Uint8Array secret keys as restorable state", () => {
@@ -52,6 +71,12 @@ describe("DID private state lifecycle", () => {
     );
     expect(
       isRestorableDIDPrivateState({ secretKey: new Uint8Array(31) } as any),
+    ).toBe(false);
+    expect(
+      isRestorableDIDPrivateState({ secretKey: new Int8Array(32) } as any),
+    ).toBe(false);
+    expect(
+      isRestorableDIDPrivateState({ secretKey: new Uint16Array(16) } as any),
     ).toBe(false);
     expect(isRestorableDIDPrivateState(null)).toBe(false);
     expect(isRestorableDIDPrivateState({ secretKey: [] } as any)).toBe(false);
