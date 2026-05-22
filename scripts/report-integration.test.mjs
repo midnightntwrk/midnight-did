@@ -87,6 +87,13 @@ try {
   assert.equal(report.siblingVc.summary.staleFileSpecCount, 0);
   assert.equal(report.siblingVc.summary.externalSpecCount, 0);
   assert.equal(report.siblingVc.summary.missingVendorTarballCount, 0);
+  assert.deepEqual(report.siblingVc.summary.notes, [
+    "referenceCount is partitioned by matching-file-specs, stale-file-specs, and external-specs.",
+    "missing-vendor-tarballs is independent and can overlap with stale or matching file specs.",
+    "fileSpecMatchesCurrentVersion is null for external package specs because no file path is being compared.",
+  ]);
+  assert.equal(report.siblingVc.references[0].referenceKind, "matching-file");
+  assert.equal(report.siblingVc.references[0].fileSpecMatchesCurrentVersion, true);
   assert.equal(report.siblingVc.references[0].expectedFileSpec, domainFileSpec);
 
   const missingSiblingReport = buildIntegrationReport({
@@ -131,6 +138,11 @@ try {
   assert.equal(externalReport.siblingVc.summary.referenceCount, 2);
   assert.equal(externalReport.siblingVc.summary.matchingFileSpecCount, 1);
   assert.equal(externalReport.siblingVc.summary.externalSpecCount, 1);
+  const externalReference = externalReport.siblingVc.references.find(
+    (reference) => reference.consumer === "external-did-consumer",
+  );
+  assert.equal(externalReference.referenceKind, "external");
+  assert.equal(externalReference.fileSpecMatchesCurrentVersion, null);
 
   writeJson(path.join(vcRoot, "packages/missing-tarball/package.json"), {
     name: "missing-tarball-consumer",
@@ -197,6 +209,8 @@ try {
     (reference) => reference.consumer === "stale-did-consumer",
   );
   assert.equal(staleReferenceReport.errors.length, 2);
+  assert.equal(staleReference.referenceKind, "stale-file");
+  assert.equal(staleReference.fileSpecMatchesCurrentVersion, false);
   assert.equal(staleReference.currentVendorTarballPresent, true);
   assert.equal(staleReference.referencedVendorTarballPresent, false);
   assert.equal(staleReference.vendorTarballPresent, true);
