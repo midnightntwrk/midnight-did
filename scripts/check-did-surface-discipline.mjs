@@ -474,7 +474,9 @@ for (const sourcePath of listFiles("packages/api/src").filter((filePath) =>
       continue;
     }
     assert(
-      !new RegExp(`["']\\.\\.?/${shimName}(?:\\.js)?["']`).test(sourceText),
+      !new RegExp(`["'\`](?:\\.\\.?/)+${shimName}(?:\\.js)?["'\`]`).test(
+        sourceText,
+      ),
       `${sourcePath} must not import the ${shimName}.ts compatibility shim`,
     );
   }
