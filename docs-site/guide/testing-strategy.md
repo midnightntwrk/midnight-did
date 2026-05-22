@@ -16,7 +16,14 @@ Use this before opening or updating a PR:
 ./run.sh core --strict
 ./run.sh api --light --strict
 ./run.sh docs
+./run.sh artifact-status
+./run.sh check-managed-artifacts
+./run.sh integration-report-schema
 ```
+
+`artifact-status` prints managed artifact freshness as JSON,
+`check-managed-artifacts` fails on missing or stale generated Compact outputs,
+and `integration-report-schema` prints the current integration-report schema.
 
 The root runner validates DID core/API/docs only. Resolver service, manager
 service, and secret-storage checks live in
@@ -35,10 +42,20 @@ Use the full loop for API/provider/runtime changes that need Docker-backed integ
 ```bash
 npm run check:did-surface-discipline
 npm run check:run-target-catalog
+npm run check:managed-artifacts
+npm run artifacts:status
+npm run report:integration
+npm run report:integration:schema
 npm run check:integration
 ```
 
-These guards keep the repository surface, runner catalog, and sibling VC integration assumptions aligned.
+These guards keep the repository surface, runner catalog, generated Compact
+artifacts, and sibling VC integration assumptions aligned.
+
+JSON consumers should read `schemaId` and `schemaVersion` before processing
+integration-report payloads. `./run.sh integration-report-schema` and
+`npm run report:integration:schema` print the current report contract without
+requiring a sibling VC checkout.
 
 ## Recommended Workflow
 
