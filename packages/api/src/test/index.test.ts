@@ -79,4 +79,66 @@ describe("api package barrel", () => {
       );
     }
   });
+
+  it("keeps the package root runtime export surface explicit", async () => {
+    const api = await import("../index.js");
+    // Intentional package-root catalog: update this list when adding or
+    // removing runtime exports from the public API package entry point.
+    const apiRuntimeExportNames = [
+      "BigIntReplacer",
+      "DomainToRuntime",
+      "MainnetConfig",
+      "MIDNIGHT_NETWORK_PROFILES",
+      "MIDNIGHT_NETWORK_PROFILE_NAMES",
+      "MidnightDIDPrivateStateId",
+      "NetworkMapping",
+      "PreprodConfig",
+      "ProfileConfig",
+      "RuntimeToDomain",
+      "StandaloneConfig",
+      "TestnetLocalConfig",
+      "TestnetRemoteConfig",
+      "addAlsoKnownAs",
+      "addService",
+      "addVerificationMethod",
+      "addVerificationMethodRelation",
+      "applyMidnightNetworkProfile",
+      "buildFreshWallet",
+      "buildWallet",
+      "buildWalletAndWaitForFunds",
+      "configureProviders",
+      "contractConfig",
+      "createDID",
+      "createLogger",
+      "createWalletAndMidnightProvider",
+      "currentDir",
+      "deactivate",
+      "deploy",
+      "deriveUnshieldedAddressFromSeed",
+      "getMidnightDIDLedgerState",
+      "getMidnightNetwork",
+      "getMidnightNetworkProfile",
+      "getWalletBalances",
+      "initPrivateState",
+      "isMidnightNetworkProfileName",
+      "joinContract",
+      "midnightDIDContractInstance",
+      "registerForDustGeneration",
+      "removeAlsoKnownAs",
+      "removeService",
+      "removeVerificationMethod",
+      "removeVerificationMethodRelation",
+      "resolve",
+      "resolveMidnightNetworkConfig",
+      "restoreWalletFromState",
+      "serializeWalletState",
+      "setLogger",
+      "updateService",
+      "updateVerificationMethod",
+      "waitForWalletFunds",
+      "waitForWalletSync",
+    ];
+
+    expect(Object.keys(api).sort()).toEqual([...apiRuntimeExportNames].sort());
+  });
 });
