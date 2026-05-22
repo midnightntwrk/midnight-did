@@ -52,9 +52,9 @@ Focused lanes:
 ./run.sh integration-report-schema
 ```
 
-`artifact-status` prints managed artifact freshness, `check-managed-artifacts`
-fails on missing or stale generated Compact outputs, and
-`integration-report-schema` prints the current integration-report schema.
+`artifact-status` prints managed artifact freshness as JSON,
+`check-managed-artifacts` fails on missing or stale generated Compact outputs,
+and `integration-report-schema` prints the current integration-report schema.
 
 Metrics:
 
