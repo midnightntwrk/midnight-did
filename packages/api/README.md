@@ -122,6 +122,10 @@ Provider adapters for proof, indexer, and ZK configuration are loaded lazily by
 `configureProviders()`. Importing the API package barrel for mapping helpers,
 types, or examples does not load those runtime adapters.
 
+`setLogger()` is optional for embedders. Until it is called, API helpers use a
+no-op logger so wallet/provider setup can run in minimal scripts without
+preconfiguring logging.
+
 ## Main Source Files
 
 - `src/index.ts`
