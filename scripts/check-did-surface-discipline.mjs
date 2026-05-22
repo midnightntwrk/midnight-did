@@ -51,6 +51,14 @@ function assertNotIncludes(haystack, needle, label) {
   assert(!haystack.includes(needle), `${label} must not include "${needle}"`);
 }
 
+function assertNotMatches(haystack, pattern, label) {
+  assert(!pattern.test(haystack), `${label} must not match ${pattern}`);
+}
+
+function isApiProductionSource(filePath) {
+  return filePath.endsWith(".ts") && !filePath.includes("/test/");
+}
+
 function assertArrayIncludes(array, expected, label) {
   assert(Array.isArray(array), `${label} must be an array`);
   if (Array.isArray(array)) {
@@ -457,14 +465,27 @@ assertNotIncludes(
   "packages/api/src/api-logger.ts",
 );
 
+const apiUnknownCastAllowed = new Set([
+  // The Compact compiled contract constructor is not expressible through the
+  // published SDK type surface yet. Keep this escape hatch review-visible.
+  "packages/api/src/contract-instance.ts",
+]);
 for (const sourcePath of listFiles("packages/api/src").filter(
-  (filePath) => filePath.endsWith(".ts") && !filePath.includes("/test/"),
+  isApiProductionSource,
 )) {
-  assertNotIncludes(
-    readText(sourcePath),
-    " as any",
+  const sourceText = readText(sourcePath);
+  assertNotMatches(
+    sourceText,
+    /\bas\s+any\b/,
     `${sourcePath} production API source`,
   );
+  if (!apiUnknownCastAllowed.has(sourcePath)) {
+    assertNotMatches(
+      sourceText,
+      /\bas\s+unknown\s+as\b/,
+      `${sourcePath} production API source`,
+    );
+  }
 }
 
 const apiShimAllowedImporters = {
