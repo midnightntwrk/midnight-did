@@ -107,6 +107,10 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      `as any` casts from production wallet SDK integration paths and extends
      the surface-discipline guard so future production API source keeps SDK
      transaction and secret-key types explicit.
+   - 2026-05-22: `codex/did-surface-cast-guard-tests` extracts the production
+     API cast scan into a tested helper, masks comments/strings before applying
+     the guard patterns, and wires the fixture-level test into `ci:core` so the
+     no-`as any` policy cannot silently regress.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
    - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era
