@@ -70,3 +70,9 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
    - 2026-05-22: `codex/did-archive-stale-transition-docs` moves historical
      develop-transition and ledger-migration notes under `docs/archive/` so the
      top-level docs directory stays focused on current DID-core guidance.
+8. Keep root agent guidance aligned with the current CI job names and docs
+   layout after the resolver/package split.
+   - 2026-05-22: `codex/did-agent-ci-docs-alignment` updates `AGENT.md` to
+     use the current API/docs/scan PR job names and docs-site spec paths, then
+     extends the surface-discipline guard so service-era CI wording and removed
+     `w3c-spec` paths do not come back.
