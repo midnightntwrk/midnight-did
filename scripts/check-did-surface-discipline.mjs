@@ -454,12 +454,10 @@ assertNotIncludes(
 const apiShimAllowedImporters = {
   deploy: new Set([
     "packages/api/src/contract-lifecycle.ts",
-    "packages/api/src/lib.ts",
     "packages/api/src/test/compatibility-shims.test.ts",
   ]),
   update: new Set([
     "packages/api/src/did-operations.ts",
-    "packages/api/src/lib.ts",
     "packages/api/src/test/compatibility-shims.test.ts",
   ]),
 };
