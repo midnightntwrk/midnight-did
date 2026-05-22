@@ -13,6 +13,7 @@ import {
   buildIntegrationReport,
   INTEGRATION_REPORT_SCHEMA,
   npmPackFileName,
+  printIntegrationReport,
   validateIntegrationReportContract,
 } from "./report-integration.mjs";
 
@@ -300,6 +301,21 @@ try {
           ...report.siblingVc,
           summary: {
             ...baseSummary,
+            matchingFileSpecCount: undefined,
+          },
+        },
+      },
+      errors: [
+        "summary.matchingFileSpecCount must be a finite number; received missing",
+      ],
+    },
+    {
+      report: {
+        ...report,
+        siblingVc: {
+          ...report.siblingVc,
+          summary: {
+            ...baseSummary,
             matchingFileSpecCount: 0,
             staleFileSpecCount: 0,
             externalSpecCount: 0,
@@ -365,6 +381,24 @@ try {
     );
   }
 
+  const originalConsoleLog = console.log;
+  const printedLines = [];
+  console.log = (line = "") => {
+    printedLines.push(String(line));
+  };
+  try {
+    assert.doesNotThrow(() =>
+      printIntegrationReport({ ...report, contractErrors: undefined }),
+    );
+  } finally {
+    console.log = originalConsoleLog;
+  }
+  assert.match(
+    printedLines.join("\n"),
+    /# DID Integration Report/u,
+    "printer should still render hand-constructed reports without contractErrors",
+  );
+
   const unknownArg = spawnSync("node", [scriptPath, "--dryrun"], {
     cwd: repoRoot,
     encoding: "utf8",
@@ -379,6 +413,24 @@ try {
   assert.equal(helpWins.status, 0, "help should win over unknown arguments");
   assert.match(helpWins.stdout, /Usage: node scripts\/report-integration\.mjs/u);
   assert.match(helpWins.stdout, /Stable ISO-8601 generatedAt timestamp/u);
+
+  const conflictingSchemaMode = spawnSync(
+    "node",
+    [scriptPath, "--schema", "--check"],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+    },
+  );
+  assert.equal(
+    conflictingSchemaMode.status,
+    1,
+    "schema mode should reject conflicting report execution flags",
+  );
+  assert.match(
+    conflictingSchemaMode.stderr,
+    /--schema cannot be combined with --check or --json/u,
+  );
 } finally {
   rmSync(fixtureRoot, { recursive: true, force: true });
 }
