@@ -87,6 +87,8 @@ Local validation:
 ./run.sh core --strict
 ./run.sh api --light --strict
 ./run.sh docs
+./run.sh artifact-status
+./run.sh check-managed-artifacts
 ```
 
 Runner notes:
@@ -163,9 +165,11 @@ Packed packages:
 - `@midnight-ntwrk/midnight-did-contract`
 
 The generated tarballs are gitignored under [`artifacts/`](./artifacts/README.md).
-Use `npm run artifacts:status` to inspect generated Compact output readiness
-for `contract` and `jubjub-schnorr`, and `npm run check:managed-artifacts` to
-fail on missing or stale generated artifacts after a local build.
+Use `./run.sh artifact-status` or `npm run artifacts:status` to inspect
+generated Compact output readiness and source manifests for `contract` and
+`jubjub-schnorr`. Use `./run.sh check-managed-artifacts` or
+`npm run check:managed-artifacts` to fail on missing or stale generated
+artifacts after a local build.
 
 ## Developer Entry Points
 
