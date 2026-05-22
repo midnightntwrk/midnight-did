@@ -84,9 +84,24 @@ export const MIDNIGHT_NETWORK_PROFILE_NAMES = Object.keys(
   MIDNIGHT_NETWORK_PROFILES,
 ) as MidnightNetworkProfileName[];
 
+export const isMidnightNetworkProfileName = (
+  profileName: string,
+): profileName is MidnightNetworkProfileName =>
+  profileName in MIDNIGHT_NETWORK_PROFILES;
+
 export const getMidnightNetworkProfile = (
-  profileName: MidnightNetworkProfileName,
-): MidnightNetworkProfile => MIDNIGHT_NETWORK_PROFILES[profileName];
+  profileName: string,
+): MidnightNetworkProfile => {
+  if (!isMidnightNetworkProfileName(profileName)) {
+    throw new Error(
+      `Unknown Midnight network profile "${profileName}". Expected one of: ${MIDNIGHT_NETWORK_PROFILE_NAMES.join(
+        ", ",
+      )}.`,
+    );
+  }
+
+  return MIDNIGHT_NETWORK_PROFILES[profileName];
+};
 
 export const applyMidnightNetworkProfile = (
   profileName: MidnightNetworkProfileName,

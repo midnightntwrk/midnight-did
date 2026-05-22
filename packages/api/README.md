@@ -97,7 +97,9 @@ Defaults:
 
 You can still override `MainnetConfig` endpoints explicitly when needed. New
 tooling should use `ProfileConfig` when the profile name is data-driven rather
-than hard-coded in a class constructor.
+than hard-coded in a class constructor. Every `ProfileConfig` instance exposes
+the resolved `profileName` so logs and operator tooling can report the active
+profile without inferring it from URLs.
 
 ## Main Source Files
 

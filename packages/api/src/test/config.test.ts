@@ -8,6 +8,7 @@ import {
   contractConfig,
   currentDir,
   getMidnightNetworkProfile,
+  isMidnightNetworkProfileName,
   MainnetConfig,
   MIDNIGHT_NETWORK_PROFILE_NAMES,
   MIDNIGHT_NETWORK_PROFILES,
@@ -122,6 +123,11 @@ describe("config", () => {
     );
     expect(MIDNIGHT_NETWORK_PROFILES.preprod.networkId).toBe("preprod");
     expect(MIDNIGHT_NETWORK_PROFILES.standalone.networkId).toBe("undeployed");
+    expect(isMidnightNetworkProfileName("preprod")).toBe(true);
+    expect(isMidnightNetworkProfileName("unknown")).toBe(false);
+    expect(() => getMidnightNetworkProfile("unknown")).toThrow(
+      /Unknown Midnight network profile "unknown"/,
+    );
   });
 
   it("resolves profile paths and endpoint overrides without side effects", () => {
