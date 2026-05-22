@@ -61,4 +61,8 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      `midnight-did-resolver`, and extends the surface-discipline guard so
      deployable resolver/manager/secret-storage wording stays external.
 6. Keep `upgrade-libs.sh` aligned with the packages packed by `scripts/pack-artifacts.sh`.
+   - 2026-05-22: `codex/did-upgrade-libs-artifact-alignment` moves the DID
+     artifact workspace list and destination resolver into a shared shell
+     catalog used by both pack and upgrade scripts, adds `--list-packages`, and
+     wires a contract test into `ci:core`.
 7. Continue reducing stale historical docs when they no longer help explain DID method evolution.

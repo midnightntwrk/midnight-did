@@ -4,19 +4,13 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DEST_DIR="${1:-$ROOT_DIR/artifacts/npm}"
 
-workspaces=(
-  packages/api
-  packages/domain
-  packages/did
-  packages/jubjub-schnorr
-  packages/contract
-)
+source "$ROOT_DIR/scripts/artifact-workspaces.sh"
 
 mkdir -p "$DEST_DIR"
 rm -f "$DEST_DIR"/*.tgz
 
 cd "$ROOT_DIR"
-for workspace in "${workspaces[@]}"; do
+while IFS= read -r workspace; do
   echo "[pack-artifacts] Packing ${workspace} -> ${DEST_DIR}"
   npm pack --pack-destination "$DEST_DIR" -w "$workspace"
-done
+done < <(did_artifact_workspaces)
