@@ -157,3 +157,7 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      `scripts/report-integration.mjs` into an importable report builder, adds
      environment-overridable roots for fixture tests, fails closed on unknown
      CLI arguments, and wires a contract test into `ci:core`.
+   - 2026-05-22: `codex/did-integration-report-policy-hardening` makes the
+     sibling VC reference policy explicit by classifying dependencies as
+     matching file specs, stale file specs, or external specs, and documents
+     that missing vendor tarballs are an independent error dimension.
