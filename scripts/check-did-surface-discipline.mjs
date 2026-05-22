@@ -275,12 +275,37 @@ assertIncludes(
 );
 
 const packArtifacts = readText("scripts/pack-artifacts.sh");
+const artifactWorkspaces = readText("scripts/artifact-workspaces.sh");
+const upgradeLibs = readText("upgrade-libs.sh");
 for (const workspace of libraryWorkspaces) {
   assert(
-    new RegExp(`^\\s*${escapeRegExp(workspace)}\\s*$`, "m").test(packArtifacts),
-    `pack-artifacts workspaces must include "${workspace}"`,
+    new RegExp(`^\\s*${escapeRegExp(workspace)}\\s*$`, "m").test(
+      artifactWorkspaces,
+    ),
+    `artifact workspace catalog must include "${workspace}"`,
   );
 }
+assertIncludes(
+  packArtifacts,
+  "did_artifact_workspaces",
+  "scripts/pack-artifacts.sh",
+);
+assertIncludes(upgradeLibs, "did_artifact_workspaces", "upgrade-libs.sh");
+assertIncludes(
+  upgradeLibs,
+  "did_artifact_resolve_destination",
+  "upgrade-libs.sh",
+);
+assert(
+  rootPackage.scripts?.["test:artifact-workspaces"] ===
+    "node scripts/artifact-workspaces.test.mjs",
+  "package.json must expose test:artifact-workspaces",
+);
+assertIncludes(
+  rootPackage.scripts?.["ci:core"] ?? "",
+  "npm run test:artifact-workspaces",
+  "ci:core",
+);
 
 const requiredPackageFiles = [
   "dist/**",
