@@ -441,6 +441,21 @@ assertNotIncludes(
   "build:service-prereqs",
   "run-api.sh",
 );
+assertNotIncludes(
+  readText("packages/api/src/lightweight.ts"),
+  "rxjs",
+  "packages/api/src/lightweight.ts",
+);
+assertNotIncludes(
+  readText("packages/api/src/lightweight.ts"),
+  "wallet-sdk-facade",
+  "packages/api/src/lightweight.ts",
+);
+assertNotIncludes(
+  readText("packages/api/src/api-logger.ts"),
+  "lightweight",
+  "packages/api/src/api-logger.ts",
+);
 
 const apiShimAllowedImporters = {
   deploy: new Set([

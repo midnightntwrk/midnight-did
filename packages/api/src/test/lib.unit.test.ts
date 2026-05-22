@@ -1,19 +1,8 @@
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
-import * as Rx from "rxjs";
 import { describe, expect, it } from "vitest";
 
 import { getWalletBalances } from "../lib.js";
-import {
-  hashProverKey,
-  randomBytes,
-  setLightweightLogger,
-  waitForFunds,
-  waitForSync,
-} from "../lightweight.js";
-
-const logger = {
-  info: () => undefined,
-} as any;
+import { hashProverKey, randomBytes } from "../lightweight.js";
 
 describe("lib lightweight unit helpers", () => {
   it("loads runtime polyfills through the public barrel", () => {
@@ -33,31 +22,6 @@ describe("lib lightweight unit helpers", () => {
   it("randomBytes returns requested length", () => {
     const bytes = randomBytes(32);
     expect(bytes).toHaveLength(32);
-  });
-
-  it("waitForSync resolves when wallet state is synced", async () => {
-    setLightweightLogger(logger);
-    const wallet = {
-      state: () => Rx.of({ isSynced: true }),
-    } as any;
-
-    const state = await waitForSync(wallet);
-    expect(state.isSynced).toBe(true);
-  });
-
-  it("waitForFunds resolves to positive unshielded balance", async () => {
-    setLightweightLogger(logger);
-    const token = unshieldedToken().raw;
-    const wallet = {
-      state: () =>
-        Rx.of({
-          isSynced: true,
-          unshielded: { balances: { [token]: 42n } },
-        }),
-    } as any;
-
-    const balance = await waitForFunds(wallet);
-    expect(balance).toBe(42n);
   });
 
   it("getWalletBalances distinguishes unavailable and zero balances", () => {

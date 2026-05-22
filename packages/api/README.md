@@ -138,6 +138,8 @@ types, or examples does not load those runtime adapters.
 - `src/wallet.ts` wallet construction and restore facade
 - `src/wallet-keys.ts` seed parsing, HD key derivation, and unshielded address helpers
 - `src/wallet-sdk-config.ts` shared wallet SDK configuration builders
+- `src/lightweight.ts` stateless crypto helpers only; wallet wait behavior lives
+  in `src/wallet-state.ts`
 - `src/did-subject.ts` DID subject and bound fragment normalization
 - `src/ledger-mappers.ts` DID document domain-to-ledger DTO mapping helpers
 - `src/update.ts` DID document update, deactivate, and resolve orchestration
