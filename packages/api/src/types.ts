@@ -22,6 +22,9 @@ import type {
   UnshieldedKeystore,
   UnshieldedWallet,
 } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
+
+import { RUNTIME_TO_DOMAIN_NETWORK_MAP } from "./network-mapping.js";
+
 export type MidnightDIDPrivateState = DIDPrivateState;
 
 type MidnightDIDProvableContract =
@@ -71,11 +74,5 @@ export interface MidnightWalletBalances {
 
 export type MidnightWalletFacadeState = FacadeState;
 
-export const NetworkMapping = Object.freeze({
-  undeployed: "Undeployed",
-  devnet: "DevNet",
-  testnet: "Testnet",
-  mainnet: "Mainnet",
-  preview: "Preview",
-  preprod: "Preprod",
-}) as Record<NetworkId, MidnightNetwork>;
+export const NetworkMapping: Record<NetworkId, MidnightNetwork> =
+  RUNTIME_TO_DOMAIN_NETWORK_MAP;
