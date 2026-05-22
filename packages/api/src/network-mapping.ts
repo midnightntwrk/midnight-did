@@ -1,6 +1,14 @@
 import type { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
 import type { NetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 
+export type RuntimeToDomainNetworkMap = Readonly<
+  Record<NetworkId, MidnightNetwork>
+>;
+
+export type DomainToRuntimeNetworkMap = Readonly<
+  Record<MidnightNetwork, NetworkId>
+>;
+
 const runtimeToDomainNetworkMap = {
   undeployed: "Undeployed",
   devnet: "DevNet",
@@ -19,10 +27,8 @@ const domainToRuntimeNetworkMap = {
   Preprod: "preprod",
 } as const satisfies Record<MidnightNetwork, NetworkId>;
 
-export const RUNTIME_TO_DOMAIN_NETWORK_MAP = Object.freeze(
-  runtimeToDomainNetworkMap,
-);
+export const RUNTIME_TO_DOMAIN_NETWORK_MAP: RuntimeToDomainNetworkMap =
+  Object.freeze(runtimeToDomainNetworkMap);
 
-export const DOMAIN_TO_RUNTIME_NETWORK_MAP = Object.freeze(
-  domainToRuntimeNetworkMap,
-);
+export const DOMAIN_TO_RUNTIME_NETWORK_MAP: DomainToRuntimeNetworkMap =
+  Object.freeze(domainToRuntimeNetworkMap);
