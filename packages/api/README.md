@@ -101,6 +101,27 @@ than hard-coded in a class constructor. Every `ProfileConfig` instance exposes
 the resolved `profileName` so logs and operator tooling can report the active
 profile without inferring it from URLs.
 
+## Network Mapping Helpers
+
+Use the typed mapping helpers when converting between Midnight runtime network
+ids and DID-domain network names:
+
+- `RuntimeToDomain.NetworkMap`: maps runtime `NetworkId` values to DID-domain
+  `MidnightNetwork` values.
+- `DomainToRuntime.NetworkMap`: maps DID-domain `MidnightNetwork` values back
+  to runtime `NetworkId` values.
+- `RuntimeToDomainNetworkMap` and `DomainToRuntimeNetworkMap`: readonly public
+  type aliases exported from the package barrel for downstream configuration
+  and test helpers.
+
+The older `NetworkMapping` export is a compatibility alias for
+`RuntimeToDomain.NetworkMap`. New code should prefer the direction-specific
+helpers so map intent is visible at the call site.
+
+Provider adapters for proof, indexer, and ZK configuration are loaded lazily by
+`configureProviders()`. Importing the API package barrel for mapping helpers,
+types, or examples does not load those runtime adapters.
+
 ## Main Source Files
 
 - `src/index.ts`
