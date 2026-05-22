@@ -39,7 +39,7 @@ describe("API package path resolution", () => {
   it("decodes URL-encoded filesystem paths before resolving package roots", () => {
     expect(
       resolveApiPackageRoot(
-        moduleUrl("/workspace/midnight identity/packages/api/src/config.ts"),
+        "file:///workspace/midnight%20identity/packages/api/src/config.ts",
       ),
     ).toBe(path.resolve("/workspace/midnight identity/packages/api"));
   });
