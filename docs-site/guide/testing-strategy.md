@@ -21,6 +21,10 @@ Use this before opening or updating a PR:
 ./run.sh integration-report-schema
 ```
 
+`artifact-status` prints managed artifact freshness as JSON,
+`check-managed-artifacts` fails on missing or stale generated Compact outputs,
+and `integration-report-schema` prints the current integration-report schema.
+
 The root runner validates DID core/API/docs only. Resolver service, manager
 service, and secret-storage checks live in
 [`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver).
