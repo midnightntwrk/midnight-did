@@ -29,6 +29,7 @@
     "artifacts:pack": "./scripts/pack-artifacts.sh",
     "clean:artifacts": "node scripts/clean-artifacts.mjs",
     "report:integration": "node scripts/report-integration.mjs",
+    "report:integration:schema": "node scripts/report-integration.mjs --schema",
     "check:integration": "node scripts/report-integration.mjs --check",
     "artifacts:status": "node scripts/managed-artifact-catalog.mjs --json",
     "check:managed-artifacts": "node scripts/managed-artifact-catalog.mjs --check",

@@ -11,7 +11,9 @@ import { fileURLToPath } from "node:url";
 
 import {
   buildIntegrationReport,
+  INTEGRATION_REPORT_SCHEMA,
   npmPackFileName,
+  validateIntegrationReportContract,
 } from "./report-integration.mjs";
 
 const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -77,6 +79,9 @@ try {
   });
 
   assert.equal(report.generatedAt, "2026-05-22T00:00:00.000Z");
+  assert.equal(report.schemaId, INTEGRATION_REPORT_SCHEMA.id);
+  assert.equal(report.schemaVersion, INTEGRATION_REPORT_SCHEMA.version);
+  assert.deepEqual(validateIntegrationReportContract(report), []);
   assert.deepEqual(report.errors, []);
   assert.deepEqual(report.warnings, [
     "Workspace package is missing package.json: packages/missing",
@@ -87,7 +92,8 @@ try {
   assert.equal(report.siblingVc.summary.staleFileSpecCount, 0);
   assert.equal(report.siblingVc.summary.externalSpecCount, 0);
   assert.equal(report.siblingVc.summary.missingVendorTarballCount, 0);
-  assert.deepEqual(report.siblingVc.summary.notes, [
+  assert.equal(report.siblingVc.summary.notes, undefined);
+  assert.deepEqual(INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.notes, [
     "referenceCount is partitioned by matching-file-specs, stale-file-specs, and external-specs.",
     "missing-vendor-tarballs is independent and can overlap with stale or matching file specs.",
     "fileSpecMatchesCurrentVersion is null for external package specs because no file path is being compared.",
@@ -143,6 +149,7 @@ try {
   );
   assert.equal(externalReference.referenceKind, "external");
   assert.equal(externalReference.fileSpecMatchesCurrentVersion, null);
+  assert.deepEqual(validateIntegrationReportContract(externalReport), []);
 
   writeJson(path.join(vcRoot, "packages/missing-tarball/package.json"), {
     name: "missing-tarball-consumer",
@@ -214,6 +221,31 @@ try {
   assert.equal(staleReference.currentVendorTarballPresent, true);
   assert.equal(staleReference.referencedVendorTarballPresent, false);
   assert.equal(staleReference.vendorTarballPresent, true);
+  assert.deepEqual(validateIntegrationReportContract(staleReferenceReport), []);
+
+  const schemaResult = spawnSync("node", [scriptPath, "--schema"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  assert.equal(schemaResult.status, 0, schemaResult.stderr);
+  assert.deepEqual(JSON.parse(schemaResult.stdout), INTEGRATION_REPORT_SCHEMA);
+
+  const contractErrorReport = {
+    ...report,
+    siblingVc: {
+      ...report.siblingVc,
+      references: [
+        {
+          ...report.siblingVc.references[0],
+          referenceKind: "external",
+          fileSpecMatchesCurrentVersion: true,
+        },
+      ],
+    },
+  };
+  assert.deepEqual(validateIntegrationReportContract(contractErrorReport), [
+    `${report.siblingVc.references[0].consumer} ${didDomainPackage.name} external reference must set fileSpecMatchesCurrentVersion=null`,
+  ]);
 
   const unknownArg = spawnSync("node", [scriptPath, "--dryrun"], {
     cwd: repoRoot,
