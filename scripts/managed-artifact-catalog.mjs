@@ -119,7 +119,7 @@ const collectInputFiles = (inputs, root = repoRoot) => {
     visit(input);
   }
 
-  return files.sort();
+  return [...new Set(files)].sort();
 };
 
 export const createInputSourceManifest = (inputs, root = repoRoot) => {
