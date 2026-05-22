@@ -1,17 +1,10 @@
 import type { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
 import type { NetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 
-const networkMap = Object.freeze({
-  Undeployed: "undeployed",
-  DevNet: "devnet",
-  Testnet: "testnet",
-  Mainnet: "mainnet",
-  Preview: "preview",
-  Preprod: "preprod",
-}) as Record<MidnightNetwork, NetworkId>;
+import { DOMAIN_TO_RUNTIME_NETWORK_MAP } from "./network-mapping.js";
 
 export class DomainToRuntime {
   static get NetworkMap(): Record<MidnightNetwork, NetworkId> {
-    return networkMap;
+    return DOMAIN_TO_RUNTIME_NETWORK_MAP;
   }
 }

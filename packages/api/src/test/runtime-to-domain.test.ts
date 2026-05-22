@@ -2,10 +2,12 @@ import { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
 import { describe, expect, it } from "vitest";
 
 import { DomainToRuntime } from "../domain-to-runtime.js";
+import { RUNTIME_TO_DOMAIN_NETWORK_MAP } from "../network-mapping.js";
 import { RuntimeToDomain } from "../runtime-to-domain.js";
 
 describe("RuntimeToDomain.NetworkMap", () => {
   it("maps all NetworkId values to MidnightNetwork", () => {
+    expect(RuntimeToDomain.NetworkMap).toBe(RUNTIME_TO_DOMAIN_NETWORK_MAP);
     expect(RuntimeToDomain.NetworkMap["undeployed"]).toBe(
       MidnightNetwork.Undeployed,
     );
