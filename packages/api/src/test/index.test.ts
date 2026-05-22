@@ -3,16 +3,28 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import type { RuntimeToDomainNetworkMap } from "../index.js";
 import type { RuntimeToDomainNetworkMap as InternalRuntimeToDomainNetworkMap } from "../network-mapping.js";
 
-// Keep the barrel test scoped to public re-exports; provider adapter modules
-// are covered by provider-specific tests and pull in runtime-only clients.
-vi.mock("@midnight-ntwrk/midnight-js-http-client-proof-provider", () => ({
-  httpClientProofProvider: vi.fn(),
-}));
+vi.mock("@midnight-ntwrk/midnight-js-http-client-proof-provider", () => {
+  throw new Error(
+    "Barrel import loaded provider adapter @midnight-ntwrk/midnight-js-http-client-proof-provider",
+  );
+});
 
-import * as api from "../index.js";
+vi.mock("@midnight-ntwrk/midnight-js-indexer-public-data-provider", () => {
+  throw new Error(
+    "Barrel import loaded provider adapter @midnight-ntwrk/midnight-js-indexer-public-data-provider",
+  );
+});
+
+vi.mock("@midnight-ntwrk/midnight-js-node-zk-config-provider", () => {
+  throw new Error(
+    "Barrel import loaded provider adapter @midnight-ntwrk/midnight-js-node-zk-config-provider",
+  );
+});
 
 describe("api package barrel", () => {
-  it("re-exports public mapping helpers", () => {
+  it("re-exports public mapping helpers without loading provider adapters", async () => {
+    const api = await import("../index.js");
+
     expect(api.DomainToRuntime).toBeDefined();
     expect(api.RuntimeToDomain).toBeDefined();
     expectTypeOf<RuntimeToDomainNetworkMap>().toEqualTypeOf<InternalRuntimeToDomainNetworkMap>();
