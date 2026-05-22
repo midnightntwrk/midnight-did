@@ -18,7 +18,8 @@ graph TD
   Api --> Contract
 ```
 
-Resolver service, DID manager, and local secret custody architecture lives in the `midnight-did-resolver` repository.
+Resolver service, DID manager, and local secret custody architecture lives in
+[`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver).
 
 ## Pages
 

@@ -14,7 +14,7 @@ const didDocument = LedgerToDomain.ledgerStateToDIDDocument(
 );
 ```
 
-## Resolve through the reusable resolver
+## Resolve through the in-process resolver helper
 
 ```ts
 import {
@@ -36,6 +36,6 @@ const result = await resolver.resolveResult(
 
 ## When to use this package
 
-- resolver implementation work
+- in-process resolver implementation work
 - indexer-backed DID resolution
 - ledger-to-domain mapping outside the main API package
