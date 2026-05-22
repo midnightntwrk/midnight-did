@@ -1,8 +1,7 @@
-import { parseContractAddress } from "@midnight-ntwrk/midnight-did";
 import { type DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import { VerificationMethodRelationType } from "@midnight-ntwrk/midnight-did-domain";
 
-import { requireMidnightDIDLedgerState } from "./deploy.js";
+import { requireDeployedMidnightDIDLedgerState } from "./deploy.js";
 import {
   LedgerVerificationMethodRelationMap,
   relationSetFromState,
@@ -23,16 +22,6 @@ export const VerificationMethodRelations = Object.freeze([
 export type VerificationMethodRelationMembership = {
   readonly relation: VerificationMethodRelationType;
   readonly member: boolean;
-};
-
-const requireDeployedMidnightDIDLedgerState = async (
-  didContract: DeployedMidnightDIDContract,
-  providers: MidnightDIDProviders,
-): Promise<DIDContract.Ledger> => {
-  const contractAddress = parseContractAddress(
-    didContract.deployTxData.public.contractAddress,
-  );
-  return await requireMidnightDIDLedgerState(providers, contractAddress);
 };
 
 export const verificationMethodRelationMemberships = (
@@ -70,7 +59,7 @@ export const assertVerificationMethodRelationPresent = (
   }
 };
 
-export const removeVerificationMethodFromPresentRelations = async (
+export const removePresentVerificationMethodRelations = async (
   didContract: DeployedMidnightDIDContract,
   memberships: readonly VerificationMethodRelationMembership[],
   normalizedMethodId: string,
@@ -84,21 +73,21 @@ export const removeVerificationMethodFromPresentRelations = async (
   }
 };
 
-export const removeVerificationMethodRelationMemberships = async (
+export const purgeVerificationMethodFromAllRelations = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
   normalizedMethodId: string,
 ): Promise<void> => {
   const didState = await requireDeployedMidnightDIDLedgerState(
-    didContract,
     providers,
+    didContract,
   );
   const memberships = verificationMethodRelationMemberships(
     didState,
     normalizedMethodId,
   );
 
-  await removeVerificationMethodFromPresentRelations(
+  await removePresentVerificationMethodRelations(
     didContract,
     memberships,
     normalizedMethodId,

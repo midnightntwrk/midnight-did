@@ -17,7 +17,7 @@ import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
 import { getLogger } from "./api-logger.js";
 import {
   getMidnightDIDLedgerState,
-  requireMidnightDIDLedgerState,
+  requireDeployedMidnightDIDLedgerState,
 } from "./deploy.js";
 import { getMidnightNetwork, normalizeBoundFragmentId } from "./did-subject.js";
 import {
@@ -33,7 +33,7 @@ import {
 import {
   assertVerificationMethodRelationAbsent,
   assertVerificationMethodRelationPresent,
-  removeVerificationMethodRelationMemberships,
+  purgeVerificationMethodFromAllRelations,
 } from "./verification-method-relations.js";
 
 export { getMidnightNetwork } from "./did-subject.js";
@@ -68,7 +68,7 @@ export const removeVerificationMethod = async (
     methodId,
     "methodId",
   );
-  await removeVerificationMethodRelationMemberships(
+  await purgeVerificationMethodFromAllRelations(
     didContract,
     providers,
     normalizedMethodId,
@@ -90,9 +90,9 @@ export const addVerificationMethodRelation = async (
     methodId,
     "methodId",
   );
-  const didState = await requireMidnightDIDLedgerState(
+  const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
-    parseContractAddress(didContract.deployTxData.public.contractAddress),
+    didContract,
   );
   assertVerificationMethodRelationAbsent(
     didState,
@@ -117,9 +117,9 @@ export const removeVerificationMethodRelation = async (
     methodId,
     "methodId",
   );
-  const didState = await requireMidnightDIDLedgerState(
+  const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
-    parseContractAddress(didContract.deployTxData.public.contractAddress),
+    didContract,
   );
   assertVerificationMethodRelationPresent(
     didState,

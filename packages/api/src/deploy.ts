@@ -4,6 +4,7 @@ import { CompiledContract } from "@midnight-ntwrk/compact-js";
 import {
   type ContractAddress,
   LedgerToDomain,
+  parseContractAddress,
 } from "@midnight-ntwrk/midnight-did";
 import {
   DIDContract,
@@ -61,6 +62,15 @@ export const requireMidnightDIDLedgerState = async (
   }
   return didState;
 };
+
+export const requireDeployedMidnightDIDLedgerState = async (
+  providers: MidnightDIDProviders,
+  didContract: DeployedMidnightDIDContract,
+): Promise<DIDContract.Ledger> =>
+  await requireMidnightDIDLedgerState(
+    providers,
+    parseContractAddress(didContract.deployTxData.public.contractAddress),
+  );
 
 export const midnightDIDContractInstance: MidnightDIDContract =
   new (DIDContract.Contract as unknown as new (

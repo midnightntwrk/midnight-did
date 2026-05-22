@@ -7,7 +7,7 @@ import { type DeployedMidnightDIDContract } from "../types.js";
 import {
   assertVerificationMethodRelationAbsent,
   assertVerificationMethodRelationPresent,
-  removeVerificationMethodFromPresentRelations,
+  removePresentVerificationMethodRelations,
   verificationMethodRelationMemberships,
   VerificationMethodRelations,
 } from "../verification-method-relations.js";
@@ -119,7 +119,7 @@ describe("verification method relation operations", () => {
       callTx: { removeVerificationMethodRelation },
     } as unknown as DeployedMidnightDIDContract;
 
-    await removeVerificationMethodFromPresentRelations(
+    await removePresentVerificationMethodRelations(
       didContract,
       [
         {
@@ -156,6 +156,13 @@ describe("verification method relation operations", () => {
   });
 
   it("keeps undefined outside the supported relation sweep", () => {
+    expect(VerificationMethodRelations).toEqual([
+      VerificationMethodRelationType.Authentication,
+      VerificationMethodRelationType.AssertionMethod,
+      VerificationMethodRelationType.KeyAgreement,
+      VerificationMethodRelationType.CapabilityInvocation,
+      VerificationMethodRelationType.CapabilityDelegation,
+    ]);
     expect(VerificationMethodRelations).not.toContain(
       VerificationMethodRelationType.Undefined,
     );
