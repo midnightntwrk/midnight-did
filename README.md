@@ -156,7 +156,9 @@ references and matching vendored tarballs. Fixture tests can override the
 default roots with `MIDNIGHT_DID_REPO_ROOT`, `MIDNIGHT_DID_SIBLING_VC_ROOT`,
 and `MIDNIGHT_DID_INTEGRATION_NOW`. JSON consumers should read
 `schemaId`/`schemaVersion` first; `npm run report:integration:schema` prints the
-current reference-kind and summary-counter contract.
+current reference-kind and summary-counter contract. The first versioned schema
+is `midnight-did-integration-report@1`; earlier unversioned reports carried
+human-readable `summary.notes`, which now live only in the schema output.
 
 ## Artifact Packaging
 
