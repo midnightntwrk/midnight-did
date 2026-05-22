@@ -120,6 +120,7 @@ const collectSiblingVcReferences = ({
     summary: {
       referenceCount: 0,
       matchingFileSpecCount: 0,
+      staleFileSpecCount: 0,
       missingVendorTarballCount: 0,
       externalSpecCount: 0,
     },
@@ -172,6 +173,8 @@ const collectSiblingVcReferences = ({
           siblingVc.summary.matchingFileSpecCount += 1;
         } else if (!spec.startsWith("file:")) {
           siblingVc.summary.externalSpecCount += 1;
+        } else {
+          siblingVc.summary.staleFileSpecCount += 1;
         }
 
         if (spec.startsWith("file:") && !reference.fileSpecMatchesCurrentVersion) {
@@ -255,7 +258,7 @@ export const printIntegrationReport = (report) => {
     console.log("- no exact DID package references found");
   } else {
     console.log(
-      `- references=${report.siblingVc.summary.referenceCount} matching-file-specs=${report.siblingVc.summary.matchingFileSpecCount} external-specs=${report.siblingVc.summary.externalSpecCount} missing-vendor-tarballs=${report.siblingVc.summary.missingVendorTarballCount}`,
+      `- references=${report.siblingVc.summary.referenceCount} matching-file-specs=${report.siblingVc.summary.matchingFileSpecCount} stale-file-specs=${report.siblingVc.summary.staleFileSpecCount} external-specs=${report.siblingVc.summary.externalSpecCount} missing-vendor-tarballs=${report.siblingVc.summary.missingVendorTarballCount}`,
     );
     for (const reference of report.siblingVc.references) {
       console.log(
@@ -283,6 +286,14 @@ export const printIntegrationReport = (report) => {
 
 const parseArgs = (argv) => {
   const args = new Set(argv);
+  if (args.has("--help") || args.has("-h")) {
+    return {
+      check: false,
+      json: false,
+      help: true,
+    };
+  }
+
   const unknownArgs = argv.filter(
     (argument) => !["--check", "--json", "--help", "-h"].includes(argument),
   );
@@ -292,7 +303,7 @@ const parseArgs = (argv) => {
   return {
     check: args.has("--check"),
     json: args.has("--json"),
-    help: args.has("--help") || args.has("-h"),
+    help: false,
   };
 };
 
