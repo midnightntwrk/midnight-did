@@ -1,10 +1,24 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getLogger, setLogger } from "../api-logger.js";
 
 describe("api logger registry", () => {
-  it("exposes a no-op logger before an embedder configures logging", () => {
+  let previousLogger: ReturnType<typeof getLogger>;
+
+  beforeEach(() => {
+    previousLogger = getLogger();
+  });
+
+  afterEach(() => {
+    setLogger(previousLogger);
+  });
+
+  it("exposes a complete no-op logger before an embedder configures logging", () => {
     expect(() => getLogger().info("pre-configured log")).not.toThrow();
+    expect(() => getLogger().warn("pre-configured warning")).not.toThrow();
+    expect(() =>
+      getLogger().child({ component: "test" }).debug("child log"),
+    ).not.toThrow();
   });
 
   it("returns the configured logger after setLogger", () => {
