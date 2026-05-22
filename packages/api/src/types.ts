@@ -75,5 +75,10 @@ export interface MidnightWalletBalances {
 
 export type MidnightWalletFacadeState = FacadeState;
 
+/**
+ * @deprecated Use `RuntimeToDomain.NetworkMap` or
+ * `RUNTIME_TO_DOMAIN_NETWORK_MAP` for runtime-to-domain mappings. This alias
+ * remains for compatibility with older API consumers.
+ */
 export const NetworkMapping: RuntimeToDomainNetworkMap =
   RUNTIME_TO_DOMAIN_NETWORK_MAP;
