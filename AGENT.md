@@ -246,11 +246,13 @@ GitHub Actions target `main` and `develop`.
 
 Main jobs:
 
-- `core`: lint plus contract/domain/DID validation.
-- `services`: API lane.
-- `docs`: docs build and optional GitHub Pages deployment.
-- `scan`: security scanning.
-- `pr-check`: semantic PR title and non-empty PR body checks.
+- `Core (Lint + Contract/Domain/DID)`: core package validation.
+- `API pipeline`: API integration and example validation.
+- `Build, Lint, Test, and Coverage`: aggregate CI gate for `core` and `api`.
+- `Build Docs Site`: docs-site build.
+- `Deploy Docs Site`: GitHub Pages deployment from `main` pushes only.
+- `Scan / build`: security scanning.
+- `Check PR`: semantic PR title and non-empty PR body checks.
 
 ## Docs
 
@@ -261,8 +263,9 @@ Docs entry points:
 - `docs-site/guide/testing-strategy.md`: testing strategy.
 - `docs-site/guide/did-surface-change-discipline.md`: discipline for DID surface changes.
 - `docs/repository-audit-backlog.md`: current maturity/simplification backlog.
-- `w3c-spec/midnight-method.md`: method specification material.
-- `w3c-spec/midnight-did-traits.md`: method traits.
+- `docs/archive/README.md`: historical notes that are not active runbook guidance.
+- `docs-site/spec/midnight-method.md`: method specification material.
+- `docs-site/spec/midnight-did-traits.md`: method traits.
 
 Update docs when changing public APIs, contract behavior, package distribution, runner behavior, or DID method semantics.
 
