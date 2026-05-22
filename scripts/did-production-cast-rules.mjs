@@ -11,14 +11,6 @@ export const isApiProductionSource = (filePath) =>
   filePath.endsWith(".ts") &&
   !filePath.includes("/test/");
 
-const isIdentifierCharacter = (character) =>
-  character !== undefined && /[$\w]/u.test(character);
-
-const isWholeWordMatch = (text, index, word) =>
-  text.startsWith(word, index) &&
-  !isIdentifierCharacter(text[index - 1]) &&
-  !isIdentifierCharacter(text[index + word.length]);
-
 const skipLineComment = (text, index) => {
   let nextIndex = index + 2;
   while (nextIndex < text.length && text[nextIndex] !== "\n") {
@@ -53,19 +45,134 @@ const skipQuotedString = (text, index, quote) => {
   return text.length;
 };
 
-const skipTemplateLiteral = (text, index) => {
-  let nextIndex = index + 1;
+const readTemplateExpression = (text, index) => {
+  const startIndex = index;
+  let depth = 1;
+  let nextIndex = index;
+
   while (nextIndex < text.length) {
-    if (text[nextIndex] === "\\") {
+    const character = text[nextIndex];
+    const nextCharacter = text[nextIndex + 1];
+
+    if (character === "/" && nextCharacter === "/") {
+      nextIndex = skipLineComment(text, nextIndex);
+      continue;
+    }
+
+    if (character === "/" && nextCharacter === "*") {
+      nextIndex = skipBlockComment(text, nextIndex);
+      continue;
+    }
+
+    if (character === "\"" || character === "'") {
+      nextIndex = skipQuotedString(text, nextIndex, character);
+      continue;
+    }
+
+    if (character === "`") {
+      const template = maskTemplateLiteral(text, nextIndex);
+      nextIndex = template.nextIndex;
+      continue;
+    }
+
+    if (character === "{") {
+      depth += 1;
+      nextIndex += 1;
+      continue;
+    }
+
+    if (character === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return {
+          expression: text.slice(startIndex, nextIndex),
+          nextIndex: nextIndex + 1,
+        };
+      }
+    }
+
+    nextIndex += 1;
+  }
+
+  return {
+    expression: text.slice(startIndex),
+    nextIndex: text.length,
+  };
+};
+
+function maskTemplateLiteral(text, index) {
+  let output = " ";
+  let nextIndex = index + 1;
+
+  while (nextIndex < text.length) {
+    const character = text[nextIndex];
+    const nextCharacter = text[nextIndex + 1];
+
+    if (character === "\\") {
+      output += "  ";
       nextIndex += 2;
       continue;
     }
-    if (text[nextIndex] === "`") {
-      return nextIndex + 1;
+
+    if (character === "`") {
+      output += " ";
+      return { output, nextIndex: nextIndex + 1 };
+    }
+
+    if (character === "$" && nextCharacter === "{") {
+      const expression = readTemplateExpression(text, nextIndex + 2);
+      output += "  ";
+      output += stripCommentsAndStrings(expression.expression);
+      output += " ";
+      nextIndex = expression.nextIndex;
+      continue;
+    }
+
+    output += character === "\n" ? "\n" : " ";
+    nextIndex += 1;
+  }
+
+  return { output, nextIndex: text.length };
+}
+
+const skipRegexLiteral = (text, index) => {
+  let nextIndex = index + 1;
+  let inCharacterClass = false;
+
+  while (nextIndex < text.length) {
+    const character = text[nextIndex];
+    if (character === "\\") {
+      nextIndex += 2;
+      continue;
+    }
+    if (character === "[") {
+      inCharacterClass = true;
+      nextIndex += 1;
+      continue;
+    }
+    if (character === "]") {
+      inCharacterClass = false;
+      nextIndex += 1;
+      continue;
+    }
+    if (character === "/" && !inCharacterClass) {
+      nextIndex += 1;
+      while (/[a-z]/iu.test(text[nextIndex] ?? "")) {
+        nextIndex += 1;
+      }
+      return nextIndex;
     }
     nextIndex += 1;
   }
+
   return text.length;
+};
+
+const REGEX_PREFIX_PATTERN = /(?:^|[({[=,:;!&|?+\-*~^<>]\s*)$/u;
+
+const startsRegexLiteral = (text, index) => {
+  const prefix = text.slice(Math.max(0, index - 32), index);
+  return REGEX_PREFIX_PATTERN.test(prefix);
 };
 
 export const stripCommentsAndStrings = (text) => {
@@ -98,7 +205,14 @@ export const stripCommentsAndStrings = (text) => {
     }
 
     if (character === "`") {
-      const nextIndex = skipTemplateLiteral(text, index);
+      const template = maskTemplateLiteral(text, index);
+      output += template.output;
+      index = template.nextIndex;
+      continue;
+    }
+
+    if (character === "/" && startsRegexLiteral(text, index)) {
+      const nextIndex = skipRegexLiteral(text, index);
       output += " ".repeat(nextIndex - index);
       index = nextIndex;
       continue;
