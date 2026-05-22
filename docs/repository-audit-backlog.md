@@ -49,6 +49,10 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
    - 2026-05-22: `codex/did-api-lib-options-boundary` moves API runtime
      network endpoint defaults and `setNetworkId()` application into a
      reusable profile catalog while preserving the existing config classes.
+   - 2026-05-22: `codex/did-api-network-map-catalog` removes duplicate
+     runtime/domain network maps by making `DomainToRuntime`,
+     `RuntimeToDomain`, and the legacy `NetworkMapping` export read from one
+     checked API catalog.
 3. Keep package-level API deploy/update examples compiling against built
    package exports; `run-api.sh` now runs `typecheck:examples`.
    - 2026-05-22: `codex/did-api-prereq-naming` renames the service-era
