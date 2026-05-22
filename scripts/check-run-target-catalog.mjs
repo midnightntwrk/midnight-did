@@ -64,6 +64,7 @@ assert.equal(
 );
 
 const readme = readRepoText("README.md");
+const runSh = readRepoText("run.sh");
 assert.ok(
   readme.includes("`./run.sh --light --strict`"),
   "README must document ./run.sh --light --strict as the local PR validation contract",
@@ -230,6 +231,41 @@ assert.ok(
     "Unknown clean-artifacts argument: --dryrun",
   ),
   "clean-artifacts should report the unknown argument",
+);
+
+const artifactStatusResult = run(["artifact-status"]);
+assert.equal(
+  artifactStatusResult.status,
+  0,
+  "artifact-status target should exit successfully",
+);
+const artifactStatus = JSON.parse(artifactStatusResult.stdout);
+assert.equal(
+  artifactStatus.contract.sourceManifest.algorithm,
+  "sha256",
+  "artifact-status should include the contract source manifest",
+);
+assert.match(
+  artifactStatus["jubjub-schnorr"].sourceManifest.digest,
+  /^[0-9a-f]{64}$/u,
+  "artifact-status should include the jubjub-schnorr source manifest digest",
+);
+
+const checkManagedArtifactsTarget = targets.find(
+  (target) => target.name === "check-managed-artifacts",
+);
+assert.ok(
+  checkManagedArtifactsTarget,
+  "runner catalog should expose check-managed-artifacts",
+);
+assert.ok(
+  runSh.includes("node ./scripts/managed-artifact-catalog.mjs --check"),
+  "run.sh should wire check-managed-artifacts to the managed artifact freshness checker",
+);
+assert.equal(
+  rootPackage.scripts?.["check:managed-artifacts"],
+  "node scripts/managed-artifact-catalog.mjs --check",
+  "package script should keep the managed artifact freshness checker available after artifact builds",
 );
 
 const cleanArtifactsFixtureDir = mkdtempSync(
