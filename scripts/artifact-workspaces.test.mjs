@@ -9,16 +9,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { artifactWorkspaces } from "./did-workspace-catalog.mjs";
+
 const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const artifactCatalog = path.join(repoRoot, "scripts/artifact-workspaces.sh");
-
-const expectedWorkspaces = [
-  "packages/api",
-  "packages/domain",
-  "packages/did",
-  "packages/jubjub-schnorr",
-  "packages/contract",
-];
 
 const bash = (script) =>
   execFileSync("bash", ["-c", `source "${artifactCatalog}"; ${script}`], {
@@ -28,7 +22,7 @@ const bash = (script) =>
 
 assert.deepEqual(
   bash("did_artifact_workspaces").split(/\r?\n/u),
-  expectedWorkspaces,
+  artifactWorkspaces,
   "artifact workspace catalog should list DID package tarballs in pack order",
 );
 
@@ -39,7 +33,7 @@ const listResult = spawnSync("./upgrade-libs.sh", ["--list-packages"], {
 assert.equal(listResult.status, 0, "--list-packages should succeed");
 assert.deepEqual(
   listResult.stdout.trim().split(/\r?\n/u),
-  expectedWorkspaces,
+  artifactWorkspaces,
   "upgrade-libs should expose the shared artifact workspace catalog",
 );
 

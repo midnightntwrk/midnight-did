@@ -1,18 +1,12 @@
 #!/usr/bin/env bash
 
 # Shared artifact package catalog for pack-artifacts.sh and upgrade-libs.sh.
-# Keep this list aligned with package manifests and docs through
-# check:did-surface-discipline plus test:artifact-workspaces.
-DID_ARTIFACT_WORKSPACES=(
-  packages/api
-  packages/domain
-  packages/did
-  packages/jubjub-schnorr
-  packages/contract
-)
+# The package order is owned by did-workspace-catalog.mjs so shell packaging,
+# manifest checks, and Node tests all read the same package set.
+DID_WORKSPACE_CATALOG_SCRIPT="${DID_WORKSPACE_CATALOG_SCRIPT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/did-workspace-catalog.mjs}"
 
 did_artifact_workspaces() {
-  printf '%s\n' "${DID_ARTIFACT_WORKSPACES[@]}"
+  node "$DID_WORKSPACE_CATALOG_SCRIPT" --artifact-workspaces
 }
 
 did_artifact_resolve_destination() {
