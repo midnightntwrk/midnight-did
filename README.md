@@ -161,7 +161,8 @@ current reference-kind and summary-counter contract. The first versioned schema
 is `midnight-did-integration-report@1`; earlier unversioned reports carried
 human-readable `summary.notes`, which now live only in the schema output.
 The same schema is available through `./run.sh integration-report-schema` for
-runner-only automation.
+runner workflows or `npm run report:integration:schema` for npm-only
+automation.
 
 ## Artifact Packaging
 
