@@ -60,8 +60,18 @@ try {
   const first = createInputSourceManifest(["src"], fixtureRoot);
   assert.deepEqual(
     first.files,
-    [path.join("src", "a.compact"), path.join("src", "b.compact")],
+    ["src/a.compact", "src/b.compact"],
     "source manifest should collect input files in stable order",
+  );
+  assert.deepEqual(
+    first.missingInputs,
+    [],
+    "source manifest should expose an empty missing-input list for complete inputs",
+  );
+  assert.equal(
+    first.digest,
+    createInputSourceManifest(["src"], fixtureRoot).digest,
+    "source manifest digest should be deterministic for an unchanged source tree",
   );
 
   writeFileSync(path.join(fixtureRoot, "src", "b.compact"), "export b2\n");
@@ -70,6 +80,11 @@ try {
     first.digest,
     second.digest,
     "source manifest digest should change when input contents change",
+  );
+  assert.deepEqual(
+    createInputSourceManifest(["missing"], fixtureRoot).missingInputs,
+    ["missing"],
+    "source manifest should report missing direct inputs",
   );
 } finally {
   rmSync(fixtureRoot, { recursive: true, force: true });
