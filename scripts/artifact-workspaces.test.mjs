@@ -9,16 +9,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  artifactWorkspaces,
+  workspaceCatalog,
+} from "./did-workspace-catalog.mjs";
+
 const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const artifactCatalog = path.join(repoRoot, "scripts/artifact-workspaces.sh");
-
-const expectedWorkspaces = [
-  "packages/api",
-  "packages/domain",
-  "packages/did",
-  "packages/jubjub-schnorr",
-  "packages/contract",
-];
 
 const bash = (script) =>
   execFileSync("bash", ["-c", `source "${artifactCatalog}"; ${script}`], {
@@ -28,9 +25,23 @@ const bash = (script) =>
 
 assert.deepEqual(
   bash("did_artifact_workspaces").split(/\r?\n/u),
-  expectedWorkspaces,
+  artifactWorkspaces,
   "artifact workspace catalog should list DID package tarballs in pack order",
 );
+
+assert.equal(
+  new Set(workspaceCatalog.map(({ workspace }) => workspace)).size,
+  workspaceCatalog.length,
+  "workspace catalog paths must be unique",
+);
+for (const entry of workspaceCatalog) {
+  if (entry.artifactPackage) {
+    assert.ok(
+      entry.manifest,
+      `${entry.workspace} artifact package must define manifest expectations`,
+    );
+  }
+}
 
 const listResult = spawnSync("./upgrade-libs.sh", ["--list-packages"], {
   cwd: repoRoot,
@@ -39,8 +50,35 @@ const listResult = spawnSync("./upgrade-libs.sh", ["--list-packages"], {
 assert.equal(listResult.status, 0, "--list-packages should succeed");
 assert.deepEqual(
   listResult.stdout.trim().split(/\r?\n/u),
-  expectedWorkspaces,
+  artifactWorkspaces,
   "upgrade-libs should expose the shared artifact workspace catalog",
+);
+
+const missingCatalogResult = spawnSync(
+  "bash",
+  [
+    "-c",
+    [
+      "export DID_WORKSPACE_CATALOG_SCRIPT=/tmp/missing-did-workspace-catalog.mjs",
+      "bash ./scripts/pack-artifacts.sh \"$1\"",
+    ].join("; "),
+    "bash",
+    path.join(mkdtempSync(path.join(tmpdir(), "did-pack-missing-")), "npm"),
+  ],
+  {
+    cwd: repoRoot,
+    encoding: "utf8",
+  },
+);
+assert.equal(
+  missingCatalogResult.status,
+  1,
+  "pack-artifacts should fail closed when the workspace catalog is unavailable",
+);
+assert.match(
+  missingCatalogResult.stderr,
+  /DID artifact workspace catalog is empty or unavailable/u,
+  "pack-artifacts should explain empty catalog failures",
 );
 
 const fixtureRoot = mkdtempSync(path.join(tmpdir(), "did-artifacts-"));
