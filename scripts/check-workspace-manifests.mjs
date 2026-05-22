@@ -6,6 +6,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  expectedWorkspaces,
+  packageManifestCatalog,
+} from "./did-workspace-catalog.mjs";
+
 const scriptRepoRoot = path.dirname(
   path.dirname(fileURLToPath(import.meta.url)),
 );
@@ -17,92 +22,6 @@ const readJson = (relativePath) =>
   JSON.parse(fs.readFileSync(path.join(repoRoot, relativePath), "utf8"));
 
 const rootPackage = readJson("package.json");
-
-const expectedWorkspaces = [
-  "packages/api",
-  "packages/domain",
-  "packages/did",
-  "packages/jubjub-schnorr",
-  "packages/contract",
-  "docs-site",
-];
-
-const expectedPackages = new Map([
-  [
-    "packages/api",
-    {
-      name: "@midnight-ntwrk/midnight-did-api",
-      files: [
-        "dist/**",
-        "README.md",
-        "examples/**",
-        "package.json",
-        "tsconfig.json",
-        "tsconfig.build.json",
-      ],
-      exports: ["."],
-    },
-  ],
-  [
-    "packages/domain",
-    {
-      name: "@midnight-ntwrk/midnight-did-domain",
-      files: [
-        "dist/**",
-        "README.md",
-        "package.json",
-        "tsconfig.json",
-        "tsconfig.build.json",
-      ],
-      exports: [".", "./midnight"],
-    },
-  ],
-  [
-    "packages/did",
-    {
-      name: "@midnight-ntwrk/midnight-did",
-      files: [
-        "dist/**",
-        "README.md",
-        "package.json",
-        "tsconfig.json",
-        "tsconfig.build.json",
-      ],
-      exports: ["."],
-    },
-  ],
-  [
-    "packages/jubjub-schnorr",
-    {
-      name: "@midnight-ntwrk/midnight-did-jubjub-schnorr",
-      files: [
-        "dist/**",
-        "src/**/*.compact",
-        "README.md",
-        "scripts/*.mjs",
-        "package.json",
-        "tsconfig.json",
-        "tsconfig.build.json",
-      ],
-      exports: [".", "./managed/jubjub-schnorr/contract"],
-    },
-  ],
-  [
-    "packages/contract",
-    {
-      name: "@midnight-ntwrk/midnight-did-contract",
-      files: [
-        "dist/**",
-        "README.md",
-        "scripts/*.mjs",
-        "package.json",
-        "tsconfig.json",
-        "tsconfig.build.json",
-      ],
-      exports: ["."],
-    },
-  ],
-]);
 
 const errors = [];
 
@@ -137,7 +56,7 @@ for (const workspace of expectedWorkspaces) {
   );
 }
 
-for (const [workspace, expected] of expectedPackages.entries()) {
+for (const [workspace, expected] of packageManifestCatalog.entries()) {
   const packageJson = readJson(path.join(workspace, "package.json"));
   const label = `${workspace}/package.json`;
 
