@@ -47,7 +47,14 @@ Focused lanes:
 ./run.sh core --strict
 ./run.sh api --light --strict
 ./run.sh docs
+./run.sh artifact-status
+./run.sh check-managed-artifacts
+./run.sh integration-report-schema
 ```
+
+`artifact-status` prints managed artifact freshness as JSON,
+`check-managed-artifacts` fails on missing or stale generated Compact outputs,
+and `integration-report-schema` prints the current integration-report schema.
 
 Metrics:
 
@@ -60,8 +67,16 @@ Surface and integration guards:
 ```bash
 npm run check:did-surface-discipline
 npm run check:run-target-catalog
+npm run check:managed-artifacts
+npm run artifacts:status
+npm run report:integration
+npm run report:integration:schema
 npm run check:integration
 ```
+
+Use `report:integration:schema` or `./run.sh integration-report-schema` when a
+dashboard, CI job, or sibling VC automation needs the integration-report schema
+(`schemaId@schemaVersion`) but should not depend on local checkout layout.
 
 ## Full Local Loop
 
@@ -75,9 +90,14 @@ PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh --strict
 
 ```bash
 npm run artifacts:pack
+npm run artifacts:status
+npm run check:managed-artifacts
 ```
 
 This writes local tarballs under `artifacts/npm/` for the DID packages owned by this repository.
+The artifact status and check commands verify generated Compact outputs for the
+contract and JubJub Schnorr packages before those tarballs are consumed by VC or
+other downstream repositories.
 
 ## Running This Docs Site
 
