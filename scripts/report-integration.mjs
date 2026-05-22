@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// This file is part of midnightntwrk/midnight-did.
+// SPDX-License-Identifier: Apache-2.0
+
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
@@ -8,6 +11,9 @@ const usage = `Usage: node scripts/report-integration.mjs [--check] [--json] [-h
 
 Print DID package readiness and sibling midnight-verifiable-credentials
 references.
+
+Summary counters partition references by matching/stale/external specs; missing
+vendor tarballs are an independent error dimension.
 
 Environment overrides for tests and workspace automation:
   MIDNIGHT_DID_REPO_ROOT          DID repository root to inspect.
@@ -163,8 +169,11 @@ const collectSiblingVcReferences = ({
         const didPackage = didPackageByName.get(dependencyName);
         const expectedTarball = didPackage.tarball;
         const expectedFileSpec = `file:${path.relative(path.dirname(packageJsonPath), path.join(didVendorRoot, expectedTarball)).split(path.sep).join("/")}`;
-        const referencedTarball = spec.startsWith("file:")
-          ? spec.slice("file:".length).split("/").at(-1)
+        const referencedFileName = spec.startsWith("file:")
+          ? spec.slice("file:".length).split("/").filter(Boolean).at(-1)
+          : null;
+        const referencedTarball = referencedFileName?.endsWith(".tgz")
+          ? referencedFileName
           : null;
         const vcRelativePackageJson = path.relative(siblingVcRoot, packageJsonPath);
         const currentVendorTarballPresent =
@@ -182,7 +191,6 @@ const collectSiblingVcReferences = ({
           referencedVendorTarballPresent: referencedTarball
             ? siblingVc.vendorTarballs.includes(referencedTarball)
             : null,
-          vendorTarballPresent: currentVendorTarballPresent,
         };
 
         siblingVc.references.push(reference);

@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// This file is part of midnightntwrk/midnight-did.
+// SPDX-License-Identifier: Apache-2.0
+
 import { strict as assert } from "node:assert";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -176,11 +179,19 @@ try {
     repoRoot: didRoot,
     siblingVcRoot: vcRoot,
   });
+  assert.equal(
+    staleReferenceReport.siblingVc.summary.referenceCount,
+    staleReferenceReport.siblingVc.summary.matchingFileSpecCount +
+      staleReferenceReport.siblingVc.summary.staleFileSpecCount +
+      staleReferenceReport.siblingVc.summary.externalSpecCount,
+  );
+  assert.equal(staleReferenceReport.siblingVc.summary.missingVendorTarballCount, 1);
   const staleReference = staleReferenceReport.siblingVc.references.find(
     (reference) => reference.consumer === "stale-did-consumer",
   );
   assert.equal(staleReference.currentVendorTarballPresent, true);
   assert.equal(staleReference.referencedVendorTarballPresent, false);
+  assert.equal("vendorTarballPresent" in staleReference, false);
 
   const unknownArg = spawnSync("node", [scriptPath, "--dryrun"], {
     cwd: repoRoot,
