@@ -25,6 +25,12 @@ assert.deepEqual(
   "managed artifact profiles should stay explicit and ordered",
 );
 
+assert.equal(
+  explainProfile("unknown").sourceManifest,
+  null,
+  "unknown profiles should not expose a source manifest",
+);
+
 for (const profileName of profileNames) {
   const report = explainProfile(profileName);
   assert.equal(report.known, true, `${profileName} should be known`);
