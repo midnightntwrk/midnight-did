@@ -4,12 +4,12 @@ import {
 } from "@midnight-ntwrk/midnight-did-domain";
 import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
 
-import { requireDeployedMidnightDIDLedgerState } from "./deploy.js";
 import { normalizeBoundFragmentId } from "./did-subject.js";
 import {
   LedgerVerificationMethodRelationMap,
   verificationMethodToLedger,
 } from "./ledger-mappers.js";
+import { requireDeployedMidnightDIDLedgerState } from "./ledger-state.js";
 import {
   type DeployedMidnightDIDContract,
   type MidnightDIDProviders,
