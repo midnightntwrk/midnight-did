@@ -290,6 +290,16 @@ assert.deepEqual(
   ["matching-file", "stale-file", "external"],
   "integration-report-schema target should expose the reference-kind partition",
 );
+assert.deepEqual(
+  integrationReportSchema.summaryCounterPolicy.partitionedCounters,
+  ["matchingFileSpecCount", "staleFileSpecCount", "externalSpecCount"],
+  "integration-report-schema target should expose partitioned summary counters",
+);
+assert.deepEqual(
+  integrationReportSchema.summaryCounterPolicy.independentCounters,
+  ["missingVendorTarballCount"],
+  "integration-report-schema target should expose independent summary counters",
+);
 assert.ok(
   runSh.includes("node ./scripts/report-integration.mjs --schema"),
   "run.sh should wire integration-report-schema to the report schema CLI",
