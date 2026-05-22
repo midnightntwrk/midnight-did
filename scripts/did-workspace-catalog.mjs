@@ -89,11 +89,6 @@ export const workspaceCatalog = [
   {
     workspace: "docs-site",
     artifactPackage: false,
-    manifest: {
-      name: "docs-site",
-      private: true,
-      type: "module",
-    },
   },
 ];
 
@@ -118,14 +113,8 @@ const [command] = process.argv.slice(2);
 
 if (isDirectExecution) {
   switch (command) {
-    case "--workspaces":
-      stdout.write(`${expectedWorkspaces.join("\n")}\n`);
-      break;
     case "--artifact-workspaces":
       stdout.write(`${artifactWorkspaces.join("\n")}\n`);
-      break;
-    case "--json":
-      stdout.write(`${JSON.stringify(workspaceCatalog, null, 2)}\n`);
       break;
     case undefined:
     case "--help":
@@ -134,9 +123,7 @@ if (isDirectExecution) {
           "Usage: node scripts/did-workspace-catalog.mjs <command>",
           "",
           "Commands:",
-          "  --workspaces           Print root workspace package paths.",
           "  --artifact-workspaces  Print package workspaces packed as tarballs.",
-          "  --json                 Print the full workspace catalog.",
         ].join("\n"),
       );
       stdout.write("\n");
