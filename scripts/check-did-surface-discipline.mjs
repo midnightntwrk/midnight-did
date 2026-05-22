@@ -3,6 +3,11 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  artifactWorkspaces,
+  expectedWorkspaces,
+} from "./did-workspace-catalog.mjs";
+
 const __filename = fileURLToPath(import.meta.url);
 const ROOT_DIR = path.dirname(path.dirname(__filename));
 
@@ -53,10 +58,6 @@ function assertArrayIncludes(array, expected, label) {
   }
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function assertExportMap(exportMap, label, requiredKeys) {
   assert(
     exportMap && typeof exportMap === "object" && !Array.isArray(exportMap),
@@ -77,13 +78,7 @@ function assertExportMap(exportMap, label, requiredKeys) {
 
 const rootPackage = readJson("package.json");
 const rootWorkspaces = rootPackage.workspaces ?? [];
-const libraryWorkspaces = [
-  "packages/api",
-  "packages/domain",
-  "packages/did",
-  "packages/jubjub-schnorr",
-  "packages/contract",
-];
+const libraryWorkspaces = artifactWorkspaces;
 const serviceWorkspaces = [];
 
 assert(
@@ -132,9 +127,8 @@ assert(
 );
 
 for (const workspace of [
-  ...libraryWorkspaces,
+  ...expectedWorkspaces,
   ...serviceWorkspaces,
-  "docs-site",
 ]) {
   assertArrayIncludes(rootWorkspaces, workspace, "root package workspaces");
 }
@@ -335,16 +329,13 @@ assertIncludes(
 );
 
 const packArtifacts = readText("scripts/pack-artifacts.sh");
-const artifactWorkspaces = readText("scripts/artifact-workspaces.sh");
+const artifactWorkspaceBridge = readText("scripts/artifact-workspaces.sh");
 const upgradeLibs = readText("upgrade-libs.sh");
-for (const workspace of libraryWorkspaces) {
-  assert(
-    new RegExp(`^\\s*${escapeRegExp(workspace)}\\s*$`, "m").test(
-      artifactWorkspaces,
-    ),
-    `artifact workspace catalog must include "${workspace}"`,
-  );
-}
+assertIncludes(
+  artifactWorkspaceBridge,
+  'node "$DID_WORKSPACE_CATALOG_SCRIPT" --artifact-workspaces',
+  "scripts/artifact-workspaces.sh",
+);
 assertIncludes(
   packArtifacts,
   "did_artifact_workspaces",
