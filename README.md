@@ -121,6 +121,7 @@ Surface guards:
 
 ```bash
 npm run check:did-surface-discipline
+npm run test:did-surface-discipline
 npm run check:run-target-catalog
 npm run check:managed-artifacts
 npm run artifacts:status
