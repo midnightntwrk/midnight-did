@@ -7,7 +7,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const usage = `Usage: node scripts/report-integration.mjs [--check] [--json] [-h|--help]
+const usage = `Usage: node scripts/report-integration.mjs [--check] [--json] [--schema] [-h|--help]
 
 Print DID package readiness and sibling midnight-verifiable-credentials
 references.
@@ -15,11 +15,34 @@ references.
 Summary counters partition references by matching/stale/external specs; missing
 vendor tarballs are an independent error dimension.
 
+Modes:
+  --schema prints the schema descriptor only and cannot be combined with --check or --json.
+
 Environment overrides for tests and workspace automation:
   MIDNIGHT_DID_REPO_ROOT          DID repository root to inspect.
   MIDNIGHT_DID_SIBLING_VC_ROOT    VC repository root to inspect.
   MIDNIGHT_DID_INTEGRATION_NOW    Stable ISO-8601 generatedAt timestamp.
 `;
+
+export const INTEGRATION_REPORT_SCHEMA = Object.freeze({
+  id: "midnight-did-integration-report",
+  version: 1,
+  referenceKinds: Object.freeze(["matching-file", "stale-file", "external"]),
+  summaryCounterPolicy: Object.freeze({
+    partitionedCounters: Object.freeze([
+      "matchingFileSpecCount",
+      "staleFileSpecCount",
+      "externalSpecCount",
+    ]),
+    independentCounters: Object.freeze(["missingVendorTarballCount"]),
+    notes: Object.freeze([
+      "referenceCount is partitioned by matching-file-specs, stale-file-specs, and external-specs.",
+      "missing-vendor-tarballs is independent and can overlap with stale or matching file specs.",
+      "fileSpecMatchesCurrentVersion is null for external package specs because no file path is being compared.",
+    ]),
+  }),
+});
+
 const DID_VENDOR_RELATIVE_ROOT = "tooling/vendor/midnight-did";
 
 const defaultRepoRoot = () =>
@@ -29,6 +52,14 @@ const defaultRepoRoot = () =>
 
 const readJson = (absolutePath) =>
   JSON.parse(readFileSync(absolutePath, "utf8"));
+
+const formatCounterValue = (value) =>
+  value === undefined ? "missing" : JSON.stringify(value);
+
+const referenceLabel = (reference) =>
+  `${reference.consumer ?? "<unknown consumer>"} ${
+    reference.dependencyName ?? "<unknown dependency>"
+  }`;
 
 export const npmPackFileName = (packageName, version) =>
   `${packageName.replace(/^@/u, "").replaceAll("/", "-")}-${version}.tgz`;
@@ -131,11 +162,6 @@ const collectSiblingVcReferences = ({
       staleFileSpecCount: 0,
       missingVendorTarballCount: 0,
       externalSpecCount: 0,
-      notes: [
-        "referenceCount is partitioned by matching-file-specs, stale-file-specs, and external-specs.",
-        "missing-vendor-tarballs is independent and can overlap with stale or matching file specs.",
-        "fileSpecMatchesCurrentVersion is null for external package specs because no file path is being compared.",
-      ],
     },
   };
 
@@ -260,7 +286,9 @@ export const buildIntegrationReport = ({
     warnings,
   });
 
-  return {
+  const draftReport = {
+    schemaId: INTEGRATION_REPORT_SCHEMA.id,
+    schemaVersion: INTEGRATION_REPORT_SCHEMA.version,
     repository: "midnight-did",
     generatedAt,
     git: {
@@ -272,10 +300,124 @@ export const buildIntegrationReport = ({
     errors,
     warnings,
   };
+  return {
+    ...draftReport,
+    contractErrors: validateIntegrationReportContract(draftReport),
+  };
+};
+
+export const validateIntegrationReportContract = (report) => {
+  const contractErrors = [];
+  const allowedReferenceKinds = new Set(INTEGRATION_REPORT_SCHEMA.referenceKinds);
+
+  // buildIntegrationReport() sets these from the same constants. These checks
+  // are for hand-constructed reports, stale JSON fixtures, and downstream tools.
+  if (report.schemaId !== INTEGRATION_REPORT_SCHEMA.id) {
+    contractErrors.push(
+      `schemaId must be ${INTEGRATION_REPORT_SCHEMA.id}; received ${report.schemaId ?? "missing"}`,
+    );
+  }
+
+  if (report.schemaVersion !== INTEGRATION_REPORT_SCHEMA.version) {
+    contractErrors.push(
+      `schemaVersion must be ${INTEGRATION_REPORT_SCHEMA.version}; received ${report.schemaVersion ?? "missing"}`,
+    );
+  }
+
+  const references = Array.isArray(report.siblingVc?.references)
+    ? report.siblingVc.references
+    : [];
+  if (!Array.isArray(report.siblingVc?.references)) {
+    contractErrors.push("siblingVc.references must be an array");
+  }
+
+  const summary = report.siblingVc?.summary;
+  if (!summary) {
+    contractErrors.push("siblingVc.summary is required");
+  } else {
+    const requiredSummaryCounters = [
+      "referenceCount",
+      ...INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.partitionedCounters,
+      ...INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.independentCounters,
+    ];
+    for (const counterName of requiredSummaryCounters) {
+      if (!Number.isFinite(summary[counterName])) {
+        contractErrors.push(
+          `summary.${counterName} must be a finite number; received ${formatCounterValue(summary[counterName])}`,
+        );
+      }
+    }
+
+    const summaryCountersAreFinite = requiredSummaryCounters.every(
+      (counterName) => Number.isFinite(summary[counterName]),
+    );
+    const partitionedReferenceCount = summaryCountersAreFinite
+      ? INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.partitionedCounters.reduce(
+          (total, counterName) => total + summary[counterName],
+          0,
+        )
+      : null;
+    if (
+      summaryCountersAreFinite &&
+      partitionedReferenceCount !== summary.referenceCount
+    ) {
+      contractErrors.push(
+        `summary partition counters must add up to referenceCount; received ${partitionedReferenceCount} for ${summary.referenceCount}`,
+      );
+    }
+
+    if (
+      Number.isFinite(summary.referenceCount) &&
+      references.length !== summary.referenceCount
+    ) {
+      contractErrors.push(
+        `summary.referenceCount must match references.length; received ${summary.referenceCount} for ${references.length}`,
+      );
+    }
+  }
+
+  for (const reference of references) {
+    if (!allowedReferenceKinds.has(reference.referenceKind)) {
+      contractErrors.push(
+        `${referenceLabel(reference)} has unsupported referenceKind ${reference.referenceKind}`,
+      );
+      continue;
+    }
+
+    if (
+      reference.referenceKind === "matching-file" &&
+      reference.fileSpecMatchesCurrentVersion !== true
+    ) {
+      contractErrors.push(
+        `${referenceLabel(reference)} matching-file reference must set fileSpecMatchesCurrentVersion=true`,
+      );
+    }
+
+    if (
+      reference.referenceKind === "stale-file" &&
+      reference.fileSpecMatchesCurrentVersion !== false
+    ) {
+      contractErrors.push(
+        `${referenceLabel(reference)} stale-file reference must set fileSpecMatchesCurrentVersion=false`,
+      );
+    }
+
+    if (
+      reference.referenceKind === "external" &&
+      reference.fileSpecMatchesCurrentVersion !== null
+    ) {
+      contractErrors.push(
+        `${referenceLabel(reference)} external reference must set fileSpecMatchesCurrentVersion=null`,
+      );
+    }
+  }
+
+  return contractErrors;
 };
 
 export const printIntegrationReport = (report) => {
   console.log("# DID Integration Report");
+  console.log(`Schema: ${report.schemaId}@${report.schemaVersion}`);
   console.log(`Repository: ${report.repository}`);
   console.log(`Branch: ${report.git.branch ?? "unknown"}`);
   console.log(`Commit: ${report.git.commit ?? "unknown"}`);
@@ -296,7 +438,7 @@ export const printIntegrationReport = (report) => {
     console.log(
       `- references=${report.siblingVc.summary.referenceCount} matching-file-specs=${report.siblingVc.summary.matchingFileSpecCount} stale-file-specs=${report.siblingVc.summary.staleFileSpecCount} external-specs=${report.siblingVc.summary.externalSpecCount} missing-vendor-tarballs=${report.siblingVc.summary.missingVendorTarballCount}`,
     );
-    for (const note of report.siblingVc.summary.notes) {
+    for (const note of INTEGRATION_REPORT_SCHEMA.summaryCounterPolicy.notes) {
       console.log(`- note: ${note}`);
     }
     for (const reference of report.siblingVc.references) {
@@ -321,6 +463,15 @@ export const printIntegrationReport = (report) => {
       console.log(`- ${error}`);
     }
   }
+
+  const contractErrors = report.contractErrors ?? [];
+  if (contractErrors.length > 0) {
+    console.log("");
+    console.log("## Contract Errors");
+    for (const contractError of contractErrors) {
+      console.log(`- ${contractError}`);
+    }
+  }
 };
 
 const parseArgs = (argv) => {
@@ -330,19 +481,24 @@ const parseArgs = (argv) => {
     return {
       check: false,
       json: false,
+      schema: false,
       help: true,
     };
   }
 
   const unknownArgs = argv.filter(
-    (argument) => !["--check", "--json", "--help", "-h"].includes(argument),
+    (argument) => !["--check", "--json", "--schema", "--help", "-h"].includes(argument),
   );
   if (unknownArgs.length > 0) {
     throw new Error(`Unknown report-integration argument: ${unknownArgs.join(", ")}`);
   }
+  if (args.has("--schema") && (args.has("--check") || args.has("--json"))) {
+    throw new Error("--schema cannot be combined with --check or --json");
+  }
   return {
     check: args.has("--check"),
     json: args.has("--json"),
+    schema: args.has("--schema"),
     help: false,
   };
 };
@@ -358,6 +514,11 @@ if (isDirectExecution) {
       process.exit(0);
     }
 
+    if (args.schema) {
+      console.log(JSON.stringify(INTEGRATION_REPORT_SCHEMA, null, 2));
+      process.exit(0);
+    }
+
     const report = buildIntegrationReport();
     if (args.json) {
       console.log(JSON.stringify(report, null, 2));
@@ -365,7 +526,16 @@ if (isDirectExecution) {
       printIntegrationReport(report);
     }
 
-    if (args.check && report.errors.length > 0) {
+    if (
+      args.check &&
+      (report.errors.length > 0 || (report.contractErrors ?? []).length > 0)
+    ) {
+      for (const error of report.errors) {
+        console.error(`[report-integration] Error: ${error}`);
+      }
+      for (const contractError of report.contractErrors ?? []) {
+        console.error(`[report-integration] Contract error: ${contractError}`);
+      }
       process.exit(1);
     }
   } catch (error) {
