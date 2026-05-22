@@ -10,6 +10,7 @@ import {
 export {
   applyMidnightNetworkProfile,
   getMidnightNetworkProfile,
+  isMidnightNetworkProfileName,
   MIDNIGHT_NETWORK_PROFILE_NAMES,
   MIDNIGHT_NETWORK_PROFILES,
   type MidnightEndpointConfig,
