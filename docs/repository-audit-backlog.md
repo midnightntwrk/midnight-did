@@ -165,3 +165,6 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      versioned integration-report schema descriptor, a `--schema` CLI mode, and
      a report-contract validator so JSON consumers can detect future
      reference-kind or summary-counter shape changes.
+   - 2026-05-22: `codex/did-integration-report-schema-runner` exposes that
+     schema through the cataloged `./run.sh integration-report-schema` target
+     and pins the runner/package-script wiring in the target-catalog contract.

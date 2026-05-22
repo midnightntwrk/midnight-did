@@ -89,6 +89,13 @@ export const targets = [
     supportsMetrics: false,
   },
   {
+    name: "integration-report-schema",
+    description: "Print the machine-readable DID integration report schema contract.",
+    supportsLight: false,
+    supportsStrict: false,
+    supportsMetrics: false,
+  },
+  {
     name: "check-integration",
     description: "Fail if sibling VC references cannot be satisfied by this DID checkout/vendor set.",
     supportsLight: false,
