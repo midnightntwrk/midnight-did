@@ -1,6 +1,7 @@
 import { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
 import { describe, expect, it } from "vitest";
 
+import { RuntimeToDomain } from "../runtime-to-domain.js";
 import { MidnightDIDPrivateStateId, NetworkMapping } from "../types.js";
 
 describe("types", () => {
@@ -9,6 +10,7 @@ describe("types", () => {
   });
 
   it("maps runtime network ids to MidnightNetwork", () => {
+    expect(NetworkMapping).toBe(RuntimeToDomain.NetworkMap);
     expect(NetworkMapping.undeployed).toBe(MidnightNetwork.Undeployed);
     expect(NetworkMapping.devnet).toBe(MidnightNetwork.DevNet);
     expect(NetworkMapping.testnet).toBe(MidnightNetwork.Testnet);
