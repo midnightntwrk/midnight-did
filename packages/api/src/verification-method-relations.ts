@@ -1,11 +1,11 @@
 import { type DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import { VerificationMethodRelationType } from "@midnight-ntwrk/midnight-did-domain";
 
-import { requireDeployedMidnightDIDLedgerState } from "./deploy.js";
 import {
   LedgerVerificationMethodRelationMap,
   relationSetFromState,
 } from "./ledger-mappers.js";
+import { requireDeployedMidnightDIDLedgerState } from "./ledger-state.js";
 import {
   type DeployedMidnightDIDContract,
   type MidnightDIDProviders,
