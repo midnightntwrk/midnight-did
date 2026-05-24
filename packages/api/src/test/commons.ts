@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import * as path from "node:path";
 
 import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import type { Logger } from "pino";
@@ -98,6 +100,7 @@ export class TestEnvironment {
   private testConfig: TestConfiguration;
   private composeFile = "standalone.yml";
   private composeProjectName = "";
+  private composeResolved = path.join(currentDir, "standalone.yml");
 
   constructor(logger: Logger) {
     this.logger = logger;
@@ -119,12 +122,24 @@ export class TestEnvironment {
     } else {
       this.testConfig = new LocalTestConfig();
       this.logger.info("Test containers starting...");
-      this.composeFile = process.env.COMPOSE_FILE ?? "standalone.yml";
+      const resolvedCompose = this.resolveComposeFile(process.env.COMPOSE_FILE);
+      this.composeFile = resolvedCompose.relativePath;
+      this.composeResolved = resolvedCompose.absolutePath;
       this.composeProjectName = `did-api-test-${Date.now()}`;
       this.logger.info(`Using compose file: ${this.composeFile}`);
+      if (this.composeResolved !== path.resolve(currentDir, this.composeFile)) {
+        this.logger.warn(
+          {
+            requestedComposeFile: process.env.COMPOSE_FILE,
+            resolvedComposeFile: this.composeResolved,
+            currentDir,
+          },
+          "Resolved COMPOSE_FILE to a valid absolute path",
+        );
+      }
       const dockerEnv = new DockerComposeEnvironment(
         currentDir,
-        this.composeFile,
+        this.composeResolved,
       )
         .withProjectName(this.composeProjectName)
         .withWaitStrategy(
@@ -209,7 +224,7 @@ export class TestEnvironment {
             "-p",
             this.composeProjectName,
             "-f",
-            this.composeFile,
+            this.composeResolved,
             "down",
             "--volumes",
             "--remove-orphans",
@@ -236,6 +251,53 @@ export class TestEnvironment {
         }
       }
     }
+  };
+
+  private resolveComposeFile = (requestedComposeFile?: string) => {
+    const defaultFile = path.join(currentDir, "standalone.yml");
+
+    const candidates = [];
+    if (
+      requestedComposeFile !== undefined &&
+      requestedComposeFile.trim() !== ""
+    ) {
+      candidates.push(requestedComposeFile.trim());
+    }
+    candidates.push("standalone.yml");
+
+    for (const candidate of candidates) {
+      const resolved = path.isAbsolute(candidate)
+        ? candidate
+        : path.resolve(currentDir, candidate);
+      if (existsSync(resolved)) {
+        return {
+          absolutePath: resolved,
+          relativePath: path.relative(currentDir, resolved),
+        };
+      }
+      if (candidate === "standalone.yml" && !requestedComposeFile) {
+        continue;
+      }
+      this.logger.warn(
+        {
+          requestedComposeFile: candidate,
+          expectedPath: resolved,
+          workingDirectory: currentDir,
+        },
+        "Ignoring missing compose file; falling back to standalone.yml",
+      );
+    }
+
+    if (existsSync(defaultFile)) {
+      return {
+        absolutePath: defaultFile,
+        relativePath: "standalone.yml",
+      };
+    }
+
+    throw new Error(
+      `Unable to locate DID API compose file. Tried: ${candidates.join(", ")}.`,
+    );
   };
 
   getWallet = async () => {
