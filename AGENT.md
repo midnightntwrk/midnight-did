@@ -32,6 +32,8 @@ Fast validation:
 ./run.sh --light --strict
 ```
 
+Current stabilization checkpoint, 2026-05-23: develop at `b7a2f37` matched `origin/develop`, and `./run.sh --light --strict` passed locally. Long-running integration lanes remain opt-in through the full runner.
+
 Full validation:
 
 ```bash

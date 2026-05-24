@@ -19,6 +19,17 @@ Use this skill from the `midnight-did` repository, whether cloned independently 
 - Use DCO/GPG for repository-facing commits: `git commit -S --signoff -m "<type>: <subject>"`.
 - Treat `~/.midnight-did` as sensitive local state.
 
+## PR Gate (required before any PR)
+
+- Mandatory:
+  - `./run.sh --light --strict`
+  - `./run.sh core --strict`
+  - `./run.sh integration-report`
+- Optional when resolver/secret-store changes are involved:
+  - `cd <workspace-root>/midnight-identity-workspace && ./run.sh --light --repos did-resolver`
+
+Do not open or push PRs before completing this gate.
+
 ## Validation
 
 ```bash
