@@ -2,7 +2,7 @@ import {
   createMidnightDIDString,
   MidnightNetwork,
   parseContractAddress,
-} from "@midnight-ntwrk/midnight-did";
+} from "@midnight-ntwrk/midnight-did/midnight";
 import {
   type BoundIdField,
   normalizeBoundFragmentId as normalizeBoundFragmentIdWithSubject,

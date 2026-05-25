@@ -1,4 +1,4 @@
-import { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
+import { MidnightNetwork } from "@midnight-ntwrk/midnight-did/midnight";
 import { describe, expect, it } from "vitest";
 
 import { RuntimeToDomain } from "../runtime-to-domain.js";
