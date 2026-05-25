@@ -17,6 +17,12 @@
       "require": "./dist/index.js",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./midnight": {
+      "types": "./dist/midnight.d.ts",
+      "require": "./dist/midnight.js",
+      "import": "./dist/midnight.js",
+      "default": "./dist/midnight.js"
     }
   },
   "scripts": {
