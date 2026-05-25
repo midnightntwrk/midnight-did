@@ -1,4 +1,7 @@
-import { LedgerToDomain, MidnightDIDDocument } from "@midnight-ntwrk/midnight-did";
+import {
+  LedgerToDomain,
+  MidnightDIDDocument,
+} from "@midnight-ntwrk/midnight-did";
 import { parseContractAddress } from "@midnight-ntwrk/midnight-did/midnight";
 import { DIDDocumentMetadata } from "@midnight-ntwrk/midnight-did-domain";
 
