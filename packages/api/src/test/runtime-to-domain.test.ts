@@ -1,4 +1,5 @@
-import { MidnightNetwork } from "@midnight-ntwrk/midnight-did";
+import { MidnightNetwork } from "@midnight-ntwrk/midnight-did/midnight";
+import type { NetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import { describe, expect, it } from "vitest";
 
 import { DomainToRuntime } from "../domain-to-runtime.js";
@@ -21,10 +22,13 @@ describe("RuntimeToDomain.NetworkMap", () => {
 
   it("is inverse of DomainToRuntime.NetworkMap for all defined values", () => {
     const entries = Object.entries(DomainToRuntime.NetworkMap) as Array<
-      [keyof typeof MidnightNetwork, string]
+      [Exclude<MidnightNetwork, MidnightNetwork.Offchain>, NetworkId]
     >;
     for (const [, nid] of entries) {
       expect(RuntimeToDomain.NetworkMap[nid]).toBeDefined();
     }
+    expect(DomainToRuntime.NetworkMap).not.toHaveProperty(
+      MidnightNetwork.Offchain,
+    );
   });
 });

@@ -117,7 +117,7 @@ const packageFixtures = {
       "tsconfig.json",
       "tsconfig.build.json",
     ],
-    exports: ["."],
+    exports: [".", "./midnight"],
   }),
   "packages/jubjub-schnorr": distPackage({
     name: "@midnight-ntwrk/midnight-did-jubjub-schnorr",
