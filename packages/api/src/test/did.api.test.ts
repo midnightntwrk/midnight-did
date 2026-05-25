@@ -1,7 +1,7 @@
 import {
   createMidnightDIDString,
   parseContractAddress,
-} from "@midnight-ntwrk/midnight-did";
+} from "@midnight-ntwrk/midnight-did/midnight";
 import {
   createService,
   createVerificationMethod,
