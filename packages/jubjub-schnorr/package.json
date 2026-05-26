@@ -43,7 +43,8 @@
     "@midnight-ntwrk/ledger-v8": "8.0.3"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^3.2.4"
+    "@vitest/coverage-v8": "^3.2.4",
+    "globals": "14.0.0"
   },
   "files": [
     "dist/**",
