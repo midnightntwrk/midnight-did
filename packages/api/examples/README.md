@@ -12,7 +12,7 @@ Run against a funded standalone wallet seed and local standalone network:
 
 ```bash
 MIDNIGHT_WALLET_SEED=<hex-seed> \
-npm exec -- ts-node --esm packages/api/examples/deploy-did.ts
+pnpm exec -- ts-node --esm packages/api/examples/deploy-did.ts
 ```
 
 The example builds a wallet, configures providers, initializes DID private state,
@@ -25,7 +25,7 @@ Run after deployment with the deployed contract address:
 ```bash
 MIDNIGHT_WALLET_SEED=<hex-seed> \
 MIDNIGHT_DID_CONTRACT_ADDRESS=<contract-address> \
-npm exec -- ts-node --esm packages/api/examples/update-did.ts
+pnpm exec -- ts-node --esm packages/api/examples/update-did.ts
 ```
 
 The example joins an existing DID contract, adds a verification method and

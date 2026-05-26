@@ -38,7 +38,7 @@ const distPackage = ({ name, files, exports }) => ({
   type: "module",
   engines: {
     node: ">=24",
-    npm: ">=10",
+    pnpm: ">=10",
   },
   main: "dist/index.js",
   module: "dist/index.js",

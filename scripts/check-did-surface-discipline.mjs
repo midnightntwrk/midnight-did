@@ -94,12 +94,12 @@ assert(
 );
 assertIncludes(
   rootPackage.scripts?.["ci:core"] ?? "",
-  "npm run test:did-surface-discipline",
+  "pnpm run test:did-surface-discipline",
   "ci:core",
 );
 assertIncludes(
   rootPackage.scripts?.["ci:core"] ?? "",
-  "npm run check:did-surface-discipline",
+  "pnpm run check:did-surface-discipline",
   "ci:core",
 );
 assert(
@@ -114,22 +114,22 @@ assert(
 );
 assertIncludes(
   rootPackage.scripts?.["ci:core"] ?? "",
-  "npm run check:managed-artifacts",
+  "pnpm run check:managed-artifacts",
   "ci:core",
 );
 assertIncludes(
   rootPackage.scripts?.["ci:core"] ?? "",
-  "npm run test:managed-artifacts",
+  "pnpm run test:managed-artifacts",
   "ci:core",
 );
 assert(
   rootPackage.scripts?.["build:api-prereqs"] ===
-    "npm run build:prepared -w ./packages/contract && npm run build -w ./packages/did && npm run build -w ./packages/api",
+    "pnpm --filter ./packages/contract build:prepared && pnpm --filter ./packages/did build && pnpm --filter ./packages/api build",
   "package.json must expose build:api-prereqs for DID API build dependencies",
 );
 assertIncludes(
   rootPackage.scripts?.["build:all"] ?? "",
-  "npm run build:api-prereqs",
+  "pnpm run build:api-prereqs",
   "build:all",
 );
 assert(
@@ -191,7 +191,7 @@ assertIncludes(
 );
 assertIncludes(
   contributing,
-  "npm run check:did-surface-discipline",
+  "pnpm run check:did-surface-discipline",
   "CONTRIBUTING.md",
 );
 
@@ -207,7 +207,7 @@ assert(
 assertIncludes(prTemplate, "DID Surface Checklist", "PR template");
 assertIncludes(
   prTemplate,
-  "Package artifact changes were checked with `npm run check:did-surface-discipline`",
+  "Package artifact changes were checked with `pnpm run check:did-surface-discipline`",
   "PR template",
 );
 
@@ -242,7 +242,7 @@ const docsGuide = readText("docs-site/guide/did-surface-change-discipline.md");
 assertIncludes(docsGuide, "Use `develop`", "docs-site surface guide");
 assertIncludes(
   docsGuide,
-  "npm run check:did-surface-discipline",
+  "pnpm run check:did-surface-discipline",
   "docs-site surface guide",
 );
 assertIncludes(
@@ -365,7 +365,7 @@ assert(
 );
 assertIncludes(
   rootPackage.scripts?.["ci:core"] ?? "",
-  "npm run test:artifact-workspaces",
+  "pnpm run test:artifact-workspaces",
   "ci:core",
 );
 
@@ -439,12 +439,12 @@ assertArrayIncludes(
 );
 assertIncludes(
   readText("run-api.sh"),
-  "npm run typecheck:examples -w ./packages/api",
+  "pnpm --filter ./packages/api typecheck:examples",
   "run-api.sh",
 );
 assertIncludes(
   readText("run-api.sh"),
-  "npm run build:api-prereqs",
+  "pnpm run build:api-prereqs",
   "run-api.sh",
 );
 assertNotIncludes(

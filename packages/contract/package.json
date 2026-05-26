@@ -6,7 +6,7 @@
   "type": "module",
   "engines": {
     "node": ">=24",
-    "npm": ">=10"
+    "pnpm": ">=10"
   },
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -20,31 +20,31 @@
     }
   },
   "scripts": {
-    "precompact": "npm run build -w @midnight-ntwrk/midnight-did-jubjub-schnorr",
-    "prebuild": "npm run compact",
-    "contract": "npm run compact",
-    "build:prepared": "npm run build",
+    "precompact": "pnpm --filter @midnight-ntwrk/midnight-did-jubjub-schnorr build",
+    "prebuild": "pnpm run compact",
+    "contract": "pnpm run compact",
+    "build:prepared": "pnpm run build",
     "compact": "compact compile src/did.compact src/managed/did && node ./scripts/align-runtime-version.mjs && node ./scripts/strip-managed-sourcemaps.mjs",
-    "pretest": "npm run build -w @midnight-ntwrk/midnight-did-jubjub-schnorr",
+    "pretest": "pnpm --filter @midnight-ntwrk/midnight-did-jubjub-schnorr build",
     "test": "vitest run",
-    "pretest:ci": "npm run build -w @midnight-ntwrk/midnight-did-jubjub-schnorr",
+    "pretest:ci": "pnpm --filter @midnight-ntwrk/midnight-did-jubjub-schnorr build",
     "test:ci": "vitest run",
-    "test:compile": "npm run compact && vitest run",
-    "prepack": "npm run build",
+    "test:compile": "pnpm run compact && vitest run",
+    "prepack": "pnpm run build",
     "coverage": "vitest run --coverage",
     "clean": "rm -rf dist && rm -rf coverage && rm -rf reports",
     "build": "rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/did.compact ./dist",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "all": "npm run compact && npm run build && npm run test:ci"
+    "all": "pnpm run compact && pnpm run build && pnpm run test:ci"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^3.2.4"
   },
   "dependencies": {
-    "@midnight-ntwrk/compact-runtime": "*",
-    "@midnight-ntwrk/midnight-did-jubjub-schnorr": "*"
+    "@midnight-ntwrk/compact-runtime": "0.15.0",
+    "@midnight-ntwrk/midnight-did-jubjub-schnorr": "workspace:*"
   },
   "files": [
     "dist/**",

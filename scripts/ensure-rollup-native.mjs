@@ -28,19 +28,17 @@ if (!initial.ok) {
   const currentFile = fileURLToPath(import.meta.url);
   const repoRoot = path.resolve(path.dirname(currentFile), "..");
   const install = spawnSync(
-    "npm",
+    "pnpm",
     [
-      "install",
-      "--no-save",
+      "add",
+      "--workspace-root",
       "--ignore-scripts",
-      "--no-audit",
-      "--no-fund",
       initial.missingPackage,
     ],
     {
       cwd: repoRoot,
       stdio: "inherit",
-      env: { ...process.env, npm_config_engine_strict: "false" },
+      env: { ...process.env, pnpm_config_engine_strict: "false" },
     },
   );
 

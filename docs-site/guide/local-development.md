@@ -2,14 +2,14 @@
 
 ## Prerequisites
 
-- Node.js 24 and npm 10.
+- Node.js 24 and pnpm 10.
 - Midnight Compact compiler `0.30.0`.
 - Docker for API integration tests.
 
 ## Setup
 
 ```bash
-npm ci
+pnpm install
 compact update 0.30.0
 ```
 
@@ -38,7 +38,7 @@ Local PR validation:
 ./run.sh --light --strict
 ```
 
-`npm run ci` runs the same command. Use `npm run ci:packages` only when you need the legacy package-only lint/build/test lane.
+`pnpm run ci` runs the same command. Use `pnpm run ci:packages` only when you need the legacy package-only lint/build/test lane.
 
 Focused lanes:
 
@@ -65,13 +65,13 @@ Metrics:
 Surface and integration guards:
 
 ```bash
-npm run check:did-surface-discipline
-npm run check:run-target-catalog
-npm run check:managed-artifacts
-npm run artifacts:status
-npm run report:integration
-npm run report:integration:schema
-npm run check:integration
+pnpm run check:did-surface-discipline
+pnpm run check:run-target-catalog
+pnpm run check:managed-artifacts
+pnpm run artifacts:status
+pnpm run report:integration
+pnpm run report:integration:schema
+pnpm run check:integration
 ```
 
 Use `report:integration:schema` or `./run.sh integration-report-schema` when a
@@ -89,9 +89,9 @@ PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh --strict
 ## Local Artifacts
 
 ```bash
-npm run artifacts:pack
-npm run artifacts:status
-npm run check:managed-artifacts
+pnpm run artifacts:pack
+pnpm run artifacts:status
+pnpm run check:managed-artifacts
 ```
 
 This writes local tarballs under `artifacts/npm/` for the DID packages owned by this repository.
@@ -114,7 +114,7 @@ Default local URL:
 Production build:
 
 ```bash
-npm run docs:build
+pnpm run docs:build
 ```
 
 Run the full docs pipeline:
@@ -126,25 +126,25 @@ Run the full docs pipeline:
 Preview the built site:
 
 ```bash
-npm run docs:preview
+pnpm run docs:preview
 ```
 
 If you are checking GitHub Pages-specific behavior locally, you can override the base path:
 
 ```bash
-DOCS_BASE=/midnight-did/ npm run docs:build
+DOCS_BASE=/midnight-did/ pnpm run docs:build
 ```
 
 Generate API reference only:
 
 ```bash
-npm run docs:api
+pnpm run docs:api
 ```
 
 Sync mirrored source markdown into the docs site:
 
 ```bash
-npm run docs:sync-source
+pnpm run docs:sync-source
 ```
 
 ## Important Repository Paths

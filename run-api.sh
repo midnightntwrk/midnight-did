@@ -9,25 +9,25 @@ run_common_ensure_runtime_helpers
 run_common_ensure_contract_artifacts "api"
 
 echo "[api] Build dependencies"
-npm run build:api-prereqs
+pnpm run build:api-prereqs
 
 echo "[api] Build API"
-npm run build -w ./packages/api
+pnpm --filter ./packages/api build
 
 echo "[api] Typecheck API examples"
-npm run typecheck:examples -w ./packages/api
+pnpm --filter ./packages/api typecheck:examples
 
 echo "[api] Check API source import discipline"
-npm run check:api-source-imports
+pnpm run check:api-source-imports
 
 echo "[api] Run API unit tests"
-npm run test -w ./packages/api
+pnpm --filter ./packages/api test
 
 if [[ "${SKIP_LONG_RUNNING:-0}" == "1" ]]; then
   echo "[api] Skip API integration tests (SKIP_LONG_RUNNING=1)"
 else
   echo "[api] Run API integration tests"
-  npm run test-api -w ./packages/api
+  pnpm --filter ./packages/api test-api
 fi
 
 echo "[api] Done"
