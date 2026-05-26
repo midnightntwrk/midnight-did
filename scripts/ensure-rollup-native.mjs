@@ -20,9 +20,10 @@ const resolveRollupNative = () => {
 const initial = resolveRollupNative();
 if (!initial.ok) {
   if (!initial.missingPackage) {
-    throw new Error(
-      `Rollup native optional dependency is missing: ${initial.message}`,
+    console.warn(
+      `[ensure-rollup-native] rollup is not resolvable from the workspace root; skipping native optional dependency repair: ${initial.message}`,
     );
+    process.exit(0);
   }
 
   const currentFile = fileURLToPath(import.meta.url);
@@ -43,5 +44,16 @@ if (!initial.ok) {
 
   if (install.status !== 0) {
     process.exit(install.status ?? 1);
+  }
+
+  const repaired = resolveRollupNative();
+  if (!repaired.ok) {
+    throw new Error(
+      [
+        `Rollup native optional dependency is still missing after pnpm install: ${initial.missingPackage}`,
+        "Run pnpm install --ignore-scripts --config.engine-strict=false and inspect the pnpm optional dependency output.",
+        repaired.message,
+      ].join("\n"),
+    );
   }
 }
