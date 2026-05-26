@@ -1,0 +1,7 @@
+packages:
+  - packages/api
+  - packages/domain
+  - packages/did
+  - packages/jubjub-schnorr
+  - packages/contract
+  - docs-site

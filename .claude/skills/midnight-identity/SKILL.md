@@ -42,19 +42,19 @@ Do not open or push PRs before completing this gate.
 ./run.sh clean-artifacts
 ./run.sh integration-report
 ./run.sh check-integration
-npm run check:run-target-catalog
+pnpm run check:run-target-catalog
 PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh
 ```
 
 Resolver service, DID manager, and secret-storage validation moved to the
 `midnight-did-resolver` repository; do not add those targets back here.
 
-For shared JubJub Schnorr or contract changes, run `npm run test -w ./packages/contract`.
+For shared JubJub Schnorr or contract changes, run `pnpm --filter ./packages/contract test`.
 
 ## Packaging
 
 ```bash
-npm run artifacts:pack
+pnpm run artifacts:pack
 ./upgrade-libs.sh --destination /path/to/downstream-repo
 ```
 
@@ -66,6 +66,6 @@ Use a user-level Midnight MCP config when available; do not commit personal MCP 
 
 ```toml
 [mcp_servers.midnight]
-command = "npx"
-args = ["-y", "midnight-mcp@latest"]
+command = "pnpm"
+args = ["dlx", "midnight-mcp@latest"]
 ```

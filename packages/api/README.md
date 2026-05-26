@@ -66,12 +66,12 @@ API enforces lifecycle rules around:
 
 ## Build & Test
 
-- Build: `npm run build -w ./packages/api`
-- Typecheck examples: `npm run typecheck:examples -w ./packages/api`
-- API import discipline: `npm run check:api-source-imports`
-- DID package import discipline: `npm run check:source-imports`
-- Unit tests: `npm run test -w ./packages/api`
-- Integration tests: `npm run test-api -w ./packages/api`
+- Build: `pnpm --filter ./packages/api build`
+- Typecheck examples: `pnpm --filter ./packages/api typecheck:examples`
+- API import discipline: `pnpm run check:api-source-imports`
+- DID package import discipline: `pnpm run check:source-imports`
+- Unit tests: `pnpm --filter ./packages/api test`
+- Integration tests: `pnpm --filter ./packages/api test-api`
 
 API TypeScript source and tests use explicit `.js` or `.json` extensions for
 relative imports, including Vitest mocks. This keeps the package aligned with
@@ -154,7 +154,7 @@ Type-safety policy:
 
 - production API source must not use `as any` casts
 - `as unknown as` casts must be explicitly allowlisted in
-  `npm run check:did-surface-discipline`
+  `pnpm run check:did-surface-discipline`
 - keep SDK type mismatches localized behind narrow adapter helpers and update
   the surface-discipline guard when an intentional compatibility escape hatch is
   unavoidable

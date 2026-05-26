@@ -27,7 +27,7 @@ Use `develop` for ordinary DID repository PRs.
 ## Guard command
 
 ```bash
-npm run check:did-surface-discipline
+pnpm run check:did-surface-discipline
 ```
 
 The guard checks that the repository keeps `develop` branch validation,

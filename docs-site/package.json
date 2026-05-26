@@ -5,9 +5,9 @@
   "scripts": {
     "docs:sync-source": "node scripts/sync-source-docs.mjs",
     "docs:api": "node scripts/generate-api-docs.mjs",
-    "docs:prepare": "npm run docs:sync-source && npm run docs:api",
-    "predocs:dev": "npm run docs:prepare",
-    "predocs:build": "npm run docs:prepare",
+    "docs:prepare": "pnpm run docs:sync-source && pnpm run docs:api",
+    "predocs:dev": "pnpm run docs:prepare",
+    "predocs:build": "pnpm run docs:prepare",
     "docs:dev": "vitepress dev . --host 127.0.0.1 --port 4173",
     "docs:build": "vitepress build .",
     "docs:preview": "vitepress preview . --host 127.0.0.1 --port 4174"

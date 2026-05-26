@@ -10,8 +10,8 @@ Target branch: `develop`
 
 - [ ] Useful pull request description
 - [ ] Tests are provided (if possible)
-- [ ] Local PR validation passed with `./run.sh --light --strict` or `npm run ci`
-  - If you used `npm run ci:packages` as a package-only fallback, explain why in the PR body.
+- [ ] Local PR validation passed with `./run.sh --light --strict` or `pnpm run ci`
+  - If you used `pnpm run ci:packages` as a package-only fallback, explain why in the PR body.
 - [ ] Key commits have useful messages
 - [ ] All check jobs of the CI have succeeded
 - [ ] Self-reviewed the diff
@@ -27,7 +27,7 @@ Complete this section when the PR changes any public DID surface:
 - [ ] Contract circuits, generated Compact artifacts, or package exports are documented
 - [ ] Domain/API type or runtime behavior changes are covered by tests
 - [ ] Runner or CI behavior changes update the local command documentation
-- [ ] Package artifact changes were checked with `npm run check:did-surface-discipline`
+- [ ] Package artifact changes were checked with `pnpm run check:did-surface-discipline`
 - [ ] Changelog entry added for reviewer-visible behavior or packaging changes
 
 ## Links
