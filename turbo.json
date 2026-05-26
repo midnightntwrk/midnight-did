@@ -1,7 +1,8 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": [
-    "package-lock.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
     "tsconfig*.json",
     ".eslintrc*",
     ".nvmrc"

@@ -43,7 +43,6 @@ const skipDirectoryNames = new Set([".git", "node_modules"]);
 const generatedDirectoryNames = new Set([
   ".midnight-db",
   ".midnight-test",
-  ".npm-cache",
   ".turbo",
   "build",
   "coverage",

@@ -6,7 +6,7 @@
   "type": "module",
   "engines": {
     "node": ">=24",
-    "npm": ">=10"
+    "pnpm": ">=10"
   },
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -21,7 +21,7 @@
   },
   "scripts": {
     "clean": "rm -rf dist",
-    "build": "npm run clean && tsc -b tsconfig.build.json --force",
+    "build": "pnpm run clean && tsc -b tsconfig.build.json --force",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:examples": "tsc -p tsconfig.examples.json --noEmit",
     "test": "vitest run -c vitest.unit.config.ts --pool=threads --passWithNoTests",
@@ -30,24 +30,31 @@
     "coverage": "vitest run -c vitest.unit.config.ts --coverage",
     "lint": "eslint src examples",
     "lint:fix": "eslint src examples --fix",
-    "prepack": "npm run build"
+    "prepack": "pnpm run build"
   },
   "dependencies": {
-    "@midnight-ntwrk/midnight-did": "*",
-    "@midnight-ntwrk/midnight-did-contract": "*",
-    "@midnight-ntwrk/midnight-did-domain": "*",
-    "@midnight-ntwrk/midnight-js-contracts": "^4.0.0",
-    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "^4.0.0",
-    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "^4.0.0",
-    "@midnight-ntwrk/midnight-js-level-private-state-provider": "^4.0.0",
-    "@midnight-ntwrk/midnight-js-network-id": "^4.0.0",
-    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "^4.0.0",
-    "@midnight-ntwrk/midnight-js-types": "^4.0.0",
-    "@midnight-ntwrk/midnight-js-utils": "^4.0.0",
+    "@midnight-ntwrk/midnight-did": "workspace:*",
+    "@midnight-ntwrk/midnight-did-contract": "workspace:*",
+    "@midnight-ntwrk/midnight-did-domain": "workspace:*",
+    "@midnight-ntwrk/compact-js": "2.5.0",
+    "@midnight-ntwrk/midnight-js-contracts": "4.0.2",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.0.2",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "4.0.2",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider": "4.0.2",
+    "@midnight-ntwrk/midnight-js-network-id": "4.0.2",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "4.0.2",
+    "@midnight-ntwrk/midnight-js-types": "4.0.2",
+    "@midnight-ntwrk/midnight-js-utils": "4.0.2",
     "pino": "^9.7.0",
     "pino-pretty": "^13.0.0",
+    "rxjs": "7.8.2",
     "ws": "^8.18.2",
     "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "globals": "14.0.0",
+    "long": "5.3.2",
+    "protobufjs": "7.6.1"
   },
   "files": [
     "dist/**",

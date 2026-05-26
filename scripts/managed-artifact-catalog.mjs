@@ -35,7 +35,7 @@ const output = (relativePath, inputs) => ({
 
 export const artifactProfiles = {
   contract: {
-    buildCommand: "npm run build:prepared -w ./packages/contract",
+    buildCommand: "pnpm --filter ./packages/contract build:prepared",
     outputs: [
       output("packages/contract/src/managed/did/contract/index.js", contractInputs),
       output(
@@ -45,7 +45,7 @@ export const artifactProfiles = {
     ],
   },
   "jubjub-schnorr": {
-    buildCommand: "npm run build -w ./packages/jubjub-schnorr",
+    buildCommand: "pnpm --filter ./packages/jubjub-schnorr build",
     outputs: [
       output(
         "packages/jubjub-schnorr/src/managed/jubjub-schnorr/contract/index.js",
@@ -214,12 +214,12 @@ const checkCatalog = () => {
     }
 
     const workspaceScriptMatch = profile.buildCommand.match(
-      /^npm run ([^\s]+) -w \.\/(.+)$/u,
+      /^pnpm --filter \.\/(.+) ([^\s]+)$/u,
     );
-    const rootScriptName = profile.buildCommand.match(/^npm run ([^\s]+)$/u)?.[1];
+    const rootScriptName = profile.buildCommand.match(/^pnpm run ([^\s]+)$/u)?.[1];
 
     if (workspaceScriptMatch) {
-      const [, scriptName, workspacePath] = workspaceScriptMatch;
+      const [, workspacePath, scriptName] = workspaceScriptMatch;
       const packageJsonPath = path.join(workspacePath, "package.json");
       if (!existsSync(path.join(repoRoot, packageJsonPath))) {
         errors.push(`${profileName} references missing workspace: ${workspacePath}`);

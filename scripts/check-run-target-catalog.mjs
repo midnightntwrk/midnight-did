@@ -55,11 +55,11 @@ assert.deepEqual(
 assert.equal(
   rootPackage.scripts?.ci,
   "./run.sh --light --strict",
-  "npm run ci must remain the documented local PR validation contract; update README and PR template if this command changes",
+  "pnpm run ci must remain the documented local PR validation contract; update README and PR template if this command changes",
 );
 assert.equal(
   rootPackage.scripts?.["ci:packages"],
-  "npm run lint && npm run build:all && npm run test:all",
+  "pnpm run lint && pnpm run build:all && pnpm run test:all",
   "ci:packages must preserve the legacy package-only lint/build/test lane",
 );
 
@@ -70,8 +70,8 @@ assert.ok(
   "README must document ./run.sh --light --strict as the local PR validation contract",
 );
 assert.ok(
-  readme.includes("`npm run ci`"),
-  "README must document npm run ci as the local PR validation alias",
+  readme.includes("`pnpm run ci`"),
+  "README must document pnpm run ci as the local PR validation alias",
 );
 
 const prTemplate = readRepoText(
@@ -82,8 +82,8 @@ assert.ok(
   "PR template must require ./run.sh --light --strict as the local PR validation contract",
 );
 assert.ok(
-  prTemplate.includes("`npm run ci`"),
-  "PR template must mention npm run ci as the local PR validation alias",
+  prTemplate.includes("`pnpm run ci`"),
+  "PR template must mention pnpm run ci as the local PR validation alias",
 );
 
 for (const step of pipelineSteps) {

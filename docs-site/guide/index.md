@@ -2,7 +2,7 @@
 
 Use these pages when changing DID contract, package, API, runner, packaging, or documentation behavior.
 
-1. Install dependencies with `npm ci`.
+1. Install dependencies with `pnpm install`.
 2. Run `compact update 0.30.0` if your local Compact toolchain is not already pinned.
 3. Run `./run.sh --light --strict` before opening a PR.
 4. Use focused targets such as `./run.sh core --strict` or `./run.sh api --light --strict` while iterating.

@@ -119,10 +119,10 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
      repository's DID-core-only scope.
 4. Keep generated artifact freshness checks for `contract` and
    `jubjub-schnorr` aligned with Compact source/build-script inputs through
-   `npm run check:managed-artifacts`.
+   `pnpm run check:managed-artifacts`.
    - 2026-05-22: `codex/did-managed-artifact-source-manifest` adds
      deterministic SHA-256 source manifests to `artifacts:status` and covers
-     the manifest contract with `npm run test:managed-artifacts`.
+     the manifest contract with `pnpm run test:managed-artifacts`.
    - 2026-05-22: `codex/did-artifact-status-runner-target` exposes the same
      managed-artifact status and freshness checks through cataloged
      `./run.sh artifact-status` and `./run.sh check-managed-artifacts` targets.
