@@ -66,7 +66,7 @@ for (const [workspace, expected] of packageManifestCatalog.entries()) {
   assertEqual(`${label} private`, packageJson.private, true);
   assertEqual(`${label} type`, packageJson.type, "module");
   assertEqual(`${label} engines.node`, packageJson.engines?.node, ">=24");
-  assertEqual(`${label} engines.npm`, packageJson.engines?.npm, ">=10");
+  assertEqual(`${label} engines.pnpm`, packageJson.engines?.pnpm, ">=10");
   assertEqual(`${label} main`, packageJson.main, "dist/index.js");
   assertEqual(`${label} module`, packageJson.module, "dist/index.js");
   assertEqual(`${label} types`, packageJson.types, "./dist/index.d.ts");
@@ -82,7 +82,7 @@ for (const [workspace, expected] of packageManifestCatalog.entries()) {
     const exportEntry = packageJson.exports?.[exportKey];
     if (!exportEntry || typeof exportEntry !== "object") {
       // DID packages use object exports so types/import/default targets can be
-      // checked independently; string shorthand exports are valid npm but not
+      // checked independently; string shorthand exports are valid package
       // the convention for this repository.
       errors.push(`${label} export ${exportKey}: missing object export entry`);
       continue;

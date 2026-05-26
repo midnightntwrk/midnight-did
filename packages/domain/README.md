@@ -48,9 +48,9 @@ stateDiagram-v2
 
 ## Build & Test
 
-- Build: `npm run build -w ./packages/domain`
-- Test: `npm run test -w ./packages/domain`
-- Coverage: `npm run coverage -w ./packages/domain`
+- Build: `pnpm --filter ./packages/domain build`
+- Test: `pnpm --filter ./packages/domain test`
+- Coverage: `pnpm --filter ./packages/domain coverage`
 
 ## Notes
 

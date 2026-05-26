@@ -5,14 +5,14 @@ The docs site is built with VitePress and is intended to be published as GitHub 
 ## Local build
 
 ```bash
-npm install
-npm run docs:build
+pnpm install
+pnpm run docs:build
 ```
 
 The local preview server uses the root path:
 
 ```bash
-npm run docs:preview
+pnpm run docs:preview
 ```
 
 ## GitHub Pages behavior
@@ -34,10 +34,10 @@ The workflow:
 
 1. checks out the repository
 2. installs the Compact toolchain used by generated API documentation
-3. installs dependencies with `npm ci`
+3. installs dependencies with `pnpm install`
 4. syncs repository markdown into internal docs pages
 5. generates API reference from TypeScript entry points
-6. builds the site with `npm run docs:build`
+6. builds the site with `pnpm run docs:build`
 7. uploads the VitePress output as a Pages artifact on publishable `main` runs
 8. deploys it to GitHub Pages on publishable `main` runs
 
