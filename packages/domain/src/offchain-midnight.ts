@@ -40,7 +40,6 @@ const BASE64URL_TEXT = /^[A-Za-z0-9_-]+$/u;
 const uint8 = new CompactTypeUnsignedInteger(255n, 1);
 const uint16 = new CompactTypeUnsignedInteger(65535n, 2);
 
-export const OFFCHAIN_STATE_QUERY = "state" as const;
 export const OFFCHAIN_STATE_ENCODING =
   "midnight-offchain-did-state-v1.base64url" as const;
 
@@ -129,7 +128,7 @@ export type EncodedOffchainMidnightDIDState = {
   readonly payload: string;
 };
 
-export type ParsedPortableOffchainMidnightDIDUrl = {
+export type ParsedLongFormOffchainMidnightDID = {
   readonly did: MidnightDIDString;
   readonly stateHash: OffchainStateHash;
   readonly encodedState: EncodedOffchainMidnightDIDState;
@@ -181,7 +180,15 @@ const fromBase64Url = (value: string): Uint8Array => {
   }
   const normalized = value.replaceAll("-", "+").replaceAll("_", "/");
   const padding = "=".repeat((4 - (normalized.length % 4)) % 4);
-  return new Uint8Array(Buffer.from(`${normalized}${padding}`, "base64"));
+  const decoded = new Uint8Array(
+    Buffer.from(`${normalized}${padding}`, "base64"),
+  );
+  if (toBase64Url(decoded) !== value) {
+    throw new Error(
+      "Offchain Midnight DID state is not canonical unpadded base64url",
+    );
+  }
+  return decoded;
 };
 
 const assertUint32 = (value: number, label: string): void => {
@@ -562,39 +569,31 @@ export const createOffchainMidnightDIDStringFromState = (
   return createOffchainMidnightDIDString(stateHash);
 };
 
-export const createPortableOffchainMidnightDIDUrl = (
+export const createLongFormOffchainMidnightDIDString = (
   state: OffchainMidnightDIDState,
-): string => {
+): MidnightDIDString => {
   const { encodedState, stateHash } = encodeAndHashState(state);
   const did = createOffchainMidnightDIDString(stateHash);
-  return `${did}?${OFFCHAIN_STATE_QUERY}=${encodedState.payload}`;
+  return parseMidnightDIDString(`${did}:${encodedState.payload}`);
 };
 
-export const parsePortableOffchainMidnightDIDUrl = (
+export const parseLongFormOffchainMidnightDIDString = (
   input: string,
-): ParsedPortableOffchainMidnightDIDUrl => {
-  const question = input.indexOf("?");
-  if (question === -1) {
-    throw new Error(
-      "Portable offchain Midnight DID URL must include a state query",
-    );
-  }
-  const didPart = input.slice(0, question);
-  const params = new URLSearchParams(input.slice(question + 1));
-  const statePayload = params.get(OFFCHAIN_STATE_QUERY);
-  if (!statePayload) {
-    throw new Error(
-      "Portable offchain Midnight DID URL is missing the state query parameter",
-    );
-  }
-  const did = parseMidnightDIDString(didPart);
-  const parsedDid = did.split(":");
+): ParsedLongFormOffchainMidnightDID => {
+  const did = parseMidnightDIDString(input);
+  const parsedDid = input.split(":");
   if (parsedDid[2] !== "offchain") {
     throw new Error(
-      "Portable offchain Midnight DID URL must use the offchain network",
+      "Long-form offchain Midnight DID must use offchain network",
     );
   }
-  const stateHash = parseOffchainStateHash(parsedDid[3] ?? "");
+  if (parsedDid.length !== 5) {
+    throw new Error(
+      "Long-form offchain Midnight DID must include encoded state",
+    );
+  }
+  const stateHash = parseOffchainStateHash(parsedDid[3]);
+  const statePayload = parsedDid[4];
   const encodedState = {
     encoding: OFFCHAIN_STATE_ENCODING,
     payload: statePayload,
@@ -602,7 +601,7 @@ export const parsePortableOffchainMidnightDIDUrl = (
   const computedHash = bytesToStateHash(fromBase64Url(statePayload));
   if (computedHash !== stateHash) {
     throw new Error(
-      "Portable offchain Midnight DID URL state does not match the DID state hash",
+      "Long-form offchain Midnight DID state does not match the DID state hash",
     );
   }
   return { did, stateHash, encodedState };

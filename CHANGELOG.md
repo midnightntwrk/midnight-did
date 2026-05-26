@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- BREAKING: Define the prototype offchain Midnight DID portable form as
+  `did:midnight:offchain:<persistent-hash-of-state>:<encoded-state>`,
+  replacing the earlier `?state=` DID URL helper surface.
 - Migrate the workspace package manager from npm to pnpm 10, including
   `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `workspace:*` internal package
   dependencies, and exact Midnight runtime dependency pins.
