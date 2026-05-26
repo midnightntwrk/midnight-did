@@ -30,15 +30,14 @@ if (!initial.ok) {
   const install = spawnSync(
     "pnpm",
     [
-      "add",
-      "--workspace-root",
+      "install",
       "--ignore-scripts",
-      initial.missingPackage,
+      "--config.engine-strict=false",
     ],
     {
       cwd: repoRoot,
       stdio: "inherit",
-      env: { ...process.env, pnpm_config_engine_strict: "false" },
+      env: process.env,
     },
   );
 

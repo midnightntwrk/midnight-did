@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Migrate the workspace package manager from npm to pnpm 10, including
+  `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `workspace:*` internal package
+  dependencies, and exact Midnight runtime dependency pins.
 - Align `pnpm run ci`, README guidance, and the PR template around
   `./run.sh --light --strict` as the local PR validation contract.
 - Make `scripts/clean-artifacts.mjs` self-documenting and fail safely when an
