@@ -76,6 +76,8 @@ for (const pkg of packages) {
   execFileSync(
     process.platform === "win32" ? "pnpm.cmd" : "pnpm",
     [
+      "--filter",
+      "docs-site",
       "exec",
       "typedoc",
       "--plugin",
@@ -96,7 +98,7 @@ for (const pkg of packages) {
       "--exclude",
       "**/test/**",
     ],
-    { cwd: docsRoot, stdio: "inherit", env: process.env },
+    { cwd: repoRoot, stdio: "inherit", env: process.env },
   );
 
   const readmePath = join(outDir, "README.md");

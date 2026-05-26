@@ -68,7 +68,8 @@ sequenceDiagram
 
 Prerequisites:
 
-- Node.js 24 and pnpm 10.
+- Node.js 24 and pnpm 10. Run `corepack enable` once so Node uses the
+  repository-pinned package manager from `packageManager`.
 - Docker for standalone API integration tests.
 - Midnight Compact toolchain.
 
