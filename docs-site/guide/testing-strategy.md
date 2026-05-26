@@ -8,7 +8,7 @@ Use this before opening or updating a PR:
 ./run.sh --light --strict
 ```
 
-`npm run ci` is an alias for the same local PR validation contract. The light pipeline runs the core and API lanes while skipping long-running API integration work. Use `npm run ci:packages` only when you need the legacy package-only lint/build/test lane.
+`pnpm run ci` is an alias for the same local PR validation contract. The light pipeline runs the core and API lanes while skipping long-running API integration work. Use `pnpm run ci:packages` only when you need the legacy package-only lint/build/test lane.
 
 ## Focused Lanes
 
@@ -40,13 +40,13 @@ Use the full loop for API/provider/runtime changes that need Docker-backed integ
 ## Guard Scripts
 
 ```bash
-npm run check:did-surface-discipline
-npm run check:run-target-catalog
-npm run check:managed-artifacts
-npm run artifacts:status
-npm run report:integration
-npm run report:integration:schema
-npm run check:integration
+pnpm run check:did-surface-discipline
+pnpm run check:run-target-catalog
+pnpm run check:managed-artifacts
+pnpm run artifacts:status
+pnpm run report:integration
+pnpm run report:integration:schema
+pnpm run check:integration
 ```
 
 These guards keep the repository surface, runner catalog, generated Compact
@@ -54,12 +54,12 @@ artifacts, and sibling VC integration assumptions aligned.
 
 JSON consumers should read `schemaId` and `schemaVersion` before processing
 integration-report payloads. `./run.sh integration-report-schema` and
-`npm run report:integration:schema` print the current report contract without
+`pnpm run report:integration:schema` print the current report contract without
 requiring a sibling VC checkout.
 
 ## Recommended Workflow
 
-1. Run `./run.sh --light --strict` or `npm run ci`.
+1. Run `./run.sh --light --strict` or `pnpm run ci`.
 2. Run the component-specific lane for the area you changed.
 3. Run `./run.sh docs` when docs-site content changes.
 4. Run the full local loop for API/provider/runtime changes that need Docker-backed coverage.

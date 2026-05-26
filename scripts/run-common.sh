@@ -161,7 +161,7 @@ run_common_ensure_contract_artifacts() {
   local caller="${1:-run}"
   if [[ ! -f "packages/contract/dist/managed/did/contract/index.js" ]]; then
     echo "[${caller}] Build contract package outputs"
-    npm run build:prepared -w ./packages/contract
+    pnpm --filter ./packages/contract build:prepared
   fi
 }
 

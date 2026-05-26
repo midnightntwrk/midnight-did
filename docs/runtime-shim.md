@@ -1,6 +1,6 @@
 # Runtime Shim Notes
 
-`run.sh` invokes `scripts/ensure-onchain-runtime-cjs.mjs` before any npm target.
+`run.sh` invokes `scripts/ensure-onchain-runtime-cjs.mjs` before any pnpm target.
 The script copies a pre-built CommonJS shim for
 `@midnight-ntwrk/onchain-runtime` and patches that package’s `package.json`.
 

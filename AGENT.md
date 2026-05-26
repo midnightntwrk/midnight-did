@@ -22,7 +22,7 @@ Prerequisites:
 Standalone setup:
 
 ```bash
-npm ci
+pnpm install
 compact update 0.30.0
 ```
 
@@ -46,8 +46,8 @@ For Codex or another MCP-capable client, configure the Midnight MCP server at us
 
 ```toml
 [mcp_servers.midnight]
-command = "npx"
-args = ["-y", "midnight-mcp@latest"]
+command = "pnpm"
+args = ["dlx", "midnight-mcp@latest"]
 ```
 
 Use it to inspect Compact entry points, generated `src/managed` outputs, TypeScript exports, and package wiring. Always confirm changes with local scripts and tests.
@@ -120,7 +120,7 @@ When changing Compact circuits:
 For shared Schnorr changes, run:
 
 ```bash
-npm run test -w ./packages/contract
+pnpm --filter ./packages/contract test
 ```
 
 ## Development Cycle
@@ -166,7 +166,7 @@ Useful forms:
 Target catalog check:
 
 ```bash
-npm run check:run-target-catalog
+pnpm run check:run-target-catalog
 ```
 
 Lane scripts:
@@ -182,39 +182,39 @@ Lane scripts:
 Common root scripts:
 
 ```bash
-npm run lint
-npm run lint:core
-npm run build:all
-npm run typecheck:all
-npm run test:all
-npm run ci:core
-npm run check:did-surface-discipline
-npm run test:workspace-manifests
-npm run check:workspace-manifests
-npm run test:did-surface-discipline
-npm run check:run-target-catalog
-npm run test:integration-report
-npm run check:managed-artifacts
-npm run artifacts:status
-npm run clean:artifacts
-npm run report:integration
-npm run report:integration:schema
-npm run check:integration
-npm run artifacts:pack
+pnpm run lint
+pnpm run lint:core
+pnpm run build:all
+pnpm run typecheck:all
+pnpm run test:all
+pnpm run ci:core
+pnpm run check:did-surface-discipline
+pnpm run test:workspace-manifests
+pnpm run check:workspace-manifests
+pnpm run test:did-surface-discipline
+pnpm run check:run-target-catalog
+pnpm run test:integration-report
+pnpm run check:managed-artifacts
+pnpm run artifacts:status
+pnpm run clean:artifacts
+pnpm run report:integration
+pnpm run report:integration:schema
+pnpm run check:integration
+pnpm run artifacts:pack
 ```
 
 Package examples:
 
 ```bash
-npm run build -w ./packages/contract
-npm run test:ci -w ./packages/contract
-npm run build -w ./packages/domain
-npm run test:ci -w ./packages/domain
-npm run build -w ./packages/did
-npm run test:ci -w ./packages/did
-npm run build -w ./packages/api
-npm run test:ci -w ./packages/api
-npm run typecheck:examples -w ./packages/api
+pnpm --filter ./packages/contract build
+pnpm --filter ./packages/contract test:ci
+pnpm --filter ./packages/domain build
+pnpm --filter ./packages/domain test:ci
+pnpm --filter ./packages/did build
+pnpm --filter ./packages/did test:ci
+pnpm --filter ./packages/api build
+pnpm --filter ./packages/api test:ci
+pnpm --filter ./packages/api typecheck:examples
 ```
 
 ## Services and Manual Testing
@@ -232,7 +232,7 @@ Resolver and manager service manual testing moved to `midnight-did-resolver`.
 Pack unpublished DID packages into a stable local artifact directory:
 
 ```bash
-npm run artifacts:pack
+pnpm run artifacts:pack
 ```
 
 Refresh a downstream repo or vendor directory:

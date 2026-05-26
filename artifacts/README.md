@@ -10,7 +10,7 @@ Purpose:
 Commands:
 
 ```bash
-npm run artifacts:pack
+pnpm run artifacts:pack
 ./upgrade-libs.sh --destination /path/to/downstream-repo
 node scripts/clean-artifacts.mjs --dry-run --json
 ```

@@ -6,7 +6,7 @@
   "type": "module",
   "engines": {
     "node": ">=24",
-    "npm": ">=10"
+    "pnpm": ">=10"
   },
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -25,22 +25,22 @@
     }
   },
   "scripts": {
-    "contract": "npm run compact",
+    "contract": "pnpm run compact",
     "compact": "rm -rf src/managed && compact compile src/jubjub-schnorr.compact src/managed/jubjub-schnorr && node ./scripts/align-runtime-version.mjs && node ./scripts/strip-managed-sourcemaps.mjs",
-    "test": "npm run compact && vitest run --config vitest.config.ts",
-    "test:ci": "npm run compact && vitest run --config vitest.config.ts",
-    "prepack": "npm run build",
-    "coverage": "npm run compact && vitest run --config vitest.config.ts --coverage",
+    "test": "pnpm run compact && vitest run --config vitest.config.ts",
+    "test:ci": "pnpm run compact && vitest run --config vitest.config.ts",
+    "prepack": "pnpm run build",
+    "coverage": "pnpm run compact && vitest run --config vitest.config.ts --coverage",
     "clean": "rm -rf dist && rm -rf coverage && rm -rf reports && rm -rf src/managed",
-    "build": "npm run compact && rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/jubjub-schnorr.compact ./src/schnorr.compact ./dist",
+    "build": "pnpm run compact && rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/jubjub-schnorr.compact ./src/schnorr.compact ./dist",
     "lint": "eslint src --ignore-pattern 'src/managed/**'",
     "lint:fix": "eslint src --fix --ignore-pattern 'src/managed/**'",
-    "typecheck": "npm run compact && tsc -p tsconfig.json --noEmit",
-    "all": "npm run compact && npm run build && npm run test:ci"
+    "typecheck": "pnpm run compact && tsc -p tsconfig.json --noEmit",
+    "all": "pnpm run compact && pnpm run build && pnpm run test:ci"
   },
   "dependencies": {
-    "@midnight-ntwrk/compact-runtime": "*",
-    "@midnight-ntwrk/ledger-v8": "^8.0.0"
+    "@midnight-ntwrk/compact-runtime": "0.15.0",
+    "@midnight-ntwrk/ledger-v8": "8.0.3"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^3.2.4"

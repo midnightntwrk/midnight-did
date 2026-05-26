@@ -55,7 +55,7 @@ mkdirSync(outputRoot, { recursive: true });
 const buildWorkspaces = ["./packages/contract", "./packages/domain", "./packages/did", "./packages/api"];
 
 for (const workspace of buildWorkspaces) {
-  execFileSync(process.platform === "win32" ? "npm.cmd" : "npm", ["run", "build", "-w", workspace], {
+  execFileSync(process.platform === "win32" ? "pnpm.cmd" : "pnpm", ["--filter", workspace, "build"], {
     cwd: repoRoot,
     stdio: "inherit",
     env: process.env,
@@ -74,8 +74,9 @@ for (const pkg of packages) {
   mkdirSync(outDir, { recursive: true });
 
   execFileSync(
-    process.platform === "win32" ? "npx.cmd" : "npx",
+    process.platform === "win32" ? "pnpm.cmd" : "pnpm",
     [
+      "exec",
       "typedoc",
       "--plugin",
       "typedoc-plugin-markdown",

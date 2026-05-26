@@ -33,7 +33,7 @@ Scope:
 Validation:
 
 - `bash -n run.sh scripts/run-common.sh`
-- `npm run test:run-sh`
+- `pnpm run test:run-sh`
 - dry-run metrics JSON probes
 - failed-step metrics probe
 - `git diff --check`

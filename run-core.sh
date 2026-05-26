@@ -11,10 +11,10 @@ if [[ "${SKIP_LINT_FIX:-0}" == "1" ]]; then
   echo "[core] Skip lint auto-fix (SKIP_LINT_FIX=1)"
 else
   echo "[core] Lint (fix)"
-  npm run lint:fix || true
+  pnpm run lint:fix || true
 fi
 
 echo "[core] Turbo-aware core lane"
-npm run ci:core
+pnpm run ci:core
 
 echo "[core] Done"
