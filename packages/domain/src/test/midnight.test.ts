@@ -42,6 +42,11 @@ describe("Midnight DID helpers", () => {
     expect(() =>
       parseMidnightDIDString(`did:midnight:offchain:${"C".repeat(64)}`),
     ).toThrow(/lowercase hex/);
+    expect(() =>
+      parseMidnightDIDString(
+        `did:midnight:offchain:${"c".repeat(64)}:not+base64url`,
+      ),
+    ).toThrow(/state encoding/);
   });
 
   it("maps undeployed network strings to the correct enum", () => {
@@ -66,5 +71,12 @@ describe("Midnight DID helpers", () => {
     expect(parseMidnightDID(parseMidnightDIDString(did)).network).toBe(
       MidnightNetwork.Offchain,
     );
+  });
+
+  it("accepts long-form offchain network strings with encoded state", () => {
+    const did = `did:midnight:offchain:${sampleAddress}:AQIDBA`;
+    const parsed = parseMidnightDID(parseMidnightDIDString(did));
+    expect(parsed.network).toBe(MidnightNetwork.Offchain);
+    expect(parsed.id).toBe(sampleAddress);
   });
 });
