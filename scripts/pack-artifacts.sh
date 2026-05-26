@@ -21,5 +21,5 @@ fi
 
 for workspace in "${DID_PACKED_WORKSPACES[@]}"; do
   echo "[pack-artifacts] Packing ${workspace} -> ${DEST_DIR}"
-  pnpm --filter "$workspace" pack --pack-destination "$DEST_DIR"
+  pnpm --filter "./$workspace" pack --pack-destination "$DEST_DIR"
 done
