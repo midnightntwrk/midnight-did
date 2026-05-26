@@ -141,6 +141,6 @@ describe("MidnightDIDResolver", () => {
 
     await expect(() =>
       resolver.resolveResult(`did:midnight:offchain:${"b".repeat(64)}`),
-    ).rejects.toThrow(/portable DID URL state payload/);
+    ).rejects.toThrow(/long-form encoded state/);
   });
 });

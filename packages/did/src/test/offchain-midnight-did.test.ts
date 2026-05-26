@@ -1,5 +1,6 @@
 import {
-  createPortableOffchainMidnightDIDUrl,
+  createLongFormOffchainMidnightDIDString,
+  createOffchainMidnightDIDStringFromState,
   CurveType,
   KeyType,
   type OffchainMidnightDIDState,
@@ -9,7 +10,7 @@ import { describe, expect, it } from "vitest";
 import { parseMidnightDIDDocument } from "../midnight-did-document.js";
 import {
   assertOffchainMidnightDID,
-  resolvePortableOffchainMidnightDID,
+  resolveLongFormOffchainMidnightDID,
 } from "../offchain-midnight-did.js";
 
 const state: OffchainMidnightDIDState = {
@@ -48,15 +49,30 @@ describe("offchain Midnight DID facade", () => {
     ).toThrow(/offchain/);
   });
 
-  it("resolves a portable offchain Midnight DID URL", () => {
-    const resolved = resolvePortableOffchainMidnightDID(
-      createPortableOffchainMidnightDIDUrl(state),
+  it("resolves a long-form offchain Midnight DID", () => {
+    const resolved = resolveLongFormOffchainMidnightDID(
+      createLongFormOffchainMidnightDIDString(state),
     );
     expect(resolved.didDocument.id).toBe(resolved.did);
+    expect(resolved.did).toMatch(/^did:midnight:offchain:[0-9a-f]{64}:/);
+    expect(resolved.didDocument.controller).toBe(resolved.did);
+    expect(resolved.didDocument.authentication).toEqual(["#issuer-key-1"]);
+    expect(resolved.didDocument.assertionMethod).toEqual(["#issuer-key-1"]);
+    expect(resolved.didDocument.verificationMethod).toHaveLength(1);
+    expect(resolved.didDocument.verificationMethod?.[0]?.controller).toBe(
+      resolved.did,
+    );
     expect(parseMidnightDIDDocument(resolved.didDocument).id).toBe(
       resolved.did,
     );
-    expect(resolved.state.verificationMethod).toHaveLength(1);
     expect(resolved.didDocumentMetadata.versionId).toBe("1");
+  });
+
+  it("rejects short-form offchain DIDs in the long-form resolver", () => {
+    expect(() =>
+      resolveLongFormOffchainMidnightDID(
+        createOffchainMidnightDIDStringFromState(state),
+      ),
+    ).toThrow(/must include encoded state/);
   });
 });

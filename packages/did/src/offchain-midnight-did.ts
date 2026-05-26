@@ -4,10 +4,10 @@ import {
   MidnightNetwork,
   type OffchainMidnightDIDState,
   offchainStateToDidDocument,
-  type ParsedPortableOffchainMidnightDIDUrl,
+  type ParsedLongFormOffchainMidnightDID,
+  parseLongFormOffchainMidnightDIDString,
   parseMidnightDID,
   parseMidnightDIDString,
-  parsePortableOffchainMidnightDIDUrl,
 } from "@midnight-ntwrk/midnight-did-domain";
 
 import {
@@ -15,9 +15,9 @@ import {
   parseMidnightDIDDocument,
 } from "./midnight-did-document.js";
 
-export type ResolvedPortableOffchainMidnightDID = {
+export type ResolvedLongFormOffchainMidnightDID = {
   readonly did: string;
-  readonly parsed: ParsedPortableOffchainMidnightDIDUrl;
+  readonly parsed: ParsedLongFormOffchainMidnightDID;
   readonly state: OffchainMidnightDIDState;
   readonly didDocument: MidnightDIDDocument;
   readonly didDocumentMetadata: ReturnType<
@@ -25,10 +25,10 @@ export type ResolvedPortableOffchainMidnightDID = {
   >;
 };
 
-export const resolvePortableOffchainMidnightDID = (
+export const resolveLongFormOffchainMidnightDID = (
   input: string,
-): ResolvedPortableOffchainMidnightDID => {
-  const parsed = parsePortableOffchainMidnightDIDUrl(input);
+): ResolvedLongFormOffchainMidnightDID => {
+  const parsed = parseLongFormOffchainMidnightDIDString(input);
   const state = decodeOffchainMidnightDIDState(parsed.encodedState);
   const didDocument = parseMidnightDIDDocument(
     offchainStateToDidDocument(parsed.did, state),
