@@ -8,6 +8,12 @@ const require = createRequire(import.meta.url);
 
 const resolveRollupNative = () => {
   try {
+    require.resolve("rollup/package.json");
+  } catch (error) {
+    return { ok: true };
+  }
+
+  try {
     require("rollup/dist/native.js");
     return { ok: true };
   } catch (error) {
@@ -20,10 +26,9 @@ const resolveRollupNative = () => {
 const initial = resolveRollupNative();
 if (!initial.ok) {
   if (!initial.missingPackage) {
-    console.warn(
-      `[ensure-rollup-native] rollup is not resolvable from the workspace root; skipping native optional dependency repair: ${initial.message}`,
+    throw new Error(
+      `Rollup native optional dependency is missing: ${initial.message}`,
     );
-    process.exit(0);
   }
 
   const currentFile = fileURLToPath(import.meta.url);
