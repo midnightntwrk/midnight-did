@@ -43,7 +43,7 @@ For any public-surface change, update:
 Run the surface guard:
 
 ```bash
-npm run check:did-surface-discipline
+pnpm run check:did-surface-discipline
 ```
 
 For broader changes, also run:

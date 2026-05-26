@@ -4,11 +4,11 @@ set -euo pipefail
 node ./scripts/ensure-node-24.mjs
 
 echo "[docs] Build VitePress site"
-npm run docs:build
+pnpm run docs:build
 
 if [[ "${DOCS_PREVIEW:-0}" == "1" ]]; then
   echo "[docs] Preview built site"
-  npm run docs:preview
+  pnpm run docs:preview
 else
   echo "[docs] Done"
   echo "[docs] Dev server: ./start-docs.sh"

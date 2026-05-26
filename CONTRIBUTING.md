@@ -43,7 +43,7 @@ maintainer asks for a release or hotfix branch.
 Run the surface guard before opening PRs that change public DID behavior:
 
 ```bash
-npm run check:did-surface-discipline
+pnpm run check:did-surface-discipline
 ```
 
 Treat these as DID surface changes:

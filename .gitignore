@@ -27,13 +27,6 @@ test-results/
 # Dependency directories
 jspm_packages/
 
-# Optional npm cache directory
-.npm
-
-# Optional local npm cache used by packaging scripts
-.npm-cache
-cli/.npm-cache
-packages/contract/.npm-cache
 .turbo/
 
 # Optional eslint cache
@@ -42,7 +35,7 @@ packages/contract/.npm-cache
 # Optional REPL history
 .node_repl_history
 
-# Output of 'npm pack'
+# Output of package tarball packing
 *.tgz
 
 # Yarn Integrity file

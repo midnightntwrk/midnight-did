@@ -68,14 +68,15 @@ sequenceDiagram
 
 Prerequisites:
 
-- Node.js 24 and npm 10.
+- Node.js 24 and pnpm 10. Run `corepack enable` once so Node uses the
+  repository-pinned package manager from `packageManager`.
 - Docker for standalone API integration tests.
 - Midnight Compact toolchain.
 
 Install dependencies:
 
 ```bash
-npm ci
+pnpm install
 compact update 0.30.0
 ```
 
@@ -94,8 +95,8 @@ Local validation:
 
 Runner notes:
 
-- Local PR validation contract: `./run.sh --light --strict` or `npm run ci`.
-- `npm run ci:packages` keeps the legacy package-only lint/build/test lane.
+- Local PR validation contract: `./run.sh --light --strict` or `pnpm run ci`.
+- `pnpm run ci:packages` keeps the legacy package-only lint/build/test lane.
 - `./run.sh` and `./run.sh full` validate DID core and API lanes.
 - `./run.sh docs` validates the documentation site.
 - `run-core.sh`, `run-api.sh`, and `run-docs.sh` remain implementation details behind cataloged `./run.sh` targets.
@@ -121,21 +122,21 @@ Metrics example:
 Surface guards:
 
 ```bash
-npm run check:did-surface-discipline
-npm run test:did-surface-discipline
-npm run check:run-target-catalog
-npm run check:managed-artifacts
-npm run artifacts:status
-npm run report:integration
-npm run report:integration:schema
-npm run check:integration
+pnpm run check:did-surface-discipline
+pnpm run test:did-surface-discipline
+pnpm run check:run-target-catalog
+pnpm run check:managed-artifacts
+pnpm run artifacts:status
+pnpm run report:integration
+pnpm run report:integration:schema
+pnpm run check:integration
 ```
 
 API examples:
 
 ```bash
-npm run build:api-prereqs
-npm run typecheck:examples -w ./packages/api
+pnpm run build:api-prereqs
+pnpm --filter ./packages/api typecheck:examples
 ```
 
 The example guard compiles package-level snippets against built package exports
@@ -144,8 +145,8 @@ so runnable docs do not silently drift from the published API surface.
 The workspace manifest guard keeps package distribution metadata aligned:
 
 ```bash
-npm run test:workspace-manifests
-npm run check:workspace-manifests
+pnpm run test:workspace-manifests
+pnpm run check:workspace-manifests
 ```
 
 It validates the root workspace list, package names, export maps, tarball
@@ -156,12 +157,12 @@ The integration report checks the sibling
 references and matching vendored tarballs. Fixture tests can override the
 default roots with `MIDNIGHT_DID_REPO_ROOT`, `MIDNIGHT_DID_SIBLING_VC_ROOT`,
 and `MIDNIGHT_DID_INTEGRATION_NOW`. JSON consumers should read
-`schemaId`/`schemaVersion` first; `npm run report:integration:schema` prints the
+`schemaId`/`schemaVersion` first; `pnpm run report:integration:schema` prints the
 current reference-kind and summary-counter contract. The first versioned schema
 is `midnight-did-integration-report@1`; earlier unversioned reports carried
 human-readable `summary.notes`, which now live only in the schema output.
 The same schema is available through `./run.sh integration-report-schema` for
-runner workflows or `npm run report:integration:schema` for npm-only
+runner workflows or `pnpm run report:integration:schema` for pnpm-only
 automation.
 
 ## Artifact Packaging
@@ -169,7 +170,7 @@ automation.
 Use `artifacts/npm/` as the stable local tarball output for unpublished DID packages.
 
 ```bash
-npm run artifacts:pack
+pnpm run artifacts:pack
 ./upgrade-libs.sh --destination /path/to/downstream-repo
 ```
 
@@ -182,16 +183,16 @@ Packed packages:
 - `@midnight-ntwrk/midnight-did-contract`
 
 The generated tarballs are gitignored under [`artifacts/`](./artifacts/README.md).
-Use `./run.sh artifact-status` or `npm run artifacts:status` to inspect
+Use `./run.sh artifact-status` or `pnpm run artifacts:status` to inspect
 generated Compact output readiness and source manifests for `contract` and
 `jubjub-schnorr`. Use `./run.sh check-managed-artifacts` or
-`npm run check:managed-artifacts` to fail on missing or stale generated
+`pnpm run check:managed-artifacts` to fail on missing or stale generated
 artifacts after a local build.
 
 ## Developer Entry Points
 
 1. `./start-docs.sh`
-2. `./run.sh --light --strict` or `npm run ci`
+2. `./run.sh --light --strict` or `pnpm run ci`
 3. `./run.sh core --strict` or `./run.sh api --light --strict` for focused work
 4. Use the split repositories for resolver/manager/secret-storage or VC work
 

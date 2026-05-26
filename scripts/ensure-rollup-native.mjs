@@ -8,6 +8,12 @@ const require = createRequire(import.meta.url);
 
 const resolveRollupNative = () => {
   try {
+    require.resolve("rollup/package.json");
+  } catch (error) {
+    return { ok: true };
+  }
+
+  try {
     require("rollup/dist/native.js");
     return { ok: true };
   } catch (error) {
@@ -28,23 +34,31 @@ if (!initial.ok) {
   const currentFile = fileURLToPath(import.meta.url);
   const repoRoot = path.resolve(path.dirname(currentFile), "..");
   const install = spawnSync(
-    "npm",
+    "pnpm",
     [
       "install",
-      "--no-save",
       "--ignore-scripts",
-      "--no-audit",
-      "--no-fund",
-      initial.missingPackage,
+      "--config.engine-strict=false",
     ],
     {
       cwd: repoRoot,
       stdio: "inherit",
-      env: { ...process.env, npm_config_engine_strict: "false" },
+      env: process.env,
     },
   );
 
   if (install.status !== 0) {
     process.exit(install.status ?? 1);
+  }
+
+  const repaired = resolveRollupNative();
+  if (!repaired.ok) {
+    throw new Error(
+      [
+        `Rollup native optional dependency is still missing after pnpm install: ${initial.missingPackage}`,
+        "Run pnpm install --ignore-scripts --config.engine-strict=false and inspect the pnpm optional dependency output.",
+        repaired.message,
+      ].join("\n"),
+    );
   }
 }
