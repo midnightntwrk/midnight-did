@@ -47,6 +47,7 @@
     "tsconfig.build.json"
   ],
   "devDependencies": {
-    "base64-js": "^1.5.1"
+    "base64-js": "^1.5.1",
+    "globals": "14.0.0"
   }
 }
