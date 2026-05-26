@@ -46,14 +46,17 @@ export function createMidnightDIDString(
 }
 
 // did:midnight:<network>:<contract_address>
+// did:midnight:offchain:<state_hash>[:<encoded_state>]
 export const MidnightDIDSchema = z
   .string()
   .check(
     z.startsWith("did:midnight:"),
-    z.refine(
-      (val) => val.split(":").length === 4,
-      "Invalid Midnight DID format",
-    ),
+    z.refine((val) => {
+      const parts = val.split(":");
+      return parts[2] === "offchain"
+        ? parts.length === 4 || parts.length === 5
+        : parts.length === 4;
+    }, "Invalid Midnight DID format"),
     z.refine((val) => {
       const [, , net] = val.split(":");
       return [
@@ -74,6 +77,14 @@ export const MidnightDIDSchema = z
       const [, , net, identifier] = val.split(":");
       return net !== "offchain" || identifier === identifier.toLowerCase();
     }, "Offchain Midnight DID identifiers must use lowercase hex"),
+    z.refine((val) => {
+      const [, , net, , state] = val.split(":");
+      return (
+        net !== "offchain" ||
+        state === undefined ||
+        (/^[A-Za-z0-9_-]+$/u.test(state) && state.length % 4 !== 1)
+      );
+    }, "Invalid offchain Midnight DID state encoding"),
   )
   .brand("MidnightDID");
 

@@ -49,7 +49,7 @@ export class MidnightDIDResolver {
 
     if (network === MidnightNetwork.Offchain) {
       throw new Error(
-        "Offchain Midnight DIDs must be resolved from their portable DID URL state payload, not through the ledger resolver",
+        "Offchain Midnight DIDs must be resolved from their long-form encoded state, not through the ledger resolver",
       );
     }
 
