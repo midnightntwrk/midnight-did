@@ -26,6 +26,8 @@ let
     { name = "bls_midnight_2p14"; sha256 = "sha256-/CUwFoheyDDpeAjJ7JILtcq1whr1kDgKbLXrBTjiskQ="; }
     { name = "bls_midnight_2p15"; sha256 = "sha256-ckx8PXeRSLsRPH7pwDSy8n2xbmvfMV/ekBBam60Asd4="; }
     { name = "bls_midnight_2p16"; sha256 = "sha256-Cch3IW1libNwJj4Yr0CgMKkBtBp6fDfvWMmQHbQfBcY="; }
+    { name = "bls_midnight_2p17"; sha256 = "sha256-Sp72x8Bhmqt07t5EsT51PjulRQigLdO3EGqUmqu3O3Q="; }
+    { name = "bls_midnight_2p18"; sha256 = "sha256-6ENtxdi1mPFpwSfHRRNdiJdEAH5tOE/xJt+NEzJSL4Y="; }
   ];
 in
 linkFarm "midnight-circuit-params" (map (p: makeCircuitParam p.name p.sha256) circuitParams)
