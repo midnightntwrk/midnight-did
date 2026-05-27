@@ -10,10 +10,14 @@ import {
   exampleJsonWebKey,
   exampleP256JsonWebKey,
   exampleRelativeVerificationMethodInput,
+  exampleSecp256k1JsonWebKey,
   exampleVerificationMethodInput,
+  exampleX25519JsonWebKey,
 } from "./fixtures/did.js";
 
 describe("createVerificationMethod", () => {
+  const bytes32Zero = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
   it("creates a valid verification method", () => {
     const vm = createVerificationMethod(exampleVerificationMethodInput);
     expect(vm.id).toBe(exampleVerificationMethodInput.id);
@@ -41,7 +45,7 @@ describe("createVerificationMethod", () => {
         publicKeyJwk: {
           kty: KeyType.EC,
           crv: CurveType.Jubjub,
-          x: "AA",
+          x: bytes32Zero,
         },
       }),
     ).toThrow();
@@ -63,5 +67,36 @@ describe("createVerificationMethod", () => {
       publicKeyJwk: exampleP256JsonWebKey,
     });
     expect(vm.publicKeyJwk).toEqual(exampleP256JsonWebKey);
+  });
+
+  it("accepts X25519 OKP keys", () => {
+    const vm = createVerificationMethod({
+      ...exampleVerificationMethodInput,
+      id: `${exampleVerificationMethodInput.controller}#key-x25519`,
+      publicKeyJwk: exampleX25519JsonWebKey,
+    });
+    expect(vm.publicKeyJwk).toEqual(exampleX25519JsonWebKey);
+  });
+
+  it("accepts secp256k1 EC keys", () => {
+    const vm = createVerificationMethod({
+      ...exampleVerificationMethodInput,
+      id: `${exampleVerificationMethodInput.controller}#key-secp256k1`,
+      publicKeyJwk: exampleSecp256k1JsonWebKey,
+    });
+    expect(vm.publicKeyJwk).toEqual(exampleSecp256k1JsonWebKey);
+  });
+
+  it("rejects key material that is not exactly 32 bytes", () => {
+    expect(() =>
+      createVerificationMethod({
+        ...exampleVerificationMethodInput,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.Ed25519,
+          x: "AA",
+        },
+      }),
+    ).toThrow(/32 bytes/);
   });
 });

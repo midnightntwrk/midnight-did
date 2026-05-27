@@ -9,12 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add X25519 and secp256k1 verification method key profiles for byte-native
+  Midnight DID public key storage.
 - Add DID surface-change discipline documentation and an automated guard for
   package exports, artifact packaging, workflow branch targeting, and PR review
   checklist drift.
 
 ### Changed
 
+- BREAKING: Store ledger `PublicKeyJwk.x` and `PublicKeyJwk.y` as `Bytes<32>`
+  instead of `Field`, preserving 32-byte JWK key material losslessly while
+  keeping Jubjub-only field projection for in-contract verification. Replace
+  field-element placeholder encodings such as `encodeFieldElement(v)` with
+  canonical unpadded base64url strings that decode to exactly 32 bytes.
+- BREAKING: Reassign ledger `CurveType` integer tags while defining the
+  prototype key profile set: `Jubjub` moves from `1` to `2`, `P256` from `2` to
+  `3`, with `X25519=1` and `Secp256k1=4`.
 - BREAKING: Define the prototype offchain Midnight DID portable form as
   `did:midnight:offchain:<persistent-hash-of-state>:<encoded-state>`,
   replacing the earlier `?state=` DID URL helper surface.

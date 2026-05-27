@@ -61,16 +61,33 @@ const decodeBase64 = (input: string): Uint8Array => {
   return bytes;
 };
 
-const base64UrlEncode = (bytes: Uint8Array): string =>
+export const encodeBase64Url = (bytes: Uint8Array): string =>
   encodeBase64(bytes)
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
 
-const base64UrlDecode = (input: string): Uint8Array => {
+export const decodeBase64Url = (input: string): Uint8Array => {
   const base64 = input.replace(/-/g, "+").replace(/_/g, "/");
   const padding = (4 - (base64.length % 4 || 4)) % 4;
   return decodeBase64(base64 + "=".repeat(padding));
+};
+
+export const decodeBase64UrlBytes32 = (
+  input: string,
+  label = "value",
+): Uint8Array => {
+  if (!/^[A-Za-z0-9_-]+$/.test(input) || input.length % 4 === 1) {
+    throw new Error(`${label} must be canonical unpadded base64url`);
+  }
+  const bytes = decodeBase64Url(input);
+  if (bytes.length !== 32) {
+    throw new Error(`${label} must decode to exactly 32 bytes`);
+  }
+  if (encodeBase64Url(bytes) !== input) {
+    throw new Error(`${label} must be canonical unpadded base64url`);
+  }
+  return bytes;
 };
 
 const bigintToBytes = (x: bigint): Uint8Array => {
@@ -86,7 +103,7 @@ const bigintToBytes = (x: bigint): Uint8Array => {
 };
 
 export const decodeFieldElement = (s: string): bigint => {
-  const bytes = base64UrlDecode(s);
+  const bytes = decodeBase64Url(s);
   if (bytes.length === 0) return 0n;
   let v = 0n;
   for (const b of bytes) v = (v << 8n) + BigInt(b);
@@ -94,7 +111,7 @@ export const decodeFieldElement = (s: string): bigint => {
 };
 
 export const encodeFieldElement = (v: bigint): string =>
-  base64UrlEncode(bigintToBytes(v));
+  encodeBase64Url(bigintToBytes(v));
 
 export const FieldCodec = z.codec(z.string(), z.bigint(), {
   decode: decodeFieldElement,
