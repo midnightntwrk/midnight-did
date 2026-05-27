@@ -1,7 +1,7 @@
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import {
   CurveType,
-  decodeFieldElement,
+  decodeBase64UrlBytes32,
   KeyType,
   PublicKeyJwk,
   Service,
@@ -35,8 +35,10 @@ const LedgerCurveTypeMap: Record<
   (typeof LedgerCurveType)[keyof typeof LedgerCurveType]
 > = {
   [CurveType.Ed25519]: LedgerCurveType.Ed25519,
+  [CurveType.X25519]: LedgerCurveType.X25519,
   [CurveType.Jubjub]: LedgerCurveType.Jubjub,
   [CurveType.P256]: LedgerCurveType.P256,
+  [CurveType.Secp256k1]: LedgerCurveType.Secp256k1,
 };
 
 const LedgerVerificationMethodTypeMap: Record<
@@ -70,31 +72,37 @@ const publicKeyJwkToLedger = (
 ): DIDContract.PublicKeyJwk => {
   const kty = LedgerKeyTypeMap[publicKeyJwk.kty];
   const crv = LedgerCurveTypeMap[publicKeyJwk.crv];
-  const x = decodeFieldElement(publicKeyJwk.x);
+  const x = decodeBase64UrlBytes32(publicKeyJwk.x, "publicKeyJwk.x");
   const y =
-    publicKeyJwk.y !== undefined ? decodeFieldElement(publicKeyJwk.y) : 0n;
+    publicKeyJwk.y !== undefined
+      ? decodeBase64UrlBytes32(publicKeyJwk.y, "publicKeyJwk.y")
+      : new Uint8Array(32);
 
   return { kty, crv, x, y };
 };
 
 const assertMidnightKeyProfile = (publicKeyJwk: PublicKeyJwk): void => {
   if (publicKeyJwk.kty === KeyType.OKP) {
-    if (publicKeyJwk.crv !== CurveType.Ed25519) {
-      throw new Error("OKP keys must use Ed25519");
+    if (
+      publicKeyJwk.crv !== CurveType.Ed25519 &&
+      publicKeyJwk.crv !== CurveType.X25519
+    ) {
+      throw new Error("OKP keys must use Ed25519 or X25519");
     }
     return;
   }
   if (publicKeyJwk.kty === KeyType.EC) {
     if (
       publicKeyJwk.crv !== CurveType.Jubjub &&
-      publicKeyJwk.crv !== CurveType.P256
+      publicKeyJwk.crv !== CurveType.P256 &&
+      publicKeyJwk.crv !== CurveType.Secp256k1
     ) {
-      throw new Error("EC keys must use Jubjub or P-256");
+      throw new Error("EC keys must use Jubjub, P-256, or secp256k1");
     }
     return;
   }
   throw new Error(
-    "Only OKP (Ed25519) and EC (Jubjub/P-256) keys are supported",
+    "Only OKP (Ed25519/X25519) and EC (Jubjub/P-256/secp256k1) keys are supported",
   );
 };
 

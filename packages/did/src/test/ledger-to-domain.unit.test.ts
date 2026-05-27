@@ -5,7 +5,7 @@ type ContractModule = typeof import("@midnight-ntwrk/midnight-did-contract");
 
 vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
   const DIDContractMock = {
-    CurveType: { Ed25519: 0, Jubjub: 1, P256: 2 },
+    CurveType: { Ed25519: 0, X25519: 1, Jubjub: 2, P256: 3, Secp256k1: 4 },
     KeyType: { EC: 0, RSA: 1, oct: 2, OKP: 3 },
     VerificationMethodType: { Undefined: 0, JsonWebKey: 1 },
     VerificationMethodRelation: {
@@ -51,6 +51,8 @@ function makeIterable<T>(items: T[]) {
 }
 
 describe("LedgerToDomain (unit, mocked managed runtime)", () => {
+  const bytes32 = (fill: number) => new Uint8Array(32).fill(fill);
+
   let stubLedger: any;
 
   beforeEach(() => {
@@ -64,8 +66,8 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
           publicKeyJwk: {
             kty: DIDContract.KeyType.OKP,
             crv: DIDContract.CurveType.Ed25519,
-            x: 1n,
-            y: 0n,
+            x: bytes32(1),
+            y: bytes32(0),
           },
         },
       ],
@@ -112,41 +114,101 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     };
   });
 
-  it("publicKeyJwk encodes bigint field elements as base64url", () => {
+  it("publicKeyJwk encodes 32-byte ledger key material as base64url", () => {
     const out = LedgerToDomain.publicKeyJwk({
       kty: DIDContract.KeyType.OKP,
       crv: DIDContract.CurveType.Ed25519,
-      x: 7n,
-      y: 0n,
+      x: bytes32(7),
+      y: bytes32(0),
     } as any);
     expect(out.kty).toBe("OKP");
     expect(out.crv).toBe("Ed25519");
-    expect(out.x).toBe("Bw");
+    expect(out.x).toBe("BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc");
     expect("y" in out).toBe(false);
+  });
+
+  it("publicKeyJwk pads compact-trimmed Bytes<32> ledger values", () => {
+    const out = LedgerToDomain.publicKeyJwk({
+      kty: DIDContract.KeyType.OKP,
+      crv: DIDContract.CurveType.Ed25519,
+      x: new Uint8Array(),
+      y: new Uint8Array(),
+    } as any);
+    expect(out.x).toBe("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    expect("y" in out).toBe(false);
+  });
+
+  it("publicKeyJwk right-pads compact-trimmed trailing zero bytes", () => {
+    const out = LedgerToDomain.publicKeyJwk({
+      kty: DIDContract.KeyType.OKP,
+      crv: DIDContract.CurveType.X25519,
+      x: new Uint8Array([4, 0, 0]),
+      y: new Uint8Array(),
+    } as any);
+    expect(out.x).toBe("BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    expect("y" in out).toBe(false);
+  });
+
+  it("publicKeyJwk rejects malformed ledger byte values", () => {
+    expect(() =>
+      LedgerToDomain.publicKeyJwk({
+        kty: DIDContract.KeyType.OKP,
+        crv: DIDContract.CurveType.Ed25519,
+        x: new Uint8Array(33),
+        y: new Uint8Array(),
+      } as any),
+    ).toThrow(/exceeds 32 bytes/);
+    expect(() =>
+      LedgerToDomain.publicKeyJwk({
+        kty: DIDContract.KeyType.OKP,
+        crv: DIDContract.CurveType.Ed25519,
+        x: { bytes: new Uint8Array() },
+        y: new Uint8Array(),
+      } as any),
+    ).toThrow(/unsupported runtime shape: Object/);
   });
 
   it("publicKeyJwk retains y for non-OKP keys", () => {
     const out = LedgerToDomain.publicKeyJwk({
       kty: DIDContract.KeyType.EC,
       crv: DIDContract.CurveType.Jubjub,
-      x: 5n,
-      y: 9n,
+      x: bytes32(5),
+      y: bytes32(9),
     } as any);
     expect(out.kty).toBe("EC");
     expect(out.crv).toBe("Jubjub");
-    expect(out.x).toBe("BQ");
-    expect(out.y).toBe("CQ");
+    expect(out.x).toBe("BQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU");
+    expect(out.y).toBe("CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk");
   });
 
   it("publicKeyJwk maps P-256 curve values", () => {
     const out = LedgerToDomain.publicKeyJwk({
       kty: DIDContract.KeyType.EC,
       crv: DIDContract.CurveType.P256,
-      x: 5n,
-      y: 9n,
+      x: bytes32(5),
+      y: bytes32(9),
     } as any);
     expect(out.kty).toBe("EC");
     expect(out.crv).toBe("P-256");
+  });
+
+  it("publicKeyJwk maps X25519 and secp256k1 curve values", () => {
+    expect(
+      LedgerToDomain.publicKeyJwk({
+        kty: DIDContract.KeyType.OKP,
+        crv: DIDContract.CurveType.X25519,
+        x: bytes32(6),
+        y: bytes32(0),
+      } as any).crv,
+    ).toBe("X25519");
+    expect(
+      LedgerToDomain.publicKeyJwk({
+        kty: DIDContract.KeyType.EC,
+        crv: DIDContract.CurveType.Secp256k1,
+        x: bytes32(6),
+        y: bytes32(7),
+      } as any).crv,
+    ).toBe("secp256k1");
   });
 
   it("service filters blank endpoints and preserves id/type", () => {
@@ -225,7 +287,9 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(json.operationCount).toBe(3);
     expect(Array.isArray(json.verificationMethods)).toBe(true);
     expect(json.verificationMethods[0].id).toBe("#key-1");
-    expect(json.verificationMethods[0].publicKeyJwk.x).toBe("AQ"); // 1n -> AQ
+    expect(json.verificationMethods[0].publicKeyJwk.x).toBe(
+      "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+    );
     expect(Array.isArray(json.authenticationRelation)).toBe(true);
     expect(json.authenticationRelation[0]).toBe("#key-1");
     expect(Array.isArray(json.services)).toBe(true);

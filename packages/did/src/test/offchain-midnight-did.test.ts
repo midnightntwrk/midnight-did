@@ -22,8 +22,8 @@ const state: OffchainMidnightDIDState = {
       publicKeyJwk: {
         kty: KeyType.EC,
         crv: CurveType.Jubjub,
-        x: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        y: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        x: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        y: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
       },
       relationships: {
         authentication: true,

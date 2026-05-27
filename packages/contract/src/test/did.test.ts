@@ -35,6 +35,9 @@ import { DIDSimulator } from "./did-simulator.js";
 
 setNetworkId("undeployed");
 
+const keyBytes = (seed: number): Uint8Array =>
+  new Uint8Array(Array.from({ length: 32 }, (_, i) => (seed + i) & 0xff));
+
 describe("DID smart contract", () => {
   it("properly initializes ledger state and private state", () => {
     const simulator = new DIDSimulator();
@@ -106,8 +109,8 @@ describe("DID smart contract", () => {
         publicKeyJwk: {
           kty: KeyType.OKP,
           crv: CurveType.Ed25519,
-          x: 12345n,
-          y: 67890n
+          x: keyBytes(12345),
+          y: keyBytes(67890)
         }
       });
 
@@ -122,8 +125,8 @@ describe("DID smart contract", () => {
       expect(vm.typ).toEqual(VerificationMethodType.JsonWebKey);
       expect(vm.publicKeyJwk.kty).toEqual(KeyType.OKP);
       expect(vm.publicKeyJwk.crv).toEqual(CurveType.Ed25519);
-      expect(vm.publicKeyJwk.x).toEqual(12345n);
-      expect(vm.publicKeyJwk.y).toEqual(67890n);
+      expect(vm.publicKeyJwk.x).toEqual(keyBytes(12345));
+      expect(vm.publicKeyJwk.y).toEqual(keyBytes(67890));
     });
 
     it("should reject non-JsonWebKey verification methods", () => {
@@ -134,8 +137,8 @@ describe("DID smart contract", () => {
           publicKeyJwk: {
             kty: KeyType.OKP,
             crv: CurveType.Ed25519,
-            x: 12345n,
-            y: 67890n
+            x: keyBytes(12345),
+            y: keyBytes(67890)
           }
         })
       ).toThrow();
@@ -149,8 +152,8 @@ describe("DID smart contract", () => {
           publicKeyJwk: {
             kty: KeyType.RSA,
             crv: CurveType.Ed25519,
-            x: 12345n,
-            y: 67890n
+            x: keyBytes(12345),
+            y: keyBytes(67890)
           }
         })
       ).toThrow();
@@ -164,8 +167,8 @@ describe("DID smart contract", () => {
           publicKeyJwk: {
             kty: KeyType.EC,
             crv: CurveType.Ed25519,
-            x: 12345n,
-            y: 67890n
+            x: keyBytes(12345),
+            y: keyBytes(67890)
           }
         })
       ).toThrow();
@@ -178,8 +181,8 @@ describe("DID smart contract", () => {
         publicKeyJwk: {
           kty: KeyType.EC,
           crv: CurveType.P256,
-          x: 12345n,
-          y: 67890n
+          x: keyBytes(12345),
+          y: keyBytes(67890)
         }
       });
 
@@ -187,6 +190,105 @@ describe("DID smart contract", () => {
       const vm = ledger.verificationMethods.lookup("#key-p256");
       expect(vm.publicKeyJwk.kty).toEqual(KeyType.EC);
       expect(vm.publicKeyJwk.crv).toEqual(CurveType.P256);
+    });
+
+    it("should add X25519 and secp256k1 verification methods", () => {
+      simulator.addVerificationMethod({
+        id: "#key-x25519",
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.X25519,
+          x: keyBytes(10),
+          y: keyBytes(0)
+        }
+      });
+      simulator.addVerificationMethod({
+        id: "#key-secp256k1",
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.EC,
+          crv: CurveType.Secp256k1,
+          x: keyBytes(20),
+          y: keyBytes(21)
+        }
+      });
+
+      expect(
+        simulator.getLedger().verificationMethods.lookup("#key-x25519")
+          .publicKeyJwk.crv
+      ).toEqual(CurveType.X25519);
+      expect(
+        simulator.getLedger().verificationMethods.lookup("#key-secp256k1")
+          .publicKeyJwk.crv
+      ).toEqual(CurveType.Secp256k1);
+    });
+
+    it("converts only Jubjub byte coordinates to field values", () => {
+      const oneLittleEndian = new Uint8Array(32);
+      oneLittleEndian[0] = 1;
+      const twoTo248LittleEndian = new Uint8Array(32);
+      twoTo248LittleEndian[31] = 1;
+
+      expect(
+        pureCircuits.publicKeyJwkToJubjubFields({
+          kty: KeyType.EC,
+          crv: CurveType.Jubjub,
+          x: new Uint8Array(32).fill(1),
+          y: new Uint8Array(32).fill(2)
+        })
+      ).toEqual([
+        BigInt(
+          "454086624460063511464984254936031011189294057512315937409637584344757371137"
+        ),
+        BigInt(
+          "908173248920127022929968509872062022378588115024631874819275168689514742274"
+        )
+      ]);
+      expect(
+        pureCircuits.publicKeyJwkToJubjubFields({
+          kty: KeyType.EC,
+          crv: CurveType.Jubjub,
+          x: oneLittleEndian,
+          y: twoTo248LittleEndian
+        })
+      ).toEqual([
+        1n,
+        BigInt(
+          "452312848583266388373324160190187140051835877600158453279131187530910662656"
+        )
+      ]);
+      expect(() =>
+        pureCircuits.publicKeyJwkToJubjubFields({
+          kty: KeyType.EC,
+          crv: CurveType.Jubjub,
+          x: new Uint8Array(32).fill(255),
+          y: new Uint8Array(32)
+        })
+      ).toThrow(/greater than the maximum value of a Field/);
+      expect(() =>
+        pureCircuits.publicKeyJwkToJubjubFields({
+          kty: KeyType.OKP,
+          crv: CurveType.Ed25519,
+          x: new Uint8Array(32),
+          y: new Uint8Array(32)
+        })
+      ).toThrow(/Jubjub keys must use EC/);
+    });
+
+    it("rejects Jubjub verification methods with coordinates above the Field maximum", () => {
+      expect(() =>
+        simulator.addVerificationMethod({
+          id: "#key-jubjub-overflow",
+          typ: VerificationMethodType.JsonWebKey,
+          publicKeyJwk: {
+            kty: KeyType.EC,
+            crv: CurveType.Jubjub,
+            x: new Uint8Array(32).fill(255),
+            y: new Uint8Array(32)
+          }
+        })
+      ).toThrow(/greater than the maximum value of a Field/);
     });
 
     it("should update a verification method", () => {
@@ -197,8 +299,8 @@ describe("DID smart contract", () => {
         publicKeyJwk: {
           kty: KeyType.OKP,
           crv: CurveType.Ed25519,
-          x: 111n,
-          y: 222n
+          x: keyBytes(111),
+          y: keyBytes(222)
         }
       });
 
@@ -209,15 +311,15 @@ describe("DID smart contract", () => {
         publicKeyJwk: {
           kty: KeyType.OKP,
           crv: CurveType.Ed25519,
-          x: 999n,
-          y: 888n
+          x: keyBytes(999),
+          y: keyBytes(888)
         }
       });
 
       const ledger = simulator.getLedger();
       const vm = ledger.verificationMethods.lookup("#key-1");
-      expect(vm.publicKeyJwk.x).toEqual(999n);
-      expect(vm.publicKeyJwk.y).toEqual(888n);
+      expect(vm.publicKeyJwk.x).toEqual(keyBytes(999));
+      expect(vm.publicKeyJwk.y).toEqual(keyBytes(888));
       expect(ledger.version).toEqual(2n);
       expect(ledger.operationCount).toEqual(2n);
     });
@@ -229,8 +331,8 @@ describe("DID smart contract", () => {
         publicKeyJwk: {
           kty: KeyType.OKP,
           crv: CurveType.Ed25519,
-          x: 111n,
-          y: 0n
+          x: keyBytes(111),
+          y: keyBytes(0)
         }
       });
 
@@ -240,8 +342,8 @@ describe("DID smart contract", () => {
         publicKeyJwk: {
           kty: KeyType.EC,
           crv: CurveType.P256,
-          x: 999n,
-          y: 888n
+          x: keyBytes(999),
+          y: keyBytes(888)
         }
       });
 
@@ -249,8 +351,8 @@ describe("DID smart contract", () => {
       const vm = ledger.verificationMethods.lookup("#key-update-p256");
       expect(vm.publicKeyJwk.kty).toEqual(KeyType.EC);
       expect(vm.publicKeyJwk.crv).toEqual(CurveType.P256);
-      expect(vm.publicKeyJwk.x).toEqual(999n);
-      expect(vm.publicKeyJwk.y).toEqual(888n);
+      expect(vm.publicKeyJwk.x).toEqual(keyBytes(999));
+      expect(vm.publicKeyJwk.y).toEqual(keyBytes(888));
     });
 
     it("should remove a verification method", () => {
@@ -261,8 +363,8 @@ describe("DID smart contract", () => {
         publicKeyJwk: {
           kty: KeyType.OKP,
           crv: CurveType.Ed25519,
-          x: 111n,
-          y: 222n
+          x: keyBytes(111),
+          y: keyBytes(222)
         }
       });
 
@@ -282,8 +384,8 @@ describe("DID smart contract", () => {
         publicKeyJwk: {
           kty: KeyType.OKP,
           crv: CurveType.Ed25519,
-          x: 333n,
-          y: 444n
+          x: keyBytes(333),
+          y: keyBytes(444)
         }
       });
       simulator.addVerificationMethodRelation(
@@ -304,8 +406,8 @@ describe("DID smart contract", () => {
         publicKeyJwk: {
           kty: KeyType.OKP,
           crv: CurveType.Ed25519,
-          x: 111n,
-          y: 222n
+          x: keyBytes(111),
+          y: keyBytes(222)
         }
       });
 
@@ -357,8 +459,8 @@ describe("DID smart contract", () => {
         publicKeyJwk: {
           kty: KeyType.OKP,
           crv: CurveType.Ed25519,
-          x: 111n,
-          y: 222n
+          x: keyBytes(111),
+          y: keyBytes(222)
         }
       });
     });
@@ -594,8 +696,8 @@ describe("DID smart contract", () => {
           publicKeyJwk: {
             kty: KeyType.OKP,
             crv: CurveType.Ed25519,
-            x: 111n,
-            y: 222n
+            x: keyBytes(111),
+            y: keyBytes(222)
           }
         });
       }).toThrow();
@@ -616,8 +718,8 @@ describe("DID smart contract", () => {
         publicKeyJwk: {
           kty: KeyType.OKP,
           crv: CurveType.Ed25519,
-          x: 111n,
-          y: 222n
+          x: keyBytes(111),
+          y: keyBytes(222)
         }
       });
       simulator.addVerificationMethodRelation(
@@ -648,8 +750,8 @@ describe("DID smart contract", () => {
         publicKeyJwk: {
           kty: KeyType.OKP,
           crv: CurveType.Ed25519,
-          x: 111n,
-          y: 222n
+          x: keyBytes(111),
+          y: keyBytes(222)
         }
       });
 

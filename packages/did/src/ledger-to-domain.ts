@@ -4,7 +4,7 @@ import {
   createVerificationMethod,
   CurveType,
   DIDDocumentMetadata,
-  encodeFieldElement,
+  encodeBase64Url,
   KeyType,
   normalizeServiceEndpoint,
   PublicKeyJwk,
@@ -31,6 +31,37 @@ const bytesToHex = (bytes: Iterable<number>): string => {
     hex += Number(byte).toString(16).padStart(2, "0");
   }
   return hex;
+};
+
+const padBytes32 = (value: Uint8Array): Uint8Array => {
+  if (value.length === 32) return value;
+  if (value.length > 32) {
+    throw new Error(`Ledger Bytes<32> value exceeds 32 bytes: ${value.length}`);
+  }
+  const padded = new Uint8Array(32);
+  padded.set(value, 0);
+  return padded;
+};
+
+const bytesFromLedger = (value: unknown): Uint8Array => {
+  // CompactTypeBytes.fromValue returns a byte view. Compact storage trims
+  // high-order zero bytes from little-endian Bytes<N>, so right-pad on read.
+  if (value instanceof Uint8Array) return padBytes32(value);
+  if (ArrayBuffer.isView(value)) {
+    const view = value as ArrayBufferView;
+    return padBytes32(
+      new Uint8Array(view.buffer, view.byteOffset, view.byteLength),
+    );
+  }
+  const shape =
+    value === null
+      ? "null"
+      : typeof value === "object"
+        ? (value.constructor?.name ?? "object")
+        : typeof value;
+  throw new Error(
+    `Ledger Bytes<32> value has an unsupported runtime shape: ${shape}`,
+  );
 };
 
 const LedgerCurveType = DIDContract.CurveType;
@@ -62,8 +93,10 @@ export class LedgerToDomain {
     CurveType
   > = {
     [LedgerCurveType.Ed25519]: CurveType.Ed25519,
+    [LedgerCurveType.X25519]: CurveType.X25519,
     [LedgerCurveType.Jubjub]: CurveType.Jubjub,
     [LedgerCurveType.P256]: CurveType.P256,
+    [LedgerCurveType.Secp256k1]: CurveType.Secp256k1,
   };
 
   private static readonly VerificationMethodTypeMap: Record<
@@ -96,13 +129,15 @@ export class LedgerToDomain {
   static publicKeyJwk(publicKeyJwk: LedgerPublicKeyJwk): PublicKeyJwk {
     const kty = this.KeyTypeMap[publicKeyJwk.kty];
     const crv = this.CurveTypeMap[publicKeyJwk.crv];
-    const x = encodeFieldElement(publicKeyJwk.x);
-    const y = encodeFieldElement(publicKeyJwk.y);
+    const xBytes = bytesFromLedger(publicKeyJwk.x);
+    const yBytes = bytesFromLedger(publicKeyJwk.y);
+    const x = encodeBase64Url(xBytes);
+    const y = encodeBase64Url(yBytes);
 
     if (
       kty === KeyType.OKP &&
-      crv === CurveType.Ed25519 &&
-      publicKeyJwk.y === 0n
+      (crv === CurveType.Ed25519 || crv === CurveType.X25519) &&
+      yBytes.every((byte) => byte === 0)
     )
       return { kty, crv, x } as PublicKeyJwk;
 
