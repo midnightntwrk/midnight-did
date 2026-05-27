@@ -11,21 +11,34 @@ export const exampleMethodId = `${exampleDid}#key-1`;
 export const exampleJsonWebKey = {
   kty: KeyType.OKP,
   crv: CurveType.Ed25519,
-  x: "AA",
+  x: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
 } as const;
 
 export const exampleEcJsonWebKey = {
   kty: KeyType.EC,
   crv: CurveType.Jubjub,
-  x: "AA",
-  y: "AQ",
+  x: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  y: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
 } as const;
 
 export const exampleP256JsonWebKey = {
   kty: KeyType.EC,
   crv: CurveType.P256,
-  x: "AQ",
-  y: "Ag",
+  x: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+  y: "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+} as const;
+
+export const exampleX25519JsonWebKey = {
+  kty: KeyType.OKP,
+  crv: CurveType.X25519,
+  x: "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM",
+} as const;
+
+export const exampleSecp256k1JsonWebKey = {
+  kty: KeyType.EC,
+  crv: CurveType.Secp256k1,
+  x: "BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ",
+  y: "BQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU",
 } as const;
 
 export const exampleVerificationMethodInput = {

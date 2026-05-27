@@ -20,8 +20,8 @@ const sampleState: OffchainMidnightDIDState = {
       publicKeyJwk: {
         kty: KeyType.EC,
         crv: CurveType.Jubjub,
-        x: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        y: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        x: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        y: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
       },
       relationships: {
         authentication: true,
@@ -175,51 +175,86 @@ describe("offchain Midnight DID helpers", () => {
     expect(parseDIDDocument(doc).id).toBe(did);
   });
 
-  it("round-trips Ed25519 and P-256 verification methods", () => {
-    const stateWithMultipleKeys: OffchainMidnightDIDState = {
-      version: 1,
-      alsoKnownAs: [],
-      verificationMethod: [
-        ...sampleState.verificationMethod,
-        {
-          id: "#ed25519-1",
-          publicKeyJwk: {
-            kty: KeyType.OKP,
-            crv: CurveType.Ed25519,
-            x: "ccccccccccccccccccccccccccccccccccccccccccc",
-          },
-          relationships: {
-            authentication: true,
-            assertionMethod: false,
-            keyAgreement: false,
-            capabilityInvocation: false,
-            capabilityDelegation: false,
-          },
-        },
-        {
-          id: "#p256-1",
-          publicKeyJwk: {
-            kty: KeyType.EC,
-            crv: CurveType.P256,
-            x: "ddddddddddddddddddddddddddddddddddddddddddd",
-            y: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-          },
-          relationships: {
-            authentication: false,
-            assertionMethod: true,
-            keyAgreement: true,
-            capabilityInvocation: false,
-            capabilityDelegation: false,
-          },
-        },
-      ],
-      service: [],
+  it("round-trips Ed25519, P-256, X25519, and secp256k1 verification methods", () => {
+    const ed25519 = {
+      id: "#ed25519-1",
+      publicKeyJwk: {
+        kty: KeyType.OKP,
+        crv: CurveType.Ed25519,
+        x: "ccccccccccccccccccccccccccccccccccccccccccc",
+      },
+      relationships: {
+        authentication: true,
+        assertionMethod: false,
+        keyAgreement: false,
+        capabilityInvocation: false,
+        capabilityDelegation: false,
+      },
+    };
+    const p256 = {
+      id: "#p256-1",
+      publicKeyJwk: {
+        kty: KeyType.EC,
+        crv: CurveType.P256,
+        x: "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+        y: "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM",
+      },
+      relationships: {
+        authentication: false,
+        assertionMethod: true,
+        keyAgreement: true,
+        capabilityInvocation: false,
+        capabilityDelegation: false,
+      },
+    };
+    const x25519 = {
+      id: "#x25519-1",
+      publicKeyJwk: {
+        kty: KeyType.OKP,
+        crv: CurveType.X25519,
+        x: "BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ",
+      },
+      relationships: {
+        authentication: false,
+        assertionMethod: false,
+        keyAgreement: true,
+        capabilityInvocation: false,
+        capabilityDelegation: false,
+      },
+    };
+    const secp256k1 = {
+      id: "#secp256k1-1",
+      publicKeyJwk: {
+        kty: KeyType.EC,
+        crv: CurveType.Secp256k1,
+        x: "ggggggggggggggggggggggggggggggggggggggggggg",
+        y: "BQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU",
+      },
+      relationships: {
+        authentication: true,
+        assertionMethod: false,
+        keyAgreement: false,
+        capabilityInvocation: false,
+        capabilityDelegation: false,
+      },
     };
 
-    const encoded = encodeOffchainMidnightDIDState(stateWithMultipleKeys);
-    expect(decodeOffchainMidnightDIDState(encoded)).toEqual(
-      stateWithMultipleKeys,
-    );
+    for (const verificationMethod of [
+      [...sampleState.verificationMethod, ed25519, p256, x25519],
+      [...sampleState.verificationMethod, ed25519, p256, secp256k1],
+    ]) {
+      const stateWithMultipleKeys: OffchainMidnightDIDState = {
+        version: 1,
+        alsoKnownAs: [],
+        verificationMethod,
+        service: [],
+      };
+
+      const encoded = encodeOffchainMidnightDIDState(stateWithMultipleKeys);
+      expect(decodeOffchainMidnightDIDState(encoded)).toEqual(
+        stateWithMultipleKeys,
+      );
+    }
   });
 
   it("rejects malformed encoded state payloads", () => {

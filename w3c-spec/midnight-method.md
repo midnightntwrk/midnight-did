@@ -222,10 +222,10 @@ The value of the `publicKeyJwk` field conforms to the [RFC7517] JSON Web Key (JW
 
 - `kty` - key type
 - `crv` - curve
-- `x` - base64url encoded x point on the curve
-- `y` - base64url encoded y point on the curve
+- `x` - canonical unpadded base64url-encoded 32-byte public key material or x coordinate
+- `y` - canonical unpadded base64url-encoded 32-byte y coordinate when required by the key type
 
-The Midnight DID supports the following cryptographic algorithms: Ed25519, Jubjub (Midnight compatible), and P-256. Based on the cryptography suite, the values of the properties are as follows:
+The Midnight DID supports the following cryptographic algorithms: Ed25519, X25519, Jubjub (Midnight compatible), P-256, and secp256k1. Based on the cryptography suite, the values of the properties are as follows:
 
 #### 3.4.4.1 Ed25519
 Uses EdDSA over Ed25519 for signatures.
@@ -237,20 +237,43 @@ Keys are represented as JWK in compressed format with:
 
 #### 3.4.4.2 Jubjub (Midnight compatible)
 Uses EdDSA over Jubjub for signatures inside Midnight's ZK context (smart contract and Midnight JS library).
-Keys are represented as JWK in uncompressed format with:
+Keys are represented as JWK in uncompressed format with 32-byte little-endian field-element encodings:
 
 - `kty`=`EC`, 
 - `crv`=`Jubjub`, 
 - `x`, and
 - `y` parameters.
 
-#### 3.4.4.3 P-256
+Jubjub is the only public key profile that Midnight DID circuits currently project from byte storage into `Field` values for in-contract verification. This projection uses Compact's `Bytes<32> as Field` cast, interpreting the byte string as little-endian and rejecting values above the Compact `Field` maximum. Ledger update circuits MUST reject Jubjub verification methods whose `x` or `y` byte strings do not fit into `Field`.
+
+#### 3.4.4.3 X25519
+Uses X25519 keys for key agreement. Keys are represented as JWK with:
+
+- `kty`=`OKP`,
+- `crv`=`X25519`, and
+- `x` parameter.
+
+X25519 keys are stored and resolved as DID Document key material; they are not used by current Midnight DID smart-contract verification circuits.
+
+#### 3.4.4.4 P-256
 Uses NIST P-256 keys represented as JWK with:
 
 - `kty`=`EC`,
 - `crv`=`P-256`,
 - `x`, and
 - `y` parameters.
+
+P-256 keys are stored and resolved as DID Document key material; they are not used by current Midnight DID smart-contract verification circuits.
+
+#### 3.4.4.5 secp256k1
+Uses secp256k1 keys represented as JWK with:
+
+- `kty`=`EC`,
+- `crv`=`secp256k1`,
+- `x`, and
+- `y` parameters.
+
+secp256k1 keys are stored and resolved as DID Document key material; they are not used by current Midnight DID smart-contract verification circuits.
 
 ## 3.5. Verification Relationships
 
@@ -557,7 +580,7 @@ Adds a new verification method entry and (optionally, in a subsequent operation)
   - `id` MUST be either a DID URL bound to this DID (for example, `did:midnight:<network>:<addr>#key-1`) or a relative identifier that resolves against the DID (for example, `#key-1`). On-ledger, Midnight canonicalizes to fragment form (`#key-1`) for storage. Resolver output emits the absolute DID URL form.
   - `controller` MUST equal the DID subject.
   - `type` MUST be `JsonWebKey`.
-  - `publicKeyJwk` MUST follow the JWK profiles defined in [section 3.4.4](#344-publickeyjwk) (Ed25519, Jubjub, or P-256).
+  - `publicKeyJwk` MUST follow the JWK profiles defined in [section 3.4.4](#344-publickeyjwk) (Ed25519, X25519, Jubjub, P-256, or secp256k1).
   - Adding a method with an existing `id` MUST fail.
 
 Example (Ed25519):
@@ -569,15 +592,16 @@ await addVerificationMethod(didContract, {
   publicKeyJwk: {
     kty: 'OKP',
     crv: 'Ed25519',
-    x: 'Kg'
+    x: 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE'
   }
 });
 ```
 
 Ledger normalization note:
 - The API maps `type` to the contract field `typ`.
-- `publicKeyJwk.x` / `publicKeyJwk.y` are encoded to ledger `Field` values.
-- For Ed25519 (`OKP`), `y` is omitted at API level and normalized to `0` in ledger storage.
+- `publicKeyJwk.x` / `publicKeyJwk.y` are decoded to ledger `Bytes<32>` values.
+- For OKP keys (`Ed25519`, `X25519`), `y` is omitted at API level and normalized to 32 zero bytes in ledger storage.
+- Only Jubjub keys may be converted from `Bytes<32>` to `Field` values inside Midnight DID circuits; the conversion uses Compact's little-endian `Bytes<32> as Field` cast and rejects byte strings above the `Field` maximum.
 
 ### 7.3.2 Update Verification Method
 
