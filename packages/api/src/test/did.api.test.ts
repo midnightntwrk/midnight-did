@@ -212,7 +212,7 @@ describeApi("Midnight DID method API", () => {
     const publicKeyJwk = {
       kty: KeyType.OKP,
       crv: CurveType.Ed25519,
-      x: "Kg",
+      x: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
     };
     const verificationMethod = createVerificationMethod({
       id: methodId,
@@ -240,8 +240,8 @@ describeApi("Midnight DID method API", () => {
     const publicKeyJwk = {
       kty: KeyType.EC,
       crv: CurveType.Jubjub,
-      x: "Kg",
-      y: "VA",
+      x: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      y: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
     };
     const verificationMethod = createVerificationMethod({
       id: methodId,
@@ -264,8 +264,8 @@ describeApi("Midnight DID method API", () => {
     const publicKeyJwk = {
       kty: KeyType.EC,
       crv: CurveType.P256,
-      x: "Kg",
-      y: "VA",
+      x: "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+      y: "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM",
     };
     const verificationMethod = createVerificationMethod({
       id: methodId,
@@ -280,6 +280,45 @@ describeApi("Midnight DID method API", () => {
       (vm) => hasSameMethodFragment(vm.id, methodId),
     );
     expect(insertedVerificationMethod?.publicKeyJwk).toEqual(publicKeyJwk);
+  });
+
+  it("should add X25519 and secp256k1 verification methods as byte-native storage keys", async () => {
+    const x25519 = createVerificationMethod({
+      id: `${didString}#key-x25519`,
+      type: VerificationMethodType.JsonWebKey,
+      controller: didString,
+      publicKeyJwk: {
+        kty: KeyType.OKP,
+        crv: CurveType.X25519,
+        x: "BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ",
+      },
+    });
+    const secp256k1 = createVerificationMethod({
+      id: `${didString}#key-secp256k1`,
+      type: VerificationMethodType.JsonWebKey,
+      controller: didString,
+      publicKeyJwk: {
+        kty: KeyType.EC,
+        crv: CurveType.Secp256k1,
+        x: "BQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU",
+        y: "BgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgY",
+      },
+    });
+
+    await api.addVerificationMethod(contract, x25519);
+    await api.addVerificationMethod(contract, secp256k1);
+
+    const didDocument = await resolveDocument();
+    expect(
+      didDocument?.verificationMethod?.find((vm) =>
+        hasSameMethodFragment(vm.id, x25519.id),
+      )?.publicKeyJwk,
+    ).toEqual(x25519.publicKeyJwk);
+    expect(
+      didDocument?.verificationMethod?.find((vm) =>
+        hasSameMethodFragment(vm.id, secp256k1.id),
+      )?.publicKeyJwk,
+    ).toEqual(secp256k1.publicKeyJwk);
   });
 
   it("should add the verification relation", async () => {
@@ -321,7 +360,7 @@ describeApi("Midnight DID method API", () => {
       publicKeyJwk: {
         kty: KeyType.OKP,
         crv: CurveType.Ed25519,
-        x: "Kg",
+        x: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
       },
     });
     await api.addVerificationMethod(contract, verificationMethod);

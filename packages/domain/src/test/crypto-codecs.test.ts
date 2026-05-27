@@ -2,7 +2,7 @@ import * as base64js from "base64-js";
 import { describe, expect, it } from "vitest";
 import { z } from "zod/v4-mini";
 
-import { FieldCodec } from "../crypto-codecs.js";
+import { decodeBase64UrlBytes32, FieldCodec } from "../crypto-codecs.js";
 
 describe("FieldCodec (domain)", () => {
   const roundtrip = (v: bigint) => {
@@ -83,5 +83,16 @@ describe("FieldCodec (domain)", () => {
       const libraryBytes = base64js.toByteArray(toBase64(ours));
       expect(fromBytes(libraryBytes)).toBe(value);
     }
+  });
+});
+
+describe("decodeBase64UrlBytes32", () => {
+  it("rejects non-canonical aliases with non-zero base64 pad bits", () => {
+    expect(() =>
+      decodeBase64UrlBytes32(
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB",
+        "publicKeyJwk.x",
+      ),
+    ).toThrow(/canonical unpadded base64url/);
   });
 });

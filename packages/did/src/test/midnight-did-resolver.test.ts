@@ -4,7 +4,7 @@ type ContractModule = typeof import("@midnight-ntwrk/midnight-did-contract");
 
 vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
   const DIDContractMock = {
-    CurveType: { Ed25519: 0, Jubjub: 1, P256: 2 },
+    CurveType: { Ed25519: 0, X25519: 1, Jubjub: 2, P256: 3, Secp256k1: 4 },
     KeyType: { EC: 0, RSA: 1, oct: 2, OKP: 3 },
     VerificationMethodType: { Undefined: 0, JsonWebKey: 1 },
     VerificationMethodRelation: {
@@ -66,8 +66,8 @@ describe("MidnightDIDResolver", () => {
             publicKeyJwk: {
               kty: 3,
               crv: 0,
-              x: 1n,
-              y: 0n,
+              x: new Uint8Array(32).fill(1),
+              y: new Uint8Array(32),
             },
           },
         ],

@@ -26,7 +26,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | Trait | Status | Notes |
 | --- | --- | --- |
 | Key rotation / revocation | ✔ | `Add/Update/RemoveVerificationMethod` + relation ops. |
-| Key type diversity | △ | Restricted to JWK ([RFC7517]) (OKP/Ed25519, EC/Jubjub, EC/P-256). |
+| Key type diversity | △ | Restricted to JWK ([RFC7517]) (OKP/Ed25519/X25519, EC/Jubjub/P-256/secp256k1). |
 | Multi-controller keys | ✖ | Controller must equal DID subject (single-controller model). |
 | Relative key IDs | ✔ | Fragment identifiers supported (`#key-1`). |
 

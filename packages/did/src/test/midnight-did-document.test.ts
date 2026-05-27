@@ -35,8 +35,8 @@ const exampleJubJubVerificationMethod = createVerificationMethod({
   publicKeyJwk: {
     kty: KeyType.EC,
     crv: CurveType.Jubjub,
-    x: "Kg",
-    y: "VA",
+    x: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    y: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
   },
 });
 

@@ -13,7 +13,6 @@ import {
   createService,
   createVerificationMethod,
   CurveType,
-  encodeFieldElement,
   KeyType,
   VerificationMethodRelationType,
   VerificationMethodType,
@@ -52,7 +51,7 @@ try {
       kty: KeyType.OKP,
       crv: CurveType.Ed25519,
       // Example-only placeholder key material. Use a real holder/issuer key in applications.
-      x: encodeFieldElement(1n),
+      x: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
     },
   });
 

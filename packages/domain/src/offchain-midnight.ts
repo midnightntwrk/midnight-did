@@ -135,9 +135,13 @@ export type ParsedLongFormOffchainMidnightDID = {
 };
 
 enum OffchainKeyKind {
+  // Offchain state tags are independent from ledger CurveType integer tags and
+  // append new profiles to keep the portable offchain wire format stable.
   Jubjub = 1,
   Ed25519 = 2,
   P256 = 3,
+  X25519 = 4,
+  Secp256k1 = 5,
 }
 
 type EncodedOffchainVerificationMethod = {
@@ -300,8 +304,14 @@ const keyKindFromJwk = (jwk: PublicKeyJwk): number => {
   if (jwk.kty === KeyType.OKP && jwk.crv === CurveType.Ed25519) {
     return OffchainKeyKind.Ed25519;
   }
+  if (jwk.kty === KeyType.OKP && jwk.crv === CurveType.X25519) {
+    return OffchainKeyKind.X25519;
+  }
   if (jwk.kty === KeyType.EC && jwk.crv === CurveType.P256) {
     return OffchainKeyKind.P256;
+  }
+  if (jwk.kty === KeyType.EC && jwk.crv === CurveType.Secp256k1) {
+    return OffchainKeyKind.Secp256k1;
   }
   throw new Error(
     `Unsupported offchain Midnight DID key type ${jwk.kty}/${jwk.crv}`,
@@ -329,10 +339,25 @@ const jwkFromKeyKind = (
       y,
     });
   }
+  if (keyKind === OffchainKeyKind.Secp256k1) {
+    return PublicKeyJwkSchema.parse({
+      kty: KeyType.EC,
+      crv: CurveType.Secp256k1,
+      x,
+      y,
+    });
+  }
   if (keyKind === OffchainKeyKind.Ed25519) {
     return PublicKeyJwkSchema.parse({
       kty: KeyType.OKP,
       crv: CurveType.Ed25519,
+      x,
+    });
+  }
+  if (keyKind === OffchainKeyKind.X25519) {
+    return PublicKeyJwkSchema.parse({
+      kty: KeyType.OKP,
+      crv: CurveType.X25519,
       x,
     });
   }
