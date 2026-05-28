@@ -113,6 +113,13 @@ export const removeSchnorrJubjubVerificationMethod = async (
   return result.public;
 };
 
+/**
+ * Submits the ledger-bound SchnorrJubjub verification circuit.
+ *
+ * This is a transaction-backed proof rather than an off-chain verifier so the
+ * proof is tied to the current DID ledger state while the digest and signature
+ * remain private circuit inputs.
+ */
 export const verifySchnorrJubjubDigestSignature = async (
   didContract: DeployedMidnightDIDContract,
   methodId: string,

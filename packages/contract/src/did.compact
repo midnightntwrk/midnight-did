@@ -302,6 +302,8 @@ export circuit removeSchnorrJubjubVerificationMethod(id: Opaque<"string">): [] {
   recordUpdate();
 }
 
+// Intentionally non-mutating but exported as a transaction circuit: it proves a
+// private digest/signature against the current ledger-bound verification method.
 export circuit verifySchnorrJubjubDigestSignature(
   methodId: Opaque<"string">,
   digest: Vector<4, Field>,
