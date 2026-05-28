@@ -46,7 +46,8 @@
     "check:source-imports": "node scripts/check-source-imports.mjs",
     "test:source-imports": "node scripts/check-source-imports.test.mjs",
     "check:engine-agnostic-imports": "node scripts/check-engine-agnostic-imports.mjs",
-    "test:engine-agnostic-imports": "node scripts/check-engine-agnostic-imports.test.mjs"
+    "test:engine-agnostic-imports": "node scripts/check-engine-agnostic-imports.test.mjs",
+    "packages-smoke-tests": "pnpm run build:all && node scripts/packages-smoke-tests.mjs"
   },
   "private": true,
   "packageManager": "pnpm@10.23.0",
@@ -76,6 +77,7 @@
     "turbo": "^2.5.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3",
+    "vite": "^7.3.3",
     "vitest": "^3.2.0"
   },
   "dependencies": {

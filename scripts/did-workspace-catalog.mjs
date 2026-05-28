@@ -20,7 +20,7 @@ export const workspaceCatalog = [
         "tsconfig.json",
         "tsconfig.build.json",
       ],
-      exports: ["."],
+      exports: [".", "./browser"],
     },
   },
   {

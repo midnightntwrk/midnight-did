@@ -95,7 +95,7 @@ const packageFixtures = {
       "tsconfig.json",
       "tsconfig.build.json",
     ],
-    exports: ["."],
+    exports: [".", "./browser"],
   }),
   "packages/domain": distPackage({
     name: "@midnight-ntwrk/midnight-did-domain",
