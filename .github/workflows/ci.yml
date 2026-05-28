@@ -57,6 +57,9 @@ jobs:
       - name: Run core workflow
         run: ./run.sh core --strict
 
+      - name: Run package smoke tests
+        run: pnpm run packages-smoke-tests
+
   api:
     name: API pipeline
     runs-on: ubuntu-latest

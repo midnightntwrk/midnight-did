@@ -11,6 +11,12 @@ const defaultSourceRoots = [
   "packages/contract/src",
   "packages/domain/src",
   "packages/did/src",
+  "packages/api/src/browser.ts",
+  "packages/api/src/domain-to-runtime.ts",
+  "packages/api/src/lightweight.ts",
+  "packages/api/src/network-mapping.ts",
+  "packages/api/src/runtime-to-domain.ts",
+  "packages/api/src/seed.ts",
 ];
 const sourceRoots =
   process.argv.slice(2).length > 0 ? process.argv.slice(2) : defaultSourceRoots;
@@ -40,10 +46,25 @@ const walk = (dir) => {
 const resolveSourceRoot = (sourceRoot) =>
   path.isAbsolute(sourceRoot) ? sourceRoot : path.join(repoRoot, sourceRoot);
 
+const collectSourceFiles = (sourceRoot) => {
+  if (!fs.existsSync(sourceRoot)) {
+    return [];
+  }
+
+  const stat = fs.statSync(sourceRoot);
+  if (stat.isFile()) {
+    return sourceRoot.endsWith(".ts") ? [sourceRoot] : [];
+  }
+  if (stat.isDirectory()) {
+    return walk(sourceRoot);
+  }
+  return [];
+};
+
 const violations = [];
 
 for (const sourceRoot of sourceRoots) {
-  for (const file of walk(resolveSourceRoot(sourceRoot))) {
+  for (const file of collectSourceFiles(resolveSourceRoot(sourceRoot))) {
     const text = fs.readFileSync(file, "utf8");
     const relativeFile = path.relative(repoRoot, file);
 

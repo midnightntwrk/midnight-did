@@ -147,10 +147,16 @@ The workspace manifest guard keeps package distribution metadata aligned:
 ```bash
 pnpm run test:workspace-manifests
 pnpm run check:workspace-manifests
+pnpm run packages-smoke-tests
 ```
 
 It validates the root workspace list, package names, export maps, tarball
 `files`, and README ownership for the DID-owned packages.
+
+The package smoke suite builds the publishable packages, imports every package
+entry point in Node.js, and bundles the browser-safe API entry point with Vite.
+CI runs it in the core lane to catch export-map drift and browser-incompatible
+imports before downstream WebView integrations hit them.
 
 The integration report checks the sibling
 `../midnight-verifiable-credentials` checkout for file-based DID package

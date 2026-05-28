@@ -13,8 +13,8 @@ const repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
 const fixtureRoot = mkdtempSync(path.join(tmpdir(), "did-engine-imports-"));
 const scriptPath = path.join(repoRoot, "scripts/check-engine-agnostic-imports.mjs");
 
-const runCheck = () =>
-  spawnSync(process.execPath, [scriptPath, fixtureRoot], {
+const runCheck = (...sourceRoots) =>
+  spawnSync(process.execPath, [scriptPath, ...sourceRoots], {
     cwd: repoRoot,
     encoding: "utf8",
   });
@@ -41,9 +41,20 @@ try {
     'import { strict as assert } from "node:assert";\nexport { assert };\n',
   );
 
-  const pass = runCheck();
+  const pass = runCheck(fixtureRoot);
   if (pass.status !== 0) {
     throw new Error(`expected valid fixture to pass:\n${formatResult(pass)}`);
+  }
+
+  writeFileSync(
+    path.join(fixtureRoot, "file-root-pass.ts"),
+    'export const value = "browser-safe";\n',
+  );
+  const fileRootPass = runCheck(path.join(fixtureRoot, "file-root-pass.ts"));
+  if (fileRootPass.status !== 0) {
+    throw new Error(
+      `expected valid file root to pass:\n${formatResult(fileRootPass)}`,
+    );
   }
 
   writeFileSync(
@@ -56,7 +67,7 @@ try {
     ].join("\n"),
   );
 
-  const fail = runCheck();
+  const fail = runCheck(fixtureRoot);
   if (fail.status === 0) {
     throw new Error("expected static node import fixture to fail");
   }
