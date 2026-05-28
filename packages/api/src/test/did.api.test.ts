@@ -298,6 +298,29 @@ describeApi("Midnight DID method API", () => {
     expect(didLedger?.services.isEmpty()).toBe(true);
   });
 
+  it("should rotate the controller key and keep subsequent updates authorized", async () => {
+    const beforeRotation = await api.getMidnightDIDLedgerState(
+      providers,
+      contractAddress,
+    );
+
+    await expect(
+      api.rotateControllerKey(contract, providers),
+    ).resolves.toBeDefined();
+
+    const afterRotation = await api.getMidnightDIDLedgerState(
+      providers,
+      contractAddress,
+    );
+    expect(Array.from(afterRotation!.controllerPublicKey)).not.toEqual(
+      Array.from(beforeRotation!.controllerPublicKey),
+    );
+
+    const alias = "did:example:rotated-controller";
+    await api.addAlsoKnownAs(contract, alias);
+    await api.removeAlsoKnownAs(contract, alias);
+  });
+
   it("should resolve the DID Document including a reference to the DID Core 1.0 specification in the `@context` property", async () => {
     const resolution = await api.resolve(providers, contract);
     expect(resolution).not.toBeNull();

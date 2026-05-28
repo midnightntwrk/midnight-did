@@ -1,3 +1,4 @@
+import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import { Service } from "@midnight-ntwrk/midnight-did-domain";
 import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
 
@@ -11,7 +12,7 @@ export const addService = async (
 ): Promise<FinalizedTxData> => {
   const result = await didContract.callTx.setService(
     serviceToLedger(didContract, service),
-    false,
+    DIDContract.MapMutation.Insert,
   );
   return result.public;
 };
@@ -22,7 +23,7 @@ export const updateService = async (
 ): Promise<FinalizedTxData> => {
   const result = await didContract.callTx.setService(
     serviceToLedger(didContract, service),
-    true,
+    DIDContract.MapMutation.Update,
   );
   return result.public;
 };

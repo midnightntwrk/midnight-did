@@ -1,3 +1,4 @@
+import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import {
   VerificationMethod,
   VerificationMethodRelationType,
@@ -30,7 +31,7 @@ export const addVerificationMethod = async (
 ): Promise<FinalizedTxData> => {
   const result = await didContract.callTx.setVerificationMethod(
     verificationMethodToLedger(didContract, verificationMethod),
-    false,
+    DIDContract.MapMutation.Insert,
   );
   return result.public;
 };
@@ -41,7 +42,7 @@ export const updateVerificationMethod = async (
 ): Promise<FinalizedTxData> => {
   const result = await didContract.callTx.setVerificationMethod(
     verificationMethodToLedger(didContract, verificationMethod),
-    true,
+    DIDContract.MapMutation.Update,
   );
   return result.public;
 };
@@ -73,7 +74,7 @@ export const addSchnorrJubjubVerificationMethod = async (
 ): Promise<FinalizedTxData> => {
   const result = await didContract.callTx.setSchnorrJubjubVerificationMethod(
     schnorrJubjubVerificationMethodToLedger(didContract, verificationMethod),
-    false,
+    DIDContract.MapMutation.Insert,
   );
   return result.public;
 };
@@ -84,7 +85,7 @@ export const updateSchnorrJubjubVerificationMethod = async (
 ): Promise<FinalizedTxData> => {
   const result = await didContract.callTx.setSchnorrJubjubVerificationMethod(
     schnorrJubjubVerificationMethodToLedger(didContract, verificationMethod),
-    true,
+    DIDContract.MapMutation.Update,
   );
   return result.public;
 };
@@ -154,7 +155,7 @@ export const addVerificationMethodRelation = async (
   const result = await didContract.callTx.setVerificationMethodRelation(
     LedgerVerificationMethodRelationMap[relation],
     normalizedMethodId,
-    true,
+    DIDContract.SetMutation.Insert,
   );
   return result.public;
 };
@@ -182,7 +183,7 @@ export const removeVerificationMethodRelation = async (
   const result = await didContract.callTx.setVerificationMethodRelation(
     LedgerVerificationMethodRelationMap[relation],
     normalizedMethodId,
-    false,
+    DIDContract.SetMutation.Remove,
   );
   return result.public;
 };

@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add X25519 and secp256k1 verification method key profiles for canonical
   opaque JWK Midnight DID public key storage.
+- Add controller key rotation with SDK-local controller public key derivation
+  and wallet-persisted random controller secrets.
 - Add DID surface-change discipline documentation and an automated guard for
   package exports, artifact packaging, workflow branch targeting, and PR review
   checklist drift.
@@ -32,6 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - BREAKING: Reassign ledger `CurveType` integer tags while defining the
   prototype key profile set: `Jubjub` moves from `1` to `2`, `P256` from `2` to
   `3`, with `X25519=1` and `Secp256k1=4`.
+- BREAKING: Replace boolean Compact mutation flags with explicit
+  `MapMutation.Insert` / `MapMutation.Update` and
+  `SetMutation.Insert` / `SetMutation.Remove` enum values.
+- Generate DID controller private state from wallet randomness instead of
+  deriving it from a circuit prover key.
 - BREAKING: Define the prototype offchain Midnight DID portable form as
   `did:midnight:offchain:<persistent-hash-of-state>:<encoded-state>`,
   replacing the earlier `?state=` DID URL helper surface.

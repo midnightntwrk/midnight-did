@@ -70,10 +70,42 @@ describe("DID smart contract", () => {
     const initialPrivateState = simulator.getPrivateState();
     expect(initialPrivateState.secretKey).toBeInstanceOf(Uint8Array);
     expect(initialPrivateState.secretKey.length).toEqual(32);
+    expect(initialLedgerState.controllerPublicKey).toEqual(
+      ContractExports.deriveControllerPublicKey(initialPrivateState.secretKey)
+    );
   });
 
   it("re-exports the managed contract bundle", () => {
     expect(ContractExports.DIDContract).toBeDefined();
+  });
+
+  it("rotates the controller key to a locally derived public key", () => {
+    const simulator = new DIDSimulator();
+    const oldSecretKey = simulator.getPrivateState().secretKey;
+    const newSecretKey = keyBytes(99);
+    const newControllerPublicKey =
+      ContractExports.deriveControllerPublicKey(newSecretKey);
+
+    expect(newControllerPublicKey).not.toEqual(
+      ContractExports.deriveControllerPublicKey(oldSecretKey)
+    );
+
+    simulator.rotateControllerPublicKey(newControllerPublicKey);
+    expect(simulator.getLedger().controllerPublicKey).toEqual(
+      newControllerPublicKey
+    );
+    expect(simulator.getLedger().version).toEqual(1n);
+
+    expect(() => simulator.addAlsoKnownAs("did:example:old-secret")).toThrow(
+      /DID controller/
+    );
+
+    simulator.setPrivateState({ secretKey: newSecretKey });
+    simulator.addAlsoKnownAs("did:example:new-secret");
+    expect(
+      simulator.getLedger().alsoKnownAs.member("did:example:new-secret")
+    ).toEqual(true);
+    expect(simulator.getLedger().version).toEqual(2n);
   });
 
   describe("Verification Methods", () => {

@@ -59,6 +59,18 @@ export enum VerificationMethodRelation {
   CapabilityDelegation
 }
 
+export enum MapMutation {
+  Undefined,
+  Insert,
+  Update
+}
+
+export enum SetMutation {
+  Undefined,
+  Insert,
+  Remove
+}
+
 export enum KeyType {
   EC, RSA, oct, OKP
 }
@@ -112,6 +124,14 @@ circuit recordUpdate(): [] {
   operationCount.increment(1);
   version.increment(1);
   updated = disclose(currentTimestamp());
+}
+
+circuit assertMapMutationDefined(mutation: MapMutation): [] {
+  assert(mutation == MapMutation.Insert || mutation == MapMutation.Update, "Map mutation must be Insert or Update");
+}
+
+circuit assertSetMutationDefined(mutation: SetMutation): [] {
+  assert(mutation == SetMutation.Insert || mutation == SetMutation.Remove, "Set mutation must be Insert or Remove");
 }
 
 circuit assertSupportedVerificationMethod(verificationMethod: VerificationMethod): [] {
@@ -198,14 +218,24 @@ constructor() {
   updated = timestamp;
 }
 
-export circuit setAlsoKnownAs(value: Opaque<"string">, present: Boolean): [] {
+export circuit rotateControllerKey(newControllerPublicKey: Bytes<32>): [] {
   assertControllerCanUpdate();
+  const disclosedNewControllerPublicKey = disclose(newControllerPublicKey);
+  assert(disclosedNewControllerPublicKey != controllerPublicKey, "New controller key matches current controller key");
+  controllerPublicKey = disclosedNewControllerPublicKey;
+
+  recordUpdate();
+}
+
+export circuit setAlsoKnownAs(value: Opaque<"string">, mutation: SetMutation): [] {
+  assertControllerCanUpdate();
+  const disclosedMutation = disclose(mutation);
+  assertSetMutationDefined(disclosedMutation);
   const alias = disclose(value);
-  const disclosedPresent = disclose(present);
-  if (disclosedPresent) {
+  if (disclosedMutation == SetMutation.Insert) {
     assert(!alsoKnownAs.member(alias), "alsoKnownAs value already exists");
     alsoKnownAs.insert(alias);
-  } else {
+  } else if (disclosedMutation == SetMutation.Remove) {
     assert(alsoKnownAs.member(alias), "alsoKnownAs value does not exist");
     alsoKnownAs.remove(alias);
   }
@@ -215,16 +245,17 @@ export circuit setAlsoKnownAs(value: Opaque<"string">, present: Boolean): [] {
 
 export circuit setVerificationMethod(
   verificationMethod: VerificationMethod,
-  exists: Boolean
+  mutation: MapMutation
 ): [] {
   assertControllerCanUpdate();
   const disclosedVerificationMethod = disclose(verificationMethod);
-  const disclosedExists = disclose(exists);
+  const disclosedMutation = disclose(mutation);
+  assertMapMutationDefined(disclosedMutation);
   assertSupportedVerificationMethod(disclosedVerificationMethod);
-  if (disclosedExists) {
+  if (disclosedMutation == MapMutation.Update) {
     assert(verificationMethods.member(disclosedVerificationMethod.id), "Verification method does not exist");
     verificationMethods.remove(disclosedVerificationMethod.id);
-  } else {
+  } else if (disclosedMutation == MapMutation.Insert) {
     assert(!verificationMethodExists(disclosedVerificationMethod.id), "Verification method already exists");
   }
   verificationMethods.insert(disclosedVerificationMethod.id, disclosedVerificationMethod);
@@ -244,15 +275,16 @@ export circuit removeVerificationMethod(id: Opaque<"string">): [] {
 
 export circuit setSchnorrJubjubVerificationMethod(
   verificationMethod: SchnorrJubjubVerificationMethod,
-  exists: Boolean
+  mutation: MapMutation
 ): [] {
   assertControllerCanUpdate();
   const disclosedVerificationMethod = disclose(verificationMethod);
-  const disclosedExists = disclose(exists);
-  if (disclosedExists) {
+  const disclosedMutation = disclose(mutation);
+  assertMapMutationDefined(disclosedMutation);
+  if (disclosedMutation == MapMutation.Update) {
     assert(schnorrJubjubVerificationMethods.member(disclosedVerificationMethod.id), "Verification method does not exist");
     schnorrJubjubVerificationMethods.remove(disclosedVerificationMethod.id);
-  } else {
+  } else if (disclosedMutation == MapMutation.Insert) {
     assert(!verificationMethodExists(disclosedVerificationMethod.id), "Verification method already exists");
   }
   schnorrJubjubVerificationMethods.insert(disclosedVerificationMethod.id, disclosedVerificationMethod);
@@ -285,19 +317,20 @@ export circuit verifySchnorrJubjubDigestSignature(
 export circuit setVerificationMethodRelation(
   relation: VerificationMethodRelation,
   methodId: Opaque<"string">,
-  present: Boolean
+  mutation: SetMutation
 ): [] {
   assertControllerCanUpdate();
   const disclosedRelation = disclose(relation);
   const disclosedMethodId = disclose(methodId);
-  const disclosedPresent = disclose(present);
+  const disclosedMutation = disclose(mutation);
+  assertSetMutationDefined(disclosedMutation);
   assert(verificationMethodExists(disclosedMethodId), "Verification method does not exist");
   assert(disclosedRelation != VerificationMethodRelation.Undefined, "Verification relation must be defined");
   const currentPresent = verificationMethodRelationMember(disclosedRelation, disclosedMethodId);
-  if (disclosedPresent) {
+  if (disclosedMutation == SetMutation.Insert) {
     assert(!currentPresent, "Verification method relation already exists");
     insertVerificationMethodRelation(disclosedRelation, disclosedMethodId);
-  } else {
+  } else if (disclosedMutation == SetMutation.Remove) {
     assert(currentPresent, "Verification method relation does not exist");
     removeVerificationMethodRelationFromLedger(disclosedRelation, disclosedMethodId);
   }
@@ -305,14 +338,15 @@ export circuit setVerificationMethodRelation(
   recordUpdate();
 }
 
-export circuit setService(service: Service, exists: Boolean): [] {
+export circuit setService(service: Service, mutation: MapMutation): [] {
   assertControllerCanUpdate();
   const disclosedService = disclose(service);
-  const disclosedExists = disclose(exists);
-  if (disclosedExists) {
+  const disclosedMutation = disclose(mutation);
+  assertMapMutationDefined(disclosedMutation);
+  if (disclosedMutation == MapMutation.Update) {
     assert(services.member(disclosedService.id), "Service with a given id does not exist");
     services.remove(disclosedService.id);
-  } else {
+  } else if (disclosedMutation == MapMutation.Insert) {
     assert(!services.member(disclosedService.id), "Service with a given id already exists");
   }
   services.insert(disclosedService.id, disclosedService);

@@ -1,4 +1,4 @@
-import { type DIDContract } from "@midnight-ntwrk/midnight-did-contract";
+import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import { VerificationMethodRelationType } from "@midnight-ntwrk/midnight-did-domain";
 import { describe, expect, it, vi } from "vitest";
 
@@ -145,7 +145,7 @@ describe("verification method relation operations", () => {
         VerificationMethodRelationType.Authentication
       ],
       "#key-1",
-      false,
+      DIDContract.SetMutation.Remove,
     );
     expect(setVerificationMethodRelation).toHaveBeenNthCalledWith(
       2,
@@ -153,7 +153,7 @@ describe("verification method relation operations", () => {
         VerificationMethodRelationType.KeyAgreement
       ],
       "#key-1",
-      false,
+      DIDContract.SetMutation.Remove,
     );
   });
 

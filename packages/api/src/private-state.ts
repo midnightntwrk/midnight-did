@@ -1,16 +1,10 @@
 import { getLogger } from "./api-logger.js";
-import { hashProverKey } from "./lightweight.js";
+import { randomBytes } from "./lightweight.js";
 import {
   type MidnightDIDPrivateState,
   MidnightDIDPrivateStateId,
   type MidnightDIDProviders,
 } from "./types.js";
-
-type ProvidersWithProverKey = MidnightDIDProviders & {
-  zkConfigProvider: {
-    getProverKey: (circuitName: string) => Promise<Uint8Array>;
-  };
-};
 
 const isContractAddressUnsetError = (error: unknown): boolean =>
   error instanceof Error && error.message.includes("Contract address not set");
@@ -46,10 +40,7 @@ export async function initPrivateState(
   }
 
   getLogger().info("Creating the new private state..");
-  const proverKey = await (
-    providers as ProvidersWithProverKey
-  ).zkConfigProvider.getProverKey("setVerificationMethod");
-  const secretKey = await hashProverKey(proverKey);
+  const secretKey = randomBytes(32);
   const privateState: MidnightDIDPrivateState = { secretKey };
   try {
     await providers.privateStateProvider.set(

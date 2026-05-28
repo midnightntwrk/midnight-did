@@ -457,16 +457,20 @@ Each exported circuit (e.g., `setVerificationMethod`, `setService`, `deactivate`
 
 The contract requires two witnesses:
 
-- `localSecretKey` — a 32‑byte secret used to authorize updates.
+- `localSecretKey` — a wallet-generated 32‑byte secret used to authorize updates.
 - `currentTimestamp` — the current time in milliseconds since epoch, used to populate `created`/`updated`.
 
 During deployment, the contract stores `controllerPublicKey`, derived as:
 
 ```
-persistentHash([pad(32, "did:controller:pk"), localSecretKey])
+persistentHash<Vector<2, Bytes<32>>>([pad(32, "did:controller:pk"), localSecretKey])
 ```
 
 Each update circuit asserts that the derived public key from the witness matches `controllerPublicKey`. This ensures that only holders of the secret key can mutate the DID state.
+
+The controller secret is wallet/private-state material. It is not derived from a Compact prover key and is not itself stored on ledger. SDKs MUST generate it with cryptographically secure randomness and persist it in the wallet's private-state storage.
+
+Controller rotation is performed with `rotateControllerKey(newControllerPublicKey: Bytes<32>)`. The replacement `controllerPublicKey` is derived locally by the SDK from a newly generated 32-byte secret using the same `persistentHash` formula, and only that public key is supplied to the circuit. The new secret MUST NOT be passed as a circuit argument: private circuit arguments may be visible to the proving environment, especially when proving is delegated to a proof server. After the rotation transaction finalizes, the SDK MUST persist the new secret as the DID private state.
 
 ## 5.3. Keys associated with the DID Document
 Midnight DID Controllers **MUST** manage the keys associated with the DID Document.
@@ -567,22 +571,28 @@ Each update circuit requires the `localSecretKey` witness to match the on‑chai
 Conformance note: due to Compact language limitations for rich URI/data-model validation, normative checks for DID URL subject binding and DID Core structure conformance (for example `serviceEndpoint` shape), JWK/base64url canonicality, opaque JWK shape (for example OKP omits `y` while EC includes `y`), and non-native key parsing are enforced at the SDK/resolver layers (`domain`, `api`, `did`). The smart contract enforces authorization, exact ledger identifier existence/uniqueness, supported opaque JWK key/curve profiles, native SchnorrJubjub point storage, and state-transition invariants.
 
 Each update operation is implemented by a small set/toggle circuit surface in the `did.compact` contract:
-- `setVerificationMethod` - adds or updates an opaque JWK verification method according to an `exists` flag
+- `rotateControllerKey` - rotates the DID controller commitment to a locally derived controller public key
+- `setVerificationMethod` - adds or updates an opaque JWK verification method according to a `MapMutation.Insert` or `MapMutation.Update` value
 - `removeVerificationMethod` - removes an opaque JWK verification method
-- `setSchnorrJubjubVerificationMethod` - adds or updates a native SchnorrJubjub verification method according to an `exists` flag
+- `setSchnorrJubjubVerificationMethod` - adds or updates a native SchnorrJubjub verification method according to a `MapMutation.Insert` or `MapMutation.Update` value
 - `removeSchnorrJubjubVerificationMethod` - removes a native SchnorrJubjub verification method
 - `verifySchnorrJubjubDigestSignature` - verifies a SchnorrJubjub digest signature against the native public key stored under a verification method id
-- `setVerificationMethodRelation` - adds or removes a verification method relationship according to a `present` flag
-- `setService` - adds or updates a service endpoint according to an `exists` flag
+- `setVerificationMethodRelation` - adds or removes a verification method relationship according to a `SetMutation.Insert` or `SetMutation.Remove` value
+- `setService` - adds or updates a service endpoint according to a `MapMutation.Insert` or `MapMutation.Update` value
 - `removeService` - removes a service endpoint
-- `setAlsoKnownAs` - adds or removes an alternative identifier according to a `present` flag
+- `setAlsoKnownAs` - adds or removes an alternative identifier according to a `SetMutation.Insert` or `SetMutation.Remove` value
 - `deactivate` - deactivates the DID
 
-Keeping the exported circuit count low is a deployment requirement, not just a packaging preference. Every exported Compact circuit produces proving/verifier artifacts and contributes to the deploy transaction footprint. A symmetric add/update/remove circuit for every logical API helper can exceed current standalone Midnight block limits. The public TypeScript API can still expose ergonomic add/update/remove helpers, but those helpers SHOULD map onto the compact set/toggle circuit surface where possible. The single SchnorrJubjub verifier is intentionally ledger-bound: it takes a verification method id and reads the public key from `schnorrJubjubVerificationMethods`, avoiding caller-supplied-key verification that could drift from DID state.
+Keeping the exported circuit count low is a deployment requirement, not just a packaging preference. Every exported Compact circuit produces proving/verifier artifacts and contributes to the deploy transaction footprint. A symmetric add/update/remove circuit for every logical API helper can exceed current standalone Midnight block limits. The public TypeScript API can still expose ergonomic add/update/remove helpers, but those helpers SHOULD map onto the compact set/toggle circuit surface where possible. The circuit mutation enums are intentionally explicit so that the compact surface remains small without relying on ambiguous boolean flags. The single SchnorrJubjub verifier is intentionally ledger-bound: it takes a verification method id and reads the public key from `schnorrJubjubVerificationMethods`, avoiding caller-supplied-key verification that could drift from DID state.
 
 Each mutating circuit increments the version counter and updates the `updated` timestamp. `verifySchnorrJubjubDigestSignature` is non-mutating and MUST NOT change DID version metadata.
 
 The circuit implementations are in [`packages/contract/src/did.compact`](../packages/contract/src/did.compact), and the API helpers that call these circuits are in [`packages/api/src/lib.ts`](../packages/api/src/lib.ts).
+
+Controller rotation note:
+- `rotateControllerKey` accepts only the next `controllerPublicKey`, not the next secret.
+- The API helper generates a new 32-byte secret, derives the next public key locally with the contract package's `deriveControllerPublicKey` helper, submits the rotation transaction, and stores the new secret in private state after the transaction succeeds.
+- Implementations that bypass the API and submit an arbitrary `newControllerPublicKey` are responsible for retaining the matching preimage. Losing the matching secret makes subsequent DID updates impossible.
 
 ### 7.3.1 Add Verification Method
 
@@ -615,7 +625,7 @@ Ledger normalization note:
 - `publicKeyJwk.x` / `publicKeyJwk.y` are validated as canonical unpadded base64url values that decode to exactly 32 bytes, then stored as `Opaque<"string">` ledger values.
 - For OKP keys (`Ed25519`, `X25519`), `y` is omitted at API level and normalized to an empty string sentinel in ledger storage.
 - API-level `addVerificationMethod` is for opaque JWK profiles (`Ed25519`, `X25519`, `P-256`, and `secp256k1`). For Jubjub, use `addSchnorrJubjubVerificationMethod` with a native `JubjubPoint`.
-- API-level `addVerificationMethod` and `updateVerificationMethod` call the contract's `setVerificationMethod` circuit with `exists = false` and `exists = true`, respectively.
+- API-level `addVerificationMethod` and `updateVerificationMethod` call the contract's `setVerificationMethod` circuit with `MapMutation.Insert` and `MapMutation.Update`, respectively.
 - `addSchnorrJubjubVerificationMethod` and `updateSchnorrJubjubVerificationMethod` call the contract's `setSchnorrJubjubVerificationMethod` circuit and store the entry in `schnorrJubjubVerificationMethods`, avoiding duplicate opaque/native Jubjub key storage.
 - `verifySchnorrJubjubDigestSignature` verifies SchnorrJubjub signatures by method id. It looks up the native public key in `schnorrJubjubVerificationMethods`, so the verification proof is tied to the current ledger state.
 
@@ -853,7 +863,7 @@ Therefore, the Midnight DID document will **NEVER** contain any personal data.
 ## 9.4. Separation of concerns
 
 The Midnight DID method separates concerns between the following roles:
-- Midnight DID smart‑contract publisher and updater (the role implies having access to the ZK prover and verifier keys, as well as the `localSecretKey` witness).
+- Midnight DID smart‑contract publisher and updater (the role implies access to the ZK proving infrastructure and the wallet-held `localSecretKey` witness).
 - Midnight DID Document key holder (the role implies managing the private and public keys associated with the DID ledger state).
 - Midnight DID Document reader (has access to the public ledger state and can reconstruct the DID Document).
 

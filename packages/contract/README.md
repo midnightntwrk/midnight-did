@@ -28,7 +28,7 @@ sequenceDiagram
   participant Circuit as setVerificationMethod
   participant Ledger
 
-  Caller->>Circuit: VerificationMethod input + exists flag
+  Caller->>Circuit: VerificationMethod input + MapMutation
   Circuit->>Circuit: controller auth check
   Circuit->>Circuit: key type/curve constraints
   Circuit->>Circuit: duplicate/non-existence checks
@@ -57,5 +57,7 @@ stateDiagram-v2
 
 - Contract-level checks focus on enforceable on-chain invariants.
 - Some full DID conformance checks are intentionally handled at SDK/domain layers.
+- Controller public keys can be derived locally with `deriveControllerPublicKey(secretKey)`, matching the contract's `persistentHash<Vector<2, Bytes<32>>>` access-control commitment.
+- Set/update circuits use explicit `MapMutation` and `SetMutation` enums so the exported circuit surface stays small without boolean intent flags.
 - Jubjub signing helpers and reusable Schnorr transcript logic live in `@midnight-ntwrk/midnight-did-jubjub-schnorr`.
 - The DID contract exposes one ledger-bound SchnorrJubjub verification circuit. It accepts a verification method id, looks up the native `JubjubPoint` stored in `schnorrJubjubVerificationMethods`, and verifies against that ledger key rather than a caller-supplied public key.

@@ -20,10 +20,13 @@ import {
   sampleContractAddress
 } from "@midnight-ntwrk/compact-runtime";
 
+import { deriveControllerPublicKey } from "../controller-key.js";
 import {
   Contract,
   type Ledger,
-  ledger
+  ledger,
+  MapMutation,
+  SetMutation
 } from "../managed/did/contract/index.js";
 import { type DIDPrivateState, witnesses } from "../witnesses.js";
 
@@ -58,6 +61,15 @@ export class DIDSimulator {
     return this.circuitContext.currentPrivateState;
   }
 
+  public setPrivateState(privateState: DIDPrivateState): void {
+    this.circuitContext = createCircuitContext(
+      sampleContractAddress(),
+      this.circuitContext.currentZswapLocalState,
+      this.circuitContext.currentQueryContext.state,
+      privateState
+    );
+  }
+
   /**
    * Execute a circuit and update the context with the resulting state.
    */
@@ -72,12 +84,31 @@ export class DIDSimulator {
   }
 
   // Individual circuit methods
+  public rotateControllerKey(newSecretKey: Uint8Array): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.rotateControllerKey(
+        this.circuitContext,
+        deriveControllerPublicKey(newSecretKey)
+      )
+    );
+    this.setPrivateState({ secretKey: new Uint8Array(newSecretKey) });
+  }
+
+  public rotateControllerPublicKey(newControllerPublicKey: Uint8Array): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.rotateControllerKey(
+        this.circuitContext,
+        newControllerPublicKey
+      )
+    );
+  }
+
   public addVerificationMethod(vm: any): void {
     this.executeCircuit(() =>
       this.contract.impureCircuits.setVerificationMethod(
         this.circuitContext,
         vm,
-        false
+        MapMutation.Insert
       )
     );
   }
@@ -87,7 +118,7 @@ export class DIDSimulator {
       this.contract.impureCircuits.setVerificationMethod(
         this.circuitContext,
         vm,
-        true
+        MapMutation.Update
       )
     );
   }
@@ -109,7 +140,7 @@ export class DIDSimulator {
           id: vm.id,
           publicKey: vm.publicKey
         },
-        false
+        MapMutation.Insert
       )
     );
   }
@@ -122,7 +153,7 @@ export class DIDSimulator {
           id: vm.id,
           publicKey: vm.publicKey
         },
-        true
+        MapMutation.Update
       )
     );
   }
@@ -157,7 +188,7 @@ export class DIDSimulator {
         this.circuitContext,
         relation,
         methodId,
-        true
+        SetMutation.Insert
       )
     );
   }
@@ -171,7 +202,7 @@ export class DIDSimulator {
         this.circuitContext,
         relation,
         methodId,
-        false
+        SetMutation.Remove
       )
     );
   }
@@ -181,7 +212,7 @@ export class DIDSimulator {
       this.contract.impureCircuits.setService(
         this.circuitContext,
         service,
-        false
+        MapMutation.Insert
       )
     );
   }
@@ -191,7 +222,7 @@ export class DIDSimulator {
       this.contract.impureCircuits.setService(
         this.circuitContext,
         service,
-        true
+        MapMutation.Update
       )
     );
   }
@@ -207,7 +238,7 @@ export class DIDSimulator {
       this.contract.impureCircuits.setAlsoKnownAs(
         this.circuitContext,
         value,
-        true
+        SetMutation.Insert
       )
     );
   }
@@ -217,7 +248,7 @@ export class DIDSimulator {
       this.contract.impureCircuits.setAlsoKnownAs(
         this.circuitContext,
         value,
-        false
+        SetMutation.Remove
       )
     );
   }

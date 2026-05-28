@@ -2,21 +2,13 @@ import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import { describe, expect, it } from "vitest";
 
 import { getWalletBalances } from "../lib.js";
-import { hashProverKey, randomBytes } from "../lightweight.js";
+import { randomBytes } from "../lightweight.js";
 
 describe("lib lightweight unit helpers", () => {
   it("loads runtime polyfills through the public barrel", () => {
     expect(typeof (globalThis as { WebSocket?: unknown }).WebSocket).toBe(
       "function",
     );
-  });
-
-  it("hashProverKey is deterministic and returns 32 bytes", async () => {
-    const input = new Uint8Array([1, 2, 3, 4]);
-    const first = await hashProverKey(input);
-    const second = await hashProverKey(input);
-    expect(first.length).toBe(32);
-    expect(Array.from(first)).toEqual(Array.from(second));
   });
 
   it("randomBytes returns requested length", () => {
