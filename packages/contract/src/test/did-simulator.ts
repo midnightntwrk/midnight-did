@@ -74,18 +74,20 @@ export class DIDSimulator {
   // Individual circuit methods
   public addVerificationMethod(vm: any): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.addVerificationMethod(
+      this.contract.impureCircuits.setVerificationMethod(
         this.circuitContext,
-        vm
+        vm,
+        false
       )
     );
   }
 
   public updateVerificationMethod(vm: any): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.updateVerificationMethod(
+      this.contract.impureCircuits.setVerificationMethod(
         this.circuitContext,
-        vm
+        vm,
+        true
       )
     );
   }
@@ -99,12 +101,63 @@ export class DIDSimulator {
     );
   }
 
+  public addSchnorrJubjubVerificationMethod(vm: any): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.setSchnorrJubjubVerificationMethod(
+        this.circuitContext,
+        {
+          id: vm.id,
+          publicKey: vm.publicKey
+        },
+        false
+      )
+    );
+  }
+
+  public updateSchnorrJubjubVerificationMethod(vm: any): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.setSchnorrJubjubVerificationMethod(
+        this.circuitContext,
+        {
+          id: vm.id,
+          publicKey: vm.publicKey
+        },
+        true
+      )
+    );
+  }
+
+  public removeSchnorrJubjubVerificationMethod(id: string): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.removeSchnorrJubjubVerificationMethod(
+        this.circuitContext,
+        id
+      )
+    );
+  }
+
+  public verifySchnorrJubjubDigestSignature(
+    methodId: string,
+    digest: bigint[],
+    signature: any
+  ): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.verifySchnorrJubjubDigestSignature(
+        this.circuitContext,
+        methodId,
+        digest,
+        signature
+      )
+    );
+  }
+
   public addVerificationMethodRelation(relation: any, methodId: string): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.addVerificationMethodRelation(
+      this.contract.impureCircuits.setVerificationMethodRelation(
         this.circuitContext,
         relation,
-        methodId
+        methodId,
+        true
       )
     );
   }
@@ -114,23 +167,32 @@ export class DIDSimulator {
     methodId: string
   ): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.removeVerificationMethodRelation(
+      this.contract.impureCircuits.setVerificationMethodRelation(
         this.circuitContext,
         relation,
-        methodId
+        methodId,
+        false
       )
     );
   }
 
   public addService(service: any): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.addService(this.circuitContext, service)
+      this.contract.impureCircuits.setService(
+        this.circuitContext,
+        service,
+        false
+      )
     );
   }
 
   public updateService(service: any): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.updateService(this.circuitContext, service)
+      this.contract.impureCircuits.setService(
+        this.circuitContext,
+        service,
+        true
+      )
     );
   }
 
@@ -142,13 +204,21 @@ export class DIDSimulator {
 
   public addAlsoKnownAs(value: string): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.addAlsoKnownAs(this.circuitContext, value)
+      this.contract.impureCircuits.setAlsoKnownAs(
+        this.circuitContext,
+        value,
+        true
+      )
     );
   }
 
   public removeAlsoKnownAs(value: string): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.removeAlsoKnownAs(this.circuitContext, value)
+      this.contract.impureCircuits.setAlsoKnownAs(
+        this.circuitContext,
+        value,
+        false
+      )
     );
   }
 

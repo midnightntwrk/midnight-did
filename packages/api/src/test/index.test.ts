@@ -39,6 +39,7 @@ describe("api package barrel", () => {
     // updating the public barrel and this list together.
     const libRuntimeExportNames = [
       "addAlsoKnownAs",
+      "addSchnorrJubjubVerificationMethod",
       "addService",
       "addVerificationMethod",
       "addVerificationMethodRelation",
@@ -59,6 +60,7 @@ describe("api package barrel", () => {
       "midnightDIDContractInstance",
       "registerForDustGeneration",
       "removeAlsoKnownAs",
+      "removeSchnorrJubjubVerificationMethod",
       "removeService",
       "removeVerificationMethod",
       "removeVerificationMethodRelation",
@@ -66,8 +68,10 @@ describe("api package barrel", () => {
       "restoreWalletFromState",
       "serializeWalletState",
       "setLogger",
+      "updateSchnorrJubjubVerificationMethod",
       "updateService",
       "updateVerificationMethod",
+      "verifySchnorrJubjubDigestSignature",
       "waitForWalletFunds",
       "waitForWalletSync",
     ];
@@ -99,6 +103,7 @@ describe("api package barrel", () => {
       "TestnetLocalConfig",
       "TestnetRemoteConfig",
       "addAlsoKnownAs",
+      "addSchnorrJubjubVerificationMethod",
       "addService",
       "addVerificationMethod",
       "addVerificationMethodRelation",
@@ -125,6 +130,7 @@ describe("api package barrel", () => {
       "midnightDIDContractInstance",
       "registerForDustGeneration",
       "removeAlsoKnownAs",
+      "removeSchnorrJubjubVerificationMethod",
       "removeService",
       "removeVerificationMethod",
       "removeVerificationMethodRelation",
@@ -133,8 +139,10 @@ describe("api package barrel", () => {
       "restoreWalletFromState",
       "serializeWalletState",
       "setLogger",
+      "updateSchnorrJubjubVerificationMethod",
       "updateService",
       "updateVerificationMethod",
+      "verifySchnorrJubjubDigestSignature",
       "waitForWalletFunds",
       "waitForWalletSync",
     ];

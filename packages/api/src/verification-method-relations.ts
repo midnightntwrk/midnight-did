@@ -66,9 +66,10 @@ export const removePresentVerificationMethodRelations = async (
 ): Promise<void> => {
   for (const { relation, member } of memberships) {
     if (!member) continue;
-    await didContract.callTx.removeVerificationMethodRelation(
+    await didContract.callTx.setVerificationMethodRelation(
       LedgerVerificationMethodRelationMap[relation],
       normalizedMethodId,
+      false,
     );
   }
 };

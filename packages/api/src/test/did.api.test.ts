@@ -1,4 +1,14 @@
 import {
+  createPublicKey,
+  diffieHellman,
+  generateKeyPairSync,
+  type JsonWebKey,
+  type KeyObject,
+  sign,
+  verify,
+} from "node:crypto";
+
+import {
   createMidnightDIDString,
   parseContractAddress,
 } from "@midnight-ntwrk/midnight-did/midnight";
@@ -6,17 +16,27 @@ import {
   createService,
   createVerificationMethod,
   CurveType,
+  decodeBase64Url,
   DIDStringSchema,
+  encodeBase64Url,
   KeyType,
   MidnightDIDSchema,
   MidnightDIDString,
   parseDIDKeyID,
   parseMidnightDID,
   parseMidnightDIDString,
+  type PublicKeyJwk,
   ServiceIdSchema,
+  type VerificationMethod,
   VerificationMethodRelationType,
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
+import {
+  deriveJubjubPublicKeyFromSeed,
+  payloadToJubjubDigest,
+  signJubjubPayloadFromSeed,
+  verifyJubjubPayload,
+} from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
 import path from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -49,6 +69,114 @@ const toFragmentId = (value: string): string => {
 const hasSameMethodFragment = (left: string, right: string): boolean =>
   toFragmentId(left) === toFragmentId(right);
 
+const payload = new TextEncoder().encode("midnight-did-real-key-flow");
+
+const requireJwkPart = (
+  jwk: JsonWebKey,
+  key: "crv" | "d" | "kty" | "x" | "y",
+): string => {
+  const value = jwk[key];
+  if (typeof value !== "string") {
+    throw new Error(`Generated JWK is missing ${key}`);
+  }
+  return value;
+};
+
+const generatePublicJwkPair = (
+  kind: "ed25519" | "x25519",
+): { publicJwk: PublicKeyJwk; privateKey: KeyObject } => {
+  const { publicKey, privateKey } =
+    kind === "ed25519"
+      ? generateKeyPairSync("ed25519")
+      : generateKeyPairSync("x25519");
+  const jwk = publicKey.export({ format: "jwk" });
+  return {
+    privateKey,
+    publicJwk: {
+      kty: requireJwkPart(jwk, "kty") as KeyType.OKP,
+      crv: requireJwkPart(jwk, "crv") as CurveType.Ed25519 | CurveType.X25519,
+      x: requireJwkPart(jwk, "x"),
+    },
+  };
+};
+
+const generateEcPublicJwkPair = (
+  namedCurve: "P-256" | "secp256k1",
+): { publicJwk: PublicKeyJwk; privateKey: KeyObject } => {
+  const { publicKey, privateKey } = generateKeyPairSync("ec", { namedCurve });
+  const jwk = publicKey.export({ format: "jwk" });
+  return {
+    privateKey,
+    publicJwk: {
+      kty: requireJwkPart(jwk, "kty") as KeyType.EC,
+      crv: requireJwkPart(jwk, "crv") as CurveType.P256 | CurveType.Secp256k1,
+      x: requireJwkPart(jwk, "x"),
+      y: requireJwkPart(jwk, "y"),
+    },
+  };
+};
+
+const bigintTo32Le = (value: bigint): Uint8Array => {
+  const bytes = new Uint8Array(32);
+  let remaining = value;
+  for (let i = 0; i < bytes.length; i += 1) {
+    bytes[i] = Number(remaining & 0xffn);
+    remaining >>= 8n;
+  }
+  return bytes;
+};
+
+const bytesToBigintLe = (bytes: Uint8Array): bigint => {
+  let value = 0n;
+  for (let i = bytes.length - 1; i >= 0; i -= 1) {
+    value = (value << 8n) + BigInt(bytes[i]);
+  }
+  return value;
+};
+
+const createJubjubPublicJwk = (seed: Uint8Array): PublicKeyJwk => {
+  const publicKey = deriveJubjubPublicKeyFromSeed(seed);
+  return {
+    kty: KeyType.EC,
+    crv: CurveType.Jubjub,
+    x: encodeBase64Url(bigintTo32Le(publicKey.x)),
+    y: encodeBase64Url(bigintTo32Le(publicKey.y)),
+  };
+};
+
+const publicKeyFromRetrievedJwk = (publicKeyJwk: PublicKeyJwk): KeyObject =>
+  createPublicKey({
+    key: publicKeyJwk as JsonWebKey,
+    format: "jwk",
+  });
+
+const expectSignatureVerifiesWithRetrievedJwk = (
+  algorithm: "ed25519" | "sha256",
+  privateKey: KeyObject,
+  publicKeyJwk: PublicKeyJwk,
+): void => {
+  const signature =
+    algorithm === "ed25519"
+      ? sign(null, payload, privateKey)
+      : sign(algorithm, payload, privateKey);
+  const publicKey = publicKeyFromRetrievedJwk(publicKeyJwk);
+
+  expect(
+    algorithm === "ed25519"
+      ? verify(null, payload, publicKey, signature)
+      : verify(algorithm, payload, publicKey, signature),
+  ).toBe(true);
+};
+
+const findVerificationMethod = (
+  methods: readonly VerificationMethod[] | null | undefined,
+  methodId: string,
+): VerificationMethod => {
+  const method = methods?.find((vm) => hasSameMethodFragment(vm.id, methodId));
+  expect(method).toBeDefined();
+  return method!;
+};
+
 const createDidWithDustRetry = async (
   providers: MidnightDIDProviders,
   privateState: api.MidnightDIDPrivateState,
@@ -79,9 +207,8 @@ const createDidWithDustRetry = async (
 let containerRuntimeAvailable = true;
 let containerRuntimeError: string | undefined;
 try {
-  const { getContainerRuntimeClient } = await import(
-    "testcontainers/build/container-runtime/clients/client.js"
-  );
+  const { getContainerRuntimeClient } =
+    await import("testcontainers/build/container-runtime/clients/client.js");
   await getContainerRuntimeClient();
 } catch (error) {
   containerRuntimeAvailable = false;
@@ -163,6 +290,7 @@ describeApi("Midnight DID method API", () => {
     );
     expect(didLedger?.active).toBe(true);
     expect(didLedger?.verificationMethods.isEmpty()).toBe(true);
+    expect(didLedger?.schnorrJubjubVerificationMethods.isEmpty()).toBe(true);
     expect(didLedger?.assertionMethodRelation.isEmpty()).toBe(true);
     expect(didLedger?.authenticationRelation.isEmpty()).toBe(true);
     expect(didLedger?.capabilityDelegationRelation.isEmpty()).toBe(true);
@@ -235,28 +363,44 @@ describeApi("Midnight DID method API", () => {
     expect(insertedVerificationMethod?.publicKeyJwk).toEqual(publicKeyJwk);
   });
 
-  it("should add a JubJub verification method that retains the y coordinate", async () => {
+  it("should add a SchnorrJubjub verification method and resolve it as JWK", async () => {
     const methodId = `${didString}#key-3`;
-    const publicKeyJwk = {
-      kty: KeyType.EC,
-      crv: CurveType.Jubjub,
-      x: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-      y: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
-    };
-    const verificationMethod = createVerificationMethod({
+    const seed = new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1));
+    const publicKey = deriveJubjubPublicKeyFromSeed(seed);
+    const expectedPublicKeyJwk = createJubjubPublicJwk(seed);
+
+    await api.addSchnorrJubjubVerificationMethod(contract, {
       id: methodId,
-      type: VerificationMethodType.JsonWebKey,
-      controller: didString,
-      publicKeyJwk,
+      publicKey,
     });
-    await api.addVerificationMethod(contract, verificationMethod);
 
     const didDocument = await resolveDocument();
     expect(didDocument?.verificationMethod).not.toBeNull();
     const insertedVerificationMethod = didDocument?.verificationMethod?.find(
       (vm) => hasSameMethodFragment(vm.id, methodId),
     );
-    expect(insertedVerificationMethod?.publicKeyJwk).toEqual(publicKeyJwk);
+    expect(insertedVerificationMethod?.type).toEqual(
+      VerificationMethodType.JsonWebKey,
+    );
+    expect(insertedVerificationMethod?.controller).toEqual(didString);
+    expect(insertedVerificationMethod?.publicKeyJwk).toEqual(
+      expectedPublicKeyJwk,
+    );
+  });
+
+  it("should reject Jubjub keys in the opaque JWK verification method map", async () => {
+    const methodId = `${didString}#opaque-jubjub`;
+    const seed = new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1));
+    const verificationMethod = createVerificationMethod({
+      id: methodId,
+      type: VerificationMethodType.JsonWebKey,
+      controller: didString,
+      publicKeyJwk: createJubjubPublicJwk(seed),
+    });
+
+    await expect(
+      api.addVerificationMethod(contract, verificationMethod),
+    ).rejects.toThrow(/Jubjub keys must use addSchnorrJubjub/);
   });
 
   it("should add a P-256 verification method", async () => {
@@ -319,6 +463,139 @@ describeApi("Midnight DID method API", () => {
         hasSameMethodFragment(vm.id, secp256k1.id),
       )?.publicKeyJwk,
     ).toEqual(secp256k1.publicKeyJwk);
+  });
+
+  it("should publish and resolve real keys for every supported profile", async () => {
+    const privateState = await api.initPrivateState(providers);
+    const realKeyContract = await createDidWithDustRetry(
+      providers,
+      privateState,
+    );
+    const realKeyDidString = createMidnightDIDString(
+      parseContractAddress(realKeyContract.deployTxData.public.contractAddress),
+      api.getMidnightNetwork(),
+    );
+    const resolveRealKeyDocument = async () =>
+      (await api.resolve(providers, realKeyContract))?.didDocument;
+
+    const ed25519 = generatePublicJwkPair("ed25519");
+    const x25519 = generatePublicJwkPair("x25519");
+    const p256 = generateEcPublicJwkPair("P-256");
+    const secp256k1 = generateEcPublicJwkPair("secp256k1");
+    const jubjubSeed = new Uint8Array(
+      Array.from({ length: 32 }, (_, index) => index + 1),
+    );
+    const jubjubMethodId = `${realKeyDidString}#real-jubjub`;
+
+    const realKeys = [
+      {
+        id: `${realKeyDidString}#real-ed25519`,
+        publicKeyJwk: ed25519.publicJwk,
+      },
+      {
+        id: `${realKeyDidString}#real-x25519`,
+        publicKeyJwk: x25519.publicJwk,
+      },
+      { id: `${realKeyDidString}#real-p256`, publicKeyJwk: p256.publicJwk },
+      {
+        id: `${realKeyDidString}#real-secp256k1`,
+        publicKeyJwk: secp256k1.publicJwk,
+      },
+    ].map(({ id, publicKeyJwk }) =>
+      createVerificationMethod({
+        id,
+        type: VerificationMethodType.JsonWebKey,
+        controller: realKeyDidString,
+        publicKeyJwk,
+      }),
+    );
+
+    for (const verificationMethod of realKeys) {
+      await api.addVerificationMethod(realKeyContract, verificationMethod);
+    }
+    await api.addSchnorrJubjubVerificationMethod(realKeyContract, {
+      id: jubjubMethodId,
+      publicKey: deriveJubjubPublicKeyFromSeed(jubjubSeed),
+    });
+
+    const didDocument = await resolveRealKeyDocument();
+    for (const verificationMethod of realKeys) {
+      expect(
+        findVerificationMethod(
+          didDocument?.verificationMethod,
+          verificationMethod.id,
+        ).publicKeyJwk,
+      ).toEqual(verificationMethod.publicKeyJwk);
+    }
+    expect(
+      findVerificationMethod(didDocument?.verificationMethod, jubjubMethodId)
+        .publicKeyJwk,
+    ).toEqual(createJubjubPublicJwk(jubjubSeed));
+
+    expectSignatureVerifiesWithRetrievedJwk(
+      "ed25519",
+      ed25519.privateKey,
+      findVerificationMethod(
+        didDocument?.verificationMethod,
+        `${realKeyDidString}#real-ed25519`,
+      ).publicKeyJwk,
+    );
+    expectSignatureVerifiesWithRetrievedJwk(
+      "sha256",
+      p256.privateKey,
+      findVerificationMethod(
+        didDocument?.verificationMethod,
+        `${realKeyDidString}#real-p256`,
+      ).publicKeyJwk,
+    );
+    expectSignatureVerifiesWithRetrievedJwk(
+      "sha256",
+      secp256k1.privateKey,
+      findVerificationMethod(
+        didDocument?.verificationMethod,
+        `${realKeyDidString}#real-secp256k1`,
+      ).publicKeyJwk,
+    );
+
+    const retrievedX25519 = publicKeyFromRetrievedJwk(
+      findVerificationMethod(
+        didDocument?.verificationMethod,
+        `${realKeyDidString}#real-x25519`,
+      ).publicKeyJwk,
+    );
+    const peerX25519 = generateKeyPairSync("x25519");
+    expect(
+      diffieHellman({
+        privateKey: x25519.privateKey,
+        publicKey: peerX25519.publicKey,
+      }),
+    ).toEqual(
+      diffieHellman({
+        privateKey: peerX25519.privateKey,
+        publicKey: retrievedX25519,
+      }),
+    );
+
+    const retrievedJubjub = findVerificationMethod(
+      didDocument?.verificationMethod,
+      jubjubMethodId,
+    ).publicKeyJwk;
+    const jubjubPublicKey = {
+      x: bytesToBigintLe(decodeBase64Url(retrievedJubjub.x)),
+      y: bytesToBigintLe(decodeBase64Url(retrievedJubjub.y!)),
+    };
+    const jubjubSignature = signJubjubPayloadFromSeed(jubjubSeed, payload);
+    expect(verifyJubjubPayload(jubjubPublicKey, payload, jubjubSignature)).toBe(
+      true,
+    );
+    await expect(
+      api.verifySchnorrJubjubDigestSignature(
+        realKeyContract,
+        jubjubMethodId,
+        payloadToJubjubDigest(payload),
+        jubjubSignature,
+      ),
+    ).resolves.toBeDefined();
   });
 
   it("should add the verification relation", async () => {

@@ -110,7 +110,7 @@ describe("DID private state lifecycle", () => {
     expect(privateState.secretKey).toBeInstanceOf(Uint8Array);
     expect(privateState.secretKey).toHaveLength(32);
     expect(zkConfigProvider.getProverKey).toHaveBeenCalledWith(
-      "addVerificationMethod",
+      "setVerificationMethod",
     );
     expect(privateStateProvider.set).toHaveBeenCalledWith(
       MidnightDIDPrivateStateId,

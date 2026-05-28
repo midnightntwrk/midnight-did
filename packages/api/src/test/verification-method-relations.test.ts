@@ -112,11 +112,11 @@ describe("verification method relation operations", () => {
   });
 
   it("removes a method only from relations where it is present", async () => {
-    const removeVerificationMethodRelation = vi.fn(async () => ({
+    const setVerificationMethodRelation = vi.fn(async () => ({
       public: { txId: "0x1" },
     }));
     const didContract = {
-      callTx: { removeVerificationMethodRelation },
+      callTx: { setVerificationMethodRelation },
     } as unknown as DeployedMidnightDIDContract;
 
     await removePresentVerificationMethodRelations(
@@ -138,20 +138,22 @@ describe("verification method relation operations", () => {
       "#key-1",
     );
 
-    expect(removeVerificationMethodRelation).toHaveBeenCalledTimes(2);
-    expect(removeVerificationMethodRelation).toHaveBeenNthCalledWith(
+    expect(setVerificationMethodRelation).toHaveBeenCalledTimes(2);
+    expect(setVerificationMethodRelation).toHaveBeenNthCalledWith(
       1,
       LedgerVerificationMethodRelationMap[
         VerificationMethodRelationType.Authentication
       ],
       "#key-1",
+      false,
     );
-    expect(removeVerificationMethodRelation).toHaveBeenNthCalledWith(
+    expect(setVerificationMethodRelation).toHaveBeenNthCalledWith(
       2,
       LedgerVerificationMethodRelationMap[
         VerificationMethodRelationType.KeyAgreement
       ],
       "#key-1",
+      false,
     );
   });
 

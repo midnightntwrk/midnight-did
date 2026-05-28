@@ -89,7 +89,7 @@ did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc9
 
 Offchain Midnight DIDs identify a DID Document state without publishing that state to the Midnight ledger. This design is inspired by `did:peer:4` portability: a long-form DID carries enough initial state to resolve without consulting a public registry, while the hash-only short form remains compact after the state is already known.
 
-Midnight offchain DIDs differ from `did:peer:4` because they must support Midnight cryptography and stay compatible with the ledger-backed Midnight DID smart-contract model. The encoded state therefore uses the Midnight offchain DID state model, supports Midnight verification key material such as JubJub keys, and is hashed with the persistent state hash used by the reference implementation.
+Midnight offchain DIDs differ from `did:peer:4` because they must support Midnight cryptography and stay compatible with the ledger-backed Midnight DID smart-contract model. The encoded state therefore uses the Midnight offchain DID state model, supports Midnight verification key material such as Jubjub keys, and is hashed with the persistent state hash used by the reference implementation.
 
 The canonical long form is a self-contained DID:
 
@@ -114,7 +114,7 @@ A trailing colon without `offchain-state` is invalid. The long-form DID is the D
 | Portability model | Long-form DID carries encoded input document; short form is the hash over that long form. | Long-form DID carries encoded Midnight offchain state; short form is the persistent hash of that state. |
 | Public registry dependency | None for long-form resolution. | None for long-form resolution. |
 | Encoded payload | DID-like input document with relative identifiers. | Midnight offchain DID state that can be projected into a DID Document. |
-| Cryptography profile | General DID Document key material used by peer DID implementations. | Midnight-compatible key material, including JubJub-oriented verification methods and smart-contract-compatible state shape. |
+| Cryptography profile | General DID Document key material used by peer DID implementations. | Midnight-compatible key material, including Jubjub-oriented verification methods and smart-contract-compatible state shape. |
 | Hashing role | Integrity and compact short form. | Integrity, compact short form, and compatibility with Midnight persistent state semantics. |
 | Resolved DID Document identifier | Resolved document commonly uses the short form as `id`, with the long form available as an alias. | Resolved document uses the long form as `id` so the DID subject remains self-contained. |
 | Update model | No in-place update; rotate or exchange a new DID. | No ledger mutation for offchain state; publish/exchange a new long-form DID state when the state changes. |
@@ -236,7 +236,7 @@ Keys are represented as JWK in compressed format with:
 - `x` parameter.
 
 #### 3.4.4.2 Jubjub (Midnight compatible)
-Uses EdDSA over Jubjub for signatures inside Midnight's ZK context (smart contract and Midnight JS library).
+Uses Schnorr over Jubjub for signatures inside Midnight's ZK context (smart contract and Midnight JS library).
 Keys are represented as JWK in uncompressed format with 32-byte little-endian field-element encodings:
 
 - `kty`=`EC`, 
@@ -244,7 +244,11 @@ Keys are represented as JWK in uncompressed format with 32-byte little-endian fi
 - `x`, and
 - `y` parameters.
 
-Jubjub is the only public key profile that Midnight DID circuits currently project from byte storage into `Field` values for in-contract verification. This projection uses Compact's `Bytes<32> as Field` cast, interpreting the byte string as little-endian and rejecting values above the Compact `Field` maximum. Ledger update circuits MUST reject Jubjub verification methods whose `x` or `y` byte strings do not fit into `Field`.
+Jubjub keys are stored on ledger as native `JubjubPoint` values in the `schnorrJubjubVerificationMethods` map. Resolvers project those native points into DID Document `publicKeyJwk` entries by encoding the `x` and `y` field elements as 32-byte little-endian, canonical unpadded base64url strings.
+
+Current Midnight DID mutation circuits do not parse opaque JWK coordinate strings in contract code. SDK producers MUST use the SchnorrJubjub verification method API for Jubjub keys so the native `JubjubPoint` is the on-ledger source of truth. Jubjub signing and verification flows use the dedicated `jubjub-schnorr` package rather than additional exported circuits on the DID contract.
+
+This split is required by the current Compact language and proving environment. Compact circuits do not provide a general-purpose JWK/base64url parser suitable for reconstructing arbitrary public keys from opaque strings, and arbitrary 32-byte JWK coordinates are not uniformly safe to cast into Compact `Field` values because field casts are bounded by the native proof-system field. Midnight DID therefore stores interoperability-first JWK material as opaque canonical strings for non-Jubjub profiles, while storing Jubjub keys as native `JubjubPoint` values when those points must remain usable by Midnight-native cryptographic flows.
 
 #### 3.4.4.3 X25519
 Uses X25519 keys for key agreement. Keys are represented as JWK with:
@@ -447,7 +451,7 @@ The keys are generated by the `compact` CLI (`compact compile`) during the compi
 - `<circuit>.prover` - ZK private key
 - `<circuit>.verifier` - ZK public key
 
-Each exported circuit (e.g., `addVerificationMethod`, `updateService`, `deactivate`) has its own prover/verifier key pair. These keys **MUST** be set in the smart-contract context to deploy it and execute circuits.
+Each exported circuit (e.g., `setVerificationMethod`, `setService`, `deactivate`) has its own prover/verifier key pair. These keys **MUST** be set in the smart-contract context to deploy it and execute circuits.
 
 ## 5.2. Smart-contract access control
 
@@ -486,13 +490,21 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | deactivated                    | `Boolean`                                    | Whether the DID has been deactivated. When `true`, the resolver surfaces `deactivated: true` in metadata and reuses the `updated` timestamp as the deactivation time. |
 | active                         | `Boolean`                                    | Whether the DID is active (`true`) or deactivated (`false`). If `active` is false, the resolver MUST set `deactivated: true` in DID Document metadata. |
 | operationCount                 | `Counter`                                    | Total number of DID update operations applied to this DID. Used for internal statistics. |
-| verificationMethods            | `Map<Opaque<"string">, VerificationMethod>`    | Map from verification method identifiers (canonicalized to fragment form for storage) to their definition (type and key material). Resolver output reconstructs canonical absolute DID URLs for `verificationMethod.id`. |
-| authenticationRelation         | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `authentication`. The DIDDocument's `authentication` property is reconstructed from this state. |
-| assertionMethodRelation        | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `assertionMethod`. The DIDDocument's `assertionMethod` property is reconstructed from this state. |
-| keyAgreementRelation           | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `keyAgreement`. The DIDDocument's `keyAgreement` property is reconstructed from this state. |
-| capabilityInvocationRelation   | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `capabilityInvocation`. The DIDDocument's `capabilityInvocation` property is reconstructed from this state. |
-| capabilityDelegationRelation   | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored without a leading `#`) authorized for `capabilityDelegation`. The DIDDocument's `capabilityDelegation` property is reconstructed from this state. |
-| services                       | `Map<Opaque<"string">, Service>`               | Map from service identifiers (canonicalized to fragment form for storage) to service definitions. The `serviceEndpoint` value is stored as a JSON string so that any DID Core–compliant representation (string, object, or array) can be rehydrated when reconstructing the DID Document. Resolver output emits canonical absolute DID URLs for service `id` values. |
+| verificationMethods            | `Map<Opaque<"string">, VerificationMethod>`    | Map from verification method identifiers (canonicalized to fragment form for storage) to opaque JWK key material for non-Jubjub keys. Resolver output reconstructs canonical absolute DID URLs for `verificationMethod.id`. |
+| verificationMethods[*].publicKeyJwk.x | `Opaque<"string">` | Canonical unpadded base64url JWK `x` value that decodes to exactly 32 bytes. |
+| verificationMethods[*].publicKeyJwk.y | `Opaque<"string">` | Canonical unpadded base64url JWK `y` value for EC keys. OKP keys store an empty string sentinel and resolver output omits `y`. |
+| schnorrJubjubVerificationMethods | `Map<Opaque<"string">, SchnorrJubjubVerificationMethod>` | Map from verification method identifiers to native SchnorrJubjub public keys. Resolver output merges these entries into the DID Document `verificationMethod` array as `JsonWebKey` entries with `crv = "Jubjub"`. |
+| schnorrJubjubVerificationMethods[*].publicKey | `JubjubPoint` | Native Jubjub public key point (`Field` `x` and `y` coordinates). This is the canonical on-ledger representation for Jubjub verification methods. |
+| authenticationRelation         | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored in canonical fragment form, for example `#key-1`) authorized for `authentication`. The DIDDocument's `authentication` property is reconstructed from this state. |
+| assertionMethodRelation        | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored in canonical fragment form, for example `#key-1`) authorized for `assertionMethod`. The DIDDocument's `assertionMethod` property is reconstructed from this state. |
+| keyAgreementRelation           | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored in canonical fragment form, for example `#key-1`) authorized for `keyAgreement`. The DIDDocument's `keyAgreement` property is reconstructed from this state. |
+| capabilityInvocationRelation   | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored in canonical fragment form, for example `#key-1`) authorized for `capabilityInvocation`. The DIDDocument's `capabilityInvocation` property is reconstructed from this state. |
+| capabilityDelegationRelation   | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored in canonical fragment form, for example `#key-1`) authorized for `capabilityDelegation`. The DIDDocument's `capabilityDelegation` property is reconstructed from this state. |
+| services                       | `Map<Opaque<"string">, Service>`               | Map from service identifiers (canonicalized to fragment form for storage) to service definitions. The `serviceEndpoint` value is stored as a JSON string so that any DID Core-compliant representation (string, object, or array) can be rehydrated when reconstructing the DID Document. Resolver output emits canonical absolute DID URLs for service `id` values. |
+
+The `verificationMethods` and `schnorrJubjubVerificationMethods` maps share one verification method identifier namespace. Resolvers MUST reject duplicate identifiers across the two maps after canonical fragment normalization, and relation sets MAY target entries from either map. The two maps are not duplicate storage for the same key material: each verification method is stored in exactly one canonical representation. This avoids consistency hazards while preserving both W3C `publicKeyJwk` interoperability for non-Jubjub keys and native `JubjubPoint` storage for SchnorrJubjub keys.
+
+Because Compact treats `Opaque<"string">` identifiers as opaque values, canonical DID URL subject binding and fragment normalization are SDK/resolver responsibilities. The TypeScript API normalizes identifiers before submission; resolvers reject states that would produce duplicate normalized verification method IDs.
 
 Example DID Document metadata emitted by the resolver layer:
 
@@ -552,22 +564,23 @@ Updating the Midnight DID implies that the DID Controller calls one of the smart
 
 Each update circuit requires the `localSecretKey` witness to match the on‑chain `controllerPublicKey`. The `currentTimestamp` witness is used to populate the `updated` ledger field after each successful operation.
 
-Conformance note: due to Compact language limitations for rich URI/data-model validation, normative checks for DID URL subject binding and DID Core structure conformance (for example `serviceEndpoint` shape) are enforced at the SDK/resolver layers (`domain`, `api`, `did`). The smart contract enforces authorization, existence/uniqueness, and state-transition invariants.
+Conformance note: due to Compact language limitations for rich URI/data-model validation, normative checks for DID URL subject binding and DID Core structure conformance (for example `serviceEndpoint` shape), JWK/base64url canonicality, opaque JWK shape (for example OKP omits `y` while EC includes `y`), and non-native key parsing are enforced at the SDK/resolver layers (`domain`, `api`, `did`). The smart contract enforces authorization, exact ledger identifier existence/uniqueness, supported opaque JWK key/curve profiles, native SchnorrJubjub point storage, and state-transition invariants.
 
-Each update operation corresponds to a dedicated exported circuit in the `did.compact` contract:
-- `addVerificationMethod` - adds a new verification method
-- `updateVerificationMethod` - updates an existing verification method
-- `removeVerificationMethod` - removes a verification method
-- `addVerificationMethodRelation` - links a verification method to a relationship
-- `removeVerificationMethodRelation` - removes a verification method from a relationship
-- `addService` - adds a new service endpoint
-- `updateService` - updates an existing service endpoint
+Each update operation is implemented by a small set/toggle circuit surface in the `did.compact` contract:
+- `setVerificationMethod` - adds or updates an opaque JWK verification method according to an `exists` flag
+- `removeVerificationMethod` - removes an opaque JWK verification method
+- `setSchnorrJubjubVerificationMethod` - adds or updates a native SchnorrJubjub verification method according to an `exists` flag
+- `removeSchnorrJubjubVerificationMethod` - removes a native SchnorrJubjub verification method
+- `verifySchnorrJubjubDigestSignature` - verifies a SchnorrJubjub digest signature against the native public key stored under a verification method id
+- `setVerificationMethodRelation` - adds or removes a verification method relationship according to a `present` flag
+- `setService` - adds or updates a service endpoint according to an `exists` flag
 - `removeService` - removes a service endpoint
-- `addAlsoKnownAs` - adds an alternative identifier
-- `removeAlsoKnownAs` - removes an alternative identifier
+- `setAlsoKnownAs` - adds or removes an alternative identifier according to a `present` flag
 - `deactivate` - deactivates the DID
 
-Each circuit increments the version counter and updates the `updated` timestamp.
+Keeping the exported circuit count low is a deployment requirement, not just a packaging preference. Every exported Compact circuit produces proving/verifier artifacts and contributes to the deploy transaction footprint. A symmetric add/update/remove circuit for every logical API helper can exceed current standalone Midnight block limits. The public TypeScript API can still expose ergonomic add/update/remove helpers, but those helpers SHOULD map onto the compact set/toggle circuit surface where possible. The single SchnorrJubjub verifier is intentionally ledger-bound: it takes a verification method id and reads the public key from `schnorrJubjubVerificationMethods`, avoiding caller-supplied-key verification that could drift from DID state.
+
+Each mutating circuit increments the version counter and updates the `updated` timestamp. `verifySchnorrJubjubDigestSignature` is non-mutating and MUST NOT change DID version metadata.
 
 The circuit implementations are in [`packages/contract/src/did.compact`](../packages/contract/src/did.compact), and the API helpers that call these circuits are in [`packages/api/src/lib.ts`](../packages/api/src/lib.ts).
 
@@ -580,7 +593,7 @@ Adds a new verification method entry and (optionally, in a subsequent operation)
   - `id` MUST be either a DID URL bound to this DID (for example, `did:midnight:<network>:<addr>#key-1`) or a relative identifier that resolves against the DID (for example, `#key-1`). On-ledger, Midnight canonicalizes to fragment form (`#key-1`) for storage. Resolver output emits the absolute DID URL form.
   - `controller` MUST equal the DID subject.
   - `type` MUST be `JsonWebKey`.
-  - `publicKeyJwk` MUST follow the JWK profiles defined in [section 3.4.4](#344-publickeyjwk) (Ed25519, X25519, Jubjub, P-256, or secp256k1).
+  - `publicKeyJwk` MUST follow the opaque JWK profiles defined in [section 3.4.4](#344-publickeyjwk) for Ed25519, X25519, P-256, or secp256k1. Jubjub keys MUST use the SchnorrJubjub verification method API because their canonical ledger representation is a native `JubjubPoint`.
   - Adding a method with an existing `id` MUST fail.
 
 Example (Ed25519):
@@ -599,9 +612,33 @@ await addVerificationMethod(didContract, {
 
 Ledger normalization note:
 - The API maps `type` to the contract field `typ`.
-- `publicKeyJwk.x` / `publicKeyJwk.y` are decoded to ledger `Bytes<32>` values.
-- For OKP keys (`Ed25519`, `X25519`), `y` is omitted at API level and normalized to 32 zero bytes in ledger storage.
-- Only Jubjub keys may be converted from `Bytes<32>` to `Field` values inside Midnight DID circuits; the conversion uses Compact's little-endian `Bytes<32> as Field` cast and rejects byte strings above the `Field` maximum.
+- `publicKeyJwk.x` / `publicKeyJwk.y` are validated as canonical unpadded base64url values that decode to exactly 32 bytes, then stored as `Opaque<"string">` ledger values.
+- For OKP keys (`Ed25519`, `X25519`), `y` is omitted at API level and normalized to an empty string sentinel in ledger storage.
+- API-level `addVerificationMethod` is for opaque JWK profiles (`Ed25519`, `X25519`, `P-256`, and `secp256k1`). For Jubjub, use `addSchnorrJubjubVerificationMethod` with a native `JubjubPoint`.
+- API-level `addVerificationMethod` and `updateVerificationMethod` call the contract's `setVerificationMethod` circuit with `exists = false` and `exists = true`, respectively.
+- `addSchnorrJubjubVerificationMethod` and `updateSchnorrJubjubVerificationMethod` call the contract's `setSchnorrJubjubVerificationMethod` circuit and store the entry in `schnorrJubjubVerificationMethods`, avoiding duplicate opaque/native Jubjub key storage.
+- `verifySchnorrJubjubDigestSignature` verifies SchnorrJubjub signatures by method id. It looks up the native public key in `schnorrJubjubVerificationMethods`, so the verification proof is tied to the current ledger state.
+
+Example (SchnorrJubjub):
+```typescript
+await addSchnorrJubjubVerificationMethod(didContract, {
+  id: '#key-jubjub-1',
+  publicKey: {
+    x: 12345n,
+    y: 67890n
+  }
+});
+```
+
+Example (ledger-bound SchnorrJubjub verification):
+```typescript
+await verifySchnorrJubjubDigestSignature(
+  didContract,
+  '#key-jubjub-1',
+  digestVector4,
+  signature
+);
+```
 
 ### 7.3.2 Update Verification Method
 
@@ -611,6 +648,7 @@ Replaces the stored definition of an existing verification method (same `id`).
 - Constraints:
   - The method `id` MUST already exist; otherwise, the update MUST fail.
   - Relationships that refer to this `id` remain valid after the update.
+  - Jubjub updates MUST use `updateSchnorrJubjubVerificationMethod` with a native `JubjubPoint`.
 
 Example:
 ```typescript
@@ -633,6 +671,7 @@ Deletes a verification method by its `id`.
 - Inputs: `id` — the verification method identifier.
 - Constraints:
   - Removing a non‑existent method MUST fail.
+  - Removing a Jubjub method MUST use `removeSchnorrJubjubVerificationMethod`, which applies the same relation cleanup behavior as the generic API helper.
 
 Example:
 ```typescript

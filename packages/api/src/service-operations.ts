@@ -9,8 +9,9 @@ export const addService = async (
   didContract: DeployedMidnightDIDContract,
   service: Service,
 ): Promise<FinalizedTxData> => {
-  const result = await didContract.callTx.addService(
+  const result = await didContract.callTx.setService(
     serviceToLedger(didContract, service),
+    false,
   );
   return result.public;
 };
@@ -19,8 +20,9 @@ export const updateService = async (
   didContract: DeployedMidnightDIDContract,
   service: Service,
 ): Promise<FinalizedTxData> => {
-  const result = await didContract.callTx.updateService(
+  const result = await didContract.callTx.setService(
     serviceToLedger(didContract, service),
+    true,
   );
   return result.public;
 };

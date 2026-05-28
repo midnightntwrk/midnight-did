@@ -48,7 +48,7 @@ export async function initPrivateState(
   getLogger().info("Creating the new private state..");
   const proverKey = await (
     providers as ProvidersWithProverKey
-  ).zkConfigProvider.getProverKey("addVerificationMethod");
+  ).zkConfigProvider.getProverKey("setVerificationMethod");
   const secretKey = await hashProverKey(proverKey);
   const privateState: MidnightDIDPrivateState = { secretKey };
   try {

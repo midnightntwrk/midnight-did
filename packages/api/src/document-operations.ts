@@ -8,7 +8,7 @@ export const addAlsoKnownAs = async (
   aliasUri: string,
 ): Promise<FinalizedTxData> => {
   const alias = assertAbsoluteUri(aliasUri, "aliasUri");
-  const result = await didContract.callTx.addAlsoKnownAs(alias);
+  const result = await didContract.callTx.setAlsoKnownAs(alias, true);
   return result.public;
 };
 
@@ -17,7 +17,7 @@ export const removeAlsoKnownAs = async (
   aliasUri: string,
 ): Promise<FinalizedTxData> => {
   const alias = assertAbsoluteUri(aliasUri, "aliasUri");
-  const result = await didContract.callTx.removeAlsoKnownAs(alias);
+  const result = await didContract.callTx.setAlsoKnownAs(alias, false);
   return result.public;
 };
 

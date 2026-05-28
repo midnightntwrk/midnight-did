@@ -1,4 +1,5 @@
 import type { ProvableCircuitId } from "@midnight-ntwrk/compact-js";
+import type { JubjubPoint } from "@midnight-ntwrk/compact-runtime";
 import * as ledger from "@midnight-ntwrk/ledger-v8";
 import {
   DIDContract,
@@ -49,6 +50,14 @@ export type MidnightDIDContract = MidnightDIDProvableContract;
 export type DeployedMidnightDIDContract =
   | DeployedContract<MidnightDIDContract>
   | FoundContract<MidnightDIDContract>;
+
+export interface SchnorrJubjubVerificationMethod {
+  readonly id: string;
+  readonly publicKey: JubjubPoint;
+}
+
+export type SchnorrJubjubDigest = [bigint, bigint, bigint, bigint];
+export type SchnorrJubjubSignature = DIDContract.Schnorr_SchnorrSignature;
 
 export interface MidnightDIDWalletContext {
   wallet: WalletFacade;
