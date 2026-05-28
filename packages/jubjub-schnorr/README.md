@@ -134,6 +134,11 @@ For DID-facing application code, prefer the deterministic seed-based helpers:
 `signJubjubDigest(...)` remains available as a lower-level API and uses a
 random nonce when no `nonceSeed` is supplied.
 
+The package entry point is safe to import in browser/WebView module graphs for
+constants and digest-level verifier helpers. Payload hashing, seed-derived
+signing, and random-nonce signing resolve `node:crypto` lazily and require a
+Node.js runtime.
+
 ### For contract code
 
 Compact consumers that need standalone in-circuit verification can import

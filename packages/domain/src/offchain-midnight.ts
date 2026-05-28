@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import {
   type CompactType,
   CompactTypeBoolean,
@@ -10,6 +8,7 @@ import {
 } from "@midnight-ntwrk/compact-runtime";
 import { z } from "zod/v4-mini";
 
+import { decodeBase64Url, encodeBase64Url } from "./crypto-codecs.js";
 import {
   createService,
   createVerificationMethod,
@@ -42,6 +41,23 @@ const uint16 = new CompactTypeUnsignedInteger(65535n, 2);
 
 export const OFFCHAIN_STATE_ENCODING =
   "midnight-offchain-did-state-v1.base64url" as const;
+
+type NodeCreateHash = typeof import("node:crypto").createHash;
+
+let nodeCreateHash: NodeCreateHash | undefined;
+
+if (typeof process !== "undefined" && process.versions?.node) {
+  nodeCreateHash = (await import("node:crypto")).createHash;
+}
+
+const getNodeCreateHash = (): NodeCreateHash => {
+  if (!nodeCreateHash) {
+    throw new Error(
+      "Offchain Midnight DID state hashing requires Node.js node:crypto.",
+    );
+  }
+  return nodeCreateHash;
+};
 
 export const OffchainStateHashSchema = OffchainStateHashHexSchema;
 
@@ -169,12 +185,7 @@ type SerializedOffchainMidnightDIDState = {
 
 const opaqueString = CompactTypeOpaqueString;
 
-const toBase64Url = (bytes: Uint8Array): string =>
-  Buffer.from(bytes)
-    .toString("base64")
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replace(/=+$/u, "");
+const toBase64Url = (bytes: Uint8Array): string => encodeBase64Url(bytes);
 
 const fromBase64Url = (value: string): Uint8Array => {
   if (!BASE64URL_TEXT.test(value) || value.length % 4 === 1) {
@@ -184,9 +195,7 @@ const fromBase64Url = (value: string): Uint8Array => {
   }
   const normalized = value.replaceAll("-", "+").replaceAll("_", "/");
   const padding = "=".repeat((4 - (normalized.length % 4)) % 4);
-  const decoded = new Uint8Array(
-    Buffer.from(`${normalized}${padding}`, "base64"),
-  );
+  const decoded = decodeBase64Url(`${normalized}${padding}`);
   if (toBase64Url(decoded) !== value) {
     throw new Error(
       "Offchain Midnight DID state is not canonical unpadded base64url",
@@ -535,7 +544,7 @@ const decodeStateShape = (
 
 const bytesToStateHash = (bytes: Uint8Array): OffchainStateHash =>
   OffchainStateHashSchema.parse(
-    createHash("blake2s256").update(Buffer.from(bytes)).digest("hex"),
+    getNodeCreateHash()("blake2s256").update(bytes).digest("hex"),
   ) as OffchainStateHash;
 
 export const parseOffchainStateHash = (input: string): OffchainStateHash =>
