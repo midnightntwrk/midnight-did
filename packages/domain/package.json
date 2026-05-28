@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.15.0",
+    "@noble/hashes": "^2.2.0",
     "zod": "^4.1.0"
   },
   "files": [
