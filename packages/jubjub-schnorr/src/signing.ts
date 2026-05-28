@@ -55,7 +55,7 @@ const bufferToBigint = (value: Uint8Array): bigint => {
 };
 
 const ensure32Bytes = (value: Uint8Array): Uint8Array => {
-  if (value.length === 32) return value;
+  if (value.length === 32) return Uint8Array.from(value);
   if (value.length > 32) return value.subarray(0, 32);
   const result = new Uint8Array(32);
   result.set(value);
