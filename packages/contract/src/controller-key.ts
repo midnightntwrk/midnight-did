@@ -10,10 +10,26 @@ import {
 
 const bytes32 = new CompactTypeBytes(32);
 const controllerKeyInput = new CompactTypeVector(2, bytes32);
-const controllerKeyDomain = new Uint8Array([
-  100, 105, 100, 58, 99, 111, 110, 116, 114, 111, 108, 108, 101, 114, 58, 112,
-  107, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-]);
+const controllerKeyDomainLabel = "did:controller:pk";
+
+const padAscii32 = (value: string): Uint8Array => {
+  if (value.length > 32) {
+    throw new Error("DID controller key domain label exceeds 32 bytes");
+  }
+
+  const padded = new Uint8Array(32);
+  for (let index = 0; index < value.length; index += 1) {
+    const codePoint = value.charCodeAt(index);
+    if (codePoint > 0x7f) {
+      throw new Error("DID controller key domain label must be ASCII");
+    }
+    padded[index] = codePoint;
+  }
+  return padded;
+};
+
+// Mirrors the Compact `pad(32, "did:controller:pk")` controller-key domain.
+const controllerKeyDomain = padAscii32(controllerKeyDomainLabel);
 
 export const deriveControllerPublicKey = (
   secretKey: Uint8Array
