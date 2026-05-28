@@ -7,7 +7,7 @@ import { toHex } from "@midnight-ntwrk/midnight-js-utils";
 import { type Config, contractConfig } from "./config.js";
 import {
   type MidnightDIDPrivateState,
-  MidnightDIDPrivateStateId,
+  type MidnightDIDPrivateStateIds,
   type MidnightDIDProviders,
   type MidnightDIDWalletContext,
 } from "./types.js";
@@ -48,6 +48,6 @@ export const createDIDPrivateStateProvider = (
   accountId: string,
 ): MidnightDIDProviders["privateStateProvider"] =>
   levelPrivateStateProvider<
-    typeof MidnightDIDPrivateStateId,
+    MidnightDIDPrivateStateIds,
     MidnightDIDPrivateState
   >(createPrivateStateProviderOptions(ctx, config, accountId));
