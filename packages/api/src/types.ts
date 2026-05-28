@@ -38,10 +38,20 @@ export type MidnightDIDCircuits =
   ProvableCircuitId<MidnightDIDProvableContract>;
 
 export const MidnightDIDPrivateStateId = "midnightDIDPrivateState";
+export const MidnightDIDPendingControllerPrivateStateId =
+  "midnightDIDPendingControllerPrivateState";
+export type MidnightDIDPrivateStateIds =
+  | typeof MidnightDIDPrivateStateId
+  | typeof MidnightDIDPendingControllerPrivateStateId;
 
+/**
+ * DID providers must expose a contract-address-aware private state provider.
+ * Callers should bind it to the DID contract address before restoring,
+ * requiring, saving, or recovering private state.
+ */
 export type MidnightDIDProviders = MidnightProviders<
   MidnightDIDCircuits,
-  typeof MidnightDIDPrivateStateId,
+  MidnightDIDPrivateStateIds,
   MidnightDIDPrivateState
 >;
 

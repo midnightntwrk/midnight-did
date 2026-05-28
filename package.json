@@ -12,7 +12,7 @@
     "lint:core": "turbo run lint --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --continue",
     "build:all": "pnpm --filter ./packages/jubjub-schnorr build && pnpm run build:api-prereqs",
     "typecheck:all": "turbo run typecheck --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --filter=./packages/api --continue",
-    "test:all": "turbo run test:ci --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --filter=./packages/api --continue",
+    "test:all": "turbo run test:ci --concurrency=1 --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --filter=./packages/api --continue",
     "coverage": "pnpm --filter ./packages/contract coverage",
     "ci": "./run.sh --light --strict",
     "ci:packages": "pnpm run lint && pnpm run build:all && pnpm run test:all",
