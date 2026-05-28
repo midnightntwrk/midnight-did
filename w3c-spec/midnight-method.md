@@ -531,6 +531,8 @@ All update operations are performed by executing one of the smart contract circu
 
 The `created` and `updated` ledger fields are populated from the `currentTimestamp` witness during contract deployment and each successful update circuit call. DID Document metadata is then composed by the resolver layer from these on-ledger values (`created`, `updated`, `deactivated`, `version`).
 
+The `currentTimestamp` value is client-asserted metadata, not a Midnight consensus timestamp. A conforming implementation MUST NOT treat `created` or `updated` as proof that an operation occurred at a particular wall-clock time unless an application adds an independent time attestation. Resolvers SHOULD surface the values as DID Document Metadata only and SHOULD document that they are controller/prover-supplied.
+
 Each update is a separate circuit call; batching multiple logical operations into a single on‑chain call is not supported in this version.
 
 ## 7.1. Create
@@ -568,7 +570,7 @@ Example of the implementation: Midnight DID Resolver in Rust
 
 Updating the Midnight DID implies that the DID Controller calls one of the smart contract's individual circuits for each type of modification.
 
-Each update circuit requires the `localSecretKey` witness to match the on‑chain `controllerPublicKey`. The `currentTimestamp` witness is used to populate the `updated` ledger field after each successful operation.
+Each update circuit requires the `localSecretKey` witness to match the on‑chain `controllerPublicKey`. The `currentTimestamp` witness is used to populate the `updated` ledger field after each successful operation. The value is not constrained by ledger time and therefore remains informational metadata.
 
 Conformance note: due to Compact language limitations for rich URI/data-model validation, normative checks for DID URL subject binding and DID Core structure conformance (for example `serviceEndpoint` shape), JWK/base64url canonicality, opaque JWK shape (for example OKP omits `y` while EC includes `y`), and non-native key parsing are enforced at the SDK/resolver layers (`domain`, `api`, `did`). The smart contract enforces authorization, exact ledger identifier existence/uniqueness, supported opaque JWK key/curve profiles, native SchnorrJubjub point storage, and state-transition invariants.
 
