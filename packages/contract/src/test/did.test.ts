@@ -18,7 +18,9 @@ import { Buffer } from "node:buffer";
 import {
   deriveJubjubPublicKeyFromSeed,
   payloadToJubjubDigest,
-  signJubjubPayloadFromSeed
+  pureCircuits as schnorrPureCircuits,
+  signJubjubPayloadFromSeed,
+  TWO_248
 } from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
 import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -27,9 +29,12 @@ import * as ContractExports from "../index.js";
 import {
   CurveType,
   KeyType,
+  MapMutation,
+  SetMutation,
   VerificationMethodRelation,
   VerificationMethodType
 } from "../managed/did/contract/index.js";
+import { witnesses } from "../witnesses.js";
 import { DIDSimulator } from "./did-simulator.js";
 
 setNetworkId("undeployed");
@@ -49,6 +54,9 @@ const ecKey = (xSeed: number, ySeed: number) => ({
   x: keyValue(xSeed),
   y: keyValue(ySeed)
 });
+
+const COMPACT_FIELD_MODULUS =
+  52435875175126190479447740508185965837690552500527637822603658699938581184512n;
 
 describe("DID smart contract", () => {
   it("properly initializes ledger state and private state", () => {
@@ -322,6 +330,7 @@ describe("DID smart contract", () => {
         publicKey
       });
       const version = simulator.getLedger().version;
+      const operationCount = simulator.getLedger().operationCount;
 
       simulator.verifySchnorrJubjubDigestSignature(
         "#key-schnorr-jubjub",
@@ -329,6 +338,7 @@ describe("DID smart contract", () => {
         signature
       );
       expect(simulator.getLedger().version).toEqual(version);
+      expect(simulator.getLedger().operationCount).toEqual(operationCount);
 
       expect(() =>
         simulator.verifySchnorrJubjubDigestSignature(
@@ -345,6 +355,83 @@ describe("DID smart contract", () => {
           signature
         )
       ).toThrow(/Invalid Jubjub Schnorr signature/);
+    });
+
+    it("rejects malformed Schnorr challenge reduction witnesses", () => {
+      const malformedWitnesses: typeof witnesses = {
+        ...witnesses,
+        getSchnorrReduction: (context, challengeHash) => {
+          const [privateState, [q, r]] = witnesses.getSchnorrReduction(
+            context,
+            challengeHash
+          );
+          return [privateState, [q + 1n, r]];
+        }
+      };
+      const badSimulator = new DIDSimulator(malformedWitnesses);
+      const seed = new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1));
+      const publicKey = deriveJubjubPublicKeyFromSeed(seed);
+      const payload = Buffer.from("midnight-did-ledger-bound-jubjub", "utf8");
+      const digest = payloadToJubjubDigest(payload);
+      const signature = signJubjubPayloadFromSeed(seed, payload);
+
+      badSimulator.addSchnorrJubjubVerificationMethod({
+        id: "#key-schnorr-jubjub",
+        publicKey
+      });
+
+      expect(() =>
+        badSimulator.verifySchnorrJubjubDigestSignature(
+          "#key-schnorr-jubjub",
+          digest,
+          signature
+        )
+      ).toThrow(/Invalid challenge reduction/);
+    });
+
+    it("rejects field-modulus alias Schnorr challenge reduction witnesses", () => {
+      const seed = new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1));
+      const publicKey = deriveJubjubPublicKeyFromSeed(seed);
+      const payload = Buffer.from(
+        "midnight-did-ledger-bound-jubjub:25",
+        "utf8"
+      );
+      const digest = payloadToJubjubDigest(payload);
+      const signature = signJubjubPayloadFromSeed(seed, payload);
+      const challengeHash = schnorrPureCircuits.schnorrChallengeDigest(
+        signature.announcement.x,
+        signature.announcement.y,
+        publicKey.x,
+        publicKey.y,
+        digest
+      );
+      const aliasR = challengeHash + COMPACT_FIELD_MODULUS - 116n * TWO_248;
+
+      expect(challengeHash / TWO_248).toEqual(0n);
+      expect(aliasR).toBeGreaterThanOrEqual(0n);
+      expect(aliasR).toBeLessThan(TWO_248);
+
+      const aliasWitnesses: typeof witnesses = {
+        ...witnesses,
+        getSchnorrReduction: ({ privateState }) => [
+          privateState,
+          [116n, aliasR]
+        ]
+      };
+      const badSimulator = new DIDSimulator(aliasWitnesses);
+
+      badSimulator.addSchnorrJubjubVerificationMethod({
+        id: "#key-schnorr-jubjub",
+        publicKey
+      });
+
+      expect(() =>
+        badSimulator.verifySchnorrJubjubDigestSignature(
+          "#key-schnorr-jubjub",
+          digest,
+          signature
+        )
+      ).toThrow(/Schnorr quotient out of range/);
     });
 
     it("should update a verification method", () => {
@@ -732,6 +819,12 @@ describe("DID smart contract", () => {
       expect(ledger.version).toEqual(1n);
     });
 
+    it("rejects repeated deactivation", () => {
+      simulator.deactivate();
+
+      expect(() => simulator.deactivate()).toThrow(/DID is already inactive/);
+    });
+
     it("should fail when trying to add verification method after deactivation", () => {
       // Deactivate
       simulator.deactivate();
@@ -748,6 +841,140 @@ describe("DID smart contract", () => {
           }
         });
       }).toThrow();
+    });
+
+    it("rejects every mutating circuit after deactivation", () => {
+      const operations: Array<[string, () => void]> = [
+        [
+          "rotateControllerKey",
+          () => simulator.rotateControllerPublicKey(keyBytes(201))
+        ],
+        [
+          "setAlsoKnownAs",
+          () => simulator.addAlsoKnownAs("did:example:inactive")
+        ],
+        [
+          "setVerificationMethod",
+          () =>
+            simulator.addVerificationMethod({
+              id: "#key-inactive",
+              typ: VerificationMethodType.JsonWebKey,
+              publicKeyJwk: {
+                kty: KeyType.OKP,
+                crv: CurveType.Ed25519,
+                ...okpKey(201)
+              }
+            })
+        ],
+        [
+          "removeVerificationMethod",
+          () => simulator.removeVerificationMethod("#key-inactive")
+        ],
+        [
+          "setSchnorrJubjubVerificationMethod",
+          () =>
+            simulator.addSchnorrJubjubVerificationMethod({
+              id: "#key-schnorr-inactive",
+              publicKey: deriveJubjubPublicKeyFromSeed(keyBytes(202))
+            })
+        ],
+        [
+          "removeSchnorrJubjubVerificationMethod",
+          () =>
+            simulator.removeSchnorrJubjubVerificationMethod(
+              "#key-schnorr-inactive"
+            )
+        ],
+        [
+          "setVerificationMethodRelation",
+          () =>
+            simulator.addVerificationMethodRelation(
+              VerificationMethodRelation.Authentication,
+              "#key-inactive"
+            )
+        ],
+        [
+          "setService",
+          () =>
+            simulator.addService({
+              id: "#service-inactive",
+              typ: "MessagingService",
+              serviceEndpoint: "https://example.com"
+            })
+        ],
+        ["removeService", () => simulator.removeService("#service-inactive")]
+      ];
+
+      simulator.deactivate();
+
+      for (const [name, operation] of operations) {
+        expect(operation, name).toThrow(/Contract is not active/);
+      }
+    });
+
+    it("rejects Schnorr verification when deactivated", () => {
+      const seed = new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1));
+      const publicKey = deriveJubjubPublicKeyFromSeed(seed);
+      const payload = Buffer.from("midnight-did-inactive-jubjub", "utf8");
+      const digest = payloadToJubjubDigest(payload);
+      const signature = signJubjubPayloadFromSeed(seed, payload);
+
+      simulator.addSchnorrJubjubVerificationMethod({
+        id: "#key-schnorr-jubjub",
+        publicKey
+      });
+      simulator.deactivate();
+      const version = simulator.getLedger().version;
+      const operationCount = simulator.getLedger().operationCount;
+
+      expect(() =>
+        simulator.verifySchnorrJubjubDigestSignature(
+          "#key-schnorr-jubjub",
+          digest,
+          signature
+        )
+      ).toThrow(/Contract is not active/);
+      expect(simulator.getLedger().version).toEqual(version);
+      expect(simulator.getLedger().operationCount).toEqual(operationCount);
+    });
+  });
+
+  describe("Mutation enum guards", () => {
+    let simulator: DIDSimulator;
+
+    beforeEach(() => {
+      simulator = new DIDSimulator();
+    });
+
+    it("rejects undefined map and set mutations without changing version", () => {
+      const version = simulator.getLedger().version;
+
+      expect(() =>
+        simulator.contract.impureCircuits.setVerificationMethod(
+          simulator.circuitContext,
+          {
+            id: "#key-undefined-mutation",
+            typ: VerificationMethodType.JsonWebKey,
+            publicKeyJwk: {
+              kty: KeyType.OKP,
+              crv: CurveType.Ed25519,
+              ...okpKey(211)
+            }
+          },
+          MapMutation.Undefined
+        )
+      ).toThrow(/Map mutation must be Insert or Update/);
+
+      expect(() =>
+        simulator.contract.impureCircuits.setVerificationMethodRelation(
+          simulator.circuitContext,
+          VerificationMethodRelation.Authentication,
+          "#key-undefined-mutation",
+          SetMutation.Undefined
+        )
+      ).toThrow(/Set mutation must be Insert or Remove/);
+
+      expect(simulator.getLedger().version).toEqual(version);
     });
   });
 

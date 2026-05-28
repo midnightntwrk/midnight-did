@@ -29,7 +29,7 @@ module schnorr {
     msg: Vector<n, Field>;
   }
 
-  witness getSchnorrReduction(challengeHash: Field): [Field, Uint<248>];
+  witness getSchnorrReduction(challengeHash: Field): [Uint<7>, Uint<248>];
 
   export circuit schnorrVerify<#n>(
     msg: Vector<n, Field>,
@@ -50,6 +50,7 @@ module schnorr {
     const TWO_248: Field =
       452312848583266388373324160190187140051835877600158453279131187530910662656 as Field;
     const [q, cTruncated] = getSchnorrReduction(cFull);
+    assert(disclose(q) < 116, "Schnorr quotient out of range");
     assert(
       disclose(q) * TWO_248 + (disclose(cTruncated) as Field) == cFull,
       "Invalid challenge reduction"
