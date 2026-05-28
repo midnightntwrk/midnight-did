@@ -45,6 +45,8 @@ This specification describes a new DID method called Midnight for storing DIDs u
 9. [Privacy Considerations](#9-privacy-considerations)
 10. [Discoverability](#10-discoverability)
 11. [Appendix](#11-appendix)
+    - [11.1. Trusted proof server model](#111-trusted-proof-server-model)
+    - [11.2. Example DID Document](#112-example-did-document)
 
 # 1. Conformance and Terminology
 
@@ -470,7 +472,7 @@ Each update circuit asserts that the derived public key from the witness matches
 
 The controller secret is wallet/private-state material. It is not derived from a Compact prover key and is not itself stored on ledger. SDKs MUST generate it with cryptographically secure randomness and persist it in the wallet's private-state storage.
 
-Controller rotation is performed with `rotateControllerKey(newControllerPublicKey: Bytes<32>)`. The replacement `controllerPublicKey` is derived locally by the SDK from a newly generated 32-byte secret using the same `persistentHash` formula, and only that public key is supplied to the circuit. The new secret MUST NOT be passed as a circuit argument: private circuit arguments may be visible to the proving environment, especially when proving is delegated to a proof server. After the rotation transaction finalizes, the SDK MUST persist the new secret as the DID private state.
+Controller rotation is performed with `rotateControllerKey(newControllerPublicKey: Bytes<32>)`. The replacement `controllerPublicKey` is derived locally by the SDK from a newly generated 32-byte secret using the same `persistentHash` formula, and only that public key is supplied to the circuit. The new secret MUST NOT be passed as a circuit argument: private circuit arguments may be visible to the proving environment, especially when proving is delegated to a proof server. After the rotation transaction finalizes, the SDK MUST persist the new secret as the DID private state. See [Appendix 11.1](#111-trusted-proof-server-model) for the proof-server trust assumption implied by the current `localSecretKey` witness design.
 
 ## 5.3. Keys associated with the DID Document
 Midnight DID Controllers **MUST** manage the keys associated with the DID Document.
@@ -883,6 +885,28 @@ The ability to discover and resolve a Midnight DID depends on the network segmen
 In every network, discoverability is ultimately provided by the Midnight ledger and its indexing infrastructure. Operators are responsible for running indexers and resolvers appropriate to their deployment model.
 
 # 11. Appendix
+
+## 11.1. Trusted proof server model
+
+The current Midnight DID controller authorization model treats the proving environment as trusted for controller-gated operations. Each mutating circuit receives the wallet-held `localSecretKey` as a private witness and checks that:
+
+```
+persistentHash<Vector<2, Bytes<32>>>([pad(32, "did:controller:pk"), localSecretKey]) == controllerPublicKey
+```
+
+The witness is private from the ledger, indexers, resolvers, and DID Document readers. It is not automatically private from a delegated proof server. If a remote proof server receives the `localSecretKey`, that server can learn enough material to produce future proofs for the same DID controller authorization check. If the server can also submit a transaction, or cooperate with an entity that can submit one, it can authorize controller-gated state changes, including rotating the DID to an attacker-chosen `controllerPublicKey`.
+
+For this method version, wallets and SDKs therefore MUST use one of the following operating models for controller-gated operations:
+
+- generate proofs locally in the wallet or another trusted execution environment;
+- delegate proving only to infrastructure trusted with the DID controller secret for the duration and consequences of that operation;
+- use an application-specific custody model where the proof service is intentionally authorized to operate the DID.
+
+The `rotateControllerKey` circuit reduces exposure of the replacement secret by accepting only the next locally derived `controllerPublicKey`. It does not remove the trust requirement for the current `localSecretKey`, because the current secret is still the authorization witness for the rotation operation.
+
+A future untrusted-prover design should replace hash-preimage controller authorization with in-circuit verification of a wallet-local signature over the exact operation intent, including the operation type, contract or DID identifier, current version or nonce, and all operation inputs. In that model the signing key remains in the wallet, the proof server receives only public signature material, and proof-server input manipulation is prevented by binding the signature to the fields checked inside the circuit.
+
+## 11.2. Example DID Document
 
 A simple example of a Midnight DID Document is as follows:
 
