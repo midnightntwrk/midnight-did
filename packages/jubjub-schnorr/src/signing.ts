@@ -2,14 +2,14 @@
 // Copyright (C) 2025 Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-import { createHash, randomBytes } from "node:crypto";
-
 import {
   ecAdd,
   ecMul,
   ecMulGenerator,
   type JubjubPoint,
 } from "@midnight-ntwrk/compact-runtime";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex, randomBytes } from "@noble/hashes/utils.js";
 
 import { pureCircuits } from "./managed/jubjub-schnorr/contract/index.js";
 
@@ -26,28 +26,47 @@ export const TWO_248 =
   452312848583266388373324160190187140051835877600158453279131187530910662656n;
 export const JUBJUB_SIGNATURE_LENGTH_BYTES = 96;
 
-const bigintTo32Be = (value: bigint): Buffer => {
+const concatBytes = (parts: readonly Uint8Array[]): Uint8Array => {
+  const length = parts.reduce((total, part) => total + part.length, 0);
+  const result = new Uint8Array(length);
+  let offset = 0;
+  for (const part of parts) {
+    result.set(part, offset);
+    offset += part.length;
+  }
+  return result;
+};
+
+const asciiBytes = (value: string): Uint8Array =>
+  Uint8Array.from(value, (char) => char.charCodeAt(0));
+
+const bigintTo32Be = (value: bigint): Uint8Array => {
   const hex = value.toString(16).padStart(64, "0");
-  return Buffer.from(hex, "hex");
+  const bytes = new Uint8Array(32);
+  for (let i = 0; i < bytes.length; i += 1) {
+    bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
 };
 
 const bufferToBigint = (value: Uint8Array): bigint => {
-  const buffer = Buffer.from(value);
-  return buffer.length === 0 ? 0n : BigInt(`0x${buffer.toString("hex")}`);
+  const hex = bytesToHex(value);
+  return hex.length === 0 ? 0n : BigInt(`0x${hex}`);
 };
 
-const ensure32Bytes = (value: Uint8Array): Buffer => {
-  const buffer = Buffer.from(value);
-  if (buffer.length === 32) return buffer;
-  if (buffer.length > 32) return buffer.subarray(0, 32);
-  return Buffer.concat([buffer, Buffer.alloc(32 - buffer.length)]);
+const ensure32Bytes = (value: Uint8Array): Uint8Array => {
+  if (value.length === 32) return Uint8Array.from(value);
+  if (value.length > 32) return value.subarray(0, 32);
+  const result = new Uint8Array(32);
+  result.set(value);
+  return result;
 };
 
-const serializeDigest = (digest: JubjubDigest): Buffer =>
-  Buffer.concat(digest.map((part) => bigintTo32Be(part)));
+const serializeDigest = (digest: JubjubDigest): Uint8Array =>
+  concatBytes(digest.map((part) => bigintTo32Be(part)));
 
 const hashToScalar = (input: Uint8Array): bigint =>
-  bufferToBigint(createHash("sha256").update(input).digest()) % JUBJUB_ORDER;
+  bufferToBigint(sha256(input)) % JUBJUB_ORDER;
 
 export const normalizeScalar = (value: bigint): bigint =>
   ((value % JUBJUB_ORDER) + JUBJUB_ORDER) % JUBJUB_ORDER;
@@ -64,7 +83,7 @@ export const deriveJubjubPublicKeyFromSeed = (
   deriveJubjubPublicKey(seedBytesToJubjubSecretScalar(seedBytes));
 
 export const payloadToJubjubDigest = (payload: Uint8Array): JubjubDigest => {
-  const digest = createHash("sha256").update(payload).digest();
+  const digest = sha256(payload);
   return [
     bufferToBigint(digest.subarray(0, 8)),
     bufferToBigint(digest.subarray(8, 16)),
@@ -76,7 +95,7 @@ export const payloadToJubjubDigest = (payload: Uint8Array): JubjubDigest => {
 export const encodeJubjubSignature = (
   signature: JubjubSchnorrSignature,
 ): Uint8Array =>
-  Buffer.concat([
+  concatBytes([
     bigintTo32Be(signature.announcement.x),
     bigintTo32Be(signature.announcement.y),
     bigintTo32Be(signature.response),
@@ -123,7 +142,7 @@ export const signJubjubDigest = (
   const publicKey = deriveJubjubPublicKey(sk);
   const seedMaterial =
     nonceSeed ??
-    Buffer.concat([bigintTo32Be(sk), randomBytes(32), serializeDigest(digest)]);
+    concatBytes([bigintTo32Be(sk), randomBytes(32), serializeDigest(digest)]);
   const nonce = hashToScalar(seedMaterial);
   const announcement = ecMulGenerator(nonce);
   const challenge = computeJubjubDigestChallenge(
@@ -143,8 +162,8 @@ export const signJubjubDigestFromSeed = (
   return signJubjubDigest(
     seedBytesToJubjubSecretScalar(normalizedSeed),
     digest,
-    Buffer.concat([
-      Buffer.from("midnight-did:jubjub-schnorr:v1"),
+    concatBytes([
+      asciiBytes("midnight-did:jubjub-schnorr:v1"),
       normalizedSeed,
       serializeDigest(digest),
     ]),
