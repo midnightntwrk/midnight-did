@@ -15,7 +15,12 @@ export {
   removeAlsoKnownAs,
 } from "./document-operations.js";
 export { getMidnightDIDLedgerState } from "./ledger-state.js";
-export { initPrivateState } from "./private-state.js";
+export {
+  initPrivateState,
+  recoverPendingControllerPrivateState,
+  requirePrivateState,
+  restorePrivateState,
+} from "./private-state.js";
 export {
   configureProviders,
   createWalletAndMidnightProvider,

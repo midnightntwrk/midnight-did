@@ -5,7 +5,11 @@ import {
 
 import { getLogger } from "./api-logger.js";
 import { midnightDIDCompiledContract } from "./contract-instance.js";
-import { initPrivateState } from "./private-state.js";
+import {
+  bindPrivateStateProvider,
+  requirePrivateState,
+  savePrivateState,
+} from "./private-state.js";
 import {
   type DeployedMidnightDIDContract,
   type MidnightDIDPrivateState,
@@ -17,7 +21,10 @@ export const joinContract = async (
   providers: MidnightDIDProviders,
   contractAddress: string,
 ): Promise<DeployedMidnightDIDContract> => {
-  const initialPrivateState = await initPrivateState(providers);
+  // Private state is scoped by contract address; bind before reading so join
+  // cannot create or load controller state from the wrong DID namespace.
+  bindPrivateStateProvider(providers, contractAddress);
+  const initialPrivateState = await requirePrivateState(providers);
   const didContract = await findDeployedContract(providers, {
     contractAddress,
     compiledContract: midnightDIDCompiledContract,
@@ -40,6 +47,13 @@ export const deploy = async (
     privateStateId: MidnightDIDPrivateStateId,
     initialPrivateState: privateState,
   });
+  bindPrivateStateProvider(
+    providers,
+    didContract.deployTxData.public.contractAddress,
+  );
+  // `deployContract` receives the initial state for proving; this explicit
+  // post-bind save makes the controller key durable for subsequent sessions.
+  await savePrivateState(providers, privateState);
   getLogger().info(
     `Deployed contract at address: ${didContract.deployTxData.public.contractAddress}`,
   );
