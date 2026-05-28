@@ -19,6 +19,13 @@ const privateStateFromSecret = (
   return { secretKey: new Uint8Array(secretKey) };
 };
 
+/**
+ * Rotates the DID controller key to a freshly derived controller public key.
+ *
+ * The transaction finalizes before the new secret is written to private state.
+ * If private-state persistence fails after finalization, the DID can be locked
+ * unless the caller has retained the same `newSecretKey` for recovery.
+ */
 export const rotateControllerKey = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,

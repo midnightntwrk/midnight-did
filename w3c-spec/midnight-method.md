@@ -470,7 +470,7 @@ persistentHash<Vector<2, Bytes<32>>>([pad(32, "did:controller:pk"), localSecretK
 
 Each update circuit asserts that the derived public key from the witness matches `controllerPublicKey`. This ensures that only holders of the secret key can mutate the DID state.
 
-The controller secret is wallet/private-state material. It is not derived from a Compact prover key and is not itself stored on ledger. SDKs MUST generate it with cryptographically secure randomness and persist it in the wallet's private-state storage.
+The controller secret is wallet/private-state material. It is not derived from a Compact prover key and is not itself stored on ledger. SDKs MUST generate it with cryptographically secure randomness and persist it in the wallet's private-state storage. Wallets SHOULD provide backup or recovery for this private state; loss of the controller secret makes subsequent DID updates impossible.
 
 Controller rotation is performed with `rotateControllerKey(newControllerPublicKey: Bytes<32>)`. The replacement `controllerPublicKey` is derived locally by the SDK from a newly generated 32-byte secret using the same `persistentHash` formula, and only that public key is supplied to the circuit. The new secret MUST NOT be passed as a circuit argument: private circuit arguments may be visible to the proving environment, especially when proving is delegated to a proof server. After the rotation transaction finalizes, the SDK MUST persist the new secret as the DID private state. See [Appendix 11.1](#111-trusted-proof-server-model) for the proof-server trust assumption implied by the current `localSecretKey` witness design.
 
@@ -594,6 +594,7 @@ The circuit implementations are in [`packages/contract/src/did.compact`](../pack
 Controller rotation note:
 - `rotateControllerKey` accepts only the next `controllerPublicKey`, not the next secret.
 - The API helper generates a new 32-byte secret, derives the next public key locally with the contract package's `deriveControllerPublicKey` helper, submits the rotation transaction, and stores the new secret in private state after the transaction succeeds.
+- If the rotation transaction finalizes but private-state persistence fails, the wallet must recover the same new secret to continue updating the DID.
 - Implementations that bypass the API and submit an arbitrary `newControllerPublicKey` are responsible for retaining the matching preimage. Losing the matching secret makes subsequent DID updates impossible.
 
 ### 7.3.1 Add Verification Method
