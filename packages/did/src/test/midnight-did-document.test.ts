@@ -28,7 +28,7 @@ const exampleVerificationMethod = createVerificationMethod({
   },
 });
 
-const exampleJubJubVerificationMethod = createVerificationMethod({
+const exampleJubjubVerificationMethod = createVerificationMethod({
   id: "#key-jubjub",
   type: VerificationMethodType.JsonWebKey,
   controller: exampleMidnightDid,
@@ -89,10 +89,10 @@ describe("Midnight DID Document", () => {
       );
     });
 
-    it("accepts JubJub (EC) verification methods", () => {
+    it("accepts Jubjub (EC) verification methods", () => {
       const doc = createMidnightDIDDocument({
         id: exampleMidnightDid,
-        verificationMethod: [exampleJubJubVerificationMethod],
+        verificationMethod: [exampleJubjubVerificationMethod],
       });
 
       expect(doc.verificationMethod?.[0].publicKeyJwk.kty).toBe(KeyType.EC);

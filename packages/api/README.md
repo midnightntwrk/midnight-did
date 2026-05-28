@@ -7,6 +7,7 @@ Programmatic API for creating, updating, deactivating, and resolving Midnight DI
 - Build/connect providers (node, indexer, proof server)
 - Submit contract circuits for DID operations
 - Map inputs/outputs between app/domain and ledger/runtime
+- Generate and persist DID controller private state for create/rotation flows
 - Provide integration test topology and helpers
 - Return DID Resolution Result objects (`didDocument`, `didResolutionMetadata`, `didDocumentMetadata`)
 
@@ -61,6 +62,7 @@ API enforces lifecycle rules around:
 
 - active DID: allows updates
 - deactivated DID: mutating operations rejected
+- controller rotation: generates a new wallet-local secret, derives the next controller public key locally, submits the rotation circuit, and stores the new secret after the transaction succeeds
 
 (Exact schema/canonicalization rules live in `domain`.)
 

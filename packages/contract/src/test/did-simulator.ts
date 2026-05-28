@@ -20,10 +20,13 @@ import {
   sampleContractAddress
 } from "@midnight-ntwrk/compact-runtime";
 
+import { deriveControllerPublicKey } from "../controller-key.js";
 import {
   Contract,
   type Ledger,
-  ledger
+  ledger,
+  MapMutation,
+  SetMutation
 } from "../managed/did/contract/index.js";
 import { type DIDPrivateState, witnesses } from "../witnesses.js";
 
@@ -58,6 +61,15 @@ export class DIDSimulator {
     return this.circuitContext.currentPrivateState;
   }
 
+  public setPrivateState(privateState: DIDPrivateState): void {
+    this.circuitContext = createCircuitContext(
+      sampleContractAddress(),
+      this.circuitContext.currentZswapLocalState,
+      this.circuitContext.currentQueryContext.state,
+      privateState
+    );
+  }
+
   /**
    * Execute a circuit and update the context with the resulting state.
    */
@@ -72,20 +84,41 @@ export class DIDSimulator {
   }
 
   // Individual circuit methods
+  public rotateControllerKey(newSecretKey: Uint8Array): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.rotateControllerKey(
+        this.circuitContext,
+        deriveControllerPublicKey(newSecretKey)
+      )
+    );
+    this.setPrivateState({ secretKey: new Uint8Array(newSecretKey) });
+  }
+
+  public rotateControllerPublicKey(newControllerPublicKey: Uint8Array): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.rotateControllerKey(
+        this.circuitContext,
+        newControllerPublicKey
+      )
+    );
+  }
+
   public addVerificationMethod(vm: any): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.addVerificationMethod(
+      this.contract.impureCircuits.setVerificationMethod(
         this.circuitContext,
-        vm
+        vm,
+        MapMutation.Insert
       )
     );
   }
 
   public updateVerificationMethod(vm: any): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.updateVerificationMethod(
+      this.contract.impureCircuits.setVerificationMethod(
         this.circuitContext,
-        vm
+        vm,
+        MapMutation.Update
       )
     );
   }
@@ -99,12 +132,63 @@ export class DIDSimulator {
     );
   }
 
+  public addSchnorrJubjubVerificationMethod(vm: any): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.setSchnorrJubjubVerificationMethod(
+        this.circuitContext,
+        {
+          id: vm.id,
+          publicKey: vm.publicKey
+        },
+        MapMutation.Insert
+      )
+    );
+  }
+
+  public updateSchnorrJubjubVerificationMethod(vm: any): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.setSchnorrJubjubVerificationMethod(
+        this.circuitContext,
+        {
+          id: vm.id,
+          publicKey: vm.publicKey
+        },
+        MapMutation.Update
+      )
+    );
+  }
+
+  public removeSchnorrJubjubVerificationMethod(id: string): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.removeSchnorrJubjubVerificationMethod(
+        this.circuitContext,
+        id
+      )
+    );
+  }
+
+  public verifySchnorrJubjubDigestSignature(
+    methodId: string,
+    digest: bigint[],
+    signature: any
+  ): void {
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.verifySchnorrJubjubDigestSignature(
+        this.circuitContext,
+        methodId,
+        digest,
+        signature
+      )
+    );
+  }
+
   public addVerificationMethodRelation(relation: any, methodId: string): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.addVerificationMethodRelation(
+      this.contract.impureCircuits.setVerificationMethodRelation(
         this.circuitContext,
         relation,
-        methodId
+        methodId,
+        SetMutation.Insert
       )
     );
   }
@@ -114,23 +198,32 @@ export class DIDSimulator {
     methodId: string
   ): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.removeVerificationMethodRelation(
+      this.contract.impureCircuits.setVerificationMethodRelation(
         this.circuitContext,
         relation,
-        methodId
+        methodId,
+        SetMutation.Remove
       )
     );
   }
 
   public addService(service: any): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.addService(this.circuitContext, service)
+      this.contract.impureCircuits.setService(
+        this.circuitContext,
+        service,
+        MapMutation.Insert
+      )
     );
   }
 
   public updateService(service: any): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.updateService(this.circuitContext, service)
+      this.contract.impureCircuits.setService(
+        this.circuitContext,
+        service,
+        MapMutation.Update
+      )
     );
   }
 
@@ -142,13 +235,21 @@ export class DIDSimulator {
 
   public addAlsoKnownAs(value: string): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.addAlsoKnownAs(this.circuitContext, value)
+      this.contract.impureCircuits.setAlsoKnownAs(
+        this.circuitContext,
+        value,
+        SetMutation.Insert
+      )
     );
   }
 
   public removeAlsoKnownAs(value: string): void {
     this.executeCircuit(() =>
-      this.contract.impureCircuits.removeAlsoKnownAs(this.circuitContext, value)
+      this.contract.impureCircuits.setAlsoKnownAs(
+        this.circuitContext,
+        value,
+        SetMutation.Remove
+      )
     );
   }
 

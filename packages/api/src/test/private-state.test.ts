@@ -21,12 +21,10 @@ const makeProviders = ({
   storedPrivateState = null,
   getError,
   setError,
-  proverKey = new Uint8Array([1, 2, 3, 4]),
 }: {
   readonly storedPrivateState?: unknown;
   readonly getError?: Error;
   readonly setError?: Error;
-  readonly proverKey?: Uint8Array;
 } = {}) => {
   const privateStateProvider = {
     get: vi.fn(async () => {
@@ -37,16 +35,11 @@ const makeProviders = ({
       if (setError) throw setError;
     }),
   };
-  const zkConfigProvider = {
-    getProverKey: vi.fn(async () => proverKey),
-  };
   return {
     providers: {
       privateStateProvider,
-      zkConfigProvider,
     } as any,
     privateStateProvider,
-    zkConfigProvider,
   };
 };
 
@@ -84,34 +77,26 @@ describe("DID private state lifecycle", () => {
 
   it("returns provider state without deriving or saving a replacement", async () => {
     const storedPrivateState = { secretKey: new Uint8Array(32).fill(7) };
-    const { providers, privateStateProvider, zkConfigProvider } = makeProviders(
-      {
-        storedPrivateState,
-      },
-    );
+    const { providers, privateStateProvider } = makeProviders({
+      storedPrivateState,
+    });
 
     await expect(initPrivateState(providers)).resolves.toBe(storedPrivateState);
     expect(privateStateProvider.get).toHaveBeenCalledWith(
       MidnightDIDPrivateStateId,
     );
-    expect(zkConfigProvider.getProverKey).not.toHaveBeenCalled();
     expect(privateStateProvider.set).not.toHaveBeenCalled();
   });
 
-  it("derives and saves a replacement when stored state is missing or malformed", async () => {
-    const { providers, privateStateProvider, zkConfigProvider } = makeProviders(
-      {
-        storedPrivateState: { secretKey: new Uint8Array(31) },
-      },
-    );
+  it("generates and saves a replacement when stored state is missing or malformed", async () => {
+    const { providers, privateStateProvider } = makeProviders({
+      storedPrivateState: { secretKey: new Uint8Array(31) },
+    });
 
     const privateState = await initPrivateState(providers);
 
     expect(privateState.secretKey).toBeInstanceOf(Uint8Array);
     expect(privateState.secretKey).toHaveLength(32);
-    expect(zkConfigProvider.getProverKey).toHaveBeenCalledWith(
-      "addVerificationMethod",
-    );
     expect(privateStateProvider.set).toHaveBeenCalledWith(
       MidnightDIDPrivateStateId,
       privateState,
