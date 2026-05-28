@@ -1,11 +1,16 @@
 import { deriveControllerPublicKey } from "@midnight-ntwrk/midnight-did-contract";
 import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
 
+import { getLogger } from "./api-logger.js";
 import { randomBytes } from "./lightweight.js";
+import {
+  clearPendingControllerPrivateState,
+  savePendingControllerPrivateState,
+  savePrivateState,
+} from "./private-state.js";
 import {
   type DeployedMidnightDIDContract,
   type MidnightDIDPrivateState,
-  MidnightDIDPrivateStateId,
   type MidnightDIDProviders,
 } from "./types.js";
 
@@ -22,9 +27,8 @@ const privateStateFromSecret = (
 /**
  * Rotates the DID controller key to a freshly derived controller public key.
  *
- * The transaction finalizes before the new secret is written to private state.
- * If private-state persistence fails after finalization, the DID can be locked
- * unless the caller has retained the same `newSecretKey` for recovery.
+ * The replacement secret is first written to a pending recovery slot, then
+ * promoted to active private state after the transaction finalizes.
  */
 export const rotateControllerKey = async (
   didContract: DeployedMidnightDIDContract,
@@ -35,14 +39,43 @@ export const rotateControllerKey = async (
   const nextControllerPublicKey = deriveControllerPublicKey(
     nextPrivateState.secretKey,
   );
-  const result = await didContract.callTx.rotateControllerKey(
-    nextControllerPublicKey,
-  );
 
-  await providers.privateStateProvider.set(
-    MidnightDIDPrivateStateId,
-    nextPrivateState,
-  );
+  await savePendingControllerPrivateState(providers, nextPrivateState);
 
-  return result.public;
+  let finalized = false;
+  try {
+    const result = await didContract.callTx.rotateControllerKey(
+      nextControllerPublicKey,
+    );
+    finalized = true;
+
+    await savePrivateState(providers, nextPrivateState);
+    try {
+      await clearPendingControllerPrivateState(providers);
+    } catch (error: unknown) {
+      getLogger().warn(
+        { error },
+        "Controller key rotation finalized, but pending private state cleanup failed.",
+      );
+    }
+
+    return result.public;
+  } catch (error: unknown) {
+    if (!finalized) {
+      try {
+        await clearPendingControllerPrivateState(providers);
+      } catch (cleanupError: unknown) {
+        getLogger().warn(
+          { error: cleanupError },
+          "Controller key rotation failed before finalization, and pending private state cleanup failed.",
+        );
+      }
+    } else {
+      getLogger().error(
+        { error },
+        "Controller key rotation finalized, but active private state promotion failed. Use recoverPendingControllerPrivateState() before submitting further controller operations.",
+      );
+    }
+    throw error;
+  }
 };
