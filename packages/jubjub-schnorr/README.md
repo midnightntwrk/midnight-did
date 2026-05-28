@@ -74,6 +74,12 @@ The Compact module follows the zkloan pattern:
 - witness `(q, r)` such that `cFull = q * 2^248 + r`
 - use `r` as the actual Jubjub challenge scalar
 
+The quotient is intentionally typed as `Uint<7>` in Compact and the verifier
+asserts that it is less than `116`. For any valid BLS12-381 field element
+returned by `transientHash`, the integer quotient is at most `115`; the bounded
+type plus range assertion prevents field-modulus wrap-around witnesses from
+satisfying the reduction equation with a different remainder.
+
 Every host contract that imports the shared `schnorr` module must implement
 the witness with exactly this arithmetic:
 

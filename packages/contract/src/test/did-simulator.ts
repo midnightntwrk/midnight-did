@@ -35,8 +35,8 @@ export class DIDSimulator {
   readonly contract: Contract<DIDPrivateState>;
   circuitContext: CircuitContext<DIDPrivateState>;
 
-  constructor() {
-    this.contract = new Contract<DIDPrivateState>(witnesses);
+  constructor(contractWitnesses: typeof witnesses = witnesses) {
+    this.contract = new Contract<DIDPrivateState>(contractWitnesses);
     const secretKey = new Uint8Array(32).fill(1);
     const {
       currentPrivateState,
