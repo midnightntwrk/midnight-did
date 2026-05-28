@@ -6,6 +6,7 @@ import {
 
 export type BoundIdField =
   | "verificationMethod.id"
+  | "schnorrJubjubVerificationMethod.id"
   | "service.id"
   | "methodId"
   | "serviceId";

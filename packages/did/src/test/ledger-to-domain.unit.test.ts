@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer";
+
 // moved from domain to did package
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -52,6 +54,19 @@ function makeIterable<T>(items: T[]) {
 
 describe("LedgerToDomain (unit, mocked managed runtime)", () => {
   const bytes32 = (fill: number) => new Uint8Array(32).fill(fill);
+  const keyString = (fill: number) =>
+    Buffer.from(bytes32(fill)).toString("base64url");
+  const bigintTo32Le = (value: bigint) => {
+    const bytes = new Uint8Array(32);
+    let remaining = value;
+    for (let i = 0; i < bytes.length; i += 1) {
+      bytes[i] = Number(remaining & 0xffn);
+      remaining >>= 8n;
+    }
+    return bytes;
+  };
+  const fieldString = (value: bigint) =>
+    Buffer.from(bigintTo32Le(value)).toString("base64url");
 
   let stubLedger: any;
 
@@ -66,8 +81,8 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
           publicKeyJwk: {
             kty: DIDContract.KeyType.OKP,
             crv: DIDContract.CurveType.Ed25519,
-            x: bytes32(1),
-            y: bytes32(0),
+            x: keyString(1),
+            y: "",
           },
         },
       ],
@@ -105,6 +120,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       operationCount: 3n,
       alsoKnownAs: makeIterable<string>(["did:alias:one"]),
       verificationMethods,
+      schnorrJubjubVerificationMethods: makeIterablePairs<string, any>([]),
       authenticationRelation: makeIterable<string>(["key-1"]),
       assertionMethodRelation: makeIterable<string>([]),
       keyAgreementRelation: makeIterable<string>([]),
@@ -118,8 +134,8 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     const out = LedgerToDomain.publicKeyJwk({
       kty: DIDContract.KeyType.OKP,
       crv: DIDContract.CurveType.Ed25519,
-      x: bytes32(7),
-      y: bytes32(0),
+      x: keyString(7),
+      y: "",
     } as any);
     expect(out.kty).toBe("OKP");
     expect(out.crv).toBe("Ed25519");
@@ -127,53 +143,54 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect("y" in out).toBe(false);
   });
 
-  it("publicKeyJwk pads compact-trimmed Bytes<32> ledger values", () => {
+  it("publicKeyJwk decodes opaque string byte views", () => {
+    const encoded = new TextEncoder().encode(keyString(4));
     const out = LedgerToDomain.publicKeyJwk({
       kty: DIDContract.KeyType.OKP,
       crv: DIDContract.CurveType.Ed25519,
-      x: new Uint8Array(),
+      x: encoded,
       y: new Uint8Array(),
     } as any);
-    expect(out.x).toBe("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    expect(out.x).toBe("BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ");
     expect("y" in out).toBe(false);
   });
 
-  it("publicKeyJwk right-pads compact-trimmed trailing zero bytes", () => {
-    const out = LedgerToDomain.publicKeyJwk({
-      kty: DIDContract.KeyType.OKP,
-      crv: DIDContract.CurveType.X25519,
-      x: new Uint8Array([4, 0, 0]),
-      y: new Uint8Array(),
-    } as any);
-    expect(out.x).toBe("BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-    expect("y" in out).toBe(false);
-  });
-
-  it("publicKeyJwk rejects malformed ledger byte values", () => {
+  it("publicKeyJwk rejects malformed opaque string values", () => {
     expect(() =>
       LedgerToDomain.publicKeyJwk({
         kty: DIDContract.KeyType.OKP,
         crv: DIDContract.CurveType.Ed25519,
-        x: new Uint8Array(33),
-        y: new Uint8Array(),
+        x: "not-base64url!",
+        y: "",
       } as any),
-    ).toThrow(/exceeds 32 bytes/);
+    ).toThrow(/publicKeyJwk.x/);
     expect(() =>
       LedgerToDomain.publicKeyJwk({
         kty: DIDContract.KeyType.OKP,
         crv: DIDContract.CurveType.Ed25519,
         x: { bytes: new Uint8Array() },
-        y: new Uint8Array(),
+        y: "",
       } as any),
     ).toThrow(/unsupported runtime shape: Object/);
+  });
+
+  it("publicKeyJwk maps X25519", () => {
+    const out = LedgerToDomain.publicKeyJwk({
+      kty: DIDContract.KeyType.OKP,
+      crv: DIDContract.CurveType.X25519,
+      x: keyString(6),
+      y: "",
+    } as any);
+    expect(out.crv).toBe("X25519");
+    expect("y" in out).toBe(false);
   });
 
   it("publicKeyJwk retains y for non-OKP keys", () => {
     const out = LedgerToDomain.publicKeyJwk({
       kty: DIDContract.KeyType.EC,
       crv: DIDContract.CurveType.Jubjub,
-      x: bytes32(5),
-      y: bytes32(9),
+      x: keyString(5),
+      y: keyString(9),
     } as any);
     expect(out.kty).toBe("EC");
     expect(out.crv).toBe("Jubjub");
@@ -185,30 +202,35 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     const out = LedgerToDomain.publicKeyJwk({
       kty: DIDContract.KeyType.EC,
       crv: DIDContract.CurveType.P256,
-      x: bytes32(5),
-      y: bytes32(9),
+      x: keyString(5),
+      y: keyString(9),
     } as any);
     expect(out.kty).toBe("EC");
     expect(out.crv).toBe("P-256");
   });
 
-  it("publicKeyJwk maps X25519 and secp256k1 curve values", () => {
-    expect(
-      LedgerToDomain.publicKeyJwk({
-        kty: DIDContract.KeyType.OKP,
-        crv: DIDContract.CurveType.X25519,
-        x: bytes32(6),
-        y: bytes32(0),
-      } as any).crv,
-    ).toBe("X25519");
+  it("publicKeyJwk maps secp256k1 curve values", () => {
     expect(
       LedgerToDomain.publicKeyJwk({
         kty: DIDContract.KeyType.EC,
         crv: DIDContract.CurveType.Secp256k1,
-        x: bytes32(6),
-        y: bytes32(7),
+        x: keyString(6),
+        y: keyString(7),
       } as any).crv,
     ).toBe("secp256k1");
+  });
+
+  it("schnorrJubjubPublicKeyJwk projects native Jubjub points to canonical JWK", () => {
+    const out = LedgerToDomain.schnorrJubjubPublicKeyJwk({
+      id: "key-native",
+      publicKey: { x: 1n, y: 256n },
+    } as any);
+    expect(out).toEqual({
+      kty: "EC",
+      crv: "Jubjub",
+      x: fieldString(1n),
+      y: fieldString(256n),
+    });
   });
 
   it("service filters blank endpoints and preserves id/type", () => {
@@ -342,6 +364,69 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect("y" in (doc.verificationMethod?.[0]?.publicKeyJwk ?? {})).toBe(
       false,
     );
+  });
+
+  it("ledgerStateToDIDDocument merges native SchnorrJubjub methods", () => {
+    const addr = parseContractAddress("0".repeat(64));
+    const didSubject = `did:midnight:devnet:${"0".repeat(64)}`;
+    stubLedger.schnorrJubjubVerificationMethods = makeIterablePairs<
+      string,
+      any
+    >([
+      [
+        "key-schnorr-jubjub",
+        {
+          id: "key-schnorr-jubjub",
+          publicKey: { x: 1n, y: 256n },
+        },
+      ],
+    ]);
+    stubLedger.assertionMethodRelation = makeIterable<string>([
+      "key-schnorr-jubjub",
+    ]);
+
+    const doc = LedgerToDomain.ledgerStateToDIDDocument(
+      stubLedger,
+      MidnightNetwork.DevNet,
+      addr,
+    );
+
+    expect(doc.verificationMethod?.length).toBe(2);
+    const nativeMethod = doc.verificationMethod?.find((method) =>
+      method.id.endsWith("#key-schnorr-jubjub"),
+    );
+    expect(nativeMethod?.id).toBe(`${didSubject}#key-schnorr-jubjub`);
+    expect(nativeMethod?.publicKeyJwk).toEqual({
+      kty: "EC",
+      crv: "Jubjub",
+      x: fieldString(1n),
+      y: fieldString(256n),
+    });
+    expect(doc.assertionMethod).toEqual(["#key-schnorr-jubjub"]);
+  });
+
+  it("ledgerStateToDIDDocument rejects duplicate normalized verification method ids", () => {
+    const addr = parseContractAddress("0".repeat(64));
+    stubLedger.schnorrJubjubVerificationMethods = makeIterablePairs<
+      string,
+      any
+    >([
+      [
+        "#key-1",
+        {
+          id: "#key-1",
+          publicKey: { x: 1n, y: 256n },
+        },
+      ],
+    ]);
+
+    expect(() =>
+      LedgerToDomain.ledgerStateToDIDDocument(
+        stubLedger,
+        MidnightNetwork.DevNet,
+        addr,
+      ),
+    ).toThrow(/Duplicate verification method id/);
   });
 
   it("ledgerStateToDIDDocument rejects relations to missing verification methods", () => {

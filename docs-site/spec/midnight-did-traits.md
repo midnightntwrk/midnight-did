@@ -23,7 +23,7 @@ Use it when you need to answer:
 - strong ledger anchoring
 - single-controller model
 - explicit update/deactivate lifecycle
-- JWK-only verification method representation
+- DID Document JWK representation backed by opaque JWK and native SchnorrJubjub ledger storage
 - service support with constrained identifier handling
 
 ## Practical reading order

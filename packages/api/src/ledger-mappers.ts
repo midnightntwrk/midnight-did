@@ -13,7 +13,10 @@ import {
 } from "@midnight-ntwrk/midnight-did-domain";
 
 import { getDidSubject, normalizeBoundFragmentId } from "./did-subject.js";
-import { type DeployedMidnightDIDContract } from "./types.js";
+import {
+  type DeployedMidnightDIDContract,
+  type SchnorrJubjubVerificationMethod,
+} from "./types.js";
 
 const LedgerKeyType = DIDContract.KeyType;
 const LedgerCurveType = DIDContract.CurveType;
@@ -72,13 +75,17 @@ const publicKeyJwkToLedger = (
 ): DIDContract.PublicKeyJwk => {
   const kty = LedgerKeyTypeMap[publicKeyJwk.kty];
   const crv = LedgerCurveTypeMap[publicKeyJwk.crv];
-  const x = decodeBase64UrlBytes32(publicKeyJwk.x, "publicKeyJwk.x");
-  const y =
-    publicKeyJwk.y !== undefined
-      ? decodeBase64UrlBytes32(publicKeyJwk.y, "publicKeyJwk.y")
-      : new Uint8Array(32);
+  decodeBase64UrlBytes32(publicKeyJwk.x, "publicKeyJwk.x");
+  if (publicKeyJwk.y !== undefined) {
+    decodeBase64UrlBytes32(publicKeyJwk.y, "publicKeyJwk.y");
+  }
 
-  return { kty, crv, x, y };
+  return {
+    kty,
+    crv,
+    x: publicKeyJwk.x,
+    y: publicKeyJwk.y ?? "",
+  };
 };
 
 const assertMidnightKeyProfile = (publicKeyJwk: PublicKeyJwk): void => {
@@ -89,20 +96,32 @@ const assertMidnightKeyProfile = (publicKeyJwk: PublicKeyJwk): void => {
     ) {
       throw new Error("OKP keys must use Ed25519 or X25519");
     }
+    if (publicKeyJwk.y !== undefined) {
+      throw new Error("OKP keys must not include a y coordinate");
+    }
     return;
   }
   if (publicKeyJwk.kty === KeyType.EC) {
+    if (publicKeyJwk.crv === CurveType.Jubjub) {
+      throw new Error(
+        "Jubjub keys must use addSchnorrJubjubVerificationMethod",
+      );
+    }
     if (
-      publicKeyJwk.crv !== CurveType.Jubjub &&
       publicKeyJwk.crv !== CurveType.P256 &&
       publicKeyJwk.crv !== CurveType.Secp256k1
     ) {
-      throw new Error("EC keys must use Jubjub, P-256, or secp256k1");
+      throw new Error(
+        "EC keys must use P-256 or secp256k1; use SchnorrJubjub methods for Jubjub",
+      );
+    }
+    if (publicKeyJwk.y === undefined) {
+      throw new Error("EC keys must include a y coordinate");
     }
     return;
   }
   throw new Error(
-    "Only OKP (Ed25519/X25519) and EC (Jubjub/P-256/secp256k1) keys are supported",
+    "Only OKP (Ed25519/X25519) and EC (P-256/secp256k1) keys are supported",
   );
 };
 
@@ -130,6 +149,18 @@ export const verificationMethodToLedger = (
     publicKeyJwk: publicKeyJwkToLedger(method.publicKeyJwk),
   };
 };
+
+export const schnorrJubjubVerificationMethodToLedger = (
+  didContract: DeployedMidnightDIDContract,
+  method: SchnorrJubjubVerificationMethod,
+): DIDContract.SchnorrJubjubVerificationMethod => ({
+  id: normalizeBoundFragmentId(
+    didContract,
+    method.id,
+    "schnorrJubjubVerificationMethod.id",
+  ),
+  publicKey: method.publicKey,
+});
 
 export const serviceToLedger = (
   didContract: DeployedMidnightDIDContract,

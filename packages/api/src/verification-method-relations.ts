@@ -1,4 +1,4 @@
-import { type DIDContract } from "@midnight-ntwrk/midnight-did-contract";
+import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import { VerificationMethodRelationType } from "@midnight-ntwrk/midnight-did-domain";
 
 import {
@@ -66,9 +66,10 @@ export const removePresentVerificationMethodRelations = async (
 ): Promise<void> => {
   for (const { relation, member } of memberships) {
     if (!member) continue;
-    await didContract.callTx.removeVerificationMethodRelation(
+    await didContract.callTx.setVerificationMethodRelation(
       LedgerVerificationMethodRelationMap[relation],
       normalizedMethodId,
+      DIDContract.SetMutation.Remove,
     );
   }
 };
