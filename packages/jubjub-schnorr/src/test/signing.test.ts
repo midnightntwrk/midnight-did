@@ -112,13 +112,14 @@ describe("jubjub-schnorr", () => {
     expect(challenge1).toEqual(challenge2);
   });
 
-  it("keeps the package import surface free of static node:crypto imports", async () => {
+  it("uses runtime-agnostic noble hashes instead of node:crypto", async () => {
     const source = await readFile(
       new URL("../signing.ts", import.meta.url),
       "utf8",
     );
 
-    expect(source).not.toMatch(/from\s+["']node:crypto["']/);
-    expect(source).toContain('await import("node:crypto")');
+    expect(source).not.toContain("node:crypto");
+    expect(source).toContain("@noble/hashes/sha2.js");
+    expect(source).toContain("@noble/hashes/utils.js");
   });
 });

@@ -40,7 +40,8 @@
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.15.0",
-    "@midnight-ntwrk/ledger-v8": "8.0.3"
+    "@midnight-ntwrk/ledger-v8": "8.0.3",
+    "@noble/hashes": "^2.2.0"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^3.2.4",

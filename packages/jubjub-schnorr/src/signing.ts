@@ -8,6 +8,8 @@ import {
   ecMulGenerator,
   type JubjubPoint,
 } from "@midnight-ntwrk/compact-runtime";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex, randomBytes } from "@noble/hashes/utils.js";
 
 import { pureCircuits } from "./managed/jubjub-schnorr/contract/index.js";
 
@@ -24,30 +26,6 @@ export const TWO_248 =
   452312848583266388373324160190187140051835877600158453279131187530910662656n;
 export const JUBJUB_SIGNATURE_LENGTH_BYTES = 96;
 
-type NodeCrypto = Pick<
-  typeof import("node:crypto"),
-  "createHash" | "randomBytes"
->;
-
-let nodeCrypto: NodeCrypto | undefined;
-
-if (typeof process !== "undefined" && process.versions?.node) {
-  const crypto = await import("node:crypto");
-  nodeCrypto = {
-    createHash: crypto.createHash,
-    randomBytes: crypto.randomBytes,
-  };
-}
-
-const getNodeCrypto = (): NodeCrypto => {
-  if (!nodeCrypto) {
-    throw new Error(
-      "Jubjub Schnorr signing and payload hashing require Node.js node:crypto; use digest-level helpers in browser runtimes.",
-    );
-  }
-  return nodeCrypto;
-};
-
 const concatBytes = (parts: readonly Uint8Array[]): Uint8Array => {
   const length = parts.reduce((total, part) => total + part.length, 0);
   const result = new Uint8Array(length);
@@ -61,14 +39,6 @@ const concatBytes = (parts: readonly Uint8Array[]): Uint8Array => {
 
 const asciiBytes = (value: string): Uint8Array =>
   Uint8Array.from(value, (char) => char.charCodeAt(0));
-
-const bytesToHex = (value: Uint8Array): string => {
-  let hex = "";
-  for (const byte of value) {
-    hex += byte.toString(16).padStart(2, "0");
-  }
-  return hex;
-};
 
 const bigintTo32Be = (value: bigint): Uint8Array => {
   const hex = value.toString(16).padStart(64, "0");
@@ -94,12 +64,6 @@ const ensure32Bytes = (value: Uint8Array): Uint8Array => {
 
 const serializeDigest = (digest: JubjubDigest): Uint8Array =>
   concatBytes(digest.map((part) => bigintTo32Be(part)));
-
-const sha256 = (input: Uint8Array): Uint8Array =>
-  new Uint8Array(getNodeCrypto().createHash("sha256").update(input).digest());
-
-const randomBytes32 = (): Uint8Array =>
-  new Uint8Array(getNodeCrypto().randomBytes(32));
 
 const hashToScalar = (input: Uint8Array): bigint =>
   bufferToBigint(sha256(input)) % JUBJUB_ORDER;
@@ -178,7 +142,7 @@ export const signJubjubDigest = (
   const publicKey = deriveJubjubPublicKey(sk);
   const seedMaterial =
     nonceSeed ??
-    concatBytes([bigintTo32Be(sk), randomBytes32(), serializeDigest(digest)]);
+    concatBytes([bigintTo32Be(sk), randomBytes(32), serializeDigest(digest)]);
   const nonce = hashToScalar(seedMaterial);
   const announcement = ecMulGenerator(nonce);
   const challenge = computeJubjubDigestChallenge(

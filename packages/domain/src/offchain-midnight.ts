@@ -6,6 +6,8 @@ import {
   CompactTypeVector,
   type Value,
 } from "@midnight-ntwrk/compact-runtime";
+import { blake2s } from "@noble/hashes/blake2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { z } from "zod/v4-mini";
 
 import { decodeBase64Url, encodeBase64Url } from "./crypto-codecs.js";
@@ -41,23 +43,6 @@ const uint16 = new CompactTypeUnsignedInteger(65535n, 2);
 
 export const OFFCHAIN_STATE_ENCODING =
   "midnight-offchain-did-state-v1.base64url" as const;
-
-type NodeCreateHash = typeof import("node:crypto").createHash;
-
-let nodeCreateHash: NodeCreateHash | undefined;
-
-if (typeof process !== "undefined" && process.versions?.node) {
-  nodeCreateHash = (await import("node:crypto")).createHash;
-}
-
-const getNodeCreateHash = (): NodeCreateHash => {
-  if (!nodeCreateHash) {
-    throw new Error(
-      "Offchain Midnight DID state hashing requires Node.js node:crypto.",
-    );
-  }
-  return nodeCreateHash;
-};
 
 export const OffchainStateHashSchema = OffchainStateHashHexSchema;
 
@@ -544,7 +529,7 @@ const decodeStateShape = (
 
 const bytesToStateHash = (bytes: Uint8Array): OffchainStateHash =>
   OffchainStateHashSchema.parse(
-    getNodeCreateHash()("blake2s256").update(bytes).digest("hex"),
+    bytesToHex(blake2s(bytes, { dkLen: 32 })),
   ) as OffchainStateHash;
 
 export const parseOffchainStateHash = (input: string): OffchainStateHash =>

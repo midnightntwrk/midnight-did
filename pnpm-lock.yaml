@@ -237,6 +237,9 @@ importers:
       '@midnight-ntwrk/compact-runtime':
         specifier: 0.15.0
         version: 0.15.0
+      '@noble/hashes':
+        specifier: ^2.2.0
+        version: 2.2.0
       zod:
         specifier: ^4.1.0
         version: 4.4.3
@@ -256,6 +259,9 @@ importers:
       '@midnight-ntwrk/ledger-v8':
         specifier: 8.0.3
         version: 8.0.3
+      '@noble/hashes':
+        specifier: ^2.2.0
+        version: 2.2.0
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^3.2.4
@@ -995,6 +1001,10 @@ packages:
   '@noble/hashes@1.8.0':
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
+
+  '@noble/hashes@2.2.0':
+    resolution: {integrity: sha512-IYqDGiTXab6FniAgnSdZwgWbomxpy9FtYvLKs7wCUs2a8RkITG+DFGO1DM9cr+E3/RgADRpFjrKVaJ1z6sjtEg==}
+    engines: {node: '>= 20.19.0'}
 
   '@nolyfill/is-core-module@1.0.39':
     resolution: {integrity: sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==}
@@ -5247,6 +5257,8 @@ snapshots:
       '@noble/hashes': 1.8.0
 
   '@noble/hashes@1.8.0': {}
+
+  '@noble/hashes@2.2.0': {}
 
   '@nolyfill/is-core-module@1.0.39': {}
 
