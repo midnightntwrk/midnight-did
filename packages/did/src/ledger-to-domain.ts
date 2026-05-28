@@ -8,6 +8,7 @@ import {
   KeyType,
   normalizeServiceEndpoint,
   PublicKeyJwk,
+  PublicKeyJwkSchema,
   Service,
   ServiceEndpointSchema,
   VerificationMethod,
@@ -33,37 +34,6 @@ const bytesToHex = (bytes: Iterable<number>): string => {
   return hex;
 };
 
-const padBytes32 = (value: Uint8Array): Uint8Array => {
-  if (value.length === 32) return value;
-  if (value.length > 32) {
-    throw new Error(`Ledger Bytes<32> value exceeds 32 bytes: ${value.length}`);
-  }
-  const padded = new Uint8Array(32);
-  padded.set(value, 0);
-  return padded;
-};
-
-const bytesFromLedger = (value: unknown): Uint8Array => {
-  // CompactTypeBytes.fromValue returns a byte view. Compact storage trims
-  // high-order zero bytes from little-endian Bytes<N>, so right-pad on read.
-  if (value instanceof Uint8Array) return padBytes32(value);
-  if (ArrayBuffer.isView(value)) {
-    const view = value as ArrayBufferView;
-    return padBytes32(
-      new Uint8Array(view.buffer, view.byteOffset, view.byteLength),
-    );
-  }
-  const shape =
-    value === null
-      ? "null"
-      : typeof value === "object"
-        ? (value.constructor?.name ?? "object")
-        : typeof value;
-  throw new Error(
-    `Ledger Bytes<32> value has an unsupported runtime shape: ${shape}`,
-  );
-};
-
 const LedgerCurveType = DIDContract.CurveType;
 const LedgerKeyType = DIDContract.KeyType;
 const LedgerVerificationMethodType = DIDContract.VerificationMethodType;
@@ -78,7 +48,25 @@ type LedgerVerificationMethodRelationValue =
   (typeof LedgerVerificationMethodRelation)[keyof typeof LedgerVerificationMethodRelation];
 type Ledger = DIDContract.Ledger;
 type LedgerPublicKeyJwk = DIDContract.PublicKeyJwk;
+type LedgerSchnorrJubjubVerificationMethod =
+  DIDContract.SchnorrJubjubVerificationMethod;
 type LedgerService = DIDContract.Service;
+
+const bigintTo32Le = (value: bigint): Uint8Array => {
+  if (value < 0n) {
+    throw new Error("Jubjub public key coordinate must be non-negative");
+  }
+  const bytes = new Uint8Array(32);
+  let remaining = value;
+  for (let i = 0; i < bytes.length; i += 1) {
+    bytes[i] = Number(remaining & 0xffn);
+    remaining >>= 8n;
+  }
+  if (remaining !== 0n) {
+    throw new Error("Jubjub public key coordinate does not fit in 32 bytes");
+  }
+  return bytes;
+};
 
 export class LedgerToDomain {
   private static readonly KeyTypeMap: Record<LedgerKeyTypeValue, KeyType> = {
@@ -129,19 +117,49 @@ export class LedgerToDomain {
   static publicKeyJwk(publicKeyJwk: LedgerPublicKeyJwk): PublicKeyJwk {
     const kty = this.KeyTypeMap[publicKeyJwk.kty];
     const crv = this.CurveTypeMap[publicKeyJwk.crv];
-    const xBytes = bytesFromLedger(publicKeyJwk.x);
-    const yBytes = bytesFromLedger(publicKeyJwk.y);
-    const x = encodeBase64Url(xBytes);
-    const y = encodeBase64Url(yBytes);
+    const x = this.ledgerOpaqueString(publicKeyJwk.x, "publicKeyJwk.x");
+    const y = this.ledgerOpaqueString(publicKeyJwk.y, "publicKeyJwk.y");
 
     if (
       kty === KeyType.OKP &&
-      (crv === CurveType.Ed25519 || crv === CurveType.X25519) &&
-      yBytes.every((byte) => byte === 0)
-    )
-      return { kty, crv, x } as PublicKeyJwk;
+      (crv === CurveType.Ed25519 || crv === CurveType.X25519)
+    ) {
+      if (y !== "") {
+        throw new Error("OKP ledger publicKeyJwk.y must be empty");
+      }
+      return PublicKeyJwkSchema.parse({ kty, crv, x });
+    }
 
-    return { kty, crv, x, y } as PublicKeyJwk;
+    return PublicKeyJwkSchema.parse({ kty, crv, x, y });
+  }
+
+  static schnorrJubjubPublicKeyJwk(
+    verificationMethod: LedgerSchnorrJubjubVerificationMethod,
+  ): PublicKeyJwk {
+    return PublicKeyJwkSchema.parse({
+      kty: KeyType.EC,
+      crv: CurveType.Jubjub,
+      x: encodeBase64Url(bigintTo32Le(verificationMethod.publicKey.x)),
+      y: encodeBase64Url(bigintTo32Le(verificationMethod.publicKey.y)),
+    });
+  }
+
+  private static ledgerOpaqueString(value: unknown, label: string): string {
+    if (typeof value === "string") return value;
+    if (value instanceof Uint8Array) return new TextDecoder().decode(value);
+    if (ArrayBuffer.isView(value)) {
+      const view = value as ArrayBufferView;
+      return new TextDecoder().decode(
+        new Uint8Array(view.buffer, view.byteOffset, view.byteLength),
+      );
+    }
+    const shape =
+      value === null
+        ? "null"
+        : typeof value === "object"
+          ? (value.constructor?.name ?? "object")
+          : typeof value;
+    throw new Error(`${label} has an unsupported runtime shape: ${shape}`);
   }
 
   static service(service: LedgerService): Service {
@@ -263,6 +281,22 @@ export class LedgerToDomain {
   static toJSON(ledger: Ledger): object {
     const created = this.timestampToIsoString(ledger.created);
     const updated = this.timestampToIsoString(ledger.updated);
+    const opaqueVerificationMethods = Array.from(
+      ledger.verificationMethods,
+      ([id, method]) => ({
+        id: this.verificationMethodId(id),
+        type: this.VerificationMethodTypeMap[method.typ],
+        publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
+      }),
+    );
+    const schnorrJubjubVerificationMethods = Array.from(
+      ledger.schnorrJubjubVerificationMethods,
+      ([id, method]) => ({
+        id: this.verificationMethodId(id),
+        type: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: this.schnorrJubjubPublicKeyJwk(method),
+      }),
+    );
 
     return {
       id: bytesToHex(ledger.id.bytes),
@@ -273,14 +307,10 @@ export class LedgerToDomain {
       updated,
       deactivated: ledger.deactivated,
       alsoKnownAs: Array.from(ledger.alsoKnownAs),
-      verificationMethods: Array.from(
-        ledger.verificationMethods,
-        ([id, method]) => ({
-          id: this.verificationMethodId(id),
-          type: method.typ,
-          publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
-        }),
-      ),
+      verificationMethods: [
+        ...opaqueVerificationMethods,
+        ...schnorrJubjubVerificationMethods,
+      ],
       authenticationRelation: Array.from(
         ledger.authenticationRelation,
         (value) => this.verificationMethodId(value),
@@ -315,6 +345,16 @@ export class LedgerToDomain {
 
     const verificationMethod: VerificationMethod[] = [];
     const verificationMethodIds = new Set<string>();
+    const registerVerificationMethodId = (id: string): void => {
+      const normalizedId = this.verificationMethodId(id);
+      if (verificationMethodIds.has(normalizedId)) {
+        throw new Error(
+          `Duplicate verification method id '${this.absoluteDidUrlReference(did, id)}'`,
+        );
+      }
+      verificationMethodIds.add(normalizedId);
+    };
+
     for (const [id, method] of ledger.verificationMethods) {
       const verificationMethodType =
         LedgerToDomain.VerificationMethodTypeMap[method.typ];
@@ -323,6 +363,7 @@ export class LedgerToDomain {
           `Unsupported verification method type for id '${id}': ${verificationMethodType}`,
         );
       }
+      registerVerificationMethodId(id);
       verificationMethod.push(
         createVerificationMethod({
           id: this.absoluteDidUrlReference(did, id),
@@ -331,7 +372,18 @@ export class LedgerToDomain {
           publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
         }),
       );
-      verificationMethodIds.add(id);
+    }
+
+    for (const [id, method] of ledger.schnorrJubjubVerificationMethods) {
+      registerVerificationMethodId(id);
+      verificationMethod.push(
+        createVerificationMethod({
+          id: this.absoluteDidUrlReference(did, id),
+          type: VerificationMethodType.JsonWebKey,
+          controller: did,
+          publicKeyJwk: this.schnorrJubjubPublicKeyJwk(method),
+        }),
+      );
     }
 
     const assertRelationTargetsExist = (
@@ -340,7 +392,7 @@ export class LedgerToDomain {
     ) => {
       if (relation.isEmpty()) return;
       for (const methodId of relation) {
-        if (!verificationMethodIds.has(methodId)) {
+        if (!verificationMethodIds.has(this.verificationMethodId(methodId))) {
           throw new Error(
             `${relationName} references missing verification method '${this.absoluteDidUrlReference(did, methodId)}'`,
           );

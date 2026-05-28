@@ -7,7 +7,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | Trait | Status | Notes |
 | --- | --- | --- |
 | Deterministic / namespaced | ✔ | `did:midnight:{network}:{64-hex}` derived from contract address; avoids collisions across networks. |
-| Self-certifying | △ | DID value is not derived from controller key; security anchored in on-chain contract + secret key witness. |
+| Self-certifying | △ | DID value is not derived from controller key; security anchored in on-chain contract + wallet-held secret key witness. |
 | Ledger anchored | ✔ | All CRUD operations interact with Midnight ledger smart contract. |
 | Method-specific syntax | ✔ | Defined in [Midnight DID Method §2](./midnight-method.md#2-midnight-did-syntax); conforms to [RFC3986] and [W3C-DID] requirements. |
 
@@ -46,7 +46,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | Single controller | ✔ | Contract enforces single controller equal to DID. |
 | Multi-controller | ✖ | Not supported. |
 | Delegated updates | ✔ | Possession of the secret key witness allows updates. |
-| On-chain access control | ✔ | Circuits verify the secret key against `controllerPublicKey`. |
+| On-chain access control | ✔ | Circuits verify the wallet-held secret key against `controllerPublicKey`. |
 
 ## Operational Traits
 

@@ -1,28 +1,23 @@
 # @midnight-ntwrk/midnight-did-jubjub-schnorr
 
-Shared JubJub Schnorr transcript and signature helpers for `midnight-did`.
+Shared Jubjub Schnorr transcript and signature helpers for `midnight-did`.
 
 This package exists to keep Compact verification and TypeScript signing on the
 same protocol surface.
 
 ## Purpose
 
-Before this package, JubJub support in the identity stack was split incorrectly:
-
-- `packages/contract/src/did.compact` only verified the final EC equation
-- service-side key custody defined the real transcript and challenge
-
-That meant the protocol semantics lived off-chain while the contract only
-checked a caller-supplied `challenge`.
-
-This package fixes that split.
+This package keeps Jubjub Schnorr transcript semantics in one reusable place.
+The DID contract stores native SchnorrJubjub public keys and exposes a
+ledger-bound verification circuit for method-id-based checks. Application
+signing and reusable transcript helpers still live here.
 
 ## Package split
 
 - [src/schnorr.compact](./src/schnorr.compact)
   - reusable Compact Schnorr module
   - owns challenge construction
-  - owns witness-assisted reduction to a JubJub-safe scalar
+  - owns witness-assisted reduction to a Jubjub-safe scalar
 - [src/jubjub-schnorr.compact](./src/jubjub-schnorr.compact)
   - thin wrapper contract
   - exists so generated TS exposes `pureCircuits.schnorrChallengeDigest(...)`
@@ -70,14 +65,14 @@ That adapter is implemented by:
 
 ## Challenge reduction
 
-`transientHash(...)` returns a BLS12-381 field element, but JubJub scalar
+`transientHash(...)` returns a BLS12-381 field element, but Jubjub scalar
 operations require a smaller scalar.
 
 The Compact module follows the zkloan pattern:
 
 - compute `cFull`
 - witness `(q, r)` such that `cFull = q * 2^248 + r`
-- use `r` as the actual JubJub challenge scalar
+- use `r` as the actual Jubjub challenge scalar
 
 Every host contract that imports the shared `schnorr` module must implement
 the witness with exactly this arithmetic:
@@ -141,17 +136,8 @@ random nonce when no `nonceSeed` is supplied.
 
 ### For contract code
 
-Use the digest-based verifier in:
-
-- [packages/contract/src/did.compact](../contract/src/did.compact)
-
-Preferred:
-
-- `verifyJubjubDigestSignature(...)`
-
-Low-level primitive only:
-
-- `verifyJubjubSignature(pk, signature, challenge)`
-
-The low-level primitive is still available, but it should not be treated as the
-primary DID-facing protocol entrypoint.
+Compact consumers that need standalone in-circuit verification can import
+[`src/schnorr.compact`](./src/schnorr.compact) or use the wrapper contract in
+[`src/jubjub-schnorr.compact`](./src/jubjub-schnorr.compact). The DID contract
+exports only the ledger-bound SchnorrJubjub verifier, which looks up the public
+key from DID ledger state by method id.

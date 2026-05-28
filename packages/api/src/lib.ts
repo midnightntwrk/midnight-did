@@ -7,6 +7,7 @@ export {
   deploy,
   joinContract,
 } from "./contract-lifecycle-operations.js";
+export { rotateControllerKey } from "./controller-operations.js";
 export { getMidnightNetwork } from "./did-subject.js";
 export {
   addAlsoKnownAs,
@@ -26,11 +27,15 @@ export {
   updateService,
 } from "./service-operations.js";
 export {
+  addSchnorrJubjubVerificationMethod,
   addVerificationMethod,
   addVerificationMethodRelation,
+  removeSchnorrJubjubVerificationMethod,
   removeVerificationMethod,
   removeVerificationMethodRelation,
+  updateSchnorrJubjubVerificationMethod,
   updateVerificationMethod,
+  verifySchnorrJubjubDigestSignature,
 } from "./verification-method-operations.js";
 export {
   buildFreshWallet,

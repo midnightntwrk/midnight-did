@@ -1,3 +1,4 @@
+import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import { assertAbsoluteUri } from "@midnight-ntwrk/midnight-did-domain";
 import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
 
@@ -8,7 +9,10 @@ export const addAlsoKnownAs = async (
   aliasUri: string,
 ): Promise<FinalizedTxData> => {
   const alias = assertAbsoluteUri(aliasUri, "aliasUri");
-  const result = await didContract.callTx.addAlsoKnownAs(alias);
+  const result = await didContract.callTx.setAlsoKnownAs(
+    alias,
+    DIDContract.SetMutation.Insert,
+  );
   return result.public;
 };
 
@@ -17,7 +21,10 @@ export const removeAlsoKnownAs = async (
   aliasUri: string,
 ): Promise<FinalizedTxData> => {
   const alias = assertAbsoluteUri(aliasUri, "aliasUri");
-  const result = await didContract.callTx.removeAlsoKnownAs(alias);
+  const result = await didContract.callTx.setAlsoKnownAs(
+    alias,
+    DIDContract.SetMutation.Remove,
+  );
   return result.public;
 };
 
