@@ -16,7 +16,7 @@
     "coverage": "pnpm --filter ./packages/contract coverage",
     "ci": "./run.sh --light --strict",
     "ci:packages": "pnpm run lint && pnpm run build:all && pnpm run test:all",
-    "ci:core": "pnpm run test:did-surface-discipline && pnpm run check:did-surface-discipline && pnpm run test:workspace-manifests && pnpm run check:workspace-manifests && pnpm run test:artifact-workspaces && pnpm run test:managed-artifacts && pnpm run test:integration-report && pnpm run test:source-imports && pnpm run check:source-imports && pnpm run check:run-target-catalog && SKIP_LINT_FIX=1 pnpm run lint:core && pnpm --filter ./packages/jubjub-schnorr build && pnpm --filter ./packages/jubjub-schnorr test:ci && pnpm --filter ./packages/contract build:prepared && SKIP_RUNTIME_TESTS=1 pnpm --filter ./packages/contract test:ci && pnpm run check:managed-artifacts && pnpm --filter ./packages/domain build && pnpm --filter ./packages/domain test:ci && pnpm --filter ./packages/did build && pnpm --filter ./packages/did test:ci",
+    "ci:core": "pnpm run test:did-surface-discipline && pnpm run check:did-surface-discipline && pnpm run test:workspace-manifests && pnpm run check:workspace-manifests && pnpm run test:artifact-workspaces && pnpm run test:managed-artifacts && pnpm run test:integration-report && pnpm run test:source-imports && pnpm run check:source-imports && pnpm run test:engine-agnostic-imports && pnpm run check:engine-agnostic-imports && pnpm run check:run-target-catalog && SKIP_LINT_FIX=1 pnpm run lint:core && pnpm --filter ./packages/jubjub-schnorr build && pnpm --filter ./packages/jubjub-schnorr test:ci && pnpm --filter ./packages/contract build:prepared && SKIP_RUNTIME_TESTS=1 pnpm --filter ./packages/contract test:ci && pnpm run check:managed-artifacts && pnpm --filter ./packages/domain build && pnpm --filter ./packages/domain test:ci && pnpm --filter ./packages/did build && pnpm --filter ./packages/did test:ci",
     "build:api-prereqs": "pnpm --filter ./packages/contract build:prepared && pnpm --filter ./packages/did build && pnpm --filter ./packages/api build",
     "pack:contract": "pnpm --filter ./packages/contract pack",
     "pack:all": "pnpm run pack:contract && echo 'Artifacts:' && ls -1 *.tgz || true && ls -1 packages/contract/*.tgz || true",
@@ -44,7 +44,9 @@
     "test:managed-artifacts": "node scripts/managed-artifact-catalog.test.mjs",
     "test:integration-report": "node scripts/report-integration.test.mjs",
     "check:source-imports": "node scripts/check-source-imports.mjs",
-    "test:source-imports": "node scripts/check-source-imports.test.mjs"
+    "test:source-imports": "node scripts/check-source-imports.test.mjs",
+    "check:engine-agnostic-imports": "node scripts/check-engine-agnostic-imports.mjs",
+    "test:engine-agnostic-imports": "node scripts/check-engine-agnostic-imports.test.mjs"
   },
   "private": true,
   "packageManager": "pnpm@10.23.0",
