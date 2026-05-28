@@ -1,7 +1,9 @@
-import { webcrypto } from "node:crypto";
-
 export const randomBytes = (length: number): Uint8Array => {
+  if (!globalThis.crypto?.getRandomValues) {
+    throw new Error("randomBytes requires Web Crypto getRandomValues");
+  }
+
   const bytes = new Uint8Array(length);
-  webcrypto.getRandomValues(bytes);
+  globalThis.crypto.getRandomValues(bytes);
   return bytes;
 };
