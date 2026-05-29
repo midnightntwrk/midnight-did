@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "docs:sync-source": "node scripts/sync-source-docs.mjs",
+    "docs:sync-spec": "node scripts/sync-spec-docs.mjs",
     "docs:api": "node scripts/generate-api-docs.mjs",
-    "docs:prepare": "pnpm run docs:sync-source",
+    "docs:prepare": "pnpm run docs:sync-spec",
     "predocs:dev": "pnpm run docs:prepare",
     "predocs:build": "pnpm run docs:prepare",
     "docs:dev": "vitepress dev . --host 127.0.0.1 --port 4173",

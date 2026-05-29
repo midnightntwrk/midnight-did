@@ -145,10 +145,10 @@ pnpm run docs:api
 The optional API reference is not part of the default docs build or Pages
 workflow because it compiles package outputs.
 
-Sync mirrored source markdown into the docs site:
+Synchronize the published specification pages from `w3c-spec/`:
 
 ```bash
-pnpm run docs:sync-source
+pnpm run docs:sync-spec
 ```
 
 ## Important Repository Paths
