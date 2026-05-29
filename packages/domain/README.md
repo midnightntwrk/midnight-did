@@ -56,6 +56,12 @@ representation-response metadata. For successful abstract `resolve` responses,
 Document stream and should be `application/did+ld+json` or
 `application/did+json`.
 
+When resolution fails, `didResolutionMetadata.error` should use DID Core's
+registered keywords such as `invalidDid`, `notFound`,
+`representationNotSupported`, `methodNotSupported`, or `internalError`.
+Extension keywords remain valid when they are a single ASCII keyword.
+Resolution error keywords must start with a letter.
+
 ## Build & Test
 
 - Build: `pnpm --filter ./packages/domain build`

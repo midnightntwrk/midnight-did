@@ -76,6 +76,12 @@ Document stream media type, currently `application/did+ld+json` or
 `application/json` for the whole DID Resolution Result without copying that
 envelope type into DID resolution metadata.
 
+Resolution failures set `didResolutionMetadata.error` to a DID Core keyword such
+as `invalidDid`, `notFound`, `representationNotSupported`,
+`methodNotSupported`, or `internalError`. Resolver-specific extension keywords
+are allowed when they are a single ASCII keyword. Resolution error keywords must
+start with a letter.
+
 ## Running
 
 Prerequisites:

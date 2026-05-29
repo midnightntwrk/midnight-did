@@ -599,6 +599,14 @@ If a caller requests a DID Document representation that is not supported, the
 resolver MUST return `didResolutionMetadata.error = "representationNotSupported"`
 and MUST NOT return a `didDocument` or `didDocumentStream`.
 
+Failure responses MUST set `didResolutionMetadata.error` to a DID Core error
+keyword. Midnight resolvers SHOULD use `invalidDid`, `notFound`, and
+`representationNotSupported` for those DID Core-defined cases, and SHOULD use
+registered DID resolution keywords such as `methodNotSupported` and
+`internalError` for broader resolver failures. Resolver-specific extension
+values MAY be used when they are registered or documented as a single ASCII
+keyword that starts with a letter.
+
 The method document profile requires `@context` in resolved Midnight DID
 Documents. Producers of `application/did+ld+json` MUST include it. Producers of
 `application/did+json` MUST follow DID Core JSON production rules and SHOULD
