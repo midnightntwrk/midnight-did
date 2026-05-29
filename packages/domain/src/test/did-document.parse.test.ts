@@ -6,7 +6,6 @@ import {
   parseDID,
   parseDIDDocument,
   parseDIDKeyID,
-  parseDIDResolutionResult,
   parseDIDURL,
   parseService,
   parseVerificationMethod,
@@ -18,7 +17,6 @@ import {
   exampleDid,
   exampleDidUrl,
   exampleMethodId,
-  exampleResolutionPayload,
   exampleServiceInput,
   exampleServiceObjectInput,
   exampleVerificationMethodInput,
@@ -59,15 +57,6 @@ describe("DID parsing utilities", () => {
     for (const type of entries) {
       expect(KnownDIDMediaTypesSchema.parse(type)).toBe(type);
     }
-  });
-
-  it("rejects unknown resolution media type", () => {
-    expect(() =>
-      parseDIDResolutionResult({
-        ...exampleResolutionPayload,
-        didResolutionMetadata: { contentType: "application/unknown" },
-      }),
-    ).toThrow();
   });
 
   it("parses verification method and service helpers", () => {

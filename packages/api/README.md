@@ -9,7 +9,7 @@ Programmatic API for creating, updating, deactivating, and resolving Midnight DI
 - Map inputs/outputs between app/domain and ledger/runtime
 - Generate and persist DID controller private state for create/rotation flows
 - Provide integration test topology and helpers
-- Return DID Resolution Result objects (`didDocument`, `didResolutionMetadata`, `didDocumentMetadata`)
+- Return DID resolution data (`didDocument`, `didDocumentMetadata`) for API callers
 
 ## Use It When
 
@@ -65,6 +65,16 @@ API enforces lifecycle rules around:
 - controller rotation: generates a new wallet-local secret, derives the next controller public key locally, submits the rotation circuit, and stores the new secret after the transaction succeeds
 
 (Exact schema/canonicalization rules live in `domain`.)
+
+## Resolution Responses
+
+The API package returns the ledger-derived DID Document and DID Document
+metadata. It does not compose a full DID Core resolution envelope on its own.
+Resolver services that wrap this package into DID Core HTTP responses should add
+the `didResolutionMetadata` object at the service boundary. Successful abstract
+`resolve` responses must not set `didResolutionMetadata.contentType`; that field
+is reserved for `resolveRepresentation` responses where the body is a DID
+Document byte stream.
 
 ## Build & Test
 
