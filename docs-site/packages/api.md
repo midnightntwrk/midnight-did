@@ -21,18 +21,19 @@ tests and higher-level applications that need DID contract operations.
 - `packages/api/src/lib.ts`
 - `packages/api/src/index.ts`
 - `packages/api/src/test/`
+- `packages/api/examples/bootstrap-issuer-did.ts`
 - `packages/api/README.md`
-
-## Full source doc
-
-- [Embedded API README](/source/api-readme)
 
 ## Typical callers
 
 - integration tests
 - custom automation using funded Midnight wallets
+- issuer bootstrap scripts that need a DID, Ed25519 authentication key, and
+  SchnorrJubjub assertion key
 
 ## API surface
 
 The public API is exported from `packages/api/src/index.ts`.
 Run `pnpm run docs:api` locally when you need generated TypeDoc pages.
+Use [API Examples](/packages/api-examples#bootstrap-an-issuer-did) for a
+complete runnable issuer DID bootstrap flow.

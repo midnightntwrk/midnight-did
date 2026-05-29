@@ -59,7 +59,6 @@ const generatedRelativeDirectories = new Set([
   "docs-site/.vitepress/cache",
   "docs-site/.vitepress/dist",
   "docs-site/api/reference",
-  "docs-site/source",
 ]);
 const trackedFiles = new Set(
   execFileSync("git", ["ls-files"], { cwd: repoRoot, encoding: "utf8" })

@@ -20,10 +20,6 @@
 - `packages/did/src/index.ts`
 - `packages/did/README.md`
 
-## Full source doc
-
-- [Embedded DID README](/source/did-readme)
-
 ## API surface
 
 The public API is exported from `packages/did/src/index.ts`.
