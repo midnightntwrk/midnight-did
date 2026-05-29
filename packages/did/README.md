@@ -36,6 +36,19 @@ sequenceDiagram
   DIDPkg-->>Consumer: DID Resolution Result
 ```
 
+## Resolution Result Shape
+
+The package resolver returns the DID Core abstract resolution shape: a DID
+Document plus DID Document metadata. Resolver services that expose the full DID
+Resolution Result envelope should add `didResolutionMetadata` as a separate
+object. For successful abstract `resolve` calls, that metadata object must not
+include `contentType`.
+
+Use `contentType` only for `resolveRepresentation`-style responses where the
+body is a DID Document byte stream. Midnight DID Document representations should
+be reported as `application/did+ld+json` for JSON-LD streams or
+`application/did+json` for DID Core JSON streams.
+
 ## Identifier Canonicalization
 
 ```mermaid
