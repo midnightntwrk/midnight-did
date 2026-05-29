@@ -353,6 +353,11 @@ assertIncludes(
   "pnpm run check:did-surface-discipline",
   ".github/workflows/docs.yml",
 );
+assertIncludes(
+  readText(".github/workflows/docs.yml"),
+  "enablement: true",
+  ".github/workflows/docs.yml",
+);
 assertNotIncludes(
   readText(".github/workflows/docs.yml"),
   "midnightntwrk/setup-compact-action",
