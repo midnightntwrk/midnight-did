@@ -1,80 +1,48 @@
 # Publishing
 
-The docs site is built with VitePress and is intended to be published as GitHub Pages for this repository.
+The repository publishes a VitePress site from `docs-site/`.
 
-## Local build
+## Local Build
 
 ```bash
 pnpm install
 pnpm run docs:build
 ```
 
-The local preview server uses the root path:
+Preview the built site:
 
 ```bash
 pnpm run docs:preview
 ```
 
-## GitHub Pages behavior
+Run the same docs lane used by CI:
 
-When the docs workflow runs on GitHub Actions, the VitePress `base` path is set automatically from the repository name.
+```bash
+./run.sh docs
+```
 
-For this repository that means:
+## What The Default Build Does
 
-- local: `/`
-- GitHub Pages: `/midnight-did/`
+The default docs build is intentionally small:
 
-The config is implemented in:
+1. sync selected repository markdown into `docs-site/source/`
+2. build VitePress static output into `docs-site/.vitepress/dist/`
 
-- `docs-site/.vitepress/config.ts`
+It does not compile Compact contracts, rebuild managed artifacts, run TypeDoc,
+or start Docker-backed tests.
 
-## Deployment workflow
+## Optional API Reference
 
-The workflow:
+Generated TypeDoc pages remain available as a local maintenance tool:
 
-1. checks out the repository
-2. installs the Compact toolchain used by generated API documentation
-3. installs dependencies with `pnpm install`
-4. syncs repository markdown into internal docs pages
-5. generates API reference from TypeScript entry points
-6. builds the site with `pnpm run docs:build`
-7. uploads the VitePress output as a Pages artifact on publishable `main` runs
-8. deploys it to GitHub Pages on publishable `main` runs
+```bash
+pnpm run docs:api
+```
 
-Workflow file:
+This is not part of the default Pages build because it compiles package outputs
+and is too heavy for docs-only CI.
 
-- `.github/workflows/docs.yml`
+## Pages Deployment
 
-## Repository settings
-
-GitHub Pages must be configured to use the workflow-based deployment model.
-
-Repository configuration:
-
-1. Open `Settings -> Pages`
-2. In `Build and deployment`
-3. Set `Source` to `GitHub Actions`
-
-Do not use the older `Deploy from a branch` mode for this repository.
-
-Reason:
-
-- the docs site has a build step
-- the build also generates:
-  - mirrored source markdown pages
-  - TypeDoc API reference
-- the recommended GitHub Pages flow for this is artifact deployment through Actions, not pushing built files to a `gh-pages` branch
-
-## Branch behavior
-
-- pushes to `main`:
-  - build and deploy
-- pushes to `develop`:
-  - build only; Pages configuration, artifact upload, and deploy are skipped
-- pull requests targeting `main` or `develop`:
-  - build only; Pages configuration, artifact upload, and deploy are skipped
-- `workflow_dispatch`:
-  - build on the selected ref
-  - deploy only when the selected ref is `main`
-
-This keeps manual docs verification available on branches without accidentally publishing preview content as the production Pages site.
+See [GitHub Pages](/guide/github-pages) for the repository setting and workflow
+behavior.
