@@ -40,6 +40,6 @@ The workflow needs the standard Pages permissions:
 - `pages: write`
 - `id-token: write`
 
-The default docs build is Markdown-first. It syncs source markdown from the repo
-and builds the static site with Mermaid diagram support, without compiling
-Compact contracts or running Docker-backed integration tests.
+The default docs build is Markdown-first. It synchronizes the published spec
+pages from `w3c-spec/` and builds the static site with Mermaid diagram support,
+without compiling Compact contracts or running Docker-backed integration tests.

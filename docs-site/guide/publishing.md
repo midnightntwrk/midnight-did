@@ -25,7 +25,7 @@ Run the same docs lane used by CI:
 
 The default docs build is intentionally small:
 
-1. sync selected repository markdown into `docs-site/source/`
+1. synchronize the published specification pages from `w3c-spec/`
 2. build VitePress static output into `docs-site/.vitepress/dist/`
 
 It does not compile Compact contracts, rebuild managed artifacts, run TypeDoc,

@@ -17,7 +17,7 @@ describe("ci-change-classifier", () => {
   it("treats docs roots as docs-only even for site code and assets", () => {
     assert.equal(isDocsOnlyPath("docs/testing.md"), true);
     assert.equal(isDocsOnlyPath("docs-site/.vitepress/config.ts"), true);
-    assert.equal(isDocsOnlyPath("docs-site/public/mark.svg"), true);
+    assert.equal(isDocsOnlyPath("docs-site/public/midnight-header-logo.svg"), true);
     assert.equal(isDocsOnlyPath("w3c-spec/midnight-method.md"), true);
   });
 

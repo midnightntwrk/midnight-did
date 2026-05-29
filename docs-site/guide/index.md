@@ -1,14 +1,56 @@
 # Guide
 
-Use these pages when changing DID contract, package, API, runner, packaging, or documentation behavior.
+Midnight DID lets an application publish DID method state to a Midnight smart
+contract, resolve that state into a W3C DID Document, and use the published keys
+for authentication, credentials, services, and Midnight-native SchnorrJubjub
+verification.
 
-1. Install dependencies with `pnpm install`.
-2. Run `compact update 0.30.0` if your local Compact toolchain is not already pinned.
-3. Run `./run.sh --light --strict` before opening a PR.
-4. Use focused targets such as `./run.sh core --strict` or `./run.sh api --light --strict` while iterating.
-5. Use [Repository Boundaries](/guide/repository-boundaries) before adding resolver, manager, secret-storage, VC, or trust-registry work.
+```mermaid
+flowchart LR
+  Create["Create DID contract"]
+  Add["Add keys and services"]
+  Resolve["Resolve DID Document"]
+  Use["Use keys in app flows"]
 
-## Pages
+  Create --> Add --> Resolve --> Use
+```
+
+## Choose Your Path
+
+| Goal | Start here |
+| --- | --- |
+| Try the main flow in a standalone environment | [Quickstart](/guide/quickstart) |
+| Bootstrap an issuer DID with real Ed25519 and SchnorrJubjub keys | [API Examples](/packages/api-examples#bootstrap-an-issuer-did) |
+| Understand supported keys and signing paths | [Key Model](/guide/key-model) |
+| Learn the DID method rules | [DID Method](/spec/midnight-method) |
+| Work on Compact circuits | [Compact Contract Surface](/compact/) |
+| Pick the right TypeScript package | [Libs](/packages/) |
+| Contribute to this repository | [Local Development](/guide/local-development) |
+
+## What Lives Here
+
+This repository owns the DID method implementation:
+
+- Compact DID contract and generated runtime package.
+- TypeScript domain validation and DID Document normalization.
+- Ledger-to-domain mapping and in-process resolver helpers.
+- API helpers for DID contract lifecycle and updates.
+
+Deployable resolver services, DID manager UI/backend, reusable secret storage,
+and local key-custody workflows live in
+[`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver).
+VC/VP protocol work lives in
+[`midnight-verifiable-credentials`](https://github.com/midnightntwrk/midnight-verifiable-credentials).
+
+## Security Note
+
+Controller-gated DID updates currently pass the controller `localSecretKey` as a
+private witness. The ledger does not see it, but a delegated proof server may.
+Use a local prover or proof infrastructure trusted with the DID controller
+secret. See [Key Model](/guide/key-model#trusted-proof-server-model) for the
+operating assumption and future direction.
+
+## Contributor Pages
 
 - [Local Development](/guide/local-development)
 - [Testing Strategy](/guide/testing-strategy)
@@ -16,11 +58,3 @@ Use these pages when changing DID contract, package, API, runner, packaging, or 
 - [Repository Boundaries](/guide/repository-boundaries)
 - [GitHub Pages](/guide/github-pages)
 - [Publishing](/guide/publishing)
-
-## Source Documents
-
-- [Repository README](/source/repository-overview)
-- [Contract README](/source/contract-readme)
-- [Domain README](/source/domain-readme)
-- [DID README](/source/did-readme)
-- [API README](/source/api-readme)

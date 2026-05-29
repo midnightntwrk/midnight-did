@@ -21,10 +21,6 @@
 - `packages/domain/src/midnight.ts`
 - `packages/domain/README.md`
 
-## Full source doc
-
-- [Embedded Domain README](/source/domain-readme)
-
 ## API surface
 
 The public API is exported from `packages/domain/src/index.ts`.
