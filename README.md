@@ -15,7 +15,7 @@ VC packages and use cases live in [`midnight-verifiable-credentials`](https://gi
 | [`packages/domain`](packages/domain/README.md)                 | `@midnight-ntwrk/midnight-did-domain`         | DID schemas, validation, canonicalization                                        |
 | [`packages/did`](packages/did/README.md)                       | `@midnight-ntwrk/midnight-did`                | Ledger to domain mapping and DID resolution helpers                              |
 | [`packages/api`](packages/api/README.md)                       | `@midnight-ntwrk/midnight-did-api`            | Programmatic DID operations, wallet/provider orchestration, and network profiles |
-| [`docs-site`](docs-site/)                                      | `docs-site`                                   | VitePress documentation and generated API reference                              |
+| [`docs-site`](docs-site/)                                      | `docs-site`                                   | VitePress documentation site                                                     |
 
 ## Architecture
 

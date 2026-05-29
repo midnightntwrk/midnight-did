@@ -14,6 +14,7 @@ Use these pages when changing DID contract, package, API, runner, packaging, or 
 - [Testing Strategy](/guide/testing-strategy)
 - [DID Surface Change Discipline](/guide/did-surface-change-discipline)
 - [Repository Boundaries](/guide/repository-boundaries)
+- [GitHub Pages](/guide/github-pages)
 - [Publishing](/guide/publishing)
 
 ## Source Documents

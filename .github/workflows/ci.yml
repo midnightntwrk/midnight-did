@@ -23,9 +23,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Classify Changes
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      changed_file_count: ${{ steps.classify.outputs.changed_file_count }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed files
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: node scripts/ci-change-classifier.mjs --output "$GITHUB_OUTPUT"
+
+      - name: Print change classification
+        run: |
+          echo "docs_only=${{ steps.classify.outputs.docs_only }}"
+          echo "changed_file_count=${{ steps.classify.outputs.changed_file_count }}"
+
   core:
     name: Core (Lint + Contract/Domain/DID)
     runs-on: ubuntu-latest
+    needs:
+      - changes
+    if: needs.changes.outputs.docs_only != 'true'
     timeout-minutes: 60
     env:
       COMPACT_COMPILER_VERSION: 0.30.0
@@ -63,6 +90,9 @@ jobs:
   api:
     name: API pipeline
     runs-on: ubuntu-latest
+    needs:
+      - changes
+    if: needs.changes.outputs.docs_only != 'true'
     timeout-minutes: 60
     env:
       COMPACT_COMPILER_VERSION: 0.30.0
@@ -102,13 +132,25 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     needs:
+      - changes
       - core
       - api
     steps:
       - name: Check dependency jobs
         run: |
+          echo "docs_only: ${{ needs.changes.outputs.docs_only }}"
+          echo "changed_file_count: ${{ needs.changes.outputs.changed_file_count }}"
           echo "core: ${{ needs.core.result }}"
           echo "api: ${{ needs.api.result }}"
+
+          if [[ "${{ needs.changes.outputs.docs_only }}" == "true" ]]; then
+            if [[ "${{ needs.core.result }}" != "skipped" || "${{ needs.api.result }}" != "skipped" ]]; then
+              echo "Docs-only change should skip core and API jobs."
+              exit 1
+            fi
+            echo "Docs-only change detected; core and API jobs were intentionally skipped."
+            exit 0
+          fi
 
           if [[ "${{ needs.core.result }}" != "success" || "${{ needs.api.result }}" != "success" ]]; then
             echo "One or more CI jobs failed."

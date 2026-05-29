@@ -32,7 +32,7 @@ Fast validation:
 ./run.sh --light --strict
 ```
 
-Current stabilization checkpoint, 2026-05-23: develop at `b7a2f37` matched `origin/develop`, and `./run.sh --light --strict` passed locally. Long-running integration lanes remain opt-in through the full runner.
+Current stabilization checkpoint, 2026-05-29: develop at `195cd6f` matched `origin/develop` after PR #169 merged. The repository is pnpm/Turbo-native and the DID contract uses the split key-storage model described below. Long-running API integration remains opt-in through the full runner.
 
 Full validation:
 
@@ -61,7 +61,7 @@ Use it to inspect Compact entry points, generated `src/managed` outputs, TypeScr
 | `packages/domain`         | `@midnight-ntwrk/midnight-did-domain`         | DID document schemas, validation, canonicalization, field encoding, and method-specific domain types. |
 | `packages/did`            | `@midnight-ntwrk/midnight-did`                | Ledger-to-domain mapping, DID resolution helpers, and method-specific conversion logic.               |
 | `packages/api`            | `@midnight-ntwrk/midnight-did-api`            | Runtime orchestration for wallets, providers, contracts, network profiles, and DID operations.        |
-| `docs-site`               | `docs-site`                                   | VitePress documentation site and generated API reference for DID-owned packages.                      |
+| `docs-site`               | `docs-site`                                   | VitePress documentation site for DID-owned packages and specifications.                               |
 
 ## Architecture Boundaries
 
@@ -82,6 +82,15 @@ Rules:
 - Keep VC/VP semantics in `midnight-verifiable-credentials`.
 - Keep Passport/product flows in examples/product repos.
 - Keep `jubjub-schnorr` as the single source of truth for JubJub Schnorr transcript logic.
+
+Current key-storage model:
+
+- Ed25519, X25519, P-256, and secp256k1 `publicKeyJwk` material is stored as opaque canonical strings in `verificationMethods`.
+- SchnorrJubjub keys are stored as native `JubjubPoint` values in `schnorrJubjubVerificationMethods`.
+- Resolver/API code merges both maps into DID Document `verificationMethod` output.
+- Do not store the same key in both maps; relation sets share the normalized method-id namespace.
+- `verifySchnorrJubjubDigestSignature` must stay ledger-bound by method id so verification uses the key currently stored in DID state.
+- The DID method spec's trusted proof server appendix documents the current controller-secret witness trust assumption.
 
 ## Compact and TypeScript Source Rules
 
@@ -138,6 +147,18 @@ Commit form:
 ```bash
 git commit -S --signoff -m "<type>: <subject>"
 ```
+
+## pnpm and Turbo Notes
+
+This repository uses pnpm 10 with a strict workspace layout and Turbo for package-level orchestration. Do not reintroduce `package-lock.json`, `npm ci`, or npm workspace commands.
+
+Practical rules from the 2026-05-26 migration:
+
+- In CI, run `corepack enable` before `actions/setup-node` uses `cache: pnpm`; otherwise setup-node cannot find pnpm.
+- Every package that imports a tool or runtime helper must declare it directly. Strict pnpm does not let package-local ESLint configs or Vitest setup files rely on root hoisting. Examples: `globals` for package-local `eslint.config.mjs`, and `protobufjs`/`long` for `packages/api/vitest.setup.ts`.
+- `packages/api` must directly declare runtime dependencies it imports or exposes through its TypeScript build, including Midnight SDK packages, `@midnight-ntwrk/compact-js`, and `rxjs`.
+- Rollup's optional native package repair cannot assume `rollup/dist/native.js` is root-resolvable under pnpm. Treat a non-root-resolvable Rollup install as a skip unless the native optional package name is actually present in the error.
+- After manifest changes, refresh with `pnpm install --lockfile-only`, verify with `pnpm install --frozen-lockfile`, then run the focused lane and `./run.sh --light --strict`.
 
 ## Runner Targets
 
@@ -259,7 +280,7 @@ Main jobs:
 - `API pipeline`: API integration and example validation.
 - `Build, Lint, Test, and Coverage`: aggregate CI gate for `core` and `api`.
 - `Build Docs Site`: docs-site build.
-- `Deploy Docs Site`: GitHub Pages deployment from `main` pushes only.
+- `Deploy Docs Site`: GitHub Pages deployment from `develop` pushes only.
 - `Scan / build`: security scanning.
 - `Check PR`: semantic PR title and non-empty PR body checks.
 
@@ -269,6 +290,7 @@ Docs entry points:
 
 - `README.md`: repository overview and command matrix.
 - `docs-site/guide/local-development.md`: local development guide.
+- `docs-site/guide/github-pages.md`: GitHub Pages publishing guide.
 - `docs-site/guide/testing-strategy.md`: testing strategy.
 - `docs-site/guide/did-surface-change-discipline.md`: discipline for DID surface changes.
 - `docs/repository-audit-backlog.md`: current maturity/simplification backlog.

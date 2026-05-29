@@ -1,42 +1,36 @@
 :root {
   --vp-c-brand-1: #f4c66d;
   --vp-c-brand-2: #ffd786;
-  --vp-c-brand-3: #a66a12;
-  --vp-c-brand-soft: rgba(244, 198, 109, 0.16);
+  --vp-c-brand-3: #b98422;
+  --vp-c-brand-soft: rgba(244, 198, 109, 0.14);
 
-  --vp-c-bg: #0a1020;
-  --vp-c-bg-alt: #0e1730;
-  --vp-c-bg-elv: #101b36;
-  --vp-c-bg-soft: #131f3d;
+  --vp-c-bg: #080d18;
+  --vp-c-bg-alt: #0c1324;
+  --vp-c-bg-elv: #111a2d;
+  --vp-c-bg-soft: #111a2d;
 
   --vp-c-text-1: rgba(247, 248, 252, 0.96);
   --vp-c-text-2: rgba(226, 231, 242, 0.8);
   --vp-c-text-3: rgba(183, 192, 212, 0.72);
 
-  --vp-c-divider: rgba(255, 255, 255, 0.08);
-  --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(120deg, #f4c66d 15%, #fef3d6 50%, #8cbcff 100%);
-  --vp-home-hero-image-background-image: radial-gradient(circle at top, rgba(140, 188, 255, 0.22), transparent 42%), radial-gradient(circle at 20% 80%, rgba(244, 198, 109, 0.18), transparent 32%);
-  --vp-home-hero-image-filter: blur(44px);
+  --vp-c-divider: rgba(255, 255, 255, 0.1);
+  --vp-c-border: rgba(255, 255, 255, 0.14);
 }
 
 html.dark {
-  --vp-c-bg: #0a1020;
-  --vp-c-bg-alt: #0e1730;
-  --vp-c-bg-elv: #101b36;
-  --vp-c-bg-soft: #131f3d;
+  --vp-c-bg: #080d18;
+  --vp-c-bg-alt: #0c1324;
+  --vp-c-bg-elv: #111a2d;
+  --vp-c-bg-soft: #111a2d;
 }
 
 body {
-  background:
-    radial-gradient(circle at top center, rgba(140, 188, 255, 0.1), transparent 28%),
-    linear-gradient(180deg, #0a1020 0%, #0b1122 45%, #08101f 100%);
+  background: #080d18;
 }
 
 .VPNavBar {
-  background: rgba(10, 16, 32, 0.72);
-  backdrop-filter: blur(18px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(8, 13, 24, 0.94);
+  border-bottom: 1px solid var(--vp-c-divider);
 }
 
 .VPNavBar.has-sidebar .content-body,
@@ -45,8 +39,8 @@ body {
 }
 
 .VPSidebar {
-  background: linear-gradient(180deg, rgba(13, 23, 47, 0.92), rgba(9, 16, 31, 0.94));
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: #0c1324;
+  border-right: 1px solid var(--vp-c-divider);
 }
 
 .VPDoc .content-container,
@@ -54,14 +48,17 @@ body {
   background: transparent;
 }
 
-.vp-doc h1 {
-  letter-spacing: -0.03em;
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.VPHero .name {
+  letter-spacing: 0;
 }
 
 .vp-doc h2 {
   margin-top: 2rem;
-  padding-top: 0.2rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--vp-c-divider);
 }
 
 .vp-doc table {
@@ -69,39 +66,35 @@ body {
   width: 100%;
   border-collapse: collapse;
   margin: 1.25rem 0;
-  border-radius: 18px;
+  border-radius: 8px;
   overflow: hidden;
-  background: rgba(16, 27, 54, 0.78);
+  background: #111a2d;
 }
 
 .vp-doc th,
 .vp-doc td {
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--vp-c-divider);
 }
 
 .vp-doc tr:nth-child(2n) {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.vp-doc div[class*="language-"] {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  background: rgba(8, 14, 28, 0.96);
-}
-
+.vp-doc div[class*="language-"],
 .vp-doc .custom-block,
-.vp-doc details {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  background: rgba(16, 27, 54, 0.72);
+.vp-doc details,
+.VPFeature {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  background: #0c1324;
 }
 
 .mermaid-block {
   margin: 1.5rem 0;
   padding: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 22px;
-  background: linear-gradient(180deg, rgba(16, 27, 54, 0.9), rgba(8, 14, 28, 0.96));
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  background: #0c1324;
   overflow-x: auto;
 }
 
@@ -115,52 +108,16 @@ body {
   height: auto;
 }
 
-.VPFeature {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-    linear-gradient(180deg, rgba(19, 31, 61, 0.96), rgba(9, 16, 31, 0.96));
-  border-radius: 24px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-.VPFeature .title {
-  font-weight: 650;
-}
-
-.VPHero .name {
-  letter-spacing: -0.04em;
-}
-
-.VPHero .text,
-.VPHero .tagline {
-  max-width: 42rem;
-}
-
-.VPHero .actions {
-  gap: 0.75rem;
-}
-
 .VPButton.brand {
   color: #241400;
   font-weight: 700;
-  background: linear-gradient(180deg, #ffd990, #f4c66d);
-  border-color: rgba(255, 230, 179, 0.55);
-  box-shadow: 0 10px 30px rgba(244, 198, 109, 0.22);
+  background: #f4c66d;
+  border-color: #f4c66d;
 }
 
 .VPButton.alt {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.VPHome {
-  background:
-    radial-gradient(circle at top, rgba(140, 188, 255, 0.08), transparent 22%),
-    transparent;
-}
-
-.VPHomeFeatures {
-  padding-top: 20px;
+  border-color: var(--vp-c-divider);
+  background: transparent;
 }
 
 .vp-doc a,

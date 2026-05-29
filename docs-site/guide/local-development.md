@@ -23,7 +23,7 @@ compact update 0.30.0
 | `packages/domain/`         | DID document/domain schemas and validation.                  |
 | `packages/did/`            | Ledger-to-domain mapping and DID helpers.                    |
 | `packages/api/`            | Wallet/provider/contract orchestration and network profiles. |
-| `docs-site/`               | VitePress docs and generated API reference.                  |
+| `docs-site/`               | VitePress docs site.                                         |
 
 Resolver service, DID manager, and secret-storage validation moved to
 [`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver).
@@ -136,11 +136,14 @@ If you are checking GitHub Pages-specific behavior locally, you can override the
 DOCS_BASE=/midnight-did/ pnpm run docs:build
 ```
 
-Generate API reference only:
+Generate optional TypeDoc API reference:
 
 ```bash
 pnpm run docs:api
 ```
+
+The optional API reference is not part of the default docs build or Pages
+workflow because it compiles package outputs.
 
 Sync mirrored source markdown into the docs site:
 
@@ -157,4 +160,4 @@ pnpm run docs:sync-source
 | `did/`            | Ledger-to-domain mapping and resolver helpers.                        |
 | `api/`            | Runtime orchestration over node, indexer, proof server, and contract. |
 | `jubjub-schnorr/` | Shared Schnorr Compact and TypeScript helpers.                        |
-| `docs-site/`      | Documentation site and generated API reference.                       |
+| `docs-site/`      | Documentation site.                                                   |
