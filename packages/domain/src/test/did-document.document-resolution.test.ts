@@ -211,6 +211,37 @@ describe("DID resolution payloads", () => {
     expect(payload.didResolutionMetadata.pattern).toBe("midnight-ledger");
   });
 
+  it.each([
+    "invalidDid",
+    "internalError",
+    "methodNotSupported",
+    "notFound",
+    "representationNotSupported",
+    "notAllowedVerificationMethodType",
+    "customResolverError",
+  ] as const)("accepts DID resolution error keyword %s", (error) => {
+    const payload = parseDIDResolutionResult({
+      ...exampleResolutionPayload,
+      didResolutionMetadata: { error },
+    });
+    expect(payload.didResolutionMetadata.error).toBe(error);
+  });
+
+  it.each([
+    "",
+    "not found",
+    "not-found",
+    "resolver:error",
+    "123error",
+  ] as const)("rejects invalid DID resolution error keyword %s", (error) => {
+    expect(() =>
+      parseDIDResolutionResult({
+        ...exampleResolutionPayload,
+        didResolutionMetadata: { error },
+      }),
+    ).toThrow();
+  });
+
   it("rejects envelope media types in didResolutionMetadata.contentType", () => {
     expect(() =>
       parseDIDResolutionResult({
