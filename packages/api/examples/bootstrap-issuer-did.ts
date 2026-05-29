@@ -53,11 +53,13 @@
 //! scheme later if a future caller needs reproducible keystore
 //! bytes across runs against the same env.
 
-import { randomBytes } from "node:crypto";
-import { writeFileSync, existsSync } from "node:fs";
+import { createHash, randomBytes } from "node:crypto";
+import { existsSync, writeFileSync } from "node:fs";
 
-import { ed25519 } from "@noble/curves/ed25519";
-
+import {
+  createMidnightDIDString,
+  parseContractAddress,
+} from "@midnight-ntwrk/midnight-did/midnight";
 import {
   addSchnorrJubjubVerificationMethod,
   addVerificationMethod,
@@ -72,10 +74,6 @@ import {
   resolve,
 } from "@midnight-ntwrk/midnight-did-api";
 import {
-  createMidnightDIDString,
-  parseContractAddress,
-} from "@midnight-ntwrk/midnight-did/midnight";
-import {
   createVerificationMethod,
   CurveType,
   encodeBase64Url,
@@ -84,6 +82,7 @@ import {
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
 import { deriveJubjubPublicKeyFromSeed } from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
+import { ed25519 } from "@noble/curves/ed25519";
 
 // ── config from env ─────────────────────────────────────────────
 
@@ -102,8 +101,7 @@ if (!outPath || outPath.length === 0) {
 const indexerUrl =
   process.env.INDEXER_URL ?? "http://localhost:18088/api/v1/graphql";
 const nodeRpcUrl = process.env.NODE_RPC_URL ?? "http://localhost:19944";
-const proofServerUrl =
-  process.env.PROOF_SERVER_URL ?? "http://localhost:16300";
+const proofServerUrl = process.env.PROOF_SERVER_URL ?? "http://localhost:16300";
 
 if (existsSync(outPath)) {
   console.error(
@@ -114,7 +112,8 @@ if (existsSync(outPath)) {
 
 // ── helpers ──────────────────────────────────────────────────────
 
-const DUST_RETRY = /Not enough Dust generated to pay the fee|could not balance dust/i;
+const DUST_RETRY =
+  /Not enough Dust generated to pay the fee|could not balance dust/i;
 const sleep = (ms: number): Promise<void> =>
   new Promise((r) => setTimeout(r, ms));
 
@@ -155,10 +154,7 @@ function seedToHexString(seed: string): string {
   if (stripped.length === 64 && /^[0-9a-fA-F]+$/.test(stripped)) {
     return stripped.toLowerCase();
   }
-  // Lazy import — keep top-level imports clean.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const nodeCrypto = require("node:crypto") as typeof import("node:crypto");
-  return nodeCrypto.createHash("sha256").update(seed, "utf8").digest("hex");
+  return createHash("sha256").update(seed, "utf8").digest("hex");
 }
 
 // ── flow ─────────────────────────────────────────────────────────
@@ -187,7 +183,10 @@ const walletCtx = await buildWalletAndWaitForFunds(dappConfig, seedHex);
 
 try {
   console.error("[bootstrap] step 2/7 register for dust generation…");
-  await registerForDustGeneration(walletCtx.wallet, walletCtx.unshieldedKeystore);
+  await registerForDustGeneration(
+    walletCtx.wallet,
+    walletCtx.unshieldedKeystore,
+  );
 
   console.error("[bootstrap] step 3/7 configure providers…");
   const providers = await configureProviders(walletCtx, dappConfig);
@@ -203,7 +202,10 @@ try {
   const contractAddress = parseContractAddress(
     contract.deployTxData.public.contractAddress,
   );
-  const didString = createMidnightDIDString(contractAddress, getMidnightNetwork());
+  const didString = createMidnightDIDString(
+    contractAddress,
+    getMidnightNetwork(),
+  );
   console.error(`[bootstrap] DID deployed: ${didString}`);
 
   // Ed25519 authentication
@@ -220,7 +222,9 @@ try {
       x: encodeBase64Url(edPublic),
     },
   });
-  console.error("[bootstrap] step 6/7 attach Ed25519 + authentication relation…");
+  console.error(
+    "[bootstrap] step 6/7 attach Ed25519 + authentication relation…",
+  );
   await retryOnDustShortage("addVerificationMethod(ed25519)", () =>
     addVerificationMethod(contract, edVm),
   );
@@ -239,7 +243,9 @@ try {
   const jubKid = `${didString}#key-assert`;
   const jubSecret = randomSecret32();
   const jubPublic = deriveJubjubPublicKeyFromSeed(jubSecret);
-  console.error("[bootstrap] step 7/7 attach Jubjub + assertionMethod relation…");
+  console.error(
+    "[bootstrap] step 7/7 attach Jubjub + assertionMethod relation…",
+  );
   await retryOnDustShortage("addSchnorrJubjubVerificationMethod", () =>
     addSchnorrJubjubVerificationMethod(contract, {
       id: jubKid,
@@ -267,22 +273,24 @@ try {
     const hash = trimmed.indexOf("#");
     return hash >= 0 ? trimmed.slice(hash) : `#${trimmed}`;
   };
+  type VerificationMethodReference = string | { id: string };
+  const referenceToFragment = (
+    reference: VerificationMethodReference,
+  ): string =>
+    toFragment(typeof reference === "string" ? reference : reference.id);
+
   const resolution = await resolve(providers, contract);
   const doc = resolution?.didDocument;
-  const authFragments = (doc?.authentication ?? []).map((v) =>
-    toFragment(typeof v === "string" ? v : v.id),
-  );
-  const assertFragments = (doc?.assertionMethod ?? []).map((v) =>
-    toFragment(typeof v === "string" ? v : v.id),
-  );
+  const authFragments = (doc?.authentication ?? []).map(referenceToFragment);
+  const assertFragments = (doc?.assertionMethod ?? []).map(referenceToFragment);
   if (!authFragments.includes(toFragment(edKid))) {
     throw new Error(
-      `Ed25519 kid ${edKid} (#${toFragment(edKid)}) not in authentication relation — got ${JSON.stringify(authFragments)}`,
+      `Ed25519 kid ${edKid} (${toFragment(edKid)}) not in authentication relation — got ${JSON.stringify(authFragments)}`,
     );
   }
   if (!assertFragments.includes(toFragment(jubKid))) {
     throw new Error(
-      `Jubjub kid ${jubKid} (#${toFragment(jubKid)}) not in assertionMethod relation — got ${JSON.stringify(assertFragments)}`,
+      `Jubjub kid ${jubKid} (${toFragment(jubKid)}) not in assertionMethod relation — got ${JSON.stringify(assertFragments)}`,
     );
   }
 
