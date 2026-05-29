@@ -9,8 +9,8 @@ Use this repository for:
 - DID document schemas, validation, and canonicalization.
 - Ledger-to-domain mapping and in-process DID resolver helpers.
 - Wallet/provider/API orchestration for DID contract operations.
-- DID package docs, generated API reference, local runners, and package
-  tarball distribution.
+- DID package docs, optional local API reference generation, local runners, and
+  package tarball distribution.
 
 Use sibling repositories for deployable products and higher-level protocols:
 
