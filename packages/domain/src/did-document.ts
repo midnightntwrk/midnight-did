@@ -488,6 +488,26 @@ export const DIDDocumentMetadataSchema = z.looseObject({
 });
 export type DIDDocumentMetadata = z.infer<typeof DIDDocumentMetadataSchema>;
 
+export const DIDDocumentRepresentationMediaTypesSchema = z.enum([
+  "application/did+ld+json",
+  "application/did+json",
+]);
+
+/** DID Document representation media types allowed in DID resolution metadata. */
+export type DIDDocumentRepresentationMediaTypes = z.infer<
+  typeof DIDDocumentRepresentationMediaTypesSchema
+>;
+
+export const DIDResolutionEnvelopeMediaTypesSchema = z.enum([
+  "application/ld+json",
+  "application/json",
+]);
+
+/** Media types for envelopes that carry DID Resolution Result objects. */
+export type DIDResolutionEnvelopeMediaTypes = z.infer<
+  typeof DIDResolutionEnvelopeMediaTypesSchema
+>;
+
 export const KnownDIDMediaTypesSchema = z.enum([
   "application/did+ld+json",
   "application/did+json",
@@ -495,7 +515,7 @@ export const KnownDIDMediaTypesSchema = z.enum([
   "application/json",
 ]);
 
-/** Known DID Media Types */
+/** Known DID Document representation and resolution envelope media types. */
 export type KnownDIDMediaTypes = z.infer<typeof KnownDIDMediaTypesSchema>;
 
 /** DID Resolution Result */
@@ -503,8 +523,8 @@ export const DIDResolutionResultSchema = z.looseObject({
   "@context": z.nullish(z.union([z.string(), z.array(z.string())])),
   didDocument: z.nullish(DIDDocumentSchema),
   didDocumentMetadata: DIDDocumentMetadataSchema,
-  didResolutionMetadata: z.object({
-    contentType: z.nullish(KnownDIDMediaTypesSchema),
+  didResolutionMetadata: z.looseObject({
+    contentType: z.nullish(DIDDocumentRepresentationMediaTypesSchema),
     error: z.nullish(z.string()),
   }),
 });

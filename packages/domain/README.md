@@ -46,6 +46,16 @@ stateDiagram-v2
   Invalid --> [*]
 ```
 
+## Resolution Metadata
+
+`DIDResolutionResultSchema` accepts DID Core resolution envelopes so resolver
+services can validate abstract resolution payloads and accept
+representation-response metadata. For successful abstract `resolve` responses,
+`didResolutionMetadata.contentType` should be omitted. For
+`resolveRepresentation` responses, `contentType` describes the returned DID
+Document stream and should be `application/did+ld+json` or
+`application/did+json`.
+
 ## Build & Test
 
 - Build: `pnpm --filter ./packages/domain build`

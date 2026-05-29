@@ -566,6 +566,46 @@ Example of the implementation: Midnight DID Resolver in Rust
 
 **NOTE**: The DID ledger state will be available within the smart-contract compact language as well when the support for the smart-contract composability is implemented.
 
+### 7.2.3. Resolution response composition and media types
+
+DID Core distinguishes between `resolve` and `resolveRepresentation`; see
+[DID Core Section 7.1](https://www.w3.org/TR/did-core/#did-resolution).
+Midnight resolvers MUST preserve that distinction when composing responses:
+
+- `resolve(did, resolutionOptions)` returns the abstract data model triple:
+  `didResolutionMetadata`, `didDocument`, and `didDocumentMetadata`.
+  The `accept` option MUST NOT be used with `resolve`, and
+  `didResolutionMetadata.contentType` MUST NOT be present on successful
+  abstract resolution results.
+- `resolveRepresentation(did, resolutionOptions)` returns
+  `didResolutionMetadata`, `didDocumentStream`, and `didDocumentMetadata`.
+  The optional `accept` value selects the preferred DID Document
+  representation. On successful representation resolution,
+  `didResolutionMetadata.contentType` MUST be present and MUST describe the
+  returned `didDocumentStream`.
+
+Midnight implementations SHOULD support the following response composition
+rules:
+
+| Request mode | Requested media type | Response body | DID resolution metadata |
+| --- | --- | --- | --- |
+| `resolve` | none | DID Resolution Result object containing `didDocument`, `didResolutionMetadata`, and `didDocumentMetadata` | Empty object on success; no `contentType` |
+| `resolveRepresentation` | omitted or `application/did+ld+json` | DID Document byte stream serialized as JSON-LD | `{ "contentType": "application/did+ld+json" }` |
+| `resolveRepresentation` | `application/did+json` | DID Document byte stream serialized as DID Core JSON | `{ "contentType": "application/did+json" }` |
+| HTTP/service envelope | `application/json` | DID Resolution Result object encoded as JSON | HTTP response `Content-Type` is `application/json`; do not copy this value into `didResolutionMetadata.contentType` for abstract `resolve` |
+| HTTP/service envelope | `application/ld+json` | DID Resolution Result object encoded as JSON-LD, when the service supports a JSON-LD envelope | HTTP response `Content-Type` is `application/ld+json`; do not copy this value into `didResolutionMetadata.contentType` for abstract `resolve` |
+
+If a caller requests a DID Document representation that is not supported, the
+resolver MUST return `didResolutionMetadata.error = "representationNotSupported"`
+and MUST NOT return a `didDocument` or `didDocumentStream`.
+
+The method document profile requires `@context` in resolved Midnight DID
+Documents. Producers of `application/did+ld+json` MUST include it. Producers of
+`application/did+json` MUST follow DID Core JSON production rules and SHOULD
+document whether they retain `@context` as an extension for compatibility with
+Midnight's document profile or omit representation-specific JSON-LD entries for
+strict JSON consumers.
+
 ## 7.3. Update
 
 Updating the Midnight DID implies that the DID Controller calls one of the smart contract's individual circuits for each type of modification.
