@@ -1,7 +1,19 @@
-# API Reference
+# API
 
-Generated TypeScript API reference for DID-owned packages.
+The default docs site does not publish generated TypeDoc pages.
 
-- [Domain](/api/reference/domain/)
-- [DID](/api/reference/did/)
-- [API Package](/api/reference/api/)
+Use the package pages for the stable public surface:
+
+- [Domain package](/packages/domain)
+- [DID package](/packages/did)
+- [API package](/packages/api)
+
+For local API archaeology, run:
+
+```bash
+pnpm run docs:api
+```
+
+That command generates TypeDoc output under `docs-site/api/reference/`. It is
+intentionally excluded from the default GitHub Pages build so docs-only changes
+do not compile Compact contracts or package outputs.

@@ -32,6 +32,7 @@ tests and higher-level applications that need DID contract operations.
 - integration tests
 - custom automation using funded Midnight wallets
 
-## API reference
+## API surface
 
-- [Generated API package reference](/api/reference/api/)
+The public API is exported from `packages/api/src/index.ts`.
+Run `pnpm run docs:api` locally when you need generated TypeDoc pages.

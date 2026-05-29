@@ -31,11 +31,8 @@ export default defineConfig({
     search: { provider: "local" },
     nav: [
       { text: "Guide", link: "/guide/" },
-      { text: "Packages", link: "/packages/" },
-      { text: "API Reference", link: "/api/" },
-      { text: "Use Cases", link: "/use-cases/" },
-      { text: "Architecture", link: "/architecture/" },
       { text: "Spec", link: "/spec/" },
+      { text: "Packages", link: "/packages/" },
       { text: "Source", link: "/source/" },
       { text: "GitHub", link: "https://github.com/midnightntwrk/midnight-did" },
     ],
@@ -55,6 +52,7 @@ export default defineConfig({
               text: "Repository Boundaries",
               link: "/guide/repository-boundaries",
             },
+            { text: "GitHub Pages", link: "/guide/github-pages" },
             { text: "Publishing", link: "/guide/publishing" },
           ],
         },
@@ -75,12 +73,9 @@ export default defineConfig({
       ],
       "/api/": [
         {
-          text: "API Reference",
+          text: "API",
           items: [
             { text: "Overview", link: "/api/" },
-            { text: "Domain", link: "/api/reference/domain/" },
-            { text: "DID", link: "/api/reference/did/" },
-            { text: "API Package", link: "/api/reference/api/" },
           ],
         },
       ],

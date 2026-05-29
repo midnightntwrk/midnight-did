@@ -281,6 +281,11 @@ assertIncludes(
   "/guide/repository-boundaries",
   "docs-site guide index",
 );
+assertIncludes(
+  readText("docs-site/.vitepress/config.ts"),
+  "/guide/github-pages",
+  "docs-site sidebar",
+);
 
 for (const [docsPath, label] of [
   ["docs-site/index.md", "docs-site landing page"],
@@ -330,12 +335,27 @@ assertIncludes(
 
 assertIncludes(
   readText(".github/workflows/docs.yml"),
-  "(github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'",
+  "(github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/develop'",
   ".github/workflows/docs.yml",
 );
 assertIncludes(
+  readText(".github/workflows/ci.yml"),
+  "scripts/ci-change-classifier.mjs",
+  ".github/workflows/ci.yml",
+);
+assertIncludes(
+  readText(".github/workflows/ci.yml"),
+  "needs.changes.outputs.docs_only != 'true'",
+  ".github/workflows/ci.yml",
+);
+assertIncludes(
   readText(".github/workflows/docs.yml"),
-  "midnightntwrk/setup-compact-action@v1",
+  "pnpm run check:did-surface-discipline",
+  ".github/workflows/docs.yml",
+);
+assertNotIncludes(
+  readText(".github/workflows/docs.yml"),
+  "midnightntwrk/setup-compact-action",
   ".github/workflows/docs.yml",
 );
 

@@ -24,6 +24,7 @@
 
 - [Embedded DID README](/source/did-readme)
 
-## API reference
+## API surface
 
-- [Generated DID API](/api/reference/did/)
+The public API is exported from `packages/did/src/index.ts`.
+Run `pnpm run docs:api` locally when you need generated TypeDoc pages.

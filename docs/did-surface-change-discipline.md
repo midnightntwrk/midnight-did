@@ -62,8 +62,9 @@ contracts that are easy to drift:
 
 - root scripts wire the guard into `ci:core`
 - workflow branch filters include `develop`
-- docs publication steps run only for `main` pushes or manual `main` dispatches
-- docs builds install the Compact toolchain before generating API reference
+- docs publication steps run only for `develop` pushes or manual `develop` dispatches
+- docs-only changes skip contract/API CI lanes through the change classifier
+- default docs builds are Markdown-first, render Mermaid diagrams, and do not install Compact or generate TypeDoc
 - the README workspace matrix covers every root workspace
 - artifact packaging includes all library tarball workspaces
 - library packages expose explicit export maps and `files` manifests

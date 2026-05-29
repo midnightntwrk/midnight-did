@@ -25,6 +25,7 @@
 
 - [Embedded Domain README](/source/domain-readme)
 
-## API reference
+## API surface
 
-- [Generated Domain API](/api/reference/domain/)
+The public API is exported from `packages/domain/src/index.ts`.
+Run `pnpm run docs:api` locally when you need generated TypeDoc pages.
