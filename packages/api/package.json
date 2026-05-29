@@ -50,6 +50,7 @@
     "@midnight-ntwrk/midnight-js-node-zk-config-provider": "4.0.2",
     "@midnight-ntwrk/midnight-js-types": "4.0.2",
     "@midnight-ntwrk/midnight-js-utils": "4.0.2",
+    "@noble/curves": "^1.9.7",
     "pino": "^9.7.0",
     "pino-pretty": "^13.0.0",
     "rxjs": "7.8.2",

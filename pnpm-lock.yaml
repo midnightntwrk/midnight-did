@@ -177,6 +177,9 @@ importers:
       '@midnight-ntwrk/midnight-js-utils':
         specifier: 4.0.2
         version: 4.0.2
+      '@noble/curves':
+        specifier: ^1.9.7
+        version: 1.9.7
       pino:
         specifier: ^9.7.0
         version: 9.14.0

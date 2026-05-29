@@ -35,3 +35,26 @@ and resolves the final DID document.
 The verification method key value in `update-did.ts` is placeholder key material
 for a disposable standalone flow. Replace it with a real verification method key
 before using the example against any shared or persistent network.
+
+## Bootstrap an issuer DID
+
+Run against any standalone Midnight environment to deploy an issuer DID with
+both Ed25519 authentication and Jubjub assertionMethod verification methods,
+emitting a JSON keystore consumable by downstream issuers:
+
+```bash
+ISSUER_BOOTSTRAP_SEED=<hex-seed> \
+ISSUER_KEYSTORE_OUT=./issuer-keystore.json \
+INDEXER_URL=<indexer-url> \
+NODE_RPC_URL=<node-rpc-url> \
+PROOF_SERVER_URL=<proof-server-url> \
+pnpm exec ts-node --esm packages/api/examples/bootstrap-issuer-did.ts
+```
+
+The example builds a funded wallet from the genesis seed, calls
+`createDID` → `addVerificationMethod` (Ed25519) →
+`addVerificationMethodRelation` (authentication) →
+`addSchnorrJubjubVerificationMethod` (Jubjub) →
+`addVerificationMethodRelation` (assertionMethod), wraps each chain write in a
+dust-shortage retry, and writes the resulting keystore to
+`ISSUER_KEYSTORE_OUT`.
