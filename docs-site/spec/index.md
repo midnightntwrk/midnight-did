@@ -1,15 +1,17 @@
 # Specification
 
-The Midnight DID specification documents live in `w3c-spec/` in this repository. This section explains how to read them from an implementation perspective.
+This section publishes the Midnight DID method specification and the DID method
+traits matrix used by implementers and reviewers.
 
 ## Documents
 
 - [Midnight DID Method](./midnight-method.md)
 - [Midnight DID Traits](./midnight-did-traits.md)
 
-## Source of truth
+## Canonical files
 
-For now, the repository markdown files remain canonical:
+The published pages are synchronized from the canonical repository files during
+the docs build:
 
 - `w3c-spec/midnight-method.md`
 - `w3c-spec/midnight-did-traits.md`

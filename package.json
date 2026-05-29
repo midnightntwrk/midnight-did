@@ -21,7 +21,7 @@
     "pack:contract": "pnpm --filter ./packages/contract pack",
     "pack:all": "pnpm run pack:contract && echo 'Artifacts:' && ls -1 *.tgz || true && ls -1 packages/contract/*.tgz || true",
     "checkdeps": "bash scripts/check-deps.sh",
-    "docs:sync-source": "pnpm --filter docs-site docs:sync-source",
+    "docs:sync-spec": "pnpm --filter docs-site docs:sync-spec",
     "docs:api": "pnpm --filter docs-site docs:api",
     "docs:dev": "pnpm --filter docs-site docs:dev",
     "docs:build": "pnpm --filter docs-site docs:build",

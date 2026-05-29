@@ -11,6 +11,7 @@ export default defineConfig({
     "Documentation for the Midnight DID contract, domain model, DID mapper, and API packages.",
   cleanUrls: true,
   lastUpdated: true,
+  appearance: false,
   markdown: {
     config(md) {
       const fence = md.renderer.rules.fence?.bind(md.renderer.rules);
@@ -26,14 +27,15 @@ export default defineConfig({
     },
   },
   themeConfig: {
-    logo: "/mark.svg",
-    siteTitle: "Midnight DID",
+    logo: "/midnight-header-logo.svg",
+    siteTitle: "DID",
     search: { provider: "local" },
     nav: [
       { text: "Guide", link: "/guide/" },
-      { text: "Spec", link: "/spec/" },
-      { text: "Packages", link: "/packages/" },
-      { text: "Source", link: "/source/" },
+      { text: "DID Method", link: "/spec/midnight-method" },
+      { text: "Compact", link: "/compact/" },
+      { text: "API Reference", link: "/api/" },
+      { text: "Libs", link: "/packages/" },
       { text: "GitHub", link: "https://github.com/midnightntwrk/midnight-did" },
     ],
     sidebar: {
@@ -42,6 +44,8 @@ export default defineConfig({
           text: "Guide",
           items: [
             { text: "Overview", link: "/guide/" },
+            { text: "Quickstart", link: "/guide/quickstart" },
+            { text: "Key Model", link: "/guide/key-model" },
             { text: "Local Development", link: "/guide/local-development" },
             { text: "Testing Strategy", link: "/guide/testing-strategy" },
             {
@@ -59,7 +63,7 @@ export default defineConfig({
       ],
       "/packages/": [
         {
-          text: "TypeScript Packages",
+          text: "Libs",
           items: [
             { text: "Overview", link: "/packages/" },
             { text: "Domain", link: "/packages/domain" },
@@ -79,21 +83,11 @@ export default defineConfig({
           ],
         },
       ],
-      "/source/": [
+      "/compact/": [
         {
-          text: "Source Documents",
+          text: "Compact",
           items: [
-            { text: "Overview", link: "/source/" },
-            { text: "Repository README", link: "/source/repository-overview" },
-            { text: "Contract README", link: "/source/contract-readme" },
-            { text: "API README", link: "/source/api-readme" },
-            { text: "Domain README", link: "/source/domain-readme" },
-            { text: "DID README", link: "/source/did-readme" },
-            {
-              text: "Method Spec Source",
-              link: "/source/spec-midnight-method",
-            },
-            { text: "Traits Source", link: "/source/spec-midnight-did-traits" },
+            { text: "Contract Surface", link: "/compact/" },
           ],
         },
       ],
