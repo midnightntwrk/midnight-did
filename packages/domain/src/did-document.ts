@@ -518,6 +518,55 @@ export const KnownDIDMediaTypesSchema = z.enum([
 /** Known DID Document representation and resolution envelope media types. */
 export type KnownDIDMediaTypes = z.infer<typeof KnownDIDMediaTypesSchema>;
 
+export const KnownDIDResolutionErrorCodeSchema = z.enum([
+  "invalidDid",
+  "internalError",
+  "invalidPublicKey",
+  "invalidPublicKeyLength",
+  "invalidPublicKeyType",
+  "methodNotSupported",
+  "notAllowedCertificate",
+  "notAllowedGlobalDuplicateKey",
+  "notAllowedKeyType",
+  "notAllowedLocalDerivedKey",
+  "notAllowedLocalDuplicateKey",
+  "notAllowedMethod",
+  "notAllowedVerificationMethodType",
+  "notFound",
+  "representationNotSupported",
+  "unsupportedPublicKeyType",
+]);
+
+/**
+ * Known registered DID resolution metadata error codes.
+ *
+ * This enum is exported for callers that want registry-only validation. The
+ * resolution result schema below uses the generic keyword schema instead so
+ * resolver-specific extension keywords remain valid.
+ *
+ * Source: https://www.w3.org/TR/2024/NOTE-did-spec-registries-20240701/#error
+ */
+export type KnownDIDResolutionErrorCode = z.infer<
+  typeof KnownDIDResolutionErrorCodeSchema
+>;
+
+export const DIDResolutionErrorCodeSchema = z.string().check(
+  z.regex(/^[A-Za-z][A-Za-z0-9]*$/, {
+    message: "DID resolution error must match [A-Za-z][A-Za-z0-9]*",
+  }),
+);
+
+/**
+ * DID resolution error keyword, including registered extension values.
+ *
+ * The resolution result schema intentionally validates this generic keyword
+ * shape instead of the known enum so resolver-specific extension keywords remain
+ * valid.
+ */
+export type DIDResolutionErrorCode = z.infer<
+  typeof DIDResolutionErrorCodeSchema
+>;
+
 /** DID Resolution Result */
 export const DIDResolutionResultSchema = z.looseObject({
   "@context": z.nullish(z.union([z.string(), z.array(z.string())])),
@@ -525,7 +574,7 @@ export const DIDResolutionResultSchema = z.looseObject({
   didDocumentMetadata: DIDDocumentMetadataSchema,
   didResolutionMetadata: z.looseObject({
     contentType: z.nullish(DIDDocumentRepresentationMediaTypesSchema),
-    error: z.nullish(z.string()),
+    error: z.nullish(DIDResolutionErrorCodeSchema),
   }),
 });
 export type DIDResolutionResult = z.infer<typeof DIDResolutionResultSchema>;
