@@ -64,6 +64,18 @@ sequenceDiagram
   Resolver-->>App: DID Resolution Result
 ```
 
+## Resolution Media Types
+
+Midnight follows DID Core's distinction between abstract resolution and
+representation resolution. Abstract `resolve` responses return
+`didResolutionMetadata`, `didDocument`, and `didDocumentMetadata`; successful
+abstract responses do not set `didResolutionMetadata.contentType`.
+Representation responses set `didResolutionMetadata.contentType` to the DID
+Document stream media type, currently `application/did+ld+json` or
+`application/did+json`. HTTP or service envelopes can still use
+`application/json` for the whole DID Resolution Result without copying that
+envelope type into DID resolution metadata.
+
 ## Running
 
 Prerequisites:

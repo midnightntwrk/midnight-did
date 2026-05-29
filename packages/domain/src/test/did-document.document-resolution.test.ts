@@ -167,10 +167,58 @@ describe("DID document construction", () => {
 });
 
 describe("DID resolution payloads", () => {
-  it("parses valid DIDResolutionResult", () => {
-    const payload = parseDIDResolutionResult(exampleResolutionPayload);
-    expect(payload.didResolutionMetadata.contentType).toBe(
-      exampleResolutionPayload.didResolutionMetadata.contentType,
+  it.each(["application/did+json", "application/did+ld+json"] as const)(
+    "parses representation DIDResolutionResult with %s contentType",
+    (contentType) => {
+      const payload = parseDIDResolutionResult({
+        ...exampleResolutionPayload,
+        didResolutionMetadata: { contentType },
+      });
+      expect(payload.didResolutionMetadata.contentType).toBe(contentType);
+    },
+  );
+
+  it("rejects unknown resolution media type", () => {
+    expect(() =>
+      parseDIDResolutionResult({
+        ...exampleResolutionPayload,
+        didResolutionMetadata: {
+          contentType: "application/unknown",
+        },
+      }),
+    ).toThrow();
+  });
+
+  it("accepts abstract DID resolution results without contentType", () => {
+    const payload = parseDIDResolutionResult({
+      ...exampleResolutionPayload,
+      didResolutionMetadata: {},
+    });
+    expect(payload.didResolutionMetadata.contentType).toBeUndefined();
+  });
+
+  it("preserves extension fields in DID resolution metadata", () => {
+    const payload = parseDIDResolutionResult({
+      ...exampleResolutionPayload,
+      didResolutionMetadata: {
+        retrieved: "2026-05-29T03:41:00Z",
+        pattern: "midnight-ledger",
+      },
+    });
+    expect(payload.didResolutionMetadata.retrieved).toBe(
+      "2026-05-29T03:41:00Z",
     );
+    expect(payload.didResolutionMetadata.pattern).toBe("midnight-ledger");
+  });
+
+  it("rejects envelope media types in didResolutionMetadata.contentType", () => {
+    expect(() =>
+      parseDIDResolutionResult({
+        ...exampleResolutionPayload,
+        didResolutionMetadata: {
+          contentType: "application/json",
+        },
+      }),
+    ).toThrow();
   });
 });
