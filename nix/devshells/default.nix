@@ -1,4 +1,9 @@
-{ perSystem, pkgs, self', ... }:
+{
+  perSystem,
+  pkgs,
+  self',
+  ...
+}:
 
 {
   perSystem =
