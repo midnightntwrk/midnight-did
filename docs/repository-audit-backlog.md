@@ -9,6 +9,8 @@ This backlog tracks DID-core maturity work only. Resolver service, DID manager, 
 3. Keep generated artifacts and local tarball packaging deterministic.
 4. Keep the docs site focused on DID method semantics and DID-owned TypeScript packages.
 5. Keep sibling VC integration checks accurate after DID package changes.
+6. Track production-readiness hardening in
+   [`docs/production-readiness-backlog.md`](production-readiness-backlog.md).
 
 ## Follow-Up Items
 
