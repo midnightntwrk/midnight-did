@@ -355,6 +355,11 @@ assertIncludes(
 );
 assertIncludes(
   readText(".github/workflows/docs.yml"),
+  "Verify GitHub Pages configuration",
+  ".github/workflows/docs.yml",
+);
+assertNotIncludes(
+  readText(".github/workflows/docs.yml"),
   "enablement: true",
   ".github/workflows/docs.yml",
 );
