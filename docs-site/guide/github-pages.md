@@ -13,6 +13,23 @@ Configure the repository once:
 Do not use `Deploy from a branch`; the site has a build step and should deploy
 the artifact produced by `.github/workflows/docs.yml`.
 
+The workflow assumes the Pages site already exists. It verifies that the
+repository is configured for workflow-based Pages publishing, but it does not
+try to create or enable the Pages site on every run because the GitHub Actions
+token cannot reliably mutate repository Pages settings. If the UI setting needs
+to be repaired by an administrator, this equivalent API command enables
+workflow-based Pages publishing:
+
+```bash
+gh api --method POST repos/midnightntwrk/midnight-did/pages -f build_type=workflow
+```
+
+Verify the repository setting with:
+
+```bash
+gh api repos/midnightntwrk/midnight-did/pages --jq '{html_url, build_type}'
+```
+
 ## Published URL
 
 For the organization repository, the default Pages URL is:
@@ -33,6 +50,8 @@ public documentation releases.
 - Pull requests to `main` or `develop`: build the docs only.
 - Pushes to `develop`: build and deploy to GitHub Pages.
 - Manual workflow dispatch: deploy only when the selected ref is `develop`.
+- Deploys smoke-check the published root page, quickstart guide, API page, and
+  method specification.
 
 The workflow needs the standard Pages permissions:
 
