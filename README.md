@@ -1,110 +1,254 @@
 # Midnight DID
 
-This GitHub repository contains the Midnight DID method specification and reference implementation in TypeScript.
+Midnight DID is the reference implementation of the `did:midnight` method.
+This repository owns the core DID contract, domain model, ledger mapping, and TypeScript API orchestration.
 
-The main purpose of creating a new DID method is to make it a first-class citizen of the Midnight blockchain and solve the following challenges:
-- provide a W3C DID Core specification-compliant method that is compatible with other DID methods and Self-Sovereign Identity platforms.
-- support Midnight platform cryptography (JubJub + Poseidon hash)
-- enable DID resolution via the Midnight JS library and smart contract.
-- support signing and signature verification both within and outside smart contracts.
+Resolver services, DID manager UI/backend, and reusable secret storage now live in [`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver).
+VC packages and use cases live in [`midnight-verifiable-credentials`](https://github.com/midnightntwrk/midnight-verifiable-credentials).
 
-## Repository structure
+## Workspace Components
 
-- w3c-spec - the Midnight DID method specification
-- contract - smart-contract implementation of the Midnight DID
-- domain - common classes, interfaces, and implementations for DID, DIDDocument, and DIDResolver
-- did - conversion helpers between the domain model and contract-managed ledger
-- api - programmatic API to create, update, resolve Midnight DIDs (unit + integration tests)
-- cli - Node.js console application to manage the Midnight DID
-- resolver - Node.js implementation of the Midnight DID resolver
+| Component                                                      | Package                                       | Responsibility                                                                   |
+| -------------------------------------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------- |
+| [`packages/contract`](packages/contract/README.md)             | `@midnight-ntwrk/midnight-did-contract`       | On-ledger DID state and circuit rules                                            |
+| [`packages/jubjub-schnorr`](packages/jubjub-schnorr/README.md) | `@midnight-ntwrk/midnight-did-jubjub-schnorr` | Shared Compact/TypeScript JubJub Schnorr transcript and signature helpers        |
+| [`packages/domain`](packages/domain/README.md)                 | `@midnight-ntwrk/midnight-did-domain`         | DID schemas, validation, canonicalization                                        |
+| [`packages/did`](packages/did/README.md)                       | `@midnight-ntwrk/midnight-did`                | Ledger to domain mapping and DID resolution helpers                              |
+| [`packages/api`](packages/api/README.md)                       | `@midnight-ntwrk/midnight-did-api`            | Programmatic DID operations, wallet/provider orchestration, and network profiles |
+| [`docs-site`](docs-site/)                                      | `docs-site`                                   | VitePress documentation site                                                     |
 
-## Package Dependency Diagram
+## Architecture
 
 ```mermaid
 graph TD
-  subgraph Workspace
-    domain["domain (\@midnight-ntwrk/midnight-did-domain)"]
-    contract["contract (\@midnight-ntwrk/midnight-did-contract)"]
-    did["did (\@midnight-ntwrk/midnight-did)"]
-    api["api (\@midnight-ntwrk/midnight-did-api)"]
-    cli["cli (\@midnight-ntwrk/midnight-did-cli)"]
-  end
+  U[Integrator]
+  API[API]
+  DidPkg[DID package]
+  Domain[Domain]
+  Contract[Contract]
+  Schnorr[JubJub Schnorr]
+  Indexer[(Indexer)]
+  Node[(Midnight Node)]
+  Proof[(Proof Server)]
 
-  domain --> did
-  domain --> api
-  domain --> cli
-  contract --> did
-  contract --> api
-  contract --> cli
-  did --> api
-  did --> cli
-  api --> cli
+  U --> API
+  API --> DidPkg
+  API --> Domain
+  API --> Contract
+  Contract --> Schnorr
+  DidPkg --> Domain
+  DidPkg --> Contract
+  API --> Indexer
+  API --> Node
+  API --> Proof
 ```
 
-Why these dependencies
-- domain is the source of truth for DID schemas and operations (shared by others)
-- contract depends on domain for types and codecs
-- did links domain types with contract-managed types
-- api uses both contract and domain to provide a high-level interface; tests and infra live here
-- cli is a thin wrapper over api and does not reimplement logic
+## DID Update and Resolution Sequence
 
-## Development
+```mermaid
+sequenceDiagram
+  participant App
+  participant API
+  participant Contract
+  participant Indexer
+  participant Resolver as Resolver repo/service
 
-- Node 20 is required (see `.nvmrc`); npm >= 10
-- Recommended: `nvm use` before running scripts
-- One-shot pipeline: `./run.sh` (builds, lints, tests, coverage)
-- Circuit compilation uses the [`@midnight-ntwrk/compact`](https://github.com/midnightntwrk/compact) CLI via `compact compile`; the workspace scripts invoke it automatically.
-- `./run.sh` automatically patches `@midnight-ntwrk/onchain-runtime` with a CommonJS shim (see `docs/runtime-shim.md`) so contract tooling continues to work until upstream ships a CJS entrypoint.
+  App->>API: submit DID update command
+  API->>Contract: submit circuit transaction
+  Contract-->>API: tx accepted
+  API->>Indexer: wait/read updated ledger state
+  API-->>App: operation result
 
+  App->>Resolver: resolve did:midnight
+  Resolver->>Indexer: read latest ledger state
+  Resolver-->>App: DID Resolution Result
+```
 
-### LICENSE
+## Resolution Media Types
 
-Apache 2.0.
+Midnight follows DID Core's distinction between abstract resolution and
+representation resolution. Abstract `resolve` responses return
+`didResolutionMetadata`, `didDocument`, and `didDocumentMetadata`; successful
+abstract responses do not set `didResolutionMetadata.contentType`.
+Representation responses set `didResolutionMetadata.contentType` to the DID
+Document stream media type, currently `application/did+ld+json` or
+`application/did+json`. HTTP or service envelopes can still use
+`application/json` for the whole DID Resolution Result without copying that
+envelope type into DID resolution metadata.
 
-### README.md
+Resolution failures set `didResolutionMetadata.error` to a DID Core keyword such
+as `invalidDid`, `notFound`, `representationNotSupported`,
+`methodNotSupported`, or `internalError`. Resolver-specific extension keywords
+are allowed when they are a single ASCII keyword. Resolution error keywords must
+start with a letter.
 
-Provides a brief description for users and developers who want to understand the purpose, setup, and usage of the repository.
+## Running
 
-### SECURITY.md
+Prerequisites:
 
-Provides a brief description of the Midnight Foundation's security policy and how to properly disclose security issues.
+- Node.js 24 and pnpm 10. Run `corepack enable` once so Node uses the
+  repository-pinned package manager from `packageManager`.
+- Docker for standalone API integration tests.
+- Midnight Compact toolchain.
 
-### CONTRIBUTING.md
+Install dependencies:
 
-Provides guidelines for how people can contribute to the Midnight project.
+```bash
+pnpm install
+compact update 0.30.0
+```
 
-### CODEOWNERS
+Local validation:
 
-Defines repository ownership rules.
+```bash
+./run.sh targets
+./run.sh --light --strict
+./run.sh core --strict
+./run.sh api --light --strict
+./run.sh docs
+./run.sh artifact-status
+./run.sh check-managed-artifacts
+./run.sh integration-report-schema
+```
 
-### ISSUE_TEMPLATE
+Runner notes:
 
-Provides templates for reporting various types of issues, such as: bug report, documentation improvement and feature request.
+- Local PR validation contract: `./run.sh --light --strict` or `pnpm run ci`.
+- `pnpm run ci:packages` keeps the legacy package-only lint/build/test lane.
+- `./run.sh` and `./run.sh full` validate DID core and API lanes.
+- `./run.sh docs` validates the documentation site.
+- `run-core.sh`, `run-api.sh`, and `run-docs.sh` remain implementation details behind cataloged `./run.sh` targets.
+- Root `./run.sh` validates only DID core/API/docs. Resolver service, manager service, and secret-storage validation moved to `midnight-did-resolver`.
+- `--skip-coverage` is still accepted for older local command history, but current split lanes do not run coverage by default.
+- `./run.sh clean-artifacts` removes generated outputs, nested local log
+  directories, local Midnight runtime/test state (`.midnight-db/`,
+  `.midnight-test/`, `midnight-level-db/`), and disposable historical
+  top-level package/service shells left by
+  pre-`packages/` layouts; tracked or non-disposable shell contents are reported
+  and preserved as whole directories until a human confirms they are safe to
+  delete.
+- Inspect cleanup candidates without deleting anything with
+  `node scripts/clean-artifacts.mjs --dry-run --json`; unknown cleaner flags
+  fail before any filesystem changes.
 
-### PULL_REQUEST_TEMPLATE
+Metrics example:
 
-Provides a template for a pull request.
+```bash
+./run.sh --light --strict --metrics --metrics-json /tmp/midnight-did-run.json
+```
 
-### CLA Assistant
+Surface guards:
 
-The Midnight Foundation appreciates contributions, and like many other open source projects asks contributors to sign a contributor
-License Agreement before accepting contributions. We use CLA assistant (https://github.com/cla-assistant/cla-assistant) to streamline the CLA
-signing process, enabling contributors to sign our CLAs directly within a GitHub pull request.
+```bash
+pnpm run check:did-surface-discipline
+pnpm run test:did-surface-discipline
+pnpm run check:run-target-catalog
+pnpm run check:managed-artifacts
+pnpm run artifacts:status
+pnpm run report:integration
+pnpm run report:integration:schema
+pnpm run check:integration
+```
 
-### Dependabot
+API examples:
 
-The Midnight Foundation uses GitHub Dependabot feature to keep our projects dependencies up-to-date and address potential security vulnerabilities. 
+```bash
+pnpm run build:api-prereqs
+pnpm --filter ./packages/api typecheck:examples
+```
 
-### Checkmarx
+The example guard compiles package-level snippets against built package exports
+so runnable docs do not silently drift from the published API surface.
 
-The Midnight Foundation uses Checkmarx for application security (AppSec) to identify and fix security vulnerabilities.
-All repositories are scanned with Checkmarx's suite of tools including: Static Application Security Testing (SAST), Infrastructure as Code (IaC), Software Composition Analysis (SCA), API Security, Container Security and Supply Chain Scans (SCS).
+The workspace manifest guard keeps package distribution metadata aligned:
 
-### Unito
+```bash
+pnpm run test:workspace-manifests
+pnpm run check:workspace-manifests
+pnpm run packages-smoke-tests
+```
 
-Facilitates two-way data synchronization, automated workflows, and streamlined processes between: Jira, GitHub issues and Github project Kanban board. 
+It validates the root workspace list, package names, export maps, tarball
+`files`, and README ownership for the DID-owned packages.
 
-# TODO - New Repo Owner
+The package smoke suite builds the publishable packages, imports every package
+entry point in Node.js, and bundles the browser-safe API entry point with Vite.
+CI runs it in the core lane to catch export-map drift and browser-incompatible
+imports before downstream WebView integrations hit them.
 
-### Software Package Data Exchange (SPDX)
-Include the following Software Package Data Exchange (SPDX) short-form identifier in a comment at the top headers of each source code file.
+The integration report checks the sibling
+`../midnight-verifiable-credentials` checkout for file-based DID package
+references and matching vendored tarballs. Fixture tests can override the
+default roots with `MIDNIGHT_DID_REPO_ROOT`, `MIDNIGHT_DID_SIBLING_VC_ROOT`,
+and `MIDNIGHT_DID_INTEGRATION_NOW`. JSON consumers should read
+`schemaId`/`schemaVersion` first; `pnpm run report:integration:schema` prints the
+current reference-kind and summary-counter contract. The first versioned schema
+is `midnight-did-integration-report@1`; earlier unversioned reports carried
+human-readable `summary.notes`, which now live only in the schema output.
+The same schema is available through `./run.sh integration-report-schema` for
+runner workflows or `pnpm run report:integration:schema` for pnpm-only
+automation.
+
+## Artifact Packaging
+
+Use `artifacts/npm/` as the stable local tarball output for unpublished DID packages.
+
+```bash
+pnpm run artifacts:pack
+./upgrade-libs.sh --destination /path/to/downstream-repo
+```
+
+Packed packages:
+
+- `@midnight-ntwrk/midnight-did-api`
+- `@midnight-ntwrk/midnight-did-domain`
+- `@midnight-ntwrk/midnight-did`
+- `@midnight-ntwrk/midnight-did-jubjub-schnorr`
+- `@midnight-ntwrk/midnight-did-contract`
+
+The generated tarballs are gitignored under [`artifacts/`](./artifacts/README.md).
+Use `./run.sh artifact-status` or `pnpm run artifacts:status` to inspect
+generated Compact output readiness and source manifests for `contract` and
+`jubjub-schnorr`. Use `./run.sh check-managed-artifacts` or
+`pnpm run check:managed-artifacts` to fail on missing or stale generated
+artifacts after a local build.
+
+## Developer Entry Points
+
+1. `./start-docs.sh`
+2. `./run.sh --light --strict` or `pnpm run ci`
+3. `./run.sh core --strict` or `./run.sh api --light --strict` for focused work
+4. Use the split repositories for resolver/manager/secret-storage or VC work
+
+Docs helpers:
+
+- `./run.sh docs` runs the docs preparation and build workflow.
+- `./start-docs.sh` starts the local VitePress site.
+- See [`docs/did-surface-change-discipline.md`](docs/did-surface-change-discipline.md) before changing contract circuits, package exports, runner behavior, or generated artifacts.
+- See [`docs/repository-audit-backlog.md`](docs/repository-audit-backlog.md) for the current simplification backlog.
+
+Direct package documentation:
+
+- `packages/api/README.md`
+- `packages/domain/README.md`
+- `packages/did/README.md`
+- `packages/jubjub-schnorr/README.md`
+- `packages/contract/README.md`
+
+## Notes
+
+- Compact circuits are compiled via workspace scripts in `packages/contract` and `packages/jubjub-schnorr`.
+- Integration tests use Testcontainers and Docker compose topologies from the API package.
+- CI is split into a core job and an API job.
+- Shared JubJub Schnorr transcript and the 96-byte signature wire format are documented in [`packages/jubjub-schnorr/README.md`](packages/jubjub-schnorr/README.md).
+- DID Resolution responses follow the DID Core shape: `didDocument`, `didResolutionMetadata`, and `didDocumentMetadata`.
+
+## Related Repositories
+
+- [`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver): resolver services, DID manager, and secret storage.
+- [`midnight-verifiable-credentials`](https://github.com/midnightntwrk/midnight-verifiable-credentials): VC/VP packages and use cases.
+- [`midnight-trust-registry`](https://github.com/midnightntwrk/midnight-trust-registry): trust registry and governance integrations.
+
+## License
+
+Apache-2.0

@@ -1,0 +1,310 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800&display=swap");
+
+:root {
+  --midnight-black: #0a0a0a;
+  --midnight-surface: #101010;
+  --midnight-surface-2: #161616;
+  --midnight-border: #2d2d2d;
+  --midnight-text: #e1e1e6;
+  --midnight-muted: #c1c1c1;
+  --midnight-dim: #999999;
+  --midnight-blue: #0000fe;
+  --midnight-link: #0677f9;
+
+  --vp-c-brand-1: var(--midnight-link);
+  --vp-c-brand-2: #4f9cff;
+  --vp-c-brand-3: var(--midnight-blue);
+  --vp-c-brand-soft: rgba(0, 0, 254, 0.18);
+
+  --vp-c-bg: var(--midnight-surface);
+  --vp-c-bg-alt: var(--midnight-black);
+  --vp-c-bg-elv: #1b1b1b;
+  --vp-c-bg-soft: #171717;
+
+  --vp-c-text-1: var(--midnight-text);
+  --vp-c-text-2: var(--midnight-muted);
+  --vp-c-text-3: var(--midnight-dim);
+
+  --vp-c-divider: var(--midnight-border);
+  --vp-c-border: var(--midnight-border);
+  --vp-c-gutter: var(--midnight-black);
+  --vp-c-default-soft: rgba(255, 255, 255, 0.08);
+  --vp-c-tip-1: var(--midnight-link);
+  --vp-c-tip-2: #4f9cff;
+  --vp-c-tip-3: var(--midnight-blue);
+  --vp-c-tip-soft: rgba(0, 0, 254, 0.16);
+
+  --vp-font-family-base: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --vp-font-family-mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --vp-nav-height: 60px;
+  --vp-sidebar-width: 248px;
+  --vp-layout-max-width: 1440px;
+}
+
+html,
+body {
+  background: var(--midnight-surface);
+  color: var(--midnight-text);
+}
+
+body {
+  font-family: var(--vp-font-family-base);
+}
+
+.VPNav {
+  border-bottom: 1px solid var(--midnight-border);
+}
+
+.VPNavBar {
+  background: var(--midnight-black);
+  color: var(--midnight-text);
+}
+
+.VPNavBar.has-sidebar .content-body,
+.VPNavBar .content-body,
+.VPNavBar.fill:not(.has-sidebar) {
+  background: var(--midnight-black);
+}
+
+.VPNavBarTitle .title {
+  color: var(--midnight-text);
+  font-weight: 700;
+}
+
+.VPNavBarTitle .logo {
+  height: 26px;
+  width: auto;
+}
+
+.VPNavBarMenuLink {
+  color: var(--midnight-muted);
+  font-weight: 600;
+}
+
+.VPNavBarMenuLink:hover,
+.VPNavBarMenuLink.active {
+  color: var(--midnight-text);
+}
+
+.VPNavBarSearch .DocSearch-Button {
+  background: #161616;
+  border: 1px solid var(--midnight-border);
+  color: var(--midnight-muted);
+}
+
+.VPNavBarSearch .DocSearch-Button:hover {
+  border-color: var(--midnight-link);
+}
+
+.VPSidebar {
+  background: var(--midnight-surface);
+  border-right: 1px solid var(--midnight-border);
+}
+
+.VPSidebarItem .text {
+  color: var(--midnight-muted);
+}
+
+.VPSidebarItem.is-active > .item .text,
+.VPSidebarItem .item:hover .text {
+  color: var(--midnight-text);
+}
+
+.VPSidebarItem.level-0 > .item > .text {
+  color: var(--midnight-text);
+  font-weight: 700;
+}
+
+.VPSidebarItem.is-active > .item {
+  border-left: 2px solid var(--midnight-link);
+}
+
+.VPDoc {
+  background: var(--midnight-surface);
+}
+
+.VPDoc .container {
+  max-width: 1200px;
+}
+
+.VPDoc .content-container {
+  min-width: 0;
+  max-width: 928px;
+}
+
+.VPDoc .content {
+  min-width: 0;
+}
+
+.VPDoc .content-container,
+.VPDocAside .content {
+  background: transparent;
+}
+
+.VPDocAsideOutline .content {
+  border-left-color: var(--midnight-border);
+}
+
+.VPDocAsideOutline .outline-link {
+  color: var(--midnight-dim);
+}
+
+.VPDocAsideOutline .outline-link:hover,
+.VPDocAsideOutline .outline-link.active {
+  color: var(--midnight-text);
+}
+
+.vp-doc {
+  color: var(--midnight-text);
+}
+
+.vp-doc h1 {
+  color: var(--midnight-text);
+  font-size: 48px;
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.vp-doc h2 {
+  margin-top: 2.4rem;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.vp-doc h2,
+.vp-doc h3,
+.vp-doc h4 {
+  color: var(--midnight-text);
+  letter-spacing: 0;
+}
+
+.vp-doc p,
+.vp-doc li {
+  color: var(--midnight-muted);
+  overflow-wrap: anywhere;
+}
+
+.vp-doc a {
+  color: var(--midnight-link);
+  text-underline-offset: 0.18em;
+  overflow-wrap: anywhere;
+}
+
+.vp-doc a:hover {
+  color: #4f9cff;
+}
+
+.vp-doc table {
+  display: table;
+  width: 100%;
+  margin: 1.25rem 0;
+  overflow: hidden;
+  border: 1px solid var(--midnight-border);
+  border-radius: 8px;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--midnight-black);
+}
+
+.vp-doc th,
+.vp-doc td {
+  border: 0;
+  border-bottom: 1px solid var(--midnight-border);
+}
+
+.vp-doc tr:last-child td {
+  border-bottom: 0;
+}
+
+.vp-doc th {
+  color: var(--midnight-text);
+  background: #151515;
+}
+
+.vp-doc tr:nth-child(2n) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.vp-doc div[class*="language-"],
+.vp-doc .custom-block,
+.vp-doc details,
+.VPFeature {
+  border: 1px solid var(--midnight-border);
+  border-radius: 8px;
+  background: var(--midnight-black);
+}
+
+.vp-doc div[class*="language-"] {
+  max-width: 100%;
+  font-family: var(--vp-font-family-mono);
+  overflow-x: auto;
+}
+
+.vp-doc code {
+  color: var(--midnight-text);
+  background: #191919;
+  font-family: var(--vp-font-family-mono);
+  overflow-wrap: anywhere;
+}
+
+.mermaid-block {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--midnight-border);
+  border-radius: 8px;
+  background: var(--midnight-black);
+}
+
+.mermaid-block__canvas {
+  min-width: min-content;
+}
+
+.mermaid-block svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.VPButton.brand {
+  color: #ffffff;
+  font-weight: 700;
+  background: var(--midnight-blue);
+  border-color: var(--midnight-blue);
+}
+
+.VPButton.brand:hover {
+  background: #0677f9;
+  border-color: #0677f9;
+}
+
+.VPButton.alt {
+  color: var(--midnight-text);
+  border-color: var(--midnight-border);
+  background: transparent;
+}
+
+.VPHome {
+  background: var(--midnight-surface);
+}
+
+.VPHero .name,
+.VPHero .text {
+  color: var(--midnight-text);
+  letter-spacing: 0;
+}
+
+.VPHero .tagline {
+  color: var(--midnight-muted);
+}
+
+.VPFooter {
+  background: var(--midnight-black);
+  border-top: 1px solid var(--midnight-border);
+}
+
+@media (min-width: 960px) {
+  .VPDoc.has-aside .content-container {
+    max-width: 928px;
+  }
+}
