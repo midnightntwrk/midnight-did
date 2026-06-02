@@ -2,7 +2,11 @@ import * as base64js from "base64-js";
 import { describe, expect, it } from "vitest";
 import { z } from "zod/v4-mini";
 
-import { decodeBase64UrlBytes32, FieldCodec } from "../crypto-codecs.js";
+import {
+  decodeBase64UrlBytes,
+  decodeBase64UrlBytes32,
+  FieldCodec,
+} from "../crypto-codecs.js";
 
 describe("FieldCodec (domain)", () => {
   const roundtrip = (v: bigint) => {
@@ -94,5 +98,18 @@ describe("decodeBase64UrlBytes32", () => {
         "publicKeyJwk.x",
       ),
     ).toThrow(/canonical unpadded base64url/);
+  });
+});
+
+describe("decodeBase64UrlBytes", () => {
+  it("validates arbitrary expected byte lengths", () => {
+    const bytes48 =
+      "BgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYG";
+    expect(decodeBase64UrlBytes(bytes48, 48, "publicKeyJwk.x")).toHaveLength(
+      48,
+    );
+    expect(() => decodeBase64UrlBytes(bytes48, 32, "publicKeyJwk.x")).toThrow(
+      /exactly 32 bytes/,
+    );
   });
 });

@@ -7,7 +7,15 @@ type ContractModule = typeof import("@midnight-ntwrk/midnight-did-contract");
 
 vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
   const DIDContractMock = {
-    CurveType: { Ed25519: 0, X25519: 1, Jubjub: 2, P256: 3, Secp256k1: 4 },
+    CurveType: {
+      Ed25519: 0,
+      X25519: 1,
+      Jubjub: 2,
+      P256: 3,
+      Secp256k1: 4,
+      BLS12381G1: 5,
+      BLS12381G2: 6,
+    },
     KeyType: { EC: 0, RSA: 1, oct: 2, OKP: 3 },
     VerificationMethodType: { Undefined: 0, JsonWebKey: 1 },
     VerificationMethodRelation: {
@@ -56,6 +64,8 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
   const bytes32 = (fill: number) => new Uint8Array(32).fill(fill);
   const keyString = (fill: number) =>
     Buffer.from(bytes32(fill)).toString("base64url");
+  const keyStringOfLength = (fill: number, length: number) =>
+    Buffer.from(new Uint8Array(length).fill(fill)).toString("base64url");
   const bigintTo32Le = (value: bigint) => {
     const bytes = new Uint8Array(32);
     let remaining = value;
@@ -183,6 +193,29 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     } as any);
     expect(out.crv).toBe("X25519");
     expect("y" in out).toBe(false);
+  });
+
+  it("publicKeyJwk maps BLS12-381 OKP curve values", () => {
+    const g1 = LedgerToDomain.publicKeyJwk({
+      kty: DIDContract.KeyType.OKP,
+      crv: DIDContract.CurveType.BLS12381G1,
+      x: keyStringOfLength(8, 48),
+      y: "",
+    } as any);
+    expect(g1).toEqual({
+      kty: "OKP",
+      crv: "BLS12381G1",
+      x: "CAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+    });
+
+    const g2 = LedgerToDomain.publicKeyJwk({
+      kty: DIDContract.KeyType.OKP,
+      crv: DIDContract.CurveType.BLS12381G2,
+      x: keyStringOfLength(9, 96),
+      y: "",
+    } as any);
+    expect(g2.crv).toBe("BLS12381G2");
+    expect("y" in g2).toBe(false);
   });
 
   it("publicKeyJwk retains y for non-OKP keys", () => {

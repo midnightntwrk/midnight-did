@@ -11,6 +11,7 @@ Midnight-native cryptography need different ledger representations.
 | X25519 | `publicKeyJwk` with `kty: "OKP"` and `crv: "X25519"` | Opaque canonical JWK strings | `addVerificationMethod` | Key agreement outside the DID contract |
 | P-256 | `publicKeyJwk` with `kty: "EC"` and `crv: "P-256"` | Opaque canonical JWK strings | `addVerificationMethod` | Off-chain P-256 libraries |
 | secp256k1 | `publicKeyJwk` with `kty: "EC"` and `crv: "secp256k1"` | Opaque canonical JWK strings | `addVerificationMethod` | Off-chain secp256k1 libraries |
+| BLS12-381 G1/G2 | `publicKeyJwk` with `kty: "OKP"` and `crv: "BLS12381G1"` or `"BLS12381G2"` | Opaque canonical JWK strings | `addVerificationMethod` | BLS/BBS-compatible libraries outside the DID contract |
 | SchnorrJubjub | Resolved as `publicKeyJwk` with `crv: "Jubjub"` | Native `JubjubPoint` in `schnorrJubjubVerificationMethods` | `addSchnorrJubjubVerificationMethod` | `verifySchnorrJubjubDigestSignature` reads the key by method id from ledger state |
 
 ## Why Two Maps Exist
@@ -28,6 +29,15 @@ Document `verificationMethod` array.
 The two maps are not duplicate storage. A verification method id belongs to
 exactly one map. Keeping one canonical representation per key avoids consistency
 bugs while still supporting both W3C JWK output and native Midnight proofs.
+
+`publicKeyJwk` values are validated with profile-specific byte lengths: 32 bytes
+for Ed25519, X25519, P-256, and secp256k1; 48 bytes for BLS12381G1; and 96
+bytes for BLS12381G2. Public JWKs must not include private `d` material.
+
+`publicKeyMultibase` / `Multikey` is not a current Midnight DID ledger profile.
+It is the likely future fit for some W3C Data Integrity and BBS-oriented suites,
+but it needs an explicit storage/API path rather than overloading
+`publicKeyJwk`.
 
 ## Identifier Rules
 

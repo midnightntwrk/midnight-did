@@ -65,8 +65,8 @@ const did = `did:midnight:undeployed:${contractAddress}`;
 
 ## Add An Interoperable JWK Key
 
-Use `addVerificationMethod` for Ed25519, X25519, P-256, and secp256k1
-`publicKeyJwk` entries.
+Use `addVerificationMethod` for Ed25519, X25519, P-256, secp256k1,
+BLS12381G1, and BLS12381G2 `publicKeyJwk` entries.
 
 ```ts
 import { addVerificationMethod } from "@midnight-ntwrk/midnight-did-api";
