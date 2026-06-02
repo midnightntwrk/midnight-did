@@ -36,10 +36,10 @@ jobs:
             revert
           scopes: |
             api
-            cli
             contract
             domain
             did
+            manager
             docs
             deps
             config

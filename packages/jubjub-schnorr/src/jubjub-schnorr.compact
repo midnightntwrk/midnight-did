@@ -1,0 +1,30 @@
+// This file is part of midnightntwrk/midnight-did.
+// Copyright (C) 2025 Midnight Foundation
+// SPDX-License-Identifier: Apache-2.0
+
+pragma language_version 0.22;
+
+import CompactStandardLibrary;
+import "schnorr" prefix Schnorr_;
+
+export { Schnorr_SchnorrSignature };
+
+constructor() {}
+
+export circuit schnorrVerifyDigest(
+  digest: Vector<4, Field>,
+  signature: Schnorr_SchnorrSignature,
+  pk: JubjubPoint
+): [] {
+  Schnorr_schnorrVerifyDigest(digest, signature, pk);
+}
+
+export pure circuit schnorrChallengeDigest(
+  ann_x: Field,
+  ann_y: Field,
+  pk_x: Field,
+  pk_y: Field,
+  digest: Vector<4, Field>
+): Field {
+  return Schnorr_schnorrChallengeDigest(ann_x, ann_y, pk_x, pk_y, digest);
+}

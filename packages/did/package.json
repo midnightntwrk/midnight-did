@@ -1,0 +1,58 @@
+{
+  "name": "@midnight-ntwrk/midnight-did",
+  "version": "0.4.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=10"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./midnight": {
+      "types": "./dist/midnight.d.ts",
+      "require": "./dist/midnight.js",
+      "import": "./dist/midnight.js",
+      "default": "./dist/midnight.js"
+    }
+  },
+  "scripts": {
+    "prebuild": "pnpm --filter @midnight-ntwrk/midnight-did-domain build",
+    "build": "rm -rf dist && tsc -b tsconfig.build.json --force",
+    "pretypecheck": "pnpm --filter @midnight-ntwrk/midnight-did-domain build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "pnpm --filter @midnight-ntwrk/midnight-did-domain build",
+    "test": "vitest run",
+    "pretest:ci": "pnpm --filter @midnight-ntwrk/midnight-did-domain build",
+    "test:ci": "vitest run",
+    "precoverage": "pnpm --filter @midnight-ntwrk/midnight-did-domain build",
+    "coverage": "vitest run --coverage",
+    "clean": "rm -rf dist && rm -rf coverage",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/midnight-did-contract": "workspace:*",
+    "@midnight-ntwrk/midnight-did-domain": "workspace:*",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "globals": "14.0.0"
+  },
+  "files": [
+    "dist/**",
+    "README.md",
+    "package.json",
+    "tsconfig.json",
+    "tsconfig.build.json"
+  ]
+}
