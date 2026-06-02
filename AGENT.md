@@ -295,7 +295,6 @@ Docs entry points:
 - `docs-site/guide/github-pages.md`: GitHub Pages publishing guide.
 - `docs-site/guide/testing-strategy.md`: testing strategy.
 - `docs-site/guide/did-surface-change-discipline.md`: discipline for DID surface changes.
-- `docs/archive/README.md`: historical notes that are not active runbook guidance.
 - `docs-site/spec/midnight-method.md`: method specification material.
 - `docs-site/spec/midnight-did-traits.md`: method traits.
 
