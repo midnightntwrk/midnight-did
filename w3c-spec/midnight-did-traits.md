@@ -6,18 +6,18 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 
 | Trait | Status | Notes |
 | --- | --- | --- |
-| Deterministic / namespaced | ✔ | `did:midnight:{network}:{68-hex}` derived from contract address; avoids collisions across networks. |
-| Self-certifying | △ | DID value is not derived from controller key; security anchored in on-chain contract + secretKey. |
+| Deterministic / namespaced | ✔ | `did:midnight:{network}:{64-hex}` derived from contract address; avoids collisions across networks. |
+| Self-certifying | △ | DID value is not derived from controller key; security anchored in on-chain contract + wallet-held secret key witness. |
 | Ledger anchored | ✔ | All CRUD operations interact with Midnight ledger smart contract. |
-| Method-specific syntax | ✔ | Defined in spec §2; conforms to RFC3986 and DID Core requirements. |
+| Method-specific syntax | ✔ | Defined in [Midnight DID Method §2](./midnight-method.md#2-midnight-did-syntax); conforms to [RFC3986] and [W3C-DID] requirements. |
 
 ## CRUD Lifecycle Traits
 
 | Trait | Status | Notes |
 | --- | --- | --- |
 | Create | ✔ | Contract deployment creates DID state. |
-| Read / Resolve | ✔ | `did/src/ledger-to-domain.ts` reconstructs DID Document from ledger state. |
-| Update | ✔ | `applyOperations` circuit handles adds/updates/removals. |
+| Read / Resolve | ✔ | `packages/did/src/ledger-to-domain.ts` reconstructs DID Document from ledger state. |
+| Update | ✔ | Individual contract circuits handle adds/updates/removals with secret-key authorization. |
 | Deactivate | ✔ | Deactivation operation prevents further updates. |
 | Recover | △ | No explicit recovery; requires redeployment/new DID. |
 
@@ -26,7 +26,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | Trait | Status | Notes |
 | --- | --- | --- |
 | Key rotation / revocation | ✔ | `Add/Update/RemoveVerificationMethod` + relation ops. |
-| Key type diversity | △ | Restricted to JWK (OKP/Ed25519, EC/Jubjub, EC/P-256). |
+| Key type diversity | △ | Restricted to JWK ([RFC7517]) (OKP/Ed25519/X25519, EC/Jubjub/P-256/secp256k1). |
 | Multi-controller keys | ✖ | Controller must equal DID subject (single-controller model). |
 | Relative key IDs | ✔ | Fragment identifiers supported (`#key-1`). |
 
@@ -35,7 +35,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | Trait | Status | Notes |
 | --- | --- | --- |
 | Service entry support | ✔ | `service` array with `id`, `type`, `serviceEndpoint`. |
-| Endpoint formats (CID 1.0) | ✔ | Strings, objects, and arrays; JSON stored on-ledger. |
+| Endpoint formats ([CID-1.0]) | ✔ | Strings, objects, and arrays; JSON stored on-ledger. |
 | Relative service IDs | ✔ | Fragment/relative URIs required. |
 | Absolute external IDs | ✖ | Non-DID absolute URIs disallowed. |
 
@@ -45,16 +45,21 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | --- | --- | --- |
 | Single controller | ✔ | Contract enforces single controller equal to DID. |
 | Multi-controller | ✖ | Not supported. |
-| Delegated updates | ✔ | Possession of contract `secretKey` required. |
-| On-chain access control | ✔ | Updates validated by `applyOperations` circuit. |
+| Delegated updates | ✔ | Possession of the secret key witness allows updates. |
+| On-chain access control | ✔ | Circuits verify the wallet-held secret key against `controllerPublicKey`. |
 
 ## Operational Traits
 
 | Trait | Status | Notes |
 | --- | --- | --- |
-| Batch operations | △ | Up to 4 operations per transaction. |
-| Network portability | ✔ | Works on undeployed/devnet/testnet/mainnet. |
+| Batch operations | ✖ | One circuit call per operation (no batching). |
+| Network portability | ✔ | Works on undeployed/devnet/testnet/mainnet/preview/preprod. |
 | Privacy guidance | ✔ | Spec discourages PII on-chain; ZK witness protects updates. |
-| Service discovery | ✔ | Indexers/resolvers dependent on Midnight network (§11). |
+| Service discovery | ✔ | Indexers/resolvers dependent on Midnight network ([Midnight DID Method §10](./midnight-method.md#10-discoverability)). |
 
 _Status icons:_ ✔ Supported · △ Partial support / restriction · ✖ Not supported.
+
+[W3C-DID]: https://www.w3.org/TR/did-core/ "Decentralized Identifiers (DID) v1.0"
+[RFC3986]: https://www.rfc-editor.org/rfc/rfc3986 "RFC 3986: Uniform Resource Identifier (URI): Generic Syntax"
+[RFC7517]: https://www.rfc-editor.org/rfc/rfc7517 "RFC 7517: JSON Web Key (JWK)"
+[CID-1.0]: https://www.w3.org/TR/cid-1.0/ "DIDComm Messaging v2.0: Core (CID 1.0)"

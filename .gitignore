@@ -1,5 +1,6 @@
 # Node.js
 node_modules/
+dist
 dist/
 build/
 npm-debug.log*
@@ -14,7 +15,11 @@ logs
 *.log
 logs/*.log
 midnight-level-db
+**/midnight-level-db/
+**/.midnight-db/
 coverage
+playwright-report/
+test-results/
 
 # Test reports
 **/reports
@@ -22,13 +27,7 @@ coverage
 # Dependency directories
 jspm_packages/
 
-# Optional npm cache directory
-.npm
-
-# Optional local npm cache used by packaging scripts
-.npm-cache
-cli/.npm-cache
-contract/.npm-cache
+.turbo/
 
 # Optional eslint cache
 .eslintcache
@@ -36,7 +35,7 @@ contract/.npm-cache
 # Optional REPL history
 .node_repl_history
 
-# Output of 'npm pack'
+# Output of package tarball packing
 *.tgz
 
 # Yarn Integrity file
@@ -44,6 +43,13 @@ contract/.npm-cache
 
 # dotenv environment variables file
 .env
+.env.local
+.env.*.local
+
+# Local app state and secrets
+.midnight-did/
+**/manager-session.json
+**/manager-secrets.json
 
 # MacOS
 .DS_Store
@@ -65,3 +71,22 @@ contract/.npm-cache
 # Compact
 managed/
 
+# Submodules and examples
+.gitsubmodules
+example-counter
+research/identity-examples/**/node_modules/
+research/identity-examples/**/dist/
+research/identity-examples/**/build/
+research/identity-examples/**/.env
+
+# Local assistant workspace
+.cloude
+.claude/*
+!.claude/skills/
+!.claude/skills/**
+
+docs-site/.vitepress/.temp/
+docs-site/.vitepress/dist/
+docs-site/.vitepress/cache/
+docs-site/api/reference/
+docs-site/source/

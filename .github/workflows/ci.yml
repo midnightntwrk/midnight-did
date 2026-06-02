@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - develop
   pull_request:
   workflow_dispatch:
   schedule:
@@ -13,53 +14,147 @@ permissions:
   contents: read
   pull-requests: read
 
+env:
+  PNPM_CONFIG_AUDIT: "false"
+  PNPM_CONFIG_FUND: "false"
+
 concurrency:
   group: did-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  run-pipeline:
-    name: Build, Lint, Test, and Coverage
+  changes:
+    name: Classify Changes
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    env:
-      COMPACT_COMPILER_VERSION: 0.26.0
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      changed_file_count: ${{ steps.classify.outputs.changed_file_count }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed files
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: node scripts/ci-change-classifier.mjs --output "$GITHUB_OUTPUT"
+
+      - name: Print change classification
+        run: |
+          echo "docs_only=${{ steps.classify.outputs.docs_only }}"
+          echo "changed_file_count=${{ steps.classify.outputs.changed_file_count }}"
+
+  core:
+    name: Core (Lint + Contract/Domain/DID)
+    runs-on: ubuntu-latest
+    needs:
+      - changes
+    if: needs.changes.outputs.docs_only != 'true'
+    timeout-minutes: 60
+    env:
+      COMPACT_COMPILER_VERSION: 0.30.0
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Set up Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install Compact developer tools
-        run: |
-          curl --proto '=https' --tlsv1.2 -LsSf https://github.com/midnightntwrk/compact/releases/latest/download/compact-installer.sh | sh
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-
-      - name: Install Compact compiler toolchain
-        run: |
-          if [ -n "${COMPACT_COMPILER_VERSION}" ]; then
-            compact update "${COMPACT_COMPILER_VERSION}"
-          else
-            compact update
-          fi
+      - name: Set up Compact toolchain
+        uses: midnightntwrk/setup-compact-action@v1
+        with:
+          compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
 
       - name: Verify Compact installation
         run: compact compile --version
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile --prefer-offline
 
-      - name: Ensure Rollup Linux binary is present
-        if: runner.os == 'Linux'
+      - name: Run core workflow
+        run: ./run.sh core --strict
+
+      - name: Run package smoke tests
+        run: pnpm run packages-smoke-tests
+
+  api:
+    name: API pipeline
+    runs-on: ubuntu-latest
+    needs:
+      - changes
+    if: needs.changes.outputs.docs_only != 'true'
+    timeout-minutes: 60
+    env:
+      COMPACT_COMPILER_VERSION: 0.30.0
+      # Optional optimization: point this repository variable to a pre-bootstrapped proof-server image
+      # (for example ghcr.io/<org>/<image>:<tag>) to reduce cold-start time in Docker-based tests.
+      PROOF_SERVER_IMAGE: ${{ vars.PROOF_SERVER_IMAGE != '' && vars.PROOF_SERVER_IMAGE || 'midnightntwrk/proof-server:8.0.3' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # ratchet:actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Set up Compact toolchain
+        uses: midnightntwrk/setup-compact-action@v1
+        with:
+          compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
+
+      - name: Verify Compact installation
+        run: compact compile --version
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Run API workflow
+        run: ./run.sh api --strict
+
+  run-pipeline:
+    name: Build, Lint, Test, and Coverage
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - changes
+      - core
+      - api
+    steps:
+      - name: Check dependency jobs
         run: |
-          # npm sometimes skips optional platform-specific rollup deps; install explicitly on Linux
-          npm_config_package_lock=false npm install --no-save @rollup/rollup-linux-x64-gnu@4.50.1
+          echo "docs_only: ${{ needs.changes.outputs.docs_only }}"
+          echo "changed_file_count: ${{ needs.changes.outputs.changed_file_count }}"
+          echo "core: ${{ needs.core.result }}"
+          echo "api: ${{ needs.api.result }}"
 
-      - name: Run project workflow
-        run: bash ./run.sh
+          if [[ "${{ needs.changes.outputs.docs_only }}" == "true" ]]; then
+            if [[ "${{ needs.core.result }}" != "skipped" || "${{ needs.api.result }}" != "skipped" ]]; then
+              echo "Docs-only change should skip core and API jobs."
+              exit 1
+            fi
+            echo "Docs-only change detected; core and API jobs were intentionally skipped."
+            exit 0
+          fi
+
+          if [[ "${{ needs.core.result }}" != "success" || "${{ needs.api.result }}" != "success" ]]; then
+            echo "One or more CI jobs failed."
+            exit 1
+          fi
+
+          echo "All CI jobs passed."
