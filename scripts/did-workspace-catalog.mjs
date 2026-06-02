@@ -6,6 +6,10 @@ import { stdout } from "node:process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+export const githubPackageRegistry = "https://npm.pkg.github.com";
+export const repositoryUrl =
+  "git+https://github.com/midnightntwrk/midnight-did.git";
+
 export const workspaceCatalog = [
   {
     workspace: "packages/api",
@@ -100,6 +104,14 @@ export const artifactWorkspaces = workspaceCatalog
   .filter(({ artifactPackage }) => artifactPackage)
   .map(({ workspace }) => workspace);
 
+export const publishWorkspaces = [
+  "packages/jubjub-schnorr",
+  "packages/contract",
+  "packages/domain",
+  "packages/did",
+  "packages/api",
+];
+
 export const packageManifestCatalog = new Map(
   workspaceCatalog
     .filter(({ artifactPackage }) => artifactPackage)
@@ -116,6 +128,9 @@ if (isDirectExecution) {
     case "--artifact-workspaces":
       stdout.write(`${artifactWorkspaces.join("\n")}\n`);
       break;
+    case "--publish-workspaces":
+      stdout.write(`${publishWorkspaces.join("\n")}\n`);
+      break;
     case undefined:
     case "--help":
       stdout.write(
@@ -124,6 +139,7 @@ if (isDirectExecution) {
           "",
           "Commands:",
           "  --artifact-workspaces  Print package workspaces packed as tarballs.",
+          "  --publish-workspaces   Print package workspaces in dependency publication order.",
         ].join("\n"),
       );
       stdout.write("\n");

@@ -272,6 +272,17 @@ Packed packages:
 - `@midnight-ntwrk/midnight-did-jubjub-schnorr`
 - `@midnight-ntwrk/midnight-did-contract`
 
+The five DID packages are publishable to GitHub Packages. Keep the root
+workspace and `docs-site` private, and keep package `publishConfig.registry`
+pointing at `https://npm.pkg.github.com`. Publication order is owned by
+`scripts/did-workspace-catalog.mjs --publish-workspaces`.
+
+Release CI publishes snapshot versions from `main`, RC versions from `main` or
+`develop`, and final releases from `main` only. ZK artifacts are distributed as
+a separate validated archive with the provider layout `keys/*.prover`,
+`keys/*.verifier`, and `zkir/*.bzkir`; do not rely on package consumers to
+discover proving keys by walking arbitrary generated directories.
+
 ## CI Shape
 
 GitHub Actions target `main` and `develop`.

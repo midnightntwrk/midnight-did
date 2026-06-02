@@ -165,11 +165,15 @@ The workspace manifest guard keeps package distribution metadata aligned:
 ```bash
 pnpm run test:workspace-manifests
 pnpm run check:workspace-manifests
+pnpm run packages:check-contents
 pnpm run packages-smoke-tests
 ```
 
 It validates the root workspace list, package names, export maps, tarball
-`files`, and README ownership for the DID-owned packages.
+`files`, GitHub Packages registry metadata, repository ownership, and README
+ownership for the DID-owned packages. The package content check dry-runs npm
+packing and rejects development-only files such as compiled `dist/test/**`
+output.
 
 The package smoke suite builds the publishable packages, imports every package
 entry point in Node.js, and bundles the browser-safe API entry point with Vite.
@@ -212,6 +216,23 @@ generated Compact output readiness and source manifests for `contract` and
 `jubjub-schnorr`. Use `./run.sh check-managed-artifacts` or
 `pnpm run check:managed-artifacts` to fail on missing or stale generated
 artifacts after a local build.
+
+Release CI publishes the same packages to GitHub Packages. Snapshot versions are
+published automatically from `main` as `x.y.z-snapshot.<run>.<sha>` with the
+`snapshot` npm tag. Manual workflow dispatch can publish `x.y.z-rc{index}` with
+the `rc` npm tag from `main` or `develop`, and `x.y.z` with the `latest` npm tag
+from `main` only.
+
+ZK keys are distributed separately as a validated archive:
+
+```bash
+pnpm run zk-artifacts:bundle -- --version 0.4.0-snapshot.local
+pnpm run zk-artifacts:check -- artifacts/zk/midnight-did-zk-artifacts-0.4.0-snapshot.local.tar.gz
+```
+
+The archive preserves the Midnight JS provider layout:
+`keys/<circuit>.prover`, `keys/<circuit>.verifier`, and
+`zkir/<circuit>.bzkir`.
 
 ## Developer Entry Points
 

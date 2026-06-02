@@ -27,6 +27,10 @@
     "docs:build": "pnpm --filter docs-site docs:build",
     "docs:preview": "pnpm --filter docs-site docs:preview",
     "artifacts:pack": "./scripts/pack-artifacts.sh",
+    "release:prepare-version": "node scripts/prepare-release-version.mjs",
+    "packages:check-contents": "node scripts/check-package-contents.mjs",
+    "zk-artifacts:bundle": "node scripts/build-zk-artifact-bundle.mjs",
+    "zk-artifacts:check": "node scripts/check-zk-artifact-bundle.mjs",
     "clean:artifacts": "node scripts/clean-artifacts.mjs",
     "report:integration": "node scripts/report-integration.mjs",
     "report:integration:schema": "node scripts/report-integration.mjs --schema",
@@ -48,7 +52,7 @@
     "test:source-imports": "node scripts/check-source-imports.test.mjs",
     "check:engine-agnostic-imports": "node scripts/check-engine-agnostic-imports.mjs",
     "test:engine-agnostic-imports": "node scripts/check-engine-agnostic-imports.test.mjs",
-    "packages-smoke-tests": "pnpm run build:all && node scripts/packages-smoke-tests.mjs"
+    "packages-smoke-tests": "pnpm run build:all && node scripts/packages-smoke-tests.mjs && pnpm run packages:check-contents"
   },
   "private": true,
   "packageManager": "pnpm@10.23.0",

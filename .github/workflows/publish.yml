@@ -1,0 +1,265 @@
+name: Publish Packages and ZK Artifacts
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Publication channel"
+        required: true
+        type: choice
+        default: rc
+        options:
+          - snapshot
+          - rc
+          - release
+      version:
+        description: "Base semantic version, for example 0.4.0. Defaults to package.json version."
+        required: false
+        type: string
+      rc_index:
+        description: "Positive integer used for rc versions, for example 1 creates x.y.z-rc1."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  COMPACT_COMPILER_VERSION: 0.30.0
+  ORAS_VERSION: 1.2.3
+  PNPM_CONFIG_AUDIT: "false"
+  PNPM_CONFIG_FUND: "false"
+
+concurrency:
+  group: did-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish packages and ZK artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Resolve publication context
+        id: context
+        env:
+          DISPATCH_CHANNEL: ${{ inputs.channel }}
+          DISPATCH_VERSION: ${{ inputs.version }}
+          DISPATCH_RC_INDEX: ${{ inputs.rc_index }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            channel="snapshot"
+            version=""
+            rc_index=""
+          else
+            channel="${DISPATCH_CHANNEL}"
+            version="${DISPATCH_VERSION}"
+            rc_index="${DISPATCH_RC_INDEX}"
+          fi
+
+          case "${channel}" in
+            snapshot)
+              if [[ "${GITHUB_REF_NAME}" != "main" ]]; then
+                echo "::error::snapshot publication is only allowed from main."
+                exit 1
+              fi
+              ;;
+            rc)
+              if [[ "${GITHUB_REF_NAME}" != "main" && "${GITHUB_REF_NAME}" != "develop" ]]; then
+                echo "::error::rc publication is only allowed from main or develop."
+                exit 1
+              fi
+              if [[ ! "${rc_index}" =~ ^[1-9][0-9]*$ ]]; then
+                echo "::error::rc_index must be a positive integer for rc publication."
+                exit 1
+              fi
+              ;;
+            release)
+              if [[ "${GITHUB_REF_NAME}" != "main" ]]; then
+                echo "::error::release publication is only allowed from main."
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::Unsupported publication channel: ${channel}"
+              exit 1
+              ;;
+          esac
+
+          echo "channel=${channel}" >> "${GITHUB_OUTPUT}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "rc_index=${rc_index}" >> "${GITHUB_OUTPUT}"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # ratchet:actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+          registry-url: https://npm.pkg.github.com
+          scope: "@midnight-ntwrk"
+
+      - name: Set up Compact toolchain
+        uses: midnightntwrk/setup-compact-action@v1
+        with:
+          compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
+
+      - name: Verify Compact installation
+        run: compact compile --version
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Prepare release version
+        id: version
+        env:
+          CHANNEL: ${{ steps.context.outputs.channel }}
+          VERSION: ${{ steps.context.outputs.version }}
+          RC_INDEX: ${{ steps.context.outputs.rc_index }}
+        run: |
+          set -euo pipefail
+
+          args=(--channel "${CHANNEL}" --github-output "${GITHUB_OUTPUT}")
+          if [[ -n "${VERSION}" ]]; then
+            args+=(--version "${VERSION}")
+          fi
+          if [[ -n "${RC_INDEX}" ]]; then
+            args+=(--rc-index "${RC_INDEX}")
+          fi
+
+          node scripts/prepare-release-version.mjs "${args[@]}"
+
+      - name: Build packages and managed artifacts
+        run: |
+          pnpm run test:workspace-manifests
+          pnpm run check:workspace-manifests
+          pnpm run test:artifact-workspaces
+          pnpm run build:all
+          pnpm run check:managed-artifacts
+
+      - name: Check publishable package contents
+        run: pnpm run packages:check-contents
+
+      - name: Build ZK artifact bundle
+        id: zk
+        run: |
+          node scripts/build-zk-artifact-bundle.mjs \
+            --version "${{ steps.version.outputs.version }}" \
+            --github-output "${GITHUB_OUTPUT}"
+
+      - name: Check ZK artifact bundle
+        run: node scripts/check-zk-artifact-bundle.mjs "${{ steps.zk.outputs.zk_archive }}"
+
+      - name: Upload workflow ZK artifact bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # ratchet:actions/upload-artifact@v4
+        with:
+          name: midnight-did-zk-artifacts-${{ steps.version.outputs.version }}
+          if-no-files-found: error
+          path: |
+            ${{ steps.zk.outputs.zk_archive }}
+            ${{ steps.zk.outputs.zk_manifest }}
+            ${{ steps.zk.outputs.zk_sha256 }}
+
+      - name: Publish npm packages to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TAG: ${{ steps.version.outputs.npm_tag }}
+        run: |
+          set -euo pipefail
+
+          while IFS= read -r workspace; do
+            echo "[publish] ${workspace} with npm tag ${NPM_TAG}"
+            pnpm --filter "./${workspace}" publish --no-git-checks --tag "${NPM_TAG}"
+          done < <(node scripts/did-workspace-catalog.mjs --publish-workspaces)
+
+      - name: Install ORAS
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error --location \
+            "https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz" \
+            --output /tmp/oras.tar.gz
+          mkdir -p /tmp/oras
+          tar -xzf /tmp/oras.tar.gz -C /tmp/oras oras
+          sudo install -m 0755 /tmp/oras/oras /usr/local/bin/oras
+          oras version
+
+      - name: Publish and verify GHCR ZK artifact
+        id: oci
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
+          ARCHIVE_NAME: ${{ steps.zk.outputs.zk_archive_name }}
+          MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
+        run: |
+          set -euo pipefail
+
+          owner="$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          oci_ref="ghcr.io/${owner}/midnight-did-zk-artifacts:${VERSION}"
+
+          printf '%s' "${GH_TOKEN}" | oras login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
+          oras push "${oci_ref}" \
+            "${ARCHIVE}:application/vnd.midnight.did.zk-artifacts.archive.v1+gzip" \
+            "${MANIFEST}:application/vnd.midnight.did.zk-artifacts.manifest.v1+json" \
+            --annotation "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --annotation "org.opencontainers.image.version=${VERSION}" \
+            --annotation "org.opencontainers.image.revision=${GITHUB_SHA}"
+
+          pull_dir="$(mktemp -d)"
+          oras pull "${oci_ref}" --output "${pull_dir}"
+          node scripts/check-zk-artifact-bundle.mjs "${pull_dir}/${ARCHIVE_NAME}"
+
+          echo "oci_ref=${oci_ref}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish and verify GitHub Release ZK assets
+        if: steps.version.outputs.channel != 'snapshot'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+          ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
+          ARCHIVE_NAME: ${{ steps.zk.outputs.zk_archive_name }}
+          MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
+          SHA256: ${{ steps.zk.outputs.zk_sha256 }}
+        run: |
+          set -euo pipefail
+
+          release_args=(--target "${GITHUB_SHA}" --title "${RELEASE_TAG}" --notes "Midnight DID ${RELEASE_TAG} packages and ZK artifacts.")
+          if [[ "${PRERELEASE}" == "true" ]]; then
+            release_args+=(--prerelease)
+          fi
+
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" "${ARCHIVE}" "${MANIFEST}" "${SHA256}" --clobber
+          else
+            gh release create "${RELEASE_TAG}" "${ARCHIVE}" "${MANIFEST}" "${SHA256}" "${release_args[@]}"
+          fi
+
+          download_dir="$(mktemp -d)"
+          gh release download "${RELEASE_TAG}" --pattern "${ARCHIVE_NAME}" --dir "${download_dir}"
+          node scripts/check-zk-artifact-bundle.mjs "${download_dir}/${ARCHIVE_NAME}"
+
+      - name: Print publication summary
+        run: |
+          cat <<'SUMMARY'
+          Published Midnight DID artifacts:
+          - npm tag: ${{ steps.version.outputs.npm_tag }}
+          - version: ${{ steps.version.outputs.version }}
+          - GHCR: ${{ steps.oci.outputs.oci_ref }}
+          - release tag: ${{ steps.version.outputs.release_tag }}
+          SUMMARY
