@@ -34,6 +34,7 @@ Status key:
 | DID-PROD-106 | Examples | Open | Stop presenting plaintext secret export as a normal bootstrap path. | Bootstrap examples are renamed or flagged as dev-only, or encrypt/export secrets through an explicit custody mechanism. |
 | DID-PROD-107 | API documentation | Open | Publish production-consumable API docs. | Public docs include install/acquisition steps, imports, signatures, return values, failure modes, network profile examples, and proof-server trust notes for primary operations. |
 | DID-PROD-108 | Integration documentation | Open | Add an end-to-end integration map across DID, resolver, VC, and trust registry. | Docs include repo/package version boundaries, deployment responsibilities, API contracts, and known limitations. |
+| DID-PROD-109 | Multikey verification methods | Open | Decide and implement `Multikey` / `publicKeyMultibase` support for W3C Data Integrity and BBS-oriented suites. | Spec names supported multibase/multicodec profiles; contract/API store Multikey methods through an explicit representation rather than overloading `publicKeyJwk`; resolver emits conforming DID Documents and rejects methods containing both `publicKeyJwk` and `publicKeyMultibase`. |
 
 ## P2 - Supply Chain And Operational Readiness
 

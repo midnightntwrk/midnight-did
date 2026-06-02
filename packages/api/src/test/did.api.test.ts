@@ -37,6 +37,7 @@ import {
   signJubjubPayloadFromSeed,
   verifyJubjubPayload,
 } from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
+import { bls12_381 } from "@noble/curves/bls12-381";
 import path from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -141,6 +142,22 @@ const createJubjubPublicJwk = (seed: Uint8Array): PublicKeyJwk => {
     crv: CurveType.Jubjub,
     x: encodeBase64Url(bigintTo32Le(publicKey.x)),
     y: encodeBase64Url(bigintTo32Le(publicKey.y)),
+  };
+};
+
+const createBlsPublicJwk = (
+  crv: CurveType.BLS12381G1 | CurveType.BLS12381G2,
+): PublicKeyJwk => {
+  const secretKey = new Uint8Array(32);
+  secretKey[31] = 1;
+  const publicKey =
+    crv === CurveType.BLS12381G1
+      ? bls12_381.getPublicKey(secretKey)
+      : bls12_381.getPublicKeyForShortSignatures(secretKey);
+  return {
+    kty: KeyType.OKP,
+    crv,
+    x: encodeBase64Url(publicKey),
   };
 };
 
@@ -505,6 +522,8 @@ describeApi("Midnight DID method API", () => {
     const x25519 = generatePublicJwkPair("x25519");
     const p256 = generateEcPublicJwkPair("P-256");
     const secp256k1 = generateEcPublicJwkPair("secp256k1");
+    const bls12381G1 = createBlsPublicJwk(CurveType.BLS12381G1);
+    const bls12381G2 = createBlsPublicJwk(CurveType.BLS12381G2);
     const jubjubSeed = new Uint8Array(
       Array.from({ length: 32 }, (_, index) => index + 1),
     );
@@ -523,6 +542,14 @@ describeApi("Midnight DID method API", () => {
       {
         id: `${realKeyDidString}#real-secp256k1`,
         publicKeyJwk: secp256k1.publicJwk,
+      },
+      {
+        id: `${realKeyDidString}#real-bls12381-g1`,
+        publicKeyJwk: bls12381G1,
+      },
+      {
+        id: `${realKeyDidString}#real-bls12381-g2`,
+        publicKeyJwk: bls12381G2,
       },
     ].map(({ id, publicKeyJwk }) =>
       createVerificationMethod({

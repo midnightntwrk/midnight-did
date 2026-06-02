@@ -85,6 +85,8 @@ export class LedgerToDomain {
     [LedgerCurveType.Jubjub]: CurveType.Jubjub,
     [LedgerCurveType.P256]: CurveType.P256,
     [LedgerCurveType.Secp256k1]: CurveType.Secp256k1,
+    [LedgerCurveType.BLS12381G1]: CurveType.BLS12381G1,
+    [LedgerCurveType.BLS12381G2]: CurveType.BLS12381G2,
   };
 
   private static readonly VerificationMethodTypeMap: Record<
@@ -122,7 +124,10 @@ export class LedgerToDomain {
 
     if (
       kty === KeyType.OKP &&
-      (crv === CurveType.Ed25519 || crv === CurveType.X25519)
+      (crv === CurveType.Ed25519 ||
+        crv === CurveType.X25519 ||
+        crv === CurveType.BLS12381G1 ||
+        crv === CurveType.BLS12381G2)
     ) {
       if (y !== "") {
         throw new Error("OKP ledger publicKeyJwk.y must be empty");

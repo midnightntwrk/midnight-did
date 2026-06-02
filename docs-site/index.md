@@ -26,6 +26,7 @@ VC/VP packages live in
 ## Key Model
 
 - Opaque W3C JWK keys are stored as canonical strings.
+- BLS12381G1 and BLS12381G2 are stored as opaque `publicKeyJwk` compressed point strings.
 - Native SchnorrJubjub keys are stored as `JubjubPoint` values.
 - Resolvers merge both key maps into the DID Document.
 - SchnorrJubjub verification reads the key from ledger state by verification method id.

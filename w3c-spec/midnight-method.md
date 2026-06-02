@@ -224,10 +224,12 @@ The value of the `publicKeyJwk` field conforms to the [RFC7517] JSON Web Key (JW
 
 - `kty` - key type
 - `crv` - curve
-- `x` - canonical unpadded base64url-encoded 32-byte public key material or x coordinate
-- `y` - canonical unpadded base64url-encoded 32-byte y coordinate when required by the key type
+- `x` - canonical unpadded base64url-encoded public key material or x coordinate, with the byte length defined by the supported key profile
+- `y` - canonical unpadded base64url-encoded y coordinate when required by the key type
 
-The Midnight DID supports the following cryptographic algorithms: Ed25519, X25519, Jubjub (Midnight compatible), P-256, and secp256k1. Based on the cryptography suite, the values of the properties are as follows:
+Public JWKs MUST NOT contain private key material such as `d`.
+
+The Midnight DID supports the following cryptographic algorithms: Ed25519, X25519, Jubjub (Midnight compatible), P-256, secp256k1, BLS12-381 G1, and BLS12-381 G2. Based on the cryptography suite, the values of the properties are as follows:
 
 #### 3.4.4.1 Ed25519
 Uses EdDSA over Ed25519 for signatures.
@@ -280,6 +282,17 @@ Uses secp256k1 keys represented as JWK with:
 - `y` parameters.
 
 secp256k1 keys are stored and resolved as DID Document key material; they are not used by current Midnight DID smart-contract verification circuits.
+
+#### 3.4.4.6 BLS12-381 G1 and G2
+Uses BLS12-381 key material for pairing-friendly cryptographic suites outside the current Midnight DID smart-contract verification circuits. The Midnight DID JWK profile follows the current IETF BLS JOSE/COSE key-representation draft [IETF-BLS-KEY-REPRESENTATIONS]:
+
+- `kty`=`OKP`,
+- `crv`=`BLS12381G1` with `x` containing a 48-byte compressed serialized G1 public key, or
+- `crv`=`BLS12381G2` with `x` containing a 96-byte compressed serialized G2 public key.
+
+BLS12-381 JWK public keys MUST omit `y` and `d`. They are stored and resolved as DID Document key material; they are not used by current Midnight DID smart-contract verification circuits. The contract stores the BLS public key as an opaque canonical string, so the key can be larger than the Midnight proof-system field without casting the bytes to `Field`.
+
+Some W3C Data Integrity and BBS-oriented suites prefer `type: "Multikey"` with `publicKeyMultibase`. DID Core permits that verification material form, but a verification method MUST NOT contain both `publicKeyJwk` and `publicKeyMultibase` for the same key material [W3C-DID]. The current Midnight DID ledger profile supports `JsonWebKey` / `publicKeyJwk` only. Future `Multikey` support should be added as an explicit verification-method profile and storage path, not by overloading `publicKeyJwk`.
 
 ## 3.5. Verification Relationships
 
@@ -497,7 +510,7 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | active                         | `Boolean`                                    | Whether the DID is active (`true`) or deactivated (`false`). If `active` is false, the resolver MUST set `deactivated: true` in DID Document metadata. |
 | operationCount                 | `Counter`                                    | Total number of DID update operations applied to this DID. Used for internal statistics. |
 | verificationMethods            | `Map<Opaque<"string">, VerificationMethod>`    | Map from verification method identifiers (canonicalized to fragment form for storage) to opaque JWK key material for non-Jubjub keys. Resolver output reconstructs canonical absolute DID URLs for `verificationMethod.id`. |
-| verificationMethods[*].publicKeyJwk.x | `Opaque<"string">` | Canonical unpadded base64url JWK `x` value that decodes to exactly 32 bytes. |
+| verificationMethods[*].publicKeyJwk.x | `Opaque<"string">` | Canonical unpadded base64url JWK `x` value. Supported lengths are 32 bytes for Ed25519, X25519, P-256, and secp256k1; 48 bytes for BLS12381G1; and 96 bytes for BLS12381G2. |
 | verificationMethods[*].publicKeyJwk.y | `Opaque<"string">` | Canonical unpadded base64url JWK `y` value for EC keys. OKP keys store an empty string sentinel and resolver output omits `y`. |
 | schnorrJubjubVerificationMethods | `Map<Opaque<"string">, SchnorrJubjubVerificationMethod>` | Map from verification method identifiers to native SchnorrJubjub public keys. Resolver output merges these entries into the DID Document `verificationMethod` array as `JsonWebKey` entries with `crv = "Jubjub"`. |
 | schnorrJubjubVerificationMethods[*].publicKey | `JubjubPoint` | Native Jubjub public key point (`Field` `x` and `y` coordinates). This is the canonical on-ledger representation for Jubjub verification methods. |
@@ -656,7 +669,7 @@ Adds a new verification method entry and (optionally, in a subsequent operation)
   - `id` MUST be either a DID URL bound to this DID (for example, `did:midnight:<network>:<addr>#key-1`) or a relative identifier that resolves against the DID (for example, `#key-1`). On-ledger, Midnight canonicalizes to fragment form (`#key-1`) for storage. Resolver output emits the absolute DID URL form.
   - `controller` MUST equal the DID subject.
   - `type` MUST be `JsonWebKey`.
-  - `publicKeyJwk` MUST follow the opaque JWK profiles defined in [section 3.4.4](#344-publickeyjwk) for Ed25519, X25519, P-256, or secp256k1. Jubjub keys MUST use the SchnorrJubjub verification method API because their canonical ledger representation is a native `JubjubPoint`.
+  - `publicKeyJwk` MUST follow the opaque JWK profiles defined in [section 3.4.4](#344-publickeyjwk) for Ed25519, X25519, P-256, secp256k1, BLS12381G1, or BLS12381G2. Jubjub keys MUST use the SchnorrJubjub verification method API because their canonical ledger representation is a native `JubjubPoint`.
   - Adding a method with an existing `id` MUST fail.
 
 Example (Ed25519):
@@ -675,9 +688,9 @@ await addVerificationMethod(didContract, {
 
 Ledger normalization note:
 - The API maps `type` to the contract field `typ`.
-- `publicKeyJwk.x` / `publicKeyJwk.y` are validated as canonical unpadded base64url values that decode to exactly 32 bytes, then stored as `Opaque<"string">` ledger values.
-- For OKP keys (`Ed25519`, `X25519`), `y` is omitted at API level and normalized to an empty string sentinel in ledger storage.
-- API-level `addVerificationMethod` is for opaque JWK profiles (`Ed25519`, `X25519`, `P-256`, and `secp256k1`). For Jubjub, use `addSchnorrJubjubVerificationMethod` with a native `JubjubPoint`.
+- `publicKeyJwk.x` / `publicKeyJwk.y` are validated as canonical unpadded base64url values with profile-specific byte lengths, then stored as `Opaque<"string">` ledger values.
+- For OKP keys (`Ed25519`, `X25519`, `BLS12381G1`, `BLS12381G2`), `y` is omitted at API level and normalized to an empty string sentinel in ledger storage.
+- API-level `addVerificationMethod` is for opaque JWK profiles (`Ed25519`, `X25519`, `P-256`, `secp256k1`, `BLS12381G1`, and `BLS12381G2`). For Jubjub, use `addSchnorrJubjubVerificationMethod` with a native `JubjubPoint`.
 - API-level `addVerificationMethod` and `updateVerificationMethod` call the contract's `setVerificationMethod` circuit with `MapMutation.Insert` and `MapMutation.Update`, respectively.
 - `addSchnorrJubjubVerificationMethod` and `updateSchnorrJubjubVerificationMethod` call the contract's `setSchnorrJubjubVerificationMethod` circuit and store the entry in `schnorrJubjubVerificationMethods`, avoiding duplicate opaque/native Jubjub key storage.
 - `verifySchnorrJubjubDigestSignature` verifies SchnorrJubjub signatures by method id. It looks up the native public key in `schnorrJubjubVerificationMethods`, so the verification proof is tied to the current ledger state.
@@ -1039,6 +1052,7 @@ A simple example of a Midnight DID Document is as follows:
 - [RFC3986]
 - [RFC4648]
 - [RFC7517]
+- [RFC8037]
 - [VC-DATA-MODEL]
 - [DID-SPEC-REGISTRIES]
 
@@ -1049,6 +1063,7 @@ A simple example of a Midnight DID Document is as follows:
 - [DID-CORE-DOCUMENT-METADATA]
 - [DID-PEER-METHOD]
 - [CID-1.0]
+- [IETF-BLS-KEY-REPRESENTATIONS]
 - [MIDNIGHT-WHITEPAPER]
 
 [W3C-DID]: https://www.w3.org/TR/did-core/ "Decentralized Identifiers (DID) v1.0"
@@ -1056,6 +1071,7 @@ A simple example of a Midnight DID Document is as follows:
 [RFC3986]: https://www.rfc-editor.org/rfc/rfc3986 "RFC 3986: Uniform Resource Identifier (URI): Generic Syntax"
 [RFC4648]: https://www.rfc-editor.org/rfc/rfc4648 "RFC 4648: The Base16, Base32, and Base64 Data Encodings"
 [RFC7517]: https://www.rfc-editor.org/rfc/rfc7517 "RFC 7517: JSON Web Key (JWK)"
+[RFC8037]: https://www.rfc-editor.org/rfc/rfc8037 "RFC 8037: CFRG Elliptic Curve Diffie-Hellman and Signatures in JOSE"
 [VC-DATA-MODEL]: https://www.w3.org/TR/vc-data-model/ "Verifiable Credentials Data Model"
 [DID-SPEC-REGISTRIES]: https://www.w3.org/TR/did-spec-registries/ "DID Specification Registries"
 [DID-CORE-VERIFICATION-RELATIONSHIPS]: https://www.w3.org/TR/did-core/#verification-relationships "DID Core: Verification Relationships"
@@ -1063,4 +1079,5 @@ A simple example of a Midnight DID Document is as follows:
 [DID-CORE-DOCUMENT-METADATA]: https://www.w3.org/TR/did-core/#did-document-metadata "DID Core: DID Document Metadata"
 [DID-PEER-METHOD]: https://identity.foundation/peer-did-method-spec/ "Peer DID Method Specification"
 [CID-1.0]: https://www.w3.org/TR/cid-1.0/ "DIDComm Messaging v2.0: Core (CID 1.0)"
+[IETF-BLS-KEY-REPRESENTATIONS]: https://datatracker.ietf.org/doc/html/draft-ietf-cose-bls-key-representations "Barreto-Lynn-Scott Elliptic Curve Key Representations for JOSE and COSE"
 [MIDNIGHT-WHITEPAPER]: https://midnight.network/#whitepaper "Midnight Whitepaper"

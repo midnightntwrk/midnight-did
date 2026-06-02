@@ -175,7 +175,7 @@ describe("offchain Midnight DID helpers", () => {
     expect(parseDIDDocument(doc).id).toBe(did);
   });
 
-  it("round-trips Ed25519, P-256, X25519, and secp256k1 verification methods", () => {
+  it("round-trips Ed25519, P-256, X25519, secp256k1, and BLS12-381 verification methods", () => {
     const ed25519 = {
       id: "#ed25519-1",
       publicKeyJwk: {
@@ -238,10 +238,41 @@ describe("offchain Midnight DID helpers", () => {
         capabilityDelegation: false,
       },
     };
+    const bls12381G1 = {
+      id: "#bls12381-g1-1",
+      publicKeyJwk: {
+        kty: KeyType.OKP,
+        crv: CurveType.BLS12381G1,
+        x: "BgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYG",
+      },
+      relationships: {
+        authentication: false,
+        assertionMethod: true,
+        keyAgreement: false,
+        capabilityInvocation: false,
+        capabilityDelegation: false,
+      },
+    };
+    const bls12381G2 = {
+      id: "#bls12381-g2-1",
+      publicKeyJwk: {
+        kty: KeyType.OKP,
+        crv: CurveType.BLS12381G2,
+        x: "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH",
+      },
+      relationships: {
+        authentication: false,
+        assertionMethod: true,
+        keyAgreement: false,
+        capabilityInvocation: false,
+        capabilityDelegation: false,
+      },
+    };
 
     for (const verificationMethod of [
       [...sampleState.verificationMethod, ed25519, p256, x25519],
       [...sampleState.verificationMethod, ed25519, p256, secp256k1],
+      [...sampleState.verificationMethod, bls12381G1, bls12381G2],
     ]) {
       const stateWithMultipleKeys: OffchainMidnightDIDState = {
         version: 1,

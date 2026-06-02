@@ -57,7 +57,8 @@ Use [Libs](/packages/) for package selection details and
 
 ## Key Rules
 
-Use `addVerificationMethod` for Ed25519, X25519, P-256, and secp256k1 JWKs.
+Use `addVerificationMethod` for Ed25519, X25519, P-256, secp256k1,
+BLS12381G1, and BLS12381G2 JWKs.
 Use `addSchnorrJubjubVerificationMethod` for native Midnight SchnorrJubjub keys.
 The resolver merges both stores into one DID Document. See
 [Key Model](/guide/key-model) before choosing a key profile.
