@@ -473,22 +473,50 @@ Each exported circuit (e.g., `setVerificationMethod`, `setService`, `deactivate`
 
 ### 5.2. Smart-contract access control
 
-The contract requires two witnesses:
+Smart-contract access control is independent from the ZK prover/verifier keys
+described in [section 5.1](#51-zk-keys). A Midnight DID controller is authorized
+by wallet-held private state, not by possession of the Compact prover artifacts.
 
-- `localSecretKey` — a wallet-generated 32‑byte secret used to authorize updates.
-- `currentTimestamp` — the current time in milliseconds since epoch, used to populate `created`/`updated`.
+The contract uses two witnesses for controller-gated operations:
 
-During deployment, the contract stores `controllerPublicKey`, derived as:
+- `localSecretKey` — a wallet-generated random 32-byte controller secret.
+- `currentTimestamp` — the current time in milliseconds since epoch, used to
+  populate `created`/`updated`.
 
-```
+During deployment, the wallet or SDK creates `localSecretKey` with
+cryptographically secure randomness and stores it in private-state storage. The
+contract stores only the corresponding `controllerPublicKey` commitment:
+
+```text
 persistentHash<Vector<2, Bytes<32>>>([pad(32, "did:controller:pk"), localSecretKey])
 ```
 
-Each update circuit asserts that the derived public key from the witness matches `controllerPublicKey`. This ensures that only holders of the secret key can mutate the DID state.
+The `controllerPublicKey` value is therefore a contract-local access-control
+commitment derived from random wallet material. It is not a DID Document
+verification method, it is not a Compact prover public key, and it is not reused
+as Ed25519, X25519, P-256, secp256k1, BLS12-381, or SchnorrJubjub key material.
 
-The controller secret is wallet/private-state material. It is not derived from a Compact prover key and is not itself stored on ledger. SDKs MUST generate it with cryptographically secure randomness and persist it in the wallet's private-state storage. Wallets SHOULD provide backup or recovery for this private state; loss of the controller secret makes subsequent DID updates impossible.
+Each update circuit recomputes the commitment from the private `localSecretKey`
+witness and asserts that it matches the on-ledger `controllerPublicKey`. This
+ensures that only a prover with access to the wallet controller secret can mutate
+the DID state.
 
-Controller rotation is performed with `rotateControllerKey(newControllerPublicKey: Bytes<32>)`. The replacement `controllerPublicKey` is derived locally by the SDK from a newly generated 32-byte secret using the same `persistentHash` formula, and only that public key is supplied to the circuit. The new secret MUST NOT be passed as a circuit argument: private circuit arguments may be visible to the proving environment, especially when proving is delegated to a proof server. After the rotation transaction finalizes, the SDK MUST persist the new secret as the DID private state. See [Appendix 11.1](#111-trusted-proof-server-model) for the proof-server trust assumption implied by the current `localSecretKey` witness design.
+The controller secret is not stored on ledger. SDKs MUST persist it in the
+wallet's private-state storage, and wallets SHOULD provide backup or recovery
+for this private state. Loss of the controller secret makes subsequent DID
+updates impossible unless a future recovery mechanism is introduced.
+
+Controller rotation is performed with
+`rotateControllerKey(newControllerPublicKey: Bytes<32>)`. The replacement
+controller secret is generated locally by the wallet or SDK, and the replacement
+`controllerPublicKey` commitment is derived locally before submitting the
+transaction. Only the new `controllerPublicKey` is supplied to the circuit. The
+new secret MUST NOT be passed as a circuit argument: private circuit arguments
+may be visible to the proving environment, especially when proving is delegated
+to a proof server. After the rotation transaction finalizes, the SDK MUST persist
+the new secret as the DID private state. See [Appendix 11.1](#111-trusted-proof-server-model)
+for the proof-server trust assumption implied by the current `localSecretKey`
+witness design.
 
 ### 5.3. Keys associated with the DID Document
 Midnight DID Controllers **MUST** manage the keys associated with the DID Document.
