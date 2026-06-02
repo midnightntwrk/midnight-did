@@ -15,3 +15,29 @@ To do that, we need to execute the following steps:
 The steps described above are automatically executed by the `bootstrap.py` script in this directory.
 
 Now you need to replace the default image of the proof-server with your newly created one.
+
+## Use bootstrapped image locally via env var
+
+This repository supports overriding the proof-server image with `PROOF_SERVER_IMAGE`.
+By default, all local compose files and test helpers use:
+
+`midnightntwrk/proof-server:8.0.3`
+
+To run locally with the bootstrapped image created by `bootstrap.py`:
+
+```bash
+export PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3
+```
+
+Then run your normal local workflows (for example `docker compose` or local API/service tests).
+The override is local to your shell session.
+
+To switch back to the default image:
+
+```bash
+unset PROOF_SERVER_IMAGE
+```
+
+Notes:
+- CI does not set `PROOF_SERVER_IMAGE`, so CI continues to use the default non-bootstrapped image.
+- This override is intended for local development and faster local test/container startup.

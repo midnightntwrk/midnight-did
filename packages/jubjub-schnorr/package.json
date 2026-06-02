@@ -1,0 +1,59 @@
+{
+  "name": "@midnight-ntwrk/midnight-did-jubjub-schnorr",
+  "version": "0.4.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=10"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./managed/jubjub-schnorr/contract": {
+      "types": "./dist/managed/jubjub-schnorr/contract/index.d.ts",
+      "import": "./dist/managed/jubjub-schnorr/contract/index.js",
+      "default": "./dist/managed/jubjub-schnorr/contract/index.js"
+    }
+  },
+  "scripts": {
+    "contract": "pnpm run compact",
+    "compact": "rm -rf src/managed && compact compile src/jubjub-schnorr.compact src/managed/jubjub-schnorr && node ./scripts/align-runtime-version.mjs && node ./scripts/strip-managed-sourcemaps.mjs",
+    "test": "pnpm run compact && vitest run --config vitest.config.ts",
+    "test:ci": "pnpm run compact && vitest run --config vitest.config.ts",
+    "prepack": "pnpm run build",
+    "coverage": "pnpm run compact && vitest run --config vitest.config.ts --coverage",
+    "clean": "rm -rf dist && rm -rf coverage && rm -rf reports && rm -rf src/managed",
+    "build": "pnpm run compact && rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/jubjub-schnorr.compact ./src/schnorr.compact ./dist",
+    "lint": "eslint src --ignore-pattern 'src/managed/**'",
+    "lint:fix": "eslint src --fix --ignore-pattern 'src/managed/**'",
+    "typecheck": "pnpm run compact && tsc -p tsconfig.json --noEmit",
+    "all": "pnpm run compact && pnpm run build && pnpm run test:ci"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "0.15.0",
+    "@midnight-ntwrk/ledger-v8": "8.0.3",
+    "@noble/hashes": "^2.2.0"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^3.2.4",
+    "globals": "14.0.0"
+  },
+  "files": [
+    "dist/**",
+    "src/**/*.compact",
+    "README.md",
+    "scripts/*.mjs",
+    "package.json",
+    "tsconfig.json",
+    "tsconfig.build.json"
+  ]
+}

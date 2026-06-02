@@ -1,0 +1,21 @@
+{
+  "name": "docs-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "docs:sync-spec": "node scripts/sync-spec-docs.mjs",
+    "docs:api": "node scripts/generate-api-docs.mjs",
+    "docs:prepare": "pnpm run docs:sync-spec",
+    "predocs:dev": "pnpm run docs:prepare",
+    "predocs:build": "pnpm run docs:prepare",
+    "docs:dev": "vitepress dev . --host 127.0.0.1 --port 4173",
+    "docs:build": "vitepress build .",
+    "docs:preview": "vitepress preview . --host 127.0.0.1 --port 4174"
+  },
+  "devDependencies": {
+    "mermaid": "^11.13.0",
+    "typedoc": "^0.28.13",
+    "typedoc-plugin-markdown": "^4.9.0",
+    "vitepress": "^1.6.4"
+  }
+}

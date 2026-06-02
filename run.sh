@@ -1,51 +1,103 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-node ./scripts/ensure-onchain-runtime-cjs.mjs
+source ./scripts/run-common.sh
 
-echo "[1/14] Lint (fix) workspaces"
-npm run lint:fix || true
+run_common_parse_args "run" "$@"
+run_common_warn_unsupported_flags "${RUN_COMMON_TARGET}"
 
-echo "[2/14] Lint workspaces"
-npm run lint
+case "${RUN_COMMON_TARGET}" in
+  targets|help)
+    run_common_usage "run"
+    exit 0
+    ;;
+  clean-artifacts)
+    run_common_ensure_node
+    node ./scripts/clean-artifacts.mjs
+    exit 0
+    ;;
+  artifact-status)
+    run_common_ensure_node
+    node ./scripts/managed-artifact-catalog.mjs --json
+    exit 0
+    ;;
+  check-managed-artifacts)
+    run_common_ensure_node
+    node ./scripts/managed-artifact-catalog.mjs --check
+    exit 0
+    ;;
+  integration-report)
+    run_common_ensure_node
+    node ./scripts/report-integration.mjs
+    exit 0
+    ;;
+  integration-report-schema)
+    run_common_ensure_node
+    node ./scripts/report-integration.mjs --schema
+    exit 0
+    ;;
+  check-integration)
+    run_common_ensure_node
+    node ./scripts/report-integration.mjs --check
+    exit 0
+    ;;
+esac
 
-echo "[3/14] Build contract (compact)"
-npm run contract -w contract
+run_catalog_steps() {
+  local target_name="$1"
+  local labels=()
+  local commands=()
+  local line
+  local i
 
-echo "[4/14] Build contract (tsc)"
-npm run build -w contract
+  while IFS= read -r line; do
+    if [[ -n "${line}" ]]; then
+      labels+=("${line}")
+    fi
+  done < <(run_common_catalog --step-labels "${target_name}")
 
-echo "[5/14] Test contract"
-# Skip runtime-heavy suites in constrained environments
-SKIP_RUNTIME_TESTS=1 npm run test:ci -w contract || SKIP_RUNTIME_TESTS=1 npm run test -w contract
+  while IFS= read -r line; do
+    if [[ -n "${line}" ]]; then
+      commands+=("${line}")
+    fi
+  done < <(run_common_catalog --step-commands "${target_name}")
 
-echo "[6/14] Coverage contract"
-npm run coverage -w contract || true
+  if [[ "${#labels[@]}" == "0" || "${#labels[@]}" != "${#commands[@]}" ]]; then
+    echo "[run] No executable runner steps found for target '${target_name}'" >&2
+    exit 1
+  fi
 
-echo "[7/14] Build domain"
-npm run build -w domain
+  for i in "${!labels[@]}"; do
+    run_common_run_step "${labels[$i]}" "${commands[$i]}"
+  done
+}
 
-echo "[8/14] Test domain"
-npm run test -w domain
+case "${RUN_COMMON_TARGET}" in
+  docs)
+    # Docs builds do not touch Docker, proof-server, or generated runtime shims.
+    # Skip infra setup so docs-only CI and local previews stay fast.
+    if [[ "${RUN_COMMON_DRY_RUN}" != "1" ]]; then
+      run_common_ensure_node
+    fi
+    run_catalog_steps "${RUN_COMMON_TARGET}"
+    echo "All steps completed successfully."
+    run_common_finish
+    exit 0
+    ;;
+esac
 
-echo "[9/14] Coverage domain"
-npm run coverage -w domain || true
+if [[ "${RUN_COMMON_DRY_RUN}" != "1" ]]; then
+  run_common_setup_cleanup_trap
+  run_common_ensure_node
+  run_common_ensure_runtime_helpers
+  run_common_auto_proof_server_image "run"
+fi
 
-echo "[10/14] Build did"
-npm run build -w did
+if [[ "${SKIP_LONG_RUNNING:-0}" == "1" ]]; then
+  echo "[run] Fast mode enabled: long-running integration/UI targets will be skipped"
+fi
 
-echo "[11/14] Test did"
-npm run test -w did -- --pool=threads
-
-echo "[12/14] Coverage did"
-npm run coverage -w did || true
-
-echo "[13/14] Build API and run tests"
-npm run build -w api
-npm run test -w api
-npm run test-api -w api || true
-
-echo "[14/14] Build CLI"
-npm run build -w cli
+run_catalog_steps "${RUN_COMMON_TARGET}"
 
 echo "All steps completed successfully."
+run_common_finish

@@ -1,18 +1,10 @@
 {
 //   "files": [],
   "include": [
-    "./contract/vitest.config.ts",
-    //"./domain/vitest.config.ts",
-    //"./did/vitest.config.ts",
-    //"./api/vitest.config.ts",
-    "./cli/vitest.config.ts"
+    "./packages/contract/vitest.config.ts"
   ],
   "references": [
-    { "path": "./contract" },
-    //{ "path": "./domain" },
-    //{ "path": "./did" },
-    //{ "path": "./api" },
-    { "path": "./cli" }
+    { "path": "./packages/contract" }
   ],
   "compilerOptions": {
     "composite": true,
