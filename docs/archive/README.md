@@ -6,7 +6,6 @@ repository archaeology but are not active engineering guidance.
 Use the active top-level docs instead when making changes:
 
 - `../did-surface-change-discipline.md`
-- `../repository-audit-backlog.md`
 - `../runtime-shim.md`
 
 Archived notes:
