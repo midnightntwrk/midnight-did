@@ -277,11 +277,13 @@ workspace and `docs-site` private, and keep package `publishConfig.registry`
 pointing at `https://npm.pkg.github.com`. Publication order is owned by
 `scripts/did-workspace-catalog.mjs --publish-workspaces`.
 
-Release CI publishes snapshot versions from `main`, RC versions from `main` or
-`develop`, and final releases from `main` only. ZK artifacts are distributed as
-a separate validated archive with the provider layout `keys/*.prover`,
-`keys/*.verifier`, and `zkir/*.bzkir`; do not rely on package consumers to
-discover proving keys by walking arbitrary generated directories.
+Release CI publishes snapshot versions from `main` and `develop`, RC versions
+from `main` or `develop`, and final releases from `main` only. ZK artifacts are
+distributed as a separate validated archive with the provider layout
+`keys/*.prover`, `keys/*.verifier`, and `zkir/*.bzkir`; do not rely on package
+consumers to discover proving keys by walking arbitrary generated directories.
+Publish CI smoke-tests the exact package version from GitHub Packages and
+fetches pulled/downloaded ZK bundles through `FetchZkConfigProvider`.
 
 ## CI Shape
 

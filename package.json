@@ -31,6 +31,7 @@
     "packages:check-contents": "node scripts/check-package-contents.mjs",
     "zk-artifacts:bundle": "node scripts/build-zk-artifact-bundle.mjs",
     "zk-artifacts:check": "node scripts/check-zk-artifact-bundle.mjs",
+    "published-artifacts:smoke": "node scripts/smoke-published-artifacts.mjs",
     "clean:artifacts": "node scripts/clean-artifacts.mjs",
     "report:integration": "node scripts/report-integration.mjs",
     "report:integration:schema": "node scripts/report-integration.mjs --schema",
@@ -67,6 +68,7 @@
   ],
   "devDependencies": {
     "@eslint/js": "^9.28.0",
+    "@midnight-ntwrk/midnight-js-fetch-zk-config-provider": "4.0.2",
     "@types/node": "^22.15.29",
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.33.1",

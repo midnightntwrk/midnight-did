@@ -218,21 +218,25 @@ generated Compact output readiness and source manifests for `contract` and
 artifacts after a local build.
 
 Release CI publishes the same packages to GitHub Packages. Snapshot versions are
-published automatically from `main` as `x.y.z-snapshot.<run>.<sha>` with the
-`snapshot` npm tag. Manual workflow dispatch can publish `x.y.z-rc{index}` with
-the `rc` npm tag from `main` or `develop`, and `x.y.z` with the `latest` npm tag
-from `main` only.
+published automatically from `main` and `develop` as
+`x.y.z-snapshot.<run>.<sha>` with the `snapshot` npm tag. Manual workflow
+dispatch can publish `x.y.z-rc{index}` with the `rc` npm tag from `main` or
+`develop`, and `x.y.z` with the `latest` npm tag from `main` only.
 
 ZK keys are distributed separately as a validated archive:
 
 ```bash
 pnpm run zk-artifacts:bundle -- --version 0.4.0-snapshot.local
 pnpm run zk-artifacts:check -- artifacts/zk/midnight-did-zk-artifacts-0.4.0-snapshot.local.tar.gz
+pnpm run published-artifacts:smoke -- --skip-npm --zk-archive artifacts/zk/midnight-did-zk-artifacts-0.4.0-snapshot.local.tar.gz
 ```
 
 The archive preserves the Midnight JS provider layout:
 `keys/<circuit>.prover`, `keys/<circuit>.verifier`, and
-`zkir/<circuit>.bzkir`.
+`zkir/<circuit>.bzkir`. Publish CI smoke-tests the exact npm package version
+from GitHub Packages and fetches the published ZK archive through
+`FetchZkConfigProvider` after pulling/downloading it from GHCR or GitHub Release
+assets.
 
 ## Developer Entry Points
 

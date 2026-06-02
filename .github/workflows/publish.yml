@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - develop
   workflow_dispatch:
     inputs:
       channel:
@@ -70,8 +71,8 @@ jobs:
 
           case "${channel}" in
             snapshot)
-              if [[ "${GITHUB_REF_NAME}" != "main" ]]; then
-                echo "::error::snapshot publication is only allowed from main."
+              if [[ "${GITHUB_REF_NAME}" != "main" && "${GITHUB_REF_NAME}" != "develop" ]]; then
+                echo "::error::snapshot publication is only allowed from main or develop."
                 exit 1
               fi
               ;;
@@ -186,6 +187,16 @@ jobs:
             pnpm --filter "./${workspace}" publish --no-git-checks --tag "${NPM_TAG}"
           done < <(node scripts/did-workspace-catalog.mjs --publish-workspaces)
 
+      - name: Smoke test packages from GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          node scripts/smoke-published-artifacts.mjs \
+            --version "${VERSION}" \
+            --registry "https://npm.pkg.github.com" \
+            --skip-zk
+
       - name: Install ORAS
         run: |
           set -euo pipefail
@@ -223,6 +234,7 @@ jobs:
           pull_dir="$(mktemp -d)"
           oras pull "${oci_ref}" --output "${pull_dir}"
           node scripts/check-zk-artifact-bundle.mjs "${pull_dir}/${ARCHIVE_NAME}"
+          node scripts/smoke-published-artifacts.mjs --skip-npm --zk-archive "${pull_dir}/${ARCHIVE_NAME}"
 
           echo "oci_ref=${oci_ref}" >> "${GITHUB_OUTPUT}"
 
@@ -253,6 +265,7 @@ jobs:
           download_dir="$(mktemp -d)"
           gh release download "${RELEASE_TAG}" --pattern "${ARCHIVE_NAME}" --dir "${download_dir}"
           node scripts/check-zk-artifact-bundle.mjs "${download_dir}/${ARCHIVE_NAME}"
+          node scripts/smoke-published-artifacts.mjs --skip-npm --zk-archive "${download_dir}/${ARCHIVE_NAME}"
 
       - name: Print publication summary
         run: |
