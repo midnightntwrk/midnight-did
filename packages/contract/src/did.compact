@@ -76,7 +76,7 @@ export enum KeyType {
 }
 
 export enum CurveType {
-  Ed25519, X25519, Jubjub, P256, Secp256k1
+  Ed25519, X25519, Jubjub, P256, Secp256k1, BLS12381G1, BLS12381G2
 }
 
 export struct PublicKeyJwk {
@@ -137,11 +137,11 @@ circuit assertSetMutationDefined(mutation: SetMutation): [] {
 circuit assertSupportedVerificationMethod(verificationMethod: VerificationMethod): [] {
   assert(verificationMethod.typ == VerificationMethodType.JsonWebKey, "Only JsonWebKey verification methods are supported");
   if (verificationMethod.publicKeyJwk.kty == KeyType.OKP) {
-    assert(verificationMethod.publicKeyJwk.crv == CurveType.Ed25519 || verificationMethod.publicKeyJwk.crv == CurveType.X25519, "OKP keys must use Ed25519 or X25519");
+    assert(verificationMethod.publicKeyJwk.crv == CurveType.Ed25519 || verificationMethod.publicKeyJwk.crv == CurveType.X25519 || verificationMethod.publicKeyJwk.crv == CurveType.BLS12381G1 || verificationMethod.publicKeyJwk.crv == CurveType.BLS12381G2, "OKP keys must use Ed25519, X25519, BLS12381G1, or BLS12381G2");
   } else if (verificationMethod.publicKeyJwk.kty == KeyType.EC) {
     assert(verificationMethod.publicKeyJwk.crv == CurveType.P256 || verificationMethod.publicKeyJwk.crv == CurveType.Secp256k1, "EC keys must use P-256 or secp256k1; use SchnorrJubjub methods for Jubjub");
   } else {
-    assert(false, "Only OKP (Ed25519/X25519) and EC (P-256/secp256k1) keys are supported");
+    assert(false, "Only OKP (Ed25519/X25519/BLS12381G1/BLS12381G2) and EC (P-256/secp256k1) keys are supported");
   }
 }
 

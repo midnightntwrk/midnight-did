@@ -45,6 +45,11 @@ const keyBytes = (seed: number): Uint8Array =>
 const keyValue = (seed: number): string =>
   Buffer.from(keyBytes(seed)).toString("base64url");
 
+const keyValueOfLength = (seed: number, length: number): string =>
+  Buffer.from(
+    new Uint8Array(Array.from({ length }, (_, i) => (seed + i) & 0xff))
+  ).toString("base64url");
+
 const okpKey = (seed: number) => ({
   x: keyValue(seed),
   y: ""
@@ -250,6 +255,38 @@ describe("DID smart contract", () => {
         simulator.getLedger().verificationMethods.lookup("#key-secp256k1")
           .publicKeyJwk.crv
       ).toEqual(CurveType.Secp256k1);
+    });
+
+    it("should add BLS12-381 OKP verification methods", () => {
+      simulator.addVerificationMethod({
+        id: "#key-bls12381-g1",
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.BLS12381G1,
+          x: keyValueOfLength(30, 48),
+          y: ""
+        }
+      });
+      simulator.addVerificationMethod({
+        id: "#key-bls12381-g2",
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.BLS12381G2,
+          x: keyValueOfLength(40, 96),
+          y: ""
+        }
+      });
+
+      expect(
+        simulator.getLedger().verificationMethods.lookup("#key-bls12381-g1")
+          .publicKeyJwk.crv
+      ).toEqual(CurveType.BLS12381G1);
+      expect(
+        simulator.getLedger().verificationMethods.lookup("#key-bls12381-g2")
+          .publicKeyJwk.crv
+      ).toEqual(CurveType.BLS12381G2);
     });
 
     it("should add, update, relate, and remove SchnorrJubjub verification methods", () => {
