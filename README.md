@@ -225,7 +225,6 @@ Docs helpers:
 - `./run.sh docs` runs the docs preparation and build workflow.
 - `./start-docs.sh` starts the local VitePress site.
 - See [`docs/did-surface-change-discipline.md`](docs/did-surface-change-discipline.md) before changing contract circuits, package exports, runner behavior, or generated artifacts.
-- See [`docs/repository-audit-backlog.md`](docs/repository-audit-backlog.md) for the current simplification backlog.
 
 Direct package documentation:
 

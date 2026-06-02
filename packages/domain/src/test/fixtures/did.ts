@@ -41,6 +41,18 @@ export const exampleSecp256k1JsonWebKey = {
   y: "BQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU",
 } as const;
 
+export const exampleBls12381G1JsonWebKey = {
+  kty: KeyType.OKP,
+  crv: CurveType.BLS12381G1,
+  x: "BgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYG",
+} as const;
+
+export const exampleBls12381G2JsonWebKey = {
+  kty: KeyType.OKP,
+  crv: CurveType.BLS12381G2,
+  x: "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH",
+} as const;
+
 export const exampleVerificationMethodInput = {
   id: exampleMethodId,
   type: VerificationMethodType.JsonWebKey,

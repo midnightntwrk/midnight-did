@@ -164,7 +164,6 @@ for (const requiredPhrase of [
   "`Check PR`",
   "`docs-site/spec/midnight-method.md`",
   "`docs-site/spec/midnight-did-traits.md`",
-  "`docs/archive/README.md`",
 ]) {
   assertIncludes(agentGuide, requiredPhrase, "AGENT.md");
 }

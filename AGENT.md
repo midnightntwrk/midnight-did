@@ -85,7 +85,9 @@ Rules:
 
 Current key-storage model:
 
-- Ed25519, X25519, P-256, and secp256k1 `publicKeyJwk` material is stored as opaque canonical strings in `verificationMethods`.
+- Ed25519, X25519, P-256, secp256k1, BLS12381G1, and BLS12381G2 `publicKeyJwk` material is stored as opaque canonical strings in `verificationMethods`.
+- BLS12-381 JWK keys are OKP compressed public keys (`x` only): 48 bytes for G1 and 96 bytes for G2.
+- `publicKeyMultibase` / `Multikey` is not a current ledger profile; add it through an explicit storage/API path if future W3C Data Integrity suites require it.
 - SchnorrJubjub keys are stored as native `JubjubPoint` values in `schnorrJubjubVerificationMethods`.
 - Resolver/API code merges both maps into DID Document `verificationMethod` output.
 - Do not store the same key in both maps; relation sets share the normalized method-id namespace.
@@ -293,8 +295,6 @@ Docs entry points:
 - `docs-site/guide/github-pages.md`: GitHub Pages publishing guide.
 - `docs-site/guide/testing-strategy.md`: testing strategy.
 - `docs-site/guide/did-surface-change-discipline.md`: discipline for DID surface changes.
-- `docs/repository-audit-backlog.md`: current maturity/simplification backlog.
-- `docs/archive/README.md`: historical notes that are not active runbook guidance.
 - `docs-site/spec/midnight-method.md`: method specification material.
 - `docs-site/spec/midnight-did-traits.md`: method traits.
 

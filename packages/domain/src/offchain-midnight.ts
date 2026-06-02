@@ -143,6 +143,8 @@ enum OffchainKeyKind {
   P256 = 3,
   X25519 = 4,
   Secp256k1 = 5,
+  BLS12381G1 = 6,
+  BLS12381G2 = 7,
 }
 
 type EncodedOffchainVerificationMethod = {
@@ -307,6 +309,12 @@ const keyKindFromJwk = (jwk: PublicKeyJwk): number => {
   if (jwk.kty === KeyType.EC && jwk.crv === CurveType.Secp256k1) {
     return OffchainKeyKind.Secp256k1;
   }
+  if (jwk.kty === KeyType.OKP && jwk.crv === CurveType.BLS12381G1) {
+    return OffchainKeyKind.BLS12381G1;
+  }
+  if (jwk.kty === KeyType.OKP && jwk.crv === CurveType.BLS12381G2) {
+    return OffchainKeyKind.BLS12381G2;
+  }
   throw new Error(
     `Unsupported offchain Midnight DID key type ${jwk.kty}/${jwk.crv}`,
   );
@@ -352,6 +360,20 @@ const jwkFromKeyKind = (
     return PublicKeyJwkSchema.parse({
       kty: KeyType.OKP,
       crv: CurveType.X25519,
+      x,
+    });
+  }
+  if (keyKind === OffchainKeyKind.BLS12381G1) {
+    return PublicKeyJwkSchema.parse({
+      kty: KeyType.OKP,
+      crv: CurveType.BLS12381G1,
+      x,
+    });
+  }
+  if (keyKind === OffchainKeyKind.BLS12381G2) {
+    return PublicKeyJwkSchema.parse({
+      kty: KeyType.OKP,
+      crv: CurveType.BLS12381G2,
       x,
     });
   }
