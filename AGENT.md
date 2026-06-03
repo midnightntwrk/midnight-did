@@ -283,7 +283,8 @@ distributed as a separate validated archive with the provider layout
 `keys/*.prover`, `keys/*.verifier`, and `zkir/*.bzkir`; do not rely on package
 consumers to discover proving keys by walking arbitrary generated directories.
 Publish CI smoke-tests the exact package version from GitHub Packages and
-fetches pulled/downloaded ZK bundles through `FetchZkConfigProvider`.
+fetches pulled/downloaded ZK bundles through `FetchZkConfigProvider`. Reruns
+skip npm packages whose exact immutable version already exists.
 
 ## CI Shape
 

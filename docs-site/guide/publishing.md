@@ -77,6 +77,10 @@ GHCR, pulls it back, validates it, and fetches every circuit through
 `FetchZkConfigProvider`. RC and release runs also upload the bundle to a GitHub
 Release and download the asset back for the same validation.
 
+Exact npm package versions are immutable. If a workflow is rerun after a partial
+publish, the npm publication step skips packages whose exact version already
+exists and continues with missing packages plus artifact verification.
+
 The ZK bundle preserves the provider layout used by Midnight JS:
 
 ```text

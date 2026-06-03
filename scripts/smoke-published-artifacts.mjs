@@ -139,7 +139,12 @@ const writeConsumerSmokeScript = (consumerRoot) => {
   );
 };
 
-const smokeNpmPackages = ({ registry, version }) => {
+const smokeNpmPackages = ({
+  npmInstallAttempts,
+  npmInstallRetryDelayMs,
+  registry,
+  version,
+}) => {
   if (!version) {
     throw new Error("--version is required for npm registry smoke testing");
   }
@@ -170,7 +175,7 @@ const smokeNpmPackages = ({ registry, version }) => {
       (packageName) => `${packageName}@${version}`,
     );
     let lastInstallError;
-    for (let attempt = 1; attempt <= options.npmInstallAttempts; attempt += 1) {
+    for (let attempt = 1; attempt <= npmInstallAttempts; attempt += 1) {
       try {
         run(
           "npm",
@@ -191,15 +196,15 @@ const smokeNpmPackages = ({ registry, version }) => {
         break;
       } catch (error) {
         lastInstallError = error;
-        if (attempt < options.npmInstallAttempts) {
+        if (attempt < npmInstallAttempts) {
           console.log(
-            `[smoke-published-artifacts] npm install attempt ${attempt} failed; retrying in ${options.npmInstallRetryDelayMs}ms`,
+            `[smoke-published-artifacts] npm install attempt ${attempt} failed; retrying in ${npmInstallRetryDelayMs}ms`,
           );
           Atomics.wait(
             new Int32Array(new SharedArrayBuffer(4)),
             0,
             0,
-            options.npmInstallRetryDelayMs,
+            npmInstallRetryDelayMs,
           );
         }
       }
@@ -299,6 +304,20 @@ const smokeZkArchive = async ({ zkArchive }) => {
 };
 
 const options = parseArgs();
+
+if (
+  !Number.isInteger(options.npmInstallAttempts) ||
+  options.npmInstallAttempts < 1
+) {
+  throw new Error("--npm-install-attempts must be a positive integer");
+}
+
+if (
+  !Number.isInteger(options.npmInstallRetryDelayMs) ||
+  options.npmInstallRetryDelayMs < 0
+) {
+  throw new Error("--npm-install-retry-delay-ms must be a non-negative integer");
+}
 
 if (options.skipNpm && options.skipZk) {
   throw new Error("At least one smoke test must be enabled");
