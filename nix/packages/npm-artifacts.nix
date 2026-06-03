@@ -14,6 +14,23 @@
 
 let
   pnpm = pnpm_10;
+
+  # Sort all keys in a JSON object recursively, producing deterministic output.
+  sortPackageJson = ''
+    ${lib.getExe nodejs_24} -e "
+      const fs = require('fs');
+      const sortKeys = (obj) => {
+        if (typeof obj !== 'object' || obj === null) return obj;
+        if (Array.isArray(obj)) return obj.map(sortKeys);
+        return Object.keys(obj).sort().reduce((acc, key) => {
+          acc[key] = sortKeys(obj[key]);
+          return acc;
+        }, {});
+      };
+      const pkg = JSON.parse(fs.readFileSync('package/package.json', 'utf8'));
+      fs.writeFileSync('package/package.json', JSON.stringify(sortKeys(pkg), null, 2) + '\n');
+    "
+  '';
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "midnight-did-npm-artifacts";
@@ -72,6 +89,27 @@ stdenv.mkDerivation (finalAttrs: {
     # Pack each artifact workspace, matching the order from did-workspace-catalog.mjs
     for workspace in packages/jubjub-schnorr packages/contract packages/domain packages/did packages/api; do
       pnpm --filter "./$workspace" pack --pack-destination $out
+    done
+
+    # pnpm pack produces non-deterministic tarballs because it resolves workspace:*
+    # dependencies and inserts them into package.json in hashmap-iteration order, which
+    # varies across runs. Re-pack each tarball with a normalized package.json.
+    for tgz in $out/*.tgz; do
+      tmpdir=$(mktemp -d)
+      tar xzf "$tgz" -C "$tmpdir"
+      pushd "$tmpdir" > /dev/null
+      ${sortPackageJson}
+      popd > /dev/null
+
+      # Repack deterministically: sorted file list, fixed mtime, no owner info
+      newtgz=$(basename "$tgz")
+      (cd "$tmpdir" && find package -print0 | sort -z \
+        | tar --no-recursion --null -T - \
+              --mtime='@0' --numeric-owner --owner=0 --group=0 \
+              --pax-option=exthdr.name=%d/PaxHeaders/%f,delete=atime,delete=ctime \
+              -czf "$out/$newtgz.tmp")
+      mv "$out/$newtgz.tmp" "$tgz"
+      rm -rf "$tmpdir"
     done
 
     runHook postInstall
