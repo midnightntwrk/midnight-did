@@ -59,7 +59,12 @@ jobs:
         run: pnpm run build:all
 
       - name: Typecheck all workspaces
-        run: pnpm run typecheck:all
+        run: |
+          pnpm --filter ./packages/jubjub-schnorr typecheck
+          pnpm --filter ./packages/contract typecheck
+          pnpm --filter ./packages/domain typecheck
+          pnpm --filter ./packages/did typecheck
+          pnpm --filter ./packages/api typecheck
 
       - name: Run static contract checks
         run: |
