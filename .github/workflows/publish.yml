@@ -79,6 +79,8 @@ jobs:
         run: compact compile --version
 
       - name: Install dependencies
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Prepare release version
@@ -116,14 +118,14 @@ jobs:
 
       - name: Publish npm packages to GitHub Packages
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
           NPM_TAG: ${{ steps.version.outputs.npm_tag }}
           VERSION: ${{ steps.version.outputs.version }}
         run: ./scripts/publish-npm-packages.sh
 
       - name: Smoke test packages from GitHub Packages
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
           VERSION: ${{ steps.version.outputs.version }}
         run: ./scripts/release-smoke-npm-packages.sh
 
@@ -133,7 +135,7 @@ jobs:
       - name: Publish and verify GHCR ZK artifact
         id: oci
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
           VERSION: ${{ steps.version.outputs.version }}
           ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
           ARCHIVE_NAME: ${{ steps.zk.outputs.zk_archive_name }}
