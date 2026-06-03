@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import fs from "node:fs";
+import { builtinModules } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,6 +27,21 @@ const readJson = (relativePath) =>
 const rootPackage = readJson("package.json");
 
 const errors = [];
+const ignoredSourceDirectoryNames = new Set([
+  "dist",
+  "managed",
+  "node_modules",
+  "test",
+]);
+const builtinModuleNames = new Set([
+  ...builtinModules,
+  ...builtinModules.map((moduleName) => `node:${moduleName}`),
+]);
+const sourceImportPatterns = [
+  /\bfrom\s+["']([^"']+)["']/g,
+  /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
+  /\bexport\s+\*\s+from\s+["']([^"']+)["']/g,
+];
 
 const assertEqual = (label, actual, expected) => {
   if (actual !== expected) {
@@ -47,6 +63,61 @@ const assertFileExists = (label, relativePath) => {
   if (!fs.existsSync(path.join(repoRoot, relativePath))) {
     errors.push(`${label}: missing ${relativePath}`);
   }
+};
+
+const walkTypeScriptSources = (directory) => {
+  if (!fs.existsSync(directory)) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(directory, { withFileTypes: true })
+    .flatMap((entry) => {
+      const entryPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        return ignoredSourceDirectoryNames.has(entry.name)
+          ? []
+          : walkTypeScriptSources(entryPath);
+      }
+      return entry.isFile() && entry.name.endsWith(".ts") ? [entryPath] : [];
+    })
+    .sort();
+};
+
+const packageNameFromSpecifier = (specifier) => {
+  if (
+    specifier.startsWith(".") ||
+    specifier.startsWith("/") ||
+    builtinModuleNames.has(specifier)
+  ) {
+    return undefined;
+  }
+
+  if (specifier.startsWith("@")) {
+    return specifier.split("/").slice(0, 2).join("/");
+  }
+
+  return specifier.split("/")[0];
+};
+
+const packageSourceImports = (workspace) => {
+  const sourceRoot = path.join(repoRoot, workspace, "src");
+  const packageNames = new Set();
+
+  for (const sourceFile of walkTypeScriptSources(sourceRoot)) {
+    const source = fs.readFileSync(sourceFile, "utf8");
+    for (const pattern of sourceImportPatterns) {
+      pattern.lastIndex = 0;
+      for (const match of source.matchAll(pattern)) {
+        const packageName = packageNameFromSpecifier(match[1]);
+        if (packageName) {
+          packageNames.add(packageName);
+        }
+      }
+    }
+  }
+
+  return [...packageNames].sort();
 };
 
 assertArrayEqual("root workspaces", rootPackage.workspaces, expectedWorkspaces);
@@ -97,6 +168,17 @@ for (const [workspace, expected] of packageManifestCatalog.entries()) {
     expected.exports,
   );
   assertFileExists(`${workspace} README`, path.join(workspace, "README.md"));
+
+  const declaredDependencies = new Set(
+    Object.keys(packageJson.dependencies ?? {}),
+  );
+  for (const packageName of packageSourceImports(workspace)) {
+    if (!declaredDependencies.has(packageName)) {
+      errors.push(
+        `${label} dependency ${packageName}: source import must be declared in dependencies`,
+      );
+    }
+  }
 
   for (const exportKey of expected.exports) {
     const exportEntry = packageJson.exports?.[exportKey];
