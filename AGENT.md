@@ -277,6 +277,13 @@ workspace and `docs-site` private, and keep package `publishConfig.registry`
 pointing at `https://npm.pkg.github.com`. Publication order is owned by
 `scripts/did-workspace-catalog.mjs --publish-workspaces`.
 
+Publish CI must use organization package tokens for `npm.pkg.github.com`:
+`MIDNIGHTCI_PACKAGES_READ` for dependency install and post-publish package
+smoke tests, and `MIDNIGHTCI_PACKAGES_WRITE` for publishing packages and the
+GHCR ZK artifact. The default `GITHUB_TOKEN` is still used for GitHub Release
+asset operations, but it cannot be assumed to read unrelated private
+organization packages such as `@midnight-ntwrk/compact-runtime`.
+
 Release CI publishes snapshot versions from `main` and `develop`, RC versions
 from `main` or `develop`, and final releases from `main` only. ZK artifacts are
 distributed as a separate validated archive with the provider layout

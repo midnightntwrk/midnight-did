@@ -62,6 +62,17 @@ The root workspace and `docs-site` remain private. The package workspaces are
 publishable and use GitHub Packages with the `https://npm.pkg.github.com`
 registry.
 
+The workflow uses two organization secrets for GitHub Packages:
+
+| Secret | Required scope | Used for |
+| --- | --- | --- |
+| `MIDNIGHTCI_PACKAGES_READ` | `read:packages` | Installing private `@midnight-ntwrk/*` dependencies and post-publish npm smoke tests |
+| `MIDNIGHTCI_PACKAGES_WRITE` | `write:packages` and `read:packages` | Publishing DID packages to GitHub Packages and publishing the GHCR ZK artifact |
+
+`GITHUB_TOKEN` remains useful for repository-scoped operations such as creating
+or updating GitHub Release assets, but it is not sufficient for reading every
+private organization package dependency from `npm.pkg.github.com`.
+
 Publication channels:
 
 | Channel | Trigger | Branches | Version shape | npm tag | ZK artifacts |
