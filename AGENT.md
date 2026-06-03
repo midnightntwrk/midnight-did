@@ -272,6 +272,32 @@ Packed packages:
 - `@midnight-ntwrk/midnight-did-jubjub-schnorr`
 - `@midnight-ntwrk/midnight-did-contract`
 
+The five DID packages are publishable to GitHub Packages. Keep the root
+workspace and `docs-site` private, and keep package `publishConfig.registry`
+pointing at `https://npm.pkg.github.com`. Publication order is owned by
+`scripts/did-workspace-catalog.mjs --publish-workspaces`.
+
+Release CI publishes snapshot versions from `main` and `develop`, RC versions
+from `main` or `develop`, and final releases from `main` only. ZK artifacts are
+distributed as a separate validated archive with the provider layout
+`keys/*.prover`, `keys/*.verifier`, and `zkir/*.bzkir`; do not rely on package
+consumers to discover proving keys by walking arbitrary generated directories.
+Publish CI smoke-tests the exact package version from GitHub Packages and
+fetches pulled/downloaded ZK bundles through `FetchZkConfigProvider`. Reruns
+skip npm packages whose exact immutable version already exists.
+
+GHCR publication uses ORAS because the ZK bundle is a generic OCI artifact
+rather than a container image or npm package. The publish workflow installs the
+configured `ORAS_VERSION`, verifies the ORAS release checksum, pushes the
+archive/manifest to GHCR, pulls it back, and validates the pulled bundle.
+Local ORAS is needed only for manual GHCR artifact testing.
+
+The API package exports `MIDNIGHT_DID_API_VERSION` and
+`createMidnightDidZkArtifactLocations()` so downstream services can derive the
+matching GHCR reference or GitHub Release asset URLs from the installed package
+version. `scripts/prepare-release-version.mjs` must keep that embedded source
+version aligned with package manifest rewrites during publish jobs.
+
 ## CI Shape
 
 GitHub Actions target `main` and `develop`.

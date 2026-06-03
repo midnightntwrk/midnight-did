@@ -134,6 +134,24 @@ Provider adapters for proof, indexer, and ZK configuration are loaded lazily by
 `configureProviders()`. Importing the API package barrel for mapping helpers,
 types, or examples does not load those runtime adapters.
 
+## Release Artifact Metadata
+
+The package embeds ZK artifact locations for its own published version:
+
+```ts
+import {
+  MIDNIGHT_DID_API_VERSION,
+  createMidnightDidZkArtifactLocations,
+} from "@midnight-ntwrk/midnight-did-api";
+
+const locations = createMidnightDidZkArtifactLocations(MIDNIGHT_DID_API_VERSION);
+```
+
+Use `locations.ghcr.reference` to pull the matching GHCR OCI artifact in Node or
+CI tooling. RC and final release versions also include
+`locations.githubRelease.archiveUrl`; snapshot versions publish workflow
+artifacts and GHCR artifacts only, so `locations.githubRelease` is `null`.
+
 `setLogger()` is optional for embedders. Until it is called, API helpers use a
 no-op logger so wallet/provider setup can run in minimal scripts without
 preconfiguring logging.
