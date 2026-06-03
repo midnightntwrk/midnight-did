@@ -73,6 +73,24 @@ const writeJson = (relativePath, value) => {
   );
 };
 
+const writeApiReleaseArtifactVersion = (version) => {
+  const relativePath = "packages/api/src/release-artifacts.ts";
+  const targetPath = path.join(repoRoot, relativePath);
+  const source = fs.readFileSync(targetPath, "utf8");
+  const pattern =
+    /export const MIDNIGHT_DID_API_VERSION = "[^"]+" as const;/u;
+  if (!pattern.test(source)) {
+    throw new Error(`${relativePath} does not contain release version marker`);
+  }
+  fs.writeFileSync(
+    targetPath,
+    source.replace(
+      pattern,
+      `export const MIDNIGHT_DID_API_VERSION = ${JSON.stringify(version)} as const;`,
+    ),
+  );
+};
+
 const requireStableVersion = (value, label) => {
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u.test(value ?? "")) {
     throw new Error(`${label} must be a stable semver version like 1.2.3`);
@@ -191,6 +209,8 @@ if (!options.dryRun) {
     packageJson.version = computed.version;
     writeJson(packagePath, packageJson);
   }
+
+  writeApiReleaseArtifactVersion(computed.version);
 }
 
 writeGitHubOutput(options.githubOutput, {

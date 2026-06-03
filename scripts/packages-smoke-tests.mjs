@@ -74,6 +74,13 @@ await smoke("node package imports", async () => {
         if (typeof api.createDID !== "function") {
           throw new Error("api createDID export is unavailable");
         }
+        if (api.MIDNIGHT_DID_API_VERSION !== "0.4.0") {
+          throw new Error("api release artifact version metadata is unavailable");
+        }
+        const locations = api.createMidnightDidZkArtifactLocations(api.MIDNIGHT_DID_API_VERSION);
+        if (locations.ghcr.reference !== "ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.4.0") {
+          throw new Error("api release artifact GHCR metadata is unavailable");
+        }
         if (!apiBrowser.DomainToRuntime.NetworkMap) {
           throw new Error("api browser DomainToRuntime export is unavailable");
         }
@@ -85,6 +92,9 @@ await smoke("node package imports", async () => {
         }
         if (apiBrowser.randomBytes(4).length !== 4) {
           throw new Error("api browser randomBytes returned an unexpected length");
+        }
+        if (apiBrowser.MIDNIGHT_DID_ZK_ARTIFACT_LOCATIONS.version !== "0.4.0") {
+          throw new Error("api browser release artifact metadata is unavailable");
         }
       `,
       "utf8",
@@ -105,12 +115,12 @@ await smoke("browser bundle imports", async () => {
     await writeFile(
       entry,
       `
-        import { DomainToRuntime, RuntimeToDomain, parseSeed, randomBytes } from "@midnight-ntwrk/midnight-did-api/browser";
+        import { DomainToRuntime, MIDNIGHT_DID_ZK_ARTIFACT_LOCATIONS, RuntimeToDomain, parseSeed, randomBytes } from "@midnight-ntwrk/midnight-did-api/browser";
 
         const parsedSeed = parseSeed("00".repeat(32));
         const random = randomBytes(4);
 
-        if (!DomainToRuntime.NetworkMap || !RuntimeToDomain.NetworkMap || parsedSeed.length !== 64 || random.length !== 4) {
+        if (!DomainToRuntime.NetworkMap || !RuntimeToDomain.NetworkMap || parsedSeed.length !== 64 || random.length !== 4 || MIDNIGHT_DID_ZK_ARTIFACT_LOCATIONS.version !== "0.4.0") {
           throw new Error("api browser smoke exports are unavailable");
         }
       `,

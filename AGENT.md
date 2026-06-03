@@ -292,6 +292,12 @@ configured `ORAS_VERSION`, verifies the ORAS release checksum, pushes the
 archive/manifest to GHCR, pulls it back, and validates the pulled bundle.
 Local ORAS is needed only for manual GHCR artifact testing.
 
+The API package exports `MIDNIGHT_DID_API_VERSION` and
+`createMidnightDidZkArtifactLocations()` so downstream services can derive the
+matching GHCR reference or GitHub Release asset URLs from the installed package
+version. `scripts/prepare-release-version.mjs` must keep that embedded source
+version aligned with package manifest rewrites during publish jobs.
+
 ## CI Shape
 
 GitHub Actions target `main` and `develop`.

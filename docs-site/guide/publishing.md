@@ -70,6 +70,16 @@ Publication channels:
 | RC | Manual workflow dispatch | `main`, `develop` | `x.y.z-rc{index}` | `rc` | GitHub Release asset and GHCR OCI artifact |
 | Release | Manual workflow dispatch | `main` only | `x.y.z` | `latest` | GitHub Release asset and GHCR OCI artifact |
 
+## Distribution Use Cases
+
+Publication supports three consumer paths:
+
+| Use case | Source | Intended consumer |
+| --- | --- | --- |
+| Snapshot validation | GitHub Packages plus GHCR OCI artifact | CI, release engineers, downstream repository smoke tests |
+| RC/release validation | GitHub Packages plus GitHub Release asset | Release engineers and users who want stable HTTPS assets |
+| Server-side runtime bootstrap | GHCR OCI artifact or unpacked release asset | Node services, DID resolver/manager services, and CI jobs that cache proving keys |
+
 Each run rebuilds the packages and managed Compact artifacts, checks package
 contents, creates a ZK artifact bundle, validates the bundle, publishes packages,
 smoke-tests the exact package version from GitHub Packages, pushes the bundle to
@@ -100,6 +110,28 @@ oras version
 
 The local bundle and GitHub Release asset checks do not require ORAS.
 
+## Package Artifact Metadata
+
+`@midnight-ntwrk/midnight-did-api` embeds release-artifact metadata for the same
+version as the published package. Use it when a service or downstream test needs
+to derive the matching ZK artifact location instead of hard-coding URLs:
+
+```ts
+import {
+  MIDNIGHT_DID_API_VERSION,
+  createMidnightDidZkArtifactLocations,
+} from "@midnight-ntwrk/midnight-did-api";
+
+const locations = createMidnightDidZkArtifactLocations(MIDNIGHT_DID_API_VERSION);
+
+console.log(locations.ghcr.reference);
+console.log(locations.githubRelease?.archiveUrl);
+```
+
+For snapshot versions, `githubRelease` is `null` because snapshots are published
+as workflow artifacts and GHCR OCI artifacts. For RC and final release versions,
+`githubRelease` contains the expected release tag and asset URLs.
+
 Exact npm package versions are immutable. If a workflow is rerun after a partial
 publish, the npm publication step skips packages whose exact version already
 exists and continues with missing packages plus artifact verification.
@@ -118,7 +150,7 @@ After unpacking the bundle, the directory can be used as the root passed to
 Release asset or GHCR OCI artifact once, unpack it into a cache, and delegate to
 the same layout used by `FetchZkConfigProvider` or `NodeZkConfigProvider`.
 
-Local checks:
+## Local Checks
 
 ```bash
 pnpm run build:all
@@ -127,3 +159,45 @@ pnpm run zk-artifacts:bundle -- --version 0.4.0-snapshot.local
 pnpm run zk-artifacts:check -- artifacts/zk/midnight-did-zk-artifacts-0.4.0-snapshot.local.tar.gz
 pnpm run published-artifacts:smoke -- --skip-npm --zk-archive artifacts/zk/midnight-did-zk-artifacts-0.4.0-snapshot.local.tar.gz
 ```
+
+## Testing Publication
+
+PR CI validates package contents, ZK bundle structure, package imports, docs, and
+the normal core/API lanes. It does not publish packages or push GHCR artifacts.
+
+After this branch lands on `develop`, the push to `develop` should trigger the
+snapshot publication path. Use the version printed by the workflow summary:
+
+```bash
+export VERSION="0.4.0-snapshot.<run>.<sha>"
+export NODE_AUTH_TOKEN="<github-token-with-package-read>"
+export GH_TOKEN="${NODE_AUTH_TOKEN}"
+
+pnpm run published-artifacts:smoke -- \
+  --version "${VERSION}" \
+  --registry https://npm.pkg.github.com \
+  --oci-ref "ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${VERSION}"
+```
+
+For an RC or final release, smoke-test both public distribution paths:
+
+```bash
+export VERSION="0.4.0-rc1"
+export NODE_AUTH_TOKEN="<github-token-with-package-read>"
+export GH_TOKEN="${NODE_AUTH_TOKEN}"
+
+pnpm run published-artifacts:smoke -- \
+  --version "${VERSION}" \
+  --registry https://npm.pkg.github.com \
+  --oci-ref "ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${VERSION}"
+
+pnpm run published-artifacts:smoke -- \
+  --version "${VERSION}" \
+  --registry https://npm.pkg.github.com \
+  --github-release-tag "v${VERSION}"
+```
+
+The smoke test installs the exact package version from GitHub Packages, imports
+all package entry points, verifies the API package's embedded artifact metadata
+matches the requested version, downloads or pulls the ZK bundle, validates the
+bundle manifest, and fetches every circuit through `FetchZkConfigProvider`.

@@ -245,6 +245,21 @@ and then runs the same bundle validation and provider smoke test. Local
 developers only need the `oras` CLI when manually testing GHCR publication or
 retrieval; GitHub Release asset checks do not require it.
 
+`@midnight-ntwrk/midnight-did-api` exports package-version artifact metadata:
+
+```ts
+import {
+  MIDNIGHT_DID_API_VERSION,
+  createMidnightDidZkArtifactLocations,
+} from "@midnight-ntwrk/midnight-did-api";
+
+const locations = createMidnightDidZkArtifactLocations(MIDNIGHT_DID_API_VERSION);
+```
+
+Use `locations.ghcr.reference` for the matching GHCR OCI artifact. RC and final
+release versions also expose `locations.githubRelease.archiveUrl`; snapshots do
+not have GitHub Release assets.
+
 ## Developer Entry Points
 
 1. `./start-docs.sh`
