@@ -147,6 +147,12 @@ importers:
       '@midnight-ntwrk/compact-js':
         specifier: 2.5.0
         version: 2.5.0
+      '@midnight-ntwrk/compact-runtime':
+        specifier: 0.15.0
+        version: 0.15.0
+      '@midnight-ntwrk/ledger-v8':
+        specifier: 8.0.3
+        version: 8.0.3
       '@midnight-ntwrk/midnight-did':
         specifier: workspace:*
         version: link:../did
@@ -180,6 +186,21 @@ importers:
       '@midnight-ntwrk/midnight-js-utils':
         specifier: 4.0.2
         version: 4.0.2
+      '@midnight-ntwrk/wallet-sdk-dust-wallet':
+        specifier: 3.0.0
+        version: 3.0.0(ws@8.21.0)
+      '@midnight-ntwrk/wallet-sdk-facade':
+        specifier: 3.0.0
+        version: 3.0.0(ws@8.21.0)
+      '@midnight-ntwrk/wallet-sdk-hd':
+        specifier: 3.0.0
+        version: 3.0.0
+      '@midnight-ntwrk/wallet-sdk-shielded':
+        specifier: 2.1.0
+        version: 2.1.0(ws@8.21.0)
+      '@midnight-ntwrk/wallet-sdk-unshielded-wallet':
+        specifier: 2.1.0
+        version: 2.1.0(ws@8.21.0)
       '@noble/curves':
         specifier: ^1.9.7
         version: 1.9.7
