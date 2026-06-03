@@ -273,6 +273,14 @@ try {
     rmSync(path.join(fixtureRoot, "packages/api/README.md"), { force: true });
   }, "packages/api README: missing packages/api/README.md");
 
+  expectFailure(() => {
+    mkdirSync(path.join(fixtureRoot, "packages/api/src"), { recursive: true });
+    writeFileSync(
+      path.join(fixtureRoot, "packages/api/src/index.ts"),
+      'import { z } from "zod";\nexport { z };\n',
+    );
+  }, "packages/api/package.json dependency zod");
+
   console.log("check-workspace-manifests contract passed");
 } finally {
   rmSync(fixtureRoot, { force: true, recursive: true });
