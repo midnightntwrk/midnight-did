@@ -81,6 +81,14 @@ Publication channels:
 | RC | Manual workflow dispatch | `main`, `develop` | `x.y.z-rc{index}` | `rc` | GitHub Release asset and GHCR OCI artifact |
 | Release | Manual workflow dispatch | `main` only | `x.y.z` | `latest` | GitHub Release asset and GHCR OCI artifact |
 
+Automated snapshot publication is intentionally gated. A push to `main` or
+`develop` publishes a snapshot only when the diff contains Compact, TypeScript,
+JavaScript, or shell-script changes under package/runtime paths. Markdown,
+`docs-site`, W3C spec pages, GitHub workflow/configuration changes, Renovate or
+Dependabot configuration, and manifest/lockfile-only dependency updates do not
+publish snapshot packages or ZK artifacts. Manual RC and release dispatches are
+not gated by this classifier.
+
 ## Distribution Use Cases
 
 Publication supports three consumer paths:

@@ -348,6 +348,16 @@ assertIncludes(
   ".github/workflows/ci.yml",
 );
 assertIncludes(
+  readText(".github/workflows/publish.yml"),
+  "snapshot_release_relevant",
+  ".github/workflows/publish.yml",
+);
+assertIncludes(
+  readText(".github/workflows/publish.yml"),
+  "github.event_name != 'push' || needs.changes.outputs.snapshot_release_relevant == 'true'",
+  ".github/workflows/publish.yml",
+);
+assertIncludes(
   readText(".github/workflows/docs.yml"),
   "pnpm run check:did-surface-discipline",
   ".github/workflows/docs.yml",
