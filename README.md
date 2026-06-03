@@ -243,7 +243,8 @@ container images or npm packages. The publish workflow installs the configured
 `ORAS_VERSION`, pushes the archive and manifest to GHCR, pulls the artifact back,
 and then runs the same bundle validation and provider smoke test. Local
 developers only need the `oras` CLI when manually testing GHCR publication or
-retrieval; GitHub Release asset checks do not require it.
+retrieval; the Nix development shell includes ORAS for that path. GitHub Release
+asset checks do not require it.
 
 `@midnight-ntwrk/midnight-did-api` exports package-version artifact metadata:
 
