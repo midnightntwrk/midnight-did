@@ -47,7 +47,7 @@
     "all": "pnpm run compact && pnpm run build && pnpm run test:ci"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^3.2.4"
+    "@vitest/coverage-v8": "^4.1.8"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.15.0",

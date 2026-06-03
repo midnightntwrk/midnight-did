@@ -4,7 +4,7 @@ export default defineConfig({
   mode: "node",
   test: {
     pool: 'threads',
-    poolOptions: { threads: { singleThread: true } },
+    fileParallelism: false,
     deps: { interopDefault: true },
     globals: true,
     environment: "node",
