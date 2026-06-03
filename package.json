@@ -3,7 +3,7 @@
   "version": "0.4.0",
   "engines": {
     "node": ">=24",
-    "pnpm": ">=10"
+    "pnpm": ">=10.34.1"
   },
   "scripts": {
     "clean": "turbo run clean --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --filter=./packages/api --continue",
@@ -57,7 +57,7 @@
     "packages-smoke-tests": "pnpm run build:all && node scripts/packages-smoke-tests.mjs && pnpm run packages:check-contents"
   },
   "private": true,
-  "packageManager": "pnpm@10.23.0",
+  "packageManager": "pnpm@10.34.1",
   "pnpm": {
     "overrides": {
       "vitepress>vite": "^6.4.2"
