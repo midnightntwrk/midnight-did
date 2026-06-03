@@ -165,11 +165,15 @@ The workspace manifest guard keeps package distribution metadata aligned:
 ```bash
 pnpm run test:workspace-manifests
 pnpm run check:workspace-manifests
+pnpm run packages:check-contents
 pnpm run packages-smoke-tests
 ```
 
 It validates the root workspace list, package names, export maps, tarball
-`files`, and README ownership for the DID-owned packages.
+`files`, GitHub Packages registry metadata, repository ownership, and README
+ownership for the DID-owned packages. The package content check dry-runs npm
+packing and rejects development-only files such as compiled `dist/test/**`
+output.
 
 The package smoke suite builds the publishable packages, imports every package
 entry point in Node.js, and bundles the browser-safe API entry point with Vite.
@@ -212,6 +216,49 @@ generated Compact output readiness and source manifests for `contract` and
 `jubjub-schnorr`. Use `./run.sh check-managed-artifacts` or
 `pnpm run check:managed-artifacts` to fail on missing or stale generated
 artifacts after a local build.
+
+Release CI publishes the same packages to GitHub Packages. Snapshot versions are
+published automatically from `main` and `develop` as
+`x.y.z-snapshot.<run>.<sha>` with the `snapshot` npm tag. Manual workflow
+dispatch can publish `x.y.z-rc{index}` with the `rc` npm tag from `main` or
+`develop`, and `x.y.z` with the `latest` npm tag from `main` only.
+
+ZK keys are distributed separately as a validated archive:
+
+```bash
+pnpm run zk-artifacts:bundle -- --version 0.4.0-snapshot.local
+pnpm run zk-artifacts:check -- artifacts/zk/midnight-did-zk-artifacts-0.4.0-snapshot.local.tar.gz
+pnpm run published-artifacts:smoke -- --skip-npm --zk-archive artifacts/zk/midnight-did-zk-artifacts-0.4.0-snapshot.local.tar.gz
+```
+
+The archive preserves the Midnight JS provider layout:
+`keys/<circuit>.prover`, `keys/<circuit>.verifier`, and
+`zkir/<circuit>.bzkir`. Publish CI smoke-tests the exact npm package version
+from GitHub Packages and fetches the published ZK archive through
+`FetchZkConfigProvider` after pulling/downloading it from GHCR or GitHub Release
+assets. Reruns skip npm packages whose exact immutable version already exists.
+
+The GHCR path uses ORAS because ZK bundles are generic OCI artifacts, not
+container images or npm packages. The publish workflow installs the configured
+`ORAS_VERSION`, pushes the archive and manifest to GHCR, pulls the artifact back,
+and then runs the same bundle validation and provider smoke test. Local
+developers only need the `oras` CLI when manually testing GHCR publication or
+retrieval; GitHub Release asset checks do not require it.
+
+`@midnight-ntwrk/midnight-did-api` exports package-version artifact metadata:
+
+```ts
+import {
+  MIDNIGHT_DID_API_VERSION,
+  createMidnightDidZkArtifactLocations,
+} from "@midnight-ntwrk/midnight-did-api";
+
+const locations = createMidnightDidZkArtifactLocations(MIDNIGHT_DID_API_VERSION);
+```
+
+Use `locations.ghcr.reference` for the matching GHCR OCI artifact. RC and final
+release versions also expose `locations.githubRelease.archiveUrl`; snapshots do
+not have GitHub Release assets.
 
 ## Developer Entry Points
 

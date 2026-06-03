@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   artifactWorkspaces,
+  publishWorkspaces,
   workspaceCatalog,
 } from "./did-workspace-catalog.mjs";
 
@@ -33,6 +34,18 @@ assert.equal(
   new Set(workspaceCatalog.map(({ workspace }) => workspace)).size,
   workspaceCatalog.length,
   "workspace catalog paths must be unique",
+);
+assert.deepEqual(
+  new Set(publishWorkspaces),
+  new Set(artifactWorkspaces),
+  "publish workspace catalog must publish exactly the artifact packages",
+);
+assert.deepEqual(
+  bash("node scripts/did-workspace-catalog.mjs --publish-workspaces").split(
+    /\r?\n/u,
+  ),
+  publishWorkspaces,
+  "publish workspace catalog should list packages in dependency order",
 );
 for (const entry of workspaceCatalog) {
   if (entry.artifactPackage) {

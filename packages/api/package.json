@@ -2,8 +2,15 @@
   "name": "@midnight-ntwrk/midnight-did-api",
   "version": "0.4.0",
   "license": "Apache-2.0",
-  "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/midnightntwrk/midnight-did.git",
+    "directory": "packages/api"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "engines": {
     "node": ">=24",
     "pnpm": ">=10"

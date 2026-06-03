@@ -1,0 +1,161 @@
+name: Publish Packages and ZK Artifacts
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Publication channel"
+        required: true
+        type: choice
+        default: rc
+        options:
+          - snapshot
+          - rc
+          - release
+      version:
+        description: "Base semantic version, for example 0.4.0. Defaults to package.json version."
+        required: false
+        type: string
+      rc_index:
+        description: "Positive integer used for rc versions, for example 1 creates x.y.z-rc1."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  COMPACT_COMPILER_VERSION: 0.30.0
+  ORAS_VERSION: 1.2.3
+  PNPM_CONFIG_AUDIT: "false"
+  PNPM_CONFIG_FUND: "false"
+
+concurrency:
+  group: did-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish packages and ZK artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Resolve publication context
+        id: context
+        env:
+          DISPATCH_CHANNEL: ${{ inputs.channel }}
+          DISPATCH_VERSION: ${{ inputs.version }}
+          DISPATCH_RC_INDEX: ${{ inputs.rc_index }}
+        run: ./scripts/release-resolve-context.sh
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # ratchet:actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+          registry-url: https://npm.pkg.github.com
+          scope: "@midnight-ntwrk"
+
+      - name: Set up Compact toolchain
+        uses: midnightntwrk/setup-compact-action@v1
+        with:
+          compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
+
+      - name: Verify Compact installation
+        run: compact compile --version
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Prepare release version
+        id: version
+        env:
+          CHANNEL: ${{ steps.context.outputs.channel }}
+          VERSION: ${{ steps.context.outputs.version }}
+          RC_INDEX: ${{ steps.context.outputs.rc_index }}
+        run: ./scripts/release-prepare-version.sh
+
+      - name: Build packages and managed artifacts
+        run: ./scripts/release-build-packages.sh
+
+      - name: Check publishable package contents
+        run: pnpm run packages:check-contents
+
+      - name: Build ZK artifact bundle
+        id: zk
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/release-build-zk-artifact-bundle.sh
+
+      - name: Check ZK artifact bundle
+        run: node scripts/check-zk-artifact-bundle.mjs "${{ steps.zk.outputs.zk_archive }}"
+
+      - name: Upload workflow ZK artifact bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # ratchet:actions/upload-artifact@v4
+        with:
+          name: midnight-did-zk-artifacts-${{ steps.version.outputs.version }}
+          if-no-files-found: error
+          path: |
+            ${{ steps.zk.outputs.zk_archive }}
+            ${{ steps.zk.outputs.zk_manifest }}
+            ${{ steps.zk.outputs.zk_sha256 }}
+
+      - name: Publish npm packages to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TAG: ${{ steps.version.outputs.npm_tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/publish-npm-packages.sh
+
+      - name: Smoke test packages from GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/release-smoke-npm-packages.sh
+
+      - name: Install ORAS
+        run: ./scripts/install-oras.sh
+
+      - name: Publish and verify GHCR ZK artifact
+        id: oci
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
+          ARCHIVE_NAME: ${{ steps.zk.outputs.zk_archive_name }}
+          MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
+        run: ./scripts/publish-ghcr-zk-artifact.sh
+
+      - name: Publish and verify GitHub Release ZK assets
+        if: steps.version.outputs.channel != 'snapshot'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+          ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
+          ARCHIVE_NAME: ${{ steps.zk.outputs.zk_archive_name }}
+          MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
+          SHA256: ${{ steps.zk.outputs.zk_sha256 }}
+        run: ./scripts/publish-github-release-zk-assets.sh
+
+      - name: Print publication summary
+        env:
+          NPM_TAG: ${{ steps.version.outputs.npm_tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          OCI_REF: ${{ steps.oci.outputs.oci_ref }}
+          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+        run: ./scripts/release-print-summary.sh

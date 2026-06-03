@@ -8,7 +8,9 @@ import { fileURLToPath } from "node:url";
 
 import {
   expectedWorkspaces,
+  githubPackageRegistry,
   packageManifestCatalog,
+  repositoryUrl,
 } from "./did-workspace-catalog.mjs";
 
 const scriptRepoRoot = path.dirname(
@@ -63,8 +65,26 @@ for (const [workspace, expected] of packageManifestCatalog.entries()) {
   assertEqual(`${label} name`, packageJson.name, expected.name);
   assertEqual(`${label} version`, packageJson.version, rootPackage.version);
   assertEqual(`${label} license`, packageJson.license, "Apache-2.0");
-  assertEqual(`${label} private`, packageJson.private, true);
+  if (packageJson.private === true) {
+    errors.push(`${label} must be publishable and must not set private=true`);
+  }
   assertEqual(`${label} type`, packageJson.type, "module");
+  assertEqual(`${label} repository.type`, packageJson.repository?.type, "git");
+  assertEqual(
+    `${label} repository.url`,
+    packageJson.repository?.url,
+    repositoryUrl,
+  );
+  assertEqual(
+    `${label} repository.directory`,
+    packageJson.repository?.directory,
+    workspace,
+  );
+  assertEqual(
+    `${label} publishConfig.registry`,
+    packageJson.publishConfig?.registry,
+    githubPackageRegistry,
+  );
   assertEqual(`${label} engines.node`, packageJson.engines?.node, ">=24");
   assertEqual(`${label} engines.pnpm`, packageJson.engines?.pnpm, ">=10");
   assertEqual(`${label} main`, packageJson.main, "dist/index.js");
