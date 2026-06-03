@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { setTimeout } from "node:timers/promises";
 
 import { FetchZkConfigProvider } from "@midnight-ntwrk/midnight-js-fetch-zk-config-provider";
 
@@ -70,7 +71,6 @@ const parseArgs = () => {
           ].join("\n"),
         );
         process.exit(0);
-        break;
       default:
         throw new Error(`Unknown argument: ${arg}`);
     }
@@ -139,7 +139,7 @@ const writeConsumerSmokeScript = (consumerRoot) => {
   );
 };
 
-const smokeNpmPackages = ({
+const smokeNpmPackages = async ({
   npmInstallAttempts,
   npmInstallRetryDelayMs,
   registry,
@@ -200,12 +200,7 @@ const smokeNpmPackages = ({
           console.log(
             `[smoke-published-artifacts] npm install attempt ${attempt} failed; retrying in ${npmInstallRetryDelayMs}ms`,
           );
-          Atomics.wait(
-            new Int32Array(new SharedArrayBuffer(4)),
-            0,
-            0,
-            npmInstallRetryDelayMs,
-          );
+          await setTimeout(npmInstallRetryDelayMs);
         }
       }
     }
@@ -324,7 +319,7 @@ if (options.skipNpm && options.skipZk) {
 }
 
 if (!options.skipNpm) {
-  smokeNpmPackages(options);
+  await smokeNpmPackages(options);
 }
 
 if (!options.skipZk) {

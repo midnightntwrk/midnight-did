@@ -24,6 +24,8 @@ const parseArgs = () => {
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     switch (arg) {
+      case "--":
+        break;
       case "--version":
         options.version = args[++index];
         break;
@@ -48,7 +50,6 @@ const parseArgs = () => {
           ].join("\n"),
         );
         process.exit(0);
-        break;
       default:
         throw new Error(`Unknown argument: ${arg}`);
     }

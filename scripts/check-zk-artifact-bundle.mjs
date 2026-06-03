@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const args = process.argv.slice(2);
+const args = process.argv.slice(2).filter((arg) => arg !== "--");
 const archivePath = args[0] === "--archive" ? args[1] : args[0];
 
 if (!archivePath || args.includes("--help")) {
@@ -58,7 +58,7 @@ for (const entry of entries.filter((entry) => !entry.endsWith("/"))) {
   }
 }
 
-if (errors.length === 0 && !entries.includes("manifest.json")) {
+if (!entries.includes("manifest.json")) {
   errors.push("missing manifest.json");
 }
 
