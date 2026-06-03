@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add X25519 and secp256k1 verification method key profiles for canonical
   opaque JWK Midnight DID public key storage.
+- Add BLS12381G1 and BLS12381G2 OKP JWK profiles for compressed BLS12-381
+  public keys stored as opaque canonical `publicKeyJwk.x` strings.
 - Add controller key rotation with SDK-local controller public key derivation
   and wallet-persisted random controller secrets.
 - Add DID surface-change discipline documentation and an automated guard for
