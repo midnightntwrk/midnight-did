@@ -77,6 +77,29 @@ GHCR, pulls it back, validates it, and fetches every circuit through
 `FetchZkConfigProvider`. RC and release runs also upload the bundle to a GitHub
 Release and download the asset back for the same validation.
 
+## ORAS and GHCR artifacts
+
+The workflow installs ORAS before the GHCR step because GHCR stores the ZK bundle
+as a generic OCI artifact. `npm publish` handles TypeScript packages, and
+`gh release upload` handles release assets, but neither pushes arbitrary
+provider-key archives to an OCI registry. ORAS provides the registry protocol
+client for `oras push` and `oras pull`.
+
+The publish workflow downloads the configured `ORAS_VERSION`, verifies the ORAS
+release checksum, installs the `oras` binary, pushes the ZK archive and manifest
+to `ghcr.io/<owner>/midnight-did-zk-artifacts:<version>`, pulls it back, and
+then runs bundle validation plus the `FetchZkConfigProvider` smoke test.
+
+Local developers need ORAS only when manually testing the GHCR artifact path.
+Install it with Homebrew or the upstream release instructions:
+
+```bash
+brew install oras
+oras version
+```
+
+The local bundle and GitHub Release asset checks do not require ORAS.
+
 Exact npm package versions are immutable. If a workflow is rerun after a partial
 publish, the npm publication step skips packages whose exact version already
 exists and continues with missing packages plus artifact verification.

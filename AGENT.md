@@ -286,6 +286,12 @@ Publish CI smoke-tests the exact package version from GitHub Packages and
 fetches pulled/downloaded ZK bundles through `FetchZkConfigProvider`. Reruns
 skip npm packages whose exact immutable version already exists.
 
+GHCR publication uses ORAS because the ZK bundle is a generic OCI artifact
+rather than a container image or npm package. The publish workflow installs the
+configured `ORAS_VERSION`, verifies the ORAS release checksum, pushes the
+archive/manifest to GHCR, pulls it back, and validates the pulled bundle.
+Local ORAS is needed only for manual GHCR artifact testing.
+
 ## CI Shape
 
 GitHub Actions target `main` and `develop`.

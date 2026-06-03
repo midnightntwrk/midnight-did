@@ -238,6 +238,13 @@ from GitHub Packages and fetches the published ZK archive through
 `FetchZkConfigProvider` after pulling/downloading it from GHCR or GitHub Release
 assets. Reruns skip npm packages whose exact immutable version already exists.
 
+The GHCR path uses ORAS because ZK bundles are generic OCI artifacts, not
+container images or npm packages. The publish workflow installs the configured
+`ORAS_VERSION`, pushes the archive and manifest to GHCR, pulls the artifact back,
+and then runs the same bundle validation and provider smoke test. Local
+developers only need the `oras` CLI when manually testing GHCR publication or
+retrieval; GitHub Release asset checks do not require it.
+
 ## Developer Entry Points
 
 1. `./start-docs.sh`
