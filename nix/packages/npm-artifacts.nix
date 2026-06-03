@@ -14,6 +14,7 @@
 
 let
   pnpm = pnpm_10;
+  rootPackage = builtins.fromJSON (builtins.readFile ../../package.json);
 
   # Sort all keys in a JSON object recursively, producing deterministic output.
   sortPackageJson = ''
@@ -34,7 +35,7 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "midnight-did-npm-artifacts";
-  version = "0.1.0";
+  version = rootPackage.version;
 
   inherit src;
 

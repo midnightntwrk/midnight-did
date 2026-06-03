@@ -112,9 +112,13 @@ to `ghcr.io/<owner>/midnight-did-zk-artifacts:<version>`, pulls it back, and
 then runs bundle validation plus the `FetchZkConfigProvider` smoke test.
 
 Local developers need ORAS only when manually testing the GHCR artifact path.
-Install it with Homebrew or the upstream release instructions:
+The Nix development shell includes ORAS. Outside the Nix shell, install it with
+Homebrew or the upstream release instructions:
 
 ```bash
+nix develop
+oras version
+
 brew install oras
 oras version
 ```
