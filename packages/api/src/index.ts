@@ -6,5 +6,6 @@ export type {
   DomainToRuntimeNetworkMap,
   RuntimeToDomainNetworkMap,
 } from "./network-mapping.js";
+export * from "./release-artifacts.js";
 export * from "./runtime-to-domain.js";
 export * from "./types.js";

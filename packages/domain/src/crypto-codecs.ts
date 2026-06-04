@@ -73,22 +73,28 @@ export const decodeBase64Url = (input: string): Uint8Array => {
   return decodeBase64(base64 + "=".repeat(padding));
 };
 
-export const decodeBase64UrlBytes32 = (
+export const decodeBase64UrlBytes = (
   input: string,
+  expectedLength: number,
   label = "value",
 ): Uint8Array => {
   if (!/^[A-Za-z0-9_-]+$/.test(input) || input.length % 4 === 1) {
     throw new Error(`${label} must be canonical unpadded base64url`);
   }
   const bytes = decodeBase64Url(input);
-  if (bytes.length !== 32) {
-    throw new Error(`${label} must decode to exactly 32 bytes`);
+  if (bytes.length !== expectedLength) {
+    throw new Error(`${label} must decode to exactly ${expectedLength} bytes`);
   }
   if (encodeBase64Url(bytes) !== input) {
     throw new Error(`${label} must be canonical unpadded base64url`);
   }
   return bytes;
 };
+
+export const decodeBase64UrlBytes32 = (
+  input: string,
+  label = "value",
+): Uint8Array => decodeBase64UrlBytes(input, 32, label);
 
 const bigintToBytes = (x: bigint): Uint8Array => {
   if (x === 0n) return Uint8Array.of(0);

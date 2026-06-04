@@ -15,6 +15,7 @@
           git
           just
           nodejs_24
+          oras
           turbo
           self'.packages.compact-midnight
           self'.packages.compact-toolchain

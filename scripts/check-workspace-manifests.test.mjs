@@ -14,6 +14,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  githubPackageRegistry,
+  repositoryUrl,
+} from "./did-workspace-catalog.mjs";
+
 const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const fixtureRoot = mkdtempSync(path.join(tmpdir(), "did-workspaces-"));
 const scriptPath = path.join(repoRoot, "scripts/check-workspace-manifests.mjs");
@@ -30,12 +35,19 @@ const writeReadme = (workspace) => {
   writeFileSync(targetPath, `# ${workspace}\n`);
 };
 
-const distPackage = ({ name, files, exports }) => ({
+const distPackage = ({ name, workspace, files, exports }) => ({
   name,
   version: "0.1.0",
   license: "Apache-2.0",
-  private: true,
   type: "module",
+  repository: {
+    type: "git",
+    url: repositoryUrl,
+    directory: workspace,
+  },
+  publishConfig: {
+    registry: githubPackageRegistry,
+  },
   engines: {
     node: ">=24",
     pnpm: ">=10",
@@ -87,6 +99,7 @@ const rootPackage = {
 const packageFixtures = {
   "packages/api": distPackage({
     name: "@midnight-ntwrk/midnight-did-api",
+    workspace: "packages/api",
     files: [
       "dist/**",
       "README.md",
@@ -99,6 +112,7 @@ const packageFixtures = {
   }),
   "packages/domain": distPackage({
     name: "@midnight-ntwrk/midnight-did-domain",
+    workspace: "packages/domain",
     files: [
       "dist/**",
       "README.md",
@@ -110,6 +124,7 @@ const packageFixtures = {
   }),
   "packages/did": distPackage({
     name: "@midnight-ntwrk/midnight-did",
+    workspace: "packages/did",
     files: [
       "dist/**",
       "README.md",
@@ -121,6 +136,7 @@ const packageFixtures = {
   }),
   "packages/jubjub-schnorr": distPackage({
     name: "@midnight-ntwrk/midnight-did-jubjub-schnorr",
+    workspace: "packages/jubjub-schnorr",
     files: [
       "dist/**",
       "src/**/*.compact",
@@ -134,6 +150,7 @@ const packageFixtures = {
   }),
   "packages/contract": distPackage({
     name: "@midnight-ntwrk/midnight-did-contract",
+    workspace: "packages/contract",
     files: [
       "dist/**",
       "README.md",
@@ -205,6 +222,35 @@ try {
     const apiPackage = readFixtureJson("packages/api/package.json");
     writeJson("packages/api/package.json", {
       ...apiPackage,
+      private: true,
+    });
+  }, "packages/api/package.json must be publishable");
+
+  expectFailure(() => {
+    const apiPackage = readFixtureJson("packages/api/package.json");
+    writeJson("packages/api/package.json", {
+      ...apiPackage,
+      publishConfig: {
+        registry: "https://registry.npmjs.org",
+      },
+    });
+  }, "packages/api/package.json publishConfig.registry");
+
+  expectFailure(() => {
+    const apiPackage = readFixtureJson("packages/api/package.json");
+    writeJson("packages/api/package.json", {
+      ...apiPackage,
+      repository: {
+        ...apiPackage.repository,
+        directory: "packages/did",
+      },
+    });
+  }, "packages/api/package.json repository.directory");
+
+  expectFailure(() => {
+    const apiPackage = readFixtureJson("packages/api/package.json");
+    writeJson("packages/api/package.json", {
+      ...apiPackage,
       files: [...apiPackage.files, "unexpected/**"],
     });
   }, "packages/api/package.json files");
@@ -226,6 +272,14 @@ try {
   expectFailure(() => {
     rmSync(path.join(fixtureRoot, "packages/api/README.md"), { force: true });
   }, "packages/api README: missing packages/api/README.md");
+
+  expectFailure(() => {
+    mkdirSync(path.join(fixtureRoot, "packages/api/src"), { recursive: true });
+    writeFileSync(
+      path.join(fixtureRoot, "packages/api/src/index.ts"),
+      'import { z } from "zod";\nexport { z };\n',
+    );
+  }, "packages/api/package.json dependency zod");
 
   console.log("check-workspace-manifests contract passed");
 } finally {

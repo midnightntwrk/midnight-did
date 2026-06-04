@@ -2,8 +2,15 @@
   "name": "@midnight-ntwrk/midnight-did-api",
   "version": "0.4.0",
   "license": "Apache-2.0",
-  "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/midnightntwrk/midnight-did.git",
+    "directory": "packages/api"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "engines": {
     "node": ">=24",
     "pnpm": ">=10"
@@ -42,6 +49,8 @@
     "@midnight-ntwrk/midnight-did-contract": "workspace:*",
     "@midnight-ntwrk/midnight-did-domain": "workspace:*",
     "@midnight-ntwrk/compact-js": "2.5.0",
+    "@midnight-ntwrk/compact-runtime": "0.15.0",
+    "@midnight-ntwrk/ledger-v8": "8.0.3",
     "@midnight-ntwrk/midnight-js-contracts": "4.0.2",
     "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.0.2",
     "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "4.0.2",
@@ -50,6 +59,11 @@
     "@midnight-ntwrk/midnight-js-node-zk-config-provider": "4.0.2",
     "@midnight-ntwrk/midnight-js-types": "4.0.2",
     "@midnight-ntwrk/midnight-js-utils": "4.0.2",
+    "@midnight-ntwrk/wallet-sdk-dust-wallet": "3.0.0",
+    "@midnight-ntwrk/wallet-sdk-facade": "3.0.0",
+    "@midnight-ntwrk/wallet-sdk-hd": "3.0.0",
+    "@midnight-ntwrk/wallet-sdk-shielded": "2.1.0",
+    "@midnight-ntwrk/wallet-sdk-unshielded-wallet": "2.1.0",
     "@noble/curves": "^1.9.7",
     "pino": "^9.7.0",
     "pino-pretty": "^13.0.0",

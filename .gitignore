@@ -80,7 +80,9 @@ research/identity-examples/**/build/
 research/identity-examples/**/.env
 
 # Local assistant workspace
-.cloude
+.codex/*
+!.codex/skills/
+!.codex/skills/**
 .claude/*
 !.claude/skills/
 !.claude/skills/**
