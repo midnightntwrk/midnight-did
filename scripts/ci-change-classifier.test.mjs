@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import {
   classifyChangedFiles,
   isDocsOnlyPath,
+  isSnapshotReleaseRelevantPath,
 } from "./ci-change-classifier.mjs";
 
 describe("ci-change-classifier", () => {
@@ -32,6 +33,26 @@ describe("ci-change-classifier", () => {
     assert.equal(isDocsOnlyPath("packages/contract/src/did.compact"), false);
   });
 
+  it("treats Compact, TypeScript, and script changes as snapshot-release relevant", () => {
+    assert.equal(
+      isSnapshotReleaseRelevantPath("packages/contract/src/did.compact"),
+      true,
+    );
+    assert.equal(isSnapshotReleaseRelevantPath("packages/api/src/index.ts"), true);
+    assert.equal(isSnapshotReleaseRelevantPath("scripts/release-resolve-context.sh"), true);
+    assert.equal(isSnapshotReleaseRelevantPath("run-api.sh"), true);
+  });
+
+  it("does not treat docs, CI, security config, or manifest-only changes as snapshot-release relevant", () => {
+    assert.equal(isSnapshotReleaseRelevantPath("README.md"), false);
+    assert.equal(isSnapshotReleaseRelevantPath("docs-site/.vitepress/config.ts"), false);
+    assert.equal(isSnapshotReleaseRelevantPath(".github/workflows/publish.yml"), false);
+    assert.equal(isSnapshotReleaseRelevantPath(".github/dependabot.yml"), false);
+    assert.equal(isSnapshotReleaseRelevantPath("package.json"), false);
+    assert.equal(isSnapshotReleaseRelevantPath("pnpm-lock.yaml"), false);
+    assert.equal(isSnapshotReleaseRelevantPath("renovate.json"), false);
+  });
+
   it("classifies docs-only changes", () => {
     assert.deepEqual(
       classifyChangedFiles([
@@ -48,6 +69,7 @@ describe("ci-change-classifier", () => {
         changedFileCount: 3,
         docsOnly: true,
         hasDocsChanges: true,
+        snapshotReleaseRelevant: false,
       },
     );
   });
@@ -60,6 +82,19 @@ describe("ci-change-classifier", () => {
 
     assert.equal(classification.docsOnly, false);
     assert.equal(classification.hasDocsChanges, true);
+    assert.equal(classification.snapshotReleaseRelevant, true);
+  });
+
+  it("classifies dependency-only changes as snapshot-release irrelevant", () => {
+    const classification = classifyChangedFiles([
+      "package.json",
+      "packages/api/package.json",
+      "pnpm-lock.yaml",
+    ]);
+
+    assert.equal(classification.docsOnly, false);
+    assert.equal(classification.hasDocsChanges, false);
+    assert.equal(classification.snapshotReleaseRelevant, false);
   });
 
   it("does not classify an empty diff as docs-only", () => {
@@ -68,6 +103,7 @@ describe("ci-change-classifier", () => {
       changedFileCount: 0,
       docsOnly: false,
       hasDocsChanges: false,
+      snapshotReleaseRelevant: false,
     });
   });
 });
