@@ -40,9 +40,49 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  changes:
+    name: Classify snapshot release changes
+    runs-on: ubuntu-latest
+    outputs:
+      changed_file_count: ${{ steps.classify.outputs.changed_file_count }}
+      snapshot_release_relevant: ${{ steps.classify.outputs.snapshot_release_relevant }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed files
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event_name == 'push' && github.event.before || github.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: node scripts/ci-change-classifier.mjs --output "$GITHUB_OUTPUT"
+
+      - name: Print snapshot release classification
+        run: |
+          echo "snapshot_release_relevant=${{ steps.classify.outputs.snapshot_release_relevant }}"
+          echo "changed_file_count=${{ steps.classify.outputs.changed_file_count }}"
+
+  skip-snapshot:
+    name: Skip snapshot publication
+    runs-on: ubuntu-latest
+    needs:
+      - changes
+    if: github.event_name == 'push' && needs.changes.outputs.snapshot_release_relevant != 'true'
+    steps:
+      - name: Report skipped snapshot
+        run: |
+          echo "Skipping automated snapshot publication."
+          echo "Changed files: ${{ needs.changes.outputs.changed_file_count }}"
+          echo "Snapshot publication is reserved for Compact, TypeScript, JavaScript, or script changes."
+
   publish:
     name: Publish packages and ZK artifacts
     runs-on: ubuntu-latest
+    needs:
+      - changes
+    if: github.event_name != 'push' || needs.changes.outputs.snapshot_release_relevant == 'true'
     timeout-minutes: 90
     steps:
       - name: Checkout repository
