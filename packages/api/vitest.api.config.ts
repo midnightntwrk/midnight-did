@@ -9,6 +9,8 @@ const contractEntry = path.resolve(rootDir, '..', 'contract', 'dist', 'index.js'
 export default defineConfig({
   mode: 'node',
   test: {
+    // The wallet SDK imports web-worker, which treats worker_threads as web workers.
+    pool: 'forks',
     setupFiles: ['./vitest.setup.ts'],
     // Long running environment/integration tests
     testTimeout: 1000 * 60 * 45,
