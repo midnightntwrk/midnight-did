@@ -345,7 +345,22 @@ assertIncludes(
 );
 assertIncludes(
   readText(".github/workflows/ci.yml"),
-  "needs.changes.outputs.docs_only != 'true'",
+  "needs.changes.outputs.code_changed == 'true'",
+  ".github/workflows/ci.yml",
+);
+assertIncludes(
+  readText(".github/workflows/ci.yml"),
+  "github.event_name == 'schedule'",
+  ".github/workflows/ci.yml",
+);
+assertIncludes(
+  readText(".github/workflows/ci.yml"),
+  "github.event_name == 'workflow_dispatch'",
+  ".github/workflows/ci.yml",
+);
+assertIncludes(
+  readText(".github/workflows/ci.yml"),
+  "No code-impacting changes detected; core and API jobs were intentionally skipped.",
   ".github/workflows/ci.yml",
 );
 assertIncludes(
