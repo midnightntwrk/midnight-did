@@ -20,8 +20,8 @@ fi
 
 case "${channel}" in
   snapshot)
-    if [[ "${ref_name}" != "main" && "${ref_name}" != "develop" ]]; then
-      echo "::error::snapshot publication is only allowed from main or develop."
+    if [[ "${ref_name}" != "develop" ]]; then
+      echo "::error::snapshot publication is only allowed from develop."
       exit 1
     fi
     ;;

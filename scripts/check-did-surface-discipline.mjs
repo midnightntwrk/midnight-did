@@ -354,7 +354,7 @@ assertIncludes(
 );
 assertIncludes(
   readText(".github/workflows/publish.yml"),
-  "github.event_name != 'push' || needs.changes.outputs.snapshot_release_relevant == 'true'",
+  "github.event_name != 'push' || (github.ref == 'refs/heads/develop' && needs.changes.outputs.snapshot_release_relevant == 'true')",
   ".github/workflows/publish.yml",
 );
 assertIncludes(
