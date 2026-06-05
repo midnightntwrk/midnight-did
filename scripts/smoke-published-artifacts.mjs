@@ -129,6 +129,43 @@ const publishedPackageNames = () =>
     return manifest.name;
   });
 
+const writeNpmAuthConfig = ({ directory, registry, token }) => {
+  const npmrcLines = ["registry=https://registry.npmjs.org/"];
+  if (token) {
+    const registryHost = new URL(registry).host;
+    npmrcLines.push(`//${registryHost}/:_authToken=${token}`);
+    npmrcLines.push("always-auth=true");
+  }
+  fs.writeFileSync(path.join(directory, ".npmrc"), `${npmrcLines.join("\n")}\n`);
+};
+
+const packageTarballUrl = ({ consumerRoot, packageName, registry, version }) => {
+  const result = run(
+    "npm",
+    [
+      "view",
+      `${packageName}@${version}`,
+      "dist.tarball",
+      "--registry",
+      registry,
+    ],
+    {
+      cwd: consumerRoot,
+      env: {
+        ...process.env,
+        NPM_CONFIG_USERCONFIG: path.join(consumerRoot, ".npmrc"),
+      },
+    },
+  );
+  const tarballUrl = result.stdout.trim();
+  if (!tarballUrl) {
+    throw new Error(
+      `Missing published tarball URL for ${packageName}@${version}`,
+    );
+  }
+  return tarballUrl;
+};
+
 const safeArtifactVersion = (version) =>
   version.replace(/[^0-9A-Za-z._-]/gu, "_");
 
@@ -331,15 +368,10 @@ const smokeNpmPackages = async ({
         "\n",
     );
 
-    const npmrcLines = [`@midnight-ntwrk:registry=${registry}`];
-    if (token) {
-      const registryHost = new URL(registry).host;
-      npmrcLines.push(`//${registryHost}/:_authToken=${token}`);
-    }
-    fs.writeFileSync(path.join(consumerRoot, ".npmrc"), `${npmrcLines.join("\n")}\n`);
+    writeNpmAuthConfig({ directory: consumerRoot, registry, token });
 
-    const packages = publishedPackageNames().map(
-      (packageName) => `${packageName}@${version}`,
+    const packages = publishedPackageNames().map((packageName) =>
+      packageTarballUrl({ consumerRoot, packageName, registry, version }),
     );
     let lastInstallError;
     for (let attempt = 1; attempt <= npmInstallAttempts; attempt += 1) {

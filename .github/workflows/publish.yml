@@ -107,8 +107,6 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-          registry-url: https://npm.pkg.github.com
-          scope: "@midnight-ntwrk"
 
       - name: Set up Compact toolchain
         uses: midnightntwrk/setup-compact-action@v1
@@ -119,8 +117,6 @@ jobs:
         run: compact compile --version
 
       - name: Install dependencies
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Prepare release version

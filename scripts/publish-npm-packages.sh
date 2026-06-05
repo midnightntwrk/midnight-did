@@ -7,11 +7,27 @@ set -euo pipefail
 version="${VERSION:?VERSION is required}"
 npm_tag="${NPM_TAG:?NPM_TAG is required}"
 registry="${NPM_REGISTRY:-https://npm.pkg.github.com}"
+token="${NODE_AUTH_TOKEN:-${NPM_TOKEN:-}}"
 
-if [[ -z "${NODE_AUTH_TOKEN:-${NPM_TOKEN:-}}" ]]; then
+if [[ -z "${token}" ]]; then
   echo "::error::NODE_AUTH_TOKEN or NPM_TOKEN is required to publish packages."
   exit 1
 fi
+
+registry_host="$(node -e 'console.log(new URL(process.argv[1]).host)' "${registry}")"
+npmrc="$(mktemp)"
+cleanup() {
+  rm -f "${npmrc}"
+}
+trap cleanup EXIT
+
+{
+  echo "registry=https://registry.npmjs.org/"
+  echo "//${registry_host}/:_authToken=${token}"
+  echo "always-auth=true"
+} > "${npmrc}"
+
+export NPM_CONFIG_USERCONFIG="${npmrc}"
 
 package_name_for_workspace() {
   node -e 'const fs = require("node:fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).name);' "$1/package.json"
@@ -46,5 +62,5 @@ while IFS= read -r workspace; do
   fi
 
   echo "[publish-npm-packages] Publishing ${package_name}@${version} with npm tag ${npm_tag}"
-  pnpm --filter "./${workspace}" publish --no-git-checks --tag "${npm_tag}"
+  pnpm --filter "./${workspace}" publish --no-git-checks --registry "${registry}" --tag "${npm_tag}"
 done < <(node scripts/did-workspace-catalog.mjs --publish-workspaces)
