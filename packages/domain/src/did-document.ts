@@ -1,6 +1,6 @@
 import { z } from "zod/v4-mini";
 
-import { decodeBase64UrlBytes32 } from "./crypto-codecs.js";
+import { decodeBase64UrlBytes } from "./crypto-codecs.js";
 
 /** DID URL schema */
 export const DIDURLSchema = z
@@ -107,8 +107,45 @@ export enum CurveType {
   Jubjub = "Jubjub",
   P256 = "P-256",
   Secp256k1 = "secp256k1",
+  BLS12381G1 = "BLS12381G1",
+  BLS12381G2 = "BLS12381G2",
 }
 export const CurveTypeSchema = z.enum(CurveType);
+
+export type PublicKeyJwkCoordinate = "x" | "y";
+export type PublicKeyJwkProfile = {
+  readonly kty: KeyType;
+  readonly crv: CurveType;
+};
+
+export const publicKeyJwkCoordinateByteLength = (
+  profile: PublicKeyJwkProfile,
+  coordinate: PublicKeyJwkCoordinate,
+): number | undefined => {
+  if (coordinate === "x") {
+    if (
+      profile.crv === CurveType.Ed25519 ||
+      profile.crv === CurveType.X25519 ||
+      profile.crv === CurveType.Jubjub ||
+      profile.crv === CurveType.P256 ||
+      profile.crv === CurveType.Secp256k1
+    ) {
+      return 32;
+    }
+    if (profile.kty === KeyType.OKP && profile.crv === CurveType.BLS12381G1) {
+      return 48;
+    }
+    if (profile.kty === KeyType.OKP && profile.crv === CurveType.BLS12381G2) {
+      return 96;
+    }
+    return undefined;
+  }
+
+  if (profile.kty === KeyType.EC) {
+    return 32;
+  }
+  return undefined;
+};
 
 // Base64url-encoded string (no padding). Conservative charset check only.
 const Base64UrlStringSchema = z.string().check(
@@ -116,9 +153,15 @@ const Base64UrlStringSchema = z.string().check(
   z.refine((value) => value.length % 4 !== 1, "Invalid base64url length"),
 );
 
-const isBase64UrlBytes32 = (value: string): boolean => {
+const isBase64UrlCoordinate = (
+  profile: PublicKeyJwkProfile,
+  coordinate: PublicKeyJwkCoordinate,
+  value: string,
+): boolean => {
+  const expectedLength = publicKeyJwkCoordinateByteLength(profile, coordinate);
+  if (expectedLength === undefined) return false;
   try {
-    decodeBase64UrlBytes32(value);
+    decodeBase64UrlBytes(value, expectedLength);
     return true;
   } catch {
     return false;
@@ -134,11 +177,19 @@ export const PublicKeyJwkSchema = z
   })
   .check(
     z.refine(
+      (value) => !("d" in value),
+      "publicKeyJwk must not include private key material",
+    ),
+  )
+  .check(
+    z.refine(
       (value) =>
         value.kty !== KeyType.OKP ||
         value.crv === CurveType.Ed25519 ||
-        value.crv === CurveType.X25519,
-      "OKP keys must use the Ed25519 or X25519 curve",
+        value.crv === CurveType.X25519 ||
+        value.crv === CurveType.BLS12381G1 ||
+        value.crv === CurveType.BLS12381G2,
+      "OKP keys must use the Ed25519, X25519, BLS12381G1, or BLS12381G2 curve",
     ),
   )
   .check(
@@ -165,14 +216,15 @@ export const PublicKeyJwkSchema = z
   )
   .check(
     z.refine(
-      (value) => isBase64UrlBytes32(value.x),
-      "publicKeyJwk.x must be canonical base64url for exactly 32 bytes",
+      (value) => isBase64UrlCoordinate(value, "x", value.x),
+      "publicKeyJwk.x must be canonical base64url for the supported curve length",
     ),
   )
   .check(
     z.refine(
-      (value) => value.y === undefined || isBase64UrlBytes32(value.y),
-      "publicKeyJwk.y must be canonical base64url for exactly 32 bytes",
+      (value) =>
+        value.y === undefined || isBase64UrlCoordinate(value, "y", value.y),
+      "publicKeyJwk.y must be canonical base64url for the supported curve length",
     ),
   );
 

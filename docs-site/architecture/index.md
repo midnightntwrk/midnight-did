@@ -21,6 +21,43 @@ graph TD
 Resolver service, DID manager, and local secret custody architecture lives in
 [`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver).
 
+## Boundaries
+
+The Compact contract keeps the on-ledger surface intentionally small. It
+enforces controller authorization, active/deactivated state, identifier
+uniqueness, relation membership, service membership, supported key-profile enum
+values, native SchnorrJubjub storage, and the ledger-bound SchnorrJubjub
+verification circuit.
+
+The TypeScript layers enforce rules that Compact cannot express safely today:
+DID URL subject binding, fragment normalization, DID Document shape, service
+endpoint JSON shape, public JWK base64url canonicality, key-coordinate lengths,
+and the split between opaque JWK keys and native SchnorrJubjub keys.
+
+## Runtime Artifacts
+
+TypeScript packages and ZK proving artifacts are distributed separately. The
+packages expose the contract/API surface. The ZK bundle carries the provider
+layout required by Midnight JS:
+
+```text
+keys/<circuit>.prover
+keys/<circuit>.verifier
+zkir/<circuit>.bzkir
+```
+
+Release metadata in `@midnight-ntwrk/midnight-did-api` derives the matching
+GitHub Release and GHCR artifact locations for the installed package version.
+
+## Trust Model
+
+Controller-gated contract calls use the wallet-held `localSecretKey` witness.
+The ledger and resolvers do not see that witness, but a delegated proof server
+may. Production deployments should use a local prover or proof infrastructure
+trusted with DID controller authorization material until the method evolves to an
+intent-signature design that does not reveal the controller secret to the
+proving environment.
+
 ## Pages
 
 - [ADR: SDK and Contract Boundary](/architecture/adr-sdk-contract-boundary)

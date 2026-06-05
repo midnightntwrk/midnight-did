@@ -39,6 +39,8 @@ const didContract = {
 
 const didSubject = getDidSubject(didContract);
 const key = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE";
+const blsG1Key =
+  "BgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYG";
 
 describe("ledger mappers", () => {
   it("normalizes OKP keys to the ledger y sentinel", () => {
@@ -60,6 +62,29 @@ describe("ledger mappers", () => {
       kty: DIDContract.KeyType.OKP,
       crv: DIDContract.CurveType.Ed25519,
       x: key,
+      y: "",
+    });
+  });
+
+  it("normalizes BLS12-381 OKP keys to the ledger y sentinel", () => {
+    expect(
+      verificationMethodToLedger(
+        didContract,
+        createVerificationMethod({
+          id: `${didSubject}#key-bls12381-g1`,
+          type: VerificationMethodType.JsonWebKey,
+          controller: didSubject,
+          publicKeyJwk: {
+            kty: KeyType.OKP,
+            crv: CurveType.BLS12381G1,
+            x: blsG1Key,
+          },
+        }),
+      ).publicKeyJwk,
+    ).toEqual({
+      kty: DIDContract.KeyType.OKP,
+      crv: DIDContract.CurveType.BLS12381G1,
+      x: blsG1Key,
       y: "",
     });
   });
@@ -91,5 +116,33 @@ describe("ledger mappers", () => {
         },
       } as any),
     ).toThrow(/EC keys must include a y coordinate/);
+
+    expect(() =>
+      verificationMethodToLedger(didContract, {
+        id: `${didSubject}#key-bls-with-y`,
+        type: VerificationMethodType.JsonWebKey,
+        controller: didSubject,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.BLS12381G1,
+          x: blsG1Key,
+          y: key,
+        },
+      } as any),
+    ).toThrow(/OKP keys must not include a y coordinate/);
+
+    expect(() =>
+      verificationMethodToLedger(didContract, {
+        id: `${didSubject}#key-with-private-d`,
+        type: VerificationMethodType.JsonWebKey,
+        controller: didSubject,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.Ed25519,
+          x: key,
+          d: key,
+        },
+      } as any),
+    ).toThrow(/private key material/);
   });
 });

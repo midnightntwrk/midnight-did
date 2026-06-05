@@ -1,9 +1,10 @@
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import {
   CurveType,
-  decodeBase64UrlBytes32,
+  decodeBase64UrlBytes,
   KeyType,
   PublicKeyJwk,
+  publicKeyJwkCoordinateByteLength,
   Service,
   serviceEndpointToLedger as serviceEndpointToLedgerValue,
   serviceTypeToLedger as serviceTypeToLedgerValue,
@@ -42,6 +43,8 @@ const LedgerCurveTypeMap: Record<
   [CurveType.Jubjub]: LedgerCurveType.Jubjub,
   [CurveType.P256]: LedgerCurveType.P256,
   [CurveType.Secp256k1]: LedgerCurveType.Secp256k1,
+  [CurveType.BLS12381G1]: LedgerCurveType.BLS12381G1,
+  [CurveType.BLS12381G2]: LedgerCurveType.BLS12381G2,
 };
 
 const LedgerVerificationMethodTypeMap: Record<
@@ -73,11 +76,26 @@ export const LedgerVerificationMethodRelationMap: Record<
 const publicKeyJwkToLedger = (
   publicKeyJwk: PublicKeyJwk,
 ): DIDContract.PublicKeyJwk => {
+  if ("d" in publicKeyJwk) {
+    throw new Error("publicKeyJwk must not include private key material");
+  }
   const kty = LedgerKeyTypeMap[publicKeyJwk.kty];
   const crv = LedgerCurveTypeMap[publicKeyJwk.crv];
-  decodeBase64UrlBytes32(publicKeyJwk.x, "publicKeyJwk.x");
+  const xLength = publicKeyJwkCoordinateByteLength(publicKeyJwk, "x");
+  if (xLength === undefined) {
+    throw new Error(
+      `Unsupported publicKeyJwk.x profile ${publicKeyJwk.kty}/${publicKeyJwk.crv}`,
+    );
+  }
+  decodeBase64UrlBytes(publicKeyJwk.x, xLength, "publicKeyJwk.x");
   if (publicKeyJwk.y !== undefined) {
-    decodeBase64UrlBytes32(publicKeyJwk.y, "publicKeyJwk.y");
+    const yLength = publicKeyJwkCoordinateByteLength(publicKeyJwk, "y");
+    if (yLength === undefined) {
+      throw new Error(
+        `Unsupported publicKeyJwk.y profile ${publicKeyJwk.kty}/${publicKeyJwk.crv}`,
+      );
+    }
+    decodeBase64UrlBytes(publicKeyJwk.y, yLength, "publicKeyJwk.y");
   }
 
   return {
@@ -92,9 +110,13 @@ const assertMidnightKeyProfile = (publicKeyJwk: PublicKeyJwk): void => {
   if (publicKeyJwk.kty === KeyType.OKP) {
     if (
       publicKeyJwk.crv !== CurveType.Ed25519 &&
-      publicKeyJwk.crv !== CurveType.X25519
+      publicKeyJwk.crv !== CurveType.X25519 &&
+      publicKeyJwk.crv !== CurveType.BLS12381G1 &&
+      publicKeyJwk.crv !== CurveType.BLS12381G2
     ) {
-      throw new Error("OKP keys must use Ed25519 or X25519");
+      throw new Error(
+        "OKP keys must use Ed25519, X25519, BLS12381G1, or BLS12381G2",
+      );
     }
     if (publicKeyJwk.y !== undefined) {
       throw new Error("OKP keys must not include a y coordinate");
@@ -121,7 +143,7 @@ const assertMidnightKeyProfile = (publicKeyJwk: PublicKeyJwk): void => {
     return;
   }
   throw new Error(
-    "Only OKP (Ed25519/X25519) and EC (P-256/secp256k1) keys are supported",
+    "Only OKP (Ed25519/X25519/BLS12381G1/BLS12381G2) and EC (P-256/secp256k1) keys are supported",
   );
 };
 

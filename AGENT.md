@@ -85,7 +85,9 @@ Rules:
 
 Current key-storage model:
 
-- Ed25519, X25519, P-256, and secp256k1 `publicKeyJwk` material is stored as opaque canonical strings in `verificationMethods`.
+- Ed25519, X25519, P-256, secp256k1, BLS12381G1, and BLS12381G2 `publicKeyJwk` material is stored as opaque canonical strings in `verificationMethods`.
+- BLS12-381 JWK keys are OKP compressed public keys (`x` only): 48 bytes for G1 and 96 bytes for G2.
+- `publicKeyMultibase` / `Multikey` is not a current ledger profile; add it through an explicit storage/API path if future W3C Data Integrity suites require it.
 - SchnorrJubjub keys are stored as native `JubjubPoint` values in `schnorrJubjubVerificationMethods`.
 - Resolver/API code merges both maps into DID Document `verificationMethod` output.
 - Do not store the same key in both maps; relation sets share the normalized method-id namespace.
@@ -270,6 +272,39 @@ Packed packages:
 - `@midnight-ntwrk/midnight-did-jubjub-schnorr`
 - `@midnight-ntwrk/midnight-did-contract`
 
+The five DID packages are publishable to GitHub Packages. Keep the root
+workspace and `docs-site` private, and keep package `publishConfig.registry`
+pointing at `https://npm.pkg.github.com`. Publication order is owned by
+`scripts/did-workspace-catalog.mjs --publish-workspaces`.
+
+Publish CI must use organization package tokens for `npm.pkg.github.com`:
+`MIDNIGHTCI_PACKAGES_READ` for dependency install and post-publish package
+smoke tests, and `MIDNIGHTCI_PACKAGES_WRITE` for publishing packages and the
+GHCR ZK artifact. The default `GITHUB_TOKEN` is still used for GitHub Release
+asset operations, but it cannot be assumed to read unrelated private
+organization packages such as `@midnight-ntwrk/compact-runtime`.
+
+Release CI publishes snapshot versions from `main` and `develop`, RC versions
+from `main` or `develop`, and final releases from `main` only. ZK artifacts are
+distributed as a separate validated archive with the provider layout
+`keys/*.prover`, `keys/*.verifier`, and `zkir/*.bzkir`; do not rely on package
+consumers to discover proving keys by walking arbitrary generated directories.
+Publish CI smoke-tests the exact package version from GitHub Packages and
+fetches pulled/downloaded ZK bundles through `FetchZkConfigProvider`. Reruns
+skip npm packages whose exact immutable version already exists.
+
+GHCR publication uses ORAS because the ZK bundle is a generic OCI artifact
+rather than a container image or npm package. The publish workflow installs the
+configured `ORAS_VERSION`, verifies the ORAS release checksum, pushes the
+archive/manifest to GHCR, pulls it back, and validates the pulled bundle.
+Local ORAS is needed only for manual GHCR artifact testing.
+
+The API package exports `MIDNIGHT_DID_API_VERSION` and
+`createMidnightDidZkArtifactLocations()` so downstream services can derive the
+matching GHCR reference or GitHub Release asset URLs from the installed package
+version. `scripts/prepare-release-version.mjs` must keep that embedded source
+version aligned with package manifest rewrites during publish jobs.
+
 ## CI Shape
 
 GitHub Actions target `main` and `develop`.
@@ -293,8 +328,6 @@ Docs entry points:
 - `docs-site/guide/github-pages.md`: GitHub Pages publishing guide.
 - `docs-site/guide/testing-strategy.md`: testing strategy.
 - `docs-site/guide/did-surface-change-discipline.md`: discipline for DID surface changes.
-- `docs/repository-audit-backlog.md`: current maturity/simplification backlog.
-- `docs/archive/README.md`: historical notes that are not active runbook guidance.
 - `docs-site/spec/midnight-method.md`: method specification material.
 - `docs-site/spec/midnight-did-traits.md`: method traits.
 

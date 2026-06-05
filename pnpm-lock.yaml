@@ -75,6 +75,9 @@ importers:
       '@eslint/js':
         specifier: ^9.28.0
         version: 9.39.4
+      '@midnight-ntwrk/midnight-js-fetch-zk-config-provider':
+        specifier: 4.0.2
+        version: 4.0.2
       '@types/node':
         specifier: ^22.15.29
         version: 22.19.19
@@ -147,6 +150,12 @@ importers:
       '@midnight-ntwrk/compact-js':
         specifier: 2.5.0
         version: 2.5.0
+      '@midnight-ntwrk/compact-runtime':
+        specifier: 0.15.0
+        version: 0.15.0
+      '@midnight-ntwrk/ledger-v8':
+        specifier: 8.0.3
+        version: 8.0.3
       '@midnight-ntwrk/midnight-did':
         specifier: workspace:*
         version: link:../did
@@ -180,6 +189,21 @@ importers:
       '@midnight-ntwrk/midnight-js-utils':
         specifier: 4.0.2
         version: 4.0.2
+      '@midnight-ntwrk/wallet-sdk-dust-wallet':
+        specifier: 3.0.0
+        version: 3.0.0(ws@8.21.0)
+      '@midnight-ntwrk/wallet-sdk-facade':
+        specifier: 3.0.0
+        version: 3.0.0(ws@8.21.0)
+      '@midnight-ntwrk/wallet-sdk-hd':
+        specifier: 3.0.0
+        version: 3.0.0
+      '@midnight-ntwrk/wallet-sdk-shielded':
+        specifier: 2.1.0
+        version: 2.1.0(ws@8.21.0)
+      '@midnight-ntwrk/wallet-sdk-unshielded-wallet':
+        specifier: 2.1.0
+        version: 2.1.0(ws@8.21.0)
       '@noble/curves':
         specifier: ^1.9.7
         version: 1.9.7
@@ -892,6 +916,9 @@ packages:
 
   '@midnight-ntwrk/midnight-js-contracts@4.0.2':
     resolution: {integrity: sha512-mzUmelrhWEKR+f0uThgQb6IfQK+9LzOlWXlh74LjwuqDAIQgAuZZIXLuC1U58uYCTXVdmkJlmtQdORzXphJKOg==}
+
+  '@midnight-ntwrk/midnight-js-fetch-zk-config-provider@4.0.2':
+    resolution: {integrity: sha512-CuGpjrBxaemoFpm0s9kBp6+1ZH7Sm/jE1upPJDifVvuUBvaYDATiH4CYhMYCMdHCeCQUxdrwq0i7Ah1GPlgL+A==}
 
   '@midnight-ntwrk/midnight-js-http-client-proof-provider@4.0.2':
     resolution: {integrity: sha512-TeqP4SDEqWsJCGn25C2+eJZ3/X5rZ1TNxi9c68eYu5wzjgUJKsdzMA0u3PreyUinQ5iCixhSUpuiKKmeB+LAjA==}
@@ -4939,6 +4966,13 @@ snapshots:
       '@midnight-ntwrk/midnight-js-network-id': 4.0.2
       '@midnight-ntwrk/midnight-js-types': 4.0.2
       '@midnight-ntwrk/midnight-js-utils': 4.0.2
+
+  '@midnight-ntwrk/midnight-js-fetch-zk-config-provider@4.0.2':
+    dependencies:
+      '@midnight-ntwrk/midnight-js-types': 4.0.2
+      cross-fetch: 4.1.0
+    transitivePeerDependencies:
+      - encoding
 
   '@midnight-ntwrk/midnight-js-http-client-proof-provider@4.0.2':
     dependencies:

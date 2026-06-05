@@ -164,7 +164,6 @@ for (const requiredPhrase of [
   "`Check PR`",
   "`docs-site/spec/midnight-method.md`",
   "`docs-site/spec/midnight-did-traits.md`",
-  "`docs/archive/README.md`",
 ]) {
   assertIncludes(agentGuide, requiredPhrase, "AGENT.md");
 }
@@ -362,6 +361,16 @@ assertIncludes(
   readText(".github/workflows/ci.yml"),
   "No code-impacting changes detected; core and API jobs were intentionally skipped.",
   ".github/workflows/ci.yml",
+);
+assertIncludes(
+  readText(".github/workflows/publish.yml"),
+  "snapshot_release_relevant",
+  ".github/workflows/publish.yml",
+);
+assertIncludes(
+  readText(".github/workflows/publish.yml"),
+  "github.event_name != 'push' || needs.changes.outputs.snapshot_release_relevant == 'true'",
+  ".github/workflows/publish.yml",
 );
 assertIncludes(
   readText(".github/workflows/docs.yml"),
