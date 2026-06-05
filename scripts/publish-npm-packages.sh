@@ -22,12 +22,12 @@ published_version_for_package() {
   local output
   local status
 
-  if output="$(npm view "${package_name}@${version}" version --registry "${registry}" 2>&1)"; then
+  output="$(npm view "${package_name}@${version}" version --registry "${registry}" 2>&1)" && status=0 || status=$?
+  if [[ "${status}" -eq 0 ]]; then
     printf '%s\n' "${output}"
     return 0
   fi
 
-  status=$?
   if grep -Eq "(E404|404 Not Found)" <<< "${output}"; then
     return 0
   fi
