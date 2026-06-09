@@ -103,8 +103,8 @@ Each run rebuilds the packages and managed Compact artifacts, checks package
 contents, creates a ZK artifact bundle, validates the bundle, publishes packages,
 smoke-tests the exact package version from GitHub Packages, pushes the bundle to
 GHCR, pulls it back, validates it, and fetches every circuit through
-`FetchZkConfigProvider`. RC and release runs also upload the bundle to a GitHub
-Release and download the asset back for the same validation.
+`FetchZkConfigProvider` over runtime HTTP. RC and release runs also upload the
+bundle to a GitHub Release and download the asset back for the same validation.
 
 ## ORAS and GHCR artifacts
 
@@ -223,7 +223,8 @@ pnpm run published-artifacts:smoke -- \
 The smoke test installs the exact package version from GitHub Packages, imports
 all package entry points, verifies the API package's embedded artifact metadata
 matches the requested version, downloads or pulls the ZK bundle, validates the
-bundle manifest, and fetches every circuit through `FetchZkConfigProvider`.
+bundle manifest, and fetches every circuit through `FetchZkConfigProvider` over
+runtime HTTP.
 
 ## Standalone Release Smoke
 

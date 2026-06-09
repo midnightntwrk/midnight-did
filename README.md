@@ -235,8 +235,9 @@ The archive preserves the Midnight JS provider layout:
 `keys/<circuit>.prover`, `keys/<circuit>.verifier`, and
 `zkir/<circuit>.bzkir`. Publish CI smoke-tests the exact npm package version
 from GitHub Packages and fetches the published ZK archive through
-`FetchZkConfigProvider` after pulling/downloading it from GHCR or GitHub Release
-assets. Reruns skip npm packages whose exact immutable version already exists.
+`FetchZkConfigProvider` over runtime HTTP after pulling/downloading it from GHCR
+or GitHub Release assets. Reruns skip npm packages whose exact immutable version
+already exists.
 
 Release engineers can run a heavier standalone smoke against an RC or release.
 It installs the exact package version from GitHub Packages, downloads the
