@@ -600,13 +600,48 @@ const parseMappedPort = (stdout, serviceName, containerPort) => {
   return match[1];
 };
 
+const waitForHttpHealthy = async ({
+  label,
+  url,
+  timeoutMs = 300_000,
+  intervalMs = 5_000,
+}) => {
+  const endAt = Date.now() + timeoutMs;
+  while (Date.now() < endAt) {
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: { Accept: "*/*" },
+      });
+      if (response.ok) {
+        console.log(`[smoke-published-standalone] ${label} is ready`);
+        return;
+      }
+      console.log(
+        `[smoke-published-standalone] ${label} not ready yet (${response.status}); retrying`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.log(
+        `[smoke-published-standalone] ${label} not reachable yet (${message}); retrying`,
+      );
+    }
+
+    await delay(intervalMs);
+  }
+
+  throw new Error(
+    `${label} did not become ready in ${Math.round(timeoutMs / 1000)} seconds`,
+  );
+};
+
 const dockerCompose = (projectName, composeFile, args, options = {}) =>
   run("docker", ["compose", "-p", projectName, "-f", composeFile, ...args], {
     timeout: 600_000,
     ...options,
   });
 
-const startStandalone = (options) => {
+const startStandalone = async (options) => {
   if (options.useExistingStandalone) {
     const indexer =
       process.env.INDEXER_URL ?? "http://127.0.0.1:8088/api/v3/graphql";
@@ -650,12 +685,10 @@ const startStandalone = (options) => {
   if (upResult.status !== 0) {
     const output = `${upResult.stdout}\n${upResult.stderr}`;
     if (!/unknown flag|unknown shorthand flag|no such option/u.test(output)) {
-      throw new Error(
-        [
-          `docker compose up -d --wait failed with exit code ${upResult.status}`,
-          output,
-        ].join("\n"),
+      console.log(
+        `[smoke-published-standalone] docker compose up -d --wait exited with ${upResult.status}; continuing with manual readiness checks`,
       );
+      console.debug(output);
     }
     dockerCompose(projectName, options.composeFile, ["up", "-d"]);
   }
@@ -684,6 +717,21 @@ const startStandalone = (options) => {
     "node",
     9944,
   );
+  const proofServerEndpoint = `http://127.0.0.1:${proofPort}/version`;
+  const nodeEndpoint = `http://127.0.0.1:${nodePort}/health`;
+
+  await waitForHttpHealthy({
+    label: "Node RPC",
+    url: nodeEndpoint,
+    timeoutMs: 240_000,
+    intervalMs: 2_000,
+  });
+  await waitForHttpHealthy({
+    label: "Proof server",
+    url: proofServerEndpoint,
+    timeoutMs: 900_000,
+    intervalMs: 5_000,
+  });
 
   return {
     cleanup: () => {
@@ -772,7 +820,7 @@ try {
   consumerRoot = await installPublishedPackages(options);
 
   console.log("[smoke-published-standalone] starting standalone environment");
-  standalone = startStandalone(options);
+  standalone = await startStandalone(options);
   console.log(
     `[smoke-published-standalone] endpoints: indexer=${standalone.endpoints.indexer} node=${standalone.endpoints.node} proof=${standalone.endpoints.proofServer}`,
   );
