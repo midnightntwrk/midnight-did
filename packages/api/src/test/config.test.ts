@@ -24,8 +24,8 @@ describe("config", () => {
   it("resolves workspace directories", () => {
     expect(path.basename(currentDir)).toBe("api");
     expect(contractConfig.privateStateStoreName).toBe("did-private-state");
-    expect(contractConfig.zkConfigPath).toContain(
-      path.join("contract", "src", "managed", "did"),
+    expect(contractConfig.zkConfigPath.split(path.sep).join("/")).toMatch(
+      /contract\/(src|dist)\/managed\/did/u,
     );
   });
 

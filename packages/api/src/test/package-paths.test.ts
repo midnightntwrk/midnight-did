@@ -5,7 +5,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   createContractConfig,
+  MIDNIGHT_DID_ZK_CONFIG_PATH_ENV,
   resolveApiPackageRoot,
+  resolveDefaultZkConfigPath,
 } from "../package-paths.js";
 
 const moduleUrl = (absolutePath: string): string =>
@@ -53,5 +55,31 @@ describe("API package path resolution", () => {
         "/workspace/midnight-did/packages/contract/src/managed/did",
       ),
     });
+  });
+
+  it("prefers an explicit ZK artifact directory from the environment", () => {
+    const previous = process.env[MIDNIGHT_DID_ZK_CONFIG_PATH_ENV];
+    process.env[MIDNIGHT_DID_ZK_CONFIG_PATH_ENV] = "artifacts/zk/unpacked";
+
+    try {
+      expect(
+        createContractConfig("/workspace/midnight-did/packages/api")
+          .zkConfigPath,
+      ).toBe(path.resolve("artifacts/zk/unpacked"));
+    } finally {
+      if (previous === undefined) {
+        delete process.env[MIDNIGHT_DID_ZK_CONFIG_PATH_ENV];
+      } else {
+        process.env[MIDNIGHT_DID_ZK_CONFIG_PATH_ENV] = previous;
+      }
+    }
+  });
+
+  it("falls back to the source managed artifact directory when no candidate exists", () => {
+    expect(
+      resolveDefaultZkConfigPath("/workspace/midnight-did/packages/api"),
+    ).toBe(
+      path.resolve("/workspace/midnight-did/packages/contract/src/managed/did"),
+    );
   });
 });

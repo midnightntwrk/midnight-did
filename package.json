@@ -32,6 +32,7 @@
     "zk-artifacts:bundle": "node scripts/build-zk-artifact-bundle.mjs",
     "zk-artifacts:check": "node scripts/check-zk-artifact-bundle.mjs",
     "published-artifacts:smoke": "node scripts/smoke-published-artifacts.mjs",
+    "published-standalone:smoke": "node scripts/smoke-published-standalone.mjs",
     "clean:artifacts": "node scripts/clean-artifacts.mjs",
     "report:integration": "node scripts/report-integration.mjs",
     "report:integration:schema": "node scripts/report-integration.mjs --schema",
