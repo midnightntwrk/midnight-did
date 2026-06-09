@@ -152,6 +152,12 @@ CI tooling. RC and final release versions also include
 `locations.githubRelease.archiveUrl`; snapshot versions publish workflow
 artifacts and GHCR artifacts only, so `locations.githubRelease` is `null`.
 
+When the ZK bundle is unpacked outside the installed package, set
+`MIDNIGHT_DID_ZK_CONFIG_PATH` to the directory containing `manifest.json`,
+`keys/`, and `zkir/` before importing `@midnight-ntwrk/midnight-did-api`.
+Without this override, the API uses the managed artifacts bundled with the
+installed contract package when available.
+
 `setLogger()` is optional for embedders. Until it is called, API helpers use a
 no-op logger so wallet/provider setup can run in minimal scripts without
 preconfiguring logging.

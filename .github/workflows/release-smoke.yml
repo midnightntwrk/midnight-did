@@ -1,0 +1,61 @@
+name: Published Release Standalone Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Published package and ZK artifact version, for example 0.4.0-rc1"
+        required: true
+        type: string
+      release_tag:
+        description: "GitHub Release tag. Defaults to v<version>."
+        required: false
+        type: string
+      registry:
+        description: "npm registry URL"
+        required: false
+        type: string
+        default: "https://npm.pkg.github.com"
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  PNPM_CONFIG_AUDIT: "false"
+  PNPM_CONFIG_FUND: "false"
+
+concurrency:
+  group: did-release-smoke-${{ github.event.inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  standalone:
+    name: Published Package Deploy/Update
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Smoke test published packages and release ZK assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NODE_AUTH_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
+          REGISTRY: ${{ inputs.registry }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          args=(
+            --version "${VERSION}"
+            --registry "${REGISTRY}"
+          )
+          if [[ -n "${RELEASE_TAG}" ]]; then
+            args+=(--github-release-tag "${RELEASE_TAG}")
+          fi
+          node scripts/smoke-published-standalone.mjs "${args[@]}"

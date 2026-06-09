@@ -238,6 +238,27 @@ from GitHub Packages and fetches the published ZK archive through
 `FetchZkConfigProvider` after pulling/downloading it from GHCR or GitHub Release
 assets. Reruns skip npm packages whose exact immutable version already exists.
 
+Release engineers can run a heavier standalone smoke against an RC or release.
+It installs the exact package version from GitHub Packages, downloads the
+matching GitHub Release ZK archive, unpacks those keys for
+`NodeZkConfigProvider`, deploys a DID contract, mutates it, and resolves the
+updated DID document:
+
+```bash
+export VERSION="0.4.0-rc1"
+export NODE_AUTH_TOKEN="<github-token-with-package-read>"
+export GH_TOKEN="<github-token-with-repo-read>"
+
+pnpm run published-standalone:smoke -- \
+  --version "${VERSION}" \
+  --github-release-tag "v${VERSION}"
+```
+
+Set `MIDNIGHT_DID_ZK_CONFIG_PATH` to an unpacked ZK bundle when bootstrapping
+published packages manually. The API also prefers the installed contract
+package's `dist/managed/did` directory when bundled managed artifacts are
+available.
+
 The GHCR path uses ORAS because ZK bundles are generic OCI artifacts, not
 container images or npm packages. The publish workflow installs the configured
 `ORAS_VERSION`, pushes the archive and manifest to GHCR, pulls the artifact back,
