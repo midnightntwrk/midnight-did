@@ -4,6 +4,7 @@
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { setTimeout } from "node:timers/promises";
@@ -28,6 +29,7 @@ const parseArgs = () => {
     registry: registryDefault,
     skipNpm: false,
     skipZk: false,
+    zkFetchMode: "http",
   };
   const args = process.argv.slice(2);
 
@@ -60,6 +62,9 @@ const parseArgs = () => {
       case "--zk-archive":
         options.zkArchive = args[++index];
         break;
+      case "--zk-fetch-mode":
+        options.zkFetchMode = args[++index];
+        break;
       case "--skip-npm":
         options.skipNpm = true;
         break;
@@ -78,6 +83,8 @@ const parseArgs = () => {
             "  --npm-install-retry-delay-ms <ms>",
             "                        Delay between npm install retries. Defaults to 10000.",
             "  --zk-archive <path>   Published ZK artifact tar.gz to verify through FetchZkConfigProvider.",
+            "  --zk-fetch-mode <http|injected>",
+            "                        Fetch unpacked ZK files through a localhost HTTP server or injected fetch. Defaults to http.",
             "  --oci-ref <ref>       Pull a ZK artifact from an OCI registry with ORAS, then verify it.",
             "  --github-release-tag <tag>",
             "                        Download a ZK artifact from a GitHub Release with gh, then verify it.",
@@ -426,6 +433,22 @@ const extractArchive = (archivePath) => {
   return extractRoot;
 };
 
+const artifactFilePath = (extractRoot, input) => {
+  const url = new URL(String(input));
+  const relativePath = url.pathname.replace(/^\/+/u, "");
+  const normalizedPath = path.posix.normalize(relativePath);
+
+  if (
+    normalizedPath.startsWith("../") ||
+    normalizedPath === ".." ||
+    !/^(keys|zkir)\//u.test(normalizedPath)
+  ) {
+    return undefined;
+  }
+
+  return path.join(extractRoot, ...normalizedPath.split("/"));
+};
+
 const fileBackedFetch = (extractRoot) => async (input, init = {}) => {
   const method = init.method ?? "GET";
   if (method !== "GET") {
@@ -435,23 +458,14 @@ const fileBackedFetch = (extractRoot) => async (input, init = {}) => {
     });
   }
 
-  const url = new URL(String(input));
-  const relativePath = url.pathname.replace(/^\/+/u, "");
-  const normalizedPath = path.normalize(relativePath);
-
-  if (
-    path.isAbsolute(normalizedPath) ||
-    normalizedPath.startsWith(`..${path.sep}`) ||
-    normalizedPath === ".." ||
-    !/^(keys|zkir)\//u.test(normalizedPath)
-  ) {
+  const filePath = artifactFilePath(extractRoot, input);
+  if (filePath === undefined) {
     return new Response("Bad Request", {
       status: 400,
       statusText: "Bad Request",
     });
   }
 
-  const filePath = path.join(extractRoot, normalizedPath);
   if (!fs.existsSync(filePath)) {
     return new Response("Not Found", {
       status: 404,
@@ -465,12 +479,82 @@ const fileBackedFetch = (extractRoot) => async (input, init = {}) => {
   });
 };
 
-const smokeZkArchive = async ({ archivePath, version }) => {
+const serveExtractedArchive = async (extractRoot) => {
+  const server = http.createServer((request, response) => {
+    if (request.method !== "GET" || request.url === undefined) {
+      response.writeHead(405).end("Method Not Allowed");
+      return;
+    }
+
+    const filePath = artifactFilePath(
+      extractRoot,
+      `http://127.0.0.1${request.url}`,
+    );
+    if (filePath === undefined) {
+      response.writeHead(400).end("Bad Request");
+      return;
+    }
+    if (!fs.existsSync(filePath)) {
+      response.writeHead(404).end("Not Found");
+      return;
+    }
+
+    response.writeHead(200, {
+      "Content-Type": "application/octet-stream",
+    });
+    fs.createReadStream(filePath).pipe(response);
+  });
+
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+
+  const address = server.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("ZK artifact HTTP smoke server did not bind to a TCP port");
+  }
+
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    close: () =>
+      new Promise((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      }),
+  };
+};
+
+const fetchProviderForExtractedArchive = async (extractRoot, zkFetchMode) => {
+  switch (zkFetchMode) {
+    case "http": {
+      const server = await serveExtractedArchive(extractRoot);
+      return {
+        provider: new FetchZkConfigProvider(server.baseUrl),
+        close: server.close,
+        modeLabel: `runtime HTTP fetch from ${server.baseUrl}`,
+      };
+    }
+    case "injected":
+      return {
+        provider: new FetchZkConfigProvider(
+          providerBaseUrl,
+          fileBackedFetch(extractRoot),
+        ),
+        close: async () => undefined,
+        modeLabel: "injected file-backed fetch",
+      };
+    default:
+      throw new Error("--zk-fetch-mode must be one of: http, injected");
+  }
+};
+
+const smokeZkArchive = async ({ archivePath, version, zkFetchMode }) => {
   if (!archivePath) {
     throw new Error("--zk-archive is required for ZK provider smoke testing");
   }
 
   const extractRoot = extractArchive(archivePath);
+  let providerContext;
   try {
     const manifest = JSON.parse(
       fs.readFileSync(path.join(extractRoot, "manifest.json"), "utf8"),
@@ -484,20 +568,21 @@ const smokeZkArchive = async ({ archivePath, version }) => {
       );
     }
 
-    const provider = new FetchZkConfigProvider(
-      providerBaseUrl,
-      fileBackedFetch(extractRoot),
+    providerContext = await fetchProviderForExtractedArchive(
+      extractRoot,
+      zkFetchMode,
     );
     for (const circuit of manifest.circuits) {
-      await provider.getProverKey(circuit.id);
-      await provider.getVerifierKey(circuit.id);
-      await provider.getZKIR(circuit.id);
+      await providerContext.provider.getProverKey(circuit.id);
+      await providerContext.provider.getVerifierKey(circuit.id);
+      await providerContext.provider.getZKIR(circuit.id);
     }
 
     console.log(
-      `[smoke-published-artifacts] fetched ${manifest.circuits.length} circuits through FetchZkConfigProvider`,
+      `[smoke-published-artifacts] fetched ${manifest.circuits.length} circuits through FetchZkConfigProvider using ${providerContext.modeLabel}`,
     );
   } finally {
+    await providerContext?.close();
     fs.rmSync(extractRoot, { force: true, recursive: true });
   }
 };
@@ -516,6 +601,10 @@ if (
   options.npmInstallRetryDelayMs < 0
 ) {
   throw new Error("--npm-install-retry-delay-ms must be a non-negative integer");
+}
+
+if (!["http", "injected"].includes(options.zkFetchMode)) {
+  throw new Error("--zk-fetch-mode must be one of: http, injected");
 }
 
 if (options.skipNpm && options.skipZk) {
@@ -560,6 +649,7 @@ if (!options.skipZk) {
     await smokeZkArchive({
       archivePath: resolvedArchive.archivePath,
       version: options.version,
+      zkFetchMode: options.zkFetchMode,
     });
   } finally {
     resolvedArchive.cleanup();

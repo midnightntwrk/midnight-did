@@ -103,8 +103,8 @@ Each run rebuilds the packages and managed Compact artifacts, checks package
 contents, creates a ZK artifact bundle, validates the bundle, publishes packages,
 smoke-tests the exact package version from GitHub Packages, pushes the bundle to
 GHCR, pulls it back, validates it, and fetches every circuit through
-`FetchZkConfigProvider`. RC and release runs also upload the bundle to a GitHub
-Release and download the asset back for the same validation.
+`FetchZkConfigProvider` over runtime HTTP. RC and release runs also upload the
+bundle to a GitHub Release and download the asset back for the same validation.
 
 ## ORAS and GHCR artifacts
 
@@ -223,4 +223,38 @@ pnpm run published-artifacts:smoke -- \
 The smoke test installs the exact package version from GitHub Packages, imports
 all package entry points, verifies the API package's embedded artifact metadata
 matches the requested version, downloads or pulls the ZK bundle, validates the
-bundle manifest, and fetches every circuit through `FetchZkConfigProvider`.
+bundle manifest, and fetches every circuit through `FetchZkConfigProvider` over
+runtime HTTP.
+
+## Standalone Release Smoke
+
+Use the `Published Release Standalone Smoke` workflow after publishing an RC or
+release when you need end-to-end confirmation that the published packages and
+GitHub Release ZK assets work together. The workflow installs the exact
+`@midnight-ntwrk/*` package version from GitHub Packages, downloads the matching
+release archive, unpacks it, boots the standalone Midnight environment, deploys
+a DID contract, adds a verification method, adds an authentication relation,
+adds and updates a service, and resolves the updated DID document.
+
+Local equivalent:
+
+```bash
+export VERSION="0.4.0-rc1"
+export NODE_AUTH_TOKEN="<github-token-with-package-read>"
+export GH_TOKEN="<github-token-with-repo-read>"
+
+pnpm run published-standalone:smoke -- \
+  --version "${VERSION}" \
+  --github-release-tag "v${VERSION}"
+```
+
+`NODE_AUTH_TOKEN` must be able to read private GitHub Packages. `GH_TOKEN` must
+be able to read the repository release asset. The script starts Docker Compose
+from `packages/api/standalone.yml` by default. If a standalone environment is
+already running, pass `--use-existing-standalone` and set `INDEXER_URL`,
+`INDEXER_WS_URL`, `NODE_RPC_URL`, and `PROOF_SERVER_URL` as needed.
+
+Published API packages can use unpacked release keys by setting
+`MIDNIGHT_DID_ZK_CONFIG_PATH` to the bundle root containing `manifest.json`,
+`keys/`, and `zkir/`. The API also prefers the installed contract package's
+`dist/managed/did` directory when bundled managed artifacts are available.
