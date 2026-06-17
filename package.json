@@ -61,7 +61,10 @@
   "packageManager": "pnpm@10.34.1",
   "pnpm": {
     "overrides": {
-      "vitepress>vite": "^6.4.2"
+      "vitepress>vite": "^6.4.2",
+      "dompurify": "^3.4.11",
+      "js-yaml": "^4.2.0",
+      "esbuild@>=0.27.3 <0.28.1": "0.28.1"
     }
   },
   "type": "module",

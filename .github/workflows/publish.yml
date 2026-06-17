@@ -47,7 +47,7 @@ jobs:
       snapshot_release_relevant: ${{ steps.classify.outputs.snapshot_release_relevant }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -86,7 +86,7 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Checkout repository
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -102,7 +102,7 @@ jobs:
         run: corepack enable
 
       - name: Set up Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v4
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # ratchet:actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -112,6 +112,7 @@ jobs:
         uses: midnightntwrk/setup-compact-action@v1
         with:
           compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
+          github-token: ${{ github.token }}
 
       - name: Verify Compact installation
         run: compact compile --version
