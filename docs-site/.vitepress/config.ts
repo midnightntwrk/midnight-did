@@ -13,6 +13,7 @@ export default defineConfig({
   lastUpdated: true,
   appearance: false,
   markdown: {
+    theme: "github-light",
     config(md) {
       const fence = md.renderer.rules.fence?.bind(md.renderer.rules);
       md.renderer.rules.fence = (tokens, idx, options, env, self) => {
@@ -36,6 +37,7 @@ export default defineConfig({
       { text: "Compact", link: "/compact/" },
       { text: "API Reference", link: "/api/" },
       { text: "Libs", link: "/packages/" },
+      { text: "Development", link: "/development/" },
       { text: "GitHub", link: "https://github.com/midnightntwrk/midnight-did" },
     ],
     sidebar: {
@@ -46,18 +48,32 @@ export default defineConfig({
             { text: "Overview", link: "/guide/" },
             { text: "Quickstart", link: "/guide/quickstart" },
             { text: "Key Model", link: "/guide/key-model" },
-            { text: "Local Development", link: "/guide/local-development" },
-            { text: "Testing Strategy", link: "/guide/testing-strategy" },
+          ],
+        },
+      ],
+      "/development/": [
+        {
+          text: "Development",
+          items: [
+            { text: "Overview", link: "/development/" },
+            {
+              text: "Local Development",
+              link: "/development/local-development",
+            },
+            {
+              text: "Testing Strategy",
+              link: "/development/testing-strategy",
+            },
             {
               text: "DID Surface Change Discipline",
-              link: "/guide/did-surface-change-discipline",
+              link: "/development/did-surface-change-discipline",
             },
             {
               text: "Repository Boundaries",
-              link: "/guide/repository-boundaries",
+              link: "/development/repository-boundaries",
             },
-            { text: "GitHub Pages", link: "/guide/github-pages" },
-            { text: "Publishing", link: "/guide/publishing" },
+            { text: "GitHub Pages", link: "/development/github-pages" },
+            { text: "Publishing", link: "/development/publishing" },
           ],
         },
       ],

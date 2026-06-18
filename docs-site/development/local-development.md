@@ -28,7 +28,7 @@ compact update 0.30.0
 Resolver service, DID manager, and secret-storage validation moved to
 [`midnight-did-resolver`](https://github.com/midnightntwrk/midnight-did-resolver).
 Credential and Passport work lives in the VC and solution-example repositories.
-See [Repository Boundaries](/guide/repository-boundaries) before adding new
+See [Repository Boundaries](/development/repository-boundaries) before adding new
 cross-repository docs or scripts.
 
 ## Validation

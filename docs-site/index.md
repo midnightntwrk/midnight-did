@@ -17,9 +17,9 @@ VC/VP packages live in
 ## Start Here
 
 - [Method Specification](/spec/midnight-method)
-- [Local Development](/guide/local-development)
+- [Local Development](/development/local-development)
 - [Libs](/packages/)
-- [GitHub Pages publishing](/guide/github-pages)
+- [GitHub Pages publishing](/development/github-pages)
 - [Architecture](/architecture/)
 - [Use Cases](/use-cases/)
 

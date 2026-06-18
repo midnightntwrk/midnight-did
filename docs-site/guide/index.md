@@ -25,7 +25,7 @@ flowchart LR
 | Learn the DID method rules | [DID Method](/spec/midnight-method) |
 | Work on Compact circuits | [Compact Contract Surface](/compact/) |
 | Pick the right TypeScript package | [Libs](/packages/) |
-| Contribute to this repository | [Local Development](/guide/local-development) |
+| Contribute to this repository | [Development](/development/) |
 
 ## What Lives Here
 
@@ -49,12 +49,3 @@ private witness. The ledger does not see it, but a delegated proof server may.
 Use a local prover or proof infrastructure trusted with the DID controller
 secret. See [Key Model](/guide/key-model#trusted-proof-server-model) for the
 operating assumption and future direction.
-
-## Contributor Pages
-
-- [Local Development](/guide/local-development)
-- [Testing Strategy](/guide/testing-strategy)
-- [DID Surface Change Discipline](/guide/did-surface-change-discipline)
-- [Repository Boundaries](/guide/repository-boundaries)
-- [GitHub Pages](/guide/github-pages)
-- [Publishing](/guide/publishing)

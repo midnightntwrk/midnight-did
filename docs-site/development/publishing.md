@@ -44,7 +44,7 @@ and is too heavy for docs-only CI.
 
 ## Pages Deployment
 
-See [GitHub Pages](/guide/github-pages) for the repository setting and workflow
+See [GitHub Pages](/development/github-pages) for the repository setting and workflow
 behavior.
 
 ## Package And ZK Artifact Publication
