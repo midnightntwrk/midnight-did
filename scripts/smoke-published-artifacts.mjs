@@ -344,7 +344,7 @@ const writeConsumerSmokeScript = (consumerRoot, version) => {
       "if (artifactLocations.ghcr.reference !== `${api.MIDNIGHT_DID_GHCR_ARTIFACT_REPOSITORY}:${expectedVersion}`) {",
       "  throw new Error('api package GHCR artifact metadata did not match package version');",
       "}",
-      "console.log(`[smoke-published-artifacts] imported ${imports.length} package entry points from npm registry`);",
+      "console.log('[smoke-published-artifacts] imported ' + imports.length + ' package entry points from npm registry');",
       "",
     ].join("\n"),
   );

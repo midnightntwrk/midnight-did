@@ -1,5 +1,13 @@
 # Midnight DID
 
+[![CI](https://github.com/midnightntwrk/midnight-did/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/midnightntwrk/midnight-did/actions/workflows/ci.yml)
+[![Quality](https://github.com/midnightntwrk/midnight-did/actions/workflows/quality.yml/badge.svg?branch=main)](https://github.com/midnightntwrk/midnight-did/actions/workflows/quality.yml)
+[![Docs](https://github.com/midnightntwrk/midnight-did/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/midnightntwrk/midnight-did/actions/workflows/docs.yml)
+[![Release](https://github.com/midnightntwrk/midnight-did/actions/workflows/publish.yml/badge.svg?branch=main)](https://github.com/midnightntwrk/midnight-did/actions/workflows/publish.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/midnightntwrk/midnight-did/badge)](https://securityscorecards.dev/viewer/?uri=github.com/midnightntwrk/midnight-did)
+[![License](https://img.shields.io/github/license/midnightntwrk/midnight-did)](https://github.com/midnightntwrk/midnight-did/blob/main/LICENSE)
+[![Latest Tag](https://img.shields.io/github/v/release/midnightntwrk/midnight-did)](https://github.com/midnightntwrk/midnight-did/releases/latest)
+
 Midnight DID is the reference implementation of the `did:midnight` method.
 This repository owns the core DID contract, domain model, ledger mapping, and TypeScript API orchestration.
 
