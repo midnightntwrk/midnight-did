@@ -9,6 +9,7 @@ overrides:
   dompurify: ^3.4.11
   js-yaml: ^4.2.0
   esbuild@>=0.27.3 <0.28.1: 0.28.1
+  undici: ^7.28.0
 
 importers:
 
@@ -4309,8 +4310,8 @@ packages:
   undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
-  undici@7.26.0:
-    resolution: {integrity: sha512-3O9Tf67pGhgOv9jM35AbhkXAKi13f3oy3aE4CSgr+TckGeY+/iu97ZXN+J7DpHPzLbVApFd1IFhcnBjREYXYcg==}
+  undici@7.28.0:
+    resolution: {integrity: sha512-cRZYrTDwWznlnRiPjggAGxZXanty6M8RV1ff8Wm4LWXBp7/IG8v5DnOm74DtUBp9OONpK75YlPnIjQqX0dBDtA==}
     engines: {node: '>=20.18.1'}
 
   unist-util-is@6.0.1:
@@ -9006,7 +9007,7 @@ snapshots:
       ssh-remote-port-forward: 1.0.4
       tar-fs: 3.1.2
       tmp: 0.2.7
-      undici: 7.26.0
+      undici: 7.28.0
     transitivePeerDependencies:
       - bare-abort-controller
       - bare-buffer
@@ -9158,7 +9159,7 @@ snapshots:
 
   undici-types@6.21.0: {}
 
-  undici@7.26.0: {}
+  undici@7.28.0: {}
 
   unist-util-is@6.0.1:
     dependencies:
