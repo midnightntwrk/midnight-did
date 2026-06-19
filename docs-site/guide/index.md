@@ -20,6 +20,7 @@ flowchart LR
 | Goal | Start here |
 | --- | --- |
 | Try the main flow in a standalone environment | [Quickstart](/guide/quickstart) |
+| Choose network endpoint defaults | [Network Endpoints](/guide/network-endpoints) |
 | Bootstrap an issuer DID with real Ed25519 and SchnorrJubjub keys | [API Examples](/packages/api-examples#bootstrap-an-issuer-did) |
 | Understand supported keys and signing paths | [Key Model](/guide/key-model) |
 | Learn the DID method rules | [DID Method](/spec/midnight-method) |

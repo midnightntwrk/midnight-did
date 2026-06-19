@@ -33,7 +33,9 @@ The script creates and publishes an Ed25519 authentication verification method
 and a SchnorrJubjub `assertionMethod` verification method, resolves the DID
 Document to confirm both relations, and writes the local signing secrets to the
 issuer keystore. See [API Examples](/packages/api-examples#bootstrap-an-issuer-did)
-for the output shape and source link.
+for the output shape and source link. See
+[Network Endpoints](/guide/network-endpoints) for the canonical profile matrix
+and standalone endpoint defaults.
 
 The rest of this page shows the same API surface as smaller steps.
 
@@ -165,5 +167,7 @@ public key, so the proof is tied to the current DID Document state.
 ## Next Steps
 
 - Review the [Key Model](/guide/key-model) before choosing key profiles.
+- Use [Network Endpoints](/guide/network-endpoints) when selecting a runtime
+  profile.
 - Use [Compact Contract Surface](/compact/) before changing circuits.
 - Use [Local Development](/development/local-development) when preparing a PR.

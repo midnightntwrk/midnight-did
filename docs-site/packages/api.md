@@ -37,3 +37,5 @@ The public API is exported from `packages/api/src/index.ts`.
 Run `pnpm run docs:api` locally when you need generated TypeDoc pages.
 Use [API Examples](/packages/api-examples#bootstrap-an-issuer-did) for a
 complete runnable issuer DID bootstrap flow.
+Use [Network Endpoints](/guide/network-endpoints) for the canonical runtime
+profile and endpoint matrix.

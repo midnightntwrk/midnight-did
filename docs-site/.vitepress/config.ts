@@ -47,6 +47,7 @@ export default defineConfig({
           items: [
             { text: "Overview", link: "/guide/" },
             { text: "Quickstart", link: "/guide/quickstart" },
+            { text: "Network Endpoints", link: "/guide/network-endpoints" },
             { text: "Key Model", link: "/guide/key-model" },
           ],
         },
