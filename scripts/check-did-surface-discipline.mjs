@@ -237,7 +237,9 @@ assertIncludes(
   "managed artifact catalog",
 );
 
-const docsGuide = readText("docs-site/guide/did-surface-change-discipline.md");
+const docsGuide = readText(
+  "docs-site/development/did-surface-change-discipline.md",
+);
 assertIncludes(docsGuide, "Use `develop`", "docs-site surface guide");
 assertIncludes(
   docsGuide,
@@ -246,14 +248,14 @@ assertIncludes(
 );
 assertIncludes(
   readText("docs-site/.vitepress/config.ts"),
-  "/guide/did-surface-change-discipline",
+  "/development/did-surface-change-discipline",
   "docs-site sidebar",
 );
 
 const resolverRepoUrl =
   "https://github.com/midnightntwrk/midnight-did-resolver";
 const repositoryBoundaryGuide = readText(
-  "docs-site/guide/repository-boundaries.md",
+  "docs-site/development/repository-boundaries.md",
 );
 assertIncludes(
   repositoryBoundaryGuide,
@@ -272,24 +274,30 @@ assertIncludes(
 );
 assertIncludes(
   readText("docs-site/.vitepress/config.ts"),
-  "/guide/repository-boundaries",
+  "/development/repository-boundaries",
   "docs-site sidebar",
 );
 assertIncludes(
   readText("docs-site/guide/index.md"),
-  "/guide/repository-boundaries",
+  "/development/",
   "docs-site guide index",
 );
 assertIncludes(
   readText("docs-site/.vitepress/config.ts"),
-  "/guide/github-pages",
+  "/development/github-pages",
   "docs-site sidebar",
 );
 
 for (const [docsPath, label] of [
   ["docs-site/index.md", "docs-site landing page"],
-  ["docs-site/guide/local-development.md", "docs-site local development guide"],
-  ["docs-site/guide/testing-strategy.md", "docs-site testing strategy"],
+  [
+    "docs-site/development/local-development.md",
+    "docs-site local development guide",
+  ],
+  [
+    "docs-site/development/testing-strategy.md",
+    "docs-site testing strategy",
+  ],
   ["docs-site/packages/index.md", "docs-site packages overview"],
   ["docs-site/architecture/index.md", "docs-site architecture overview"],
   [

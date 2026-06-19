@@ -22,4 +22,4 @@ the docs build:
 - use the method spec's resolution media-type table when implementing resolver
   HTTP responses or `resolveRepresentation` support
 - read **Midnight DID Traits** for a capability summary against DID method traits
-- use the package docs and [repository boundary guide](/guide/repository-boundaries) when you need to know where those rules are implemented
+- use the package docs and [repository boundary guide](/development/repository-boundaries) when you need to know where those rules are implemented

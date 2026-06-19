@@ -60,6 +60,6 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 _Status icons:_ ✔ Supported · △ Partial support / restriction · ✖ Not supported.
 
 [W3C-DID]: https://www.w3.org/TR/did-core/ "Decentralized Identifiers (DID) v1.0"
-[RFC3986]: https://www.rfc-editor.org/rfc/rfc3986 "RFC 3986: Uniform Resource Identifier (URI): Generic Syntax"
-[RFC7517]: https://www.rfc-editor.org/rfc/rfc7517 "RFC 7517: JSON Web Key (JWK)"
+[RFC3986]: https://www.rfc-editor.org/info/rfc3986 "RFC 3986: Uniform Resource Identifier (URI): Generic Syntax"
+[RFC7517]: https://www.rfc-editor.org/info/rfc7517 "RFC 7517: JSON Web Key (JWK)"
 [CID-1.0]: https://www.w3.org/TR/cid-1.0/ "DIDComm Messaging v2.0: Core (CID 1.0)"

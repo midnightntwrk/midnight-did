@@ -1,0 +1,13 @@
+# Development
+
+Repository-facing guides for building, testing, publishing, and maintaining the
+Midnight DID implementation.
+
+| Topic | Use when |
+| --- | --- |
+| [Local Development](/development/local-development) | Setting up the repository and running local validation. |
+| [Testing Strategy](/development/testing-strategy) | Choosing the right validation lane for a change. |
+| [DID Surface Change Discipline](/development/did-surface-change-discipline) | Changing public DID behavior, APIs, or contract state. |
+| [Repository Boundaries](/development/repository-boundaries) | Deciding whether work belongs in DID, resolver, VC, examples, or trust registry. |
+| [GitHub Pages](/development/github-pages) | Maintaining the docs publishing workflow. |
+| [Publishing](/development/publishing) | Publishing packages and ZK artifacts. |
