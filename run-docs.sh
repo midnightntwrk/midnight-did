@@ -3,6 +3,9 @@ set -euo pipefail
 
 node ./scripts/ensure-node-24.mjs
 
+echo "[docs] Validate docs"
+pnpm run docs:validate
+
 echo "[docs] Build VitePress site"
 pnpm run docs:build
 
