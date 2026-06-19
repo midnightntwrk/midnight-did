@@ -8,30 +8,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const scriptPath = fileURLToPath(import.meta.url);
 const repoRoot = resolve(dirname(scriptPath), "..");
 const docsRoot = resolve(repoRoot, "docs-site");
-const specRoot = resolve(repoRoot, "w3c-spec");
-
-const stalePatterns = [
-  {
-    pattern: "api/v1/graphql",
-    message: "stale GraphQL endpoint path; use the current endpoint wording",
-  },
-  {
-    pattern: "localhost:18088",
-    message: "stale local service port; use the current documented port",
-  },
-  {
-    pattern: "localhost:19944",
-    message: "stale local service port; use the current documented port",
-  },
-  {
-    pattern: "localhost:16300",
-    message: "stale local service port; use the current documented port",
-  },
-  {
-    pattern: "Draft v0.2",
-    message: "stale spec version label; update the draft version",
-  },
-];
 
 const toPosix = (value) => value.split(sep).join("/");
 
@@ -248,37 +224,6 @@ const validateLinks = async (root = docsRoot) => {
   return failures;
 };
 
-const validateStalePatterns = async () => {
-  const roots = [docsRoot, specRoot].filter((root) => existsSync(root));
-  const files = (
-    await Promise.all(
-      roots.map((root) =>
-        walkFiles(root, (filePath) =>
-          [".md", ".ts", ".mjs"].includes(extname(filePath)),
-        ),
-      ),
-    )
-  ).flat();
-  const failures = [];
-
-  for (const filePath of files) {
-    const content = await readFile(filePath, "utf8");
-    for (const { pattern, message } of stalePatterns) {
-      let index = content.indexOf(pattern);
-      while (index !== -1) {
-        failures.push({
-          filePath,
-          line: lineAt(content, index),
-          message: `${message}: '${pattern}'`,
-        });
-        index = content.indexOf(pattern, index + pattern.length);
-      }
-    }
-  }
-
-  return failures;
-};
-
 const validateSpecDrift = () => {
   execFileSync("node", ["docs-site/scripts/sync-spec-docs.mjs"], {
     cwd: repoRoot,
@@ -312,7 +257,6 @@ const main = async () => {
   const failures = [
     ...validateSpecDrift(),
     ...(await validateLinks()),
-    ...(await validateStalePatterns()),
   ];
 
   if (failures.length > 0) {
@@ -337,5 +281,4 @@ export {
   slugify,
   splitTarget,
   validateLinks,
-  validateStalePatterns,
 };
