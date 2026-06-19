@@ -64,6 +64,9 @@ jobs:
       - name: Check DID surface discipline
         run: pnpm run check:did-surface-discipline
 
+      - name: Validate docs
+        run: pnpm run docs:validate
+
       - name: Build docs site
         run: ./run.sh docs
 
