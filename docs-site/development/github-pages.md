@@ -45,6 +45,10 @@ repository environment.
 The published site follows `develop`, not `main`. Treat merges to `develop` as
 public documentation releases.
 
+Published pages may be read by people who cannot access every Midnight GitHub
+repository. Follow the [public/private link policy](/development/public-private-links)
+when adding source links or references to access-restricted repositories.
+
 ## Workflow Behavior
 
 - Pull requests to `main` or `develop`: build the docs only.
