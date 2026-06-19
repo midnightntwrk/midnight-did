@@ -1,4 +1,4 @@
-# Midnight DID Specification Draft v0.2
+# Midnight DID Specification Draft v0.4.0
 
 > Implementation guides: [Quickstart](/guide/quickstart), [Key Model](/guide/key-model), and [Compact Contract Surface](/compact/).
 
@@ -563,11 +563,11 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | deactivated                    | `Boolean`                                    | Whether the DID has been deactivated. When `true`, the resolver surfaces `deactivated: true` in metadata and reuses the `updated` timestamp as the deactivation time. |
 | active                         | `Boolean`                                    | Whether the DID is active (`true`) or deactivated (`false`). If `active` is false, the resolver MUST set `deactivated: true` in DID Document metadata. |
 | operationCount                 | `Counter`                                    | Total number of DID update operations applied to this DID. Used for internal statistics. |
-| verificationMethods            | `Map<Opaque<"string">, VerificationMethod>`    | Map from verification method identifiers (canonicalized to fragment form for storage) to opaque JWK key material for non-Jubjub keys. Resolver output reconstructs canonical absolute DID URLs for `verificationMethod.id`. |
-| verificationMethods[*].publicKeyJwk.x | `Opaque<"string">` | Canonical unpadded base64url JWK `x` value. Supported lengths are 32 bytes for Ed25519, X25519, P-256, and secp256k1; 48 bytes for BLS12381G1; and 96 bytes for BLS12381G2. |
-| verificationMethods[*].publicKeyJwk.y | `Opaque<"string">` | Canonical unpadded base64url JWK `y` value for EC keys. OKP keys store an empty string sentinel and resolver output omits `y`. |
-| schnorrJubjubVerificationMethods | `Map<Opaque<"string">, SchnorrJubjubVerificationMethod>` | Map from verification method identifiers to native SchnorrJubjub public keys. Resolver output merges these entries into the DID Document `verificationMethod` array as `JsonWebKey` entries with `crv = "Jubjub"`. |
-| schnorrJubjubVerificationMethods[*].publicKey | `JubjubPoint` | Native Jubjub public key point (`Field` `x` and `y` coordinates). This is the canonical on-ledger representation for Jubjub verification methods. |
+| verificationMethods            | `Map<Opaque<"string">, VerificationMethod>`    | Non-Jubjub verification methods keyed by canonical fragment id. Values store opaque canonical JWK material. Resolver output expands ids to absolute DID URLs. |
+| verificationMethods[*].publicKeyJwk.x | `Opaque<"string">` | Canonical unpadded base64url JWK `x`. Byte lengths: Ed25519, X25519, P-256, and secp256k1 use 32; BLS12381G1 uses 48; BLS12381G2 uses 96. |
+| verificationMethods[*].publicKeyJwk.y | `Opaque<"string">` | EC `y` coordinate. OKP entries store an empty string sentinel; resolver output omits `y`. |
+| schnorrJubjubVerificationMethods | `Map<Opaque<"string">, SchnorrJubjubVerificationMethod>` | SchnorrJubjub methods keyed by canonical fragment id. Resolver output merges them into `verificationMethod` as `JsonWebKey` entries with `crv: "Jubjub"`. |
+| schnorrJubjubVerificationMethods[*].publicKey | `JubjubPoint` | Native Jubjub public key point (`Field` `x`, `Field` `y`). Canonical on-ledger representation for Jubjub methods. |
 | authenticationRelation         | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored in canonical fragment form, for example `#key-1`) authorized for `authentication`. The DIDDocument's `authentication` property is reconstructed from this state. |
 | assertionMethodRelation        | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored in canonical fragment form, for example `#key-1`) authorized for `assertionMethod`. The DIDDocument's `assertionMethod` property is reconstructed from this state. |
 | keyAgreementRelation           | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored in canonical fragment form, for example `#key-1`) authorized for `keyAgreement`. The DIDDocument's `keyAgreement` property is reconstructed from this state. |
@@ -1101,31 +1101,31 @@ A simple example of a Midnight DID Document is as follows:
 
 ### Normative References
 
-- [W3C-DID]
-- [RFC2119]
-- [RFC3986]
-- [RFC4648]
-- [RFC7517]
-- [RFC8037]
-- [VC-DATA-MODEL]
-- [DID-SPEC-REGISTRIES]
+- [W3C-DID] - Decentralized Identifiers (DID) v1.0
+- [RFC2119] - Keywords for use in RFCs to Indicate Requirement Levels
+- [RFC3986] - Uniform Resource Identifier (URI): Generic Syntax
+- [RFC4648] - The Base16, Base32, and Base64 Data Encodings
+- [RFC7517] - JSON Web Key (JWK)
+- [RFC8037] - CFRG Elliptic Curve Diffie-Hellman and Signatures in JOSE
+- [VC-DATA-MODEL] - Verifiable Credentials Data Model
+- [DID-SPEC-REGISTRIES] - DID Specification Registries
 
 ### Informative References
 
-- [DID-CORE-VERIFICATION-RELATIONSHIPS]
-- [DID-CORE-SERVICES]
-- [DID-CORE-DOCUMENT-METADATA]
-- [DID-PEER-METHOD]
-- [CID-1.0]
-- [IETF-BLS-KEY-REPRESENTATIONS]
-- [MIDNIGHT-WHITEPAPER]
+- [DID-CORE-VERIFICATION-RELATIONSHIPS] - DID Core: Verification Relationships
+- [DID-CORE-SERVICES] - DID Core: Services
+- [DID-CORE-DOCUMENT-METADATA] - DID Core: DID Document Metadata
+- [DID-PEER-METHOD] - Peer DID Method Specification
+- [CID-1.0] - DIDComm Messaging v2.0: Core (CID 1.0)
+- [IETF-BLS-KEY-REPRESENTATIONS] - Barreto-Lynn-Scott Elliptic Curve Key Representations for JOSE and COSE
+- [MIDNIGHT-WHITEPAPER] - Midnight Whitepaper
 
 [W3C-DID]: https://www.w3.org/TR/did-core/ "Decentralized Identifiers (DID) v1.0"
-[RFC2119]: https://www.rfc-editor.org/rfc/rfc2119 "RFC 2119: Keywords for use in RFCs to Indicate Requirement Levels"
-[RFC3986]: https://www.rfc-editor.org/rfc/rfc3986 "RFC 3986: Uniform Resource Identifier (URI): Generic Syntax"
-[RFC4648]: https://www.rfc-editor.org/rfc/rfc4648 "RFC 4648: The Base16, Base32, and Base64 Data Encodings"
-[RFC7517]: https://www.rfc-editor.org/rfc/rfc7517 "RFC 7517: JSON Web Key (JWK)"
-[RFC8037]: https://www.rfc-editor.org/rfc/rfc8037 "RFC 8037: CFRG Elliptic Curve Diffie-Hellman and Signatures in JOSE"
+[RFC2119]: https://www.rfc-editor.org/info/rfc2119 "RFC 2119: Keywords for use in RFCs to Indicate Requirement Levels"
+[RFC3986]: https://www.rfc-editor.org/info/rfc3986 "RFC 3986: Uniform Resource Identifier (URI): Generic Syntax"
+[RFC4648]: https://www.rfc-editor.org/info/rfc4648 "RFC 4648: The Base16, Base32, and Base64 Data Encodings"
+[RFC7517]: https://www.rfc-editor.org/info/rfc7517 "RFC 7517: JSON Web Key (JWK)"
+[RFC8037]: https://www.rfc-editor.org/info/rfc8037 "RFC 8037: CFRG Elliptic Curve Diffie-Hellman and Signatures in JOSE"
 [VC-DATA-MODEL]: https://www.w3.org/TR/vc-data-model/ "Verifiable Credentials Data Model"
 [DID-SPEC-REGISTRIES]: https://www.w3.org/TR/did-spec-registries/ "DID Specification Registries"
 [DID-CORE-VERIFICATION-RELATIONSHIPS]: https://www.w3.org/TR/did-core/#verification-relationships "DID Core: Verification Relationships"
