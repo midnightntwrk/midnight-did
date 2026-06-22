@@ -10,4 +10,5 @@ Midnight DID implementation.
 | [DID Surface Change Discipline](/development/did-surface-change-discipline) | Changing public DID behavior, APIs, or contract state. |
 | [Repository Boundaries](/development/repository-boundaries) | Deciding whether work belongs in DID, resolver, VC, examples, or trust registry. |
 | [GitHub Pages](/development/github-pages) | Maintaining the docs publishing workflow. |
+| [Public and Private Links](/development/public-private-links) | Linking from published docs to public pages and access-restricted repositories. |
 | [Publishing](/development/publishing) | Publishing packages and ZK artifacts. |
