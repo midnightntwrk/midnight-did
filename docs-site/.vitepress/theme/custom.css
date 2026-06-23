@@ -47,7 +47,7 @@
   --vp-font-family-base: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --vp-font-family-mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --vp-nav-height: 60px;
-  --vp-sidebar-width: 248px;
+  --vp-sidebar-width: 272px;
   --vp-layout-max-width: 1840px;
   --vp-content-width: 1200px;
 }
@@ -364,6 +364,29 @@ body {
 }
 
 @media (min-width: 960px) {
+  .VPSidebar {
+    padding-right: 32px !important;
+    padding-left: 32px !important;
+    width: var(--vp-sidebar-width) !important;
+  }
+
+  .VPNavBarTitle.has-sidebar {
+    left: 0 !important;
+    padding-right: 32px !important;
+    padding-left: 32px !important;
+    width: var(--vp-sidebar-width) !important;
+  }
+
+  .VPNavBar.has-sidebar .title {
+    padding-left: 32px !important;
+    width: var(--vp-sidebar-width) !important;
+  }
+
+  .VPNavBar.has-sidebar .content,
+  .VPContent.has-sidebar {
+    padding-left: var(--vp-sidebar-width) !important;
+  }
+
   .VPDoc.has-aside .content-container {
     max-width: 1200px !important;
     width: 100% !important;
