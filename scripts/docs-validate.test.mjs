@@ -69,3 +69,22 @@ test("validateLinks accepts local clean routes and reports missing anchors", asy
     await rm(root, { force: true, recursive: true });
   }
 });
+
+test("validateLinks accepts public and relative asset links", async () => {
+  const root = await mkdtemp(resolve(tmpdir(), "docs-validate-"));
+  try {
+    await mkdir(resolve(root, "public"), { recursive: true });
+    await writeFile(resolve(root, "public", "logo.svg"), "<svg></svg>\n");
+
+    await mkdir(resolve(root, "guide", "assets"), { recursive: true });
+    await writeFile(resolve(root, "guide", "assets", "diagram.svg"), "<svg></svg>\n");
+    await writeFile(
+      resolve(root, "guide", "index.md"),
+      "# Guide\n\n![Logo](/logo.svg)\n\n![Diagram](./assets/diagram.svg)\n",
+    );
+
+    assert.deepEqual(await validateLinks(root), []);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});

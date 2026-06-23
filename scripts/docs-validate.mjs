@@ -2,7 +2,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
-import { dirname, extname, relative, resolve, sep } from "node:path";
+import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -13,7 +13,7 @@ const toPosix = (value) => value.split(sep).join("/");
 
 const isSubpath = (parent, child) => {
   const rel = relative(parent, child);
-  return rel === "" || (!rel.startsWith("..") && !resolve(rel).startsWith("/"));
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 };
 
 const walkFiles = async (root, predicate) => {
