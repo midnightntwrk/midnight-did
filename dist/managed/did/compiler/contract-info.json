@@ -1,0 +1,479 @@
+{
+  "compiler-version": "0.30.0",
+  "language-version": "0.22.0",
+  "runtime-version": "0.15.0",
+  "circuits": [
+    {
+      "name": "rotateControllerKey",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "newControllerPublicKey",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "setAlsoKnownAs",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "value",
+          "type": {
+            "type-name": "Opaque",
+            "tsType": "string"
+          }
+        },
+        {
+          "name": "mutation",
+          "type": {
+            "type-name": "Enum",
+            "name": "SetMutation",
+            "elements": [
+              "Undefined",
+              "Insert",
+              "Remove"
+            ]
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "setVerificationMethod",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "verificationMethod",
+          "type": {
+            "type-name": "Struct",
+            "name": "VerificationMethod",
+            "elements": [
+              {
+                "name": "id",
+                "type": {
+                  "type-name": "Opaque",
+                  "tsType": "string"
+                }
+              },
+              {
+                "name": "typ",
+                "type": {
+                  "type-name": "Enum",
+                  "name": "VerificationMethodType",
+                  "elements": [
+                    "Undefined",
+                    "JsonWebKey"
+                  ]
+                }
+              },
+              {
+                "name": "publicKeyJwk",
+                "type": {
+                  "type-name": "Struct",
+                  "name": "PublicKeyJwk",
+                  "elements": [
+                    {
+                      "name": "kty",
+                      "type": {
+                        "type-name": "Enum",
+                        "name": "KeyType",
+                        "elements": [
+                          "EC",
+                          "RSA",
+                          "oct",
+                          "OKP"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "crv",
+                      "type": {
+                        "type-name": "Enum",
+                        "name": "CurveType",
+                        "elements": [
+                          "Ed25519",
+                          "X25519",
+                          "Jubjub",
+                          "P256",
+                          "Secp256k1"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "x",
+                      "type": {
+                        "type-name": "Opaque",
+                        "tsType": "string"
+                      }
+                    },
+                    {
+                      "name": "y",
+                      "type": {
+                        "type-name": "Opaque",
+                        "tsType": "string"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "mutation",
+          "type": {
+            "type-name": "Enum",
+            "name": "MapMutation",
+            "elements": [
+              "Undefined",
+              "Insert",
+              "Update"
+            ]
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "removeVerificationMethod",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "id",
+          "type": {
+            "type-name": "Opaque",
+            "tsType": "string"
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "setSchnorrJubjubVerificationMethod",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "verificationMethod",
+          "type": {
+            "type-name": "Struct",
+            "name": "SchnorrJubjubVerificationMethod",
+            "elements": [
+              {
+                "name": "id",
+                "type": {
+                  "type-name": "Opaque",
+                  "tsType": "string"
+                }
+              },
+              {
+                "name": "publicKey",
+                "type": {
+                  "type-name": "Alias",
+                  "name": "JubjubPoint",
+                  "type": {
+                    "type-name": "Opaque",
+                    "tsType": "JubjubPoint"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "mutation",
+          "type": {
+            "type-name": "Enum",
+            "name": "MapMutation",
+            "elements": [
+              "Undefined",
+              "Insert",
+              "Update"
+            ]
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "removeSchnorrJubjubVerificationMethod",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "id",
+          "type": {
+            "type-name": "Opaque",
+            "tsType": "string"
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "verifySchnorrJubjubDigestSignature",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "methodId",
+          "type": {
+            "type-name": "Opaque",
+            "tsType": "string"
+          }
+        },
+        {
+          "name": "digest",
+          "type": {
+            "type-name": "Vector",
+            "length": 4,
+            "type": {
+              "type-name": "Field"
+            }
+          }
+        },
+        {
+          "name": "signature",
+          "type": {
+            "type-name": "Struct",
+            "name": "SchnorrSignature",
+            "elements": [
+              {
+                "name": "announcement",
+                "type": {
+                  "type-name": "Alias",
+                  "name": "JubjubPoint",
+                  "type": {
+                    "type-name": "Opaque",
+                    "tsType": "JubjubPoint"
+                  }
+                }
+              },
+              {
+                "name": "response",
+                "type": {
+                  "type-name": "Field"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "setVerificationMethodRelation",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "relation",
+          "type": {
+            "type-name": "Enum",
+            "name": "VerificationMethodRelation",
+            "elements": [
+              "Undefined",
+              "Authentication",
+              "AssertionMethod",
+              "KeyAgreement",
+              "CapabilityInvocation",
+              "CapabilityDelegation"
+            ]
+          }
+        },
+        {
+          "name": "methodId",
+          "type": {
+            "type-name": "Opaque",
+            "tsType": "string"
+          }
+        },
+        {
+          "name": "mutation",
+          "type": {
+            "type-name": "Enum",
+            "name": "SetMutation",
+            "elements": [
+              "Undefined",
+              "Insert",
+              "Remove"
+            ]
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "setService",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "service",
+          "type": {
+            "type-name": "Struct",
+            "name": "Service",
+            "elements": [
+              {
+                "name": "id",
+                "type": {
+                  "type-name": "Opaque",
+                  "tsType": "string"
+                }
+              },
+              {
+                "name": "typ",
+                "type": {
+                  "type-name": "Opaque",
+                  "tsType": "string"
+                }
+              },
+              {
+                "name": "serviceEndpoint",
+                "type": {
+                  "type-name": "Opaque",
+                  "tsType": "string"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "mutation",
+          "type": {
+            "type-name": "Enum",
+            "name": "MapMutation",
+            "elements": [
+              "Undefined",
+              "Insert",
+              "Update"
+            ]
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "removeService",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "id",
+          "type": {
+            "type-name": "Opaque",
+            "tsType": "string"
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "deactivate",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    }
+  ],
+  "witnesses": [
+    {
+      "name": "getSchnorrReduction",
+      "arguments": [
+        {
+          "name": "challengeHash",
+          "type": {
+            "type-name": "Field"
+          }
+        }
+      ],
+      "result type": {
+        "type-name": "Tuple",
+        "types": [
+          {
+            "type-name": "Uint",
+            "maxval": 127
+          },
+          {
+            "type-name": "Uint",
+            "maxval": 452312848583266388373324160190187140051835877600158453279131187530910662655
+          }
+        ]
+      }
+    },
+    {
+      "name": "localSecretKey",
+      "arguments": [
+      ],
+      "result type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "currentTimestamp",
+      "arguments": [
+      ],
+      "result type": {
+        "type-name": "Uint",
+        "maxval": 18446744073709551615
+      }
+    }
+  ],
+  "contracts": [
+  ]
+}
