@@ -5,3 +5,23 @@ packages:
   - packages/jubjub-schnorr
   - packages/contract
   - docs-site
+
+# pnpm 11 no longer reads the `pnpm` field in package.json; settings live here.
+overrides:
+  vitepress>vite: ^6.4.2
+  dompurify: ^3.4.11
+  js-yaml: ^4.2.0
+  esbuild@>=0.27.3 <0.28.1: 0.28.1
+  undici: ^7.28.0
+
+# pnpm 11 errors (was a warning in pnpm 10) when a dependency's build script is
+# neither approved nor declined. None of these are needed at runtime in CI, so
+# decline them all for deterministic installs (matches the pnpm 10 behaviour).
+allowBuilds:
+  classic-level: false
+  cpu-features: false
+  esbuild: false
+  msgpackr-extract: false
+  protobufjs: false
+  ssh2: false
+  unrs-resolver: false
