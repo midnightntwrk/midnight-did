@@ -1,0 +1,138 @@
+{
+  "compiler-version": "0.30.0",
+  "language-version": "0.22.0",
+  "runtime-version": "0.15.0",
+  "circuits": [
+    {
+      "name": "schnorrVerifyDigest",
+      "pure": false,
+      "proof": false,
+      "arguments": [
+        {
+          "name": "digest",
+          "type": {
+            "type-name": "Vector",
+            "length": 4,
+            "type": {
+              "type-name": "Field"
+            }
+          }
+        },
+        {
+          "name": "signature",
+          "type": {
+            "type-name": "Struct",
+            "name": "SchnorrSignature",
+            "elements": [
+              {
+                "name": "announcement",
+                "type": {
+                  "type-name": "Alias",
+                  "name": "JubjubPoint",
+                  "type": {
+                    "type-name": "Opaque",
+                    "tsType": "JubjubPoint"
+                  }
+                }
+              },
+              {
+                "name": "response",
+                "type": {
+                  "type-name": "Field"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "pk",
+          "type": {
+            "type-name": "Alias",
+            "name": "JubjubPoint",
+            "type": {
+              "type-name": "Opaque",
+              "tsType": "JubjubPoint"
+            }
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "schnorrChallengeDigest",
+      "pure": true,
+      "proof": false,
+      "arguments": [
+        {
+          "name": "ann_x",
+          "type": {
+            "type-name": "Field"
+          }
+        },
+        {
+          "name": "ann_y",
+          "type": {
+            "type-name": "Field"
+          }
+        },
+        {
+          "name": "pk_x",
+          "type": {
+            "type-name": "Field"
+          }
+        },
+        {
+          "name": "pk_y",
+          "type": {
+            "type-name": "Field"
+          }
+        },
+        {
+          "name": "digest",
+          "type": {
+            "type-name": "Vector",
+            "length": 4,
+            "type": {
+              "type-name": "Field"
+            }
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Field"
+      }
+    }
+  ],
+  "witnesses": [
+    {
+      "name": "getSchnorrReduction",
+      "arguments": [
+        {
+          "name": "challengeHash",
+          "type": {
+            "type-name": "Field"
+          }
+        }
+      ],
+      "result type": {
+        "type-name": "Tuple",
+        "types": [
+          {
+            "type-name": "Uint",
+            "maxval": 127
+          },
+          {
+            "type-name": "Uint",
+            "maxval": 452312848583266388373324160190187140051835877600158453279131187530910662655
+          }
+        ]
+      }
+    }
+  ],
+  "contracts": [
+  ]
+}
