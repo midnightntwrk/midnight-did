@@ -1,0 +1,44 @@
+{
+  "name": "@midnight-ntwrk/midnight-did-domain",
+  "version": "0.4.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=10"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./midnight": {
+      "types": "./dist/midnight.d.ts",
+      "require": "./dist/midnight.js",
+      "import": "./dist/midnight.js",
+      "default": "./dist/midnight.js"
+    }
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "0.15.0",
+    "@noble/hashes": "^2.2.0",
+    "zod": "^4.1.0"
+  },
+  "files": [
+    "dist/**",
+    "README.md",
+    "package.json",
+    "tsconfig.json",
+    "tsconfig.build.json"
+  ],
+  "devDependencies": {
+    "base64-js": "^1.5.1",
+    "globals": "14.0.0"
+  }
+}

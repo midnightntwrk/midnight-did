@@ -1,0 +1,1 @@
+{"version":3,"file":"did-resolver.js","sourceRoot":"","sources":["../src/did-resolver.ts"],"names":[],"mappings":"","sourcesContent":["/* c8 ignore file */\nimport { DIDDocument, DIDString } from \"./did-document.js\";\n\nexport interface MidnightDIDResolver {\n  resolve(did: DIDString): Promise<DIDDocument>;\n}\n"]}

@@ -1,0 +1,1 @@
+{"version":3,"file":"did-resolver.d.ts","sourceRoot":"","sources":["../src/did-resolver.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,WAAW,EAAE,SAAS,EAAE,MAAM,mBAAmB,CAAC;AAE3D,MAAM,WAAW,mBAAmB;IAClC,OAAO,CAAC,GAAG,EAAE,SAAS,GAAG,OAAO,CAAC,WAAW,CAAC,CAAC;CAC/C"}
