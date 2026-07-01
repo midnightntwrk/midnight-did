@@ -1,0 +1,60 @@
+{
+  "name": "@midnight-ntwrk/midnight-did-api",
+  "version": "0.4.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=10"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js",
+      "default": "./dist/browser.js"
+    }
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-js": "2.5.0",
+    "@midnight-ntwrk/midnight-js-contracts": "4.0.2",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.0.2",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "4.0.2",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider": "4.0.2",
+    "@midnight-ntwrk/midnight-js-network-id": "4.0.2",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "4.0.2",
+    "@midnight-ntwrk/midnight-js-types": "4.0.2",
+    "@midnight-ntwrk/midnight-js-utils": "4.0.2",
+    "pino": "^9.7.0",
+    "pino-pretty": "^13.0.0",
+    "rxjs": "7.8.2",
+    "ws": "^8.18.2",
+    "zod": "^4.1.0",
+    "@midnight-ntwrk/midnight-did": "0.4.0",
+    "@midnight-ntwrk/midnight-did-domain": "0.4.0",
+    "@midnight-ntwrk/midnight-did-contract": "0.4.0"
+  },
+  "devDependencies": {
+    "globals": "14.0.0",
+    "long": "5.3.2",
+    "protobufjs": "7.6.1",
+    "@midnight-ntwrk/midnight-did-jubjub-schnorr": "0.4.0"
+  },
+  "files": [
+    "dist/**",
+    "README.md",
+    "examples/**",
+    "package.json",
+    "tsconfig.json",
+    "tsconfig.build.json"
+  ]
+}

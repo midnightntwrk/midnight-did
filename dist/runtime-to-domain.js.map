@@ -1,0 +1,1 @@
+{"version":3,"file":"runtime-to-domain.js","sourceRoot":"","sources":["../src/runtime-to-domain.ts"],"names":[],"mappings":"AAAA,OAAO,EACL,6BAA6B,GAE9B,MAAM,sBAAsB,CAAC;AAE9B,MAAM,OAAO,eAAe;IAC1B,MAAM,KAAK,UAAU;QACnB,OAAO,6BAA6B,CAAC;IACvC,CAAC;CACF"}
