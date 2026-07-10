@@ -21,6 +21,10 @@ concurrency:
 jobs:
   build:
     name: Build Docs Site
+    # pages: read for the Pages-config probe on develop pushes
+    permissions:
+      contents: read
+      pages: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
