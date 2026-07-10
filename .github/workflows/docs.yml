@@ -13,8 +13,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -23,6 +21,10 @@ concurrency:
 jobs:
   build:
     name: Build Docs Site
+    # pages: read for the Pages-config probe on develop pushes
+    permissions:
+      contents: read
+      pages: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -78,6 +80,9 @@ jobs:
 
   deploy:
     name: Deploy Docs Site
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

@@ -79,7 +79,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Set up Compact toolchain
-        uses: midnightntwrk/setup-compact-action@v1
+        uses: midnightntwrk/setup-compact-action@836895c8fffbbea6bd986af2b17e8941ff29d1f8 # ratchet:midnightntwrk/setup-compact-action@v1
         with:
           compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
           github-token: ${{ github.token }}
@@ -129,7 +129,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Set up Compact toolchain
-        uses: midnightntwrk/setup-compact-action@v1
+        uses: midnightntwrk/setup-compact-action@836895c8fffbbea6bd986af2b17e8941ff29d1f8 # ratchet:midnightntwrk/setup-compact-action@v1
         with:
           compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
           github-token: ${{ github.token }}
