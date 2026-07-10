@@ -157,7 +157,7 @@ for (const [workspace, expected] of packageManifestCatalog.entries()) {
     githubPackageRegistry,
   );
   assertEqual(`${label} engines.node`, packageJson.engines?.node, ">=24");
-  assertEqual(`${label} engines.pnpm`, packageJson.engines?.pnpm, ">=10");
+  assertEqual(`${label} engines.pnpm`, packageJson.engines?.pnpm, ">=11.5.3");
   assertEqual(`${label} main`, packageJson.main, "dist/index.js");
   assertEqual(`${label} module`, packageJson.module, "dist/index.js");
   assertEqual(`${label} types`, packageJson.types, "./dist/index.d.ts");
