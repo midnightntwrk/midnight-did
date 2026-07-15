@@ -214,7 +214,9 @@ Midnight normalizes identifiers to fragment form (`#...`) at the SDK/contract bo
 
 #### 3.4.2. type
 
-The value of the `type` field **MUST** be `JsonWebKey` to support the compatibility and interoperability with other SSI systems, and support the majority of the cryptography suites according to the [RFC7517] JSON Web Key (JWK) specification.
+The value of the `type` field **MUST** be `JsonWebKey`. Midnight uses this name to identify verification methods whose public key material is carried in the `publicKeyJwk` property and encoded according to [RFC7517] JSON Web Key (JWK) rules.
+
+Midnight does not emit `JsonWebKey2020`. `JsonWebKey2020` is associated with older vc-jws-2020 / JSON-LD context naming, while the Midnight DID method names the verification material form directly as `JsonWebKey`. Consumers that require a `JsonWebKey2020` term or context mapping MUST adapt the resolved DID Document at the integration boundary; the canonical Midnight DID Document representation remains `JsonWebKey`.
 
 #### 3.4.3. controller
 
@@ -232,7 +234,9 @@ The value of the `publicKeyJwk` field conforms to the [RFC7517] JSON Web Key (JW
 
 Public JWKs MUST NOT contain private key material such as `d`.
 
-The Midnight DID supports the following cryptographic algorithms: Ed25519, X25519, Jubjub (Midnight compatible), P-256, secp256k1, BLS12-381 G1, and BLS12-381 G2. Based on the cryptography suite, the values of the properties are as follows:
+The Midnight DID supports the following cryptographic algorithms: Ed25519, X25519, Jubjub (Midnight compatible), P-256, secp256k1, BLS12-381 G1, and BLS12-381 G2. Ed25519, X25519, P-256, and secp256k1 use established JOSE/JWK curve names. `Jubjub` is a Midnight-private curve name for native SchnorrJubjub methods. `BLS12381G1` and `BLS12381G2` follow draft BLS JOSE/COSE key-representation naming and are interoperability-limited until the relevant standards and library support stabilize. Generic JOSE libraries that validate `crv` against only the established JWK curve registry can reject the Midnight-private and draft curve names.
+
+Based on the cryptography suite, the values of the properties are as follows:
 
 ##### 3.4.4.1 Ed25519
 Uses EdDSA over Ed25519 for signatures.
@@ -252,6 +256,8 @@ Keys are represented as JWK in uncompressed format with 32-byte little-endian fi
 - `y` parameters.
 
 Jubjub keys are stored on ledger as native `JubjubPoint` values in the `schnorrJubjubVerificationMethods` map. Resolvers project those native points into DID Document `publicKeyJwk` entries by encoding the `x` and `y` field elements as 32-byte little-endian, canonical unpadded base64url strings.
+
+`crv`=`Jubjub` is Midnight-private and is not a registered JOSE curve name. It is intended for Midnight-native SchnorrJubjub signing and verification flows, not for generic JOSE/JWK verification libraries.
 
 Current Midnight DID mutation circuits do not parse opaque JWK coordinate strings in contract code. SDK producers MUST use the SchnorrJubjub verification method API for Jubjub keys so the native `JubjubPoint` is the on-ledger source of truth. Jubjub signing and verification flows use the dedicated `jubjub-schnorr` package rather than additional exported circuits on the DID contract.
 
@@ -295,7 +301,9 @@ Uses BLS12-381 key material for pairing-friendly cryptographic suites outside th
 
 BLS12-381 JWK public keys MUST omit `y` and `d`. They are stored and resolved as DID Document key material; they are not used by current Midnight DID smart-contract verification circuits. The contract stores the BLS public key as an opaque canonical string, so the key can be larger than the Midnight proof-system field without casting the bytes to `Field`.
 
-Some W3C Data Integrity and BBS-oriented suites prefer `type: "Multikey"` with `publicKeyMultibase`. DID Core permits that verification material form, but a verification method MUST NOT contain both `publicKeyJwk` and `publicKeyMultibase` for the same key material [W3C-DID]. The current Midnight DID ledger profile supports `JsonWebKey` / `publicKeyJwk` only. Future `Multikey` support should be added as an explicit verification-method profile and storage path, not by overloading `publicKeyJwk`.
+The `BLS12381G1` and `BLS12381G2` names are draft/provisional JWK curve names. Midnight DID preserves these names for explicit BLS12-381 key storage, but generic JOSE libraries can reject them until matching standards and implementation support are available.
+
+Some W3C Data Integrity and BBS-oriented suites require `type: "Multikey"` with `publicKeyMultibase`. DID Core permits that verification material form, but a verification method MUST NOT contain both `publicKeyJwk` and `publicKeyMultibase` for the same key material [W3C-DID]. The current Midnight DID ledger profile supports `JsonWebKey` / `publicKeyJwk` only. `Multikey` / `publicKeyMultibase` verification methods are not supported by this method version.
 
 ### 3.5. Verification Relationships
 

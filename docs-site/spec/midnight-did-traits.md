@@ -26,7 +26,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | Trait | Status | Notes |
 | --- | --- | --- |
 | Key rotation / revocation | ✔ | `Add/Update/RemoveVerificationMethod` + relation ops. |
-| Key type diversity | △ | Restricted to explicit JWK profiles ([RFC7517]) (OKP/Ed25519/X25519/BLS12381G1/BLS12381G2, EC/Jubjub/P-256/secp256k1). `publicKeyMultibase`/`Multikey` is a future storage profile, not a current ledger representation. |
+| Key type diversity | △ | Restricted to explicit JWK profiles ([RFC7517]) (OKP/Ed25519/X25519/BLS12381G1/BLS12381G2, EC/Jubjub/P-256/secp256k1). `publicKeyMultibase`/`Multikey` is unsupported in this method version. |
 | Multi-controller keys | ✖ | Controller must equal DID subject (single-controller model). |
 | Relative key IDs | ✔ | Fragment identifiers supported (`#key-1`). |
 
