@@ -1,6 +1,7 @@
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import {
   type ContractAddress,
+  type DIDResolutionErrorCode,
   type DIDDocumentMetadata,
   parseMidnightDID,
   parseMidnightDIDString,
@@ -24,6 +25,44 @@ export type MidnightDIDResolverOptions = {
 export type MidnightResolutionResult = {
   didDocument: MidnightDIDDocument;
   didDocumentMetadata: DIDDocumentMetadata;
+};
+
+export type MidnightDIDResolutionResult = {
+  didDocument: MidnightDIDDocument | null;
+  didDocumentMetadata: DIDDocumentMetadata;
+  didResolutionMetadata: {
+    error?: DIDResolutionErrorCode;
+  };
+};
+
+const resolutionEnvelope = (
+  result: MidnightResolutionResult | null,
+  error?: DIDResolutionErrorCode,
+): MidnightDIDResolutionResult => ({
+  didDocument: result?.didDocument ?? null,
+  didDocumentMetadata: result?.didDocumentMetadata ?? {},
+  didResolutionMetadata: error === undefined ? {} : { error },
+});
+
+const errorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
+const resolutionErrorCode = (error: unknown): DIDResolutionErrorCode => {
+  const message = errorMessage(error);
+  if (
+    message.includes("Invalid DID") ||
+    message.includes("Invalid method-specific identifier") ||
+    message.includes("id must be a valid Midnight DID")
+  ) {
+    return "invalidDid";
+  }
+  if (
+    message.includes("Offchain Midnight DIDs") ||
+    message.includes("Network mismatch")
+  ) {
+    return "methodNotSupported";
+  }
+  return "internalError";
 };
 
 export class MidnightDIDResolver {
@@ -71,5 +110,19 @@ export class MidnightDIDResolver {
       ),
       didDocumentMetadata: LedgerToDomain.ledgerStateToMetadata(ledgerState),
     };
+  }
+
+  async resolveDIDResolutionResult(
+    did: string,
+  ): Promise<MidnightDIDResolutionResult> {
+    try {
+      const result = await this.resolveResult(did);
+      return resolutionEnvelope(
+        result,
+        result === null ? "notFound" : undefined,
+      );
+    } catch (error) {
+      return resolutionEnvelope(null, resolutionErrorCode(error));
+    }
   }
 }

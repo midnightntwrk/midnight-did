@@ -38,11 +38,14 @@ sequenceDiagram
 
 ## Resolution Result Shape
 
-The package resolver returns the DID Core abstract resolution shape: a DID
-Document plus DID Document metadata. Resolver services that expose the full DID
-Resolution Result envelope should add `didResolutionMetadata` as a separate
-object. For successful abstract `resolve` calls, that metadata object must not
-include `contentType`.
+`MidnightDIDResolver.resolveDIDResolutionResult` returns a DID Core Resolution
+Result envelope with `didDocument`, `didDocumentMetadata`, and
+`didResolutionMetadata`. Successful abstract `resolve` results return an empty
+`didResolutionMetadata` object and do not set `contentType`. Missing ledger
+state returns `didResolutionMetadata.error = "notFound"`.
+
+The `resolve` and `resolveResult` methods remain convenience APIs for callers
+that want a DID Document directly or a nullable document-plus-metadata pair.
 
 Use `contentType` only for `resolveRepresentation`-style responses where the
 body is a DID Document byte stream. Midnight DID Document representations should

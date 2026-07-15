@@ -124,6 +124,42 @@ describe("MidnightDIDResolver", () => {
     expect(result).toBeNull();
   });
 
+  it("returns a DID Core resolution envelope on success", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+      expectedNetwork: MidnightNetwork.DevNet,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument?.id).toBe(did);
+    expect(result.didDocumentMetadata.versionId).toBe("1");
+    expect(result.didResolutionMetadata).toEqual({});
+  });
+
+  it("returns notFound in the DID Core resolution envelope", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => null,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument).toBeNull();
+    expect(result.didDocumentMetadata).toEqual({});
+    expect(result.didResolutionMetadata.error).toBe("notFound");
+  });
+
+  it("returns invalidDid in the DID Core resolution envelope", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult("did:bad");
+
+    expect(result.didDocument).toBeNull();
+    expect(result.didResolutionMetadata.error).toBe("invalidDid");
+  });
+
   it("throws on network mismatch", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => ledgerState,
@@ -151,5 +187,18 @@ describe("MidnightDIDResolver", () => {
     await expect(() =>
       resolver.resolveResult(`did:midnight:offchain:${"b".repeat(64)}`),
     ).rejects.toThrow(/long-form encoded state/);
+  });
+
+  it("returns methodNotSupported for offchain DIDs in resolution envelopes", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(
+      `did:midnight:offchain:${"b".repeat(64)}`,
+    );
+
+    expect(result.didDocument).toBeNull();
+    expect(result.didResolutionMetadata.error).toBe("methodNotSupported");
   });
 });

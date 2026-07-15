@@ -3,7 +3,10 @@ import {
   MidnightDIDDocument,
 } from "@midnight-ntwrk/midnight-did";
 import { parseContractAddress } from "@midnight-ntwrk/midnight-did/midnight";
-import { DIDDocumentMetadata } from "@midnight-ntwrk/midnight-did-domain";
+import {
+  type DIDResolutionErrorCode,
+  type DIDDocumentMetadata,
+} from "@midnight-ntwrk/midnight-did-domain";
 
 import { getLogger } from "./api-logger.js";
 import { getMidnightNetwork } from "./did-subject.js";
@@ -49,4 +52,44 @@ export const resolve = async (
     )}`,
   );
   return { didDocument, didDocumentMetadata };
+};
+
+export type MidnightDIDResolutionResult = {
+  didDocument: MidnightDIDDocument | null;
+  didDocumentMetadata: DIDDocumentMetadata;
+  didResolutionMetadata: {
+    error?: DIDResolutionErrorCode;
+  };
+};
+
+export const resolveDIDResolutionResult = async (
+  providers: MidnightDIDProviders,
+  didContract: DeployedMidnightDIDContract,
+): Promise<MidnightDIDResolutionResult> => {
+  try {
+    const result = await resolve(providers, didContract);
+    if (result === null) {
+      return {
+        didDocument: null,
+        didDocumentMetadata: {},
+        didResolutionMetadata: { error: "notFound" },
+      };
+    }
+    return {
+      didDocument: result.didDocument,
+      didDocumentMetadata: result.didDocumentMetadata,
+      didResolutionMetadata: {},
+    };
+  } catch (error) {
+    getLogger().error(
+      `MidnightDID resolution failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return {
+      didDocument: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "internalError" },
+    };
+  }
 };
