@@ -28,8 +28,9 @@ The default docs build is intentionally small:
 1. synchronize the published specification pages from `w3c-spec/`
 2. build VitePress static output into `docs-site/.vitepress/dist/`
 
-It does not compile Compact contracts, rebuild managed artifacts, run TypeDoc,
-or start Docker-backed tests.
+The synchronized specification pages are generated build outputs and are not
+committed. The build does not compile Compact contracts, rebuild managed
+artifacts, run TypeDoc, or start Docker-backed tests.
 
 ## Optional API Reference
 

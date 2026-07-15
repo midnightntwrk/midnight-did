@@ -151,6 +151,10 @@ Synchronize the published specification pages from `w3c-spec/`:
 pnpm run docs:sync-spec
 ```
 
+The generated `docs-site/spec/midnight-method.md` and
+`docs-site/spec/midnight-did-traits.md` files are local build outputs. Commit
+changes to the canonical files under `w3c-spec/` instead.
+
 ## Important Repository Paths
 
 | Path              | Purpose                                                               |

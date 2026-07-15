@@ -92,3 +92,5 @@ docs-site/.vitepress/dist/
 docs-site/.vitepress/cache/
 docs-site/api/reference/
 docs-site/source/
+docs-site/spec/midnight-method.md
+docs-site/spec/midnight-did-traits.md
