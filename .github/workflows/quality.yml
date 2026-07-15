@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   quality:
-    name: Typecheck, Audit, and Static Contracts
+    name: Typecheck and Static Contracts
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

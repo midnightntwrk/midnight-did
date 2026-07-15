@@ -1,6 +1,5 @@
 * @midnightntwrk/mn-codeowners-mnf-se
 /.github/ISSUE_TEMPLATE/ @midnightntwrk/mn-security @midnightntwrk/mn-sre
-/.github/PULL_REQUEST_TEMPLATE/ @midnightntwrk/mn-security @midnightntwrk/mn-sre
 /.github/pull_request_template.md @midnightntwrk/mn-security @midnightntwrk/mn-sre
 /.github/workflows/scan.yaml @midnightntwrk/mn-security @midnightntwrk/mn-sre
 /.github/dependabot.yml @midnightntwrk/mn-security @midnightntwrk/mn-sre
