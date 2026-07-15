@@ -1,6 +1,6 @@
 # DID Surface Change Discipline
 
-Target branch: `develop`.
+Target branch: usually `develop`; release-promotion PRs target `main`.
 
 This guide defines the DID repository surfaces that downstream applications
 depend on and the checks that should move with each change.

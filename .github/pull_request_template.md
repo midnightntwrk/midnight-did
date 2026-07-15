@@ -2,7 +2,7 @@
 
 <!-- Describe your changes briefly here, with some context as to why this is needed. -->
 
-Target branch: `develop`
+Target branch: usually `develop`; release-promotion PRs target `main`.
 
 ## Submission Checklist
 

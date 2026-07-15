@@ -194,14 +194,11 @@ assertIncludes(
   "CONTRIBUTING.md",
 );
 
-const prTemplate = readText(
-  ".github/PULL_REQUEST_TEMPLATE/pull_request_template.md",
-);
-const targetBranchMatch = prTemplate.match(/Target branch:\s*`([^`]+)`/);
-assert(targetBranchMatch, "PR template must declare a target branch");
-assert(
-  targetBranchMatch?.[1] === "develop",
-  "PR template target branch must be develop",
+const prTemplate = readText(".github/pull_request_template.md");
+assertIncludes(
+  prTemplate,
+  "Target branch: usually `develop`; release-promotion PRs target `main`.",
+  "PR template",
 );
 assertIncludes(prTemplate, "DID Surface Checklist", "PR template");
 assertIncludes(
@@ -212,7 +209,7 @@ assertIncludes(
 
 const surfaceGuide = readText("docs/did-surface-change-discipline.md");
 for (const requiredPhrase of [
-  "Target branch: `develop`",
+  "Target branch: usually `develop`; release-promotion PRs target `main`.",
   "Contract circuits",
   "JubJub verifier",
   "Domain model",

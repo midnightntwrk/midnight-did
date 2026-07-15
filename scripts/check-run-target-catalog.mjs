@@ -74,9 +74,7 @@ assert.ok(
   "README must document pnpm run ci as the local PR validation alias",
 );
 
-const prTemplate = readRepoText(
-  ".github/PULL_REQUEST_TEMPLATE/pull_request_template.md",
-);
+const prTemplate = readRepoText(".github/pull_request_template.md");
 assert.ok(
   prTemplate.includes("`./run.sh --light --strict`"),
   "PR template must require ./run.sh --light --strict as the local PR validation contract",

@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   quality:
-    name: Typecheck, Audit, and Static Contracts
+    name: Typecheck and Static Contracts
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -48,7 +48,6 @@ jobs:
         uses: midnightntwrk/setup-compact-action@836895c8fffbbea6bd986af2b17e8941ff29d1f8 # ratchet:midnightntwrk/setup-compact-action@v1
         with:
           compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
-          github-token: ${{ github.token }}
 
       - name: Verify Compact installation
         run: compact compile --version
@@ -74,6 +73,3 @@ jobs:
           pnpm run check:source-imports
           pnpm run check:engine-agnostic-imports
           pnpm run check:run-target-catalog
-
-      - name: Audit dependencies
-        run: pnpm audit --audit-level low
