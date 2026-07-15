@@ -5,13 +5,12 @@ description: "Use this skill for midnight-did repository work: DID contract/doma
 
 # Midnight Identity DID Skill
 
-Use this skill from the `midnight-did` repository, whether cloned independently or as a submodule.
+Use this skill from the `midnight-did` repository.
 
 ## Required Context
 
 1. Read repository-root `AGENT.md` first.
-2. If this checkout is inside `midnight-identity-workspace`, read the workspace-root `AGENT.md` for submodule and artifact fanout rules.
-3. Keep VC use cases, university BDD, and Passport/product flows out of this repository; those belong in VC or examples repos.
+2. Keep VC use cases, university BDD, and Passport/product flows out of this repository; those belong in VC or examples repos.
 
 ## Defaults
 
@@ -25,8 +24,6 @@ Use this skill from the `midnight-did` repository, whether cloned independently 
   - `./run.sh --light --strict`
   - `./run.sh core --strict`
   - `./run.sh integration-report`
-- Optional when resolver/secret-store changes are involved:
-  - `cd <workspace-root>/midnight-identity-workspace && ./run.sh --light --repos did-resolver`
 
 Do not open or push PRs before completing this gate.
 

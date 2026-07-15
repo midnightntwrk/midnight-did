@@ -2,7 +2,7 @@
 
 Engineering guide for agents and engineers working in `midnight-did`.
 
-This repository can be cloned independently or checked out as `midnight-identity-workspace/midnight-did`. When it is used inside the workspace, also read the workspace-root `AGENT.md` for cross-repo coordination.
+This repository can be cloned independently.
 
 ## Purpose
 
