@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["examples/**/*.ts"],
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "noEmit": true,
+    "rootDir": "."
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "name": "midnight-did",
+  "version": "0.4.0",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=10.34.1"
+  },
+  "scripts": {
+    "clean": "turbo run clean --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --filter=./packages/api --continue",
+    "lint": "turbo run lint --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --filter=./packages/api --continue",
+    "lint:fix": "turbo run lint:fix --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --filter=./packages/api --continue",
+    "lint:core": "turbo run lint --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --continue",
+    "build:all": "pnpm --filter ./packages/jubjub-schnorr build && pnpm run build:api-prereqs",
+    "typecheck:all": "turbo run typecheck --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --filter=./packages/api --continue",
+    "test:all": "turbo run test:ci --concurrency=1 --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --filter=./packages/api --continue",
+    "coverage": "pnpm --filter ./packages/contract coverage",
+    "ci": "./run.sh --light --strict",
+    "ci:packages": "pnpm run lint && pnpm run build:all && pnpm run test:all",
+    "ci:core": "pnpm run test:ci-change-classifier && pnpm run test:did-surface-discipline && pnpm run check:did-surface-discipline && pnpm run test:workspace-manifests && pnpm run check:workspace-manifests && pnpm run test:artifact-workspaces && pnpm run test:zk-artifact-bundle && pnpm run test:managed-artifacts && pnpm run test:integration-report && pnpm run test:source-imports && pnpm run check:source-imports && pnpm run test:engine-agnostic-imports && pnpm run check:engine-agnostic-imports && pnpm run check:run-target-catalog && SKIP_LINT_FIX=1 pnpm run lint:core && pnpm --filter ./packages/jubjub-schnorr build && pnpm --filter ./packages/jubjub-schnorr test:ci && pnpm --filter ./packages/contract build:prepared && SKIP_RUNTIME_TESTS=1 pnpm --filter ./packages/contract test:ci && pnpm run check:managed-artifacts && pnpm --filter ./packages/domain build && pnpm --filter ./packages/domain test:ci && pnpm --filter ./packages/did build && pnpm --filter ./packages/did test:ci",
+    "build:api-prereqs": "pnpm --filter ./packages/contract build:prepared && pnpm --filter ./packages/did build && pnpm --filter ./packages/api build",
+    "pack:contract": "pnpm --filter ./packages/contract pack",
+    "pack:all": "pnpm run pack:contract && echo 'Artifacts:' && ls -1 *.tgz || true && ls -1 packages/contract/*.tgz || true",
+    "checkdeps": "bash scripts/check-deps.sh",
+    "docs:sync-spec": "pnpm --filter docs-site docs:sync-spec",
+    "docs:validate": "node scripts/docs-validate.mjs",
+    "docs:api": "pnpm --filter docs-site docs:api",
+    "docs:dev": "pnpm --filter docs-site docs:dev",
+    "docs:build": "pnpm --filter docs-site docs:build",
+    "docs:preview": "pnpm --filter docs-site docs:preview",
+    "artifacts:pack": "./scripts/pack-artifacts.sh",
+    "release:prepare-version": "node scripts/prepare-release-version.mjs",
+    "packages:check-contents": "node scripts/check-package-contents.mjs",
+    "zk-artifacts:bundle": "node scripts/build-zk-artifact-bundle.mjs",
+    "zk-artifacts:check": "node scripts/check-zk-artifact-bundle.mjs",
+    "published-artifacts:smoke": "node scripts/smoke-published-artifacts.mjs",
+    "published-standalone:smoke": "node scripts/smoke-published-standalone.mjs",
+    "clean:artifacts": "node scripts/clean-artifacts.mjs",
+    "report:integration": "node scripts/report-integration.mjs",
+    "report:integration:schema": "node scripts/report-integration.mjs --schema",
+    "check:integration": "node scripts/report-integration.mjs --check",
+    "artifacts:status": "node scripts/managed-artifact-catalog.mjs --json",
+    "check:managed-artifacts": "node scripts/managed-artifact-catalog.mjs --check",
+    "check:api-source-imports": "node scripts/check-source-imports.mjs packages/api/src",
+    "test:ci-change-classifier": "node --test scripts/ci-change-classifier.test.mjs",
+    "test:run-sh": "node scripts/run-sh-contract.test.mjs",
+    "check:run-target-catalog": "node scripts/check-run-target-catalog.mjs",
+    "check:did-surface-discipline": "node scripts/check-did-surface-discipline.mjs",
+    "test:did-surface-discipline": "node --test scripts/did-production-cast-rules.test.mjs",
+    "check:workspace-manifests": "node scripts/check-workspace-manifests.mjs",
+    "test:workspace-manifests": "node scripts/check-workspace-manifests.test.mjs",
+    "test:artifact-workspaces": "node scripts/artifact-workspaces.test.mjs",
+    "test:zk-artifact-bundle": "node --test scripts/check-zk-artifact-bundle.test.mjs",
+    "test:managed-artifacts": "node scripts/managed-artifact-catalog.test.mjs",
+    "test:integration-report": "node scripts/report-integration.test.mjs",
+    "test:docs-validate": "node --test scripts/docs-validate.test.mjs",
+    "check:source-imports": "node scripts/check-source-imports.mjs",
+    "test:source-imports": "node scripts/check-source-imports.test.mjs",
+    "check:engine-agnostic-imports": "node scripts/check-engine-agnostic-imports.mjs",
+    "test:engine-agnostic-imports": "node scripts/check-engine-agnostic-imports.test.mjs",
+    "packages-smoke-tests": "pnpm run build:all && node scripts/packages-smoke-tests.mjs && pnpm run packages:check-contents"
+  },
+  "private": true,
+  "packageManager": "pnpm@10.34.1",
+  "pnpm": {
+    "overrides": {
+      "vitepress>vite": "^6.4.2",
+      "dompurify": "^3.4.11",
+      "js-yaml": "^4.2.0",
+      "esbuild@>=0.27.3 <0.28.1": "0.28.1",
+      "undici": "^7.28.0"
+    }
+  },
+  "type": "module",
+  "workspaces": [
+    "packages/api",
+    "packages/domain",
+    "packages/did",
+    "packages/jubjub-schnorr",
+    "packages/contract",
+    "docs-site"
+  ],
+  "devDependencies": {
+    "@eslint/js": "9.39.4",
+    "@midnight-ntwrk/midnight-js-fetch-zk-config-provider": "4.0.2",
+    "@types/node": "22.19.19",
+    "@types/ws": "8.18.1",
+    "@typescript-eslint/eslint-plugin": "8.60.0",
+    "@typescript-eslint/parser": "8.60.0",
+    "@vitest/coverage-v8": "4.1.8",
+    "eslint": "9.39.4",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-import-resolver-typescript": "3.10.1",
+    "eslint-plugin-import": "2.32.0",
+    "eslint-plugin-prettier": "5.5.5",
+    "eslint-plugin-simple-import-sort": "12.1.1",
+    "testcontainers": "12.0.1",
+    "turbo": "2.9.14",
+    "ts-node": "10.9.2",
+    "typescript": "5.9.3",
+    "vite": "7.3.5",
+    "vitest": "4.1.8"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "0.15.0",
+    "@midnight-ntwrk/midnight-js-contracts": "4.0.2",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.0.2",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "4.0.2",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider": "4.0.2",
+    "@midnight-ntwrk/midnight-js-network-id": "4.0.2",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "4.0.2",
+    "@midnight-ntwrk/midnight-js-types": "4.0.2",
+    "@midnight-ntwrk/midnight-js-utils": "4.0.2",
+    "@midnight-ntwrk/wallet-sdk-address-format": "3.1.0",
+    "@midnight-ntwrk/wallet-sdk-dust-wallet": "3.0.0",
+    "@midnight-ntwrk/wallet-sdk-facade": "3.0.0",
+    "@midnight-ntwrk/wallet-sdk-hd": "3.0.0",
+    "@midnight-ntwrk/wallet-sdk-shielded": "2.1.0",
+    "@midnight-ntwrk/wallet-sdk-unshielded-wallet": "2.1.0",
+    "pino": "^9.7.0",
+    "pino-pretty": "^13.0.0",
+    "ws": "^8.18.2",
+    "zod": "^4.1.0",
+    "@midnight-ntwrk/ledger-v8": "8.0.3"
+  },
+  "eslintConfig": {
+    "plugins": [
+      "import",
+      "simple-import-sort"
+    ],
+    "rules": {
+      "no-unused-vars": [
+        "error",
+        {
+          "args": "after-used",
+          "ignoreRestSiblings": true
+        }
+      ],
+      "import/no-unused-modules": [
+        1,
+        {
+          "unusedExports": true
+        }
+      ],
+      "no-duplicate-imports": "error",
+      "simple-import-sort/imports": "error",
+      "simple-import-sort/exports": "error"
+    }
+  }
+}

@@ -1,0 +1,97 @@
+version: 2
+
+registries:
+  github-packages:
+    type: npm-registry
+    url: https://npm.pkg.github.com
+    token: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
+    replaces-base: false
+
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    registries:
+      - github-packages
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+    versioning-strategy: "increase-if-necessary"
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+    groups:
+      midnight-runtime:
+        patterns:
+          - "@midnight-ntwrk/compact-*"
+          - "@midnight-ntwrk/ledger-*"
+          - "@midnight-ntwrk/midnight-js-*"
+          - "@midnight-ntwrk/wallet-sdk-*"
+        update-types:
+          - "minor"
+          - "patch"
+      docs:
+        patterns:
+          - "mermaid"
+          - "typedoc"
+          - "typedoc-plugin-markdown"
+          - "vitepress"
+        update-types:
+          - "minor"
+          - "patch"
+      runtime:
+        dependency-type: "production"
+        exclude-patterns:
+          - "@midnight-ntwrk/*"
+        update-types:
+          - "minor"
+          - "patch"
+      tooling:
+        dependency-type: "development"
+        exclude-patterns:
+          - "@midnight-ntwrk/*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "@midnight-ntwrk/*"
+        update-types:
+          - "version-update:semver-major"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:30"
+      timezone: "UTC"
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
