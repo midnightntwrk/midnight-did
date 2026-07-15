@@ -66,7 +66,6 @@ describe("resolution helpers", () => {
       didDocumentMetadata,
       didResolutionMetadata: {},
     });
-    expect(result.didResolutionMetadata.contentType).toBeUndefined();
   });
 
   it("returns notFound when the contract state is missing", async () => {

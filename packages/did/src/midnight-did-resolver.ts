@@ -1,8 +1,8 @@
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import {
   type ContractAddress,
-  type DIDResolutionErrorCode,
   type DIDDocumentMetadata,
+  type DIDResolutionErrorCode,
   parseMidnightDID,
   parseMidnightDIDString,
 } from "@midnight-ntwrk/midnight-did-domain";
