@@ -312,7 +312,7 @@ In a Midnight DID Document, according to the DID Core verification-relationships
 - capabilityDelegation
 - keyAgreement
 
-The verification relationships are represented by the corresponding properties by referencing the verification method `id` defined in the DID Document.
+The verification relationships are represented by the corresponding properties by referencing the verification method `id` defined in the DID Document. Empty verification relationships MUST be omitted from the DID Document.
 
 Embedded verification method definition is not supported by the Midnight DID method.
 
@@ -1084,9 +1084,6 @@ A simple example of a Midnight DID Document is as follows:
   "assertionMethod": [
     "#key-2"
   ],
-  "keyAgreement": null,
-  "capabilityInvocation": null,
-  "capabilityDelegation": null,
   "service": [
     {
       "id": "#linked-domain-1",

@@ -385,6 +385,10 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(doc.authentication?.length).toBe(1);
     expect(doc.verificationMethod?.[0].id).toBe(`${didSubject}#key-1`);
     expect(doc.authentication?.[0]).toBe("#key-1");
+    expect(doc).not.toHaveProperty("assertionMethod");
+    expect(doc).not.toHaveProperty("keyAgreement");
+    expect(doc).not.toHaveProperty("capabilityInvocation");
+    expect(doc).not.toHaveProperty("capabilityDelegation");
     expect(doc.service?.length).toBe(2);
     expect(doc.service?.[0].id).toBe(`${didSubject}#svc-1`);
     expect(doc.service?.[0].serviceEndpoint).toBe("https://u.example");

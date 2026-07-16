@@ -57,6 +57,10 @@ describe("Midnight DID Document", () => {
       expect(doc.controller).toBe(exampleMidnightDid);
       expect(doc.verificationMethod).toHaveLength(1);
       expect(doc.authentication).toEqual(["#key-1"]);
+      expect(doc).not.toHaveProperty("assertionMethod");
+      expect(doc).not.toHaveProperty("keyAgreement");
+      expect(doc).not.toHaveProperty("capabilityInvocation");
+      expect(doc).not.toHaveProperty("capabilityDelegation");
     });
 
     it("allows additional contexts beyond the required two", () => {

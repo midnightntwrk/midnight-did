@@ -140,11 +140,11 @@ export type MidnightDIDDocument = {
   alsoKnownAs?: URIString[] | null;
   controller?: MidnightDIDString | MidnightDIDString[] | null; // Must equal id if present
   verificationMethod?: VerificationMethod[] | null;
-  authentication?: DIDKeyID[] | null;
-  assertionMethod?: DIDKeyID[] | null;
-  keyAgreement?: DIDKeyID[] | null;
-  capabilityInvocation?: DIDKeyID[] | null;
-  capabilityDelegation?: DIDKeyID[] | null;
+  authentication?: DIDKeyID[];
+  assertionMethod?: DIDKeyID[];
+  keyAgreement?: DIDKeyID[];
+  capabilityInvocation?: DIDKeyID[];
+  capabilityDelegation?: DIDKeyID[];
   service?: Service[] | null;
 };
 
@@ -198,11 +198,21 @@ export function createMidnightDIDDocument(params: {
     alsoKnownAs: params.alsoKnownAs ?? null,
     controller: params.id, // Always equals subject for Midnight DID
     verificationMethod: params.verificationMethod ?? null,
-    authentication: params.authentication ?? null,
-    assertionMethod: params.assertionMethod ?? null,
-    keyAgreement: params.keyAgreement ?? null,
-    capabilityInvocation: params.capabilityInvocation ?? null,
-    capabilityDelegation: params.capabilityDelegation ?? null,
+    ...(params.authentication === undefined
+      ? {}
+      : { authentication: params.authentication }),
+    ...(params.assertionMethod === undefined
+      ? {}
+      : { assertionMethod: params.assertionMethod }),
+    ...(params.keyAgreement === undefined
+      ? {}
+      : { keyAgreement: params.keyAgreement }),
+    ...(params.capabilityInvocation === undefined
+      ? {}
+      : { capabilityInvocation: params.capabilityInvocation }),
+    ...(params.capabilityDelegation === undefined
+      ? {}
+      : { capabilityDelegation: params.capabilityDelegation }),
     service: params.service ?? null,
   };
 
@@ -213,11 +223,21 @@ export function createMidnightDIDDocument(params: {
     alsoKnownAs: parsed.alsoKnownAs ?? null,
     controller: params.id,
     verificationMethod: parsed.verificationMethod ?? null,
-    authentication: parsed.authentication ?? null,
-    assertionMethod: parsed.assertionMethod ?? null,
-    keyAgreement: parsed.keyAgreement ?? null,
-    capabilityInvocation: parsed.capabilityInvocation ?? null,
-    capabilityDelegation: parsed.capabilityDelegation ?? null,
+    ...(parsed.authentication === undefined
+      ? {}
+      : { authentication: parsed.authentication }),
+    ...(parsed.assertionMethod === undefined
+      ? {}
+      : { assertionMethod: parsed.assertionMethod }),
+    ...(parsed.keyAgreement === undefined
+      ? {}
+      : { keyAgreement: parsed.keyAgreement }),
+    ...(parsed.capabilityInvocation === undefined
+      ? {}
+      : { capabilityInvocation: parsed.capabilityInvocation }),
+    ...(parsed.capabilityDelegation === undefined
+      ? {}
+      : { capabilityDelegation: parsed.capabilityDelegation }),
     service: parsed.service ?? null,
   } as MidnightDIDDocument;
 }
@@ -248,11 +268,21 @@ export const parseMidnightDIDDocument = (
     alsoKnownAs: parsed.alsoKnownAs ?? null,
     controller,
     verificationMethod: parsed.verificationMethod ?? null,
-    authentication: parsed.authentication ?? null,
-    assertionMethod: parsed.assertionMethod ?? null,
-    keyAgreement: parsed.keyAgreement ?? null,
-    capabilityInvocation: parsed.capabilityInvocation ?? null,
-    capabilityDelegation: parsed.capabilityDelegation ?? null,
+    ...(parsed.authentication === undefined
+      ? {}
+      : { authentication: parsed.authentication }),
+    ...(parsed.assertionMethod === undefined
+      ? {}
+      : { assertionMethod: parsed.assertionMethod }),
+    ...(parsed.keyAgreement === undefined
+      ? {}
+      : { keyAgreement: parsed.keyAgreement }),
+    ...(parsed.capabilityInvocation === undefined
+      ? {}
+      : { capabilityInvocation: parsed.capabilityInvocation }),
+    ...(parsed.capabilityDelegation === undefined
+      ? {}
+      : { capabilityDelegation: parsed.capabilityDelegation }),
     service: parsed.service ?? null,
   } as MidnightDIDDocument;
 };
