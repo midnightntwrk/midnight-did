@@ -68,13 +68,13 @@ API enforces lifecycle rules around:
 
 ## Resolution Responses
 
-The API package returns the ledger-derived DID Document and DID Document
-metadata. It does not compose a full DID Core resolution envelope on its own.
-Resolver services that wrap this package into DID Core HTTP responses should add
-the `didResolutionMetadata` object at the service boundary. Successful abstract
-`resolve` responses must not set `didResolutionMetadata.contentType`; that field
-is reserved for `resolveRepresentation` responses where the body is a DID
-Document byte stream.
+The API package exposes both convenience and DID Core envelope helpers.
+`resolve` returns the ledger-derived DID Document and DID Document metadata, or
+`null` when the contract state is missing. `resolveDIDResolutionResult` returns
+the full DID Core Resolution Result envelope with `didResolutionMetadata`.
+Successful abstract `resolve` responses must not set
+`didResolutionMetadata.contentType`; that field is reserved for
+`resolveRepresentation` responses where the body is a DID Document byte stream.
 
 ## Build & Test
 
