@@ -328,8 +328,12 @@ Docs entry points:
 - `docs-site/guide/github-pages.md`: GitHub Pages publishing guide.
 - `docs-site/guide/testing-strategy.md`: testing strategy.
 - `docs-site/guide/did-surface-change-discipline.md`: discipline for DID surface changes.
-- `docs-site/spec/midnight-method.md`: method specification material.
-- `docs-site/spec/midnight-did-traits.md`: method traits.
+- `w3c-spec/midnight-method.md`: canonical method specification.
+- `w3c-spec/midnight-did-traits.md`: canonical method traits matrix.
+- `docs-site/spec/index.md`: docs-site index for generated specification pages.
+
+The VitePress specification pages under `docs-site/spec/` are generated from
+`w3c-spec/` during docs preparation and are intentionally not committed.
 
 Update docs when changing public APIs, contract behavior, package distribution, runner behavior, or DID method semantics.
 

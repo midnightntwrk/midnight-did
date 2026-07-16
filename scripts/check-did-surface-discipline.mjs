@@ -162,8 +162,8 @@ for (const requiredPhrase of [
   "`Deploy Docs Site`",
   "`Scan / build`",
   "`Check PR`",
-  "`docs-site/spec/midnight-method.md`",
-  "`docs-site/spec/midnight-did-traits.md`",
+  "`w3c-spec/midnight-method.md`",
+  "`w3c-spec/midnight-did-traits.md`",
 ]) {
   assertIncludes(agentGuide, requiredPhrase, "AGENT.md");
 }
@@ -173,8 +173,8 @@ for (const stalePhrase of [
   "`docs`: docs build",
   "`scan`: security scanning",
   "`pr-check`: semantic PR title",
-  "`w3c-spec/midnight-method.md`",
-  "`w3c-spec/midnight-did-traits.md`",
+  "`docs-site/spec/midnight-method.md`",
+  "`docs-site/spec/midnight-did-traits.md`",
 ]) {
   assertNotIncludes(agentGuide, stalePhrase, "AGENT.md");
 }
@@ -319,9 +319,9 @@ assertNotIncludes(
   "docs-site spec index",
 );
 assertNotIncludes(
-  readText("docs-site/spec/midnight-did-traits.md"),
+  readText("w3c-spec/midnight-did-traits.md"),
   "package/service docs",
-  "docs-site DID traits page",
+  "DID traits spec",
 );
 
 for (const workflow of [

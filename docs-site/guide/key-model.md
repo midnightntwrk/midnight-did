@@ -34,10 +34,10 @@ bugs while still supporting both W3C JWK output and native Midnight proofs.
 for Ed25519, X25519, P-256, and secp256k1; 48 bytes for BLS12381G1; and 96
 bytes for BLS12381G2. Public JWKs must not include private `d` material.
 
-`publicKeyMultibase` / `Multikey` is not a current Midnight DID ledger profile.
-It is the likely future fit for some W3C Data Integrity and BBS-oriented suites,
-but it needs an explicit storage/API path rather than overloading
-`publicKeyJwk`.
+`publicKeyMultibase` / `Multikey` is not a Midnight DID ledger profile in this
+method version. Data Integrity and BBS-oriented suites that require Multikey are
+not currently consumable through `did:midnight` without a separate method
+extension or integration-layer adaptation.
 
 ## Identifier Rules
 

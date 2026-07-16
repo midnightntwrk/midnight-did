@@ -224,26 +224,11 @@ const validateLinks = async (root = docsRoot) => {
   return failures;
 };
 
-const validateSpecDrift = () => {
+const prepareGeneratedSpecDocs = () => {
   execFileSync("node", ["docs-site/scripts/sync-spec-docs.mjs"], {
     cwd: repoRoot,
     stdio: "inherit",
   });
-
-  const diff = execFileSync("git", ["diff", "--", "docs-site/spec"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-  });
-  if (diff.trim() === "") return [];
-
-  return [
-    {
-      filePath: resolve(repoRoot, "docs-site/spec"),
-      line: 1,
-      message:
-        "generated spec docs are out of sync with w3c-spec; run 'pnpm run docs:sync-spec' and commit the result",
-    },
-  ];
 };
 
 const printFailures = (failures) => {
@@ -254,10 +239,9 @@ const printFailures = (failures) => {
 };
 
 const main = async () => {
-  const failures = [
-    ...validateSpecDrift(),
-    ...(await validateLinks()),
-  ];
+  prepareGeneratedSpecDocs();
+
+  const failures = await validateLinks();
 
   if (failures.length > 0) {
     console.error(`docs validation failed with ${failures.length} issue(s):`);
