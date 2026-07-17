@@ -2,7 +2,7 @@
 
 Engineering guide for agents and engineers working in `midnight-did`.
 
-This repository can be cloned independently or checked out as `midnight-identity-workspace/midnight-did`. When it is used inside the workspace, also read the workspace-root `AGENT.md` for cross-repo coordination.
+This repository can be cloned independently.
 
 ## Purpose
 
@@ -14,17 +14,26 @@ Resolver services, DID manager service/UI, and reusable secret storage live in `
 
 Prerequisites:
 
-- Node.js 24
+- Nix with flakes enabled
 - Docker for API integration tests
-- Midnight Compact toolchain
-- Nix when working from the identity workspace
 
 Standalone setup:
+
+```bash
+nix develop
+```
+
+Then run repository setup from inside the Nix shell:
 
 ```bash
 pnpm install
 compact update 0.30.0
 ```
+
+The Nix development shell is the expected local environment. It provides the
+repository baseline for Node.js, pnpm, the Compact toolchain, and supporting
+CLI dependencies. When changing tool versions or environment dependencies,
+update `flake.nix` / `flake.lock` and the setup documentation in the same PR.
 
 Fast validation:
 
@@ -32,13 +41,18 @@ Fast validation:
 ./run.sh --light --strict
 ```
 
-Current stabilization checkpoint, 2026-05-29: develop at `195cd6f` matched `origin/develop` after PR #169 merged. The repository is pnpm/Turbo-native and the DID contract uses the split key-storage model described below. Long-running API integration remains opt-in through the full runner.
+Current baseline: this repository is pnpm/Turbo-native and long-running API
+integration remains opt-in through the full runner.
 
 Full validation:
 
 ```bash
 PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh --strict
 ```
+
+Prefer the bootstrapped proof-server image for local full validation when it is
+available; it avoids most proof-server startup cost and keeps feedback loops
+shorter.
 
 ## Midnight MCP Configuration
 
@@ -82,6 +96,12 @@ Rules:
 - Keep VC/VP semantics in `midnight-verifiable-credentials`.
 - Keep Passport/product flows in examples/product repos.
 - Keep `jubjub-schnorr` as the single source of truth for JubJub Schnorr transcript logic.
+- Keep `.codex/skills/midnight-identity/SKILL.md` and
+  `.claude/skills/midnight-identity/SKILL.md` synchronized when editing either
+  bundled agent skill.
+- Keep repository guidance public-safe: do not add private tracker, private
+  infrastructure, internal repository paths, or local-machine paths to committed
+  docs, skills, scripts, or PR templates.
 
 Current key-storage model:
 
@@ -126,7 +146,7 @@ When changing Compact circuits:
 1. Update the Compact source.
 2. Run the package build that regenerates managed artifacts.
 3. Run package tests that exercise the generated runtime.
-4. Verify downstream imports still use package names rather than deep workspace-relative source paths.
+4. Verify downstream imports still use package names rather than deep repository-relative source paths.
 
 For shared Schnorr changes, run:
 
@@ -140,9 +160,17 @@ pnpm --filter ./packages/contract test
 2. Create a focused branch, normally with `codex/` prefix.
 3. Change the owning package and nearby docs/tests together.
 4. Run a focused package lane.
-5. Run `./run.sh --light --strict` before considering the repo stable.
-6. Run full `./run.sh --strict` for release-facing or integration-heavy changes.
-7. Commit with DCO and GPG for repository-facing work.
+5. Keep public behavior, package exports, documentation, and tests in the same
+   PR when they describe one change.
+6. Run the required PR gate before considering the repo stable:
+   `./run.sh --light --strict`, `./run.sh core --strict`, and
+   `./run.sh integration-report`.
+7. Run full `./run.sh --strict` for release-facing or integration-heavy changes.
+8. Use clear conventional commit and PR titles, for example
+   `fix: omit empty DID relations` or `docs: clarify release artifacts`.
+9. Write PR descriptions that explain what changed, why it changed, how it was
+   validated, and which issues are closed.
+10. Commit with DCO and GPG for repository-facing work.
 
 Commit form:
 
@@ -150,12 +178,21 @@ Commit form:
 git commit -S --signoff -m "<type>: <subject>"
 ```
 
+Before pushing, verify the latest commit includes a good signature and
+`Signed-off-by` trailer:
+
+```bash
+git log -1 --show-signature --pretty=fuller
+```
+
 ## pnpm and Turbo Notes
 
-This repository uses pnpm 10 with a strict workspace layout and Turbo for package-level orchestration. Do not reintroduce `package-lock.json`, `npm ci`, or npm workspace commands.
+This repository uses pnpm 10 with a strict package layout and Turbo for package-level orchestration. Do not reintroduce `package-lock.json`, `npm ci`, or npm commands for package orchestration.
 
 Practical rules from the 2026-05-26 migration:
 
+- Run package-manager, Compact, and validation commands from the Nix
+  development shell unless CI is executing the equivalent setup steps.
 - In CI, run `corepack enable` before `actions/setup-node` uses `cache: pnpm`; otherwise setup-node cannot find pnpm.
 - Every package that imports a tool or runtime helper must declare it directly. Strict pnpm does not let package-local ESLint configs or Vitest setup files rely on root hoisting. Examples: `globals` for package-local `eslint.config.mjs`, and `protobufjs`/`long` for `packages/api/vitest.setup.ts`.
 - `packages/api` must directly declare runtime dependencies it imports or exposes through its TypeScript build, including Midnight SDK packages, `@midnight-ntwrk/compact-js`, and `rxjs`.
@@ -272,8 +309,8 @@ Packed packages:
 - `@midnight-ntwrk/midnight-did-jubjub-schnorr`
 - `@midnight-ntwrk/midnight-did-contract`
 
-The five DID packages are publishable to GitHub Packages. Keep the root
-workspace and `docs-site` private, and keep package `publishConfig.registry`
+The five DID packages are publishable to GitHub Packages. Keep the repository
+root package and `docs-site` private, and keep package `publishConfig.registry`
 pointing at `https://npm.pkg.github.com`. Publication order is owned by
 `scripts/did-workspace-catalog.mjs --publish-workspaces`.
 
@@ -305,6 +342,10 @@ matching GHCR reference or GitHub Release asset URLs from the installed package
 version. `scripts/prepare-release-version.mjs` must keep that embedded source
 version aligned with package manifest rewrites during publish jobs.
 
+Package consumers must use the published package surfaces and published ZK
+artifact locations. Do not restore cross-repository source imports, copied
+`dist/` trees, or copied generated key directories as a dependency mechanism.
+
 ## CI Shape
 
 GitHub Actions target `main` and `develop`.
@@ -335,7 +376,10 @@ Docs entry points:
 The VitePress specification pages under `docs-site/spec/` are generated from
 `w3c-spec/` during docs preparation and are intentionally not committed.
 
-Update docs when changing public APIs, contract behavior, package distribution, runner behavior, or DID method semantics.
+Update docs and the method specification when changing public APIs, contract
+behavior, package distribution, runner behavior, output shapes, key handling,
+or DID method semantics. Keep generated docs as build outputs unless the owning
+documentation file is intentionally tracked.
 
 ## Cross-Repository Boundaries
 
