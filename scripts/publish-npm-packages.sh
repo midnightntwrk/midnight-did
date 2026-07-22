@@ -25,7 +25,6 @@ trap cleanup EXIT
 {
   echo "registry=${registry}"
   echo "//${registry_host}/:_authToken=${token}"
-  echo "always-auth=true"
 } > "${npmrc}"
 
 export NPM_CONFIG_USERCONFIG="${npmrc}"
@@ -53,12 +52,43 @@ published_version_for_package() {
   return "${status}"
 }
 
+ensure_public_access() {
+  local package_name="$1"
+
+  if [[ "${publish_access}" != "public" ]]; then
+    return 0
+  fi
+
+  echo "[publish-npm-packages] Ensuring ${package_name} has public npm access"
+  npm access set status=public "${package_name}" --registry "${registry}"
+}
+
+ensure_npm_dist_tag() {
+  local package_name="$1"
+  local latest_version
+
+  echo "[publish-npm-packages] Ensuring ${package_name}@${version} has npm dist-tag ${npm_tag}"
+  npm dist-tag add "${package_name}@${version}" "${npm_tag}" --registry "${registry}"
+
+  if [[ "${npm_tag}" == "latest" ]]; then
+    return 0
+  fi
+
+  latest_version="$(npm view "${package_name}" dist-tags.latest --registry "${registry}" 2>/dev/null || true)"
+  if [[ "${latest_version}" == "${version}" ]]; then
+    echo "[publish-npm-packages] Removing unintended latest tag from ${package_name}@${version}"
+    npm dist-tag rm "${package_name}" latest --registry "${registry}"
+  fi
+}
+
 while IFS= read -r workspace; do
   package_name="$(package_name_for_workspace "${workspace}")"
   published_version="$(published_version_for_package "${package_name}")"
 
   if [[ "${published_version}" == "${version}" ]]; then
     echo "[publish-npm-packages] ${package_name}@${version} already exists; skipping immutable npm publish."
+    ensure_public_access "${package_name}"
+    ensure_npm_dist_tag "${package_name}"
     continue
   fi
 
@@ -68,4 +98,6 @@ while IFS= read -r workspace; do
     publish_args+=(--access "${publish_access}")
   fi
   pnpm --filter "./${workspace}" "${publish_args[@]}"
+  ensure_public_access "${package_name}"
+  ensure_npm_dist_tag "${package_name}"
 done < <(node scripts/did-workspace-catalog.mjs --publish-workspaces)
