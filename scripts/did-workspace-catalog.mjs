@@ -6,7 +6,7 @@ import { stdout } from "node:process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const githubPackageRegistry = "https://npm.pkg.github.com";
+export const npmPackageRegistry = "https://registry.npmjs.org/";
 export const repositoryUrl =
   "git+https://github.com/midnightntwrk/midnight-did.git";
 

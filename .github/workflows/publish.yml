@@ -1,4 +1,4 @@
-name: Publish Packages and ZK Artifacts
+name: Publish npmjs Packages and ZK Artifacts
 
 on:
   push:
@@ -29,6 +29,7 @@ permissions:
 
 env:
   COMPACT_COMPILER_VERSION: 0.30.0
+  NPM_REGISTRY: https://registry.npmjs.org/
   ORAS_VERSION: 1.2.3
   PNPM_CONFIG_AUDIT: "false"
   PNPM_CONFIG_FUND: "false"
@@ -112,6 +113,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
+          registry-url: https://registry.npmjs.org/
 
       - name: Set up Compact toolchain
         uses: midnightntwrk/setup-compact-action@836895c8fffbbea6bd986af2b17e8941ff29d1f8 # ratchet:midnightntwrk/setup-compact-action@v1
@@ -157,16 +159,17 @@ jobs:
             ${{ steps.zk.outputs.zk_manifest }}
             ${{ steps.zk.outputs.zk_sha256 }}
 
-      - name: Publish npm packages to GitHub Packages
+      - name: Publish npm packages to npmjs
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
+          NODE_AUTH_TOKEN: ${{ secrets.MIDNIGHTCI_NPMJS_TOKEN }}
+          NPM_ACCESS: public
           NPM_TAG: ${{ steps.version.outputs.npm_tag }}
           VERSION: ${{ steps.version.outputs.version }}
         run: ./scripts/publish-npm-packages.sh
 
-      - name: Smoke test packages from GitHub Packages
+      - name: Smoke test packages from npmjs
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
+          NODE_AUTH_TOKEN: ${{ secrets.MIDNIGHTCI_NPMJS_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
         run: ./scripts/release-smoke-npm-packages.sh
 
@@ -176,7 +179,7 @@ jobs:
       - name: Publish and verify GHCR ZK artifact
         id: oci
         env:
-          GH_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
           ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
           ARCHIVE_NAME: ${{ steps.zk.outputs.zk_archive_name }}

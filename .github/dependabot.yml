@@ -1,17 +1,8 @@
 version: 2
 
-registries:
-  github-packages:
-    type: npm-registry
-    url: https://npm.pkg.github.com
-    token: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
-    replaces-base: false
-
 updates:
   - package-ecosystem: "npm"
     directory: "/"
-    registries:
-      - github-packages
     target-branch: "develop"
     schedule:
       interval: "weekly"

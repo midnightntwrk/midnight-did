@@ -15,11 +15,10 @@ on:
         description: "npm registry URL"
         required: false
         type: string
-        default: "https://npm.pkg.github.com"
+        default: "https://registry.npmjs.org/"
 
 permissions:
   contents: read
-  packages: read
 
 env:
   PNPM_CONFIG_AUDIT: "false"
@@ -46,7 +45,6 @@ jobs:
       - name: Smoke test published packages and release ZK assets
         env:
           GH_TOKEN: ${{ github.token }}
-          NODE_AUTH_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
           REGISTRY: ${{ inputs.registry }}
           RELEASE_TAG: ${{ inputs.release_tag }}
           VERSION: ${{ inputs.version }}

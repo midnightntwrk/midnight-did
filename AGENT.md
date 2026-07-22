@@ -309,26 +309,23 @@ Packed packages:
 - `@midnight-ntwrk/midnight-did-jubjub-schnorr`
 - `@midnight-ntwrk/midnight-did-contract`
 
-The five DID packages are publishable to GitHub Packages. Keep the repository
-root package and `docs-site` private, and keep package `publishConfig.registry`
-pointing at `https://npm.pkg.github.com`. Publication order is owned by
-`scripts/did-workspace-catalog.mjs --publish-workspaces`.
+The five DID packages are publishable to npmjs. Keep the repository root
+package and `docs-site` private, and keep package `publishConfig.registry`
+pointing at `https://registry.npmjs.org/` with `publishConfig.access: "public"`.
+Publication order is owned by `scripts/did-workspace-catalog.mjs
+--publish-workspaces`.
 
-Publish CI must use organization package tokens for `npm.pkg.github.com`:
-`MIDNIGHTCI_PACKAGES_READ` for dependency install and post-publish package
-smoke tests, and `MIDNIGHTCI_PACKAGES_WRITE` for publishing packages and the
-GHCR ZK artifact. The default `GITHUB_TOKEN` is still used for GitHub Release
-asset operations, but it cannot be assumed to read unrelated private
-organization packages such as `@midnight-ntwrk/compact-runtime`.
+npmjs package publication uses `NPM_REGISTRY=https://registry.npmjs.org/`,
+`MIDNIGHTCI_NPMJS_TOKEN`, and `NPM_ACCESS=public`.
 
-Release CI publishes snapshot versions from `main` and `develop`, RC versions
-from `main` or `develop`, and final releases from `main` only. ZK artifacts are
+Release CI publishes snapshot versions from `develop`, RC versions from `main`
+or `develop`, and final releases from `main` only. ZK artifacts are
 distributed as a separate validated archive with the provider layout
 `keys/*.prover`, `keys/*.verifier`, and `zkir/*.bzkir`; do not rely on package
 consumers to discover proving keys by walking arbitrary generated directories.
-Publish CI smoke-tests the exact package version from GitHub Packages and
-fetches pulled/downloaded ZK bundles through `FetchZkConfigProvider`. Reruns
-skip npm packages whose exact immutable version already exists.
+Publish CI smoke-tests the exact package version from npmjs and fetches
+pulled/downloaded ZK bundles through `FetchZkConfigProvider`. Reruns skip npm
+packages whose exact immutable version already exists.
 
 GHCR publication uses ORAS because the ZK bundle is a generic OCI artifact
 rather than a container image or npm package. The publish workflow installs the

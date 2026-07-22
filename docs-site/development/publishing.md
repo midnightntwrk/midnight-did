@@ -50,8 +50,11 @@ behavior.
 
 ## Package And ZK Artifact Publication
 
-The `Publish Packages and ZK Artifacts` workflow is the prototype release path
-for the five DID packages:
+The `Publish npmjs Packages and ZK Artifacts` workflow publishes the five DID
+packages to npmjs and publishes the matching ZK artifact bundle to GHCR and, for
+RC/final releases, GitHub Release assets.
+
+The workflow publishes these package workspaces in dependency order:
 
 - `@midnight-ntwrk/midnight-did-jubjub-schnorr`
 - `@midnight-ntwrk/midnight-did-contract`
@@ -60,25 +63,21 @@ for the five DID packages:
 - `@midnight-ntwrk/midnight-did-api`
 
 The root workspace and `docs-site` remain private. The package workspaces are
-publishable and use GitHub Packages with the `https://npm.pkg.github.com`
-registry.
+publishable and keep `publishConfig.registry` pointed at
+`https://registry.npmjs.org/` with `publishConfig.access: "public"`.
 
-The workflow uses two organization secrets for GitHub Packages:
-
-| Secret | Required scope | Used for |
-| --- | --- | --- |
-| `MIDNIGHTCI_PACKAGES_READ` | `read:packages` | Installing private `@midnight-ntwrk/*` dependencies and post-publish npm smoke tests |
-| `MIDNIGHTCI_PACKAGES_WRITE` | `write:packages` and `read:packages` | Publishing DID packages to GitHub Packages and publishing the GHCR ZK artifact |
-
-`GITHUB_TOKEN` remains useful for repository-scoped operations such as creating
-or updating GitHub Release assets, but it is not sufficient for reading every
-private organization package dependency from `npm.pkg.github.com`.
+The workflow uses `MIDNIGHTCI_NPMJS_TOKEN` for the npmjs publish and post-publish
+package smoke steps. `GITHUB_TOKEN` is used for repository-scoped operations such
+as creating/updating GitHub Release assets and for publishing the GHCR ZK
+artifact. The workflow keeps `packages: write` only because GHCR generic OCI
+artifact publication requires it; npmjs publication is authenticated by the npm
+token.
 
 Publication channels:
 
 | Channel | Trigger | Branches | Version shape | npm tag | ZK artifacts |
 | --- | --- | --- | --- | --- | --- |
-| Snapshot | Push | `main`, `develop` | `x.y.z-snapshot.<run>.<sha>` | `snapshot` | Workflow artifact and GHCR OCI artifact |
+| Snapshot | Push or manual dispatch | `develop` | `x.y.z-snapshot.<run>.<sha>` | `snapshot` | Workflow artifact and GHCR OCI artifact |
 | RC | Manual workflow dispatch | `main`, `develop` | `x.y.z-rc{index}` | `rc` | GitHub Release asset and GHCR OCI artifact |
 | Release | Manual workflow dispatch | `main` only | `x.y.z` | `latest` | GitHub Release asset and GHCR OCI artifact |
 
@@ -92,20 +91,22 @@ not gated by this classifier.
 
 ## Distribution Use Cases
 
-Publication supports three consumer paths:
+Publication supports these consumer paths:
 
 | Use case | Source | Intended consumer |
 | --- | --- | --- |
-| Snapshot validation | GitHub Packages plus GHCR OCI artifact | CI, release engineers, downstream repository smoke tests |
-| RC/release validation | GitHub Packages plus GitHub Release asset | Release engineers and users who want stable HTTPS assets |
+| Snapshot validation | npmjs packages plus GHCR OCI artifact | CI, release engineers, downstream repository smoke tests |
+| RC/release validation | npmjs packages plus GitHub Release asset | Release engineers and users who want stable HTTPS assets |
+| Public npm consumption | npmjs packages plus GitHub Release asset | Public users who install packages from `registry.npmjs.org` |
 | Server-side runtime bootstrap | GHCR OCI artifact or unpacked release asset | Node services, DID resolver/manager services, and CI jobs that cache proving keys |
 
-Each run rebuilds the packages and managed Compact artifacts, checks package
-contents, creates a ZK artifact bundle, validates the bundle, publishes packages,
-smoke-tests the exact package version from GitHub Packages, pushes the bundle to
-GHCR, pulls it back, validates it, and fetches every circuit through
-`FetchZkConfigProvider` over runtime HTTP. RC and release runs also upload the
-bundle to a GitHub Release and download the asset back for the same validation.
+The publish workflow rebuilds the packages and managed Compact artifacts,
+checks package contents, creates a ZK artifact bundle, validates the bundle,
+publishes packages to npmjs, smoke-tests the exact package version from npmjs,
+pushes the bundle to GHCR, pulls it back, validates it, and fetches every
+circuit through `FetchZkConfigProvider` over runtime HTTP. RC and release runs
+also upload the bundle to a GitHub Release and download the asset back for the
+same validation.
 
 ## ORAS and GHCR artifacts
 
@@ -189,17 +190,17 @@ pnpm run published-artifacts:smoke -- --skip-npm --zk-archive artifacts/zk/midni
 PR CI validates package contents, ZK bundle structure, package imports, docs, and
 the normal core/API lanes. It does not publish packages or push GHCR artifacts.
 
-After this branch lands on `develop`, the push to `develop` should trigger the
-snapshot publication path. Use the version printed by the workflow summary:
+After this branch lands on `develop`, a code-impacting push to `develop` should
+trigger the snapshot publication path. Use the version printed by the workflow
+summary:
 
 ```bash
 export VERSION="0.4.0-snapshot.<run>.<sha>"
-export NODE_AUTH_TOKEN="<github-token-with-package-read>"
-export GH_TOKEN="${NODE_AUTH_TOKEN}"
+export GH_TOKEN="<github-token-with-repo-read>"
 
 pnpm run published-artifacts:smoke -- \
   --version "${VERSION}" \
-  --registry https://npm.pkg.github.com \
+  --registry https://registry.npmjs.org \
   --oci-ref "ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${VERSION}"
 ```
 
@@ -207,32 +208,29 @@ For an RC or final release, smoke-test both public distribution paths:
 
 ```bash
 export VERSION="0.4.0-rc1"
-export NODE_AUTH_TOKEN="<github-token-with-package-read>"
-export GH_TOKEN="${NODE_AUTH_TOKEN}"
+export GH_TOKEN="<github-token-with-repo-read>"
 
 pnpm run published-artifacts:smoke -- \
   --version "${VERSION}" \
-  --registry https://npm.pkg.github.com \
   --oci-ref "ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${VERSION}"
 
 pnpm run published-artifacts:smoke -- \
   --version "${VERSION}" \
-  --registry https://npm.pkg.github.com \
   --github-release-tag "v${VERSION}"
 ```
 
-The smoke test installs the exact package version from GitHub Packages, imports
-all package entry points, verifies the API package's embedded artifact metadata
-matches the requested version, downloads or pulls the ZK bundle, validates the
-bundle manifest, and fetches every circuit through `FetchZkConfigProvider` over
-runtime HTTP.
+The smoke test installs the exact package version from the selected registry,
+imports all package entry points, verifies the API package's embedded artifact
+metadata matches the requested version, downloads or pulls the ZK bundle,
+validates the bundle manifest, and fetches every circuit through
+`FetchZkConfigProvider` over runtime HTTP.
 
 ## Standalone Release Smoke
 
 Use the `Published Release Standalone Smoke` workflow after publishing an RC or
 release when you need end-to-end confirmation that the published packages and
 GitHub Release ZK assets work together. The workflow installs the exact
-`@midnight-ntwrk/*` package version from GitHub Packages, downloads the matching
+`@midnight-ntwrk/*` package version from npmjs, downloads the matching
 release archive, unpacks it, boots the standalone Midnight environment, deploys
 a DID contract, adds a verification method, adds an authentication relation,
 adds and updates a service, and resolves the updated DID document.
@@ -241,7 +239,6 @@ Local equivalent:
 
 ```bash
 export VERSION="0.4.0-rc1"
-export NODE_AUTH_TOKEN="<github-token-with-package-read>"
 export GH_TOKEN="<github-token-with-repo-read>"
 
 pnpm run published-standalone:smoke -- \
@@ -249,11 +246,11 @@ pnpm run published-standalone:smoke -- \
   --github-release-tag "v${VERSION}"
 ```
 
-`NODE_AUTH_TOKEN` must be able to read private GitHub Packages. `GH_TOKEN` must
-be able to read the repository release asset. The script starts Docker Compose
-from `packages/api/standalone.yml` by default. If a standalone environment is
-already running, pass `--use-existing-standalone` and set `INDEXER_URL`,
-`INDEXER_WS_URL`, `NODE_RPC_URL`, and `PROOF_SERVER_URL` as needed.
+`GH_TOKEN` must be able to read the repository release asset. The script starts
+Docker Compose from `packages/api/standalone.yml` by default. If a standalone
+environment is already running, pass `--use-existing-standalone` and set
+`INDEXER_URL`, `INDEXER_WS_URL`, `NODE_RPC_URL`, and `PROOF_SERVER_URL` as
+needed.
 
 Published API packages can use unpacked release keys by setting
 `MIDNIGHT_DID_ZK_CONFIG_PATH` to the bundle root containing `manifest.json`,
