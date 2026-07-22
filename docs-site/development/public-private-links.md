@@ -45,8 +45,9 @@ right owner reference.
 
 ## Current Private Link Inventory
 
-The published docs currently reference private or potentially access-restricted
-Midnight repositories at a high level:
+The published docs currently do not require access to private Midnight
+repositories. The repository links used by the site point to public GitHub
+repositories:
 
 - `midnight-did`, for source files that back this documentation site and method
   specification.
@@ -56,6 +57,7 @@ Midnight repositories at a high level:
   status/revocation, and presentation workflows.
 - `midnight-trust-registry`, for registry governance and trust-list integration.
 
-This inventory is intentionally by repository and purpose. Do not maintain a
-complete URL list here; use focused link validation output when a specific page
-or anchor needs repair.
+If a future docs page must link to a private Midnight repository, add that
+repository to the access-required inventory in `scripts/docs-validate.mjs` and
+include an access-required caveat next to the link. Keep the inventory by
+repository and purpose rather than maintaining a complete URL list.

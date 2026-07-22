@@ -107,6 +107,10 @@ Defaults:
 - `MainnetConfig` defaults to local proof server (`http://127.0.0.1:6300`) so it can be used with local proving while targeting mainnet indexer/node.
 - constructing any profile config calls `setNetworkId()` through `applyMidnightNetworkProfile()`, so wallet and contract operations see the correct Midnight network before they start.
 
+The docs site publishes the generated endpoint matrix at
+<https://midnightntwrk.github.io/midnight-did/guide/network-endpoints>; it is
+generated from `src/config-profiles.ts` during docs preparation and validation.
+
 You can still override `MainnetConfig` endpoints explicitly when needed. New
 tooling should use `ProfileConfig` when the profile name is data-driven rather
 than hard-coded in a class constructor. Every `ProfileConfig` instance exposes

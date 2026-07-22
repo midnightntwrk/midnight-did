@@ -8,8 +8,14 @@ import {
   markdownAnchors,
   routeForMarkdownFile,
   slugify,
+  validateAccessRequiredLinks,
+  validateContentRules,
   validateLinks,
 } from "./docs-validate.mjs";
+import {
+  generateNetworkEndpointsMarkdown,
+  parseNetworkProfiles,
+} from "../docs-site/scripts/sync-network-endpoints.mjs";
 
 test("slugify matches generated VitePress heading anchors used by docs", () => {
   assert.equal(slugify("3.4.4. publicKeyJwk"), "344-publickeyjwk");
@@ -84,6 +90,140 @@ test("validateLinks accepts public and relative asset links", async () => {
     );
 
     assert.deepEqual(await validateLinks(root), []);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("parseNetworkProfiles extracts the canonical API profile matrix", () => {
+  const profiles = parseNetworkProfiles(`
+    export const MIDNIGHT_NETWORK_PROFILES = {
+      standalone: {
+        name: "standalone",
+        networkId: "undeployed",
+        endpoints: {
+          indexer: "http://127.0.0.1:8088/api/v3/graphql",
+          indexerWS: "ws://127.0.0.1:8088/api/v3/graphql/ws",
+          node: "http://127.0.0.1:9944",
+          proofServer: "http://127.0.0.1:6300",
+        },
+      },
+      "testnet-local": {
+        name: "testnet-local",
+        networkId: "testnet",
+        endpoints: {
+          indexer: "http://127.0.0.1:8088/api/v3/graphql",
+          indexerWS: "ws://127.0.0.1:8088/api/v3/graphql/ws",
+          node: "http://127.0.0.1:9944",
+          proofServer: "http://127.0.0.1:6300",
+        },
+      },
+      "testnet-remote": {
+        name: "testnet-remote",
+        networkId: "testnet",
+        endpoints: {
+          indexer: "https://indexer.testnet-02.midnight.network/api/v3/graphql",
+          indexerWS: "wss://indexer.testnet-02.midnight.network/api/v3/graphql/ws",
+          node: "https://rpc.testnet-02.midnight.network",
+          proofServer: "http://127.0.0.1:6300",
+        },
+      },
+      preprod: {
+        name: "preprod",
+        networkId: "preprod",
+        endpoints: {
+          indexer: "https://indexer.preprod.midnight.network/api/v4/graphql",
+          indexerWS: "wss://indexer.preprod.midnight.network/api/v4/graphql/ws",
+          node: "https://rpc.preprod.midnight.network",
+          proofServer: "http://127.0.0.1:6300",
+        },
+      },
+      mainnet: {
+        name: "mainnet",
+        networkId: "mainnet",
+        endpoints: {
+          indexer: "https://indexer.mainnet.midnight.network/api/v4/graphql",
+          indexerWS: "wss://indexer.mainnet.midnight.network/api/v4/graphql/ws",
+          node: "https://rpc.mainnet.midnight.network",
+          proofServer: "http://127.0.0.1:6300",
+        },
+      },
+    } as const satisfies Record<string, MidnightNetworkProfile>;
+  `);
+
+  assert.equal(
+    profiles.standalone.endpoints.indexer,
+    "http://127.0.0.1:8088/api/v3/graphql",
+  );
+  assert.match(
+    generateNetworkEndpointsMarkdown(profiles),
+    /ProfileConfig\("mainnet"\)/u,
+  );
+});
+
+test("validateContentRules reports stale endpoints and spec labels", async () => {
+  const root = await mkdtemp(resolve(tmpdir(), "docs-validate-"));
+  try {
+    await mkdir(resolve(root, "docs-site"), { recursive: true });
+    await mkdir(resolve(root, "w3c-spec"), { recursive: true });
+    await mkdir(resolve(root, "packages", "api"), { recursive: true });
+    await writeFile(resolve(root, "README.md"), "# Home\n");
+    await writeFile(
+      resolve(root, "docs-site", "index.md"),
+      "# Home\n\nUse http://127.0.0.1:18088/api/v1/graphql\n",
+    );
+    await writeFile(
+      resolve(root, "w3c-spec", "midnight-method.md"),
+      "# Midnight DID Specification Draft v0.2\n",
+    );
+    await writeFile(resolve(root, "packages", "api", "README.md"), "# API\n");
+
+    const failures = await validateContentRules(root);
+    assert.equal(failures.length, 3);
+    assert.deepEqual(
+      failures.map((failure) => failure.message).sort(),
+      [
+        "stale Midnight DID specification version label",
+        "stale indexer GraphQL v1 endpoint; use /guide/network-endpoints profile defaults",
+        "stale standalone endpoint port; use /guide/network-endpoints profile defaults",
+      ],
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("validateAccessRequiredLinks requires a caveat for private repo links", async () => {
+  const root = await mkdtemp(resolve(tmpdir(), "docs-validate-"));
+  try {
+    await writeFile(
+      resolve(root, "index.md"),
+      [
+        "# Home",
+        "",
+        "[Resolver](https://github.com/midnightntwrk/midnight-did-resolver)",
+      ].join("\n"),
+    );
+
+    const accessRequiredRepos = new Set(["midnight-did-resolver"]);
+    const failures = await validateAccessRequiredLinks(root, accessRequiredRepos);
+    assert.equal(failures.length, 1);
+    assert.match(failures[0].message, /access-restricted GitHub link/u);
+
+    await writeFile(
+      resolve(root, "index.md"),
+      [
+        "# Home",
+        "",
+        "[Resolver](https://github.com/midnightntwrk/midnight-did-resolver)",
+        "(organization access required).",
+      ].join("\n"),
+    );
+
+    assert.deepEqual(
+      await validateAccessRequiredLinks(root, accessRequiredRepos),
+      [],
+    );
   } finally {
     await rm(root, { force: true, recursive: true });
   }

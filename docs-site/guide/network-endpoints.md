@@ -1,8 +1,8 @@
 # Network Endpoints
 
 The API package owns the canonical endpoint profiles in
-`packages/api/src/config-profiles.ts`. Use this page to choose a profile and to
-see which API class configures each endpoint.
+`packages/api/src/config-profiles.ts`. This page is generated from that source
+so docs, examples, and stale-endpoint validation use the same defaults.
 
 ## Profile Matrix
 
@@ -14,8 +14,23 @@ see which API class configures each endpoint.
 | `preprod` | `PreprodConfig` or `ProfileConfig("preprod")` | `preprod` | `preprod` | `https://indexer.preprod.midnight.network/api/v4/graphql` | `wss://indexer.preprod.midnight.network/api/v4/graphql/ws` | `https://rpc.preprod.midnight.network` | `http://127.0.0.1:6300` |
 | `mainnet` | `MainnetConfig` or `ProfileConfig("mainnet")` | `mainnet` | `mainnet` | `https://indexer.mainnet.midnight.network/api/v4/graphql` | `wss://indexer.mainnet.midnight.network/api/v4/graphql/ws` | `https://rpc.mainnet.midnight.network` | `http://127.0.0.1:6300` |
 
-Standalone and local testnet use the current standalone indexer path
-`/api/v3/graphql` and the local ports `8088`, `9944`, and `6300`.
+Standalone and local testnet use the current standalone indexer path `/api/v3/graphql` and the local ports `8088`, `9944`, and `6300`.
+
+## Environment Overrides
+
+Runtime examples and smoke tests should use these variable names when overriding
+the selected profile:
+
+| Environment variable | Overrides | Standalone default |
+| --- | --- | --- |
+| `INDEXER_URL` | Indexer HTTP GraphQL endpoint | `http://127.0.0.1:8088/api/v3/graphql` |
+| `INDEXER_WS_URL` | Indexer WebSocket GraphQL endpoint | `ws://127.0.0.1:8088/api/v3/graphql/ws` |
+| `NODE_RPC_URL` | Midnight node RPC endpoint | `http://127.0.0.1:9944` |
+| `PROOF_SERVER_URL` | Proof server endpoint | `http://127.0.0.1:6300` |
+
+If only `INDEXER_URL` is supplied, examples that derive a WebSocket URL append
+`/ws` to the same GraphQL path. Keep `INDEXER_WS_URL` explicit in long-lived
+services so HTTP and WebSocket routing can evolve independently.
 
 ## Ownership
 
@@ -36,6 +51,17 @@ thin profile-specific wrappers:
 The proof server default is local for every shipped profile. If an application
 uses a remote proof service, treat it as trusted with controller-secret witness
 material unless the proving design changes.
+
+## GraphQL Versions
+
+The local standalone/testnet profiles currently use indexer GraphQL `v3`.
+`preprod` and `mainnet` use GraphQL `v4`. Do not copy an endpoint between
+profiles just because the host name looks similar; the API version is part of
+the supported profile.
+
+Historical examples can contain a legacy v1 GraphQL path or old standalone
+ports. Those values are stale for this repository's current standalone
+configuration and should be replaced with this page's profile defaults.
 
 ## Preview
 

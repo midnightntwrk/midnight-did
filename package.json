@@ -22,6 +22,7 @@
     "pack:all": "pnpm run pack:contract && echo 'Artifacts:' && ls -1 *.tgz || true && ls -1 packages/contract/*.tgz || true",
     "checkdeps": "bash scripts/check-deps.sh",
     "docs:sync-spec": "pnpm --filter docs-site docs:sync-spec",
+    "docs:sync-network-endpoints": "pnpm --filter docs-site docs:sync-network-endpoints",
     "docs:validate": "node scripts/docs-validate.mjs",
     "docs:api": "pnpm --filter docs-site docs:api",
     "docs:dev": "pnpm --filter docs-site docs:dev",
