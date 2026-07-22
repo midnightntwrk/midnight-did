@@ -178,8 +178,8 @@ pnpm run packages-smoke-tests
 ```
 
 It validates the root workspace list, package names, export maps, tarball
-`files`, GitHub Packages registry metadata, repository ownership, and README
-ownership for the DID-owned packages. The package content check dry-runs npm
+`files`, npmjs registry metadata, repository ownership, and README ownership
+for the DID-owned packages. The package content check dry-runs npm
 packing and rejects development-only files such as compiled `dist/test/**`
 output.
 
@@ -225,8 +225,8 @@ generated Compact output readiness and source manifests for `contract` and
 `pnpm run check:managed-artifacts` to fail on missing or stale generated
 artifacts after a local build.
 
-Release CI publishes the same packages to GitHub Packages. Snapshot versions are
-published automatically from `main` and `develop` as
+Release CI publishes the same packages to npmjs. Snapshot versions are
+published automatically from `develop` as
 `x.y.z-snapshot.<run>.<sha>` with the `snapshot` npm tag. Manual workflow
 dispatch can publish `x.y.z-rc{index}` with the `rc` npm tag from `main` or
 `develop`, and `x.y.z` with the `latest` npm tag from `main` only.
@@ -242,20 +242,18 @@ pnpm run published-artifacts:smoke -- --skip-npm --zk-archive artifacts/zk/midni
 The archive preserves the Midnight JS provider layout:
 `keys/<circuit>.prover`, `keys/<circuit>.verifier`, and
 `zkir/<circuit>.bzkir`. Publish CI smoke-tests the exact npm package version
-from GitHub Packages and fetches the published ZK archive through
-`FetchZkConfigProvider` over runtime HTTP after pulling/downloading it from GHCR
-or GitHub Release assets. Reruns skip npm packages whose exact immutable version
-already exists.
+from npmjs and fetches the published ZK archive through `FetchZkConfigProvider`
+over runtime HTTP after pulling/downloading it from GHCR or GitHub Release
+assets. Reruns skip npm packages whose exact immutable version already exists.
 
 Release engineers can run a heavier standalone smoke against an RC or release.
-It installs the exact package version from GitHub Packages, downloads the
+It installs the exact package version from npmjs, downloads the
 matching GitHub Release ZK archive, unpacks those keys for
 `NodeZkConfigProvider`, deploys a DID contract, mutates it, and resolves the
 updated DID document:
 
 ```bash
 export VERSION="0.4.0-rc1"
-export NODE_AUTH_TOKEN="<github-token-with-package-read>"
 export GH_TOKEN="<github-token-with-repo-read>"
 
 pnpm run published-standalone:smoke -- \

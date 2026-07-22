@@ -6,7 +6,8 @@ set -euo pipefail
 
 version="${VERSION:?VERSION is required}"
 npm_tag="${NPM_TAG:?NPM_TAG is required}"
-registry="${NPM_REGISTRY:-https://npm.pkg.github.com}"
+registry="${NPM_REGISTRY:-https://registry.npmjs.org/}"
+publish_access="${NPM_ACCESS:-public}"
 token="${NODE_AUTH_TOKEN:-${NPM_TOKEN:-}}"
 
 if [[ -z "${token}" ]]; then
@@ -22,7 +23,7 @@ cleanup() {
 trap cleanup EXIT
 
 {
-  echo "registry=https://registry.npmjs.org/"
+  echo "registry=${registry}"
   echo "//${registry_host}/:_authToken=${token}"
   echo "always-auth=true"
 } > "${npmrc}"
@@ -62,5 +63,9 @@ while IFS= read -r workspace; do
   fi
 
   echo "[publish-npm-packages] Publishing ${package_name}@${version} with npm tag ${npm_tag}"
-  pnpm --filter "./${workspace}" publish --no-git-checks --registry "${registry}" --tag "${npm_tag}"
+  publish_args=(publish --no-git-checks --registry "${registry}" --tag "${npm_tag}")
+  if [[ -n "${publish_access}" ]]; then
+    publish_args+=(--access "${publish_access}")
+  fi
+  pnpm --filter "./${workspace}" "${publish_args[@]}"
 done < <(node scripts/did-workspace-catalog.mjs --publish-workspaces)

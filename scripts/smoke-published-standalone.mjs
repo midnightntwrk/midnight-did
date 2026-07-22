@@ -16,7 +16,7 @@ import {
 } from "./did-workspace-catalog.mjs";
 
 const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const registryDefault = "https://npm.pkg.github.com";
+const registryDefault = "https://registry.npmjs.org/";
 const githubRepositoryDefault = "midnightntwrk/midnight-did";
 const genesisMintWalletSeed =
   "0000000000000000000000000000000000000000000000000000000000000001";
@@ -26,7 +26,7 @@ const usage = [
   "",
   "Options:",
   "  --version <version>          Published package and ZK bundle version.",
-  "  --registry <url>             npm registry URL. Defaults to GitHub Packages.",
+  "  --registry <url>             npm registry URL. Defaults to npmjs.",
   "  --github-release-tag <tag>   GitHub Release tag to download. Defaults to v<version>.",
   "  --github-repository <repo>   GitHub repository for release assets. Defaults to midnightntwrk/midnight-did.",
   "  --zk-archive <path>          Use an already downloaded ZK artifact archive.",
@@ -169,7 +169,7 @@ const publishedPackageNames = () =>
   });
 
 const writeNpmAuthConfig = ({ consumerRoot, registry, token }) => {
-  const npmrcLines = ["registry=https://registry.npmjs.org/"];
+  const npmrcLines = [`registry=${registry}`];
   if (token) {
     const registryHost = new URL(registry).host;
     npmrcLines.push(`//${registryHost}/:_authToken=${token}`);
@@ -182,43 +182,30 @@ const writeNpmAuthConfig = ({ consumerRoot, registry, token }) => {
 };
 
 const packageTarballUrl = ({ consumerRoot, packageName, registry, version }) => {
-  try {
-    const result = run(
-      "npm",
-      [
-        "view",
-        `${packageName}@${version}`,
-        "dist.tarball",
-        "--registry",
-        registry,
-      ],
-      {
-        cwd: consumerRoot,
-        env: {
-          ...process.env,
-          NPM_CONFIG_USERCONFIG: path.join(consumerRoot, ".npmrc"),
-        },
+  const result = run(
+    "npm",
+    [
+      "view",
+      `${packageName}@${version}`,
+      "dist.tarball",
+      "--registry",
+      registry,
+    ],
+    {
+      cwd: consumerRoot,
+      env: {
+        ...process.env,
+        NPM_CONFIG_USERCONFIG: path.join(consumerRoot, ".npmrc"),
       },
+    },
+  );
+  const tarballUrl = result.stdout.trim();
+  if (!tarballUrl) {
+    throw new Error(
+      `Missing published tarball URL for ${packageName}@${version}`,
     );
-    const tarballUrl = result.stdout.trim();
-    if (!tarballUrl) {
-      throw new Error(
-        `Missing published tarball URL for ${packageName}@${version}`,
-      );
-    }
-    return tarballUrl;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (
-      registry === registryDefault &&
-      /permission_denied|E403/u.test(message)
-    ) {
-      throw new Error(
-        `${packageName}@${version} could not be read from GitHub Packages. Set NODE_AUTH_TOKEN to a token with read:packages access, or use the MIDNIGHTCI_PACKAGES_READ secret in GitHub Actions.`,
-      );
-    }
-    throw error;
   }
+  return tarballUrl;
 };
 
 const safeArtifactVersion = (version) =>
@@ -515,13 +502,6 @@ const installPublishedPackages = async ({
   registry,
   version,
 }) => {
-  const token = process.env.NODE_AUTH_TOKEN ?? process.env.NPM_TOKEN;
-  if (!token && registry === registryDefault) {
-    throw new Error(
-      "NODE_AUTH_TOKEN or NPM_TOKEN is required for GitHub Packages smoke testing. Use a token with read:packages access.",
-    );
-  }
-
   const consumerRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), "did-published-standalone-"),
   );

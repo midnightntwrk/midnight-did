@@ -16,7 +16,7 @@ import {
   publishWorkspaces,
 } from "./did-workspace-catalog.mjs";
 
-const registryDefault = "https://npm.pkg.github.com";
+const registryDefault = "https://registry.npmjs.org/";
 const providerBaseUrl = "https://midnight-did.local";
 const ghcrArtifactRepository =
   "ghcr.io/midnightntwrk/midnight-did-zk-artifacts";
@@ -77,7 +77,7 @@ const parseArgs = () => {
             "Usage: smoke-published-artifacts.mjs --version <version> [options]",
             "",
             "Options:",
-            "  --registry <url>      npm registry URL. Defaults to GitHub Packages.",
+            "  --registry <url>      npm registry URL. Defaults to npmjs.",
             "  --npm-install-attempts <n>",
             "                        Retry npm installs for registry propagation. Defaults to 3.",
             "  --npm-install-retry-delay-ms <ms>",
@@ -137,7 +137,7 @@ const publishedPackageNames = () =>
   });
 
 const writeNpmAuthConfig = ({ directory, registry, token }) => {
-  const npmrcLines = ["registry=https://registry.npmjs.org/"];
+  const npmrcLines = [`registry=${registry}`];
   if (token) {
     const registryHost = new URL(registry).host;
     npmrcLines.push(`//${registryHost}/:_authToken=${token}`);
@@ -358,13 +358,6 @@ const smokeNpmPackages = async ({
 }) => {
   if (!version) {
     throw new Error("--version is required for npm registry smoke testing");
-  }
-
-  const token = process.env.NODE_AUTH_TOKEN ?? process.env.NPM_TOKEN;
-  if (!token && registry === registryDefault) {
-    throw new Error(
-      "NODE_AUTH_TOKEN or NPM_TOKEN is required for GitHub Packages smoke testing",
-    );
   }
 
   const consumerRoot = fs.mkdtempSync(path.join(os.tmpdir(), "did-npm-smoke-"));

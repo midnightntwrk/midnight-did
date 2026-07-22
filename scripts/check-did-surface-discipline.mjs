@@ -363,6 +363,26 @@ assertIncludes(
   ".github/workflows/publish.yml",
 );
 assertIncludes(
+  readText(".github/workflows/publish.yml"),
+  "MIDNIGHTCI_NPMJS_TOKEN",
+  ".github/workflows/publish.yml",
+);
+assertIncludes(
+  readText(".github/workflows/publish.yml"),
+  "NPM_REGISTRY: https://registry.npmjs.org/",
+  ".github/workflows/publish.yml",
+);
+assertIncludes(
+  readText(".github/workflows/publish.yml"),
+  "NPM_ACCESS: public",
+  ".github/workflows/publish.yml",
+);
+assertNotIncludes(
+  readText(".github/workflows/publish.yml"),
+  "npm.pkg.github.com",
+  ".github/workflows/publish.yml",
+);
+assertIncludes(
   readText(".github/workflows/docs.yml"),
   "pnpm run check:did-surface-discipline",
   ".github/workflows/docs.yml",
