@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { test } from "node:test";
@@ -165,6 +165,26 @@ test("parseNetworkProfiles extracts the canonical API profile matrix", () => {
   assert.doesNotMatch(generatedMarkdown, /GraphQL `v3`/u);
 });
 
+test("network endpoint docs generated from real profiles stay on GraphQL v4", async () => {
+  const source = await readFile(
+    resolve("packages/api/src/config-profiles.ts"),
+    "utf8",
+  );
+  const profiles = parseNetworkProfiles(source);
+  const generatedMarkdown = generateNetworkEndpointsMarkdown(profiles);
+
+  for (const profile of Object.values(profiles)) {
+    assert.match(profile.endpoints.indexer, /\/api\/v4\/graphql$/u);
+    assert.match(profile.endpoints.indexerWS, /\/api\/v4\/graphql\/ws$/u);
+  }
+
+  assert.match(
+    generatedMarkdown,
+    /All shipped profiles currently use indexer GraphQL `v4`/u,
+  );
+  assert.doesNotMatch(generatedMarkdown, /GraphQL `v3`/u);
+});
+
 test("validateContentRules reports stale endpoints and spec labels", async () => {
   const root = await mkdtemp(resolve(tmpdir(), "docs-validate-"));
   try {
@@ -174,7 +194,7 @@ test("validateContentRules reports stale endpoints and spec labels", async () =>
     await writeFile(resolve(root, "README.md"), "# Home\n");
     await writeFile(
       resolve(root, "docs-site", "index.md"),
-      "# Home\n\nUse http://127.0.0.1:18088/api/v1/graphql\n",
+      "# Home\n\nUse http://127.0.0.1:18088/api/v1/graphql\n\nGraphQL `v3`\n",
     );
     await writeFile(
       resolve(root, "w3c-spec", "midnight-method.md"),
@@ -183,14 +203,15 @@ test("validateContentRules reports stale endpoints and spec labels", async () =>
     await writeFile(resolve(root, "packages", "api", "README.md"), "# API\n");
 
     const failures = await validateContentRules(root);
-    assert.equal(failures.length, 3);
+    assert.equal(failures.length, 4);
     assert.deepEqual(
       failures.map((failure) => failure.message).sort(),
       [
+        "stale indexer GraphQL v3 prose; use /guide/network-endpoints profile defaults",
         "stale Midnight DID specification version label",
         "stale indexer GraphQL v1 endpoint; use /guide/network-endpoints profile defaults",
         "stale standalone endpoint port; use /guide/network-endpoints profile defaults",
-      ],
+      ].sort(),
     );
   } finally {
     await rm(root, { force: true, recursive: true });

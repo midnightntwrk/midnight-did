@@ -237,6 +237,11 @@ const staleContentRules = [
       "stale indexer GraphQL v1 endpoint; use /guide/network-endpoints profile defaults",
   },
   {
+    pattern: /GraphQL\s+`v3`/iu,
+    message:
+      "stale indexer GraphQL v3 prose; use /guide/network-endpoints profile defaults",
+  },
+  {
     pattern: /https?:\/\/(?:localhost|127\.0\.0\.1):(?:18088|19944|16300)\b/iu,
     message:
       "stale standalone endpoint port; use /guide/network-endpoints profile defaults",
