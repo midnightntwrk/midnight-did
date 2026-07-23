@@ -31,7 +31,11 @@ vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
 
 import { parseMidnightDIDString } from "@midnight-ntwrk/midnight-did-domain";
 
-import { MidnightDIDResolver, MidnightNetwork } from "../index.js";
+import {
+  type MidnightDIDResolverInterface,
+  MidnightDIDResolver,
+  MidnightNetwork,
+} from "../index.js";
 
 function makeIterablePairs<K, V>(entries: Array<[K, V]>) {
   return {
@@ -105,8 +109,9 @@ describe("MidnightDIDResolver", () => {
       ledgerReader,
       expectedNetwork: MidnightNetwork.DevNet,
     });
+    const resolverContract: MidnightDIDResolverInterface = resolver;
 
-    const result = await resolver.resolveResult(did);
+    const result = await resolverContract.resolveResult(did);
 
     expect(result).not.toBeNull();
     expect(result?.didDocument.id).toBe(did);

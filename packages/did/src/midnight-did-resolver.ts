@@ -35,6 +35,12 @@ export type MidnightDIDResolutionResult = {
   };
 };
 
+export interface MidnightDIDResolverInterface {
+  resolve(did: string): Promise<MidnightDIDDocument>;
+  resolveResult(did: string): Promise<MidnightResolutionResult | null>;
+  resolveDIDResolutionResult(did: string): Promise<MidnightDIDResolutionResult>;
+}
+
 const resolutionEnvelope = (
   result: MidnightResolutionResult | null,
   error?: DIDResolutionErrorCode,
@@ -65,7 +71,7 @@ const resolutionErrorCode = (error: unknown): DIDResolutionErrorCode => {
   return "internalError";
 };
 
-export class MidnightDIDResolver {
+export class MidnightDIDResolver implements MidnightDIDResolverInterface {
   private readonly ledgerReader: MidnightLedgerReader;
   private readonly expectedNetwork: MidnightNetwork | null;
 
