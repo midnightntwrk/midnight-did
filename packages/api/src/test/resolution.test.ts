@@ -1,16 +1,30 @@
-import { LedgerToDomain } from "@midnight-ntwrk/midnight-did";
+import { MidnightDIDResolver } from "@midnight-ntwrk/midnight-did";
 import { parseContractAddress } from "@midnight-ntwrk/midnight-did/midnight";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getMidnightNetwork } from "../did-subject.js";
+import { getDidSubject, getMidnightNetwork } from "../did-subject.js";
 import { getMidnightDIDLedgerState } from "../ledger-state.js";
 import { resolveDIDResolutionResult } from "../resolution.js";
 
+const midnightDidMocks = vi.hoisted(() => {
+  const state = {
+    options: undefined as
+      | {
+          expectedNetwork?: string;
+          ledgerReader: (contractAddress: string) => Promise<unknown>;
+        }
+      | undefined,
+    resolveResult: vi.fn(),
+  };
+  const resolver = vi.fn(function (options) {
+    state.options = options;
+    return { resolveResult: state.resolveResult };
+  });
+  return { resolver, state };
+});
+
 vi.mock("@midnight-ntwrk/midnight-did", () => ({
-  LedgerToDomain: {
-    ledgerStateToDIDDocument: vi.fn(),
-    ledgerStateToMetadata: vi.fn(),
-  },
+  MidnightDIDResolver: midnightDidMocks.resolver,
 }));
 
 vi.mock("@midnight-ntwrk/midnight-did/midnight", () => ({
@@ -18,6 +32,7 @@ vi.mock("@midnight-ntwrk/midnight-did/midnight", () => ({
 }));
 
 vi.mock("../did-subject.js", () => ({
+  getDidSubject: vi.fn(() => `did:midnight:devnet:${"a".repeat(64)}`),
   getMidnightNetwork: vi.fn(() => "devnet"),
 }));
 
@@ -36,31 +51,35 @@ const didContract = {
 describe("resolution helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    midnightDidMocks.state.options = undefined;
   });
 
   it("returns a DID Core resolution envelope on success", async () => {
-    const ledgerState = { version: 1n };
     const didDocument = {
       "@context": "https://www.w3.org/ns/did/v1",
       id: `did:midnight:devnet:${"a".repeat(64)}`,
     };
     const didDocumentMetadata = { versionId: "1" };
 
-    vi.mocked(getMidnightDIDLedgerState).mockResolvedValue(ledgerState as never);
-    vi.mocked(LedgerToDomain.ledgerStateToDIDDocument).mockReturnValue(
-      didDocument as never,
-    );
-    vi.mocked(LedgerToDomain.ledgerStateToMetadata).mockReturnValue(
+    midnightDidMocks.state.resolveResult.mockResolvedValue({
+      didDocument,
       didDocumentMetadata,
-    );
+    });
 
     const result = await resolveDIDResolutionResult(
       {} as never,
       didContract as never,
     );
 
-    expect(parseContractAddress).toHaveBeenCalledWith("a".repeat(64));
+    expect(MidnightDIDResolver).toHaveBeenCalledWith({
+      expectedNetwork: "devnet",
+      ledgerReader: expect.any(Function),
+    });
+    expect(getDidSubject).toHaveBeenCalledWith(didContract);
     expect(getMidnightNetwork).toHaveBeenCalled();
+    expect(midnightDidMocks.state.resolveResult).toHaveBeenCalledWith(
+      `did:midnight:devnet:${"a".repeat(64)}`,
+    );
     expect(result).toEqual({
       didDocument,
       didDocumentMetadata,
@@ -68,8 +87,30 @@ describe("resolution helpers", () => {
     });
   });
 
+  it("adapts resolver ledger reads to the API public data provider", async () => {
+    const providers = {} as never;
+    const ledgerState = { version: 1n };
+
+    midnightDidMocks.state.resolveResult.mockResolvedValue(null);
+    vi.mocked(getMidnightDIDLedgerState).mockResolvedValue(
+      ledgerState as never,
+    );
+
+    await resolveDIDResolutionResult(providers, didContract as never);
+    const result = await midnightDidMocks.state.options?.ledgerReader(
+      "b".repeat(64),
+    );
+
+    expect(parseContractAddress).toHaveBeenCalledWith("b".repeat(64));
+    expect(getMidnightDIDLedgerState).toHaveBeenCalledWith(
+      providers,
+      "b".repeat(64),
+    );
+    expect(result).toBe(ledgerState);
+  });
+
   it("returns notFound when the contract state is missing", async () => {
-    vi.mocked(getMidnightDIDLedgerState).mockResolvedValue(null);
+    midnightDidMocks.state.resolveResult.mockResolvedValue(null);
 
     const result = await resolveDIDResolutionResult(
       {} as never,
