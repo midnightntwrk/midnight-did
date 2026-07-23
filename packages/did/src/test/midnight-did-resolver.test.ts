@@ -32,8 +32,8 @@ vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
 import { parseMidnightDIDString } from "@midnight-ntwrk/midnight-did-domain";
 
 import {
-  type MidnightDIDResolverInterface,
   MidnightDIDResolver,
+  type MidnightDIDResolverInterface,
   MidnightNetwork,
 } from "../index.js";
 
