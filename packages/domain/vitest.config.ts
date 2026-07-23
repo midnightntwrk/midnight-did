@@ -24,8 +24,6 @@ export default defineConfig({
         "src/test/fixtures/**",
         "**/*.test.ts",
         "src/index.ts",
-        "src/did-registrar.ts",
-        "src/did-resolver.ts",
         "vitest.config.ts"
       ],
       thresholds: {
