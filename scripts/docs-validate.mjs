@@ -6,6 +6,10 @@ import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { writeNetworkEndpointsPage } from "../docs-site/scripts/sync-network-endpoints.mjs";
+import {
+  releaseDocExamplesForVersion,
+  releaseTrainVersionFromPackageVersion,
+} from "./release-doc-examples.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const repoRoot = resolve(dirname(scriptPath), "..");
@@ -341,6 +345,104 @@ const validateAccessRequiredLinks = async (
   return failures;
 };
 
+const releaseDocFiles = [
+  {
+    relativePath: "README.md",
+    requiredExamples: (examples) => [
+      examples.latestReleaseBadge,
+      `export VERSION="${examples.snapshotLocalVersion}"`,
+      'midnight-did-zk-artifacts-${VERSION}.tar.gz',
+      `export VERSION="${examples.rcVersion}"`,
+    ],
+  },
+  {
+    relativePath: "docs-site/development/publishing.md",
+    requiredExamples: (examples) => [
+      `export VERSION="${examples.snapshotLocalVersion}"`,
+      'midnight-did-zk-artifacts-${VERSION}.tar.gz',
+      `export VERSION="${examples.snapshotWorkflowVersion}"`,
+      'midnight-did-zk-artifacts:${VERSION}',
+      `export VERSION="${examples.rcVersion}"`,
+    ],
+  },
+];
+
+const docReleaseVersion = [
+  "(?:0|[1-9]\\d*)",
+  "\\.",
+  "(?:0|[1-9]\\d*)",
+  "\\.",
+  "(?:0|[1-9]\\d*)",
+  "(?:-(?:snapshot\\.(?:local|<run>\\.<sha>|[0-9A-Za-z._-]+)|rc[1-9]\\d*))?",
+].join("");
+
+const releaseExamplePatterns = [
+  {
+    label: "release badge",
+    pattern: new RegExp(`release-v(${docReleaseVersion})-blue`, "gu"),
+  },
+  {
+    label: "VERSION assignment",
+    pattern: new RegExp(`export VERSION="(${docReleaseVersion})"`, "gu"),
+  },
+  {
+    label: "ZK archive",
+    pattern: new RegExp(
+      `midnight-did-zk-artifacts-(${docReleaseVersion})\\.tar\\.gz`,
+      "gu",
+    ),
+  },
+  {
+    label: "GHCR artifact reference",
+    pattern: new RegExp(
+      `midnight-did-zk-artifacts:(${docReleaseVersion})`,
+      "gu",
+    ),
+  },
+];
+
+const validateReleaseDocExamples = async (
+  root = repoRoot,
+  packageVersion,
+  files = releaseDocFiles,
+) => {
+  const rootPackageVersion =
+    packageVersion ??
+    JSON.parse(await readFile(resolve(root, "package.json"), "utf8")).version;
+  const examples = releaseDocExamplesForVersion(rootPackageVersion);
+  const failures = [];
+
+  for (const file of files) {
+    const filePath = resolve(root, file.relativePath);
+    const content = await readFile(filePath, "utf8");
+
+    for (const expected of file.requiredExamples(examples)) {
+      if (!content.includes(expected)) {
+        failures.push({
+          filePath,
+          line: 1,
+          message: `missing release doc example '${expected}' for package version ${rootPackageVersion}`,
+        });
+      }
+    }
+
+    for (const { label, pattern } of releaseExamplePatterns) {
+      for (const match of content.matchAll(pattern)) {
+        const train = releaseTrainVersionFromPackageVersion(match[1]);
+        if (train !== examples.releaseTrain) {
+          failures.push({
+            filePath,
+            line: lineAt(content, match.index),
+            message: `${label} uses stale release train '${train}', expected '${examples.releaseTrain}'`,
+          });
+        }
+      }
+    }
+  }
+
+  return failures;
+};
+
 const prepareGeneratedDocs = async () => {
   execFileSync("node", ["docs-site/scripts/sync-spec-docs.mjs"], {
     cwd: repoRoot,
@@ -363,6 +465,7 @@ const main = async () => {
     ...(await validateLinks()),
     ...(await validateContentRules()),
     ...(await validateAccessRequiredLinks()),
+    ...(await validateReleaseDocExamples()),
   ];
 
   if (failures.length > 0) {
@@ -385,6 +488,7 @@ export {
   markdownAnchors,
   validateAccessRequiredLinks,
   validateContentRules,
+  validateReleaseDocExamples,
   routeForMarkdownFile,
   slugify,
   splitTarget,

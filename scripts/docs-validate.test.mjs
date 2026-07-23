@@ -10,6 +10,7 @@ import {
   slugify,
   validateAccessRequiredLinks,
   validateContentRules,
+  validateReleaseDocExamples,
   validateLinks,
 } from "./docs-validate.mjs";
 import {
@@ -224,6 +225,90 @@ test("validateAccessRequiredLinks requires a caveat for private repo links", asy
       await validateAccessRequiredLinks(root, accessRequiredRepos),
       [],
     );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("validateReleaseDocExamples rejects stale documented release trains", async () => {
+  const root = await mkdtemp(resolve(tmpdir(), "docs-validate-release-"));
+  try {
+    await writeFile(
+      resolve(root, "package.json"),
+      `${JSON.stringify({ version: "0.5.0" })}\n`,
+    );
+    await mkdir(resolve(root, "docs-site", "development"), { recursive: true });
+    await writeFile(
+      resolve(root, "README.md"),
+      [
+        "[![Latest Release](https://img.shields.io/badge/release-v0.4.0-blue)](https://example.test)",
+        'export VERSION="0.4.0-snapshot.local"',
+        'export ZK_ARCHIVE="artifacts/zk/midnight-did-zk-artifacts-${VERSION}.tar.gz"',
+        'export VERSION="0.4.0-rc1"',
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      resolve(root, "docs-site", "development", "publishing.md"),
+      [
+        'export VERSION="0.4.0-snapshot.local"',
+        'export ZK_ARCHIVE="artifacts/zk/midnight-did-zk-artifacts-${VERSION}.tar.gz"',
+        'export VERSION="0.4.0-snapshot.<run>.<sha>"',
+        'export OCI_REF="ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${VERSION}"',
+        'export VERSION="0.4.0-rc1"',
+        "",
+      ].join("\n"),
+    );
+
+    const failures = await validateReleaseDocExamples(root);
+
+    assert.ok(failures.length > 0);
+    assert.ok(
+      failures.some((failure) =>
+        failure.message.includes("stale release train '0.4.0'"),
+      ),
+    );
+    assert.ok(
+      failures.some((failure) =>
+        failure.message.includes("missing release doc example"),
+      ),
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("validateReleaseDocExamples accepts examples derived from package version", async () => {
+  const root = await mkdtemp(resolve(tmpdir(), "docs-validate-release-"));
+  try {
+    await writeFile(
+      resolve(root, "package.json"),
+      `${JSON.stringify({ version: "0.5.0" })}\n`,
+    );
+    await mkdir(resolve(root, "docs-site", "development"), { recursive: true });
+    await writeFile(
+      resolve(root, "README.md"),
+      [
+        "[![Latest Release](https://img.shields.io/badge/release-v0.5.0-blue)](https://example.test)",
+        'export VERSION="0.5.0-snapshot.local"',
+        'export ZK_ARCHIVE="artifacts/zk/midnight-did-zk-artifacts-${VERSION}.tar.gz"',
+        'export VERSION="0.5.0-rc1"',
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      resolve(root, "docs-site", "development", "publishing.md"),
+      [
+        'export VERSION="0.5.0-snapshot.local"',
+        'export ZK_ARCHIVE="artifacts/zk/midnight-did-zk-artifacts-${VERSION}.tar.gz"',
+        'export VERSION="0.5.0-snapshot.<run>.<sha>"',
+        'export OCI_REF="ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${VERSION}"',
+        'export VERSION="0.5.0-rc1"',
+        "",
+      ].join("\n"),
+    );
+
+    assert.deepEqual(await validateReleaseDocExamples(root), []);
   } finally {
     await rm(root, { force: true, recursive: true });
   }
