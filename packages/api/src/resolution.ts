@@ -1,12 +1,10 @@
 import {
+  type MidnightDIDResolutionResult as ResolverDIDResolutionResult,
   MidnightDIDDocument,
   MidnightDIDResolver,
 } from "@midnight-ntwrk/midnight-did";
 import { parseContractAddress } from "@midnight-ntwrk/midnight-did/midnight";
-import {
-  type DIDDocumentMetadata,
-  type DIDResolutionErrorCode,
-} from "@midnight-ntwrk/midnight-did-domain";
+import { type DIDDocumentMetadata } from "@midnight-ntwrk/midnight-did-domain";
 
 import { getLogger } from "./api-logger.js";
 import { getDidSubject, getMidnightNetwork } from "./did-subject.js";
@@ -17,6 +15,16 @@ import {
   type MidnightDIDProviders,
 } from "./types.js";
 
+const createResolver = (providers: MidnightDIDProviders): MidnightDIDResolver =>
+  new MidnightDIDResolver({
+    expectedNetwork: getMidnightNetwork(),
+    ledgerReader: async (ledgerContractAddress) =>
+      await getMidnightDIDLedgerState(
+        providers,
+        parseContractAddress(ledgerContractAddress),
+      ),
+  });
+
 export const resolve = async (
   providers: MidnightDIDProviders,
   didContract: DeployedMidnightDIDContract,
@@ -25,14 +33,7 @@ export const resolve = async (
   didDocumentMetadata: DIDDocumentMetadata;
 } | null> => {
   const contractAddress = didContract.deployTxData.public.contractAddress;
-  const resolver = new MidnightDIDResolver({
-    expectedNetwork: getMidnightNetwork(),
-    ledgerReader: async (ledgerContractAddress) =>
-      await getMidnightDIDLedgerState(
-        providers,
-        parseContractAddress(ledgerContractAddress),
-      ),
-  });
+  const resolver = createResolver(providers);
   const result = await resolver.resolveResult(getDidSubject(didContract));
   if (result === null) {
     getLogger().info(
@@ -50,42 +51,12 @@ export const resolve = async (
   return result;
 };
 
-export type MidnightDIDResolutionResult = {
-  didDocument: MidnightDIDDocument | null;
-  didDocumentMetadata: DIDDocumentMetadata;
-  didResolutionMetadata: {
-    error?: DIDResolutionErrorCode;
-  };
-};
+export type MidnightDIDResolutionResult = ResolverDIDResolutionResult;
 
 export const resolveDIDResolutionResult = async (
   providers: MidnightDIDProviders,
   didContract: DeployedMidnightDIDContract,
 ): Promise<MidnightDIDResolutionResult> => {
-  try {
-    const result = await resolve(providers, didContract);
-    if (result === null) {
-      return {
-        didDocument: null,
-        didDocumentMetadata: {},
-        didResolutionMetadata: { error: "notFound" },
-      };
-    }
-    return {
-      didDocument: result.didDocument,
-      didDocumentMetadata: result.didDocumentMetadata,
-      didResolutionMetadata: {},
-    };
-  } catch (error) {
-    getLogger().error(
-      `MidnightDID resolution failed: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-    return {
-      didDocument: null,
-      didDocumentMetadata: {},
-      didResolutionMetadata: { error: "internalError" },
-    };
-  }
+  const resolver = createResolver(providers);
+  return await resolver.resolveDIDResolutionResult(getDidSubject(didContract));
 };

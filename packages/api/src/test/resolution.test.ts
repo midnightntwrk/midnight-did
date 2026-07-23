@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getDidSubject, getMidnightNetwork } from "../did-subject.js";
 import { getMidnightDIDLedgerState } from "../ledger-state.js";
-import { resolveDIDResolutionResult } from "../resolution.js";
+import { resolve, resolveDIDResolutionResult } from "../resolution.js";
 
 const midnightDidMocks = vi.hoisted(() => {
   const state = {
@@ -15,10 +15,14 @@ const midnightDidMocks = vi.hoisted(() => {
         }
       | undefined,
     resolveResult: vi.fn(),
+    resolveDIDResolutionResult: vi.fn(),
   };
   const resolver = vi.fn(function (options) {
     state.options = options;
-    return { resolveResult: state.resolveResult };
+    return {
+      resolveResult: state.resolveResult,
+      resolveDIDResolutionResult: state.resolveDIDResolutionResult,
+    };
   });
   return { resolver, state };
 });
@@ -52,6 +56,8 @@ describe("resolution helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     midnightDidMocks.state.options = undefined;
+    midnightDidMocks.state.resolveResult.mockReset();
+    midnightDidMocks.state.resolveDIDResolutionResult.mockReset();
   });
 
   it("returns a DID Core resolution envelope on success", async () => {
@@ -61,9 +67,10 @@ describe("resolution helpers", () => {
     };
     const didDocumentMetadata = { versionId: "1" };
 
-    midnightDidMocks.state.resolveResult.mockResolvedValue({
+    midnightDidMocks.state.resolveDIDResolutionResult.mockResolvedValue({
       didDocument,
       didDocumentMetadata,
+      didResolutionMetadata: {},
     });
 
     const result = await resolveDIDResolutionResult(
@@ -77,9 +84,9 @@ describe("resolution helpers", () => {
     });
     expect(getDidSubject).toHaveBeenCalledWith(didContract);
     expect(getMidnightNetwork).toHaveBeenCalled();
-    expect(midnightDidMocks.state.resolveResult).toHaveBeenCalledWith(
-      `did:midnight:devnet:${"a".repeat(64)}`,
-    );
+    expect(
+      midnightDidMocks.state.resolveDIDResolutionResult,
+    ).toHaveBeenCalledWith(`did:midnight:devnet:${"a".repeat(64)}`);
     expect(result).toEqual({
       didDocument,
       didDocumentMetadata,
@@ -110,7 +117,11 @@ describe("resolution helpers", () => {
   });
 
   it("returns notFound when the contract state is missing", async () => {
-    midnightDidMocks.state.resolveResult.mockResolvedValue(null);
+    midnightDidMocks.state.resolveDIDResolutionResult.mockResolvedValue({
+      didDocument: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "notFound" },
+    });
 
     const result = await resolveDIDResolutionResult(
       {} as never,
@@ -122,5 +133,43 @@ describe("resolution helpers", () => {
       didDocumentMetadata: {},
       didResolutionMetadata: { error: "notFound" },
     });
+  });
+
+  it("preserves resolver error metadata", async () => {
+    midnightDidMocks.state.resolveDIDResolutionResult.mockResolvedValue({
+      didDocument: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "methodNotSupported" },
+    });
+
+    const result = await resolveDIDResolutionResult(
+      {} as never,
+      didContract as never,
+    );
+
+    expect(result.didResolutionMetadata.error).toBe("methodNotSupported");
+  });
+
+  it("uses the same resolver wiring for nullable resolution", async () => {
+    const didDocument = {
+      "@context": "https://www.w3.org/ns/did/v1",
+      id: `did:midnight:devnet:${"a".repeat(64)}`,
+    };
+    const didDocumentMetadata = { versionId: "1" };
+    midnightDidMocks.state.resolveResult.mockResolvedValue({
+      didDocument,
+      didDocumentMetadata,
+    });
+
+    const result = await resolve({} as never, didContract as never);
+
+    expect(MidnightDIDResolver).toHaveBeenCalledWith({
+      expectedNetwork: "devnet",
+      ledgerReader: expect.any(Function),
+    });
+    expect(midnightDidMocks.state.resolveResult).toHaveBeenCalledWith(
+      `did:midnight:devnet:${"a".repeat(64)}`,
+    );
+    expect(result).toEqual({ didDocument, didDocumentMetadata });
   });
 });
