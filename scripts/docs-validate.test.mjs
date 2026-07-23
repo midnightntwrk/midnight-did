@@ -103,8 +103,8 @@ test("parseNetworkProfiles extracts the canonical API profile matrix", () => {
         name: "standalone",
         networkId: "undeployed",
         endpoints: {
-          indexer: "http://127.0.0.1:8088/api/v3/graphql",
-          indexerWS: "ws://127.0.0.1:8088/api/v3/graphql/ws",
+          indexer: "http://127.0.0.1:8088/api/v4/graphql",
+          indexerWS: "ws://127.0.0.1:8088/api/v4/graphql/ws",
           node: "http://127.0.0.1:9944",
           proofServer: "http://127.0.0.1:6300",
         },
@@ -113,8 +113,8 @@ test("parseNetworkProfiles extracts the canonical API profile matrix", () => {
         name: "testnet-local",
         networkId: "testnet",
         endpoints: {
-          indexer: "http://127.0.0.1:8088/api/v3/graphql",
-          indexerWS: "ws://127.0.0.1:8088/api/v3/graphql/ws",
+          indexer: "http://127.0.0.1:8088/api/v4/graphql",
+          indexerWS: "ws://127.0.0.1:8088/api/v4/graphql/ws",
           node: "http://127.0.0.1:9944",
           proofServer: "http://127.0.0.1:6300",
         },
@@ -123,8 +123,8 @@ test("parseNetworkProfiles extracts the canonical API profile matrix", () => {
         name: "testnet-remote",
         networkId: "testnet",
         endpoints: {
-          indexer: "https://indexer.testnet-02.midnight.network/api/v3/graphql",
-          indexerWS: "wss://indexer.testnet-02.midnight.network/api/v3/graphql/ws",
+          indexer: "https://indexer.testnet-02.midnight.network/api/v4/graphql",
+          indexerWS: "wss://indexer.testnet-02.midnight.network/api/v4/graphql/ws",
           node: "https://rpc.testnet-02.midnight.network",
           proofServer: "http://127.0.0.1:6300",
         },
@@ -154,7 +154,7 @@ test("parseNetworkProfiles extracts the canonical API profile matrix", () => {
 
   assert.equal(
     profiles.standalone.endpoints.indexer,
-    "http://127.0.0.1:8088/api/v3/graphql",
+    "http://127.0.0.1:8088/api/v4/graphql",
   );
   assert.match(
     generateNetworkEndpointsMarkdown(profiles),

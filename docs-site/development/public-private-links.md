@@ -43,20 +43,6 @@ failure. If a validator reports them, classify the result as access-required
 rather than broken, then confirm the repository name and target are still the
 right owner reference.
 
-## Current Private Link Inventory
-
-The published docs currently do not require access to private Midnight
-repositories. The repository links used by the site point to public GitHub
-repositories:
-
-- `midnight-did`, for source files that back this documentation site and method
-  specification.
-- `midnight-did-resolver`, for resolver services, manager workflows, secret
-  storage, endpoint surfaces, and local key-custody flows.
-- `midnight-verifiable-credentials`, for VC/VP packages, credential families,
-  status/revocation, and presentation workflows.
-- `midnight-trust-registry`, for registry governance and trust-list integration.
-
 If a future docs page must link to a private Midnight repository, add that
 repository to the access-required inventory in `scripts/docs-validate.mjs` and
 include an access-required caveat next to the link. Keep the inventory by
