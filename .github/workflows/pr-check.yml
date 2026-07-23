@@ -39,11 +39,13 @@ jobs:
             contract
             domain
             did
-            manager
             docs
             deps
             config
             scripts
+            jubjub-schnorr
+            release
+            workflow
           requireScope: false
           subjectPattern: ^(?=.*\S).+$
           subjectPatternError: |

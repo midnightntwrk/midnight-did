@@ -1,10 +1,27 @@
-* @midnightntwrk/mn-codeowners-mnf-se
-/.github/ISSUE_TEMPLATE/ @midnightntwrk/mn-security @midnightntwrk/mn-sre
-/.github/pull_request_template.md @midnightntwrk/mn-security @midnightntwrk/mn-sre
-/.github/workflows/scan.yaml @midnightntwrk/mn-security @midnightntwrk/mn-sre
-/.github/dependabot.yml @midnightntwrk/mn-security @midnightntwrk/mn-sre
-CODE_OF_CONDUCT.md @midnightntwrk/mn-security @midnightntwrk/mn-sre
-CODEOWNERS @midnightntwrk/mn-security @midnightntwrk/mn-sre
-CONTRIBUTING.md @midnightntwrk/mn-security @midnightntwrk/mn-sre
-LICENSE @midnightntwrk/mn-security @midnightntwrk/mn-sre
-SECURITY.md @midnightntwrk/mn-security @midnightntwrk/mn-sre
+* @midnightntwrk/ex-identus
+
+/packages/contract/** @midnightntwrk/ex-identus
+/packages/jubjub-schnorr/** @midnightntwrk/ex-identus
+/packages/domain/** @midnightntwrk/ex-identus
+/packages/did/** @midnightntwrk/ex-identus
+/packages/api/** @midnightntwrk/ex-identus
+
+/docs/** @midnightntwrk/ex-identus
+/docs-site/** @midnightntwrk/ex-identus
+/w3c-spec/** @midnightntwrk/ex-identus
+/scripts/** @midnightntwrk/ex-identus
+/nix/** @midnightntwrk/ex-identus
+/flake.lock @midnightntwrk/ex-identus
+/flake.nix @midnightntwrk/ex-identus
+
+/.github/workflows/** @midnightntwrk/ex-identus @midnightntwrk/mn-sre
+/.github/workflows/scan.yaml @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
+/.github/dependabot.yml @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
+/.github/ISSUE_TEMPLATE/** @midnightntwrk/ex-identus
+/.github/pull_request_template.md @midnightntwrk/ex-identus
+
+CODE_OF_CONDUCT.md @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
+CODEOWNERS @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
+CONTRIBUTING.md @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
+LICENSE @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
+SECURITY.md @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
