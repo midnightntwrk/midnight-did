@@ -447,11 +447,15 @@ The Midnight DID Document metadata supports the following properties according t
 
 ### 4.1. Created
 
-The property **created** represents the date when the document was created.
+The property **created** represents the controller/prover-asserted date when the DID state was created.
+
+For ledger-backed Midnight DIDs, `created` is copied from the `currentTimestamp` witness supplied during contract deployment. It is stored on ledger after the deployment transaction succeeds, but it is not derived from Midnight consensus time, block time, indexer time, or any other ledger-authoritative clock. Resolvers and SDKs can sanity-check this value for obviously invalid or implausible values, such as dates before the supported epoch/profile minimum or far-future dates outside a local policy window, but they cannot prove the exact wall-clock creation time from DID state alone.
 
 ### 4.2. Updated
 
-The property **updated** represents the date when the document was last updated.
+The property **updated** represents the controller/prover-asserted date when the DID state was last updated.
+
+For ledger-backed Midnight DIDs, `updated` is copied from the `currentTimestamp` witness supplied to each successful mutating circuit. It is stored on ledger after the transaction succeeds, but it is not ledger-authoritative operation time metadata. Resolvers and SDKs can reject, omit, warn on, or otherwise mark values that are obviously too low, too high, unparsable, non-monotonic for a local observation, or outside an application policy window; they cannot convert the value into a consensus timestamp without independent time attestation.
 
 ### 4.3. Deactivated
 
@@ -508,8 +512,8 @@ by wallet-held private state, not by possession of the Compact prover artifacts.
 The contract uses two witnesses for controller-gated operations:
 
 - `localSecretKey` — a wallet-generated random 32-byte controller secret.
-- `currentTimestamp` — the current time in milliseconds since epoch, used to
-  populate `created`/`updated`.
+- `currentTimestamp` — a client/controller-supplied time in milliseconds since
+  epoch, used to populate `created`/`updated`.
 
 During deployment, the wallet or SDK creates `localSecretKey` with
 cryptographically secure randomness and stores it in private-state storage. The
@@ -563,8 +567,8 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | id                             | `ContractAddress`                            | Smart‑contract address (32‑byte / 64‑hex) that uniquely identifies the DID on Midnight. |
 | alsoKnownAs                    | `Set<Opaque<"string">>`                      | The DID Document’s `alsoKnownAs` field; allows to set the alias for the DID identity. |
 | version                        | `Counter`                                    | Monotonic on‑chain revision counter for the DID state. Must be set to the `versionId` property of the DIDDocument. |
-| created                        | `Uint<64>`                                   | Creation timestamp (UNIX epoch, milliseconds) of the DID instance. Exposed as the DID Document Metadata `created` property (ISO 8601 UTC, second precision). |
-| updated                        | `Uint<64>`                                   | Last update timestamp (UNIX epoch, milliseconds) after applying operations. Exposed as the DID Document Metadata `updated` property (ISO 8601 UTC, second precision). |
+| created                        | `Uint<64>`                                   | Client/controller-asserted creation timestamp (UNIX epoch, milliseconds) supplied by the `currentTimestamp` witness during deployment. Exposed as the DID Document Metadata `created` property (ISO 8601 UTC, second precision) after resolver/SDK sanity checks. This is not ledger-authoritative operation time. |
+| updated                        | `Uint<64>`                                   | Client/controller-asserted last update timestamp (UNIX epoch, milliseconds) supplied by the `currentTimestamp` witness during the most recent mutating operation. Exposed as the DID Document Metadata `updated` property (ISO 8601 UTC, second precision) after resolver/SDK sanity checks. This is not ledger-authoritative operation time. |
 | deactivated                    | `Boolean`                                    | Whether the DID has been deactivated. When `true`, the resolver surfaces `deactivated: true` in metadata and reuses the `updated` timestamp as the deactivation time. |
 | active                         | `Boolean`                                    | Whether the DID is active (`true`) or deactivated (`false`). If `active` is false, the resolver MUST set `deactivated: true` in DID Document metadata. |
 | operationCount                 | `Counter`                                    | Total number of DID update operations applied to this DID. Used for internal statistics. |
@@ -595,6 +599,8 @@ Example DID Document metadata emitted by the resolver layer:
 }
 ```
 
+Metadata trust note: `created` and `updated` are public ledger fields, but their values originate from the controller/prover's `currentTimestamp` witness. A resolver or SDK MAY apply profile-specific bounds and monotonicity checks before surfacing them, but consumers MUST treat them as advisory DID Document Metadata unless a separate application, indexer, ledger event, or timestamping service supplies an independent time attestation.
+
 # 7. DID operations
 
 The publisher of the smart contract is the DID Controller, who keeps the private keys associated with the corresponding smart contract and the private keys for the public key material of the DID Document.
@@ -603,7 +609,7 @@ All update operations are performed by executing one of the smart contract circu
 
 The `created` and `updated` ledger fields are populated from the `currentTimestamp` witness during contract deployment and each successful update circuit call. DID Document metadata is then composed by the resolver layer from these on-ledger values (`created`, `updated`, `deactivated`, `version`).
 
-The `currentTimestamp` value is client-asserted metadata, not a Midnight consensus timestamp. A conforming implementation MUST NOT treat `created` or `updated` as proof that an operation occurred at a particular wall-clock time unless an application adds an independent time attestation. Resolvers SHOULD surface the values as DID Document Metadata only and SHOULD document that they are controller/prover-supplied.
+The `currentTimestamp` value is client-asserted metadata, not a Midnight consensus timestamp. A conforming implementation MUST NOT treat `created` or `updated` as proof that an operation occurred at a particular wall-clock time unless an application adds an independent time attestation. Resolvers and SDKs MAY sanity-check the values for obviously too-low or too-high timestamps, malformed conversions, and local monotonicity expectations, but those checks only bound implausible values; they do not make the metadata ledger-authoritative. Resolvers SHOULD surface the values as DID Document Metadata only and SHOULD document that they are controller/prover-supplied.
 
 Each update is a separate circuit call; batching multiple logical operations into a single on‑chain call is not supported in this version.
 
@@ -690,7 +696,7 @@ strict JSON consumers.
 
 Updating the Midnight DID implies that the DID Controller calls one of the smart contract's individual circuits for each type of modification.
 
-Each update circuit requires the `localSecretKey` witness to match the on‑chain `controllerPublicKey`. The `currentTimestamp` witness is used to populate the `updated` ledger field after each successful operation. The value is not constrained by ledger time and therefore remains informational metadata.
+Each update circuit requires the `localSecretKey` witness to match the on-chain `controllerPublicKey`. The `currentTimestamp` witness is used to populate the `updated` ledger field after each successful operation. The value is not constrained by ledger time and therefore remains informational metadata that can only be sanity-checked by resolvers and SDKs for obviously implausible values.
 
 Conformance note: due to Compact language limitations for rich URI/data-model validation, normative checks for DID URL subject binding and DID Core structure conformance (for example `serviceEndpoint` shape), JWK/base64url canonicality, opaque JWK shape (for example OKP omits `y` while EC includes `y`), and non-native key parsing are enforced at the SDK/resolver layers (`domain`, `api`, `did`). The smart contract enforces authorization, exact ledger identifier existence/uniqueness, supported opaque JWK key/curve profiles, native SchnorrJubjub point storage, and state-transition invariants.
 
@@ -962,13 +968,17 @@ Using the DID extension to share the VC as a public ledger state is possible, bu
 All Midnight DIDs are created by deploying the smart contract with the corresponding public ledger state. The secret key is provided as a witness to authorize updates and is not published on-chain.
 
 **NOTE**:
-It's possible to add the history of changes to the Midnight DID after the corresponding discussion.
+Ledger-backed Midnight DID state exposes the latest contract state through the resolver profile, but the public on-chain transaction transcript already records the mutation history for the DID contract address. A future resolver or indexer profile could make that history easier to query and represent, but the privacy impact exists even without a dedicated history API.
 
 # 9. Privacy Considerations
+
+This section addresses the DID Core Section 7.5 privacy considerations that are relevant to the Midnight DID method, including correlation and unlinkability, denial of service, service-endpoint correlation, and DID Document history leakage.
 
 ## 9.1. Surveillance
 
 In the public Midnight network, all transactions are visible by watching the blockchain.
+
+For ledger-backed Midnight DIDs, each DID is a distinct smart-contract deployment. The contract address in the DID is a permanent public correlation handle for all DID operations against that instance, including deployment, key updates, verification relationship changes, service changes, controller rotation, and deactivation. Indexers and observers can link those operations to the same DID contract even when the resolved DID Document does not contain personal data.
 
 ## 9.2. Stored data compromise
 
@@ -983,7 +993,7 @@ If personal information is added to the blockchain, potentially making it a viab
 
 For this reason, it is strongly suggested that personal information not be added to the blockchain.
 
-Therefore, the Midnight DID document will **NEVER** contain any personal data.
+Conforming Midnight DID producers MUST NOT intentionally place personal data in DID Document fields. This includes verification method identifiers, service endpoint URLs, service metadata, `alsoKnownAs` aliases, and other extension fields. The method cannot guarantee that controller-supplied public values are non-personal, so applications and wallets are responsible for data minimization before publication.
 
 ## 9.4. Separation of concerns
 
@@ -993,6 +1003,32 @@ The Midnight DID method separates concerns between the following roles:
 - Midnight DID Document reader (has access to the public ledger state and can reconstruct the DID Document).
 
 This separation of concerns allows the use of the Midnight DID method for both custodial and non‑custodial solutions.
+
+## 9.5. Correlation and unlinkability
+
+Ledger-backed Midnight DIDs are intentionally resolvable from public ledger state, so they are linkable by design once disclosed. The contract address embedded in `did:midnight:<network>:<address>` links the DID subject to one public on-chain contract instance and its mutation sequence. Publishing the same DID in Verifiable Credentials, trust registries, presentations, service endpoints, or application logs creates additional correlation points across those contexts.
+
+The offchain long form has a different privacy tradeoff. It avoids public ledger publication, but the long-form DID string contains the encoded initial DID state. Any party that observes the long-form DID can decode that state and learn the included public verification methods, service endpoints, aliases, and other public fields without contacting a resolver. Because offchain state has no in-place update mechanism, every changed long-form DID discloses the full state for that version to any party that receives it. Historical long-form DIDs that a subject previously shared remain independently decodable.
+
+Applications that need unlinkability SHOULD avoid reusing the same ledger-backed DID across unrelated contexts. They SHOULD minimize `alsoKnownAs`, avoid stable service endpoints that identify the same operator across DIDs, and prefer purpose-specific DIDs where correlation risk is material. Applications that exchange offchain DIDs SHOULD prefer the hash-only short form after the recipient already has the encoded state through an authorized channel, and SHOULD avoid placing long-form DIDs in public registries, credentials, or logs unless full-state disclosure is acceptable.
+
+## 9.6. Denial of service
+
+Midnight DID resolution depends on ledger access, indexer availability, resolver availability, and, for updates, transaction submission and proof generation. Attackers can attempt denial-of-service by flooding indexers or resolvers with resolution requests, targeting popular DID contract addresses, submitting high volumes of DID transactions, or exhausting proof-server resources used by wallet or SDK flows.
+
+Resolver and indexer operators SHOULD apply normal service protections such as rate limits, request size limits, caching of resolved public state, backpressure, abuse monitoring, and resource isolation between public query handling and update/proving paths. Wallets and SDKs SHOULD treat resolver/indexer failures as availability failures, not as proof that a DID does not exist or has been deactivated.
+
+## 9.7. Service-endpoint correlation
+
+Service endpoints are public DID Document data. Endpoint hostnames, paths, query parameters, DIDComm routing metadata, mediator identifiers, and shared infrastructure can correlate multiple DIDs to the same operator, account, device, organization, or network location. Updating a service endpoint on ledger also creates a public before/after link for that DID contract address.
+
+Controllers SHOULD publish only endpoints needed for the intended interaction, avoid embedding account identifiers or personal data in endpoint values, use pairwise or purpose-specific endpoints where possible, and rotate or remove endpoints when they are no longer needed. DID consumers SHOULD avoid assuming that a service endpoint is private merely because it is contained in a DID Document rather than in a credential.
+
+## 9.8. DID history leakage
+
+Ledger-backed Midnight DID updates are public transactions against a stable contract address. Even if a resolver returns only the latest DID Document, observers with access to ledger or indexer history can reconstruct prior public states, including removed verification methods, prior service endpoints, previous aliases, relationship changes, controller rotations, deactivation time metadata, and operation ordering.
+
+The `created` and `updated` metadata fields are not reliable mitigations for history analysis because their values are client-asserted. They can help applications order a locally observed sequence after sanity checks, but they do not hide or authenticate the public transaction history. Controllers SHOULD assume that public DID mutations are permanent, linkable, and recoverable by sufficiently capable observers.
 
 # 10. Discoverability
 
