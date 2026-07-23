@@ -338,6 +338,28 @@ const assertAllowedArchiveEntry = (entry: string): void => {
 };
 
 const listArchiveEntries = (archivePath: string): readonly string[] => {
+  const typedResult = spawnSync("tar", ["-tvzf", archivePath], {
+    encoding: "utf8",
+  });
+  if (typedResult.status !== 0) {
+    throw new MidnightDidZkArtifactError(
+      "unsafe_archive",
+      `Could not inspect ZK artifact archive ${archivePath}:\n${typedResult.stdout}${typedResult.stderr}`,
+    );
+  }
+  for (const line of typedResult.stdout.split(/\r?\n/u)) {
+    if (line.length === 0) {
+      continue;
+    }
+    const entryType = line[0];
+    if (entryType !== "-" && entryType !== "d") {
+      throw new MidnightDidZkArtifactError(
+        "unsafe_archive",
+        `Unsafe ZK artifact archive entry type: ${line}`,
+      );
+    }
+  }
+
   const result = spawnSync("tar", ["-tzf", archivePath], { encoding: "utf8" });
   if (result.status !== 0) {
     throw new MidnightDidZkArtifactError(
@@ -381,6 +403,16 @@ const extractArchive = (archivePath: string, outputDir: string): void => {
   }
 };
 
+const assertRegularFile = (filePath: string, label: string): void => {
+  const stat = fs.lstatSync(filePath);
+  if (!stat.isFile()) {
+    throw new MidnightDidZkArtifactError(
+      "unsafe_archive",
+      `${label} must be a regular file`,
+    );
+  }
+};
+
 const verifyManifestFiles = (
   manifest: MidnightDidZkArtifactManifest,
   zkConfigPath: string,
@@ -397,6 +429,7 @@ const verifyManifestFiles = (
           `${circuit.id}: missing ${kind} artifact at ${relativePath}`,
         );
       }
+      assertRegularFile(artifactPath, `${circuit.id}: ${kind} artifact`);
 
       const actualHash = sha256File(artifactPath);
       if (actualHash !== circuit.sha256[kind]) {
@@ -524,18 +557,18 @@ const selectGhcrArchive = (
 ): { archivePath: string; manifestPath?: string; sha256Path?: string } => {
   const locations = createMidnightDidZkArtifactLocations(version);
   const expectedArchive = path.join(directory, locations.archiveName);
+  const fallbackArchive = fs
+    .readdirSync(directory)
+    .find((fileName) =>
+      /^midnight-did-zk-artifacts-.+\.tar\.gz$/u.test(fileName),
+    );
   const archivePath = fs.existsSync(expectedArchive)
     ? expectedArchive
-    : path.join(
-        directory,
-        fs
-          .readdirSync(directory)
-          .find((fileName) =>
-            /^midnight-did-zk-artifacts-.+\.tar\.gz$/u.test(fileName),
-          ) ?? "",
-      );
+    : fallbackArchive === undefined
+      ? undefined
+      : path.join(directory, fallbackArchive);
 
-  if (!archivePath || !fs.existsSync(archivePath)) {
+  if (archivePath === undefined || !fs.existsSync(archivePath)) {
     throw new MidnightDidZkArtifactError(
       "missing_archive",
       `GHCR pull did not produce ${locations.archiveName}`,
@@ -584,6 +617,7 @@ export const verifyMidnightDidZkArtifactManifest = ({
   readonly version?: string;
   readonly zkConfigPath: string;
 }): MidnightDidZkArtifactManifest => {
+  assertRegularFile(manifestPath, "ZK artifact manifest");
   const manifestJson = readJsonFile(manifestPath);
   const manifest = parseManifest(manifestJson);
   if (version && manifest.version !== version) {

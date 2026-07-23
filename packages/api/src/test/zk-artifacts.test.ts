@@ -11,6 +11,7 @@ import {
   createMidnightDidZkArtifactFetchUrls,
   downloadMidnightDidGithubReleaseZkArtifacts,
   MidnightDidZkArtifactError,
+  pullMidnightDidGhcrZkArtifacts,
   type MidnightDidZkArtifactManifest,
   unpackMidnightDidZkArtifactArchive,
 } from "../zk-artifacts.js";
@@ -201,6 +202,38 @@ describe("ZK artifact consumption helpers", () => {
     );
   });
 
+  it("rejects unsafe archive entry types", () => {
+    const tempRoot = makeTempRoot();
+    const contentRoot = path.join(tempRoot, "content");
+    fs.mkdirSync(path.join(contentRoot, "keys"), { recursive: true });
+    fs.symlinkSync(
+      "/tmp/unsafe-prover",
+      path.join(contentRoot, "keys", "add.prover"),
+    );
+    fs.writeFileSync(path.join(contentRoot, "manifest.json"), "{}\n");
+    const archivePath = path.join(
+      tempRoot,
+      "midnight-did-zk-artifacts-0.4.0.tar.gz",
+    );
+    const result = spawnSync(
+      "tar",
+      ["-czf", archivePath, "-C", contentRoot, "."],
+      { encoding: "utf8" },
+    );
+    if (result.status !== 0) {
+      throw new Error(`tar failed: ${result.stdout}${result.stderr}`);
+    }
+
+    expectArtifactError(
+      () =>
+        unpackMidnightDidZkArtifactArchive({
+          archivePath,
+          outputDir: path.join(makeTempRoot(), "unpacked"),
+        }),
+      "unsafe_archive",
+    );
+  });
+
   it("downloads, verifies, and unpacks GitHub Release assets", async () => {
     const fixture = createFixtureArchive({ version: "0.4.0-rc2" });
     const requests: string[] = [];
@@ -266,5 +299,22 @@ describe("ZK artifact consumption helpers", () => {
       verifierKey: "https://example.com/zk/keys/add.verifier",
       zkir: "https://example.com/zk/zkir/add.bzkir",
     });
+  });
+
+  it("reports a missing GHCR archive distinctly after a successful pull", () => {
+    const tempRoot = makeTempRoot();
+    const fakeOras = path.join(tempRoot, "fake-oras.sh");
+    fs.writeFileSync(fakeOras, "#!/usr/bin/env bash\nexit 0\n");
+    fs.chmodSync(fakeOras, 0o755);
+
+    expectArtifactError(
+      () =>
+        pullMidnightDidGhcrZkArtifacts({
+          orasCommand: fakeOras,
+          pullDir: path.join(tempRoot, "pull"),
+          version: "0.4.0",
+        }),
+      "missing_archive",
+    );
   });
 });
