@@ -35,6 +35,7 @@ jobs:
             .linkinatorrc.json
             .nvmrc
           sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
