@@ -317,4 +317,32 @@ describe("ZK artifact consumption helpers", () => {
       "missing_archive",
     );
   });
+
+  it("requires GHCR pulls to include the checksum sidecar", () => {
+    const tempRoot = makeTempRoot();
+    const fixture = createFixtureArchive({ version: "0.4.0" });
+    const fakeOras = path.join(tempRoot, "fake-oras.sh");
+    fs.writeFileSync(
+      fakeOras,
+      [
+        "#!/usr/bin/env bash",
+        "set -euo pipefail",
+        'output_dir="$4"',
+        'mkdir -p "$output_dir"',
+        `cp ${JSON.stringify(fixture.archivePath)} "$output_dir/"`,
+        "",
+      ].join("\n"),
+    );
+    fs.chmodSync(fakeOras, 0o755);
+
+    expectArtifactError(
+      () =>
+        pullMidnightDidGhcrZkArtifacts({
+          orasCommand: fakeOras,
+          pullDir: path.join(tempRoot, "pull"),
+          version: "0.4.0",
+        }),
+      "missing_checksum",
+    );
+  });
 });

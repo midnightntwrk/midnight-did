@@ -18,6 +18,7 @@ export type MidnightDidZkArtifactErrorCode =
   | "ghcr_pull_failed"
   | "manifest_mismatch"
   | "missing_archive"
+  | "missing_checksum"
   | "provider_path_mismatch"
   | "unsafe_archive";
 
@@ -755,9 +756,13 @@ export const pullMidnightDidGhcrZkArtifacts = (
     pullDir,
     version,
   );
-  if (sha256Path) {
-    verifyArchiveSha256(archivePath, fs.readFileSync(sha256Path, "utf8"));
+  if (sha256Path === undefined) {
+    throw new MidnightDidZkArtifactError(
+      "missing_checksum",
+      `GHCR pull did not produce ${locations.sha256Name}`,
+    );
   }
+  verifyArchiveSha256(archivePath, fs.readFileSync(sha256Path, "utf8"));
 
   return unpackMidnightDidZkArtifactArchive({
     archivePath,
