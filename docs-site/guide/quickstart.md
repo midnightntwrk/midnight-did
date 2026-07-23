@@ -23,7 +23,7 @@ real key creation and ledger publication:
 ```bash
 ISSUER_BOOTSTRAP_SEED=<hex-seed> \
 ISSUER_KEYSTORE_OUT="$PWD/issuer-keystore.json" \
-INDEXER_URL=http://127.0.0.1:8088/api/v3/graphql \
+INDEXER_URL=http://127.0.0.1:8088/api/v4/graphql \
 NODE_RPC_URL=http://127.0.0.1:9944 \
 PROOF_SERVER_URL=http://127.0.0.1:6300 \
 pnpm exec ts-node --esm packages/api/examples/bootstrap-issuer-did.ts

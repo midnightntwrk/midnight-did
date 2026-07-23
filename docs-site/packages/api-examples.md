@@ -18,11 +18,14 @@ issuer keystore.
 ```bash
 ISSUER_BOOTSTRAP_SEED=<hex-seed> \
 ISSUER_KEYSTORE_OUT="$PWD/issuer-keystore.json" \
-INDEXER_URL=http://127.0.0.1:8088/api/v3/graphql \
+INDEXER_URL=http://127.0.0.1:8088/api/v4/graphql \
 NODE_RPC_URL=http://127.0.0.1:9944 \
 PROOF_SERVER_URL=http://127.0.0.1:6300 \
 pnpm exec ts-node --esm packages/api/examples/bootstrap-issuer-did.ts
 ```
+
+Use [Network Endpoints](/guide/network-endpoints) for the canonical endpoint
+profile matrix and supported environment override names.
 
 The script expects a funded standalone wallet seed. `ISSUER_BOOTSTRAP_SEED` may
 be 32 bytes of hex, with or without `0x`, or any string that can be hashed into a

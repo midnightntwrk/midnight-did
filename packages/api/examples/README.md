@@ -58,3 +58,7 @@ The example builds a funded wallet from the genesis seed, calls
 `addVerificationMethodRelation` (assertionMethod), wraps each chain write in a
 dust-shortage retry, and writes the resulting keystore to
 `ISSUER_KEYSTORE_OUT`.
+
+Use the docs site's
+<https://midnightntwrk.github.io/midnight-did/guide/network-endpoints> page for
+the canonical endpoint profile matrix and supported environment override names.

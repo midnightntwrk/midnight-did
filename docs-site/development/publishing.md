@@ -108,6 +108,10 @@ circuit through `FetchZkConfigProvider` over runtime HTTP. RC and release runs
 also upload the bundle to a GitHub Release and download the asset back for the
 same validation.
 
+Concrete release-train examples in this page are validated against the root
+`package.json` version so package versions, package examples, and artifact names
+move together.
+
 ## ORAS and GHCR artifacts
 
 The workflow installs ORAS before the GHCR step because GHCR stores the ZK bundle
@@ -180,9 +184,13 @@ the same layout used by `FetchZkConfigProvider` or `NodeZkConfigProvider`.
 ```bash
 pnpm run build:all
 pnpm run packages:check-contents
-pnpm run zk-artifacts:bundle -- --version 0.4.0-snapshot.local
-pnpm run zk-artifacts:check -- artifacts/zk/midnight-did-zk-artifacts-0.4.0-snapshot.local.tar.gz
-pnpm run published-artifacts:smoke -- --skip-npm --zk-archive artifacts/zk/midnight-did-zk-artifacts-0.4.0-snapshot.local.tar.gz
+
+export VERSION="0.4.0-snapshot.local"
+export ZK_ARCHIVE="artifacts/zk/midnight-did-zk-artifacts-${VERSION}.tar.gz"
+
+pnpm run zk-artifacts:bundle -- --version "${VERSION}"
+pnpm run zk-artifacts:check -- "${ZK_ARCHIVE}"
+pnpm run published-artifacts:smoke -- --skip-npm --zk-archive "${ZK_ARCHIVE}"
 ```
 
 ## Testing Publication
@@ -197,11 +205,12 @@ summary:
 ```bash
 export VERSION="0.4.0-snapshot.<run>.<sha>"
 export GH_TOKEN="<github-token-with-repo-read>"
+export OCI_REF="ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${VERSION}"
 
 pnpm run published-artifacts:smoke -- \
   --version "${VERSION}" \
   --registry https://registry.npmjs.org \
-  --oci-ref "ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${VERSION}"
+  --oci-ref "${OCI_REF}"
 ```
 
 For an RC or final release, smoke-test both public distribution paths:
@@ -209,10 +218,11 @@ For an RC or final release, smoke-test both public distribution paths:
 ```bash
 export VERSION="0.4.0-rc1"
 export GH_TOKEN="<github-token-with-repo-read>"
+export OCI_REF="ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${VERSION}"
 
 pnpm run published-artifacts:smoke -- \
   --version "${VERSION}" \
-  --oci-ref "ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${VERSION}"
+  --oci-ref "${OCI_REF}"
 
 pnpm run published-artifacts:smoke -- \
   --version "${VERSION}" \

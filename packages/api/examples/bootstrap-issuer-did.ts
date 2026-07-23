@@ -20,7 +20,7 @@
 //! ```bash
 //! ISSUER_BOOTSTRAP_SEED=0000…0001 \
 //! ISSUER_KEYSTORE_OUT=/abs/path/to/issuer-keystore.json \
-//! INDEXER_URL=http://127.0.0.1:8088/api/v3/graphql \
+//! INDEXER_URL=http://127.0.0.1:8088/api/v4/graphql \
 //! NODE_RPC_URL=http://127.0.0.1:9944 \
 //! PROOF_SERVER_URL=http://127.0.0.1:6300 \
 //! pnpm exec ts-node --esm packages/api/examples/bootstrap-issuer-did.ts
@@ -99,7 +99,7 @@ if (!outPath || outPath.length === 0) {
 }
 
 const indexerUrl =
-  process.env.INDEXER_URL ?? "http://127.0.0.1:8088/api/v3/graphql";
+  process.env.INDEXER_URL ?? "http://127.0.0.1:8088/api/v4/graphql";
 const nodeRpcUrl = process.env.NODE_RPC_URL ?? "http://127.0.0.1:9944";
 const proofServerUrl = process.env.PROOF_SERVER_URL ?? "http://127.0.0.1:6300";
 

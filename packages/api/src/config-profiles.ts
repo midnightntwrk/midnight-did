@@ -25,8 +25,8 @@ export const MIDNIGHT_NETWORK_PROFILES = {
     name: "testnet-local",
     networkId: "testnet",
     endpoints: {
-      indexer: "http://127.0.0.1:8088/api/v3/graphql",
-      indexerWS: "ws://127.0.0.1:8088/api/v3/graphql/ws",
+      indexer: "http://127.0.0.1:8088/api/v4/graphql",
+      indexerWS: "ws://127.0.0.1:8088/api/v4/graphql/ws",
       node: "http://127.0.0.1:9944",
       proofServer: "http://127.0.0.1:6300",
     },
@@ -35,8 +35,8 @@ export const MIDNIGHT_NETWORK_PROFILES = {
     name: "standalone",
     networkId: "undeployed",
     endpoints: {
-      indexer: "http://127.0.0.1:8088/api/v3/graphql",
-      indexerWS: "ws://127.0.0.1:8088/api/v3/graphql/ws",
+      indexer: "http://127.0.0.1:8088/api/v4/graphql",
+      indexerWS: "ws://127.0.0.1:8088/api/v4/graphql/ws",
       node: "http://127.0.0.1:9944",
       proofServer: "http://127.0.0.1:6300",
     },
@@ -45,8 +45,8 @@ export const MIDNIGHT_NETWORK_PROFILES = {
     name: "testnet-remote",
     networkId: "testnet",
     endpoints: {
-      indexer: "https://indexer.testnet-02.midnight.network/api/v3/graphql",
-      indexerWS: "wss://indexer.testnet-02.midnight.network/api/v3/graphql/ws",
+      indexer: "https://indexer.testnet-02.midnight.network/api/v4/graphql",
+      indexerWS: "wss://indexer.testnet-02.midnight.network/api/v4/graphql/ws",
       node: "https://rpc.testnet-02.midnight.network",
       proofServer: "http://127.0.0.1:6300",
     },

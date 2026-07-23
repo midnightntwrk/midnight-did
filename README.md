@@ -230,13 +230,18 @@ published automatically from `develop` as
 `x.y.z-snapshot.<run>.<sha>` with the `snapshot` npm tag. Manual workflow
 dispatch can publish `x.y.z-rc{index}` with the `rc` npm tag from `main` or
 `develop`, and `x.y.z` with the `latest` npm tag from `main` only.
+The concrete release-train examples below are validated against the root
+`package.json` version so package and artifact documentation changes together.
 
 ZK keys are distributed separately as a validated archive:
 
 ```bash
-pnpm run zk-artifacts:bundle -- --version 0.4.0-snapshot.local
-pnpm run zk-artifacts:check -- artifacts/zk/midnight-did-zk-artifacts-0.4.0-snapshot.local.tar.gz
-pnpm run published-artifacts:smoke -- --skip-npm --zk-archive artifacts/zk/midnight-did-zk-artifacts-0.4.0-snapshot.local.tar.gz
+export VERSION="0.4.0-snapshot.local"
+export ZK_ARCHIVE="artifacts/zk/midnight-did-zk-artifacts-${VERSION}.tar.gz"
+
+pnpm run zk-artifacts:bundle -- --version "${VERSION}"
+pnpm run zk-artifacts:check -- "${ZK_ARCHIVE}"
+pnpm run published-artifacts:smoke -- --skip-npm --zk-archive "${ZK_ARCHIVE}"
 ```
 
 The archive preserves the Midnight JS provider layout:

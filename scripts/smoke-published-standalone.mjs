@@ -624,7 +624,7 @@ const dockerCompose = (projectName, composeFile, args, options = {}) =>
 const startStandalone = async (options) => {
   if (options.useExistingStandalone) {
     const indexer =
-      process.env.INDEXER_URL ?? "http://127.0.0.1:8088/api/v3/graphql";
+      process.env.INDEXER_URL ?? "http://127.0.0.1:8088/api/v4/graphql";
     return {
       cleanup: () => undefined,
       endpoints: {
@@ -736,8 +736,8 @@ const startStandalone = async (options) => {
       }
     },
     endpoints: {
-      indexer: `http://127.0.0.1:${indexerPort}/api/v3/graphql`,
-      indexerWS: `ws://127.0.0.1:${indexerPort}/api/v3/graphql/ws`,
+      indexer: `http://127.0.0.1:${indexerPort}/api/v4/graphql`,
+      indexerWS: `ws://127.0.0.1:${indexerPort}/api/v4/graphql/ws`,
       node: `http://127.0.0.1:${nodePort}`,
       proofServer: `http://127.0.0.1:${proofPort}`,
     },
