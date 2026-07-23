@@ -124,7 +124,9 @@ Runner notes:
 - Local PR validation contract: `./run.sh --light --strict` or `pnpm run ci`.
 - `pnpm run ci:packages` keeps the legacy package-only lint/build/test lane.
 - `./run.sh` and `./run.sh full` validate DID core and API lanes.
-- `./run.sh docs` validates the documentation site.
+- `./run.sh docs` validates the documentation site. The Nix shell provides the
+  Playwright Chromium browser used by rendered layout checks; outside Nix, run
+  `pnpm exec playwright install chromium` once before the docs lane.
 - `run-core.sh`, `run-api.sh`, and `run-docs.sh` remain implementation details behind cataloged `./run.sh` targets.
 - Root `./run.sh` validates only DID core/API/docs. Resolver service, manager service, and secret-storage validation moved to `midnight-did-resolver`.
 - `--skip-coverage` is still accepted for older local command history, but current split lanes do not run coverage by default.

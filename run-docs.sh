@@ -9,6 +9,9 @@ pnpm run docs:validate
 echo "[docs] Build VitePress site"
 pnpm run docs:build
 
+echo "[docs] Check rendered docs layout"
+pnpm run docs:visual
+
 if [[ "${DOCS_PREVIEW:-0}" == "1" ]]; then
   echo "[docs] Preview built site"
   pnpm run docs:preview

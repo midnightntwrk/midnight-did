@@ -24,6 +24,7 @@
     "docs:sync-spec": "pnpm --filter docs-site docs:sync-spec",
     "docs:sync-network-endpoints": "pnpm --filter docs-site docs:sync-network-endpoints",
     "docs:validate": "node scripts/docs-validate.mjs",
+    "docs:visual": "node docs-site/scripts/docs-visual-check.mjs",
     "docs:api": "pnpm --filter docs-site docs:api",
     "docs:dev": "pnpm --filter docs-site docs:dev",
     "docs:build": "pnpm --filter docs-site docs:build",
@@ -83,6 +84,7 @@
   "devDependencies": {
     "@eslint/js": "9.39.4",
     "@midnight-ntwrk/midnight-js-fetch-zk-config-provider": "4.0.2",
+    "@playwright/test": "1.61.1",
     "@types/node": "22.19.19",
     "@types/ws": "8.18.1",
     "@typescript-eslint/eslint-plugin": "8.60.0",
