@@ -141,7 +141,6 @@ const writeNpmAuthConfig = ({ directory, registry, token }) => {
   if (token) {
     const registryHost = new URL(registry).host;
     npmrcLines.push(`//${registryHost}/:_authToken=${token}`);
-    npmrcLines.push("always-auth=true");
   }
   fs.writeFileSync(path.join(directory, ".npmrc"), `${npmrcLines.join("\n")}\n`);
 };
@@ -368,14 +367,18 @@ const smokeNpmPackages = async ({
         "\n",
     );
 
-    writeNpmAuthConfig({ directory: consumerRoot, registry, token });
+    writeNpmAuthConfig({
+      directory: consumerRoot,
+      registry,
+      token: process.env.NODE_AUTH_TOKEN ?? process.env.NPM_TOKEN,
+    });
 
-    const packages = publishedPackageNames().map((packageName) =>
-      packageTarballUrl({ consumerRoot, packageName, registry, version }),
-    );
-    let lastInstallError;
+    let lastSmokeError;
     for (let attempt = 1; attempt <= npmInstallAttempts; attempt += 1) {
       try {
+        const packages = publishedPackageNames().map((packageName) =>
+          packageTarballUrl({ consumerRoot, packageName, registry, version }),
+        );
         run(
           "npm",
           [
@@ -391,21 +394,21 @@ const smokeNpmPackages = async ({
             env: { ...process.env, npm_config_loglevel: "warn" },
           },
         );
-        lastInstallError = undefined;
+        lastSmokeError = undefined;
         break;
       } catch (error) {
-        lastInstallError = error;
+        lastSmokeError = error;
         if (attempt < npmInstallAttempts) {
           console.log(
-            `[smoke-published-artifacts] npm install attempt ${attempt} failed; retrying in ${npmInstallRetryDelayMs}ms`,
+            `[smoke-published-artifacts] npm package smoke attempt ${attempt} failed; retrying in ${npmInstallRetryDelayMs}ms`,
           );
           await setTimeout(npmInstallRetryDelayMs);
         }
       }
     }
 
-    if (lastInstallError) {
-      throw lastInstallError;
+    if (lastSmokeError) {
+      throw lastSmokeError;
     }
 
     writeConsumerSmokeScript(consumerRoot, version);
