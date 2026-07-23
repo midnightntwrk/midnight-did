@@ -955,7 +955,7 @@ The concrete implementation of Secret Storage depends on the target platform and
 
 ## 8.1. Binding to Physical Identity
 
-A Midnight DID document stored on the Blockchain will never contain any personal information. Ownership is proved by:
+Conforming Midnight DID producers MUST NOT intentionally publish personal data in DID Document fields. Ledger-backed DID Documents can still contain controller-supplied public values, so controllers and wallets are responsible for data minimization before publication. Ownership is proved by:
 - Control over the blockchain address.
 - Control over the private keys associated with the Midnight DID Document.
 
