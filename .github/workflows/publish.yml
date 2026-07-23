@@ -50,6 +50,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Classify changed files
         id: classify
@@ -59,9 +60,12 @@ jobs:
         run: node scripts/ci-change-classifier.mjs --output "$GITHUB_OUTPUT"
 
       - name: Print snapshot release classification
+        env:
+          CHANGED_FILE_COUNT: ${{ steps.classify.outputs.changed_file_count }}
+          SNAPSHOT_RELEASE_RELEVANT: ${{ steps.classify.outputs.snapshot_release_relevant }}
         run: |
-          echo "snapshot_release_relevant=${{ steps.classify.outputs.snapshot_release_relevant }}"
-          echo "changed_file_count=${{ steps.classify.outputs.changed_file_count }}"
+          echo "snapshot_release_relevant=${SNAPSHOT_RELEASE_RELEVANT}"
+          echo "changed_file_count=${CHANGED_FILE_COUNT}"
 
   skip-snapshot:
     name: Skip snapshot publication
@@ -95,6 +99,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Resolve publication context
         id: context
@@ -147,7 +152,9 @@ jobs:
         run: ./scripts/release-build-zk-artifact-bundle.sh
 
       - name: Check ZK artifact bundle
-        run: node scripts/check-zk-artifact-bundle.mjs "${{ steps.zk.outputs.zk_archive }}"
+        env:
+          ZK_ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
+        run: node scripts/check-zk-artifact-bundle.mjs "$ZK_ARCHIVE"
 
       - name: Upload workflow ZK artifact bundle
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # ratchet:actions/upload-artifact@v4
