@@ -188,10 +188,9 @@ material unless the proving design changes.
 
 ## GraphQL Versions
 
-The local standalone/testnet profiles currently use indexer GraphQL \`v3\`.
-\`preprod\` and \`mainnet\` use GraphQL \`v4\`. Do not copy an endpoint between
-profiles just because the host name looks similar; the API version is part of
-the supported profile.
+All shipped profiles currently use indexer GraphQL \`v4\`. Do not copy an
+endpoint between profiles just because the host name looks similar; the API
+version is part of the supported profile.
 
 Historical examples can contain a legacy v1 GraphQL path or old standalone
 ports. Those values are stale for this repository's current standalone

@@ -156,10 +156,13 @@ test("parseNetworkProfiles extracts the canonical API profile matrix", () => {
     profiles.standalone.endpoints.indexer,
     "http://127.0.0.1:8088/api/v4/graphql",
   );
+  const generatedMarkdown = generateNetworkEndpointsMarkdown(profiles);
+  assert.match(generatedMarkdown, /ProfileConfig\("mainnet"\)/u);
   assert.match(
-    generateNetworkEndpointsMarkdown(profiles),
-    /ProfileConfig\("mainnet"\)/u,
+    generatedMarkdown,
+    /All shipped profiles currently use indexer GraphQL `v4`/u,
   );
+  assert.doesNotMatch(generatedMarkdown, /GraphQL `v3`/u);
 });
 
 test("validateContentRules reports stale endpoints and spec labels", async () => {
