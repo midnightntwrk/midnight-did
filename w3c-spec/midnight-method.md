@@ -558,7 +558,7 @@ This specification does not cover key management aspects.
 
 # 6. Midnight DID Ledger state
 
-The following table summarizes the on‑chain ledger state exported by the contract and how each field should be interpreted when reconstructing a DID Document and its metadata.
+The following table summarizes the on-chain ledger state exported by the contract and how each field should be interpreted when reconstructing a DID Document and its metadata.
 
 | Field                          | Type                                         | Description |
 |--------------------------------|----------------------------------------------|-------------|
@@ -566,7 +566,7 @@ The following table summarizes the on‑chain ledger state exported by the contr
 | controllerPublicKey            | `Bytes<32>`                                  | Public key derived from the secret key witness; used to authorize updates. |
 | id                             | `ContractAddress`                            | Smart‑contract address (32‑byte / 64‑hex) that uniquely identifies the DID on Midnight. |
 | alsoKnownAs                    | `Set<Opaque<"string">>`                      | The DID Document’s `alsoKnownAs` field; allows to set the alias for the DID identity. |
-| version                        | `Counter`                                    | Monotonic on‑chain revision counter for the DID state. Must be set to the `versionId` property of the DIDDocument. |
+| version                        | `Counter`                                    | Monotonic on-chain revision counter for the DID state. Must be set to the `versionId` property of the DIDDocument. |
 | created                        | `Uint<64>`                                   | Client/controller-asserted creation timestamp (UNIX epoch, milliseconds) supplied by the `currentTimestamp` witness during deployment. Exposed as the DID Document Metadata `created` property (ISO 8601 UTC, second precision) after resolver/SDK sanity checks. This is not ledger-authoritative operation time. |
 | updated                        | `Uint<64>`                                   | Client/controller-asserted last update timestamp (UNIX epoch, milliseconds) supplied by the `currentTimestamp` witness during the most recent mutating operation. Exposed as the DID Document Metadata `updated` property (ISO 8601 UTC, second precision) after resolver/SDK sanity checks. This is not ledger-authoritative operation time. |
 | deactivated                    | `Boolean`                                    | Whether the DID has been deactivated. When `true`, the resolver surfaces `deactivated: true` in metadata and reuses the `updated` timestamp as the deactivation time. |
@@ -611,7 +611,7 @@ The `created` and `updated` ledger fields are populated from the `currentTimesta
 
 The `currentTimestamp` value is client-asserted metadata, not a Midnight consensus timestamp. A conforming implementation MUST NOT treat `created` or `updated` as proof that an operation occurred at a particular wall-clock time unless an application adds an independent time attestation. Resolvers and SDKs MAY sanity-check the values for obviously too-low or too-high timestamps, malformed conversions, and local monotonicity expectations, but those checks only bound implausible values; they do not make the metadata ledger-authoritative. Resolvers SHOULD surface the values as DID Document Metadata only and SHOULD document that they are controller/prover-supplied.
 
-Each update is a separate circuit call; batching multiple logical operations into a single on‑chain call is not supported in this version.
+Each update is a separate circuit call; batching multiple logical operations into a single on-chain call is not supported in this version.
 
 ## 7.1. Create
 
@@ -811,7 +811,7 @@ Deletes a verification method by its `id`.
 
 - Inputs: `id` — the verification method identifier.
 - Constraints:
-  - Removing a non‑existent method MUST fail.
+  - Removing a non-existent method MUST fail.
   - Removing a Jubjub method MUST use `removeSchnorrJubjubVerificationMethod`, which applies the same relation cleanup behavior as the generic API helper.
 
 Example:
@@ -889,7 +889,7 @@ Deletes a service entry by `serviceId`.
 
 - Inputs: `serviceId` — the service identifier.
 - Constraints:
-  - Removing a non‑existent service MUST fail.
+  - Removing a non-existent service MUST fail.
 
 Example:
 ```typescript
@@ -925,7 +925,7 @@ await removeAlsoKnownAs(didContract, 'did:example:aka-1');
 
 ### 7.3.11. Deactivate
 
-Marks the DID as deactivated on‑chain. The public state remains readable for auditability, but no further update operations are permitted.
+Marks the DID as deactivated on-chain. The public state remains readable for auditability, but no further update operations are permitted.
 
 - Inputs: none.
 - Effects:
