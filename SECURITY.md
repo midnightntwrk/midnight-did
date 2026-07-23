@@ -11,7 +11,7 @@ for Linux Foundation projects.
 
 ## Disclosing a security issue
 
-The Midnight foundation takes all security issues seriously, which includes all source code repositories managed
+The Midnight Foundation takes all security issues seriously, which includes all source code repositories managed
 through our [GitHub organization](https://github.com/midnightntwrk). If you believe you have found a security vulnerability in any Midnight Foundation
 owned repository, *please report it using GitHub's private vulnerability reporting* and not through public GitHub issues. To learn more about GitHub's
 private vulnerability reporting and how to submit a vulnerability report, please review [GitHub's documentation on private reporting](https://docs.github.com/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability).
@@ -33,8 +33,8 @@ will send a more detailed response within an additional three (3) business days
 indicating the next steps in handling your report.
 
 If you've been unable to successfully draft a vulnerability report via GitHub
-or have not received a response during the alloted response window, please
-reach out via the [Midnight foundation security contact email](mailto:security@midnight.foundation).
+or have not received a response during the allotted response window, please
+reach out via the [Midnight Foundation security contact email](mailto:security@midnight.foundation).
 
 After the initial reply to your report, the maintainers will endeavor to keep
 you informed of the progress towards a fix and full announcement, and may ask

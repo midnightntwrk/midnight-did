@@ -2,11 +2,11 @@
 name: Feature request
 about: Submit a proposal for a new feature
 title: ""
-labels: midnight-did, public
+labels: public
 assignees: ""
 ---
 
-Feature Request: Clearly describe your feature, its benefits, and most important the expected outcome. This helps us analyze the proposed solution and develop alternatives
+Clearly describe the proposed feature, its benefits, and the expected outcome. This helps maintainers analyze the proposed solution and compare alternatives.
 
 ## Describe the proposed feature:
 

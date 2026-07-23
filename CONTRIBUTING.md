@@ -10,7 +10,7 @@ We welcome your contributions to the Midnight network! By contributing, you'll p
 
 ## Submitting Issues
 
-Use one of the [templates] to submit an issue to the Project Board. The Midnight team or a community member will address it if it's relevant.
+Use one of the templates in `.github/ISSUE_TEMPLATE/` to submit an issue. The Midnight team or a community member will address it if it's relevant.
 Ensure the title is a clear summary of the requirement and provides enough context.
 
 **Issue Types:**
@@ -23,12 +23,13 @@ Ensure the title is a clear summary of the requirement and provides enough conte
 ## Code Contribution Process
 
 * **Pull Requests:** Code contributions are submitted via Pull Requests.
-* **Fork the Repository:** Create your own fork of the Midnight repository.
+* **Fork the Repository:** Create your own fork of the `midnight-did` repository.
 * **Create a Branch:** Make your changes in a separate branch,
   prefixed with a short name moniker (e.g. `jill-my-feature`).
 * **Follow Coding Standards:** Adhere to the coding style guides specified in our documentation.
 * **Write Tests:** Include unit tests and integration tests to cover your changes.
-* **Commit Messages:** Write clear and concise commit messages.
+* **Commit Messages:** Write clear Conventional Commit style messages, for example `fix(api): handle invalid DID resolution`.
+* **Sign-off and Signatures:** Include a DCO sign-off (`Signed-off-by: Name <email>`) and use GPG-signed commits where possible.
 * **Submit Pull Request:** Submit your pull request to the appropriate branch in the main repository.
 * **Please do not `--force` pushes** - doing so means that reviewers will have to re-review all
   commits in the PR rather than commits since last review.
@@ -68,7 +69,7 @@ surface was touched and how it was validated.
   Where possible all files should have this license header:
 
 ```
-// This file is part of <REPLACE WITH REPOSITORY NAME>.
+// This file is part of midnightntwrk/midnight-did.
 // Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
