@@ -129,6 +129,30 @@ const sha256File = (filePath: string): string =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+const parseJsonText = (contents: string, label: string): unknown => {
+  try {
+    return JSON.parse(contents);
+  } catch (error) {
+    throw new MidnightDidZkArtifactError(
+      "manifest_mismatch",
+      `${label} must be valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+};
+
+const readJsonFile = (filePath: string, label: string): unknown =>
+  parseJsonText(fs.readFileSync(filePath, "utf8"), label);
+
+const normalizeSha256Digest = (value: string, label: string): string => {
+  if (!/^[0-9a-f]{64}$/iu.test(value)) {
+    throw new MidnightDidZkArtifactError(
+      "manifest_mismatch",
+      `${label} must be a SHA-256 hex digest`,
+    );
+  }
+  return value.toLowerCase();
+};
+
 const requireString = (
   value: unknown,
   label: string,
@@ -150,11 +174,8 @@ const requireNumber = (value: unknown, label: string): number => {
   return value;
 };
 
-const readJsonFile = (filePath: string): unknown =>
-  JSON.parse(fs.readFileSync(filePath, "utf8"));
-
 const readManifest = (manifestPath: string): MidnightDidZkArtifactManifest =>
-  parseManifest(readJsonFile(manifestPath));
+  parseManifest(readJsonFile(manifestPath, "ZK artifact manifest"));
 
 const parseManifest = (value: unknown): MidnightDidZkArtifactManifest => {
   if (!isRecord(value)) {
@@ -271,9 +292,18 @@ const parseCircuitManifest = (
     id,
     files,
     sha256: {
-      prover: requireString(value.sha256.prover, `${id}.sha256.prover`),
-      verifier: requireString(value.sha256.verifier, `${id}.sha256.verifier`),
-      zkir: requireString(value.sha256.zkir, `${id}.sha256.zkir`),
+      prover: normalizeSha256Digest(
+        requireString(value.sha256.prover, `${id}.sha256.prover`),
+        `${id}.sha256.prover`,
+      ),
+      verifier: normalizeSha256Digest(
+        requireString(value.sha256.verifier, `${id}.sha256.verifier`),
+        `${id}.sha256.verifier`,
+      ),
+      zkir: normalizeSha256Digest(
+        requireString(value.sha256.zkir, `${id}.sha256.zkir`),
+        `${id}.sha256.zkir`,
+      ),
     },
     bytes: {
       prover: requireNumber(value.bytes.prover, `${id}.bytes.prover`),
@@ -467,23 +497,12 @@ const assertManifestJsonMatches = (
   actual: unknown,
   expected: unknown,
 ): void => {
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new MidnightDidZkArtifactError(
-      "manifest_mismatch",
-      "Downloaded ZK artifact manifest does not match the archive manifest",
-    );
-  }
+  assertManifestMatches(parseManifest(actual), parseManifest(expected));
 };
 
 const parseSha256File = (contents: string): string => {
   const hash = contents.trim().split(/\s+/u)[0];
-  if (!/^[0-9a-f]{64}$/u.test(hash)) {
-    throw new MidnightDidZkArtifactError(
-      "manifest_mismatch",
-      "ZK artifact sha256 file does not contain a SHA-256 hex digest",
-    );
-  }
-  return hash;
+  return normalizeSha256Digest(hash, "ZK artifact sha256 file");
 };
 
 const verifyArchiveSha256 = (
@@ -619,7 +638,7 @@ export const verifyMidnightDidZkArtifactManifest = ({
   readonly zkConfigPath: string;
 }): MidnightDidZkArtifactManifest => {
   assertRegularFile(manifestPath, "ZK artifact manifest");
-  const manifestJson = readJsonFile(manifestPath);
+  const manifestJson = readJsonFile(manifestPath, "ZK artifact manifest");
   const manifest = parseManifest(manifestJson);
   if (version && manifest.version !== version) {
     throw new MidnightDidZkArtifactError(
@@ -708,8 +727,9 @@ export const downloadMidnightDidGithubReleaseZkArtifacts = async (
   writeDownloadedFile(tempDir, locations.sha256Name, sha256Contents);
   verifyArchiveSha256(archivePath, sha256Contents);
 
-  const expectedManifestJson = JSON.parse(
+  const expectedManifestJson = parseJsonText(
     await fetchText(fetchImplementation, location.manifestUrl),
+    `ZK artifact manifest ${location.manifestUrl}`,
   );
   const expectedManifest = parseManifest(expectedManifestJson);
   writeDownloadedFile(
@@ -769,7 +789,9 @@ export const pullMidnightDidGhcrZkArtifacts = (
     expectedManifest:
       manifestPath === undefined ? undefined : readManifest(manifestPath),
     expectedManifestJson:
-      manifestPath === undefined ? undefined : readJsonFile(manifestPath),
+      manifestPath === undefined
+        ? undefined
+        : readJsonFile(manifestPath, "ZK artifact manifest"),
     fetchBaseUrl: options.fetchBaseUrl,
     outputDir: options.outputDir,
     version,

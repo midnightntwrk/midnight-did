@@ -172,6 +172,10 @@ process.env.MIDNIGHT_DID_ZK_CONFIG_PATH = bundle.zkConfigPath;
 expose from an HTTP server for `FetchZkConfigProvider`. The helper verifies the
 release `.sha256` file, checks that the downloaded manifest matches the embedded
 archive manifest, and validates every circuit file checksum before returning.
+When `outputDir`, `tempDir`, or `pullDir` are omitted, helper-created
+directories are retained because `bundle.archivePath` and `bundle.zkConfigPath`
+point into them. Callers that need deterministic cleanup should pass explicit
+directories and remove them after the ZK provider no longer needs the files.
 For GHCR OCI artifacts, use `pullMidnightDidGhcrZkArtifacts()` in an environment
 with the `oras` CLI available.
 

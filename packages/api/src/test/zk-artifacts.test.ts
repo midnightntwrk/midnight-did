@@ -11,8 +11,8 @@ import {
   createMidnightDidZkArtifactFetchUrls,
   downloadMidnightDidGithubReleaseZkArtifacts,
   MidnightDidZkArtifactError,
-  pullMidnightDidGhcrZkArtifacts,
   type MidnightDidZkArtifactManifest,
+  pullMidnightDidGhcrZkArtifacts,
   unpackMidnightDidZkArtifactArchive,
 } from "../zk-artifacts.js";
 
@@ -136,6 +136,20 @@ const expectArtifactError = (
   throw new Error(`Expected MidnightDidZkArtifactError ${code}`);
 };
 
+const expectArtifactErrorAsync = async (
+  action: () => Promise<unknown>,
+  code: MidnightDidZkArtifactError["code"],
+): Promise<void> => {
+  try {
+    await action();
+  } catch (error) {
+    expect(error).toBeInstanceOf(MidnightDidZkArtifactError);
+    expect((error as MidnightDidZkArtifactError).code).toBe(code);
+    return;
+  }
+  throw new Error(`Expected MidnightDidZkArtifactError ${code}`);
+};
+
 afterEach(() => {
   for (const tempRoot of tempRoots.splice(0)) {
     fs.rmSync(tempRoot, { force: true, recursive: true });
@@ -184,6 +198,53 @@ describe("ZK artifact consumption helpers", () => {
           outputDir: path.join(makeTempRoot(), "unpacked"),
         }),
       "checksum_mismatch",
+    );
+  });
+
+  it("accepts uppercase SHA-256 digests in the manifest", () => {
+    const tempRoot = makeTempRoot();
+    const baseline = createFixtureArchive();
+    const manifest = {
+      ...baseline.manifest,
+      circuits: baseline.manifest.circuits.map((circuit) => ({
+        ...circuit,
+        sha256: {
+          prover: circuit.sha256.prover.toUpperCase(),
+          verifier: circuit.sha256.verifier.toUpperCase(),
+          zkir: circuit.sha256.zkir.toUpperCase(),
+        },
+      })),
+    };
+    const contentRoot = path.join(tempRoot, "content");
+    fs.mkdirSync(contentRoot, { recursive: true });
+    fs.cpSync(path.dirname(baseline.manifestPath), contentRoot, {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(contentRoot, "manifest.json"),
+      `${JSON.stringify(manifest, null, 2)}\n`,
+    );
+    const archivePath = path.join(
+      tempRoot,
+      "midnight-did-zk-artifacts-0.4.0.tar.gz",
+    );
+    const result = spawnSync(
+      "tar",
+      ["-czf", archivePath, "-C", contentRoot, "."],
+      { encoding: "utf8" },
+    );
+    if (result.status !== 0) {
+      throw new Error(`tar failed: ${result.stdout}${result.stderr}`);
+    }
+
+    const bundle = unpackMidnightDidZkArtifactArchive({
+      archivePath,
+      outputDir: path.join(tempRoot, "unpacked"),
+      version: "0.4.0",
+    });
+
+    expect(bundle.manifest.circuits[0].sha256.prover).toBe(
+      baseline.manifest.circuits[0].sha256.prover,
     );
   });
 
@@ -236,9 +297,70 @@ describe("ZK artifact consumption helpers", () => {
 
   it("downloads, verifies, and unpacks GitHub Release assets", async () => {
     const fixture = createFixtureArchive({ version: "0.4.0-rc2" });
+    const reorderedManifest = {
+      circuits: fixture.manifest.circuits,
+      providerLayout: fixture.manifest.providerLayout,
+      packageName: fixture.manifest.packageName,
+      version: fixture.manifest.version,
+      schemaVersion: fixture.manifest.schemaVersion,
+      schema: fixture.manifest.schema,
+    };
     const requests: string[] = [];
     const fetch = async (input: string) => {
       requests.push(input);
+      if (input.endsWith(".tar.gz")) {
+        const archive = fs.readFileSync(fixture.archivePath);
+        return {
+          ok: true,
+          status: 200,
+          statusText: "OK",
+          arrayBuffer: async () =>
+            archive.buffer.slice(
+              archive.byteOffset,
+              archive.byteOffset + archive.byteLength,
+            ),
+          text: async () => archive.toString("utf8"),
+        };
+      }
+      if (input.endsWith(".sha256")) {
+        return {
+          ok: true,
+          status: 200,
+          statusText: "OK",
+          arrayBuffer: async () =>
+            Buffer.from(fixture.sha256Contents.toUpperCase()).buffer,
+          text: async () => fixture.sha256Contents.toUpperCase(),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        arrayBuffer: async () =>
+          Buffer.from(JSON.stringify(reorderedManifest)).buffer,
+        text: async () => JSON.stringify(reorderedManifest),
+      };
+    };
+
+    const bundle = await downloadMidnightDidGithubReleaseZkArtifacts({
+      fetch,
+      outputDir: path.join(makeTempRoot(), "unpacked"),
+      version: "0.4.0-rc2",
+      fetchBaseUrl: "https://example.com/zk/",
+    });
+
+    expect(requests).toEqual([
+      "https://github.com/midnightntwrk/midnight-did/releases/download/v0.4.0-rc2/midnight-did-zk-artifacts-0.4.0-rc2.tar.gz",
+      "https://github.com/midnightntwrk/midnight-did/releases/download/v0.4.0-rc2/midnight-did-zk-artifacts-0.4.0-rc2.tar.gz.sha256",
+      "https://github.com/midnightntwrk/midnight-did/releases/download/v0.4.0-rc2/midnight-did-zk-artifacts-0.4.0-rc2.manifest.json",
+    ]);
+    expect(bundle.providers.fetchBaseUrl).toBe("https://example.com/zk");
+    expect(bundle.manifest.version).toBe("0.4.0-rc2");
+  });
+
+  it("reports malformed downloaded manifests as typed errors", async () => {
+    const fixture = createFixtureArchive({ version: "0.4.0-rc2" });
+    const fetch = async (input: string) => {
       if (input.endsWith(".tar.gz")) {
         const archive = fs.readFileSync(fixture.archivePath);
         return {
@@ -266,26 +388,20 @@ describe("ZK artifact consumption helpers", () => {
         ok: true,
         status: 200,
         statusText: "OK",
-        arrayBuffer: async () =>
-          Buffer.from(JSON.stringify(fixture.manifest)).buffer,
-        text: async () => JSON.stringify(fixture.manifest),
+        arrayBuffer: async () => Buffer.from("{").buffer,
+        text: async () => "{",
       };
     };
 
-    const bundle = await downloadMidnightDidGithubReleaseZkArtifacts({
-      fetch,
-      outputDir: path.join(makeTempRoot(), "unpacked"),
-      version: "0.4.0-rc2",
-      fetchBaseUrl: "https://example.com/zk/",
-    });
-
-    expect(requests).toEqual([
-      "https://github.com/midnightntwrk/midnight-did/releases/download/v0.4.0-rc2/midnight-did-zk-artifacts-0.4.0-rc2.tar.gz",
-      "https://github.com/midnightntwrk/midnight-did/releases/download/v0.4.0-rc2/midnight-did-zk-artifacts-0.4.0-rc2.tar.gz.sha256",
-      "https://github.com/midnightntwrk/midnight-did/releases/download/v0.4.0-rc2/midnight-did-zk-artifacts-0.4.0-rc2.manifest.json",
-    ]);
-    expect(bundle.providers.fetchBaseUrl).toBe("https://example.com/zk");
-    expect(bundle.manifest.version).toBe("0.4.0-rc2");
+    await expectArtifactErrorAsync(
+      () =>
+        downloadMidnightDidGithubReleaseZkArtifacts({
+          fetch,
+          outputDir: path.join(makeTempRoot(), "unpacked"),
+          version: "0.4.0-rc2",
+        }),
+      "manifest_mismatch",
+    );
   });
 
   it("builds FetchZkConfigProvider-compatible URLs", () => {
@@ -343,6 +459,45 @@ describe("ZK artifact consumption helpers", () => {
           version: "0.4.0",
         }),
       "missing_checksum",
+    );
+  });
+
+  it("pulls, verifies, and unpacks GHCR OCI artifacts", () => {
+    const tempRoot = makeTempRoot();
+    const fixture = createFixtureArchive({ version: "0.4.0" });
+    const fakeOras = path.join(tempRoot, "fake-oras.sh");
+    const manifestTarget = path.join(
+      path.dirname(fixture.archivePath),
+      "midnight-did-zk-artifacts-0.4.0.manifest.json",
+    );
+    fs.copyFileSync(fixture.manifestPath, manifestTarget);
+    const shaTarget = `${fixture.archivePath}.sha256`;
+    fs.writeFileSync(shaTarget, fixture.sha256Contents.toUpperCase());
+    fs.writeFileSync(
+      fakeOras,
+      [
+        "#!/usr/bin/env bash",
+        "set -euo pipefail",
+        'output_dir="$4"',
+        'mkdir -p "$output_dir"',
+        `cp ${JSON.stringify(fixture.archivePath)} "$output_dir/"`,
+        `cp ${JSON.stringify(manifestTarget)} "$output_dir/"`,
+        `cp ${JSON.stringify(shaTarget)} "$output_dir/"`,
+        "",
+      ].join("\n"),
+    );
+    fs.chmodSync(fakeOras, 0o755);
+
+    const bundle = pullMidnightDidGhcrZkArtifacts({
+      orasCommand: fakeOras,
+      outputDir: path.join(tempRoot, "unpacked"),
+      pullDir: path.join(tempRoot, "pull"),
+      version: "0.4.0",
+    });
+
+    expect(bundle.manifest.version).toBe("0.4.0");
+    expect(fs.existsSync(path.join(bundle.zkConfigPath, "manifest.json"))).toBe(
+      true,
     );
   });
 });
