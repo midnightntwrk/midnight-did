@@ -152,6 +152,29 @@ CI tooling. RC and final release versions also include
 `locations.githubRelease.archiveUrl`; snapshot versions publish workflow
 artifacts and GHCR artifacts only, so `locations.githubRelease` is `null`.
 
+Node consumers can download, verify, and unpack GitHub Release assets directly:
+
+```ts
+import {
+  downloadMidnightDidGithubReleaseZkArtifacts,
+  MIDNIGHT_DID_API_VERSION,
+} from "@midnight-ntwrk/midnight-did-api";
+
+const bundle = await downloadMidnightDidGithubReleaseZkArtifacts({
+  version: MIDNIGHT_DID_API_VERSION,
+  outputDir: ".midnight-did-zk",
+});
+
+process.env.MIDNIGHT_DID_ZK_CONFIG_PATH = bundle.zkConfigPath;
+```
+
+`bundle.zkConfigPath` is the directory to pass to `NodeZkConfigProvider` or to
+expose from an HTTP server for `FetchZkConfigProvider`. The helper verifies the
+release `.sha256` file, checks that the downloaded manifest matches the embedded
+archive manifest, and validates every circuit file checksum before returning.
+For GHCR OCI artifacts, use `pullMidnightDidGhcrZkArtifacts()` in an environment
+with the `oras` CLI available.
+
 When the ZK bundle is unpacked outside the installed package, set
 `MIDNIGHT_DID_ZK_CONFIG_PATH` to the directory containing `manifest.json`,
 `keys/`, and `zkir/` before importing `@midnight-ntwrk/midnight-did-api`.
