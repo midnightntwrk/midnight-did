@@ -294,6 +294,25 @@ Use `locations.ghcr.reference` for the matching GHCR OCI artifact. RC and final
 release versions also expose `locations.githubRelease.archiveUrl`; snapshots do
 not have GitHub Release assets.
 
+Published consumers can also use the Node helper exported by the API package:
+
+```ts
+import { downloadMidnightDidGithubReleaseZkArtifacts } from "@midnight-ntwrk/midnight-did-api";
+
+const bundle = await downloadMidnightDidGithubReleaseZkArtifacts({
+  version: "0.4.0-rc1",
+  outputDir: ".midnight-did-zk",
+});
+```
+
+The helper downloads the GitHub Release archive, manifest, and SHA file, verifies
+the archive digest and per-circuit manifest checksums, then returns
+`bundle.zkConfigPath` for `NodeZkConfigProvider`. Serve that same directory as an
+HTTP root when using `FetchZkConfigProvider`; its layout is
+`keys/<circuit>.prover`, `keys/<circuit>.verifier`, and
+`zkir/<circuit>.bzkir`. Use `pullMidnightDidGhcrZkArtifacts()` with the `oras`
+CLI when consuming the matching GHCR OCI artifact instead.
+
 ## Developer Entry Points
 
 1. `./start-docs.sh`
