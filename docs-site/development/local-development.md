@@ -124,6 +124,13 @@ Run the full docs pipeline:
 ./run.sh docs
 ```
 
+Run only the rendered layout checks after a docs build:
+
+```bash
+pnpm exec playwright install chromium
+pnpm run docs:visual
+```
+
 Preview the built site:
 
 ```bash

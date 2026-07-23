@@ -63,6 +63,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install docs browser
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Check DID surface discipline
         run: pnpm run check:did-surface-discipline
 
@@ -71,6 +74,14 @@ jobs:
 
       - name: Build docs site
         run: ./run.sh docs
+
+      - name: Upload docs visual artifacts
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # ratchet:actions/upload-artifact@v4
+        with:
+          name: docs-visual-${{ github.sha }}
+          path: test-results/docs-visual/
+          if-no-files-found: ignore
 
       - name: Upload Pages artifact
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/develop'
