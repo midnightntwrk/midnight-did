@@ -5,3 +5,7 @@ packages:
   - packages/jubjub-schnorr
   - packages/contract
   - docs-site
+
+blockExoticSubdeps: true
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade
