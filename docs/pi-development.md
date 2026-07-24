@@ -33,6 +33,18 @@ Use the normal issue and pull-request lifecycle from the Pi shell:
 
 The exact command help exposed by the installed package is authoritative.
 
+## Repository harness policy
+
+The repository-root `.devloops` file configures the review and lifecycle
+policy. It requires refinement, draft-first pull requests, review of DID/API/
+package boundaries, and a human-only merge. The authoritative repository rules
+remain `AGENT.md`, the bundled `midnight-identity` skill, the pull-request
+template, and the `./run.sh` validation targets.
+
+The harness is deliberately additive. GitHub Issues, pull requests, protected
+branches, and GitHub Actions remain the source of truth for work and CI state.
+Pi does not merge pull requests or replace branch protection.
+
 ## Automation interfaces
 
 For a wrapper or CI experiment, Pi provides two structured local interfaces:
@@ -66,3 +78,10 @@ workflow does not silently drift. Review changes to that file like executable
 tooling: Pi packages and extensions run with the permissions of the invoking
 user. Update the pin deliberately and validate the development workflow before
 merging.
+
+Check the effective repository configuration before starting work:
+
+```sh
+npx dev-loops@0.9.0 doctor
+npx dev-loops@0.9.0 gates
+```

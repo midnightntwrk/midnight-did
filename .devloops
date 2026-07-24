@@ -1,0 +1,61 @@
+# Repository-specific dev-loops policy for midnight-did.
+# Keep repository rules in AGENT.md and the bundled midnight-identity skill.
+
+gates:
+  draft:
+    angles:
+      - scope
+      - correctness
+      - coverage
+      - ci-guard
+      - contract-surface
+      - docs
+      - link-check
+      - config-drift
+      - packaging-runtime
+      - midnight-did-surface
+  preApproval:
+    angles:
+      - correctness
+      - contract-surface
+      - ci-guard
+      - docs
+      - link-check
+      - config-drift
+      - packaging-runtime
+      - security
+      - midnight-did-surface
+
+personas:
+  security:
+    persona: review
+    prompt: >-
+      Review for secret exposure, unsafe proof/key handling, authorization
+      bypasses, dependency or supply-chain risk, and unsafe GitHub workflow
+      behavior. Report concrete findings with file and line references.
+    defaultModel: null
+
+  midnight-did-surface:
+    persona: review
+    prompt: >-
+      Review the DID contract, domain, ledger mapping, API, package exports,
+      specification, and downstream compatibility boundaries. Find drift,
+      duplicated ownership, stale public behavior, or missing validation. Keep
+      resolver services in midnight-did-resolver and VC behavior in the VC
+      repository. Report concrete findings with file and line references.
+    defaultModel: null
+
+refinement:
+  fanOut: 3
+  maxCopilotRounds: 0
+
+autonomy:
+  stopAt:
+    - draft-pr
+    - merge
+  humanMergeOnly: true
+
+workflow:
+  requireDraftFirst: true
+  requireRetrospective: true
+  devModeDefault: false
