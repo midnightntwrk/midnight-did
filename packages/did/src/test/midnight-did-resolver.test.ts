@@ -337,6 +337,19 @@ describe("MidnightDIDResolver", () => {
     );
   });
 
+  it("uses the default representation for an empty Accept value", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+      expectedNetwork: MidnightNetwork.DevNet,
+    });
+
+    const result = await resolver.resolveRepresentation(did, { accept: "" });
+
+    expect(result.didResolutionMetadata.contentType).toBe(
+      "application/did+ld+json",
+    );
+  });
+
   it("returns notFound without a representation stream", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => null,

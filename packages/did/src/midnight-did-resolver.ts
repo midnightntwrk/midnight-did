@@ -42,6 +42,7 @@ export type MidnightDIDResolutionOptions = {
 };
 
 export type MidnightDIDRepresentationResult = {
+  /** Null when resolution fails; otherwise the serialized DID Document. */
   didDocumentStream: Uint8Array | null;
   didDocumentMetadata: DIDDocumentMetadata;
   didResolutionMetadata: {
@@ -120,7 +121,11 @@ const requestedMediaTypes = (
 const selectRepresentationMediaType = (
   accept: MidnightDIDResolutionOptions["accept"],
 ): DIDDocumentRepresentationMediaTypes | null => {
-  if (accept === undefined || (Array.isArray(accept) && accept.length === 0)) {
+  if (
+    accept === undefined ||
+    (Array.isArray(accept) && accept.length === 0) ||
+    (typeof accept === "string" && accept.trim() === "")
+  ) {
     return "application/did+ld+json";
   }
 
@@ -143,6 +148,17 @@ const selectRepresentationMediaType = (
   return null;
 };
 
+const documentForRepresentation = (
+  didDocument: MidnightDIDDocument,
+  contentType: DIDDocumentRepresentationMediaTypes,
+): MidnightDIDDocument => {
+  if (contentType !== "application/did+json") return didDocument;
+
+  const didJsonDocument = { ...didDocument };
+  Reflect.deleteProperty(didJsonDocument, "@context");
+  return didJsonDocument;
+};
+
 const representationEnvelope = (
   result: MidnightResolutionResult | null,
   contentType?: DIDDocumentRepresentationMediaTypes,
@@ -153,15 +169,7 @@ const representationEnvelope = (
       ? null
       : new TextEncoder().encode(
           JSON.stringify(
-            contentType === "application/did+json"
-              ? // DID Core JSON is not processed as JSON-LD, so omit the
-                // representation-specific @context member.
-                (() => {
-                  const { ["@context"]: _, ...didDocument } =
-                    result.didDocument;
-                  return didDocument;
-                })()
-              : result.didDocument,
+            documentForRepresentation(result.didDocument, contentType!),
           ),
         ),
   didDocumentMetadata: result?.didDocumentMetadata ?? {},
