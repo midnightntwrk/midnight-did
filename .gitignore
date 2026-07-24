@@ -28,6 +28,9 @@ test-results/
 jspm_packages/
 
 .turbo/
+.pi/git/
+.pi/npm/
+.pi/harness/
 
 # Optional eslint cache
 .eslintcache
