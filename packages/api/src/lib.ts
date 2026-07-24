@@ -25,7 +25,11 @@ export {
   configureProviders,
   createWalletAndMidnightProvider,
 } from "./providers.js";
-export { resolve, resolveDIDResolutionResult } from "./resolution.js";
+export {
+  resolve,
+  resolveDIDResolutionResult,
+  resolveRepresentation,
+} from "./resolution.js";
 export {
   addService,
   removeService,

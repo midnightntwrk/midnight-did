@@ -1,6 +1,8 @@
 import {
-  type MidnightDIDResolutionResult as ResolverDIDResolutionResult,
   MidnightDIDDocument,
+  type MidnightDIDRepresentationResult as ResolverDIDRepresentationResult,
+  type MidnightDIDResolutionOptions,
+  type MidnightDIDResolutionResult as ResolverDIDResolutionResult,
   MidnightDIDResolver,
 } from "@midnight-ntwrk/midnight-did";
 import { parseContractAddress } from "@midnight-ntwrk/midnight-did/midnight";
@@ -59,4 +61,18 @@ export const resolveDIDResolutionResult = async (
 ): Promise<MidnightDIDResolutionResult> => {
   const resolver = createResolver(providers);
   return await resolver.resolveDIDResolutionResult(getDidSubject(didContract));
+};
+
+export type MidnightDIDRepresentationResult = ResolverDIDRepresentationResult;
+
+export const resolveRepresentation = async (
+  providers: MidnightDIDProviders,
+  didContract: DeployedMidnightDIDContract,
+  options?: MidnightDIDResolutionOptions,
+): Promise<MidnightDIDRepresentationResult> => {
+  const resolver = createResolver(providers);
+  return await resolver.resolveRepresentation(
+    getDidSubject(didContract),
+    options,
+  );
 };

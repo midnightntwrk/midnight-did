@@ -76,6 +76,14 @@ Successful abstract `resolve` responses must not set
 `didResolutionMetadata.contentType`; that field is reserved for
 `resolveRepresentation` responses where the body is a DID Document byte stream.
 
+The API package also exports `resolveRepresentation(providers, didContract,
+options)`. It delegates to the shared `MidnightDIDResolver` and returns
+`didDocumentStream` as a `Uint8Array`, `didDocumentMetadata`, and
+`didResolutionMetadata`. This is the package boundary intended for
+`midnight-did-resolver`: the downstream service owns HTTP routing and status
+codes, while this package owns ledger access, representation selection, and DID
+resolution errors.
+
 ## Build & Test
 
 - Build: `pnpm --filter ./packages/api build`

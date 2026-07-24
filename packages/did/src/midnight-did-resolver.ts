@@ -2,6 +2,7 @@ import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import {
   type ContractAddress,
   type DIDDocumentMetadata,
+  type DIDDocumentRepresentationMediaTypes,
   type DIDResolutionErrorCode,
   parseMidnightDID,
   parseMidnightDIDString,
@@ -35,10 +36,28 @@ export type MidnightDIDResolutionResult = {
   };
 };
 
+export type MidnightDIDResolutionOptions = {
+  /** Requested DID Document representation media type(s). */
+  accept?: string | readonly string[];
+};
+
+export type MidnightDIDRepresentationResult = {
+  didDocumentStream: Uint8Array | null;
+  didDocumentMetadata: DIDDocumentMetadata;
+  didResolutionMetadata: {
+    contentType?: DIDDocumentRepresentationMediaTypes;
+    error?: DIDResolutionErrorCode;
+  };
+};
+
 export interface MidnightDIDResolverInterface {
   resolve(did: string): Promise<MidnightDIDDocument>;
   resolveResult(did: string): Promise<MidnightResolutionResult | null>;
   resolveDIDResolutionResult(did: string): Promise<MidnightDIDResolutionResult>;
+  resolveRepresentation(
+    did: string,
+    options?: MidnightDIDResolutionOptions,
+  ): Promise<MidnightDIDRepresentationResult>;
 }
 
 const resolutionEnvelope = (
@@ -70,6 +89,71 @@ const resolutionErrorCode = (error: unknown): DIDResolutionErrorCode => {
   }
   return "internalError";
 };
+
+const supportedRepresentationMediaTypes: readonly DIDDocumentRepresentationMediaTypes[] =
+  ["application/did+ld+json", "application/did+json"];
+
+const requestedMediaTypes = (
+  accept: MidnightDIDResolutionOptions["accept"],
+): string[] => {
+  if (accept === undefined) return [];
+  const values = typeof accept === "string" ? accept.split(",") : [...accept];
+  return values
+    .map((value) => {
+      const [mediaType, ...parameters] = value.split(";");
+      const quality = parameters.find((parameter) =>
+        /^\s*q\s*=/i.test(parameter),
+      );
+      const qualityValue = quality?.split("=", 2)[1]?.trim();
+      return {
+        mediaType: mediaType?.trim().toLowerCase() ?? "",
+        quality: qualityValue === undefined ? 1 : Number(qualityValue),
+      };
+    })
+    .filter(({ mediaType, quality }) => mediaType !== "" && quality > 0)
+    .sort((left, right) => right.quality - left.quality)
+    .map(({ mediaType }) => mediaType);
+};
+
+const selectRepresentationMediaType = (
+  accept: MidnightDIDResolutionOptions["accept"],
+): DIDDocumentRepresentationMediaTypes | null => {
+  const requested = requestedMediaTypes(accept);
+  if (requested.length === 0) {
+    return "application/did+ld+json";
+  }
+
+  for (const value of requested) {
+    if (value === "*/*") return "application/did+ld+json";
+    if (
+      supportedRepresentationMediaTypes.includes(
+        value as DIDDocumentRepresentationMediaTypes,
+      )
+    ) {
+      return value as DIDDocumentRepresentationMediaTypes;
+    }
+  }
+
+  return null;
+};
+
+const representationEnvelope = (
+  result: MidnightResolutionResult | null,
+  contentType?: DIDDocumentRepresentationMediaTypes,
+  error?: DIDResolutionErrorCode,
+): MidnightDIDRepresentationResult => ({
+  didDocumentStream:
+    result === null || result === undefined
+      ? null
+      : // Midnight DID Documents carry the required @context in both supported
+        // JSON representations; the media type declares the selected profile.
+        new TextEncoder().encode(JSON.stringify(result.didDocument)),
+  didDocumentMetadata: result?.didDocumentMetadata ?? {},
+  didResolutionMetadata: {
+    ...(contentType === undefined ? {} : { contentType }),
+    ...(error === undefined ? {} : { error }),
+  },
+});
 
 export class MidnightDIDResolver implements MidnightDIDResolverInterface {
   private readonly ledgerReader: MidnightLedgerReader;
@@ -129,6 +213,33 @@ export class MidnightDIDResolver implements MidnightDIDResolverInterface {
       );
     } catch (error) {
       return resolutionEnvelope(null, resolutionErrorCode(error));
+    }
+  }
+
+  async resolveRepresentation(
+    did: string,
+    options: MidnightDIDResolutionOptions = {},
+  ): Promise<MidnightDIDRepresentationResult> {
+    const contentType = selectRepresentationMediaType(options.accept);
+    if (contentType === null) {
+      return representationEnvelope(
+        null,
+        undefined,
+        "representationNotSupported",
+      );
+    }
+
+    try {
+      const result = await this.resolveResult(did);
+      return result === null
+        ? representationEnvelope(null, undefined, "notFound")
+        : representationEnvelope(result, contentType);
+    } catch (error) {
+      return representationEnvelope(
+        null,
+        undefined,
+        resolutionErrorCode(error),
+      );
     }
   }
 }
