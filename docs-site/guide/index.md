@@ -45,8 +45,8 @@ VC/VP protocol work lives in
 
 ## Security Note
 
-Controller-gated DID updates currently pass the controller `localSecretKey` as a
-private witness. The ledger does not see it, but a delegated proof server may.
-Use a local prover or proof infrastructure trusted with the DID controller
-secret. See [Key Model](/guide/key-model#trusted-proof-server-model) for the
-operating assumption and future direction.
+Controller-gated DID updates use wallet-local Jubjub Schnorr signatures over a
+domain-separated digest containing the DID contract id and current version. A
+delegated proof server receives signature material, not the controller secret.
+See [Key Model](/guide/key-model#controller-authorization-signature-model) for
+the current trust boundary.

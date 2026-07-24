@@ -2,6 +2,7 @@ import { deriveControllerPublicKey } from "@midnight-ntwrk/midnight-did-contract
 import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
 
 import { getLogger } from "./api-logger.js";
+import { createControllerAuthorization } from "./controller-authorization.js";
 import { randomBytes } from "./lightweight.js";
 import {
   clearPendingControllerPrivateState,
@@ -44,8 +45,14 @@ export const rotateControllerKey = async (
 
   let finalized = false;
   try {
+    const [signature, expectedVersion] = await createControllerAuthorization(
+      didContract,
+      providers,
+    );
     const result = await didContract.callTx.rotateControllerKey(
       nextControllerPublicKey,
+      signature,
+      expectedVersion,
     );
     finalized = true;
 

@@ -329,13 +329,13 @@ describeApi("Midnight DID method API", () => {
       providers,
       contractAddress,
     );
-    expect(Array.from(afterRotation!.controllerPublicKey)).not.toEqual(
-      Array.from(beforeRotation!.controllerPublicKey),
+    expect(afterRotation!.controllerPublicKey).not.toEqual(
+      beforeRotation!.controllerPublicKey,
     );
 
     const alias = "did:example:rotated-controller";
-    await api.addAlsoKnownAs(contract, alias);
-    await api.removeAlsoKnownAs(contract, alias);
+    await api.addAlsoKnownAs(contract, providers, alias);
+    await api.removeAlsoKnownAs(contract, providers, alias);
   });
 
   it("should resolve the DID Document including a reference to the DID Core 1.0 specification in the `@context` property", async () => {
@@ -388,7 +388,7 @@ describeApi("Midnight DID method API", () => {
       controller: didString,
       publicKeyJwk,
     });
-    await api.addVerificationMethod(contract, verificationMethod);
+    await api.addVerificationMethod(contract, providers, verificationMethod);
 
     const didDocument = await resolveDocument();
     expect(didDocument?.verificationMethod).not.toBeNull();
@@ -409,7 +409,7 @@ describeApi("Midnight DID method API", () => {
     const publicKey = deriveJubjubPublicKeyFromSeed(seed);
     const expectedPublicKeyJwk = createJubjubPublicJwk(seed);
 
-    await api.addSchnorrJubjubVerificationMethod(contract, {
+    await api.addSchnorrJubjubVerificationMethod(contract, providers, {
       id: methodId,
       publicKey,
     });
@@ -439,7 +439,7 @@ describeApi("Midnight DID method API", () => {
     });
 
     await expect(
-      api.addVerificationMethod(contract, verificationMethod),
+      api.addVerificationMethod(contract, providers, verificationMethod),
     ).rejects.toThrow(/Jubjub keys must use addSchnorrJubjub/);
   });
 
@@ -457,7 +457,7 @@ describeApi("Midnight DID method API", () => {
       controller: didString,
       publicKeyJwk,
     });
-    await api.addVerificationMethod(contract, verificationMethod);
+    await api.addVerificationMethod(contract, providers, verificationMethod);
 
     const didDocument = await resolveDocument();
     const insertedVerificationMethod = didDocument?.verificationMethod?.find(
@@ -489,8 +489,8 @@ describeApi("Midnight DID method API", () => {
       },
     });
 
-    await api.addVerificationMethod(contract, x25519);
-    await api.addVerificationMethod(contract, secp256k1);
+    await api.addVerificationMethod(contract, providers, x25519);
+    await api.addVerificationMethod(contract, providers, secp256k1);
 
     const didDocument = await resolveDocument();
     expect(
@@ -561,9 +561,13 @@ describeApi("Midnight DID method API", () => {
     );
 
     for (const verificationMethod of realKeys) {
-      await api.addVerificationMethod(realKeyContract, verificationMethod);
+      await api.addVerificationMethod(
+        realKeyContract,
+        providers,
+        verificationMethod,
+      );
     }
-    await api.addSchnorrJubjubVerificationMethod(realKeyContract, {
+    await api.addSchnorrJubjubVerificationMethod(realKeyContract, providers, {
       id: jubjubMethodId,
       publicKey: deriveJubjubPublicKeyFromSeed(jubjubSeed),
     });
@@ -690,7 +694,7 @@ describeApi("Midnight DID method API", () => {
         x: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
       },
     });
-    await api.addVerificationMethod(contract, verificationMethod);
+    await api.addVerificationMethod(contract, providers, verificationMethod);
     await api.addVerificationMethodRelation(
       contract,
       providers,
@@ -759,7 +763,7 @@ describeApi("Midnight DID method API", () => {
         "wss://localhost/didcomm/v2",
       ],
     });
-    await api.addService(contract, serviceToAdd);
+    await api.addService(contract, providers, serviceToAdd);
 
     const didDoc = await resolveDocument();
     expect(didDoc?.service).not.toBeNull();
@@ -776,7 +780,7 @@ describeApi("Midnight DID method API", () => {
       type: "DIDCommV2",
       serviceEndpoint: ["https://localhost/updated", "wss://localhost/updated"],
     });
-    await api.updateService(contract, serviceToUpdate);
+    await api.updateService(contract, providers, serviceToUpdate);
 
     const didDoc = await resolveDocument();
     expect(didDoc?.service).not.toBeNull();
@@ -787,7 +791,7 @@ describeApi("Midnight DID method API", () => {
   });
 
   it("should update the DID by removing the service using its `id`", async () => {
-    await api.removeService(contract, serviceId);
+    await api.removeService(contract, providers, serviceId);
     const didDoc = await resolveDocument();
     expect(didDoc?.service?.length ?? 0).toBe(0);
   });
@@ -902,7 +906,7 @@ describeApi("Midnight DID method API", () => {
             ? { ...service.serviceEndpoint }
             : service.serviceEndpoint,
       });
-      await api.addService(contract, serviceToAdd);
+      await api.addService(contract, providers, serviceToAdd);
     }
 
     const didDoc = await resolveDocument();
@@ -918,7 +922,11 @@ describeApi("Midnight DID method API", () => {
     }
 
     for (const { service } of serviceDefinitions) {
-      await api.removeService(contract, ServiceIdSchema.parse(service.id));
+      await api.removeService(
+        contract,
+        providers,
+        ServiceIdSchema.parse(service.id),
+      );
     }
 
     const finalDoc = await resolveDocument();
@@ -931,13 +939,13 @@ describeApi("Midnight DID method API", () => {
   });
 
   it("should add alsoKnownAs alias", async () => {
-    await api.addAlsoKnownAs(contract, didAsDid);
+    await api.addAlsoKnownAs(contract, providers, didAsDid);
     const didDoc = await resolveDocument();
     expect(didDoc?.alsoKnownAs?.includes(didAsDid)).toBe(true);
   });
 
   it("should add second alsoKnownAs alias", async () => {
-    await api.addAlsoKnownAs(contract, secondAlias);
+    await api.addAlsoKnownAs(contract, providers, secondAlias);
     const didDoc = await resolveDocument();
     expect(didDoc?.alsoKnownAs?.includes(didAsDid)).toBe(true);
     expect(didDoc?.alsoKnownAs?.includes(secondAlias)).toBe(true);
@@ -946,30 +954,30 @@ describeApi("Midnight DID method API", () => {
   it("should remove the first alsoKnownAs alias", async () => {
     let didDoc = await resolveDocument();
     if (!didDoc?.alsoKnownAs?.includes(didAsDid)) {
-      await api.addAlsoKnownAs(contract, didAsDid);
+      await api.addAlsoKnownAs(contract, providers, didAsDid);
       didDoc = await resolveDocument();
       expect(didDoc?.alsoKnownAs?.includes(didAsDid)).toBe(true);
     }
-    await api.removeAlsoKnownAs(contract, didAsDid);
+    await api.removeAlsoKnownAs(contract, providers, didAsDid);
     didDoc = await resolveDocument();
     expect(didDoc?.alsoKnownAs?.includes(didAsDid)).toBe(false);
     expect(didDoc?.alsoKnownAs?.includes(secondAlias)).toBe(true);
   });
 
   it("should reject invalid alsoKnownAs URI when adding", async () => {
-    await expect(api.addAlsoKnownAs(contract, "not-a-uri")).rejects.toThrow(
-      /aliasUri must be a valid absolute URI/,
-    );
+    await expect(
+      api.addAlsoKnownAs(contract, providers, "not-a-uri"),
+    ).rejects.toThrow(/aliasUri must be a valid absolute URI/);
   });
 
   it("should reject invalid alsoKnownAs URI when removing", async () => {
-    await expect(api.removeAlsoKnownAs(contract, " ")).rejects.toThrow(
-      /aliasUri must not be empty/,
-    );
+    await expect(
+      api.removeAlsoKnownAs(contract, providers, " "),
+    ).rejects.toThrow(/aliasUri must not be empty/);
   });
 
   it("should deactivate the DID", async () => {
-    await api.deactivate(contract);
+    await api.deactivate(contract, providers);
     const resolution = await api.resolve(providers, contract);
     expect(resolution?.didDocumentMetadata.deactivated).toBe(true);
   });

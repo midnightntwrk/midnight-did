@@ -7,7 +7,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | Trait | Status | Notes |
 | --- | --- | --- |
 | Deterministic / namespaced | ✔ | `did:midnight:{network}:{64-hex}` derived from contract address; avoids collisions across networks. |
-| Self-certifying | △ | DID value is not derived from controller key; security anchored in on-chain contract + wallet-held secret key witness. |
+| Self-certifying | △ | DID value is not derived from controller key; security anchored in on-chain contract + wallet-local controller signatures. |
 | Ledger anchored | ✔ | All CRUD operations interact with Midnight ledger smart contract. |
 | Method-specific syntax | ✔ | Defined in [Midnight DID Method §2](./midnight-method.md#2-midnight-did-syntax); conforms to [RFC3986] and [W3C-DID] requirements. |
 
@@ -17,7 +17,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | --- | --- | --- |
 | Create | ✔ | Contract deployment creates DID state. |
 | Read / Resolve | ✔ | `packages/did/src/ledger-to-domain.ts` reconstructs DID Document from ledger state. |
-| Update | ✔ | Individual contract circuits handle adds/updates/removals with secret-key authorization. |
+| Update | ✔ | Individual contract circuits handle adds/updates/removals with controller-signature authorization. |
 | Deactivate | ✔ | Deactivation operation prevents further updates. |
 | Recover | △ | No explicit recovery; requires redeployment/new DID. |
 
@@ -45,8 +45,8 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | --- | --- | --- |
 | Single controller | ✔ | Contract enforces single controller equal to DID. |
 | Multi-controller | ✖ | Not supported. |
-| Delegated updates | ✔ | Possession of the secret key witness allows updates. |
-| On-chain access control | ✔ | Circuits verify the wallet-held secret key against `controllerPublicKey`. |
+| Delegated updates | ✔ | Wallet-local controller signatures authorize updates without revealing the controller secret to proof servers. |
+| On-chain access control | ✔ | Circuits verify wallet-local controller signatures against the on-ledger `controllerPublicKey`. |
 
 ## Operational Traits
 

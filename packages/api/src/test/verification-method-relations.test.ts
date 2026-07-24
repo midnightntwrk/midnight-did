@@ -2,6 +2,13 @@ import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import { VerificationMethodRelationType } from "@midnight-ntwrk/midnight-did-domain";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("../controller-authorization.js", () => ({
+  createControllerAuthorization: vi.fn(async () => [
+    { announcement: { x: 1n, y: 2n }, response: 3n },
+    7n,
+  ]),
+}));
+
 import { LedgerVerificationMethodRelationMap } from "../ledger-mappers.js";
 import { type DeployedMidnightDIDContract } from "../types.js";
 import {
@@ -121,6 +128,7 @@ describe("verification method relation operations", () => {
 
     await removePresentVerificationMethodRelations(
       didContract,
+      {} as any,
       [
         {
           relation: VerificationMethodRelationType.Authentication,
@@ -146,6 +154,8 @@ describe("verification method relation operations", () => {
       ],
       "#key-1",
       DIDContract.SetMutation.Remove,
+      { announcement: { x: 1n, y: 2n }, response: 3n },
+      7n,
     );
     expect(setVerificationMethodRelation).toHaveBeenNthCalledWith(
       2,
@@ -154,6 +164,8 @@ describe("verification method relation operations", () => {
       ],
       "#key-1",
       DIDContract.SetMutation.Remove,
+      { announcement: { x: 1n, y: 2n }, response: 3n },
+      7n,
     );
   });
 

@@ -22,7 +22,7 @@ export { Schnorr_SchnorrSignature };
 
 // Ledger state - Full DID Document
 export ledger contractVersion: Uint<32>;
-export ledger controllerPublicKey: Bytes<32>;
+export ledger controllerPublicKey: JubjubPoint;
 export ledger id: ContractAddress;
 export ledger alsoKnownAs: Set<Opaque<"string">>;
 export ledger version: Counter;
@@ -41,7 +41,7 @@ export ledger capabilityDelegationRelation: Set<Opaque<"string">>;
 export ledger services: Map<Opaque<"string">, Service>;
 
 // Witnesses
-witness localSecretKey(): Bytes<32>;
+witness localControllerPublicKey(): JubjubPoint;
 witness currentTimestamp(): Uint<64>;
 
 // Enums and Structs
@@ -107,16 +107,41 @@ circuit verificationMethodExists(id: Opaque<"string">): Boolean {
   return verificationMethods.member(id) || schnorrJubjubVerificationMethods.member(id);
 }
 
-circuit controllerKey(sk: Bytes<32>): Bytes<32> {
-  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "did:controller:pk"), sk]);
+struct ControllerAuthorizationIntent {
+  domain: Bytes<32>,
+  contractId: ContractAddress,
+  version: Uint<64>,
 }
 
-circuit assertController(): [] {
-  assert(controllerKey(localSecretKey()) == controllerPublicKey, "DID controller is allowed to update the DID only");
+export pure circuit controllerAuthorizationDigest(
+  contractId: ContractAddress,
+  expectedVersion: Uint<64>
+): Vector<4, Field> {
+  return [
+    transientHash<ControllerAuthorizationIntent>(
+      ControllerAuthorizationIntent {
+        domain: pad(32, "midnight-did-ctrl-sig:v1"),
+        contractId: contractId,
+        version: expectedVersion,
+      }
+    ),
+    0 as Field,
+    0 as Field,
+    0 as Field,
+  ];
 }
 
-circuit assertControllerCanUpdate(): [] {
-  assertController();
+circuit assertController(signature: Schnorr_SchnorrSignature, expectedVersion: Uint<64>): [] {
+  assert(disclose(expectedVersion) == version, "Controller authorization version is stale");
+  Schnorr_schnorrVerifyDigest(
+    controllerAuthorizationDigest(id, disclose(expectedVersion)),
+    signature,
+    controllerPublicKey
+  );
+}
+
+circuit assertControllerCanUpdate(signature: Schnorr_SchnorrSignature, expectedVersion: Uint<64>): [] {
+  assertController(signature, expectedVersion);
   assert(active, "Contract is not active");
 }
 
@@ -211,15 +236,19 @@ constructor() {
   id = kernel.self();
   active = true;
   deactivated = false;
-  controllerPublicKey = disclose(controllerKey(localSecretKey()));
+  controllerPublicKey = disclose(localControllerPublicKey());
 
   const timestamp = disclose(currentTimestamp());
   created = timestamp;
   updated = timestamp;
 }
 
-export circuit rotateControllerKey(newControllerPublicKey: Bytes<32>): [] {
-  assertControllerCanUpdate();
+export circuit rotateControllerKey(
+  newControllerPublicKey: JubjubPoint,
+  controllerSignature: Schnorr_SchnorrSignature,
+  expectedVersion: Uint<64>
+): [] {
+  assertControllerCanUpdate(controllerSignature, expectedVersion);
   const disclosedNewControllerPublicKey = disclose(newControllerPublicKey);
   assert(disclosedNewControllerPublicKey != controllerPublicKey, "New controller key matches current controller key");
   controllerPublicKey = disclosedNewControllerPublicKey;
@@ -227,8 +256,13 @@ export circuit rotateControllerKey(newControllerPublicKey: Bytes<32>): [] {
   recordUpdate();
 }
 
-export circuit setAlsoKnownAs(value: Opaque<"string">, mutation: SetMutation): [] {
-  assertControllerCanUpdate();
+export circuit setAlsoKnownAs(
+  value: Opaque<"string">,
+  mutation: SetMutation,
+  controllerSignature: Schnorr_SchnorrSignature,
+  expectedVersion: Uint<64>
+): [] {
+  assertControllerCanUpdate(controllerSignature, expectedVersion);
   const disclosedMutation = disclose(mutation);
   assertSetMutationDefined(disclosedMutation);
   const alias = disclose(value);
@@ -245,9 +279,11 @@ export circuit setAlsoKnownAs(value: Opaque<"string">, mutation: SetMutation): [
 
 export circuit setVerificationMethod(
   verificationMethod: VerificationMethod,
-  mutation: MapMutation
+  mutation: MapMutation,
+  controllerSignature: Schnorr_SchnorrSignature,
+  expectedVersion: Uint<64>
 ): [] {
-  assertControllerCanUpdate();
+  assertControllerCanUpdate(controllerSignature, expectedVersion);
   const disclosedVerificationMethod = disclose(verificationMethod);
   const disclosedMutation = disclose(mutation);
   assertMapMutationDefined(disclosedMutation);
@@ -263,8 +299,12 @@ export circuit setVerificationMethod(
   recordUpdate();
 }
 
-export circuit removeVerificationMethod(id: Opaque<"string">): [] {
-  assertControllerCanUpdate();
+export circuit removeVerificationMethod(
+  id: Opaque<"string">,
+  controllerSignature: Schnorr_SchnorrSignature,
+  expectedVersion: Uint<64>
+): [] {
+  assertControllerCanUpdate(controllerSignature, expectedVersion);
   const disclosedId = disclose(id);
   assert(verificationMethods.member(disclosedId), "Verification method does not exist");
   assertVerificationMethodIsNotReferenced(disclosedId);
@@ -275,9 +315,11 @@ export circuit removeVerificationMethod(id: Opaque<"string">): [] {
 
 export circuit setSchnorrJubjubVerificationMethod(
   verificationMethod: SchnorrJubjubVerificationMethod,
-  mutation: MapMutation
+  mutation: MapMutation,
+  controllerSignature: Schnorr_SchnorrSignature,
+  expectedVersion: Uint<64>
 ): [] {
-  assertControllerCanUpdate();
+  assertControllerCanUpdate(controllerSignature, expectedVersion);
   const disclosedVerificationMethod = disclose(verificationMethod);
   const disclosedMutation = disclose(mutation);
   assertMapMutationDefined(disclosedMutation);
@@ -292,8 +334,12 @@ export circuit setSchnorrJubjubVerificationMethod(
   recordUpdate();
 }
 
-export circuit removeSchnorrJubjubVerificationMethod(id: Opaque<"string">): [] {
-  assertControllerCanUpdate();
+export circuit removeSchnorrJubjubVerificationMethod(
+  id: Opaque<"string">,
+  controllerSignature: Schnorr_SchnorrSignature,
+  expectedVersion: Uint<64>
+): [] {
+  assertControllerCanUpdate(controllerSignature, expectedVersion);
   const disclosedId = disclose(id);
   assert(schnorrJubjubVerificationMethods.member(disclosedId), "Verification method does not exist");
   assertVerificationMethodIsNotReferenced(disclosedId);
@@ -319,9 +365,11 @@ export circuit verifySchnorrJubjubDigestSignature(
 export circuit setVerificationMethodRelation(
   relation: VerificationMethodRelation,
   methodId: Opaque<"string">,
-  mutation: SetMutation
+  mutation: SetMutation,
+  controllerSignature: Schnorr_SchnorrSignature,
+  expectedVersion: Uint<64>
 ): [] {
-  assertControllerCanUpdate();
+  assertControllerCanUpdate(controllerSignature, expectedVersion);
   const disclosedRelation = disclose(relation);
   const disclosedMethodId = disclose(methodId);
   const disclosedMutation = disclose(mutation);
@@ -340,8 +388,13 @@ export circuit setVerificationMethodRelation(
   recordUpdate();
 }
 
-export circuit setService(service: Service, mutation: MapMutation): [] {
-  assertControllerCanUpdate();
+export circuit setService(
+  service: Service,
+  mutation: MapMutation,
+  controllerSignature: Schnorr_SchnorrSignature,
+  expectedVersion: Uint<64>
+): [] {
+  assertControllerCanUpdate(controllerSignature, expectedVersion);
   const disclosedService = disclose(service);
   const disclosedMutation = disclose(mutation);
   assertMapMutationDefined(disclosedMutation);
@@ -356,8 +409,12 @@ export circuit setService(service: Service, mutation: MapMutation): [] {
   recordUpdate();
 }
 
-export circuit removeService(id: Opaque<"string">): [] {
-  assertControllerCanUpdate();
+export circuit removeService(
+  id: Opaque<"string">,
+  controllerSignature: Schnorr_SchnorrSignature,
+  expectedVersion: Uint<64>
+): [] {
+  assertControllerCanUpdate(controllerSignature, expectedVersion);
   const disclosedId = disclose(id);
   assert(services.member(disclosedId), "Service with a given id does not exist");
   services.remove(disclosedId);
@@ -365,8 +422,11 @@ export circuit removeService(id: Opaque<"string">): [] {
   recordUpdate();
 }
 
-export circuit deactivate(): [] {
-  assertController();
+export circuit deactivate(
+  controllerSignature: Schnorr_SchnorrSignature,
+  expectedVersion: Uint<64>
+): [] {
+  assertController(controllerSignature, expectedVersion);
   assert(active, "DID is already inactive");
   active = false;
   deactivated = true;

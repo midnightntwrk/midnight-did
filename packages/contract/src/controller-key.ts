@@ -2,41 +2,43 @@
 // Copyright (C) 2025 Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 
+import type { JubjubPoint } from "@midnight-ntwrk/compact-runtime";
 import {
-  CompactTypeBytes,
-  CompactTypeVector,
-  persistentHash
-} from "@midnight-ntwrk/compact-runtime";
+  deriveJubjubPublicKeyFromSeed,
+  type JubjubDigest,
+  type JubjubSchnorrSignature,
+  signJubjubDigestFromSeed
+} from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
 
-const bytes32 = new CompactTypeBytes(32);
-const controllerKeyInput = new CompactTypeVector(2, bytes32);
-const controllerKeyDomainLabel = "did:controller:pk";
-
-const padAscii32 = (value: string): Uint8Array => {
-  if (value.length > 32) {
-    throw new Error("DID controller key domain label exceeds 32 bytes");
-  }
-
-  const padded = new Uint8Array(32);
-  for (let index = 0; index < value.length; index += 1) {
-    const codePoint = value.charCodeAt(index);
-    if (codePoint > 0x7f) {
-      throw new Error("DID controller key domain label must be ASCII");
-    }
-    padded[index] = codePoint;
-  }
-  return padded;
-};
-
-// Mirrors the Compact `pad(32, "did:controller:pk")` controller-key domain.
-const controllerKeyDomain = padAscii32(controllerKeyDomainLabel);
+import { pureCircuits } from "./managed/did/contract/index.js";
 
 export const deriveControllerPublicKey = (
   secretKey: Uint8Array
-): Uint8Array => {
+): JubjubPoint => {
   if (!(secretKey instanceof Uint8Array) || secretKey.length !== 32) {
     throw new Error("DID controller secret key must be 32 bytes");
   }
 
-  return persistentHash(controllerKeyInput, [controllerKeyDomain, secretKey]);
+  return deriveJubjubPublicKeyFromSeed(secretKey);
 };
+
+export type ControllerAuthorizationContractId = { readonly bytes: Uint8Array };
+
+export const controllerAuthorizationDigest = (
+  contractId: ControllerAuthorizationContractId,
+  expectedVersion: bigint
+): JubjubDigest =>
+  pureCircuits.controllerAuthorizationDigest(
+    contractId,
+    expectedVersion
+  ) as JubjubDigest;
+
+export const signControllerAuthorization = (
+  secretKey: Uint8Array,
+  contractId: ControllerAuthorizationContractId,
+  expectedVersion: bigint
+): JubjubSchnorrSignature =>
+  signJubjubDigestFromSeed(
+    secretKey,
+    controllerAuthorizationDigest(contractId, expectedVersion)
+  );

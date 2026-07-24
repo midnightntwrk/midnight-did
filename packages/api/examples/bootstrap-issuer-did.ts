@@ -226,7 +226,7 @@ try {
     "[bootstrap] step 6/7 attach Ed25519 + authentication relation…",
   );
   await retryOnDustShortage("addVerificationMethod(ed25519)", () =>
-    addVerificationMethod(contract, edVm),
+    addVerificationMethod(contract, providers, edVm),
   );
   await retryOnDustShortage(
     "addVerificationMethodRelation(authentication)",
@@ -247,7 +247,7 @@ try {
     "[bootstrap] step 7/7 attach Jubjub + assertionMethod relation…",
   );
   await retryOnDustShortage("addSchnorrJubjubVerificationMethod", () =>
-    addSchnorrJubjubVerificationMethod(contract, {
+    addSchnorrJubjubVerificationMethod(contract, providers, {
       id: jubKid,
       publicKey: jubPublic,
     }),

@@ -48,9 +48,11 @@ thin profile-specific wrappers:
 | `PreprodConfig` | public preprod indexer and RPC with a local proof server |
 | `MainnetConfig` | public mainnet indexer and RPC with a local proof server, plus optional endpoint overrides |
 
-The proof server default is local for every shipped profile. If an application
-uses a remote proof service, treat it as trusted with controller-secret witness
-material unless the proving design changes.
+The proof server default is local for every shipped profile. Controller-gated
+DID updates pass wallet-local authorization signatures to the proof server rather
+than the controller secret; applications should still treat remote proving as
+transaction-authoring infrastructure and submit a fresh current-version
+authorization for each intended mutation.
 
 ## GraphQL Versions
 

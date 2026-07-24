@@ -45,7 +45,7 @@ This specification describes a new DID method called Midnight for storing DIDs u
 9. [Privacy Considerations](#9-privacy-considerations)
 10. [Discoverability](#10-discoverability)
 11. [Appendix](#11-appendix)
-    - [11.1. Trusted proof server model](#111-trusted-proof-server-model)
+    - [11.1. Controller authorization and proof servers](#111-controller-authorization-and-proof-servers)
     - [11.2. Example DID Document](#112-example-did-document)
 
 # 1. Conformance and Terminology
@@ -509,46 +509,38 @@ Smart-contract access control is independent from the ZK prover/verifier keys
 described in [section 5.1](#51-zk-keys). A Midnight DID controller is authorized
 by wallet-held private state, not by possession of the Compact prover artifacts.
 
-The contract uses two witnesses for controller-gated operations:
+The contract uses wallet-local Jubjub Schnorr signatures for controller-gated
+operations. The wallet or SDK creates a random 32-byte controller secret,
+derives a Jubjub controller public key, and stores only the public key on ledger
+as `controllerPublicKey`.
 
-- `localSecretKey` — a wallet-generated random 32-byte controller secret.
-- `currentTimestamp` — a client/controller-supplied time in milliseconds since
-  epoch, used to populate `created`/`updated`.
+For each controller-gated operation, the wallet signs a domain-separated
+authorization digest with four field lanes:
 
-During deployment, the wallet or SDK creates `localSecretKey` with
-cryptographically secure randomness and stores it in private-state storage. The
-contract stores only the corresponding `controllerPublicKey` commitment:
+- a domain hash for `midnight-did-ctrl-sig:v1`,
+- a DID state hash over the DID contract id and current ledger `version`,
+- an operation-name hash, and
+- an operation-arguments hash.
 
-```text
-persistentHash<Vector<2, Bytes<32>>>([pad(32, "did:controller:pk"), localSecretKey])
-```
-
-The `controllerPublicKey` value is therefore a contract-local access-control
-commitment derived from random wallet material. It is not a DID Document
-verification method, it is not a Compact prover public key, and it is not reused
-as Ed25519, X25519, P-256, secp256k1, BLS12-381, or SchnorrJubjub key material.
-
-Each update circuit recomputes the commitment from the private `localSecretKey`
-witness and asserts that it matches the on-ledger `controllerPublicKey`. This
-ensures that only a prover with access to the wallet controller secret can mutate
-the DID state.
+The proof submitted to the contract carries the signature and expected version.
+The circuit recomputes the operation and argument hashes from the public
+arguments it is about to apply, verifies the signature against the stored
+`controllerPublicKey`, and rejects stale versions before mutating DID state. The
+controller secret is not a circuit witness and MUST NOT be sent to delegated
+proving infrastructure.
 
 The controller secret is not stored on ledger. SDKs MUST persist it in the
 wallet's private-state storage, and wallets SHOULD provide backup or recovery
 for this private state. Loss of the controller secret makes subsequent DID
 updates impossible unless a future recovery mechanism is introduced.
 
-Controller rotation is performed with
-`rotateControllerKey(newControllerPublicKey: Bytes<32>)`. The replacement
-controller secret is generated locally by the wallet or SDK, and the replacement
-`controllerPublicKey` commitment is derived locally before submitting the
-transaction. Only the new `controllerPublicKey` is supplied to the circuit. The
-new secret MUST NOT be passed as a circuit argument: private circuit arguments
-may be visible to the proving environment, especially when proving is delegated
-to a proof server. After the rotation transaction finalizes, the SDK MUST persist
-the new secret as the DID private state. See [Appendix 11.1](#111-trusted-proof-server-model)
-for the proof-server trust assumption implied by the current `localSecretKey`
-witness design.
+Controller rotation is performed with a locally derived replacement Jubjub
+`controllerPublicKey`. The replacement controller secret is generated locally by
+the wallet or SDK. Only the new `controllerPublicKey`, the current-version
+controller signature, and the expected version are supplied to the circuit. After
+the rotation transaction finalizes, the SDK MUST persist the new secret as the
+DID private state. See [Appendix 11.1](#111-controller-authorization-and-proof-servers)
+for the proof-server trust boundary.
 
 ## 5.3. Keys associated with the DID Document
 Midnight DID Controllers **MUST** manage the keys associated with the DID Document.
@@ -563,7 +555,7 @@ The following table summarizes the on-chain ledger state exported by the contrac
 | Field                          | Type                                         | Description |
 |--------------------------------|----------------------------------------------|-------------|
 | contractVersion                | `Uint<32>`                                   | Contract schema/version number to support upgrades and compatibility checks. |
-| controllerPublicKey            | `Bytes<32>`                                  | Public key derived from the secret key witness; used to authorize updates. |
+| controllerPublicKey            | `JubjubPoint`                                | Controller public key used to verify wallet-local controller authorization signatures. |
 | id                             | `ContractAddress`                            | Smart‑contract address (32‑byte / 64‑hex) that uniquely identifies the DID on Midnight. |
 | alsoKnownAs                    | `Set<Opaque<"string">>`                      | The DID Document’s `alsoKnownAs` field; allows to set the alias for the DID identity. |
 | version                        | `Counter`                                    | Monotonic on-chain revision counter for the DID state. Must be set to the `versionId` property of the DIDDocument. |
@@ -696,7 +688,7 @@ Midnight DID Document and its JSON-LD representation.
 
 Updating the Midnight DID implies that the DID Controller calls one of the smart contract's individual circuits for each type of modification.
 
-Each update circuit requires the `localSecretKey` witness to match the on-chain `controllerPublicKey`. The `currentTimestamp` witness is used to populate the `updated` ledger field after each successful operation. The value is not constrained by ledger time and therefore remains informational metadata that can only be sanity-checked by resolvers and SDKs for obviously implausible values.
+Each update circuit requires a controller Schnorr signature over the DID contract id, current version, operation name, and operation arguments, verified against the on-chain `controllerPublicKey`. The `currentTimestamp` witness is used to populate the `updated` ledger field after each successful operation. The value is not constrained by ledger time and therefore remains informational metadata that can only be sanity-checked by resolvers and SDKs for obviously implausible values.
 
 Conformance note: due to Compact language limitations for rich URI/data-model validation, normative checks for DID URL subject binding and DID Core structure conformance (for example `serviceEndpoint` shape), JWK/base64url canonicality, opaque JWK shape (for example OKP omits `y` while EC includes `y`), and non-native key parsing are enforced at the SDK/resolver layers (`domain`, `api`, `did`). The smart contract enforces authorization, exact ledger identifier existence/uniqueness, supported opaque JWK key/curve profiles, native SchnorrJubjub point storage, and state-transition invariants.
 
@@ -720,7 +712,7 @@ Each mutating circuit increments the version counter and updates the `updated` t
 The circuit implementations are in [`packages/contract/src/did.compact`](../packages/contract/src/did.compact), and the API helpers that call these circuits are in [`packages/api/src/lib.ts`](../packages/api/src/lib.ts).
 
 Controller rotation note:
-- `rotateControllerKey` accepts only the next `controllerPublicKey`, not the next secret.
+- `rotateControllerKey` accepts only the next `controllerPublicKey`, not the next secret; authorization is supplied as a current-version controller signature.
 - The API helper generates a new 32-byte secret, derives the next public key locally with the contract package's `deriveControllerPublicKey` helper, submits the rotation transaction, and stores the new secret in private state after the transaction succeeds.
 - If the rotation transaction finalizes but private-state persistence fails, the wallet must recover the same new secret to continue updating the DID.
 - Implementations that bypass the API and submit an arbitrary `newControllerPublicKey` are responsible for retaining the matching preimage. Losing the matching secret makes subsequent DID updates impossible.
@@ -739,7 +731,7 @@ Adds a new verification method entry and (optionally, in a subsequent operation)
 
 Example (Ed25519):
 ```typescript
-await addVerificationMethod(didContract, {
+await addVerificationMethod(didContract, providers, {
   id: '#key-1',
   type: 'JsonWebKey',
   controller: 'did:midnight:testnet:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6',
@@ -762,7 +754,7 @@ Ledger normalization note:
 
 Example (SchnorrJubjub):
 ```typescript
-await addSchnorrJubjubVerificationMethod(didContract, {
+await addSchnorrJubjubVerificationMethod(didContract, providers, {
   id: '#key-jubjub-1',
   publicKey: {
     x: 12345n,
@@ -793,7 +785,7 @@ Replaces the stored definition of an existing verification method (same `id`).
 
 Example:
 ```typescript
-await updateVerificationMethod(didContract, {
+await updateVerificationMethod(didContract, providers, {
   id: '#key-1',
   type: 'JsonWebKey',
   controller: 'did:midnight:testnet:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6',
@@ -858,7 +850,7 @@ Adds a service entry identified by a unique `id` with a `type` and `serviceEndpo
 
 Example:
 ```typescript
-await addService(didContract, {
+await addService(didContract, providers, {
   id: '#didcomm-1',
   type: 'DIDCommV2',
   serviceEndpoint: 'https://localhost/didcomm/v2'
@@ -876,7 +868,7 @@ Replaces the service definition with the same `id`.
 
 Example:
 ```typescript
-await updateService(didContract, {
+await updateService(didContract, providers, {
   id: '#didcomm-1',
   type: 'DIDCommV2',
   serviceEndpoint: 'https://new-endpoint.com/didcomm'
@@ -893,7 +885,7 @@ Deletes a service entry by `serviceId`.
 
 Example:
 ```typescript
-await removeService(didContract, '#didcomm-1');
+await removeService(didContract, providers, '#didcomm-1');
 ```
 
 ### 7.3.9. Add AlsoKnownAs
@@ -907,7 +899,7 @@ Adds an alias URI to the `alsoKnownAs` set. See [section 3.3](#33-alias) for sem
 
 Example:
 ```typescript
-await addAlsoKnownAs(didContract, 'did:example:aka-1');
+await addAlsoKnownAs(didContract, providers, 'did:example:aka-1');
 ```
 
 ### 7.3.10. Remove AlsoKnownAs
@@ -920,7 +912,7 @@ Removes an alias URI from the `alsoKnownAs` set.
 
 Example:
 ```typescript
-await removeAlsoKnownAs(didContract, 'did:example:aka-1');
+await removeAlsoKnownAs(didContract, providers, 'did:example:aka-1');
 ```
 
 ### 7.3.11. Deactivate
@@ -936,7 +928,7 @@ Marks the DID as deactivated on-chain. The public state remains readable for aud
 
 Example:
 ```typescript
-await deactivate(didContract);
+await deactivate(didContract, providers);
 ```
 
 # 8. Security Considerations
@@ -998,7 +990,7 @@ Conforming Midnight DID producers MUST NOT intentionally place personal data in 
 ## 9.4. Separation of concerns
 
 The Midnight DID method separates concerns between the following roles:
-- Midnight DID smart‑contract publisher and updater (the role implies access to the ZK proving infrastructure and the wallet-held `localSecretKey` witness).
+- Midnight DID smart‑contract publisher and updater (the role can assemble and submit transactions, while controller authorization is supplied as wallet-local signatures).
 - Midnight DID Document key holder (the role implies managing the private and public keys associated with the DID ledger state).
 - Midnight DID Document reader (has access to the public ledger state and can reconstruct the DID Document).
 
@@ -1045,25 +1037,30 @@ In every network, discoverability is ultimately provided by the Midnight ledger 
 
 # 11. Appendix
 
-## 11.1. Trusted proof server model
+## 11.1. Controller authorization and proof servers
 
-The current Midnight DID controller authorization model treats the proving environment as trusted for controller-gated operations. Each mutating circuit receives the wallet-held `localSecretKey` as a private witness and checks that:
+Midnight DID controller authorization is designed so delegated proof servers do
+not need the controller secret. Each mutating circuit receives a wallet-local
+Jubjub Schnorr signature and an expected ledger version. The signed digest is
+domain-separated with `midnight-did-ctrl-sig:v1` and includes the DID contract id
+and current version.
 
-```
-persistentHash<Vector<2, Bytes<32>>>([pad(32, "did:controller:pk"), localSecretKey]) == controllerPublicKey
-```
+The controller secret is private from the ledger, indexers, resolvers, DID
+Document readers, and proof servers. A remote proof server that receives only the
+signature cannot mint an authorization for a later DID version or a different DID
+contract. If a submitted transaction races with another successful mutation, the
+version check fails and the wallet must sign a fresh authorization for the new
+state.
 
-The witness is private from the ledger, indexers, resolvers, and DID Document readers. It is not automatically private from a delegated proof server. If a remote proof server receives the `localSecretKey`, that server can learn enough material to produce future proofs for the same DID controller authorization check. If the server can also submit a transaction, or cooperate with an entity that can submit one, it can authorize controller-gated state changes, including rotating the DID to an attacker-chosen `controllerPublicKey`.
+Wallets and SDKs SHOULD create the controller authorization immediately before
+submitting the intended mutation and MUST NOT reuse it after a failed stale
+version check. A proof service may still be trusted with transaction assembly and
+submission, but it is not trusted with controller secret custody.
 
-For this method version, wallets and SDKs therefore MUST use one of the following operating models for controller-gated operations:
-
-- generate proofs locally in the wallet or another trusted execution environment;
-- delegate proving only to infrastructure trusted with the DID controller secret for the duration and consequences of that operation;
-- use an application-specific custody model where the proof service is intentionally authorized to operate the DID.
-
-The `rotateControllerKey` circuit reduces exposure of the replacement secret by accepting only the next locally derived `controllerPublicKey`. It does not remove the trust requirement for the current `localSecretKey`, because the current secret is still the authorization witness for the rotation operation.
-
-A future untrusted-prover design should replace hash-preimage controller authorization with in-circuit verification of a wallet-local signature over the exact operation intent, including the operation type, contract or DID identifier, current version or nonce, and all operation inputs. In that model the signing key remains in the wallet, the proof server receives only public signature material, and proof-server input manipulation is prevented by binding the signature to the fields checked inside the circuit.
+This method version intentionally binds the controller authorization to contract
+id and version to keep the Compact circuit surface small. Operation-specific
+input binding can be added in a future version if the method requires stronger
+per-operation intent commitments.
 
 ## 11.2. Example DID Document
 

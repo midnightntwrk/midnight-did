@@ -8,7 +8,7 @@ helpers, but the contract intentionally keeps the exported circuit count small.
 
 The contract enforces:
 
-- controller authorization through the `localSecretKey` witness;
+- controller authorization through wallet-local Jubjub Schnorr signatures;
 - active/deactivated state checks;
 - exact ledger identifier existence and uniqueness;
 - supported opaque JWK key/curve profiles;
@@ -23,7 +23,7 @@ and resolved DID Document output.
 
 | Circuit | API helper | Ledger fields | Mutation style |
 | --- | --- | --- | --- |
-| `rotateControllerKey` | `rotateControllerKey` | `controllerPublicKey`, `updated`, `version` | Replaces controller commitment with a locally derived public key |
+| `rotateControllerKey` | `rotateControllerKey` | `controllerPublicKey`, `updated`, `version` | Replaces the controller Jubjub public key with a locally derived public key |
 | `setVerificationMethod` | `addVerificationMethod`, `updateVerificationMethod` | `verificationMethods` | `MapMutation.Insert` or `MapMutation.Update` |
 | `removeVerificationMethod` | `removeVerificationMethod` | `verificationMethods`, relation sets | Remove after relation cleanup |
 | `setSchnorrJubjubVerificationMethod` | `addSchnorrJubjubVerificationMethod`, `updateSchnorrJubjubVerificationMethod` | `schnorrJubjubVerificationMethods` | `MapMutation.Insert` or `MapMutation.Update` |
@@ -53,8 +53,8 @@ Non-native JWK keys are stored as opaque canonical strings in
 values in `schnorrJubjubVerificationMethods`. Resolvers merge both maps into the
 final DID Document.
 
-See [Key Model](/guide/key-model) for the supported key profiles and the trusted
-proof-server assumption.
+See [Key Model](/guide/key-model) for the supported key profiles and controller
+authorization signature model.
 
 ## Ledger-Bound SchnorrJubjub Verification
 

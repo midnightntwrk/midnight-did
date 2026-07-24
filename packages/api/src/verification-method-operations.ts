@@ -5,6 +5,7 @@ import {
 } from "@midnight-ntwrk/midnight-did-domain";
 import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
 
+import { createControllerAuthorization } from "./controller-authorization.js";
 import { normalizeBoundFragmentId } from "./did-subject.js";
 import {
   LedgerVerificationMethodRelationMap,
@@ -27,22 +28,36 @@ import {
 
 export const addVerificationMethod = async (
   didContract: DeployedMidnightDIDContract,
+  providers: MidnightDIDProviders,
   verificationMethod: VerificationMethod,
 ): Promise<FinalizedTxData> => {
+  const [signature, expectedVersion] = await createControllerAuthorization(
+    didContract,
+    providers,
+  );
   const result = await didContract.callTx.setVerificationMethod(
     verificationMethodToLedger(didContract, verificationMethod),
     DIDContract.MapMutation.Insert,
+    signature,
+    expectedVersion,
   );
   return result.public;
 };
 
 export const updateVerificationMethod = async (
   didContract: DeployedMidnightDIDContract,
+  providers: MidnightDIDProviders,
   verificationMethod: VerificationMethod,
 ): Promise<FinalizedTxData> => {
+  const [signature, expectedVersion] = await createControllerAuthorization(
+    didContract,
+    providers,
+  );
   const result = await didContract.callTx.setVerificationMethod(
     verificationMethodToLedger(didContract, verificationMethod),
     DIDContract.MapMutation.Update,
+    signature,
+    expectedVersion,
   );
   return result.public;
 };
@@ -63,29 +78,50 @@ export const removeVerificationMethod = async (
     normalizedMethodId,
   );
 
-  const result =
-    await didContract.callTx.removeVerificationMethod(normalizedMethodId);
+  const [signature, expectedVersion] = await createControllerAuthorization(
+    didContract,
+    providers,
+  );
+  const result = await didContract.callTx.removeVerificationMethod(
+    normalizedMethodId,
+    signature,
+    expectedVersion,
+  );
   return result.public;
 };
 
 export const addSchnorrJubjubVerificationMethod = async (
   didContract: DeployedMidnightDIDContract,
+  providers: MidnightDIDProviders,
   verificationMethod: SchnorrJubjubVerificationMethod,
 ): Promise<FinalizedTxData> => {
+  const [signature, expectedVersion] = await createControllerAuthorization(
+    didContract,
+    providers,
+  );
   const result = await didContract.callTx.setSchnorrJubjubVerificationMethod(
     schnorrJubjubVerificationMethodToLedger(didContract, verificationMethod),
     DIDContract.MapMutation.Insert,
+    signature,
+    expectedVersion,
   );
   return result.public;
 };
 
 export const updateSchnorrJubjubVerificationMethod = async (
   didContract: DeployedMidnightDIDContract,
+  providers: MidnightDIDProviders,
   verificationMethod: SchnorrJubjubVerificationMethod,
 ): Promise<FinalizedTxData> => {
+  const [signature, expectedVersion] = await createControllerAuthorization(
+    didContract,
+    providers,
+  );
   const result = await didContract.callTx.setSchnorrJubjubVerificationMethod(
     schnorrJubjubVerificationMethodToLedger(didContract, verificationMethod),
     DIDContract.MapMutation.Update,
+    signature,
+    expectedVersion,
   );
   return result.public;
 };
@@ -106,10 +142,15 @@ export const removeSchnorrJubjubVerificationMethod = async (
     normalizedMethodId,
   );
 
-  const result =
-    await didContract.callTx.removeSchnorrJubjubVerificationMethod(
-      normalizedMethodId,
-    );
+  const [signature, expectedVersion] = await createControllerAuthorization(
+    didContract,
+    providers,
+  );
+  const result = await didContract.callTx.removeSchnorrJubjubVerificationMethod(
+    normalizedMethodId,
+    signature,
+    expectedVersion,
+  );
   return result.public;
 };
 
@@ -159,10 +200,16 @@ export const addVerificationMethodRelation = async (
     relation,
     normalizedMethodId,
   );
+  const [signature, expectedVersion] = await createControllerAuthorization(
+    didContract,
+    providers,
+  );
   const result = await didContract.callTx.setVerificationMethodRelation(
     LedgerVerificationMethodRelationMap[relation],
     normalizedMethodId,
     DIDContract.SetMutation.Insert,
+    signature,
+    expectedVersion,
   );
   return result.public;
 };
@@ -187,10 +234,16 @@ export const removeVerificationMethodRelation = async (
     relation,
     normalizedMethodId,
   );
+  const [signature, expectedVersion] = await createControllerAuthorization(
+    didContract,
+    providers,
+  );
   const result = await didContract.callTx.setVerificationMethodRelation(
     LedgerVerificationMethodRelationMap[relation],
     normalizedMethodId,
     DIDContract.SetMutation.Remove,
+    signature,
+    expectedVersion,
   );
   return result.public;
 };
