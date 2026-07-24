@@ -97,7 +97,9 @@ const requestedMediaTypes = (
   accept: MidnightDIDResolutionOptions["accept"],
 ): string[] => {
   if (accept === undefined) return [];
-  const values = typeof accept === "string" ? accept.split(",") : [...accept];
+  const values = (typeof accept === "string" ? [accept] : [...accept]).flatMap(
+    (value) => value.split(","),
+  );
   return values
     .map((value) => {
       const [mediaType, ...parameters] = value.split(";");
@@ -118,9 +120,13 @@ const requestedMediaTypes = (
 const selectRepresentationMediaType = (
   accept: MidnightDIDResolutionOptions["accept"],
 ): DIDDocumentRepresentationMediaTypes | null => {
+  if (accept === undefined || (Array.isArray(accept) && accept.length === 0)) {
+    return "application/did+ld+json";
+  }
+
   const requested = requestedMediaTypes(accept);
   if (requested.length === 0) {
-    return "application/did+ld+json";
+    return null;
   }
 
   for (const value of requested) {

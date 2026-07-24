@@ -306,6 +306,37 @@ describe("MidnightDIDResolver", () => {
     );
   });
 
+  it("does not fall back when every requested type has q=0", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "application/did+ld+json;q=0, application/did+json;q=0",
+    });
+
+    expect(result).toEqual({
+      didDocumentStream: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "representationNotSupported" },
+    });
+  });
+
+  it("normalizes comma-separated media types in array input", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+      expectedNetwork: MidnightNetwork.DevNet,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: ["application/did+json, application/json"],
+    });
+
+    expect(result.didResolutionMetadata.contentType).toBe(
+      "application/did+json",
+    );
+  });
+
   it("returns notFound without a representation stream", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => null,

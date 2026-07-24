@@ -78,8 +78,8 @@ Successful abstract `resolve` responses must not set
 
 The API package also exports `resolveRepresentation(providers, didContract,
 options)`. It delegates to the shared `MidnightDIDResolver` and returns
-`didDocumentStream` as a `Uint8Array`, `didDocumentMetadata`, and
-`didResolutionMetadata`. This is the package boundary intended for
+`didDocumentStream` as a `Uint8Array | null` (null on resolution errors),
+`didDocumentMetadata`, and `didResolutionMetadata`. This is the package boundary intended for
 `midnight-did-resolver`: the downstream service owns HTTP routing and status
 codes, while this package owns ledger access, representation selection, and DID
 resolution errors.

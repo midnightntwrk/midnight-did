@@ -53,7 +53,8 @@ be reported as `application/did+ld+json` for JSON-LD streams or
 `application/did+json` for DID Core JSON streams.
 
 `MidnightDIDResolver.resolveRepresentation(did, { accept })` returns a
-transport-neutral `Uint8Array` stream and DID Core resolution metadata. The
+transport-neutral `Uint8Array | null` stream and DID Core resolution metadata.
+The stream is null on resolution errors. The
 default representation is `application/did+ld+json`; callers may request
 `application/did+json`. Unsupported media types return
 `representationNotSupported` without reading ledger state. A downstream HTTP
