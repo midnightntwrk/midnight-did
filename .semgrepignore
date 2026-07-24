@@ -1,0 +1,4 @@
+# This tracked example intentionally contains plaintext local-container defaults
+# and a deterministic development-only indexer secret. It is never a production
+# configuration and must not be used to suppress findings in real environment files.
+packages/api/standalone.env.example
