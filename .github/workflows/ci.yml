@@ -35,6 +35,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Classify changed files
         id: classify
@@ -44,10 +45,14 @@ jobs:
         run: node scripts/ci-change-classifier.mjs --output "$GITHUB_OUTPUT"
 
       - name: Print change classification
+        env:
+          CHANGED_FILE_COUNT: ${{ steps.classify.outputs.changed_file_count }}
+          CODE_CHANGED: ${{ steps.classify.outputs.code_changed }}
+          DOCS_ONLY: ${{ steps.classify.outputs.docs_only }}
         run: |
-          echo "docs_only=${{ steps.classify.outputs.docs_only }}"
-          echo "code_changed=${{ steps.classify.outputs.code_changed }}"
-          echo "changed_file_count=${{ steps.classify.outputs.changed_file_count }}"
+          echo "docs_only=${DOCS_ONLY}"
+          echo "code_changed=${CODE_CHANGED}"
+          echo "changed_file_count=${CHANGED_FILE_COUNT}"
 
   core:
     name: Core (Lint + Contract/Domain/DID)
@@ -67,6 +72,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Enable Corepack
         run: corepack enable
@@ -116,6 +123,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Enable Corepack
         run: corepack enable
