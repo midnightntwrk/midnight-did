@@ -150,7 +150,7 @@ const selectRepresentationMediaType = (
 
 const documentForRepresentation = (
   didDocument: MidnightDIDDocument,
-  contentType: DIDDocumentRepresentationMediaTypes,
+  contentType?: DIDDocumentRepresentationMediaTypes,
 ): MidnightDIDDocument => {
   if (contentType !== "application/did+json") return didDocument;
 
@@ -169,7 +169,7 @@ const representationEnvelope = (
       ? null
       : new TextEncoder().encode(
           JSON.stringify(
-            documentForRepresentation(result.didDocument, contentType!),
+            documentForRepresentation(result.didDocument, contentType),
           ),
         ),
   didDocumentMetadata: result?.didDocumentMetadata ?? {},

@@ -1,7 +1,7 @@
 import {
   MidnightDIDDocument,
   type MidnightDIDRepresentationResult as ResolverDIDRepresentationResult,
-  type MidnightDIDResolutionOptions,
+  type MidnightDIDResolutionOptions as ResolverDIDResolutionOptions,
   type MidnightDIDResolutionResult as ResolverDIDResolutionResult,
   MidnightDIDResolver,
 } from "@midnight-ntwrk/midnight-did";
@@ -64,6 +64,7 @@ export const resolveDIDResolutionResult = async (
 };
 
 export type MidnightDIDRepresentationResult = ResolverDIDRepresentationResult;
+export type MidnightDIDResolutionOptions = ResolverDIDResolutionOptions;
 
 export const resolveRepresentation = async (
   providers: MidnightDIDProviders,
