@@ -235,6 +235,11 @@ describe("MidnightDIDResolver", () => {
     });
 
     expect(result.didDocumentStream).not.toBeNull();
+    const didDocument = JSON.parse(
+      new TextDecoder().decode(result.didDocumentStream!),
+    );
+    expect(didDocument).toEqual(expect.objectContaining({ id: did }));
+    expect(didDocument).not.toHaveProperty("@context");
     expect(result.didResolutionMetadata.contentType).toBe(
       "application/did+json",
     );
@@ -330,6 +335,23 @@ describe("MidnightDIDResolver", () => {
       didDocumentStream: null,
       didDocumentMetadata: {},
       didResolutionMetadata: { error: "invalidDid" },
+    });
+  });
+
+  it("maps offchain DIDs to methodNotSupported", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveRepresentation(
+      `did:midnight:offchain:${"b".repeat(64)}`,
+      { accept: "application/did+json" },
+    );
+
+    expect(result).toEqual({
+      didDocumentStream: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "methodNotSupported" },
     });
   });
 });

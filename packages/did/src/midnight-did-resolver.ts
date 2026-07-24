@@ -145,9 +145,19 @@ const representationEnvelope = (
   didDocumentStream:
     result === null || result === undefined
       ? null
-      : // Midnight DID Documents carry the required @context in both supported
-        // JSON representations; the media type declares the selected profile.
-        new TextEncoder().encode(JSON.stringify(result.didDocument)),
+      : new TextEncoder().encode(
+          JSON.stringify(
+            contentType === "application/did+json"
+              ? // DID Core JSON is not processed as JSON-LD, so omit the
+                // representation-specific @context member.
+                (() => {
+                  const { ["@context"]: _, ...didDocument } =
+                    result.didDocument;
+                  return didDocument;
+                })()
+              : result.didDocument,
+          ),
+        ),
   didDocumentMetadata: result?.didDocumentMetadata ?? {},
   didResolutionMetadata: {
     ...(contentType === undefined ? {} : { contentType }),
