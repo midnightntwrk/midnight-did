@@ -41,8 +41,8 @@
     "coverage": "pnpm run compact && vitest run --config vitest.config.ts --coverage",
     "clean": "rm -rf dist && rm -rf coverage && rm -rf reports && rm -rf src/managed",
     "build": "pnpm run compact && rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/jubjub-schnorr.compact ./src/schnorr.compact ./dist",
-    "lint": "prettier --check \"src/**/*.ts\" \"!src/managed/**\" && eslint src --ignore-pattern 'src/managed/**'",
-    "lint:fix": "prettier --write \"src/**/*.ts\" \"!src/managed/**\" && eslint src --fix --ignore-pattern 'src/managed/**'",
+    "lint": "prettier --check \"src/**/*.{ts,tsx}\" \"!src/managed/**\" && eslint src --ignore-pattern 'src/managed/**'",
+    "lint:fix": "prettier --write \"src/**/*.{ts,tsx}\" \"!src/managed/**\" && eslint src --fix --ignore-pattern 'src/managed/**'",
     "typecheck": "pnpm run compact && tsc -p tsconfig.json --noEmit",
     "all": "pnpm run compact && pnpm run build && pnpm run test:ci"
   },
