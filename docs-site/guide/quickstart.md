@@ -90,7 +90,7 @@ const ed25519Method = createVerificationMethod({
   },
 });
 
-await addVerificationMethod(didContract, ed25519Method);
+await addVerificationMethod(didContract, providers, ed25519Method);
 ```
 
 ## Add A SchnorrJubjub Key
@@ -105,7 +105,7 @@ import { deriveJubjubPublicKeyFromSeed } from "@midnight-ntwrk/midnight-did-jubj
 const jubjubSeed = crypto.getRandomValues(new Uint8Array(32));
 const jubjubPublicKey = deriveJubjubPublicKeyFromSeed(jubjubSeed);
 
-await addSchnorrJubjubVerificationMethod(didContract, {
+await addSchnorrJubjubVerificationMethod(didContract, providers, {
   id: "#jubjub-1",
   publicKey: jubjubPublicKey,
 });

@@ -55,7 +55,7 @@ try {
     },
   });
 
-  await addVerificationMethod(didContract, verificationMethod);
+  await addVerificationMethod(didContract, providers, verificationMethod);
   await addVerificationMethodRelation(
     didContract,
     providers,
@@ -68,9 +68,10 @@ try {
     type: "DIDCommMessaging",
     serviceEndpoint: "https://example.com/didcomm",
   });
-  await addService(didContract, service);
+  await addService(didContract, providers, service);
   await updateService(
     didContract,
+    providers,
     createService({
       ...service,
       serviceEndpoint: "https://example.com/didcomm/v2",

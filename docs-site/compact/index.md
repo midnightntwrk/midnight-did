@@ -8,7 +8,7 @@ helpers, but the contract intentionally keeps the exported circuit count small.
 
 The contract enforces:
 
-- controller authorization through the `localSecretKey` witness;
+- controller authorization through wallet-local Jubjub Schnorr signatures;
 - active/deactivated state checks;
 - exact ledger identifier existence and uniqueness;
 - supported opaque JWK key/curve profiles;
@@ -23,7 +23,7 @@ and resolved DID Document output.
 
 | Circuit | API helper | Ledger fields | Mutation style |
 | --- | --- | --- | --- |
-| `rotateControllerKey` | `rotateControllerKey` | `controllerPublicKey`, `updated`, `version` | Replaces controller commitment with a locally derived public key |
+| `rotateControllerKey` | `rotateControllerKey` | `controllerPublicKey`, `updated`, `version` | Replaces the controller Jubjub public key with a locally derived public key |
 | `setVerificationMethod` | `addVerificationMethod`, `updateVerificationMethod` | `verificationMethods` | `MapMutation.Insert` or `MapMutation.Update` |
 | `removeVerificationMethod` | `removeVerificationMethod` | `verificationMethods`, relation sets | Remove after relation cleanup |
 | `setSchnorrJubjubVerificationMethod` | `addSchnorrJubjubVerificationMethod`, `updateSchnorrJubjubVerificationMethod` | `schnorrJubjubVerificationMethods` | `MapMutation.Insert` or `MapMutation.Update` |
@@ -34,6 +34,27 @@ and resolved DID Document output.
 | `removeService` | `removeService` | `services` | Remove by id |
 | `setAlsoKnownAs` | `addAlsoKnownAs`, `removeAlsoKnownAs` | `alsoKnownAs` | `SetMutation.Insert` or `SetMutation.Remove` |
 | `deactivate` | `deactivate` | `active`, `deactivated`, `updated`, `version` | Final lifecycle transition |
+
+## Circuit Artifact Profile
+
+The following profile is generated from the managed DID artifacts compiled with
+Compact toolchain `0.30.0`. The `k` and row values come from `zkir compile -v`;
+artifact sizes are byte sizes for files under
+`packages/contract/src/managed/did`.
+
+| Circuit | k | rows | prover key | verifier key | bzkir | zkir |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `rotateControllerKey` | 11 | 1,840 | 688,661 B | 1,591 B | 681 B | 10,113 B |
+| `setVerificationMethod` | 12 | 2,161 | 1,348,160 B | 1,591 B | 1,336 B | 18,133 B |
+| `removeVerificationMethod` | 11 | 1,831 | 688,870 B | 1,591 B | 1,056 B | 16,187 B |
+| `setSchnorrJubjubVerificationMethod` | 11 | 2,030 | 689,482 B | 1,591 B | 1,191 B | 16,426 B |
+| `removeSchnorrJubjubVerificationMethod` | 11 | 1,831 | 688,833 B | 1,591 B | 1,050 B | 16,142 B |
+| `verifySchnorrJubjubDigestSignature` | 11 | 1,608 | 687,799 B | 1,591 B | 381 B | 4,847 B |
+| `setVerificationMethodRelation` | 12 | 2,446 | 1,351,617 B | 1,591 B | 2,825 B | 36,577 B |
+| `setService` | 11 | 1,991 | 689,327 B | 1,591 B | 1,037 B | 14,595 B |
+| `removeService` | 11 | 1,806 | 688,589 B | 1,591 B | 699 B | 10,019 B |
+| `setAlsoKnownAs` | 11 | 1,974 | 689,247 B | 1,591 B | 1,086 B | 14,730 B |
+| `deactivate` | 11 | 1,804 | 688,590 B | 1,591 B | 670 B | 9,955 B |
 
 ## Why The Surface Is Small
 
@@ -53,8 +74,8 @@ Non-native JWK keys are stored as opaque canonical strings in
 values in `schnorrJubjubVerificationMethods`. Resolvers merge both maps into the
 final DID Document.
 
-See [Key Model](/guide/key-model) for the supported key profiles and the trusted
-proof-server assumption.
+See [Key Model](/guide/key-model) for the supported key profiles and controller
+authorization signature model.
 
 ## Ledger-Bound SchnorrJubjub Verification
 

@@ -50,7 +50,8 @@ sequenceDiagram
 
   Caller->>API: addService / addVerificationMethod / ...
   API->>API: validate + normalize
-  API->>Contract: submit circuit tx
+  API->>API: sign controller authorization digest for current contract version
+  API->>Contract: submit circuit tx + controller signature
   Contract-->>API: accepted tx
   API->>Indexer: fetch current state
   API-->>Caller: updated DID state or DID Resolution Result
@@ -62,7 +63,8 @@ API enforces lifecycle rules around:
 
 - active DID: allows updates
 - deactivated DID: mutating operations rejected
-- controller rotation: generates a new wallet-local secret, derives the next controller public key locally, submits the rotation circuit, and stores the new secret after the transaction succeeds
+- controller authorization: signs a domain-separated digest containing contract id, current version, operation name, and operation arguments before each controller-gated mutation
+- controller rotation: generates a new wallet-local secret, derives the next controller public key locally, submits the rotation circuit with a current-version controller signature, and stores the new secret after the transaction succeeds
 
 (Exact schema/canonicalization rules live in `domain`.)
 

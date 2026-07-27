@@ -112,7 +112,7 @@ Current key-storage model:
 - Resolver/API code merges both maps into DID Document `verificationMethod` output.
 - Do not store the same key in both maps; relation sets share the normalized method-id namespace.
 - `verifySchnorrJubjubDigestSignature` must stay ledger-bound by method id so verification uses the key currently stored in DID state.
-- The DID method spec's trusted proof server appendix documents the current controller-secret witness trust assumption.
+- The DID method spec's trusted proof server appendix documents the current wallet-local controller signature model: proof servers receive authorization signatures and public operation inputs, not the controller secret.
 
 ## Compact and TypeScript Source Rules
 

@@ -13,9 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { WitnessContext } from "@midnight-ntwrk/compact-runtime";
+import {
+  type JubjubPoint,
+  WitnessContext
+} from "@midnight-ntwrk/compact-runtime";
 import { TWO_248 } from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
 
+import { deriveControllerPublicKey } from "./controller-key.js";
 import { Ledger } from "./managed/did/contract/index.js";
 
 export type DIDPrivateState = {
@@ -23,12 +27,12 @@ export type DIDPrivateState = {
 };
 
 export const witnesses = {
-  localSecretKey: ({
+  localControllerPublicKey: ({
     privateState
   }: WitnessContext<Ledger, DIDPrivateState>): [
     DIDPrivateState,
-    Uint8Array
-  ] => [privateState, privateState.secretKey],
+    JubjubPoint
+  ] => [privateState, deriveControllerPublicKey(privateState.secretKey)],
   currentTimestamp: ({
     privateState
   }: WitnessContext<Ledger, DIDPrivateState>): [DIDPrivateState, bigint] => [

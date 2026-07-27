@@ -30,6 +30,7 @@ import {
   CurveType,
   KeyType,
   MapMutation,
+  pureCircuits,
   SetMutation,
   VerificationMethodRelation,
   VerificationMethodType
@@ -68,8 +69,8 @@ describe("DID smart contract", () => {
     const simulator = new DIDSimulator();
     const initialLedgerState = simulator.getLedger();
     expect(initialLedgerState.contractVersion).toEqual(1n);
-    expect(initialLedgerState.controllerPublicKey).toBeInstanceOf(Uint8Array);
-    expect(initialLedgerState.controllerPublicKey.length).toBe(32);
+    expect(initialLedgerState.controllerPublicKey.x).toBeTypeOf("bigint");
+    expect(initialLedgerState.controllerPublicKey.y).toBeTypeOf("bigint");
     expect(initialLedgerState.id.bytes).toBeInstanceOf(Uint8Array);
     expect(initialLedgerState.id.bytes.length).toBeGreaterThan(0);
     expect(initialLedgerState.active).toEqual(true);
@@ -92,7 +93,7 @@ describe("DID smart contract", () => {
     expect(ContractExports.DIDContract).toBeDefined();
   });
 
-  it("rotates the controller key to a locally derived public key", () => {
+  it("authorizes controller updates with a wallet-local operation-bound signature", () => {
     const simulator = new DIDSimulator();
     const oldSecretKey = simulator.getPrivateState().secretKey;
     const newSecretKey = keyBytes(99);
@@ -110,7 +111,7 @@ describe("DID smart contract", () => {
     expect(simulator.getLedger().version).toEqual(1n);
 
     expect(() => simulator.addAlsoKnownAs("did:example:old-secret")).toThrow(
-      /DID controller/
+      /Invalid Jubjub Schnorr signature/
     );
 
     simulator.setPrivateState({ secretKey: newSecretKey });
@@ -119,6 +120,62 @@ describe("DID smart contract", () => {
       simulator.getLedger().alsoKnownAs.member("did:example:new-secret")
     ).toEqual(true);
     expect(simulator.getLedger().version).toEqual(2n);
+  });
+
+  it("rejects controller signatures reused with different operation arguments", () => {
+    const simulator = new DIDSimulator();
+    const [signature, expectedVersion] =
+      simulator.controllerAuthorizationForAddAlsoKnownAs(
+        "did:example:intended-update"
+      );
+
+    expect(() =>
+      simulator.addAlsoKnownAsWithAuthorization(
+        "did:example:tampered-update",
+        signature,
+        expectedVersion
+      )
+    ).toThrow(/Invalid Jubjub Schnorr signature/);
+  });
+
+  it("rejects controller signatures reused with a different operation", () => {
+    const simulator = new DIDSimulator();
+    const [signature, expectedVersion] =
+      simulator.controllerAuthorizationForAddAlsoKnownAs(
+        "did:example:intended-update"
+      );
+
+    expect(() =>
+      simulator.contract.impureCircuits.setService(
+        simulator.circuitContext,
+        {
+          id: "#tampered-service",
+          typ: "LinkedDomains",
+          serviceEndpoint: "https://example.com"
+        },
+        MapMutation.Insert,
+        signature,
+        expectedVersion
+      )
+    ).toThrow(/Invalid Jubjub Schnorr signature/);
+  });
+
+  it("rejects replayed controller authorizations after the DID version changes", () => {
+    const simulator = new DIDSimulator();
+    const [signature, expectedVersion] =
+      simulator.controllerAuthorizationForAddAlsoKnownAs(
+        "did:example:replayed-update"
+      );
+
+    simulator.addAlsoKnownAs("did:example:first-update");
+
+    expect(() =>
+      simulator.addAlsoKnownAsWithAuthorization(
+        "did:example:replayed-update",
+        signature,
+        expectedVersion
+      )
+    ).toThrow(/Controller authorization version is stale/);
   });
 
   describe("Verification Methods", () => {
@@ -405,6 +462,7 @@ describe("DID smart contract", () => {
           return [privateState, [q + 1n, r]];
         }
       };
+      const simulator = new DIDSimulator();
       const badSimulator = new DIDSimulator(malformedWitnesses);
       const seed = new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1));
       const publicKey = deriveJubjubPublicKeyFromSeed(seed);
@@ -412,10 +470,11 @@ describe("DID smart contract", () => {
       const digest = payloadToJubjubDigest(payload);
       const signature = signJubjubPayloadFromSeed(seed, payload);
 
-      badSimulator.addSchnorrJubjubVerificationMethod({
+      simulator.addSchnorrJubjubVerificationMethod({
         id: "#key-schnorr-jubjub",
         publicKey
       });
+      badSimulator.circuitContext = simulator.circuitContext;
 
       expect(() =>
         badSimulator.verifySchnorrJubjubDigestSignature(
@@ -455,12 +514,14 @@ describe("DID smart contract", () => {
           [116n, aliasR]
         ]
       };
+      const simulator = new DIDSimulator();
       const badSimulator = new DIDSimulator(aliasWitnesses);
 
-      badSimulator.addSchnorrJubjubVerificationMethod({
+      simulator.addSchnorrJubjubVerificationMethod({
         id: "#key-schnorr-jubjub",
         publicKey
       });
+      badSimulator.circuitContext = simulator.circuitContext;
 
       expect(() =>
         badSimulator.verifySchnorrJubjubDigestSignature(
@@ -884,7 +945,10 @@ describe("DID smart contract", () => {
       const operations: Array<[string, () => void]> = [
         [
           "rotateControllerKey",
-          () => simulator.rotateControllerPublicKey(keyBytes(201))
+          () =>
+            simulator.rotateControllerPublicKey(
+              ContractExports.deriveControllerPublicKey(keyBytes(201))
+            )
         ],
         [
           "setAlsoKnownAs",
@@ -986,30 +1050,54 @@ describe("DID smart contract", () => {
     it("rejects undefined map and set mutations without changing version", () => {
       const version = simulator.getLedger().version;
 
-      expect(() =>
+      expect(() => {
+        const verificationMethod = {
+          id: "#key-undefined-mutation",
+          typ: VerificationMethodType.JsonWebKey,
+          publicKeyJwk: {
+            kty: KeyType.OKP,
+            crv: CurveType.Ed25519,
+            ...okpKey(211)
+          }
+        };
+        const expectedVersion = simulator.getLedger().version;
+        const [signature] = simulator.controllerAuthorization(
+          pureCircuits.setVerificationMethodAuthorizationDigest(
+            simulator.getLedger().id,
+            expectedVersion,
+            verificationMethod,
+            MapMutation.Undefined
+          )
+        );
         simulator.contract.impureCircuits.setVerificationMethod(
           simulator.circuitContext,
-          {
-            id: "#key-undefined-mutation",
-            typ: VerificationMethodType.JsonWebKey,
-            publicKeyJwk: {
-              kty: KeyType.OKP,
-              crv: CurveType.Ed25519,
-              ...okpKey(211)
-            }
-          },
-          MapMutation.Undefined
-        )
-      ).toThrow(/Map mutation must be Insert or Update/);
+          verificationMethod,
+          MapMutation.Undefined,
+          signature,
+          expectedVersion
+        );
+      }).toThrow(/Map mutation must be Insert or Update/);
 
-      expect(() =>
+      expect(() => {
+        const expectedVersion = simulator.getLedger().version;
+        const [signature] = simulator.controllerAuthorization(
+          pureCircuits.setVerificationMethodRelationAuthorizationDigest(
+            simulator.getLedger().id,
+            expectedVersion,
+            VerificationMethodRelation.Authentication,
+            "#key-undefined-mutation",
+            SetMutation.Undefined
+          )
+        );
         simulator.contract.impureCircuits.setVerificationMethodRelation(
           simulator.circuitContext,
           VerificationMethodRelation.Authentication,
           "#key-undefined-mutation",
-          SetMutation.Undefined
-        )
-      ).toThrow(/Set mutation must be Insert or Remove/);
+          SetMutation.Undefined,
+          signature,
+          expectedVersion
+        );
+      }).toThrow(/Set mutation must be Insert or Remove/);
 
       expect(simulator.getLedger().version).toEqual(version);
     });
