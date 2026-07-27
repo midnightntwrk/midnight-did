@@ -52,10 +52,10 @@ GitHub Release and GHCR artifact locations for the installed package version.
 ## Trust Model
 
 Controller-gated contract calls use wallet-local Jubjub Schnorr signatures over
-a domain-separated authorization digest containing the DID contract id and the
-current ledger version. The ledger and resolvers see only the controller public
-key, and delegated proof servers receive signature material rather than the
-controller secret.
+a domain-separated authorization digest containing the DID contract id, current
+ledger version, operation name, and operation arguments. The ledger and resolvers
+see only the controller public key, and delegated proof servers receive signature
+material rather than the controller secret.
 
 ## Pages
 

@@ -2,7 +2,10 @@ import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import { Service } from "@midnight-ntwrk/midnight-did-domain";
 import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
 
-import { createControllerAuthorization } from "./controller-authorization.js";
+import {
+  asSchnorrJubjubDigest,
+  createControllerAuthorization,
+} from "./controller-authorization.js";
 import { normalizeBoundFragmentId } from "./did-subject.js";
 import { serviceToLedger } from "./ledger-mappers.js";
 import {
@@ -15,12 +18,22 @@ export const addService = async (
   providers: MidnightDIDProviders,
   service: Service,
 ): Promise<FinalizedTxData> => {
+  const ledgerService = serviceToLedger(didContract, service);
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
+    (ledgerState) =>
+      asSchnorrJubjubDigest(
+        DIDContract.pureCircuits.setServiceAuthorizationDigest(
+          ledgerState.id,
+          ledgerState.version,
+          ledgerService,
+          DIDContract.MapMutation.Insert,
+        ),
+      ),
   );
   const result = await didContract.callTx.setService(
-    serviceToLedger(didContract, service),
+    ledgerService,
     DIDContract.MapMutation.Insert,
     signature,
     expectedVersion,
@@ -33,12 +46,22 @@ export const updateService = async (
   providers: MidnightDIDProviders,
   service: Service,
 ): Promise<FinalizedTxData> => {
+  const ledgerService = serviceToLedger(didContract, service);
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
+    (ledgerState) =>
+      asSchnorrJubjubDigest(
+        DIDContract.pureCircuits.setServiceAuthorizationDigest(
+          ledgerState.id,
+          ledgerState.version,
+          ledgerService,
+          DIDContract.MapMutation.Update,
+        ),
+      ),
   );
   const result = await didContract.callTx.setService(
-    serviceToLedger(didContract, service),
+    ledgerService,
     DIDContract.MapMutation.Update,
     signature,
     expectedVersion,
@@ -59,6 +82,14 @@ export const removeService = async (
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
+    (ledgerState) =>
+      asSchnorrJubjubDigest(
+        DIDContract.pureCircuits.removeServiceAuthorizationDigest(
+          ledgerState.id,
+          ledgerState.version,
+          normalizedServiceId,
+        ),
+      ),
   );
   const result = await didContract.callTx.removeService(
     normalizedServiceId,

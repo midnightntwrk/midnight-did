@@ -51,13 +51,16 @@ extension or integration-layer adaptation.
 Controller-gated update circuits verify a wallet-local Jubjub Schnorr signature
 instead of receiving the controller secret as a witness. The ledger stores the
 controller `JubjubPoint` public key. For each mutation, the SDK signs a
-domain-separated authorization digest containing the DID contract id and current
-ledger version, then passes the signature and expected version to the circuit.
+domain-separated authorization digest containing the DID contract id, current
+ledger version, operation name, and operation arguments, then passes the
+signature and expected version to the circuit.
 
 This keeps the controller secret out of the ledger, indexers, resolvers, DID
 Document readers, and delegated proof servers. A remote proof server receives
 only signature material and the public operation inputs needed to prove the
-transaction. Replayed authorizations fail after the DID version changes.
+transaction. Replayed authorizations fail after the DID version changes, and
+operation-bound signatures cannot be reused for a different mutation or changed
+arguments.
 
 `rotateControllerKey` accepts only the next derived `controllerPublicKey`; the
 replacement secret remains wallet-local and is promoted after finalization.

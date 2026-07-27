@@ -63,7 +63,7 @@ API enforces lifecycle rules around:
 
 - active DID: allows updates
 - deactivated DID: mutating operations rejected
-- controller authorization: signs a domain-separated digest containing contract id and current version before each controller-gated mutation
+- controller authorization: signs a domain-separated digest containing contract id, current version, operation name, and operation arguments before each controller-gated mutation
 - controller rotation: generates a new wallet-local secret, derives the next controller public key locally, submits the rotation circuit with a current-version controller signature, and stores the new secret after the transaction succeeds
 
 (Exact schema/canonicalization rules live in `domain`.)

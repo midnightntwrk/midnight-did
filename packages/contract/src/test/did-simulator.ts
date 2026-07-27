@@ -30,6 +30,7 @@ import {
   type Ledger,
   ledger,
   MapMutation,
+  pureCircuits,
   SetMutation
 } from "../managed/did/contract/index.js";
 import { type DIDPrivateState, witnesses } from "../witnesses.js";
@@ -89,36 +90,45 @@ export class DIDSimulator {
     );
   }
 
-  public controllerAuthorization(): [any, bigint] {
-    const expectedVersion = this.getLedger().version;
+  public controllerAuthorization(digest: bigint[]): [any, bigint] {
     return [
       signControllerAuthorization(
         this.getPrivateState().secretKey,
-        this.getLedger().id,
-        expectedVersion
-      ),
-      expectedVersion
-    ];
-  }
-
-  public staleControllerAuthorization(): [any, bigint] {
-    return [
-      signControllerAuthorization(
-        this.getPrivateState().secretKey,
-        this.getLedger().id,
-        this.getLedger().version
+        digest as [bigint, bigint, bigint, bigint]
       ),
       this.getLedger().version
     ];
   }
 
+  public controllerAuthorizationForAddAlsoKnownAs(
+    value: string
+  ): [any, bigint] {
+    const expectedVersion = this.getLedger().version;
+    return this.controllerAuthorization(
+      pureCircuits.setAlsoKnownAsAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        value,
+        SetMutation.Insert
+      )
+    );
+  }
+
   // Individual circuit methods
   public rotateControllerKey(newSecretKey: Uint8Array): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const nextPublicKey = deriveControllerPublicKey(newSecretKey);
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.rotateControllerKeyAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        nextPublicKey
+      )
+    );
     this.executeCircuit(() =>
       this.contract.impureCircuits.rotateControllerKey(
         this.circuitContext,
-        deriveControllerPublicKey(newSecretKey),
+        nextPublicKey,
         signature,
         expectedVersion
       )
@@ -127,7 +137,14 @@ export class DIDSimulator {
   }
 
   public rotateControllerPublicKey(newControllerPublicKey: any): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.rotateControllerKeyAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        newControllerPublicKey
+      )
+    );
     this.executeCircuit(() =>
       this.contract.impureCircuits.rotateControllerKey(
         this.circuitContext,
@@ -139,7 +156,15 @@ export class DIDSimulator {
   }
 
   public addVerificationMethod(vm: any): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.setVerificationMethodAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        vm,
+        MapMutation.Insert
+      )
+    );
     this.executeCircuit(() =>
       this.contract.impureCircuits.setVerificationMethod(
         this.circuitContext,
@@ -152,7 +177,15 @@ export class DIDSimulator {
   }
 
   public updateVerificationMethod(vm: any): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.setVerificationMethodAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        vm,
+        MapMutation.Update
+      )
+    );
     this.executeCircuit(() =>
       this.contract.impureCircuits.setVerificationMethod(
         this.circuitContext,
@@ -165,7 +198,14 @@ export class DIDSimulator {
   }
 
   public removeVerificationMethod(id: string): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.removeVerificationMethodAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        id
+      )
+    );
     this.executeCircuit(() =>
       this.contract.impureCircuits.removeVerificationMethod(
         this.circuitContext,
@@ -177,14 +217,23 @@ export class DIDSimulator {
   }
 
   public addSchnorrJubjubVerificationMethod(vm: any): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const ledgerVm = {
+      id: vm.id,
+      publicKey: vm.publicKey
+    };
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.setSchnorrJubjubVerificationMethodAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        ledgerVm,
+        MapMutation.Insert
+      )
+    );
     this.executeCircuit(() =>
       this.contract.impureCircuits.setSchnorrJubjubVerificationMethod(
         this.circuitContext,
-        {
-          id: vm.id,
-          publicKey: vm.publicKey
-        },
+        ledgerVm,
         MapMutation.Insert,
         signature,
         expectedVersion
@@ -193,14 +242,23 @@ export class DIDSimulator {
   }
 
   public updateSchnorrJubjubVerificationMethod(vm: any): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const ledgerVm = {
+      id: vm.id,
+      publicKey: vm.publicKey
+    };
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.setSchnorrJubjubVerificationMethodAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        ledgerVm,
+        MapMutation.Update
+      )
+    );
     this.executeCircuit(() =>
       this.contract.impureCircuits.setSchnorrJubjubVerificationMethod(
         this.circuitContext,
-        {
-          id: vm.id,
-          publicKey: vm.publicKey
-        },
+        ledgerVm,
         MapMutation.Update,
         signature,
         expectedVersion
@@ -209,7 +267,14 @@ export class DIDSimulator {
   }
 
   public removeSchnorrJubjubVerificationMethod(id: string): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.removeSchnorrJubjubVerificationMethodAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        id
+      )
+    );
     this.executeCircuit(() =>
       this.contract.impureCircuits.removeSchnorrJubjubVerificationMethod(
         this.circuitContext,
@@ -236,7 +301,16 @@ export class DIDSimulator {
   }
 
   public addVerificationMethodRelation(relation: any, methodId: string): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.setVerificationMethodRelationAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        relation,
+        methodId,
+        SetMutation.Insert
+      )
+    );
     this.executeCircuit(() =>
       this.contract.impureCircuits.setVerificationMethodRelation(
         this.circuitContext,
@@ -253,7 +327,16 @@ export class DIDSimulator {
     relation: any,
     methodId: string
   ): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.setVerificationMethodRelationAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        relation,
+        methodId,
+        SetMutation.Remove
+      )
+    );
     this.executeCircuit(() =>
       this.contract.impureCircuits.setVerificationMethodRelation(
         this.circuitContext,
@@ -267,7 +350,15 @@ export class DIDSimulator {
   }
 
   public addService(service: any): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.setServiceAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        service,
+        MapMutation.Insert
+      )
+    );
     this.executeCircuit(() =>
       this.contract.impureCircuits.setService(
         this.circuitContext,
@@ -280,7 +371,15 @@ export class DIDSimulator {
   }
 
   public updateService(service: any): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.setServiceAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        service,
+        MapMutation.Update
+      )
+    );
     this.executeCircuit(() =>
       this.contract.impureCircuits.setService(
         this.circuitContext,
@@ -293,7 +392,14 @@ export class DIDSimulator {
   }
 
   public removeService(id: string): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.removeServiceAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        id
+      )
+    );
     this.executeCircuit(() =>
       this.contract.impureCircuits.removeService(
         this.circuitContext,
@@ -305,7 +411,15 @@ export class DIDSimulator {
   }
 
   public addAlsoKnownAs(value: string): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.setAlsoKnownAsAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        value,
+        SetMutation.Insert
+      )
+    );
     this.addAlsoKnownAsWithAuthorization(value, signature, expectedVersion);
   }
 
@@ -326,7 +440,15 @@ export class DIDSimulator {
   }
 
   public removeAlsoKnownAs(value: string): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.setAlsoKnownAsAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        value,
+        SetMutation.Remove
+      )
+    );
     this.executeCircuit(() =>
       this.contract.impureCircuits.setAlsoKnownAs(
         this.circuitContext,
@@ -339,7 +461,13 @@ export class DIDSimulator {
   }
 
   public deactivate(): void {
-    const [signature, expectedVersion] = this.controllerAuthorization();
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.controllerAuthorization(
+      pureCircuits.deactivateAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion
+      )
+    );
     this.executeCircuit(() =>
       this.contract.impureCircuits.deactivate(
         this.circuitContext,

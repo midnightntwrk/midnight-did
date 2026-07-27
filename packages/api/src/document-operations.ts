@@ -2,7 +2,10 @@ import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import { assertAbsoluteUri } from "@midnight-ntwrk/midnight-did-domain";
 import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
 
-import { createControllerAuthorization } from "./controller-authorization.js";
+import {
+  asSchnorrJubjubDigest,
+  createControllerAuthorization,
+} from "./controller-authorization.js";
 import {
   type DeployedMidnightDIDContract,
   type MidnightDIDProviders,
@@ -17,6 +20,15 @@ export const addAlsoKnownAs = async (
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
+    (ledgerState) =>
+      asSchnorrJubjubDigest(
+        DIDContract.pureCircuits.setAlsoKnownAsAuthorizationDigest(
+          ledgerState.id,
+          ledgerState.version,
+          alias,
+          DIDContract.SetMutation.Insert,
+        ),
+      ),
   );
   const result = await didContract.callTx.setAlsoKnownAs(
     alias,
@@ -36,6 +48,15 @@ export const removeAlsoKnownAs = async (
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
+    (ledgerState) =>
+      asSchnorrJubjubDigest(
+        DIDContract.pureCircuits.setAlsoKnownAsAuthorizationDigest(
+          ledgerState.id,
+          ledgerState.version,
+          alias,
+          DIDContract.SetMutation.Remove,
+        ),
+      ),
   );
   const result = await didContract.callTx.setAlsoKnownAs(
     alias,
@@ -53,6 +74,13 @@ export const deactivate = async (
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
+    (ledgerState) =>
+      asSchnorrJubjubDigest(
+        DIDContract.pureCircuits.deactivateAuthorizationDigest(
+          ledgerState.id,
+          ledgerState.version,
+        ),
+      ),
   );
   const result = await didContract.callTx.deactivate(
     signature,

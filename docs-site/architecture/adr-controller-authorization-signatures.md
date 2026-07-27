@@ -12,15 +12,17 @@ Earlier DID controller-gated circuits proved authorization by receiving the wall
 
 Controller authorization now uses the existing Midnight-native Jubjub Schnorr verifier. The ledger stores a controller `JubjubPoint` public key. For each controller-gated mutation, the wallet signs a controller authorization digest before proving.
 
-The digest is domain-separated with `midnight-did-ctrl-sig:v1` and binds:
+The signed Schnorr message uses four field lanes:
 
-- the DID contract id, and
-- the current ledger `version` expected by the wallet.
+1. a domain hash for `midnight-did-ctrl-sig:v1`,
+2. a DID state hash over the DID contract id and wallet-expected ledger `version`,
+3. an operation-name hash, and
+4. an operation-arguments hash.
 
-The circuit verifies the supplied signature against the stored controller public key and rejects stale versions before applying the mutation. The controller secret remains wallet-local; the proof server receives only the signature, expected version, and public inputs required by the operation.
+Each controller-gated circuit recomputes the operation and argument hashes from the public arguments it is about to apply before verifying the signature. The circuit verifies the supplied signature against the stored controller public key and rejects stale versions before applying the mutation. The controller secret remains wallet-local; the proof server receives only the signature, expected version, and public inputs required by the operation.
 
 ## Consequences
 
 - Remote proof servers cannot replay an old controller authorization after a DID version change.
+- Remote proof servers cannot reuse a controller authorization for a different controller-gated operation or mutated public arguments.
 - Controller key rotation stores the next Jubjub controller public key; the replacement secret is never sent to the circuit.
-- Operation-specific input binding remains intentionally out of scope for this slice to keep the Compact circuit surface small; callers must create a fresh authorization for the current version immediately before submitting the intended mutation.

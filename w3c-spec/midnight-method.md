@@ -1042,25 +1042,20 @@ In every network, discoverability is ultimately provided by the Midnight ledger 
 Midnight DID controller authorization is designed so delegated proof servers do
 not need the controller secret. Each mutating circuit receives a wallet-local
 Jubjub Schnorr signature and an expected ledger version. The signed digest is
-domain-separated with `midnight-did-ctrl-sig:v1` and includes the DID contract id
-and current version.
+domain-separated with `midnight-did-ctrl-sig:v1` and includes the DID contract id,
+current version, operation name, and operation arguments.
 
 The controller secret is private from the ledger, indexers, resolvers, DID
 Document readers, and proof servers. A remote proof server that receives only the
-signature cannot mint an authorization for a later DID version or a different DID
-contract. If a submitted transaction races with another successful mutation, the
-version check fails and the wallet must sign a fresh authorization for the new
-state.
+signature cannot mint an authorization for a later DID version, a different DID
+contract, a different controller operation, or changed operation arguments. If a
+submitted transaction races with another successful mutation, the version check
+fails and the wallet must sign a fresh authorization for the new state.
 
 Wallets and SDKs SHOULD create the controller authorization immediately before
 submitting the intended mutation and MUST NOT reuse it after a failed stale
 version check. A proof service may still be trusted with transaction assembly and
 submission, but it is not trusted with controller secret custody.
-
-This method version intentionally binds the controller authorization to contract
-id and version to keep the Compact circuit surface small. Operation-specific
-input binding can be added in a future version if the method requires stronger
-per-operation intent commitments.
 
 ## 11.2. Example DID Document
 

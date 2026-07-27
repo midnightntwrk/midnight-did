@@ -10,8 +10,6 @@ import {
   signJubjubDigestFromSeed
 } from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
 
-import { pureCircuits } from "./managed/did/contract/index.js";
-
 export const deriveControllerPublicKey = (
   secretKey: Uint8Array
 ): JubjubPoint => {
@@ -22,23 +20,7 @@ export const deriveControllerPublicKey = (
   return deriveJubjubPublicKeyFromSeed(secretKey);
 };
 
-export type ControllerAuthorizationContractId = { readonly bytes: Uint8Array };
-
-export const controllerAuthorizationDigest = (
-  contractId: ControllerAuthorizationContractId,
-  expectedVersion: bigint
-): JubjubDigest =>
-  pureCircuits.controllerAuthorizationDigest(
-    contractId,
-    expectedVersion
-  ) as JubjubDigest;
-
 export const signControllerAuthorization = (
   secretKey: Uint8Array,
-  contractId: ControllerAuthorizationContractId,
-  expectedVersion: bigint
-): JubjubSchnorrSignature =>
-  signJubjubDigestFromSeed(
-    secretKey,
-    controllerAuthorizationDigest(contractId, expectedVersion)
-  );
+  digest: JubjubDigest
+): JubjubSchnorrSignature => signJubjubDigestFromSeed(secretKey, digest);

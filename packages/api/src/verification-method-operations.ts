@@ -5,7 +5,10 @@ import {
 } from "@midnight-ntwrk/midnight-did-domain";
 import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
 
-import { createControllerAuthorization } from "./controller-authorization.js";
+import {
+  asSchnorrJubjubDigest,
+  createControllerAuthorization,
+} from "./controller-authorization.js";
 import { normalizeBoundFragmentId } from "./did-subject.js";
 import {
   LedgerVerificationMethodRelationMap,
@@ -31,12 +34,25 @@ export const addVerificationMethod = async (
   providers: MidnightDIDProviders,
   verificationMethod: VerificationMethod,
 ): Promise<FinalizedTxData> => {
+  const ledgerVerificationMethod = verificationMethodToLedger(
+    didContract,
+    verificationMethod,
+  );
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
+    (ledgerState) =>
+      asSchnorrJubjubDigest(
+        DIDContract.pureCircuits.setVerificationMethodAuthorizationDigest(
+          ledgerState.id,
+          ledgerState.version,
+          ledgerVerificationMethod,
+          DIDContract.MapMutation.Insert,
+        ),
+      ),
   );
   const result = await didContract.callTx.setVerificationMethod(
-    verificationMethodToLedger(didContract, verificationMethod),
+    ledgerVerificationMethod,
     DIDContract.MapMutation.Insert,
     signature,
     expectedVersion,
@@ -49,12 +65,25 @@ export const updateVerificationMethod = async (
   providers: MidnightDIDProviders,
   verificationMethod: VerificationMethod,
 ): Promise<FinalizedTxData> => {
+  const ledgerVerificationMethod = verificationMethodToLedger(
+    didContract,
+    verificationMethod,
+  );
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
+    (ledgerState) =>
+      asSchnorrJubjubDigest(
+        DIDContract.pureCircuits.setVerificationMethodAuthorizationDigest(
+          ledgerState.id,
+          ledgerState.version,
+          ledgerVerificationMethod,
+          DIDContract.MapMutation.Update,
+        ),
+      ),
   );
   const result = await didContract.callTx.setVerificationMethod(
-    verificationMethodToLedger(didContract, verificationMethod),
+    ledgerVerificationMethod,
     DIDContract.MapMutation.Update,
     signature,
     expectedVersion,
@@ -81,6 +110,14 @@ export const removeVerificationMethod = async (
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
+    (ledgerState) =>
+      asSchnorrJubjubDigest(
+        DIDContract.pureCircuits.removeVerificationMethodAuthorizationDigest(
+          ledgerState.id,
+          ledgerState.version,
+          normalizedMethodId,
+        ),
+      ),
   );
   const result = await didContract.callTx.removeVerificationMethod(
     normalizedMethodId,
@@ -95,12 +132,25 @@ export const addSchnorrJubjubVerificationMethod = async (
   providers: MidnightDIDProviders,
   verificationMethod: SchnorrJubjubVerificationMethod,
 ): Promise<FinalizedTxData> => {
+  const ledgerVerificationMethod = schnorrJubjubVerificationMethodToLedger(
+    didContract,
+    verificationMethod,
+  );
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
+    (ledgerState) =>
+      asSchnorrJubjubDigest(
+        DIDContract.pureCircuits.setSchnorrJubjubVerificationMethodAuthorizationDigest(
+          ledgerState.id,
+          ledgerState.version,
+          ledgerVerificationMethod,
+          DIDContract.MapMutation.Insert,
+        ),
+      ),
   );
   const result = await didContract.callTx.setSchnorrJubjubVerificationMethod(
-    schnorrJubjubVerificationMethodToLedger(didContract, verificationMethod),
+    ledgerVerificationMethod,
     DIDContract.MapMutation.Insert,
     signature,
     expectedVersion,
@@ -113,12 +163,25 @@ export const updateSchnorrJubjubVerificationMethod = async (
   providers: MidnightDIDProviders,
   verificationMethod: SchnorrJubjubVerificationMethod,
 ): Promise<FinalizedTxData> => {
+  const ledgerVerificationMethod = schnorrJubjubVerificationMethodToLedger(
+    didContract,
+    verificationMethod,
+  );
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
+    (ledgerState) =>
+      asSchnorrJubjubDigest(
+        DIDContract.pureCircuits.setSchnorrJubjubVerificationMethodAuthorizationDigest(
+          ledgerState.id,
+          ledgerState.version,
+          ledgerVerificationMethod,
+          DIDContract.MapMutation.Update,
+        ),
+      ),
   );
   const result = await didContract.callTx.setSchnorrJubjubVerificationMethod(
-    schnorrJubjubVerificationMethodToLedger(didContract, verificationMethod),
+    ledgerVerificationMethod,
     DIDContract.MapMutation.Update,
     signature,
     expectedVersion,
@@ -145,6 +208,14 @@ export const removeSchnorrJubjubVerificationMethod = async (
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
+    (ledgerState) =>
+      asSchnorrJubjubDigest(
+        DIDContract.pureCircuits.removeSchnorrJubjubVerificationMethodAuthorizationDigest(
+          ledgerState.id,
+          ledgerState.version,
+          normalizedMethodId,
+        ),
+      ),
   );
   const result = await didContract.callTx.removeSchnorrJubjubVerificationMethod(
     normalizedMethodId,
@@ -200,12 +271,23 @@ export const addVerificationMethodRelation = async (
     relation,
     normalizedMethodId,
   );
+  const ledgerRelation = LedgerVerificationMethodRelationMap[relation];
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
+    (ledgerState) =>
+      asSchnorrJubjubDigest(
+        DIDContract.pureCircuits.setVerificationMethodRelationAuthorizationDigest(
+          ledgerState.id,
+          ledgerState.version,
+          ledgerRelation,
+          normalizedMethodId,
+          DIDContract.SetMutation.Insert,
+        ),
+      ),
   );
   const result = await didContract.callTx.setVerificationMethodRelation(
-    LedgerVerificationMethodRelationMap[relation],
+    ledgerRelation,
     normalizedMethodId,
     DIDContract.SetMutation.Insert,
     signature,
@@ -234,12 +316,23 @@ export const removeVerificationMethodRelation = async (
     relation,
     normalizedMethodId,
   );
+  const ledgerRelation = LedgerVerificationMethodRelationMap[relation];
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
+    (ledgerState) =>
+      asSchnorrJubjubDigest(
+        DIDContract.pureCircuits.setVerificationMethodRelationAuthorizationDigest(
+          ledgerState.id,
+          ledgerState.version,
+          ledgerRelation,
+          normalizedMethodId,
+          DIDContract.SetMutation.Remove,
+        ),
+      ),
   );
   const result = await didContract.callTx.setVerificationMethodRelation(
-    LedgerVerificationMethodRelationMap[relation],
+    ledgerRelation,
     normalizedMethodId,
     DIDContract.SetMutation.Remove,
     signature,
