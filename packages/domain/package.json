@@ -40,8 +40,8 @@
     "test:ci": "vitest run",
     "coverage": "vitest run --coverage",
     "clean": "rm -rf dist && rm -rf coverage",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix"
+    "lint": "prettier --check \"src/**/*.ts\" && eslint src",
+    "lint:fix": "prettier --write \"src/**/*.ts\" && eslint src --fix"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.15.0",

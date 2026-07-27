@@ -42,8 +42,8 @@
     "coverage": "vitest run --coverage",
     "clean": "rm -rf dist && rm -rf coverage && rm -rf reports",
     "build": "rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/did.compact ./dist",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix",
+    "lint": "prettier --check \"src/**/*.ts\" \"!src/managed/**\" && eslint src",
+    "lint:fix": "prettier --write \"src/**/*.ts\" \"!src/managed/**\" && eslint src --fix",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "all": "pnpm run compact && pnpm run build && pnpm run test:ci"
   },
