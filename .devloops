@@ -98,8 +98,8 @@ workflow:
     - validate
     - summarize-review-triage
   readyForReviewAfter:
-    - validation
-    - externalReviewTriage
+    - validate
+    - summarize-review-triage
 
 validation:
   preCommit:
@@ -231,7 +231,7 @@ ciWatch:
       - githubSettingsRequired
       - secretsOrPermissionsRequired
       - externalServiceOutage
-      - unknown
+      - unknownAfterInvestigation
     stopForUserOn:
       - ciConfigRequired
       - githubSettingsRequired
