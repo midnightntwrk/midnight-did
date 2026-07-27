@@ -146,6 +146,10 @@ export default defineConfig({
               text: "ADR: SDK and Contract Boundary",
               link: "/architecture/adr-sdk-contract-boundary",
             },
+            {
+              text: "ADR: Controller Authorization Signatures",
+              link: "/architecture/adr-controller-authorization-signatures",
+            },
           ],
         },
       ],
