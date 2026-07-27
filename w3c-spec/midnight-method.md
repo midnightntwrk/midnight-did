@@ -687,10 +687,10 @@ keyword that starts with a letter.
 
 The method document profile requires `@context` in resolved Midnight DID
 Documents. Producers of `application/did+ld+json` MUST include it. Producers of
-`application/did+json` MUST follow DID Core JSON production rules and SHOULD
-document whether they retain `@context` as an extension for compatibility with
-Midnight's document profile or omit representation-specific JSON-LD entries for
-strict JSON consumers.
+`application/did+json` MUST follow DID Core JSON production rules and MUST omit
+the representation-specific `@context` member. This keeps the JSON and JSON-LD
+media types distinct while preserving the required context in the canonical
+Midnight DID Document and its JSON-LD representation.
 
 ## 7.3. Update
 

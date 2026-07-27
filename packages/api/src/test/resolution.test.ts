@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getDidSubject, getMidnightNetwork } from "../did-subject.js";
 import { getMidnightDIDLedgerState } from "../ledger-state.js";
-import { resolve, resolveDIDResolutionResult } from "../resolution.js";
+import {
+  resolve,
+  resolveDIDResolutionResult,
+  resolveRepresentation,
+} from "../resolution.js";
 
 const midnightDidMocks = vi.hoisted(() => {
   const state = {
@@ -16,12 +20,14 @@ const midnightDidMocks = vi.hoisted(() => {
       | undefined,
     resolveResult: vi.fn(),
     resolveDIDResolutionResult: vi.fn(),
+    resolveRepresentation: vi.fn(),
   };
   const resolver = vi.fn(function (options) {
     state.options = options;
     return {
       resolveResult: state.resolveResult,
       resolveDIDResolutionResult: state.resolveDIDResolutionResult,
+      resolveRepresentation: state.resolveRepresentation,
     };
   });
   return { resolver, state };
@@ -58,6 +64,7 @@ describe("resolution helpers", () => {
     midnightDidMocks.state.options = undefined;
     midnightDidMocks.state.resolveResult.mockReset();
     midnightDidMocks.state.resolveDIDResolutionResult.mockReset();
+    midnightDidMocks.state.resolveRepresentation.mockReset();
   });
 
   it("returns a DID Core resolution envelope on success", async () => {
@@ -171,5 +178,29 @@ describe("resolution helpers", () => {
       `did:midnight:devnet:${"a".repeat(64)}`,
     );
     expect(result).toEqual({ didDocument, didDocumentMetadata });
+  });
+
+  it("delegates representation resolution through the shared resolver", async () => {
+    const representation = {
+      didDocumentStream: new Uint8Array([123, 125]),
+      didDocumentMetadata: { versionId: "1" },
+      didResolutionMetadata: { contentType: "application/did+json" },
+    };
+    const options = { accept: "application/did+json" };
+    midnightDidMocks.state.resolveRepresentation.mockResolvedValue(
+      representation,
+    );
+
+    const result = await resolveRepresentation(
+      {} as never,
+      didContract as never,
+      options,
+    );
+
+    expect(midnightDidMocks.state.resolveRepresentation).toHaveBeenCalledWith(
+      `did:midnight:devnet:${"a".repeat(64)}`,
+      options,
+    );
+    expect(result).toEqual(representation);
   });
 });

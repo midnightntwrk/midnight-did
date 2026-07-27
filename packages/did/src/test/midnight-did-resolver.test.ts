@@ -206,4 +206,196 @@ describe("MidnightDIDResolver", () => {
     expect(result.didDocument).toBeNull();
     expect(result.didResolutionMetadata.error).toBe("methodNotSupported");
   });
+
+  it("returns a JSON-LD DID Document representation by default", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+      expectedNetwork: MidnightNetwork.DevNet,
+    });
+
+    const result = await resolver.resolveRepresentation(did);
+
+    expect(result.didDocumentStream).not.toBeNull();
+    expect(
+      JSON.parse(new TextDecoder().decode(result.didDocumentStream!)),
+    ).toEqual(expect.objectContaining({ id: did }));
+    expect(result.didResolutionMetadata).toEqual({
+      contentType: "application/did+ld+json",
+    });
+  });
+
+  it("selects DID Core JSON when requested", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+      expectedNetwork: MidnightNetwork.DevNet,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "application/did+json",
+    });
+
+    expect(result.didDocumentStream).not.toBeNull();
+    const didDocument = JSON.parse(
+      new TextDecoder().decode(result.didDocumentStream!),
+    );
+    expect(didDocument).toEqual(expect.objectContaining({ id: did }));
+    expect(didDocument).not.toHaveProperty("@context");
+    expect(result.didResolutionMetadata.contentType).toBe(
+      "application/did+json",
+    );
+  });
+
+  it("accepts case-insensitive media types and array input", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+      expectedNetwork: MidnightNetwork.DevNet,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: ["application/json", "Application/DID+JSON"],
+    });
+
+    expect(result.didResolutionMetadata.contentType).toBe(
+      "application/did+json",
+    );
+  });
+
+  it("honors a preferred supported type before a wildcard fallback", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+      expectedNetwork: MidnightNetwork.DevNet,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "application/did+json;q=0.9, */*;q=0.8",
+    });
+
+    expect(result.didResolutionMetadata.contentType).toBe(
+      "application/did+json",
+    );
+  });
+
+  it("returns representationNotSupported without reading the ledger", async () => {
+    const ledgerReader = vi.fn();
+    const resolver = new MidnightDIDResolver({ ledgerReader });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "application/json",
+    });
+
+    expect(result).toEqual({
+      didDocumentStream: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "representationNotSupported" },
+    });
+    expect(ledgerReader).not.toHaveBeenCalled();
+  });
+
+  it("does not select a representation explicitly rejected by q=0", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "application/did+json;q=0, application/json;q=1",
+    });
+
+    expect(result.didDocumentStream).toBeNull();
+    expect(result.didResolutionMetadata.error).toBe(
+      "representationNotSupported",
+    );
+  });
+
+  it("does not fall back when every requested type has q=0", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "application/did+ld+json;q=0, application/did+json;q=0",
+    });
+
+    expect(result).toEqual({
+      didDocumentStream: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "representationNotSupported" },
+    });
+  });
+
+  it("normalizes comma-separated media types in array input", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+      expectedNetwork: MidnightNetwork.DevNet,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: ["application/did+json, application/json"],
+    });
+
+    expect(result.didResolutionMetadata.contentType).toBe(
+      "application/did+json",
+    );
+  });
+
+  it("uses the default representation for an empty Accept value", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+      expectedNetwork: MidnightNetwork.DevNet,
+    });
+
+    const result = await resolver.resolveRepresentation(did, { accept: "" });
+
+    expect(result.didResolutionMetadata.contentType).toBe(
+      "application/did+ld+json",
+    );
+  });
+
+  it("returns notFound without a representation stream", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => null,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "application/did+json",
+    });
+
+    expect(result).toEqual({
+      didDocumentStream: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "notFound" },
+    });
+  });
+
+  it("maps invalid DIDs to the representation error envelope", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveRepresentation("did:bad", {
+      accept: "application/did+json",
+    });
+
+    expect(result).toEqual({
+      didDocumentStream: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "invalidDid" },
+    });
+  });
+
+  it("maps offchain DIDs to methodNotSupported", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveRepresentation(
+      `did:midnight:offchain:${"b".repeat(64)}`,
+      { accept: "application/did+json" },
+    );
+
+    expect(result).toEqual({
+      didDocumentStream: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "methodNotSupported" },
+    });
+  });
 });
