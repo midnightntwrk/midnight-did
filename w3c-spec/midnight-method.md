@@ -544,9 +544,17 @@ for the proof-server trust boundary.
 
 ## 5.3. Keys associated with the DID Document
 Midnight DID Controllers **MUST** manage the keys associated with the DID Document.
-It is recommended to use an HD derivation algorithm to derive keys in a predictable manner.
+Implementations MAY generate DID controller keys and DID Document verification
+keys randomly, or MAY derive them from wallet/private-state seed material with an
+implementation-defined HD convention. Implementations that use HD derivation
+SHOULD domain-separate Midnight DID material from payment, dust, metadata, and
+other wallet roles, and SHOULD document their path/index allocation so backups
+and recovery flows can reproduce the same keys.
 
-This specification does not cover key management aspects.
+This version of the specification does not standardize a single HD derivation
+path for Midnight DID controller keys or DID Document verification keys. A future
+version may define a BIP32/BIP44/CIP1852-like convention, or reserve Midnight HD
+wallet roles, for deriving all Midnight DID keys from a single seed.
 
 # 6. Midnight DID Ledger state
 
@@ -941,7 +949,7 @@ Midnight DID will be stored in an address controlled by the holder. This ensures
 
 The application is responsible for key management (see [Section 5. Private and Public Keys](#5-private-and-public-keys)).
 
-It is recommended to use secure storage for private keys and an HD derivation convention for Midnight DID keys to simplify backup and recovery.
+Implementations SHOULD use secure storage for private keys. They MAY use random keys or an implementation-defined HD derivation convention for Midnight DID keys; an HD convention can simplify backup and recovery but is not standardized by this specification version.
 
 The concrete implementation of Secret Storage depends on the target platform and is outside the scope of this specification.
 
