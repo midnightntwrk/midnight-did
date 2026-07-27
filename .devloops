@@ -19,10 +19,12 @@ gates:
       - config-drift
       - packaging-runtime
       - midnight-did-surface
+      - security
       - external-review
   preApproval:
     angles:
       - correctness
+      - coverage
       - contract-surface
       - contract-artifacts
       - ci-guard
@@ -79,8 +81,12 @@ refinement:
   maxCopilotRounds: 0
 
 autonomy:
+  # Draft PR creation is a pause before human review, not a hard stop for the
+  # post-draft automation below. The loop may run external review, triage,
+  # local fixes, validation, and CI watch while the PR remains draft, but it
+  # must stop before marking ready for human review or merging.
   stopAt:
-    - draft-pr
+    - ready-for-review
     - merge
   humanMergeOnly: true
 
@@ -106,11 +112,11 @@ validation:
     required: true
     commands:
       light:
-        command: ./run.sh --light
+        command: ./run.sh --light --strict
         required: true
         when: always
       fullForContractApiOrIntegration:
-        command: ./run.sh
+        command: ./run.sh --strict
         required: true
         whenChanged:
           - packages/contract/**
@@ -147,8 +153,8 @@ validation:
     repeatPreCommit: true
     failIfMissingEvidence: true
   ordering:
-    - ./run.sh --light
-    - ./run.sh
+    - ./run.sh --light --strict
+    - ./run.sh --strict
     - ./run.sh check-integration
   evidence:
     record:
@@ -201,8 +207,8 @@ reviewTriage:
     enabled: true
     classifyOlderCommitFindings: stale-if-fixed
   validationAfterFixes:
-    - ./run.sh --light
-    - ./run.sh
+    - ./run.sh --light --strict
+    - ./run.sh --strict
     - ./run.sh check-integration
 
 ciWatch:
@@ -246,7 +252,7 @@ ciWatch:
     validateLocallyBeforePush: true
     validationPreference:
       - narrowFailedTarget
-      - ./run.sh --light
-      - ./run.sh
+      - ./run.sh --light --strict
+      - ./run.sh --strict
       - ./run.sh check-integration
     pushAfterFix: true
