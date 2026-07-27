@@ -45,8 +45,8 @@
     "precoverage": "pnpm --filter @midnight-ntwrk/midnight-did-domain build",
     "coverage": "vitest run --coverage",
     "clean": "rm -rf dist && rm -rf coverage",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix"
+    "lint": "prettier --check \"src/**/*.{ts,tsx}\" && eslint src",
+    "lint:fix": "prettier --write \"src/**/*.{ts,tsx}\" && eslint src --fix"
   },
   "dependencies": {
     "@midnight-ntwrk/midnight-did-contract": "workspace:*",

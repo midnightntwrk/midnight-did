@@ -4,7 +4,6 @@
 import js from '@eslint/js';
 import plugin from '@typescript-eslint/eslint-plugin';
 import parser from '@typescript-eslint/parser';
-import pluginPrettier from 'eslint-plugin-prettier';
 import pluginImport from 'eslint-plugin-import';
 import pluginSimpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
@@ -30,12 +29,10 @@ export default [
     },
     plugins: {
       '@typescript-eslint': plugin,
-      prettier: pluginPrettier,
       import: pluginImport,
       'simple-import-sort': pluginSimpleImportSort,
     },
     rules: {
-      'prettier/prettier': 'error',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'import/no-unused-modules': [1, { unusedExports: true }],

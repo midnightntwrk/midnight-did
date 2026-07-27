@@ -41,8 +41,8 @@
     "test:ci": "vitest run -c vitest.unit.config.ts --passWithNoTests",
     "test-api": "vitest run -c vitest.api.config.ts",
     "coverage": "vitest run -c vitest.unit.config.ts --coverage",
-    "lint": "eslint src examples",
-    "lint:fix": "eslint src examples --fix",
+    "lint": "prettier --check \"src/**/*.{ts,tsx}\" \"examples/**/*.{ts,tsx}\" && eslint src examples",
+    "lint:fix": "prettier --write \"src/**/*.{ts,tsx}\" \"examples/**/*.{ts,tsx}\" && eslint src examples --fix",
     "prepack": "pnpm run build"
   },
   "dependencies": {
