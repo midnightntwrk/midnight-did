@@ -1,6 +1,10 @@
 # Repository-specific dev-loops policy for midnight-did.
 # Keep repository rules in AGENT.md and the bundled midnight-identity skill.
 
+repository:
+  defaultBaseBranch: develop
+  requirePrBase: develop
+
 gates:
   draft:
     angles:
@@ -9,15 +13,20 @@ gates:
       - coverage
       - ci-guard
       - contract-surface
+      - contract-artifacts
       - docs
       - link-check
       - config-drift
       - packaging-runtime
       - midnight-did-surface
+      - security
+      - external-review
   preApproval:
     angles:
       - correctness
+      - coverage
       - contract-surface
+      - contract-artifacts
       - ci-guard
       - docs
       - link-check
@@ -25,6 +34,7 @@ gates:
       - packaging-runtime
       - security
       - midnight-did-surface
+      - external-review
 
 personas:
   security:
@@ -45,13 +55,38 @@ personas:
       repository. Report concrete findings with file and line references.
     defaultModel: null
 
+  contract-artifacts:
+    persona: review
+    prompt: >-
+      For Compact contract changes, compare generated circuit k, rows, prover
+      key, verifier key, zkir, and bzkir sizes against the base branch. Flag k
+      increases, unexpected artifact growth, stale generated artifacts, and
+      missing docs updates. Report concrete findings with file and line
+      references.
+    defaultModel: null
+
+  external-review:
+    persona: review
+    prompt: >-
+      Run independent PR review with configured external reviewers when
+      available. Focus on correctness, security, stale docs, API compatibility,
+      tests, and regression risk. For Compact changes, check authorization
+      binding, witness secrecy, managed artifact freshness, circuit k/size
+      changes, and spec/docs drift. Do not modify files. Return only actionable
+      findings with file/line references, or "No findings".
+    defaultModel: null
+
 refinement:
   fanOut: 3
   maxCopilotRounds: 0
 
 autonomy:
+  # Draft PR creation is a pause before human review, not a hard stop for the
+  # post-draft automation below. The loop may run external review, triage,
+  # local fixes, validation, and CI watch while the PR remains draft, but it
+  # must stop before marking ready for human review or merging.
   stopAt:
-    - draft-pr
+    - ready-for-review
     - merge
   humanMergeOnly: true
 
@@ -59,3 +94,165 @@ workflow:
   requireDraftFirst: true
   requireRetrospective: true
   devModeDefault: false
+  preflight:
+    fetchBaseBeforeWork: true
+    failIfPrBaseNotDefault: true
+  postDraftPr:
+    - external-review
+    - triage-review-feedback
+    - apply-review-fixes
+    - validate
+    - summarize-review-triage
+  readyForReviewAfter:
+    - validate
+    - summarize-review-triage
+
+validation:
+  preCommit:
+    required: true
+    commands:
+      light:
+        command: ./run.sh --light --strict
+        required: true
+        when: always
+      fullForContractApiOrIntegration:
+        command: ./run.sh --strict
+        required: true
+        whenChanged:
+          - packages/contract/**
+          - packages/api/**
+          - packages/jubjub-schnorr/**
+          - "**/*.compact"
+          - packages/**/src/test/**
+          - packages/**/test/**
+          - integration/**
+          - tests/**
+          - scripts/report-integration.mjs
+          - scripts/smoke-*.mjs
+          - run.sh
+          - flake.nix
+          - flake.lock
+          - package.json
+          - pnpm-lock.yaml
+          - turbo.json
+      integrationForContractApiOrIntegration:
+        command: ./run.sh check-integration
+        required: true
+        whenChanged:
+          - packages/contract/**
+          - packages/api/**
+          - packages/jubjub-schnorr/**
+          - "**/*.compact"
+          - integration/**
+          - tests/**
+          - scripts/report-integration.mjs
+          - scripts/smoke-*.mjs
+          - run.sh
+  prePr:
+    required: true
+    repeatPreCommit: true
+    failIfMissingEvidence: true
+  ordering:
+    - ./run.sh --light --strict
+    - ./run.sh --strict
+    - ./run.sh check-integration
+  evidence:
+    record:
+      - command
+      - exitCode
+      - timestamp
+      - changedFileTrigger
+
+externalReview:
+  enabled: true
+  trigger:
+    - afterDraftPrCreated
+    - afterMeaningfulPush
+  maxRounds: 2
+  requireCleanWorktreeBeforeReview: true
+  requireDraftPr: true
+  reviewers:
+    claude:
+      enabled: true
+      command: >-
+        claude --print --allowedTools 'Bash(git *),Bash(gh *),Bash(rg *),Read'
+    codex:
+      enabled: true
+      command: >-
+        codex -m gpt-5.5 review --base origin/develop
+  instructions: >-
+    Review this PR for correctness, security, stale docs, API compatibility,
+    tests, and regression risk. Do not modify files. Return only actionable
+    findings with file/line references, or "No findings".
+
+reviewTriage:
+  agentMay:
+    - inspectFindings
+    - classifyFindings
+    - implementValidFixes
+    - addRegressionTests
+    - updateDocs
+    - postTriageSummary
+  agentMustNot:
+    - dismissHumanReview
+    - markReadyBeforeValidation
+    - merge
+  stopForHumanOn:
+    - architecturalDisagreement
+    - publicApiBreakingChange
+    - unresolvedSecurityTradeoff
+    - unclearProductDecision
+    - finalApproval
+  staleReviewHandling:
+    enabled: true
+    classifyOlderCommitFindings: stale-if-fixed
+  validationAfterFixes:
+    - ./run.sh --light --strict
+    - ./run.sh --strict
+    - ./run.sh check-integration
+
+ciWatch:
+  enabled: true
+  trigger:
+    - afterDraftPrCreated
+    - afterPush
+    - afterReadyForReview
+  maxConsecutiveFailures: 5
+  pollIntervalSeconds: 30
+  timeoutMinutesPerHeadSha: 45
+  fetchLogs:
+    enabled: true
+    include:
+      - failedChecks
+      - failedJobs
+      - annotations
+      - conclusion
+      - workflowName
+      - jobName
+  triage:
+    classify:
+      - repoFixable
+      - flakyOrTransient
+      - ciConfigRequired
+      - githubSettingsRequired
+      - secretsOrPermissionsRequired
+      - externalServiceOutage
+      - unknownAfterInvestigation
+    stopForUserOn:
+      - ciConfigRequired
+      - githubSettingsRequired
+      - secretsOrPermissionsRequired
+      - externalServiceOutage
+      - unknownAfterInvestigation
+  fixLoop:
+    enabled: true
+    maxFixCommitsPerCycle: 1
+    requireSignedCommits: true
+    requireDco: true
+    validateLocallyBeforePush: true
+    validationPreference:
+      - narrowFailedTarget
+      - ./run.sh --light --strict
+      - ./run.sh --strict
+      - ./run.sh check-integration
+    pushAfterFix: true
