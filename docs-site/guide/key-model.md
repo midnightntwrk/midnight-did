@@ -64,3 +64,23 @@ arguments.
 
 `rotateControllerKey` accepts only the next derived `controllerPublicKey`; the
 replacement secret remains wallet-local and is promoted after finalization.
+
+## Controller Recovery and Backup Posture
+
+The current DID contract has one controller public key and no on-method recovery
+or threshold-controller circuit. Losing the controller secret freezes the DID in
+its last public state: it can still be resolved, but no controller-gated update,
+rotation, service change, verification-method change, or deactivation can be
+performed.
+
+Back up the controller private state before using a DID for production control.
+For organizational DIDs, treat backup, custody rotation, and operator access as
+application responsibilities outside this method version. If an organization
+needs multi-person recovery or threshold authorization today, it should place
+that policy in the wallet/custody layer and only submit a controller signature
+after the off-chain policy approves the operation.
+
+Deactivation is not recovery. It is irreversible, prevents future updates, and
+does not erase public ledger history or previously resolved DID Document data.
+Use controller rotation before compromise or personnel loss whenever recovery of
+control is still possible.

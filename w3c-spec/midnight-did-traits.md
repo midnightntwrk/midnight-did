@@ -19,7 +19,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | Read / Resolve | ✔ | `packages/did/src/ledger-to-domain.ts` reconstructs DID Document from ledger state. |
 | Update | ✔ | Individual contract circuits handle adds/updates/removals with controller-signature authorization. |
 | Deactivate | ✔ | Deactivation operation prevents further updates. |
-| Recover | △ | No explicit recovery; requires redeployment/new DID. |
+| Recover | ✖ | No on-method recovery in this version; losing the controller secret freezes the DID and requires using a new DID for future control. |
 
 ## Verification Method Traits
 
@@ -27,7 +27,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | --- | --- | --- |
 | Key rotation / revocation | ✔ | `Add/Update/RemoveVerificationMethod` + relation ops. |
 | Key type diversity | △ | Restricted to explicit JWK profiles ([RFC7517]) (OKP/Ed25519/X25519/BLS12381G1/BLS12381G2, EC/Jubjub/P-256/secp256k1). `publicKeyMultibase`/`Multikey` is unsupported in this method version. |
-| Multi-controller keys | ✖ | Controller must equal DID subject (single-controller model). |
+| Multi-controller keys | ✖ | The contract stores one controller public key. Multi-controller or threshold custody can be implemented only above the method in the wallet/custody layer today. |
 | Relative key IDs | ✔ | Fragment identifiers supported (`#key-1`). |
 
 ## Service Endpoint Traits
@@ -44,7 +44,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | Trait | Status | Notes |
 | --- | --- | --- |
 | Single controller | ✔ | Contract enforces single controller equal to DID. |
-| Multi-controller | ✖ | Not supported. |
+| Multi-controller | ✖ | Not supported on-chain in this method version. Future Compact circuits could add multiple controller keys or threshold checks, but that is outside the current contract/API surface. |
 | Delegated updates | ✔ | Wallet-local controller signatures authorize updates without revealing the controller secret to proof servers. |
 | On-chain access control | ✔ | Circuits verify wallet-local controller signatures against the on-ledger `controllerPublicKey`. |
 
