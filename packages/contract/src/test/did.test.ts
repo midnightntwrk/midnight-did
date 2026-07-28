@@ -686,7 +686,7 @@ describe("DID smart contract", () => {
 
     beforeEach(() => {
       simulator = new DIDSimulator();
-      // Add a verification method first
+      // Add verification methods first
       simulator.addVerificationMethod({
         id: "#key-1",
         typ: VerificationMethodType.JsonWebKey,
@@ -694,6 +694,15 @@ describe("DID smart contract", () => {
           kty: KeyType.OKP,
           crv: CurveType.Ed25519,
           ...okpKey(111)
+        }
+      });
+      simulator.addVerificationMethod({
+        id: "#key-x25519",
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.X25519,
+          ...okpKey(112)
         }
       });
     });
@@ -722,11 +731,63 @@ describe("DID smart contract", () => {
     it("should add KeyAgreement relation", () => {
       simulator.addVerificationMethodRelation(
         VerificationMethodRelation.KeyAgreement,
-        "#key-1"
+        "#key-x25519"
       );
 
       const ledger = simulator.getLedger();
-      expect(ledger.keyAgreementRelation.member("#key-1")).toEqual(true);
+      expect(ledger.keyAgreementRelation.member("#key-x25519")).toEqual(true);
+    });
+
+    it("should reject signing keys in KeyAgreement relation", () => {
+      expect(() =>
+        simulator.addVerificationMethodRelation(
+          VerificationMethodRelation.KeyAgreement,
+          "#key-1"
+        )
+      ).toThrow("KeyAgreement requires an X25519 verification method");
+    });
+
+    it("should reject X25519 keys in signing relations", () => {
+      expect(() =>
+        simulator.addVerificationMethodRelation(
+          VerificationMethodRelation.Authentication,
+          "#key-x25519"
+        )
+      ).toThrow("Signing verification relations cannot use X25519");
+    });
+
+    it("should reject updates that would make existing relations incompatible", () => {
+      simulator.addVerificationMethodRelation(
+        VerificationMethodRelation.Authentication,
+        "#key-1"
+      );
+      expect(() =>
+        simulator.updateVerificationMethod({
+          id: "#key-1",
+          typ: VerificationMethodType.JsonWebKey,
+          publicKeyJwk: {
+            kty: KeyType.OKP,
+            crv: CurveType.X25519,
+            ...okpKey(113)
+          }
+        })
+      ).toThrow("Existing signing verification relations cannot use X25519");
+
+      simulator.addVerificationMethodRelation(
+        VerificationMethodRelation.KeyAgreement,
+        "#key-x25519"
+      );
+      expect(() =>
+        simulator.updateVerificationMethod({
+          id: "#key-x25519",
+          typ: VerificationMethodType.JsonWebKey,
+          publicKeyJwk: {
+            kty: KeyType.OKP,
+            crv: CurveType.Ed25519,
+            ...okpKey(114)
+          }
+        })
+      ).toThrow("Existing KeyAgreement relation requires an X25519");
     });
 
     it("should add CapabilityInvocation relation", () => {

@@ -1,5 +1,8 @@
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
-import { VerificationMethodRelationType } from "@midnight-ntwrk/midnight-did-domain";
+import {
+  CurveType,
+  VerificationMethodRelationType,
+} from "@midnight-ntwrk/midnight-did-domain";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../controller-authorization.js", () => ({
@@ -12,7 +15,9 @@ vi.mock("../controller-authorization.js", () => ({
 import { LedgerVerificationMethodRelationMap } from "../ledger-mappers.js";
 import { type DeployedMidnightDIDContract } from "../types.js";
 import {
+  assertExistingVerificationMethodRelationsCompatible,
   assertVerificationMethodRelationAbsent,
+  assertVerificationMethodRelationCompatible,
   assertVerificationMethodRelationPresent,
   removePresentVerificationMethodRelations,
   verificationMethodRelationMemberships,
@@ -25,10 +30,21 @@ type LedgerRelationSets = {
   readonly keyAgreement?: readonly string[];
   readonly capabilityInvocation?: readonly string[];
   readonly capabilityDelegation?: readonly string[];
+  readonly verificationMethods?: ReadonlyMap<string, DIDContract.CurveType>;
+  readonly schnorrJubjubVerificationMethods?: readonly string[];
 };
 
 const relationSet = (members: readonly string[]) => ({
   member: vi.fn((value: string) => members.includes(value)),
+});
+
+const methodMap = (
+  entries: ReadonlyMap<string, DIDContract.CurveType> = new Map(),
+) => ({
+  member: vi.fn((value: string) => entries.has(value)),
+  lookup: vi.fn((value: string) => ({
+    publicKeyJwk: { crv: entries.get(value) },
+  })),
 });
 
 const ledgerState = ({
@@ -37,6 +53,8 @@ const ledgerState = ({
   keyAgreement = [],
   capabilityInvocation = [],
   capabilityDelegation = [],
+  verificationMethods = new Map(),
+  schnorrJubjubVerificationMethods = [],
 }: LedgerRelationSets = {}): DIDContract.Ledger =>
   ({
     authenticationRelation: relationSet(authentication),
@@ -44,8 +62,11 @@ const ledgerState = ({
     keyAgreementRelation: relationSet(keyAgreement),
     capabilityInvocationRelation: relationSet(capabilityInvocation),
     capabilityDelegationRelation: relationSet(capabilityDelegation),
+    verificationMethods: methodMap(verificationMethods),
+    schnorrJubjubVerificationMethods: relationSet(
+      schnorrJubjubVerificationMethods,
+    ),
   }) as unknown as DIDContract.Ledger;
-
 describe("verification method relation operations", () => {
   it("reports membership for every defined verification method relation", () => {
     const state = ledgerState({
@@ -116,6 +137,88 @@ describe("verification method relation operations", () => {
     ).toThrow(
       "relation KeyAgreement does not contain verification method #key-1",
     );
+  });
+
+  it("guards relation compatibility before submitting transactions", () => {
+    const state = ledgerState({
+      verificationMethods: new Map([
+        ["#ed", DIDContract.CurveType.Ed25519],
+        ["#x", DIDContract.CurveType.X25519],
+      ]),
+      schnorrJubjubVerificationMethods: ["#jubjub"],
+    });
+
+    expect(() =>
+      assertVerificationMethodRelationCompatible(
+        state,
+        VerificationMethodRelationType.Authentication,
+        "#ed",
+      ),
+    ).not.toThrow();
+    expect(() =>
+      assertVerificationMethodRelationCompatible(
+        state,
+        VerificationMethodRelationType.Authentication,
+        "#jubjub",
+      ),
+    ).not.toThrow();
+    expect(() =>
+      assertVerificationMethodRelationCompatible(
+        state,
+        VerificationMethodRelationType.KeyAgreement,
+        "#x",
+      ),
+    ).not.toThrow();
+    expect(() =>
+      assertVerificationMethodRelationCompatible(
+        state,
+        VerificationMethodRelationType.KeyAgreement,
+        "#ed",
+      ),
+    ).toThrow(/cannot be used/);
+    expect(() =>
+      assertVerificationMethodRelationCompatible(
+        state,
+        VerificationMethodRelationType.AssertionMethod,
+        "#x",
+      ),
+    ).toThrow(/cannot be used/);
+  });
+
+  it("guards relation compatibility when updating an existing method curve", () => {
+    const state = ledgerState({
+      authentication: ["#auth"],
+      keyAgreement: ["#agreement"],
+    });
+
+    expect(() =>
+      assertExistingVerificationMethodRelationsCompatible(
+        state,
+        CurveType.Ed25519,
+        "#auth",
+      ),
+    ).not.toThrow();
+    expect(() =>
+      assertExistingVerificationMethodRelationsCompatible(
+        state,
+        CurveType.X25519,
+        "#agreement",
+      ),
+    ).not.toThrow();
+    expect(() =>
+      assertExistingVerificationMethodRelationsCompatible(
+        state,
+        CurveType.Ed25519,
+        "#agreement",
+      ),
+    ).toThrow(/cannot be used/);
+    expect(() =>
+      assertExistingVerificationMethodRelationsCompatible(
+        state,
+        CurveType.X25519,
+        "#auth",
+      ),
+    ).toThrow(/cannot be used/);
   });
 
   it("removes a method only from relations where it is present", async () => {
