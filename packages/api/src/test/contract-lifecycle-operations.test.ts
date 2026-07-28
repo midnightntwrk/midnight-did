@@ -22,7 +22,10 @@ describe("contract lifecycle operations", () => {
   });
 
   it("binds the provider and requires existing private state before joining", async () => {
-    const privateState = { secretKey: new Uint8Array(32).fill(7) };
+    const privateState = {
+      recoverySecretKey: new Uint8Array(32).fill(9),
+      secretKey: new Uint8Array(32).fill(7),
+    };
     const privateStateProvider = {
       setContractAddress: vi.fn(),
       get: vi.fn(async () => privateState),
@@ -72,7 +75,10 @@ describe("contract lifecycle operations", () => {
   });
 
   it("binds and persists private state after deployment", async () => {
-    const privateState = { secretKey: new Uint8Array(32).fill(8) };
+    const privateState = {
+      recoverySecretKey: new Uint8Array(32).fill(9),
+      secretKey: new Uint8Array(32).fill(8),
+    };
     const privateStateProvider = {
       setContractAddress: vi.fn(),
       set: vi.fn(async () => undefined),

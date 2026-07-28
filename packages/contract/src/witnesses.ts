@@ -24,7 +24,7 @@ import { Ledger } from "./managed/did/contract/index.js";
 
 export type DIDPrivateState = {
   readonly secretKey: Uint8Array;
-  readonly recoverySecretKey?: Uint8Array;
+  readonly recoverySecretKey: Uint8Array;
 };
 
 export const witnesses = {
@@ -39,12 +39,15 @@ export const witnesses = {
   }: WitnessContext<Ledger, DIDPrivateState>): [
     DIDPrivateState,
     JubjubPoint
-  ] => [
-    privateState,
-    deriveControllerPublicKey(
-      privateState.recoverySecretKey ?? privateState.secretKey
-    )
-  ],
+  ] => {
+    if (!(privateState.recoverySecretKey instanceof Uint8Array)) {
+      throw new Error("DID recovery secret key is required");
+    }
+    return [
+      privateState,
+      deriveControllerPublicKey(privateState.recoverySecretKey)
+    ];
+  },
   currentTimestamp: ({
     privateState
   }: WitnessContext<Ledger, DIDPrivateState>): [DIDPrivateState, bigint] => [

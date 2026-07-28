@@ -104,8 +104,7 @@ export class DIDSimulator {
   public recoveryAuthorization(digest: bigint[]): [any, bigint] {
     return [
       signControllerAuthorization(
-        this.getPrivateState().recoverySecretKey ??
-          this.getPrivateState().secretKey,
+        this.getPrivateState().recoverySecretKey,
         digest as [bigint, bigint, bigint, bigint]
       ),
       this.getLedger().version

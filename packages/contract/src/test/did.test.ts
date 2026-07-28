@@ -132,6 +132,19 @@ describe("DID smart contract", () => {
     expect(simulator.getLedger().version).toEqual(2n);
   });
 
+  it("rejects constructor private state without a recovery authority secret", () => {
+    expect(
+      () =>
+        new DIDSimulator({
+          ...witnesses,
+          localRecoveryAuthorityPublicKey: ({ privateState }) =>
+            witnesses.localRecoveryAuthorityPublicKey({
+              privateState: { secretKey: privateState.secretKey } as any
+            } as any)
+        })
+    ).toThrow(/recovery secret key is required/);
+  });
+
   it("recovers controller control with the recovery public key", () => {
     const simulator = new DIDSimulator();
     const oldSecretKey = simulator.getPrivateState().secretKey;
@@ -171,6 +184,106 @@ describe("DID smart contract", () => {
         .getLedger()
         .alsoKnownAs.member("did:example:recovered-controller")
     ).toEqual(true);
+  });
+
+  it("rejects controller signatures for recovery operations", () => {
+    const simulator = new DIDSimulator();
+    const recoveredSecretKey = keyBytes(77);
+    const recoveredPublicKey =
+      ContractExports.deriveControllerPublicKey(recoveredSecretKey);
+    const expectedVersion = simulator.getLedger().version;
+    const [controllerSignature] = simulator.controllerAuthorization(
+      pureCircuits.recoverControllerKeyAuthorizationDigest(
+        simulator.getLedger().id,
+        expectedVersion,
+        recoveredPublicKey
+      )
+    );
+
+    expect(() =>
+      simulator.contract.impureCircuits.recoverControllerKey(
+        simulator.circuitContext,
+        recoveredPublicKey,
+        controllerSignature,
+        expectedVersion
+      )
+    ).toThrow(/Invalid Jubjub Schnorr signature/);
+  });
+
+  it("rejects recovery signatures for normal controller operations", () => {
+    const simulator = new DIDSimulator();
+    const alias = "did:example:recovery-not-controller";
+    const expectedVersion = simulator.getLedger().version;
+    const [recoverySignature] = simulator.recoveryAuthorization(
+      pureCircuits.setAlsoKnownAsAuthorizationDigest(
+        simulator.getLedger().id,
+        expectedVersion,
+        alias,
+        SetMutation.Insert
+      )
+    );
+
+    expect(() =>
+      simulator.contract.impureCircuits.setAlsoKnownAs(
+        simulator.circuitContext,
+        alias,
+        SetMutation.Insert,
+        recoverySignature,
+        expectedVersion
+      )
+    ).toThrow(/Invalid Jubjub Schnorr signature/);
+  });
+
+  it("rejects stale and no-op recovery attempts", () => {
+    const simulator = new DIDSimulator();
+    const recoveredSecretKey = keyBytes(77);
+    const recoveredPublicKey =
+      ContractExports.deriveControllerPublicKey(recoveredSecretKey);
+    const expectedVersion = simulator.getLedger().version;
+    const [signature] = simulator.recoveryAuthorization(
+      pureCircuits.recoverControllerKeyAuthorizationDigest(
+        simulator.getLedger().id,
+        expectedVersion,
+        recoveredPublicKey
+      )
+    );
+
+    simulator.addAlsoKnownAs("did:example:version-bump");
+    expect(() =>
+      simulator.contract.impureCircuits.recoverControllerKey(
+        simulator.circuitContext,
+        recoveredPublicKey,
+        signature,
+        expectedVersion
+      )
+    ).toThrow(/Recovery authorization version is stale/);
+
+    const currentPublicKey = simulator.getLedger().controllerPublicKey;
+    const [currentKeySignature, currentVersion] =
+      simulator.recoveryAuthorization(
+        pureCircuits.recoverControllerKeyAuthorizationDigest(
+          simulator.getLedger().id,
+          simulator.getLedger().version,
+          currentPublicKey
+        )
+      );
+    expect(() =>
+      simulator.contract.impureCircuits.recoverControllerKey(
+        simulator.circuitContext,
+        currentPublicKey,
+        currentKeySignature,
+        currentVersion
+      )
+    ).toThrow(/New controller key matches current controller key/);
+  });
+
+  it("rejects recovery after deactivation", () => {
+    const simulator = new DIDSimulator();
+    simulator.deactivate();
+
+    expect(() => simulator.recoverControllerKey(keyBytes(77))).toThrow(
+      /Contract is not active/
+    );
   });
 
   it("rejects controller signatures reused with different operation arguments", () => {

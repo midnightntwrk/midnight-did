@@ -125,7 +125,10 @@ describe("controller operations", () => {
         { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
         {
           privateStateProvider: {
-            get: vi.fn(async () => ({ secretKey: new Uint8Array(32).fill(4) })),
+            get: vi.fn(async () => ({
+              recoverySecretKey: new Uint8Array(32).fill(5),
+              secretKey: new Uint8Array(32).fill(4),
+            })),
             set: vi.fn(),
             remove: vi.fn(),
           },
@@ -140,7 +143,10 @@ describe("controller operations", () => {
   it("rejects before submitting a transaction if pending state cannot be saved", async () => {
     const rotateControllerKeyTx = vi.fn();
     const privateStateProvider = {
-      get: vi.fn(async () => ({ secretKey: new Uint8Array(32).fill(4) })),
+      get: vi.fn(async () => ({
+        recoverySecretKey: new Uint8Array(32).fill(5),
+        secretKey: new Uint8Array(32).fill(4),
+      })),
       set: vi.fn(async () => {
         throw new Error("storage offline");
       }),
@@ -164,7 +170,10 @@ describe("controller operations", () => {
       throw new Error("transaction rejected");
     });
     const privateStateProvider = {
-      get: vi.fn(async () => ({ secretKey: new Uint8Array(32).fill(4) })),
+      get: vi.fn(async () => ({
+        recoverySecretKey: new Uint8Array(32).fill(5),
+        secretKey: new Uint8Array(32).fill(4),
+      })),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
     };
@@ -187,7 +196,10 @@ describe("controller operations", () => {
       public: { txId: "0x123" },
     }));
     const privateStateProvider = {
-      get: vi.fn(async () => ({ secretKey: new Uint8Array(32).fill(4) })),
+      get: vi.fn(async () => ({
+        recoverySecretKey: new Uint8Array(32).fill(5),
+        secretKey: new Uint8Array(32).fill(4),
+      })),
       set: vi
         .fn()
         .mockResolvedValueOnce(undefined)

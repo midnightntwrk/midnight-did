@@ -26,24 +26,20 @@ import {
 
 const privateStateFromSecret = (
   secretKey: Uint8Array,
-  recoverySecretKey?: Uint8Array,
+  recoverySecretKey: Uint8Array,
 ): MidnightDIDPrivateState => {
   if (!(secretKey instanceof Uint8Array) || secretKey.length !== 32) {
     throw new Error("DID controller secret key must be 32 bytes");
   }
   if (
-    recoverySecretKey !== undefined &&
-    (!(recoverySecretKey instanceof Uint8Array) ||
-      recoverySecretKey.length !== 32)
+    !(recoverySecretKey instanceof Uint8Array) ||
+    recoverySecretKey.length !== 32
   ) {
     throw new Error("DID recovery secret key must be 32 bytes");
   }
 
   return {
-    recoverySecretKey:
-      recoverySecretKey === undefined
-        ? undefined
-        : new Uint8Array(recoverySecretKey),
+    recoverySecretKey: new Uint8Array(recoverySecretKey),
     secretKey: new Uint8Array(secretKey),
   };
 };
@@ -134,9 +130,6 @@ export const recoverControllerKey = async (
   newSecretKey: Uint8Array = randomBytes(32),
 ): Promise<FinalizedTxData> => {
   const currentPrivateState = await requirePrivateState(providers);
-  if (currentPrivateState.recoverySecretKey === undefined) {
-    throw new Error("DID recovery private state is missing");
-  }
   const nextPrivateState = privateStateFromSecret(
     newSecretKey,
     currentPrivateState.recoverySecretKey,

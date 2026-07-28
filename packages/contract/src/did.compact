@@ -421,6 +421,14 @@ circuit assertRecoveryCanUpdate(
   assert(active, "Contract is not active");
 }
 
+circuit assertControllerPublicKeyChanges(newControllerPublicKey: JubjubPoint): [] {
+  assert(
+    jubjubPointX(newControllerPublicKey) != jubjubPointX(controllerPublicKey) ||
+    jubjubPointY(newControllerPublicKey) != jubjubPointY(controllerPublicKey),
+    "New controller key matches current controller key"
+  );
+}
+
 circuit recordUpdate(): [] {
   operationCount.increment(1);
   version.increment(1);
@@ -568,7 +576,7 @@ export circuit rotateControllerKey(
     expectedVersion,
     rotateControllerKeyAuthorizationDigest(id, disclose(expectedVersion), disclosedNewControllerPublicKey)
   );
-  assert(disclosedNewControllerPublicKey != controllerPublicKey, "New controller key matches current controller key");
+  assertControllerPublicKeyChanges(disclosedNewControllerPublicKey);
   controllerPublicKey = disclosedNewControllerPublicKey;
 
   recordUpdate();
@@ -585,7 +593,7 @@ export circuit recoverControllerKey(
     expectedVersion,
     recoverControllerKeyAuthorizationDigest(id, disclose(expectedVersion), disclosedNewControllerPublicKey)
   );
-  assert(disclosedNewControllerPublicKey != controllerPublicKey, "New controller key matches current controller key");
+  assertControllerPublicKeyChanges(disclosedNewControllerPublicKey);
   controllerPublicKey = disclosedNewControllerPublicKey;
 
   recordUpdate();
