@@ -76,7 +76,9 @@ state that authorizes DID updates. It cannot recover secrets from ledger state,
 but it can submit `recoverControllerKey` when private state contains, or the
 caller explicitly supplies, the `recoverySecretKey` matching the on-ledger
 `recoveryAuthorityPublicKey`. Explicitly supplied recovery secrets are used for
-that recovery call and are not persisted back into active private state.
+that recovery call and are not newly persisted into active private state, though
+an already stored recovery secret is preserved when the new controller secret is
+promoted.
 
 Applications should back up controller and recovery private state alongside
 their wallet backup material, protect it with custody controls appropriate for

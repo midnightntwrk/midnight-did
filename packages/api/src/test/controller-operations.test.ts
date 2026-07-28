@@ -177,7 +177,7 @@ describe("controller operations", () => {
       public: { txId: "0xdef" },
     }));
     const privateStateProvider = {
-      get: vi.fn(),
+      get: vi.fn(async () => null),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
     };
@@ -191,7 +191,9 @@ describe("controller operations", () => {
       ),
     ).resolves.toEqual({ txId: "0xdef" });
 
-    expect(privateStateProvider.get).not.toHaveBeenCalled();
+    expect(privateStateProvider.get).toHaveBeenCalledWith(
+      MidnightDIDPrivateStateId,
+    );
     expect(privateStateProvider.set).toHaveBeenNthCalledWith(
       1,
       MidnightDIDPendingControllerPrivateStateId,
@@ -201,6 +203,35 @@ describe("controller operations", () => {
       2,
       MidnightDIDPrivateStateId,
       { secretKey: newSecretKey },
+    );
+  });
+
+  it("preserves an already stored recovery secret when one is explicitly supplied", async () => {
+    const storedRecoverySecretKey = new Uint8Array(32).fill(17);
+    const explicitRecoverySecretKey = new Uint8Array(32).fill(18);
+    const newSecretKey = new Uint8Array(32).fill(19);
+    const recoverControllerKeyTx = vi.fn(async () => ({
+      public: { txId: "0xfed" },
+    }));
+    const privateStateProvider = {
+      get: vi.fn(async () => ({ recoverySecretKey: storedRecoverySecretKey })),
+      set: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+    };
+
+    await expect(
+      recoverControllerKey(
+        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        { privateStateProvider } as any,
+        newSecretKey,
+        explicitRecoverySecretKey,
+      ),
+    ).resolves.toEqual({ txId: "0xfed" });
+
+    expect(privateStateProvider.set).toHaveBeenNthCalledWith(
+      2,
+      MidnightDIDPrivateStateId,
+      { recoverySecretKey: storedRecoverySecretKey, secretKey: newSecretKey },
     );
   });
 

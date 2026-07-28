@@ -16,6 +16,7 @@ import {
   clearPendingControllerPrivateState,
   requirePrivateState,
   requireRecoverySecretKey,
+  restoreRecoverySecretKey,
   savePendingControllerPrivateState,
   savePrivateState,
 } from "./private-state.js";
@@ -136,10 +137,13 @@ export const recoverControllerKey = async (
 ): Promise<FinalizedTxData> => {
   const activeRecoverySecretKey =
     recoverySecretKey ?? (await requireRecoverySecretKey(providers));
-  const recoverySecretFromStorage = recoverySecretKey === undefined;
+  const persistedRecoverySecretKey =
+    recoverySecretKey === undefined
+      ? activeRecoverySecretKey
+      : await restoreRecoverySecretKey(providers);
   const nextPrivateState = privateStateFromSecret(
     newSecretKey,
-    recoverySecretFromStorage ? activeRecoverySecretKey : undefined,
+    persistedRecoverySecretKey ?? undefined,
   );
   const nextControllerPublicKey = deriveControllerPublicKey(
     nextPrivateState.secretKey,

@@ -75,10 +75,10 @@ export async function restorePrivateState(
   return null;
 }
 
-export async function requireRecoverySecretKey(
+export async function restoreRecoverySecretKey(
   providers: MidnightDIDProviders,
   privateStateId: MidnightDIDPrivateStateIds = MidnightDIDPrivateStateId,
-): Promise<Uint8Array> {
+): Promise<Uint8Array | null> {
   let providedPrivateState: unknown = null;
   try {
     providedPrivateState =
@@ -92,11 +92,25 @@ export async function requireRecoverySecretKey(
     );
   }
   if (!isRecoverableDIDPrivateState(providedPrivateState)) {
+    return null;
+  }
+  return providedPrivateState.recoverySecretKey;
+}
+
+export async function requireRecoverySecretKey(
+  providers: MidnightDIDProviders,
+  privateStateId: MidnightDIDPrivateStateIds = MidnightDIDPrivateStateId,
+): Promise<Uint8Array> {
+  const recoverySecretKey = await restoreRecoverySecretKey(
+    providers,
+    privateStateId,
+  );
+  if (recoverySecretKey == null) {
     throw new Error(
       "DID recovery private state is missing or malformed; import the recovery secret before using recovery",
     );
   }
-  return providedPrivateState.recoverySecretKey;
+  return recoverySecretKey;
 }
 
 export async function requirePrivateState(
