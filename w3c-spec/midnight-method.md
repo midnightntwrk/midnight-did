@@ -748,6 +748,8 @@ Creating a DID involves deploying the corresponding smart contract instance to t
 
 To deploy the smart-contract instance, the following prerequisites MUST be met:
 - Smart-contract prover and verifier ZK-keys MUST be generated
+- Controller and recovery authority private keys MUST be available to the deploying wallet or SDK
+- The initial controller public key MUST be distinct from the recovery authority public key
 
 After the smart-contract publishing, the Midnight DID is deployed, but doesn't contain the public information. It's still resolvable and contains the following properties:
 - `id` the smart-contract address
@@ -850,7 +852,7 @@ Each mutating circuit increments the version counter and updates the `updated` t
 The circuit implementations are in [`packages/contract/src/did.compact`](../packages/contract/src/did.compact), and the API helpers that call these circuits are in [`packages/api/src/lib.ts`](../packages/api/src/lib.ts).
 
 Controller rotation and recovery notes:
-- `rotateControllerKey` accepts only the next `controllerPublicKey`, not the next secret; authorization is supplied as a current-version controller signature.
+- `rotateControllerKey` accepts only the next `controllerPublicKey`, not the next secret; authorization is supplied as a current-version controller signature. The next controller public key MUST differ from the current controller public key and from the recovery authority public key.
 - `recoverControllerKey` accepts only the next `controllerPublicKey`, a recovery-authority signature, and the expected version. The recovery authority can rotate the active controller key but cannot mutate DID Document content, verification methods, services, aliases, deactivation state, or the recovery authority itself.
 - The API helper generates a new 32-byte secret, derives the next public key locally with the contract package's `deriveControllerPublicKey` helper, submits the rotation or recovery transaction, and stores the new secret in private state after the transaction succeeds.
 - If the transaction finalizes but private-state persistence fails, the wallet must recover the same new secret to continue updating the DID.
@@ -1079,7 +1081,7 @@ secret; it is not a general DID Document update authority.
     version, recovery operation name, and `newControllerPublicKey`.
   - Stale `expectedVersion` values MUST fail.
   - The new controller public key MUST differ from the current controller public
-    key.
+    key and from `recoveryAuthorityPublicKey`.
   - The circuit MUST NOT update DID Document verification methods, verification
     relationships, services, aliases, deactivation state, or
     `recoveryAuthorityPublicKey`.

@@ -245,6 +245,32 @@ describe("controller operations", () => {
     );
   });
 
+  it("rejects contracts without recovery authority before saving pending state", async () => {
+    vi.mocked(requireDeployedMidnightDIDLedgerState).mockResolvedValue({
+      id: { bytes: new Uint8Array(32).fill(1) },
+      version: 7n,
+    } as any);
+    const recoverControllerKeyTx = vi.fn();
+    const privateStateProvider = {
+      get: vi.fn(async () => ({
+        recoverySecretKey: new Uint8Array(32).fill(20),
+      })),
+      set: vi.fn(),
+      remove: vi.fn(),
+    };
+
+    await expect(
+      recoverControllerKey(
+        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        { privateStateProvider } as any,
+        new Uint8Array(32).fill(22),
+      ),
+    ).rejects.toThrow(/does not expose a recovery authority/);
+
+    expect(privateStateProvider.set).not.toHaveBeenCalled();
+    expect(recoverControllerKeyTx).not.toHaveBeenCalled();
+  });
+
   it("rejects mismatched recovery secrets before saving pending state", async () => {
     const storedRecoverySecretKey = new Uint8Array(32).fill(20);
     const ledgerRecoverySecretKey = new Uint8Array(32).fill(21);

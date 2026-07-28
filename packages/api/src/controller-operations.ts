@@ -26,6 +26,16 @@ import {
   type MidnightDIDProviders,
 } from "./types.js";
 
+const isJubjubPoint = (
+  value: unknown,
+): value is { readonly x: bigint; readonly y: bigint } =>
+  value != null &&
+  typeof value === "object" &&
+  "x" in value &&
+  "y" in value &&
+  typeof value.x === "bigint" &&
+  typeof value.y === "bigint";
+
 const jubjubPointEquals = (
   left: { readonly x: bigint; readonly y: bigint },
   right: { readonly x: bigint; readonly y: bigint },
@@ -146,15 +156,16 @@ export const recoverControllerKey = async (
     providers,
     didContract,
   );
+  if (!isJubjubPoint(ledgerState.recoveryAuthorityPublicKey)) {
+    throw new Error(
+      "DID contract does not expose a recovery authority; deploy or join a recovery-enabled contract",
+    );
+  }
+  const recoveryAuthorityPublicKey = ledgerState.recoveryAuthorityPublicKey;
   const activeRecoveryPublicKey = deriveControllerPublicKey(
     activeRecoverySecretKey,
   );
-  if (
-    !jubjubPointEquals(
-      activeRecoveryPublicKey,
-      ledgerState.recoveryAuthorityPublicKey,
-    )
-  ) {
+  if (!jubjubPointEquals(activeRecoveryPublicKey, recoveryAuthorityPublicKey)) {
     throw new Error(
       "DID recovery secret key does not match the on-ledger recovery authority",
     );
@@ -168,7 +179,7 @@ export const recoverControllerKey = async (
     storedRecoverySecretKey != null &&
     jubjubPointEquals(
       deriveControllerPublicKey(storedRecoverySecretKey),
-      ledgerState.recoveryAuthorityPublicKey,
+      recoveryAuthorityPublicKey,
     )
       ? storedRecoverySecretKey
       : undefined;
