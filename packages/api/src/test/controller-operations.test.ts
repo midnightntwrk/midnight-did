@@ -76,6 +76,32 @@ describe("controller operations", () => {
     );
   });
 
+  it("rotates with only controller private state available", async () => {
+    const newSecretKey = new Uint8Array(32).fill(6);
+    const rotateControllerKeyTx = vi.fn(async () => ({
+      public: { txId: "0x234" },
+    }));
+    const privateStateProvider = {
+      get: vi.fn(async () => ({ secretKey: new Uint8Array(32).fill(4) })),
+      set: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+    };
+
+    await expect(
+      rotateControllerKey(
+        { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+        { privateStateProvider } as any,
+        newSecretKey,
+      ),
+    ).resolves.toEqual({ txId: "0x234" });
+
+    expect(privateStateProvider.set).toHaveBeenNthCalledWith(
+      2,
+      MidnightDIDPrivateStateId,
+      { secretKey: newSecretKey },
+    );
+  });
+
   it("recovers to a locally derived controller public key with recovery private state", async () => {
     const recoverySecretKey = new Uint8Array(32).fill(9);
     const newSecretKey = new Uint8Array(32).fill(10);

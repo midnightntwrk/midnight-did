@@ -24,7 +24,7 @@ import { Ledger } from "./managed/did/contract/index.js";
 
 export type DIDPrivateState = {
   readonly secretKey: Uint8Array;
-  readonly recoverySecretKey: Uint8Array;
+  readonly recoverySecretKey?: Uint8Array;
 };
 
 export const witnesses = {

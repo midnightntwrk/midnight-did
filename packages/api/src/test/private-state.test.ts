@@ -67,7 +67,7 @@ describe("DID private state lifecycle", () => {
     }
   });
 
-  it("accepts only 32-byte Uint8Array controller and recovery secret keys as restorable state", () => {
+  it("accepts 32-byte controller state with optional 32-byte recovery state", () => {
     expect(
       isRestorableDIDPrivateState({
         recoverySecretKey: new Uint8Array(32),
@@ -76,6 +76,12 @@ describe("DID private state lifecycle", () => {
     ).toBe(true);
     expect(
       isRestorableDIDPrivateState({ secretKey: new Uint8Array(32) } as any),
+    ).toBe(true);
+    expect(
+      isRestorableDIDPrivateState({
+        recoverySecretKey: new Uint8Array(31),
+        secretKey: new Uint8Array(32),
+      } as any),
     ).toBe(false);
     expect(
       isRestorableDIDPrivateState({ secretKey: new Uint8Array(31) } as any),

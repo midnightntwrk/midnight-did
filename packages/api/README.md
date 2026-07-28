@@ -65,7 +65,7 @@ API enforces lifecycle rules around:
 - deactivated DID: mutating operations rejected
 - controller authorization: signs a domain-separated digest containing contract id, current version, operation name, and operation arguments before each controller-gated mutation
 - controller rotation: generates a new wallet-local secret, derives the next controller public key locally, submits the rotation circuit with a current-version controller signature, and stores the new secret after the transaction succeeds
-- controller recovery: a dedicated `recoveryAuthorityPublicKey` can authorize `recoverControllerKey` to rotate the active controller key; callers must back up both controller and recovery private-state material
+- controller recovery: a dedicated `recoveryAuthorityPublicKey` can authorize `recoverControllerKey` to rotate the active controller key; ordinary controller-gated operations require only the active controller secret, while recovery requires the matching recovery secret
 
 (Exact schema/canonicalization rules live in `domain`.)
 
@@ -81,14 +81,15 @@ Applications should back up controller and recovery private state alongside
 their wallet backup material, protect it with custody controls appropriate for
 production signing keys, and test restore/recovery flows before relying on a DID.
 Private state created before the recovery-authority contract surface contains no
-recovery secret; it must be explicitly re-provisioned or kept with the matching
-pre-recovery contract version rather than silently reused for v2 deployment or
-joins. If both the active controller secret and recovery secret are lost, the DID
-remains publicly resolvable but cannot be updated, rotated, recovered, or
-deactivated by this method version. Organizational operators that need
-multi-person approval or social recovery should implement that policy before the
-API call that signs a controller or recovery authorization; the contract still
-receives one signature for the selected operation.
+recovery secret; it can still authorize ordinary controller-gated operations when
+paired with a compatible contract, but it cannot submit `recoverControllerKey`
+unless the recovery secret is imported or supplied explicitly. If both the active
+controller secret and recovery secret are lost, the DID remains publicly
+resolvable but cannot be updated, rotated, recovered, or deactivated by this
+method version. Organizational operators that need multi-person approval or
+social recovery should implement that policy before the API call that signs a
+controller or recovery authorization; the contract still receives one signature
+for the selected operation.
 
 ## Resolution Responses
 

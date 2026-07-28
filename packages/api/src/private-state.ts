@@ -17,8 +17,9 @@ export const isRestorableDIDPrivateState = (
   privateState != null &&
   privateState.secretKey instanceof Uint8Array &&
   privateState.secretKey.length === 32 &&
-  privateState.recoverySecretKey instanceof Uint8Array &&
-  privateState.recoverySecretKey.length === 32;
+  (privateState.recoverySecretKey === undefined ||
+    (privateState.recoverySecretKey instanceof Uint8Array &&
+      privateState.recoverySecretKey.length === 32));
 
 export const isRecoverableDIDPrivateState = (
   privateState: unknown,
@@ -93,7 +94,7 @@ export async function requirePrivateState(
   const privateState = await restorePrivateState(providers, privateStateId);
   if (!isRestorableDIDPrivateState(privateState)) {
     throw new Error(
-      "DID v2 private state is missing or malformed; import controller and recovery secrets, or re-provision pre-recovery private state before using this contract",
+      "DID controller private state is missing or malformed; import the controller secret before using controller operations",
     );
   }
   return privateState;
