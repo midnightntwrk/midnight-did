@@ -91,10 +91,26 @@ export class DIDSimulator {
     );
   }
 
+  private requireControllerSecretKey(): Uint8Array {
+    const secretKey = this.getPrivateState().secretKey;
+    if (!(secretKey instanceof Uint8Array)) {
+      throw new Error("DID controller secret key is required");
+    }
+    return secretKey;
+  }
+
+  private requireRecoverySecretKey(): Uint8Array {
+    const recoverySecretKey = this.getPrivateState().recoverySecretKey;
+    if (!(recoverySecretKey instanceof Uint8Array)) {
+      throw new Error("DID recovery secret key is required");
+    }
+    return recoverySecretKey;
+  }
+
   public controllerAuthorization(digest: bigint[]): [any, bigint] {
     return [
       signControllerAuthorization(
-        this.getPrivateState().secretKey,
+        this.requireControllerSecretKey(),
         digest as [bigint, bigint, bigint, bigint]
       ),
       this.getLedger().version
@@ -104,7 +120,7 @@ export class DIDSimulator {
   public recoveryAuthorization(digest: bigint[]): [any, bigint] {
     return [
       signControllerAuthorization(
-        this.getPrivateState().recoverySecretKey,
+        this.requireRecoverySecretKey(),
         digest as [bigint, bigint, bigint, bigint]
       ),
       this.getLedger().version

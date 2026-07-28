@@ -83,11 +83,11 @@ describe("DID smart contract", () => {
     expect(initialLedgerState.operationCount).toEqual(0n);
     const initialPrivateState = simulator.getPrivateState();
     expect(initialPrivateState.secretKey).toBeInstanceOf(Uint8Array);
-    expect(initialPrivateState.secretKey.length).toEqual(32);
+    expect(initialPrivateState.secretKey?.length).toEqual(32);
     expect(initialPrivateState.recoverySecretKey).toBeInstanceOf(Uint8Array);
     expect(initialPrivateState.recoverySecretKey?.length).toEqual(32);
     expect(initialLedgerState.controllerPublicKey).toEqual(
-      ContractExports.deriveControllerPublicKey(initialPrivateState.secretKey)
+      ContractExports.deriveControllerPublicKey(initialPrivateState.secretKey!)
     );
     expect(initialLedgerState.recoveryAuthorityPublicKey).toEqual(
       ContractExports.deriveControllerPublicKey(
@@ -108,7 +108,7 @@ describe("DID smart contract", () => {
       ContractExports.deriveControllerPublicKey(newSecretKey);
 
     expect(newControllerPublicKey).not.toEqual(
-      ContractExports.deriveControllerPublicKey(oldSecretKey)
+      ContractExports.deriveControllerPublicKey(oldSecretKey!)
     );
 
     simulator.rotateControllerPublicKey(newControllerPublicKey);
@@ -139,7 +139,7 @@ describe("DID smart contract", () => {
           ...witnesses,
           localRecoveryAuthorityPublicKey: ({ privateState }) => [
             privateState,
-            ContractExports.deriveControllerPublicKey(privateState.secretKey)
+            ContractExports.deriveControllerPublicKey(privateState.secretKey!)
           ]
         })
     ).toThrow(/New controller key matches recovery authority key/);
