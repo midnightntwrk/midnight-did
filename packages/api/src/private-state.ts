@@ -20,6 +20,15 @@ export const isRestorableDIDPrivateState = (
   privateState.recoverySecretKey instanceof Uint8Array &&
   privateState.recoverySecretKey.length === 32;
 
+export const isRecoverableDIDPrivateState = (
+  privateState: unknown,
+): privateState is { readonly recoverySecretKey: Uint8Array } =>
+  privateState != null &&
+  typeof privateState === "object" &&
+  "recoverySecretKey" in privateState &&
+  privateState.recoverySecretKey instanceof Uint8Array &&
+  privateState.recoverySecretKey.length === 32;
+
 export const bindPrivateStateProvider = (
   providers: MidnightDIDProviders,
   contractAddress: string,
@@ -51,6 +60,30 @@ export async function restorePrivateState(
   }
 
   return null;
+}
+
+export async function requireRecoverySecretKey(
+  providers: MidnightDIDProviders,
+  privateStateId: MidnightDIDPrivateStateIds = MidnightDIDPrivateStateId,
+): Promise<Uint8Array> {
+  let providedPrivateState: unknown = null;
+  try {
+    providedPrivateState =
+      await providers.privateStateProvider.get(privateStateId);
+  } catch (error: unknown) {
+    if (!isContractAddressUnsetError(error)) {
+      throw error;
+    }
+    getLogger().info(
+      "Recovery private state restore skipped (contract address not set yet).",
+    );
+  }
+  if (!isRecoverableDIDPrivateState(providedPrivateState)) {
+    throw new Error(
+      "DID recovery private state is missing or malformed; import the recovery secret before using recovery",
+    );
+  }
+  return providedPrivateState.recoverySecretKey;
 }
 
 export async function requirePrivateState(

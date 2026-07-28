@@ -73,8 +73,9 @@ API enforces lifecycle rules around:
 
 The API package can initialize, persist, rotate, recover, and restore private
 state that authorizes DID updates. It cannot recover secrets from ledger state,
-but it can submit `recoverControllerKey` when private state contains the
-`recoverySecretKey` matching the on-ledger `recoveryAuthorityPublicKey`.
+but it can submit `recoverControllerKey` when private state contains, or the
+caller explicitly supplies, the `recoverySecretKey` matching the on-ledger
+`recoveryAuthorityPublicKey`.
 
 Applications should back up controller and recovery private state alongside
 their wallet backup material, protect it with custody controls appropriate for

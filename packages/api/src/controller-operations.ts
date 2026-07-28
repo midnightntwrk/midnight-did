@@ -15,6 +15,7 @@ import { randomBytes } from "./lightweight.js";
 import {
   clearPendingControllerPrivateState,
   requirePrivateState,
+  requireRecoverySecretKey,
   savePendingControllerPrivateState,
   savePrivateState,
 } from "./private-state.js";
@@ -128,11 +129,13 @@ export const recoverControllerKey = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
   newSecretKey: Uint8Array = randomBytes(32),
+  recoverySecretKey?: Uint8Array,
 ): Promise<FinalizedTxData> => {
-  const currentPrivateState = await requirePrivateState(providers);
+  const activeRecoverySecretKey =
+    recoverySecretKey ?? (await requireRecoverySecretKey(providers));
   const nextPrivateState = privateStateFromSecret(
     newSecretKey,
-    currentPrivateState.recoverySecretKey,
+    activeRecoverySecretKey,
   );
   const nextControllerPublicKey = deriveControllerPublicKey(
     nextPrivateState.secretKey,
@@ -154,7 +157,7 @@ export const recoverControllerKey = async (
       ),
     );
     const signature = signControllerAuthorization(
-      currentPrivateState.recoverySecretKey,
+      activeRecoverySecretKey,
       digest,
     );
     const result = await didContract.callTx.recoverControllerKey(
