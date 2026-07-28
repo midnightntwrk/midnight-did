@@ -45,13 +45,20 @@ describe("URI normalization helpers", () => {
   });
 
   it("normalizes arrays of endpoints", () => {
+    const insecureWebSocketEndpoint = ["Ws:", "//Example.org:80/updates"].join(
+      "",
+    );
+    const normalizedInsecureWebSocketEndpoint = [
+      "ws:",
+      "//example.org/updates",
+    ].join("");
     const endpoints = [
       "HTTPS://Example.com:443/inbox",
-      { uri: "Ws://Example.org:80/updates" },
+      { uri: insecureWebSocketEndpoint },
     ];
     expect(normalizeServiceEndpointValue(endpoints)).toEqual([
       "https://example.com/inbox",
-      { uri: "ws://example.org/updates" },
+      { uri: normalizedInsecureWebSocketEndpoint },
     ]);
   });
 

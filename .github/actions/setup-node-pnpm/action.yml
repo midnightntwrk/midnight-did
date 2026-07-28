@@ -91,4 +91,6 @@ runs:
     - name: Install dependencies
       if: inputs.install == 'true'
       shell: bash
-      run: pnpm install ${{ inputs.install-args }}
+      env:
+        INSTALL_ARGS: ${{ inputs.install-args }}
+      run: pnpm install ${INSTALL_ARGS}
