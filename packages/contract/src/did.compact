@@ -471,6 +471,43 @@ circuit assertVerificationMethodIsNotReferenced(id: Opaque<"string">): [] {
   assert(!capabilityDelegationRelation.member(id), "Verification method still referenced in capabilityDelegationRelation");
 }
 
+circuit isSigningVerificationMethodRelation(relation: VerificationMethodRelation): Boolean {
+  return relation == VerificationMethodRelation.Authentication ||
+    relation == VerificationMethodRelation.AssertionMethod ||
+    relation == VerificationMethodRelation.CapabilityInvocation ||
+    relation == VerificationMethodRelation.CapabilityDelegation;
+}
+
+circuit assertVerificationMethodRelationCompatible(
+  relation: VerificationMethodRelation,
+  methodId: Opaque<"string">
+): [] {
+  if (relation == VerificationMethodRelation.KeyAgreement) {
+    assert(verificationMethods.member(methodId), "KeyAgreement requires an agreement verification method");
+    const verificationMethod = verificationMethods.lookup(methodId);
+    assert(verificationMethod.publicKeyJwk.crv == CurveType.X25519, "KeyAgreement requires an X25519 verification method");
+  } else if (isSigningVerificationMethodRelation(relation)) {
+    assert(!verificationMethods.member(methodId) || verificationMethods.lookup(methodId).publicKeyJwk.crv != CurveType.X25519, "Signing verification relations cannot use X25519 verification methods");
+  }
+}
+
+circuit assertExistingVerificationMethodRelationsCompatible(
+  methodId: Opaque<"string">,
+  curve: CurveType
+): [] {
+  if (keyAgreementRelation.member(methodId)) {
+    assert(curve == CurveType.X25519, "Existing KeyAgreement relation requires an X25519 verification method");
+  }
+  if (
+    authenticationRelation.member(methodId) ||
+    assertionMethodRelation.member(methodId) ||
+    capabilityInvocationRelation.member(methodId) ||
+    capabilityDelegationRelation.member(methodId)
+  ) {
+    assert(curve != CurveType.X25519, "Existing signing verification relations cannot use X25519 verification methods");
+  }
+}
+
 // Constructor
 constructor() {
   contractVersion = 1;
@@ -548,6 +585,7 @@ export circuit setVerificationMethod(
   assertSupportedVerificationMethod(disclosedVerificationMethod);
   if (disclosedMutation == MapMutation.Update) {
     assert(verificationMethods.member(disclosedVerificationMethod.id), "Verification method does not exist");
+    assertExistingVerificationMethodRelationsCompatible(disclosedVerificationMethod.id, disclosedVerificationMethod.publicKeyJwk.crv);
     verificationMethods.remove(disclosedVerificationMethod.id);
   } else if (disclosedMutation == MapMutation.Insert) {
     assert(!verificationMethodExists(disclosedVerificationMethod.id), "Verification method already exists");
@@ -668,6 +706,7 @@ export circuit setVerificationMethodRelation(
   const currentPresent = verificationMethodRelationMember(disclosedRelation, disclosedMethodId);
   if (disclosedMutation == SetMutation.Insert) {
     assert(!currentPresent, "Verification method relation already exists");
+    assertVerificationMethodRelationCompatible(disclosedRelation, disclosedMethodId);
     insertVerificationMethodRelation(disclosedRelation, disclosedMethodId);
   } else if (disclosedMutation == SetMutation.Remove) {
     assert(currentPresent, "Verification method relation does not exist");

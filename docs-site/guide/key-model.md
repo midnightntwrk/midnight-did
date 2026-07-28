@@ -46,6 +46,17 @@ extension or integration-layer adaptation.
 - Resolvers emit absolute DID URL ids in the DID Document.
 - Relation sets may reference methods from either key map.
 
+## Verification Relationship Compatibility
+
+Midnight DID enforces DID Core relationship intent at the SDK and contract
+boundary. Signing-capable curves (`Ed25519`, `P-256`, `secp256k1`,
+`BLS12381G1`, `BLS12381G2`, and native `SchnorrJubjub`) may be placed in
+`authentication`, `assertionMethod`, `capabilityInvocation`, and
+`capabilityDelegation`. They must not be placed in `keyAgreement`.
+
+`X25519` is the key-agreement profile. It may be placed in `keyAgreement` and
+must not be placed in signing verification relationships.
+
 ## Controller Authorization Signature Model
 
 Controller-gated update circuits verify a wallet-local Jubjub Schnorr signature

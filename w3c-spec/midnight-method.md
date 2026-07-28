@@ -941,6 +941,12 @@ Associate an existing verification method `methodId` with a DID Core verificatio
 - Constraints:
   - `methodId` MUST refer to an existing verification method and MUST be expressed as a DID URL for the subject or a relative identifier (e.g., `#key-1`).
   - Adding the same relation twice MUST fail.
+  - The verification method curve MUST be compatible with the requested relationship.
+    `X25519` methods are key-agreement methods and MUST only be added to
+    `KeyAgreement`. Signing-capable methods (`Ed25519`, `P-256`, `secp256k1`,
+    `BLS12381G1`, `BLS12381G2`, and native SchnorrJubjub/Jubjub) MUST NOT be
+    added to `KeyAgreement`; they are valid for `Authentication`,
+    `AssertionMethod`, `CapabilityInvocation`, and `CapabilityDelegation`.
 
 Example:
 ```typescript

@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  assertVerificationMethodRelationCompatibleWithCurve,
   createVerificationMethod,
   CurveType,
+  isVerificationMethodRelationCompatibleWithCurve,
   KeyType,
+  VerificationMethodRelationType,
 } from "../did-document.js";
 import {
   exampleBls12381G1JsonWebKey,
@@ -147,5 +150,51 @@ describe("createVerificationMethod", () => {
         },
       }),
     ).toThrow(/must not include a y coordinate/);
+  });
+});
+
+describe("verification method relation compatibility", () => {
+  it("allows signing-capable curves only in signing relations", () => {
+    for (const relation of [
+      VerificationMethodRelationType.Authentication,
+      VerificationMethodRelationType.AssertionMethod,
+      VerificationMethodRelationType.CapabilityInvocation,
+      VerificationMethodRelationType.CapabilityDelegation,
+    ]) {
+      expect(
+        isVerificationMethodRelationCompatibleWithCurve(
+          relation,
+          CurveType.Ed25519,
+        ),
+      ).toBe(true);
+      expect(
+        isVerificationMethodRelationCompatibleWithCurve(
+          relation,
+          CurveType.Jubjub,
+        ),
+      ).toBe(true);
+      expect(
+        isVerificationMethodRelationCompatibleWithCurve(
+          relation,
+          CurveType.X25519,
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it("allows only X25519 in keyAgreement", () => {
+    expect(
+      isVerificationMethodRelationCompatibleWithCurve(
+        VerificationMethodRelationType.KeyAgreement,
+        CurveType.X25519,
+      ),
+    ).toBe(true);
+    expect(() =>
+      assertVerificationMethodRelationCompatibleWithCurve(
+        VerificationMethodRelationType.KeyAgreement,
+        CurveType.Ed25519,
+        "#key-1",
+      ),
+    ).toThrow(/cannot be used/);
   });
 });

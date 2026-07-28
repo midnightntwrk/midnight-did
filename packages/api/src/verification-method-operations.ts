@@ -24,7 +24,9 @@ import {
   type SchnorrJubjubVerificationMethod,
 } from "./types.js";
 import {
+  assertExistingVerificationMethodRelationsCompatible,
   assertVerificationMethodRelationAbsent,
+  assertVerificationMethodRelationCompatible,
   assertVerificationMethodRelationPresent,
   purgeVerificationMethodFromAllRelations,
 } from "./verification-method-relations.js";
@@ -68,6 +70,15 @@ export const updateVerificationMethod = async (
   const ledgerVerificationMethod = verificationMethodToLedger(
     didContract,
     verificationMethod,
+  );
+  const didState = await requireDeployedMidnightDIDLedgerState(
+    providers,
+    didContract,
+  );
+  assertExistingVerificationMethodRelationsCompatible(
+    didState,
+    verificationMethod.publicKeyJwk.crv,
+    ledgerVerificationMethod.id,
   );
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
@@ -267,6 +278,11 @@ export const addVerificationMethodRelation = async (
     didContract,
   );
   assertVerificationMethodRelationAbsent(
+    didState,
+    relation,
+    normalizedMethodId,
+  );
+  assertVerificationMethodRelationCompatible(
     didState,
     relation,
     normalizedMethodId,

@@ -258,6 +258,42 @@ export type VerificationMethodRelation = z.infer<
   typeof VerificationMethodRelationTypeSchema
 >;
 
+export const SigningVerificationMethodRelations = Object.freeze([
+  VerificationMethodRelationType.Authentication,
+  VerificationMethodRelationType.AssertionMethod,
+  VerificationMethodRelationType.CapabilityInvocation,
+  VerificationMethodRelationType.CapabilityDelegation,
+] as const satisfies readonly VerificationMethodRelationType[]);
+
+export const isVerificationMethodRelationCompatibleWithCurve = (
+  relation: VerificationMethodRelationType,
+  curve: CurveType,
+): boolean => {
+  if (relation === VerificationMethodRelationType.KeyAgreement) {
+    return curve === CurveType.X25519;
+  }
+  if (
+    SigningVerificationMethodRelations.some(
+      (signingRelation) => signingRelation === relation,
+    )
+  ) {
+    return curve !== CurveType.X25519;
+  }
+  return false;
+};
+
+export const assertVerificationMethodRelationCompatibleWithCurve = (
+  relation: VerificationMethodRelationType,
+  curve: CurveType,
+  methodId: string,
+): void => {
+  if (!isVerificationMethodRelationCompatibleWithCurve(relation, curve)) {
+    throw new Error(
+      `verification method ${methodId} with curve ${curve} cannot be used for relation ${relation}`,
+    );
+  }
+};
+
 /** Service Endpoint */
 const isUri = (value: string) => {
   try {
