@@ -545,7 +545,7 @@ circuit assertExistingVerificationMethodRelationsCompatible(
 
 // Constructor
 constructor() {
-  contractVersion = 1;
+  contractVersion = 2;
   id = kernel.self();
   active = true;
   deactivated = false;

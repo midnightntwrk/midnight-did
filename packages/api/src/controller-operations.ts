@@ -59,7 +59,11 @@ export const rotateControllerKey = async (
   providers: MidnightDIDProviders,
   newSecretKey: Uint8Array = randomBytes(32),
 ): Promise<FinalizedTxData> => {
-  const nextPrivateState = privateStateFromSecret(newSecretKey);
+  const currentPrivateState = await requirePrivateState(providers);
+  const nextPrivateState = privateStateFromSecret(
+    newSecretKey,
+    currentPrivateState.recoverySecretKey,
+  );
   const nextControllerPublicKey = deriveControllerPublicKey(
     nextPrivateState.secretKey,
   );

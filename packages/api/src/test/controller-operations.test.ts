@@ -33,7 +33,12 @@ describe("controller operations", () => {
     const rotateControllerKeyTx = vi.fn(async () => ({
       public: { txId: "0x123" },
     }));
+    const recoverySecretKey = new Uint8Array(32).fill(99);
     const privateStateProvider = {
+      get: vi.fn(async () => ({
+        recoverySecretKey,
+        secretKey: new Uint8Array(32).fill(98),
+      })),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
     };
@@ -52,12 +57,12 @@ describe("controller operations", () => {
     expect(privateStateProvider.set).toHaveBeenNthCalledWith(
       1,
       MidnightDIDPendingControllerPrivateStateId,
-      { secretKey: newSecretKey },
+      { recoverySecretKey, secretKey: newSecretKey },
     );
     expect(privateStateProvider.set).toHaveBeenNthCalledWith(
       2,
       MidnightDIDPrivateStateId,
-      { secretKey: newSecretKey },
+      { recoverySecretKey, secretKey: newSecretKey },
     );
     expect(privateStateProvider.remove).toHaveBeenCalledWith(
       MidnightDIDPendingControllerPrivateStateId,
@@ -118,7 +123,13 @@ describe("controller operations", () => {
     await expect(
       rotateControllerKey(
         { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
-        { privateStateProvider: { set: vi.fn(), remove: vi.fn() } } as any,
+        {
+          privateStateProvider: {
+            get: vi.fn(async () => ({ secretKey: new Uint8Array(32).fill(4) })),
+            set: vi.fn(),
+            remove: vi.fn(),
+          },
+        } as any,
         new Uint8Array(31),
       ),
     ).rejects.toThrow(/32 bytes/);
@@ -129,6 +140,7 @@ describe("controller operations", () => {
   it("rejects before submitting a transaction if pending state cannot be saved", async () => {
     const rotateControllerKeyTx = vi.fn();
     const privateStateProvider = {
+      get: vi.fn(async () => ({ secretKey: new Uint8Array(32).fill(4) })),
       set: vi.fn(async () => {
         throw new Error("storage offline");
       }),
@@ -152,6 +164,7 @@ describe("controller operations", () => {
       throw new Error("transaction rejected");
     });
     const privateStateProvider = {
+      get: vi.fn(async () => ({ secretKey: new Uint8Array(32).fill(4) })),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
     };
@@ -174,6 +187,7 @@ describe("controller operations", () => {
       public: { txId: "0x123" },
     }));
     const privateStateProvider = {
+      get: vi.fn(async () => ({ secretKey: new Uint8Array(32).fill(4) })),
       set: vi
         .fn()
         .mockResolvedValueOnce(undefined)

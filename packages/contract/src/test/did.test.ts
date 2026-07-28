@@ -68,7 +68,7 @@ describe("DID smart contract", () => {
   it("properly initializes ledger state and private state", () => {
     const simulator = new DIDSimulator();
     const initialLedgerState = simulator.getLedger();
-    expect(initialLedgerState.contractVersion).toEqual(1n);
+    expect(initialLedgerState.contractVersion).toEqual(2n);
     expect(initialLedgerState.controllerPublicKey.x).toBeTypeOf("bigint");
     expect(initialLedgerState.controllerPublicKey.y).toBeTypeOf("bigint");
     expect(initialLedgerState.id.bytes).toBeInstanceOf(Uint8Array);
