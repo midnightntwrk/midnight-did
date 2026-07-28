@@ -7,7 +7,10 @@ export {
   deploy,
   joinContract,
 } from "./contract-lifecycle-operations.js";
-export { rotateControllerKey } from "./controller-operations.js";
+export {
+  recoverControllerKey,
+  rotateControllerKey,
+} from "./controller-operations.js";
 export { getMidnightNetwork } from "./did-subject.js";
 export {
   addAlsoKnownAs,

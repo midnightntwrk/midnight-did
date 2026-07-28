@@ -16,7 +16,10 @@ export const isRestorableDIDPrivateState = (
 ): privateState is MidnightDIDPrivateState =>
   privateState != null &&
   privateState.secretKey instanceof Uint8Array &&
-  privateState.secretKey.length === 32;
+  privateState.secretKey.length === 32 &&
+  (privateState.recoverySecretKey === undefined ||
+    (privateState.recoverySecretKey instanceof Uint8Array &&
+      privateState.recoverySecretKey.length === 32));
 
 export const bindPrivateStateProvider = (
   providers: MidnightDIDProviders,
@@ -86,7 +89,11 @@ export async function initPrivateState(
 
   getLogger().info("Creating the new private state..");
   const secretKey = randomBytes(32);
-  const privateState: MidnightDIDPrivateState = { secretKey };
+  const recoverySecretKey = randomBytes(32);
+  const privateState: MidnightDIDPrivateState = {
+    recoverySecretKey,
+    secretKey,
+  };
   try {
     await savePrivateState(providers, privateState);
   } catch (error: unknown) {

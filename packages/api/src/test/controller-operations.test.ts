@@ -2,13 +2,24 @@ import { deriveControllerPublicKey } from "@midnight-ntwrk/midnight-did-contract
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../controller-authorization.js", () => ({
+  asSchnorrJubjubDigest: vi.fn((digest: unknown) => digest),
   createControllerAuthorization: vi.fn(async () => [
     { announcement: { x: 1n, y: 2n }, response: 3n },
     7n,
   ]),
 }));
 
-import { rotateControllerKey } from "../controller-operations.js";
+vi.mock("../ledger-state.js", () => ({
+  requireDeployedMidnightDIDLedgerState: vi.fn(async () => ({
+    id: { bytes: new Uint8Array(32).fill(1) },
+    version: 7n,
+  })),
+}));
+
+import {
+  recoverControllerKey,
+  rotateControllerKey,
+} from "../controller-operations.js";
 import {
   MidnightDIDPendingControllerPrivateStateId,
   MidnightDIDPrivateStateId,
@@ -58,6 +69,47 @@ describe("controller operations", () => {
     expect(rotateControllerKeyTx.mock.invocationCallOrder[0]).toBeLessThan(
       privateStateProvider.set.mock.invocationCallOrder[1],
     );
+  });
+
+  it("recovers to a locally derived controller public key with recovery private state", async () => {
+    const recoverySecretKey = new Uint8Array(32).fill(9);
+    const newSecretKey = new Uint8Array(32).fill(10);
+    const recoverControllerKeyTx = vi.fn(async () => ({
+      public: { txId: "0x456" },
+    }));
+    const privateStateProvider = {
+      get: vi.fn(async () => ({
+        recoverySecretKey,
+        secretKey: new Uint8Array(32).fill(8),
+      })),
+      set: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+    };
+
+    const result = await recoverControllerKey(
+      { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+      { privateStateProvider } as any,
+      newSecretKey,
+    );
+
+    expect(recoverControllerKeyTx).toHaveBeenCalledWith(
+      deriveControllerPublicKey(newSecretKey),
+      expect.objectContaining({
+        announcement: expect.objectContaining({ x: expect.anything() }),
+      }),
+      7n,
+    );
+    expect(privateStateProvider.set).toHaveBeenNthCalledWith(
+      1,
+      MidnightDIDPendingControllerPrivateStateId,
+      { recoverySecretKey, secretKey: newSecretKey },
+    );
+    expect(privateStateProvider.set).toHaveBeenNthCalledWith(
+      2,
+      MidnightDIDPrivateStateId,
+      { recoverySecretKey, secretKey: newSecretKey },
+    );
+    expect(result).toEqual({ txId: "0x456" });
   });
 
   it("rejects invalid replacement secrets before submitting a transaction", async () => {

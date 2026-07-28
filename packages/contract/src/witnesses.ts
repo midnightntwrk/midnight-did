@@ -24,6 +24,7 @@ import { Ledger } from "./managed/did/contract/index.js";
 
 export type DIDPrivateState = {
   readonly secretKey: Uint8Array;
+  readonly recoverySecretKey?: Uint8Array;
 };
 
 export const witnesses = {
@@ -33,6 +34,17 @@ export const witnesses = {
     DIDPrivateState,
     JubjubPoint
   ] => [privateState, deriveControllerPublicKey(privateState.secretKey)],
+  localRecoveryAuthorityPublicKey: ({
+    privateState
+  }: WitnessContext<Ledger, DIDPrivateState>): [
+    DIDPrivateState,
+    JubjubPoint
+  ] => [
+    privateState,
+    deriveControllerPublicKey(
+      privateState.recoverySecretKey ?? privateState.secretKey
+    )
+  ],
   currentTimestamp: ({
     privateState
   }: WitnessContext<Ledger, DIDPrivateState>): [DIDPrivateState, bigint] => [

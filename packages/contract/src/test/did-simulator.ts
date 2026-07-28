@@ -45,12 +45,13 @@ export class DIDSimulator {
     this.contract = new Contract<DIDPrivateState>(contractWitnesses);
     this.contractAddress = sampleContractAddress();
     const secretKey = new Uint8Array(32).fill(1);
+    const recoverySecretKey = new Uint8Array(32).fill(2);
     const {
       currentPrivateState,
       currentContractState,
       currentZswapLocalState
     } = this.contract.initialState(
-      createConstructorContext({ secretKey }, "0".repeat(64))
+      createConstructorContext({ secretKey, recoverySecretKey }, "0".repeat(64))
     );
     this.circuitContext = createCircuitContext(
       this.contractAddress,
@@ -100,6 +101,17 @@ export class DIDSimulator {
     ];
   }
 
+  public recoveryAuthorization(digest: bigint[]): [any, bigint] {
+    return [
+      signControllerAuthorization(
+        this.getPrivateState().recoverySecretKey ??
+          this.getPrivateState().secretKey,
+        digest as [bigint, bigint, bigint, bigint]
+      ),
+      this.getLedger().version
+    ];
+  }
+
   public controllerAuthorizationForAddAlsoKnownAs(
     value: string
   ): [any, bigint] {
@@ -133,7 +145,34 @@ export class DIDSimulator {
         expectedVersion
       )
     );
-    this.setPrivateState({ secretKey: new Uint8Array(newSecretKey) });
+    this.setPrivateState({
+      ...this.getPrivateState(),
+      secretKey: new Uint8Array(newSecretKey)
+    });
+  }
+
+  public recoverControllerKey(newSecretKey: Uint8Array): void {
+    const nextPublicKey = deriveControllerPublicKey(newSecretKey);
+    const expectedVersion = this.getLedger().version;
+    const [signature] = this.recoveryAuthorization(
+      pureCircuits.recoverControllerKeyAuthorizationDigest(
+        this.getLedger().id,
+        expectedVersion,
+        nextPublicKey
+      )
+    );
+    this.executeCircuit(() =>
+      this.contract.impureCircuits.recoverControllerKey(
+        this.circuitContext,
+        nextPublicKey,
+        signature,
+        expectedVersion
+      )
+    );
+    this.setPrivateState({
+      ...this.getPrivateState(),
+      secretKey: new Uint8Array(newSecretKey)
+    });
   }
 
   public rotateControllerPublicKey(newControllerPublicKey: any): void {

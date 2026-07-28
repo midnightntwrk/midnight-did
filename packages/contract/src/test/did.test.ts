@@ -84,8 +84,15 @@ describe("DID smart contract", () => {
     const initialPrivateState = simulator.getPrivateState();
     expect(initialPrivateState.secretKey).toBeInstanceOf(Uint8Array);
     expect(initialPrivateState.secretKey.length).toEqual(32);
+    expect(initialPrivateState.recoverySecretKey).toBeInstanceOf(Uint8Array);
+    expect(initialPrivateState.recoverySecretKey?.length).toEqual(32);
     expect(initialLedgerState.controllerPublicKey).toEqual(
       ContractExports.deriveControllerPublicKey(initialPrivateState.secretKey)
+    );
+    expect(initialLedgerState.recoveryAuthorityPublicKey).toEqual(
+      ContractExports.deriveControllerPublicKey(
+        initialPrivateState.recoverySecretKey!
+      )
     );
   });
 
@@ -114,12 +121,56 @@ describe("DID smart contract", () => {
       /Invalid Jubjub Schnorr signature/
     );
 
-    simulator.setPrivateState({ secretKey: newSecretKey });
+    simulator.setPrivateState({
+      ...simulator.getPrivateState(),
+      secretKey: newSecretKey
+    });
     simulator.addAlsoKnownAs("did:example:new-secret");
     expect(
       simulator.getLedger().alsoKnownAs.member("did:example:new-secret")
     ).toEqual(true);
     expect(simulator.getLedger().version).toEqual(2n);
+  });
+
+  it("recovers controller control with the recovery public key", () => {
+    const simulator = new DIDSimulator();
+    const oldSecretKey = simulator.getPrivateState().secretKey;
+    const recoveryAuthorityPublicKey =
+      simulator.getLedger().recoveryAuthorityPublicKey;
+    const recoveredSecretKey = keyBytes(77);
+    const recoveredPublicKey =
+      ContractExports.deriveControllerPublicKey(recoveredSecretKey);
+
+    expect(recoveryAuthorityPublicKey).not.toEqual(
+      simulator.getLedger().controllerPublicKey
+    );
+
+    simulator.recoverControllerKey(recoveredSecretKey);
+    expect(simulator.getLedger().controllerPublicKey).toEqual(
+      recoveredPublicKey
+    );
+    expect(simulator.getLedger().recoveryAuthorityPublicKey).toEqual(
+      recoveryAuthorityPublicKey
+    );
+
+    simulator.setPrivateState({
+      ...simulator.getPrivateState(),
+      secretKey: oldSecretKey
+    });
+    expect(() =>
+      simulator.addAlsoKnownAs("did:example:old-controller")
+    ).toThrow(/Invalid Jubjub Schnorr signature/);
+
+    simulator.setPrivateState({
+      ...simulator.getPrivateState(),
+      secretKey: recoveredSecretKey
+    });
+    simulator.addAlsoKnownAs("did:example:recovered-controller");
+    expect(
+      simulator
+        .getLedger()
+        .alsoKnownAs.member("did:example:recovered-controller")
+    ).toEqual(true);
   });
 
   it("rejects controller signatures reused with different operation arguments", () => {
