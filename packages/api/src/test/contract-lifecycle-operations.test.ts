@@ -61,7 +61,30 @@ describe("contract lifecycle operations", () => {
     );
   });
 
-  it("does not join a contract when controller private state is missing", async () => {
+  it("joins with recovery-only private state for controller recovery", async () => {
+    const privateState = {
+      recoverySecretKey: new Uint8Array(32).fill(9),
+    };
+    const privateStateProvider = {
+      setContractAddress: vi.fn(),
+      get: vi.fn(async () => privateState),
+    };
+    const joinedContract = {
+      deployTxData: { public: { contractAddress: "0200abc" } },
+    };
+    vi.mocked(findDeployedContract).mockResolvedValue(joinedContract as any);
+
+    await expect(
+      joinContract({ privateStateProvider } as any, "0200abc"),
+    ).resolves.toBe(joinedContract);
+
+    expect(findDeployedContract).toHaveBeenCalledWith(
+      { privateStateProvider },
+      expect.objectContaining({ initialPrivateState: privateState }),
+    );
+  });
+
+  it("does not join a contract when controller and recovery private state are missing", async () => {
     const privateStateProvider = {
       setContractAddress: vi.fn(),
       get: vi.fn(async () => null),

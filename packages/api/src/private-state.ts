@@ -11,9 +11,13 @@ import {
 const isContractAddressUnsetError = (error: unknown): boolean =>
   error instanceof Error && error.message.includes("Contract address not set");
 
+type ControllerPrivateState = MidnightDIDPrivateState & {
+  readonly secretKey: Uint8Array;
+};
+
 export const isRestorableDIDPrivateState = (
   privateState: MidnightDIDPrivateState | null | undefined,
-): privateState is MidnightDIDPrivateState =>
+): privateState is ControllerPrivateState =>
   privateState != null &&
   privateState.secretKey instanceof Uint8Array &&
   privateState.secretKey.length === 32 &&
@@ -23,12 +27,20 @@ export const isRestorableDIDPrivateState = (
 
 export const isRecoverableDIDPrivateState = (
   privateState: unknown,
-): privateState is { readonly recoverySecretKey: Uint8Array } =>
+): privateState is MidnightDIDPrivateState & {
+  readonly recoverySecretKey: Uint8Array;
+} =>
   privateState != null &&
   typeof privateState === "object" &&
   "recoverySecretKey" in privateState &&
   privateState.recoverySecretKey instanceof Uint8Array &&
   privateState.recoverySecretKey.length === 32;
+
+export const isAttachableDIDPrivateState = (
+  privateState: MidnightDIDPrivateState | null | undefined,
+): privateState is MidnightDIDPrivateState =>
+  isRestorableDIDPrivateState(privateState) ||
+  isRecoverableDIDPrivateState(privateState);
 
 export const bindPrivateStateProvider = (
   providers: MidnightDIDProviders,
@@ -90,7 +102,7 @@ export async function requireRecoverySecretKey(
 export async function requirePrivateState(
   providers: MidnightDIDProviders,
   privateStateId: MidnightDIDPrivateStateIds = MidnightDIDPrivateStateId,
-): Promise<MidnightDIDPrivateState> {
+): Promise<ControllerPrivateState> {
   const privateState = await restorePrivateState(providers, privateStateId);
   if (!isRestorableDIDPrivateState(privateState)) {
     throw new Error(
@@ -98,6 +110,30 @@ export async function requirePrivateState(
     );
   }
   return privateState;
+}
+
+export async function requireAttachablePrivateState(
+  providers: MidnightDIDProviders,
+  privateStateId: MidnightDIDPrivateStateIds = MidnightDIDPrivateStateId,
+): Promise<MidnightDIDPrivateState> {
+  let providedPrivateState: MidnightDIDPrivateState | null = null;
+  try {
+    providedPrivateState =
+      await providers.privateStateProvider.get(privateStateId);
+  } catch (error: unknown) {
+    if (!isContractAddressUnsetError(error)) {
+      throw error;
+    }
+    getLogger().info(
+      "Private state restore skipped (contract address not set yet).",
+    );
+  }
+  if (!isAttachableDIDPrivateState(providedPrivateState)) {
+    throw new Error(
+      "DID private state is missing or malformed; import a controller or recovery secret before joining this contract",
+    );
+  }
+  return providedPrivateState;
 }
 
 export interface RecoverPendingControllerPrivateStateOptions {

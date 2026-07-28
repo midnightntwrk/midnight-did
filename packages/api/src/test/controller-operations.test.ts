@@ -192,6 +192,16 @@ describe("controller operations", () => {
     ).resolves.toEqual({ txId: "0xdef" });
 
     expect(privateStateProvider.get).not.toHaveBeenCalled();
+    expect(privateStateProvider.set).toHaveBeenNthCalledWith(
+      1,
+      MidnightDIDPendingControllerPrivateStateId,
+      { secretKey: newSecretKey },
+    );
+    expect(privateStateProvider.set).toHaveBeenNthCalledWith(
+      2,
+      MidnightDIDPrivateStateId,
+      { secretKey: newSecretKey },
+    );
   });
 
   it("rejects recovery before submitting a transaction if pending state cannot be saved", async () => {

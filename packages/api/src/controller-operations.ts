@@ -28,7 +28,7 @@ import {
 const privateStateFromSecret = (
   secretKey: Uint8Array,
   recoverySecretKey?: Uint8Array,
-): MidnightDIDPrivateState => {
+): MidnightDIDPrivateState & { readonly secretKey: Uint8Array } => {
   if (!(secretKey instanceof Uint8Array) || secretKey.length !== 32) {
     throw new Error("DID controller secret key must be 32 bytes");
   }
@@ -136,9 +136,10 @@ export const recoverControllerKey = async (
 ): Promise<FinalizedTxData> => {
   const activeRecoverySecretKey =
     recoverySecretKey ?? (await requireRecoverySecretKey(providers));
+  const recoverySecretFromStorage = recoverySecretKey === undefined;
   const nextPrivateState = privateStateFromSecret(
     newSecretKey,
-    activeRecoverySecretKey,
+    recoverySecretFromStorage ? activeRecoverySecretKey : undefined,
   );
   const nextControllerPublicKey = deriveControllerPublicKey(
     nextPrivateState.secretKey,
