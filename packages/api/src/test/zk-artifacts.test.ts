@@ -1,10 +1,11 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
+import { gzipSync } from "node:zlib";
 import os from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createMidnightDidZkArtifactFetchBaseUrl,
@@ -36,6 +37,58 @@ const writeFixtureFile = (
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, contents);
   return filePath;
+};
+
+const writeOctal = (
+  header: Buffer,
+  offset: number,
+  length: number,
+  value: number,
+): void => {
+  header.write(
+    value
+      .toString(8)
+      .padStart(length - 1, "0")
+      .slice(0, length - 1),
+    offset,
+    length - 1,
+    "ascii",
+  );
+  header[offset + length - 1] = 0;
+};
+
+const tarEntry = (name: string, contents: Buffer): Buffer => {
+  const header = Buffer.alloc(512);
+  header.write(name, 0, Math.min(Buffer.byteLength(name), 100), "utf8");
+  writeOctal(header, 100, 8, 0o644);
+  writeOctal(header, 108, 8, 0);
+  writeOctal(header, 116, 8, 0);
+  writeOctal(header, 124, 12, contents.byteLength);
+  writeOctal(header, 136, 12, 0);
+  header.fill(" ", 148, 156);
+  header[156] = "0".charCodeAt(0);
+  header.write("ustar", 257, 5, "ascii");
+  header.write("00", 263, 2, "ascii");
+  const checksum = header.reduce((sum, byte) => sum + byte, 0);
+  header.write(checksum.toString(8).padStart(6, "0"), 148, 6, "ascii");
+  header[154] = 0;
+  header[155] = 0x20;
+
+  const paddingLength = (512 - (contents.byteLength % 512)) % 512;
+  return Buffer.concat([header, contents, Buffer.alloc(paddingLength)]);
+};
+
+const writeGzipTarArchive = (
+  archivePath: string,
+  entries: readonly { readonly name: string; readonly contents: string }[],
+): void => {
+  const body = Buffer.concat(
+    entries.map((entry) => tarEntry(entry.name, Buffer.from(entry.contents))),
+  );
+  fs.writeFileSync(
+    archivePath,
+    gzipSync(Buffer.concat([body, Buffer.alloc(1024)])),
+  );
 };
 
 const createFixtureArchive = (
@@ -263,6 +316,80 @@ describe("ZK artifact consumption helpers", () => {
     );
   });
 
+  it("rejects archive size-limit violations", () => {
+    const fixture = createFixtureArchive();
+
+    expectArtifactError(
+      () =>
+        unpackMidnightDidZkArtifactArchive({
+          archivePath: fixture.archivePath,
+          limits: { archiveBytes: 1 },
+          outputDir: path.join(makeTempRoot(), "unpacked"),
+        }),
+      "unsafe_archive",
+    );
+  });
+
+  it("rejects archive entry-count limit violations", () => {
+    const fixture = createFixtureArchive();
+
+    expectArtifactError(
+      () =>
+        unpackMidnightDidZkArtifactArchive({
+          archivePath: fixture.archivePath,
+          limits: { entryCount: 1 },
+          outputDir: path.join(makeTempRoot(), "unpacked"),
+        }),
+      "unsafe_archive",
+    );
+  });
+
+  it("rejects extracted size-limit violations", () => {
+    const fixture = createFixtureArchive();
+
+    expectArtifactError(
+      () =>
+        unpackMidnightDidZkArtifactArchive({
+          archivePath: fixture.archivePath,
+          limits: { extractedBytes: 1 },
+          outputDir: path.join(makeTempRoot(), "unpacked"),
+        }),
+      "unsafe_archive",
+    );
+  });
+
+  it("does not count pre-existing output files against extracted artifact limits", () => {
+    const fixture = createFixtureArchive();
+    const outputDir = path.join(makeTempRoot(), "unpacked");
+    writeFixtureFile(outputDir, "unrelated.bin", "x".repeat(4096));
+
+    const bundle = unpackMidnightDidZkArtifactArchive({
+      archivePath: fixture.archivePath,
+      limits: { extractedBytes: 2048 },
+      outputDir,
+    });
+
+    expect(bundle.zkConfigPath).toBe(outputDir);
+    expect(fs.existsSync(path.join(outputDir, "unrelated.bin"))).toBe(true);
+  });
+
+  it("rejects path traversal archive entries before extraction", () => {
+    const tempRoot = makeTempRoot();
+    const archivePath = path.join(tempRoot, "traversal.tar.gz");
+    writeGzipTarArchive(archivePath, [
+      { name: "../manifest.json", contents: "{}\n" },
+    ]);
+
+    expectArtifactError(
+      () =>
+        unpackMidnightDidZkArtifactArchive({
+          archivePath,
+          outputDir: path.join(makeTempRoot(), "unpacked"),
+        }),
+      "unsafe_archive",
+    );
+  });
+
   it("rejects unsafe archive entry types", () => {
     const tempRoot = makeTempRoot();
     const contentRoot = path.join(tempRoot, "content");
@@ -356,6 +483,43 @@ describe("ZK artifact consumption helpers", () => {
     ]);
     expect(bundle.providers.fetchBaseUrl).toBe("https://example.com/zk");
     expect(bundle.manifest.version).toBe("0.4.0-rc2");
+  });
+
+  it("reports failed network artifact downloads as typed errors", async () => {
+    await expect(
+      downloadMidnightDidGithubReleaseZkArtifacts({
+        fetch: async () => ({
+          ok: false,
+          status: 503,
+          statusText: "Service Unavailable",
+          arrayBuffer: async () => new ArrayBuffer(0),
+          text: async () => "",
+        }),
+        outputDir: path.join(makeTempRoot(), "unpacked"),
+        version: "0.4.0-rc2",
+      }),
+    ).rejects.toMatchObject({ code: "download_failed" });
+  });
+
+  it("rejects oversized network archives before buffering downloads", async () => {
+    const arrayBuffer = vi.fn(async () => new ArrayBuffer(2));
+
+    await expect(
+      downloadMidnightDidGithubReleaseZkArtifacts({
+        fetch: async () => ({
+          ok: true,
+          status: 200,
+          statusText: "OK",
+          arrayBuffer,
+          headers: { get: () => "2" },
+          text: async () => "",
+        }),
+        limits: { archiveBytes: 1 },
+        outputDir: path.join(makeTempRoot(), "unpacked"),
+        version: "0.4.0-rc2",
+      }),
+    ).rejects.toMatchObject({ code: "unsafe_archive" });
+    expect(arrayBuffer).not.toHaveBeenCalled();
   });
 
   it("reports malformed downloaded manifests as typed errors", async () => {
