@@ -1127,6 +1127,8 @@ Implementations SHOULD use secure storage for private keys. They MAY use random 
 
 The controller secret is a high-value wallet-local secret. A party that can produce valid controller authorization signatures for the current DID version can perform controller-gated mutations. Loss of the controller secret prevents ordinary controller-gated updates until `recoverControllerKey` is used with the dedicated recovery authority. Loss of both the controller secret and recovery authority secret makes further updates impossible in this specification version.
 
+The recovery authority secret is also high-value custody material. A party that can produce a valid recovery authorization can rotate the active controller key, and this method version does not provide an on-chain recovery-authority rotation circuit. Implementations SHOULD keep the recovery authority secret in separate or colder custody than the active controller secret where operationally possible.
+
 Implementations SHOULD generate distinct controller and recovery authority secrets for distinct DIDs. Reusing either secret across DID contracts causes the same public key to appear in multiple public states and can become a correlation handle.
 
 Deactivation is irreversible. A deactivated DID cannot be reactivated, updated, or recovered, but its public state and historical ledger transactions remain visible to ledger observers, indexers, resolvers, and archives. Deactivation MUST NOT be treated as data erasure and is not a recovery mechanism after controller custody has already been lost.
