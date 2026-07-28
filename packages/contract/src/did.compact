@@ -429,6 +429,14 @@ circuit assertControllerPublicKeyChanges(newControllerPublicKey: JubjubPoint): [
   );
 }
 
+circuit assertControllerPublicKeyDistinctFromRecoveryAuthority(newControllerPublicKey: JubjubPoint): [] {
+  assert(
+    jubjubPointX(newControllerPublicKey) != jubjubPointX(recoveryAuthorityPublicKey) ||
+    jubjubPointY(newControllerPublicKey) != jubjubPointY(recoveryAuthorityPublicKey),
+    "New controller key matches recovery authority key"
+  );
+}
+
 circuit recordUpdate(): [] {
   operationCount.increment(1);
   version.increment(1);
@@ -577,6 +585,7 @@ export circuit rotateControllerKey(
     rotateControllerKeyAuthorizationDigest(id, disclose(expectedVersion), disclosedNewControllerPublicKey)
   );
   assertControllerPublicKeyChanges(disclosedNewControllerPublicKey);
+  assertControllerPublicKeyDistinctFromRecoveryAuthority(disclosedNewControllerPublicKey);
   controllerPublicKey = disclosedNewControllerPublicKey;
 
   recordUpdate();
@@ -594,6 +603,7 @@ export circuit recoverControllerKey(
     recoverControllerKeyAuthorizationDigest(id, disclose(expectedVersion), disclosedNewControllerPublicKey)
   );
   assertControllerPublicKeyChanges(disclosedNewControllerPublicKey);
+  assertControllerPublicKeyDistinctFromRecoveryAuthority(disclosedNewControllerPublicKey);
   controllerPublicKey = disclosedNewControllerPublicKey;
 
   recordUpdate();

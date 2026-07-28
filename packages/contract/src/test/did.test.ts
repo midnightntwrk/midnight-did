@@ -275,6 +275,25 @@ describe("DID smart contract", () => {
         currentVersion
       )
     ).toThrow(/New controller key matches current controller key/);
+
+    const recoveryAuthorityPublicKey =
+      simulator.getLedger().recoveryAuthorityPublicKey;
+    const [recoveryKeySignature, recoveryKeyVersion] =
+      simulator.recoveryAuthorization(
+        pureCircuits.recoverControllerKeyAuthorizationDigest(
+          simulator.getLedger().id,
+          simulator.getLedger().version,
+          recoveryAuthorityPublicKey
+        )
+      );
+    expect(() =>
+      simulator.contract.impureCircuits.recoverControllerKey(
+        simulator.circuitContext,
+        recoveryAuthorityPublicKey,
+        recoveryKeySignature,
+        recoveryKeyVersion
+      )
+    ).toThrow(/New controller key matches recovery authority key/);
   });
 
   it("rejects recovery after deactivation", () => {

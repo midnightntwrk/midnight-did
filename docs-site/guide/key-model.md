@@ -85,10 +85,13 @@ verification method and is not a second active controller. It can only authorize
 recovery-authority Schnorr signature.
 
 Back up both the controller private state and recovery authority private state
-before using a DID for production control. If the active controller secret is
-lost, use the recovery authority to rotate to a fresh controller key. If both
-secrets are lost, the DID remains resolvable but no update, rotation, service
-change, verification-method change, or deactivation can be performed.
+before using a DID for production control. The prototype SDK stores both secrets
+in the same private-state record by default; applications that require cold or
+separate recovery custody must add that custody separation above the SDK storage
+layer. If the active controller secret is lost, use the recovery authority to
+rotate to a fresh controller key. If both secrets are lost, the DID remains
+resolvable but no update, rotation, service change, verification-method change,
+or deactivation can be performed.
 
 For organizational DIDs, treat backup, custody rotation, and operator access as
 application responsibilities. If an organization needs multi-person recovery or

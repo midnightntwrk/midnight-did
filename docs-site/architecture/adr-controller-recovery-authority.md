@@ -61,8 +61,9 @@ verification relationships, services, aliases, deactivation state, or the
 recovery authority itself.
 
 Wallet/API private state may keep a `recoverySecretKey` alongside the active
-controller `secretKey`, but applications should treat the recovery secret as a
-cold or separately backed-up authority.
+controller `secretKey`. The prototype SDK stores both secrets in one
+private-state record by default; applications that require cold or separate
+recovery custody must add that separation above the SDK storage layer.
 
 ## Consequences
 

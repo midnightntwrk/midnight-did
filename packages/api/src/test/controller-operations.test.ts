@@ -117,6 +117,84 @@ describe("controller operations", () => {
     expect(result).toEqual({ txId: "0x456" });
   });
 
+  it("rejects recovery before submitting a transaction if pending state cannot be saved", async () => {
+    const recoverControllerKeyTx = vi.fn();
+    const privateStateProvider = {
+      get: vi.fn(async () => ({
+        recoverySecretKey: new Uint8Array(32).fill(9),
+        secretKey: new Uint8Array(32).fill(8),
+      })),
+      set: vi.fn(async () => {
+        throw new Error("recovery storage offline");
+      }),
+      remove: vi.fn(),
+    };
+
+    await expect(
+      recoverControllerKey(
+        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        { privateStateProvider } as any,
+        new Uint8Array(32).fill(11),
+      ),
+    ).rejects.toThrow(/recovery storage offline/);
+
+    expect(recoverControllerKeyTx).not.toHaveBeenCalled();
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+  });
+
+  it("clears pending recovery state when the transaction fails before finalization", async () => {
+    const recoverControllerKeyTx = vi.fn(async () => {
+      throw new Error("recovery transaction rejected");
+    });
+    const privateStateProvider = {
+      get: vi.fn(async () => ({
+        recoverySecretKey: new Uint8Array(32).fill(9),
+        secretKey: new Uint8Array(32).fill(8),
+      })),
+      set: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+    };
+
+    await expect(
+      recoverControllerKey(
+        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        { privateStateProvider } as any,
+        new Uint8Array(32).fill(12),
+      ),
+    ).rejects.toThrow(/recovery transaction rejected/);
+
+    expect(privateStateProvider.remove).toHaveBeenCalledWith(
+      MidnightDIDPendingControllerPrivateStateId,
+    );
+  });
+
+  it("keeps pending recovery state when active promotion fails after finalization", async () => {
+    const recoverControllerKeyTx = vi.fn(async () => ({
+      public: { txId: "0x789" },
+    }));
+    const privateStateProvider = {
+      get: vi.fn(async () => ({
+        recoverySecretKey: new Uint8Array(32).fill(9),
+        secretKey: new Uint8Array(32).fill(8),
+      })),
+      set: vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error("recovery active write failed")),
+      remove: vi.fn(),
+    };
+
+    await expect(
+      recoverControllerKey(
+        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        { privateStateProvider } as any,
+        new Uint8Array(32).fill(13),
+      ),
+    ).rejects.toThrow(/recovery active write failed/);
+
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+  });
+
   it("rejects invalid replacement secrets before submitting a transaction", async () => {
     const rotateControllerKeyTx = vi.fn();
 
