@@ -1,27 +1,69 @@
+# Default ownership for Midnight DID product code, documentation, and project metadata.
 * @midnightntwrk/ex-identus
 
+# Product packages.
 /packages/contract/** @midnightntwrk/ex-identus
 /packages/jubjub-schnorr/** @midnightntwrk/ex-identus
 /packages/domain/** @midnightntwrk/ex-identus
 /packages/did/** @midnightntwrk/ex-identus
 /packages/api/** @midnightntwrk/ex-identus
 
+# Specifications, documentation, and public examples.
 /docs/** @midnightntwrk/ex-identus
 /docs-site/** @midnightntwrk/ex-identus
 /w3c-spec/** @midnightntwrk/ex-identus
+/glossary.md @midnightntwrk/ex-identus
+/README.md @midnightntwrk/ex-identus
+/CHANGELOG.md @midnightntwrk/ex-identus
+
+# Build, validation, and developer tooling.
 /scripts/** @midnightntwrk/ex-identus
+/run.sh @midnightntwrk/ex-identus
+/run-core.sh @midnightntwrk/ex-identus
+/run-api.sh @midnightntwrk/ex-identus
+/run-docs.sh @midnightntwrk/ex-identus
+/start-docs.sh @midnightntwrk/ex-identus
+/upgrade-libs.sh @midnightntwrk/ex-identus
+/turbo.json @midnightntwrk/ex-identus
+/tsconfig.json @midnightntwrk/ex-identus
+/package.json @midnightntwrk/ex-identus
+/pnpm-lock.yaml @midnightntwrk/ex-identus
+/pnpm-workspace.yaml @midnightntwrk/ex-identus
+/.npmrc @midnightntwrk/ex-identus
+/.nvmrc @midnightntwrk/ex-identus
 /nix/** @midnightntwrk/ex-identus
 /flake.lock @midnightntwrk/ex-identus
 /flake.nix @midnightntwrk/ex-identus
 
+# Release and artifact publishing surfaces.
+/scripts/publish-*.sh @midnightntwrk/ex-identus @midnightntwrk/mn-sre
+/scripts/release-*.sh @midnightntwrk/ex-identus @midnightntwrk/mn-sre
+/scripts/prepare-release-version.mjs @midnightntwrk/ex-identus @midnightntwrk/mn-sre
+/scripts/build-zk-artifact-bundle.mjs @midnightntwrk/ex-identus @midnightntwrk/mn-sre
+/scripts/check-zk-artifact-bundle.mjs @midnightntwrk/ex-identus @midnightntwrk/mn-sre
+/proof-server-bootstrap/** @midnightntwrk/ex-identus @midnightntwrk/mn-sre
+/artifacts/** @midnightntwrk/ex-identus @midnightntwrk/mn-sre
+
+# GitHub Actions and repository automation. SRE owns workflow safety with the product team.
 /.github/workflows/** @midnightntwrk/ex-identus @midnightntwrk/mn-sre
-/.github/workflows/scan.yaml @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
+/.github/workflows/publish.yml @midnightntwrk/ex-identus @midnightntwrk/mn-sre
+/.github/workflows/release-smoke.yml @midnightntwrk/ex-identus @midnightntwrk/mn-sre
 /.github/dependabot.yml @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
+/renovate.json @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
+
+# Security scanning and policy files need both security and SRE visibility.
+/.github/workflows/scan.yaml @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
+/.github/workflows/scorecard.yml @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
+/.semgrepignore @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
+/SECURITY.md @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
+/CODEOWNERS @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
+
+# Community and contribution files.
 /.github/ISSUE_TEMPLATE/** @midnightntwrk/ex-identus
 /.github/pull_request_template.md @midnightntwrk/ex-identus
-
-CODE_OF_CONDUCT.md @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
-CODEOWNERS @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
-CONTRIBUTING.md @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
-LICENSE @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
-SECURITY.md @midnightntwrk/ex-identus @midnightntwrk/mn-security @midnightntwrk/mn-sre
+/CODE_OF_CONDUCT.md @midnightntwrk/ex-identus @midnightntwrk/mn-security
+/CONTRIBUTING.md @midnightntwrk/ex-identus
+/LICENSE @midnightntwrk/ex-identus
+/AGENT.md @midnightntwrk/ex-identus
+/.devloops @midnightntwrk/ex-identus @midnightntwrk/mn-sre
+/.pi/settings.json @midnightntwrk/ex-identus
