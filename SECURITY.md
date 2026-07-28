@@ -24,11 +24,12 @@ signatures. The controller secret stays in wallet/private-state storage; proof
 servers receive operation-bound signatures and public inputs, not the controller
 secret. Wallets and SDKs must still treat the controller secret as high-value
 custody material: compromise permits controller-gated updates, while loss makes
-future updates impossible unless a future recovery mechanism is introduced.
+ordinary updates impossible unless the dedicated recovery authority remains
+available.
 
-Use a distinct controller secret per DID. Reusing a controller secret across
-DIDs creates a public correlation handle because the same controller public key
-can appear in multiple contracts.
+Use distinct controller and recovery authority secrets per DID. Reusing either
+secret across DIDs creates a public correlation handle because the same public
+key can appear in multiple contracts.
 
 ### Delegated proving
 
@@ -41,10 +42,12 @@ Document private keys to the prover.
 
 ### Key loss, rotation, and deactivation
 
-There is no on-method recovery path for a lost controller secret in the current
-contract. Back up controller private state before using a DID for production
-control, and verify rotation flows preserve the replacement secret until the
-ledger state has been reconciled.
+The contract includes a dedicated recovery authority public key that can rotate
+the active controller key via `recoverControllerKey`. Back up both controller and
+recovery private state before using a DID for production control, and verify
+rotation/recovery flows preserve the replacement secret until the ledger state
+has been reconciled. Loss of both controller and recovery authority secrets
+freezes the DID.
 
 Deactivation is irreversible. It prevents future updates, but it does not erase
 public ledger history or prior DID Document contents from observers, indexers,

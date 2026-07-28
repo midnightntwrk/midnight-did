@@ -641,12 +641,20 @@ controller secret is not a circuit witness and MUST NOT be sent to delegated
 proving infrastructure.
 
 The controller secret is not stored on ledger. SDKs MUST persist it in the
-wallet's private-state storage, and wallets SHOULD provide backup or recovery
-for this private state. Loss of the controller secret makes subsequent DID
-updates, controller rotation, and deactivation impossible unless a future
-recovery mechanism is introduced. The current contract stores one controller
-public key and does not provide multi-controller, threshold, social-recovery, or
-emergency-deactivation circuits.
+wallet's private-state storage. The contract also stores a dedicated
+`recoveryAuthorityPublicKey: JubjubPoint`. The recovery authority is not a DID
+Document verification method and is not a second active controller. It can only
+authorize `recoverControllerKey`, which rotates `controllerPublicKey` after
+verifying a recovery-authority Schnorr signature bound to the DID contract id,
+current version, recovery operation name, and replacement controller public key.
+
+Wallets SHOULD back up the active controller private state and the recovery
+authority private state separately. Loss of the controller secret makes ordinary
+controller-gated updates, controller rotation, and deactivation impossible until
+`recoverControllerKey` is used with the recovery authority. Loss of both the
+controller secret and recovery authority secret makes subsequent DID updates
+impossible. The current contract does not provide multi-controller, threshold,
+social-recovery, recovery-authority rotation, or emergency-deactivation circuits.
 
 Controller rotation is performed with a locally derived replacement Jubjub
 `controllerPublicKey`. The replacement controller secret is generated locally by
@@ -677,7 +685,8 @@ The following table summarizes the on-chain ledger state exported by the contrac
 | Field                          | Type                                         | Description |
 |--------------------------------|----------------------------------------------|-------------|
 | contractVersion                | `Uint<32>`                                   | Contract schema/version number to support upgrades and compatibility checks. |
-| controllerPublicKey            | `JubjubPoint`                                | Controller public key used to verify wallet-local controller authorization signatures. |
+| controllerPublicKey            | `JubjubPoint`                                | Active controller public key used to verify wallet-local controller authorization signatures. |
+| recoveryAuthorityPublicKey      | `JubjubPoint`                                | Dedicated recovery authority public key used only by `recoverControllerKey` to rotate `controllerPublicKey`. It is not emitted as a DID Document verification method. |
 | id                             | `ContractAddress`                            | Smart‑contract address (32‑byte / 64‑hex) that uniquely identifies the DID on Midnight. |
 | alsoKnownAs                    | `Set<Opaque<"string">>`                      | The DID Document’s `alsoKnownAs` field; allows to set the alias for the DID identity. |
 | version                        | `Counter`                                    | Monotonic on-chain revision counter for the DID state. Must be set to the `versionId` property of the DIDDocument. |
@@ -816,6 +825,7 @@ Conformance note: due to Compact language limitations for rich URI/data-model va
 
 Each update operation is implemented by a small set/toggle circuit surface in the `did.compact` contract:
 - `rotateControllerKey` - rotates the DID controller commitment to a locally derived controller public key
+- `recoverControllerKey` - rotates the DID controller commitment using a dedicated recovery authority signature
 - `setVerificationMethod` - adds or updates an opaque JWK verification method according to a `MapMutation.Insert` or `MapMutation.Update` value
 - `removeVerificationMethod` - removes an opaque JWK verification method
 - `setSchnorrJubjubVerificationMethod` - adds or updates a native SchnorrJubjub verification method according to a `MapMutation.Insert` or `MapMutation.Update` value
@@ -833,11 +843,12 @@ Each mutating circuit increments the version counter and updates the `updated` t
 
 The circuit implementations are in [`packages/contract/src/did.compact`](../packages/contract/src/did.compact), and the API helpers that call these circuits are in [`packages/api/src/lib.ts`](../packages/api/src/lib.ts).
 
-Controller rotation note:
+Controller rotation and recovery notes:
 - `rotateControllerKey` accepts only the next `controllerPublicKey`, not the next secret; authorization is supplied as a current-version controller signature.
-- The API helper generates a new 32-byte secret, derives the next public key locally with the contract package's `deriveControllerPublicKey` helper, submits the rotation transaction, and stores the new secret in private state after the transaction succeeds.
-- If the rotation transaction finalizes but private-state persistence fails, the wallet must recover the same new secret to continue updating the DID.
-- Implementations that bypass the API and submit an arbitrary `newControllerPublicKey` are responsible for retaining the matching preimage. Losing the matching secret makes subsequent DID updates impossible.
+- `recoverControllerKey` accepts only the next `controllerPublicKey`, a recovery-authority signature, and the expected version. The recovery authority can rotate the active controller key but cannot mutate DID Document content, verification methods, services, aliases, deactivation state, or the recovery authority itself.
+- The API helper generates a new 32-byte secret, derives the next public key locally with the contract package's `deriveControllerPublicKey` helper, submits the rotation or recovery transaction, and stores the new secret in private state after the transaction succeeds.
+- If the transaction finalizes but private-state persistence fails, the wallet must recover the same new secret to continue updating the DID.
+- Implementations that bypass the API and submit an arbitrary `newControllerPublicKey` are responsible for retaining the matching preimage. Losing the matching secret makes subsequent DID updates impossible unless the recovery authority remains available.
 
 ### 7.3.1 Add Verification Method
 
@@ -1043,7 +1054,37 @@ Example:
 await removeAlsoKnownAs(didContract, providers, 'did:example:aka-1');
 ```
 
-### 7.3.11. Deactivate
+### 7.3.11. Recover Controller Key
+
+Rotates the active controller public key using the dedicated recovery authority.
+This is a break-glass recovery operation for loss of the active controller
+secret; it is not a general DID Document update authority.
+
+- Inputs:
+  - `newControllerPublicKey` — replacement Jubjub controller public key.
+  - `recoverySignature` — Schnorr signature by the private key corresponding to
+    `recoveryAuthorityPublicKey`.
+  - `expectedVersion` — caller-expected current DID version.
+- Effects:
+  - Replaces `controllerPublicKey` with `newControllerPublicKey`.
+  - Increments the DID version and updates `updated`.
+- Constraints:
+  - The recovery signature MUST be bound to the DID contract id, expected
+    version, recovery operation name, and `newControllerPublicKey`.
+  - Stale `expectedVersion` values MUST fail.
+  - The new controller public key MUST differ from the current controller public
+    key.
+  - The circuit MUST NOT update DID Document verification methods, verification
+    relationships, services, aliases, deactivation state, or
+    `recoveryAuthorityPublicKey`.
+  - Recovery after deactivation MUST fail.
+
+Example:
+```typescript
+await recoverControllerKey(didContract, providers);
+```
+
+### 7.3.12. Deactivate
 
 Marks the DID as deactivated on-chain. The public state remains readable for auditability, but no further update operations are permitted.
 
@@ -1069,11 +1110,11 @@ Implementations SHOULD use secure storage for private keys. They MAY use random 
 
 ## 8.1. Controller custody, key loss, and deactivation
 
-The controller secret is a high-value wallet-local secret. A party that can produce valid controller authorization signatures for the current DID version can perform controller-gated mutations. Loss of the controller secret makes further updates impossible in this specification version unless the controller was rotated before loss or a future recovery mechanism is introduced.
+The controller secret is a high-value wallet-local secret. A party that can produce valid controller authorization signatures for the current DID version can perform controller-gated mutations. Loss of the controller secret prevents ordinary controller-gated updates until `recoverControllerKey` is used with the dedicated recovery authority. Loss of both the controller secret and recovery authority secret makes further updates impossible in this specification version.
 
-Implementations SHOULD generate distinct controller secrets for distinct DIDs. Reusing a controller secret across DID contracts causes the same controller public key to appear in multiple public states and can become a correlation handle.
+Implementations SHOULD generate distinct controller and recovery authority secrets for distinct DIDs. Reusing either secret across DID contracts causes the same public key to appear in multiple public states and can become a correlation handle.
 
-Deactivation is irreversible. A deactivated DID cannot be reactivated or updated, but its public state and historical ledger transactions remain visible to ledger observers, indexers, resolvers, and archives. Deactivation MUST NOT be treated as data erasure and is not a recovery mechanism after controller custody has already been lost.
+Deactivation is irreversible. A deactivated DID cannot be reactivated, updated, or recovered, but its public state and historical ledger transactions remain visible to ledger observers, indexers, resolvers, and archives. Deactivation MUST NOT be treated as data erasure and is not a recovery mechanism after controller custody has already been lost.
 
 ## 8.2. Delegated proving and proof servers
 
