@@ -92,8 +92,8 @@ while IFS= read -r workspace; do
     continue
   fi
 
-  echo "[publish-npm-packages] Publishing ${package_name}@${version} with npm tag ${npm_tag}"
-  publish_args=(publish --no-git-checks --registry "${registry}" --tag "${npm_tag}")
+  echo "[publish-npm-packages] Publishing ${package_name}@${version} with npm tag ${npm_tag} and Sigstore provenance"
+  publish_args=(publish --provenance --no-git-checks --registry "${registry}" --tag "${npm_tag}")
   if [[ -n "${publish_access}" ]]; then
     publish_args+=(--access "${publish_access}")
   fi
