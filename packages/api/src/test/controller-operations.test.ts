@@ -1,5 +1,5 @@
 import { deriveControllerPublicKey } from "@midnight-ntwrk/midnight-did-contract";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../controller-authorization.js", () => ({
   asSchnorrJubjubDigest: vi.fn((digest: unknown) => digest),
@@ -32,6 +32,9 @@ const mockLedgerForRecovery = (recoverySecretKey: Uint8Array): void => {
 };
 
 describe("controller operations", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
   it("rotates to a locally derived controller public key and stores the new secret", async () => {
     const newSecretKey = new Uint8Array(
       Array.from({ length: 32 }, (_, index) => index + 1),
@@ -243,6 +246,28 @@ describe("controller operations", () => {
       MidnightDIDPrivateStateId,
       { recoverySecretKey: storedRecoverySecretKey, secretKey: newSecretKey },
     );
+  });
+
+  it("rejects invalid explicit recovery secrets before querying ledger state", async () => {
+    const recoverControllerKeyTx = vi.fn();
+    const privateStateProvider = {
+      get: vi.fn(),
+      set: vi.fn(),
+      remove: vi.fn(),
+    };
+
+    await expect(
+      recoverControllerKey(
+        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        { privateStateProvider } as any,
+        new Uint8Array(32).fill(22),
+        new Uint8Array(31),
+      ),
+    ).rejects.toThrow(/recovery secret key must be 32 bytes/);
+
+    expect(requireDeployedMidnightDIDLedgerState).not.toHaveBeenCalled();
+    expect(privateStateProvider.set).not.toHaveBeenCalled();
+    expect(recoverControllerKeyTx).not.toHaveBeenCalled();
   });
 
   it("rejects contracts without recovery authority before saving pending state", async () => {

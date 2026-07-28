@@ -150,6 +150,13 @@ export const recoverControllerKey = async (
   newSecretKey: Uint8Array = randomBytes(32),
   recoverySecretKey?: Uint8Array,
 ): Promise<FinalizedTxData> => {
+  if (
+    recoverySecretKey !== undefined &&
+    (!(recoverySecretKey instanceof Uint8Array) ||
+      recoverySecretKey.length !== 32)
+  ) {
+    throw new Error("DID recovery secret key must be 32 bytes");
+  }
   const activeRecoverySecretKey =
     recoverySecretKey ?? (await requireRecoverySecretKey(providers));
   const ledgerState = await requireDeployedMidnightDIDLedgerState(
