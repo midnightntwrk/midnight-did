@@ -1,73 +1,51 @@
-# Controller recovery prototype
+# Controller recovery design
 
-Status: research prototype; not a normative method change yet. See also [ADR: Controller Recovery Authority](/architecture/adr-controller-recovery-authority).
+Status: implemented method feature. See also [ADR: Controller Recovery Authority](/architecture/adr-controller-recovery-authority).
 
 ## Problem
 
-The current DID contract has one controller public key. If the matching wallet-local controller secret is lost, the DID remains resolvable but cannot be updated, rotated, or deactivated. PR #328 documented this explicitly.
+The DID contract has one active controller public key. If the matching wallet-local controller secret is lost, the DID remains resolvable but cannot be updated, rotated, or deactivated by ordinary controller-gated operations.
 
-## Options considered
+## Selected design: `recoveryAuthorityPublicKey`
 
-### A. Add `recoveryAuthorityPublicKey`
-
-Add one ledger field, `recoveryAuthorityPublicKey: JubjubPoint`, initialized from wallet private state at deployment. Add one narrowly scoped circuit:
+The contract stores one dedicated `recoveryAuthorityPublicKey: JubjubPoint`, initialized from wallet private state at deployment. A narrowly scoped circuit recovers control:
 
 - `recoverControllerKey(newControllerPublicKey, recoverySignature, expectedVersion)`
 
-The recovery signature is checked against `recoveryAuthorityPublicKey` and can only replace `controllerPublicKey`. It cannot mutate DID document data, services, verification methods, relationships, or deactivation state.
+The recovery signature is checked against `recoveryAuthorityPublicKey` and can only replace `controllerPublicKey`. It cannot mutate DID document data, services, verification methods, relationships, aliases, deactivation state, or the recovery authority itself.
 
-Pros:
+This is intentionally separate from DID Document verification methods: the recovery authority is method-level break-glass authority, not a DID verification method or a second active controller.
 
-- Minimal ledger/state growth: one extra point.
+## Rationale
+
+A separate recovery authority keeps everyday controller authorization simple while providing a production recovery path for catastrophic controller-secret loss.
+
+Benefits:
+
+- Minimal ledger/state growth: one extra Jubjub point.
 - Minimal circuit/API surface: one recovery-only mutation.
 - Clear operational model: keep the recovery secret offline/cold; use it only to recover the hot controller.
-- Avoids adding multi-controller policy semantics to every mutating circuit.
+- No multi-controller policy semantics in every mutating circuit.
+- Operation-bound signatures and expected-version checks prevent cross-operation reuse and stale replay.
 
-Cons:
+## Alternatives considered
 
-- Still single recovery secret; loss of both controller and recovery secrets freezes the DID.
-- Recovery key custody and backup remain application/wallet responsibilities.
-- If the recovery secret is compromised, attacker can rotate the controller key. Monitoring and post-recovery rotation guidance are needed.
+### Multiple active controller keys
 
-### B. Store `Vector<4, JubjubPoint>` controller keys
+Replacing the single `controllerPublicKey` with several controller public keys would allow 1-of-N controller authorization, but it would also require every controller-gated circuit to implement membership/policy logic. It blurs the distinction between everyday control and break-glass recovery, increases public correlation surface, and still does not provide threshold or social recovery by itself.
 
-Replace the single `controllerPublicKey` with several controller public keys and accept a valid signature from any configured slot.
+### Off-chain-only recovery
 
-Pros:
+Wallet-only backup procedures are still required, but they do not help when the active controller secret is lost and no method-level recovery authority exists. The selected design preserves a narrow on-chain recovery path while keeping custody policy off-chain.
 
-- Can model primary/backup operators with no separate recovery circuit.
-- Simple 1-of-N availability if multiple parties hold keys.
+## Operational constraints
 
-Cons:
+- The recovery authority is a single key. Loss of both controller and recovery secrets freezes the DID.
+- Compromise of the recovery secret lets an attacker rotate the active controller key.
+- The recovery authority cannot update the DID Document directly.
+- The recovery authority cannot rotate itself in this method version.
+- Multi-controller, threshold, and social recovery are out of scope for this method version and must be enforced by wallet/custody policy before producing a controller or recovery signature.
 
-- Every controller-gated circuit must verify membership/signature against several keys or receive a key slot and enforce slot validity.
-- Policy semantics are ambiguous: is it 1-of-4 active control, recovery-only keys, or multi-operator control?
-- Increases public correlation surface and operational risk; any one active key can mutate everything.
-- Threshold or social recovery would still not be solved; it would be off-chain policy over a 1-of-N on-chain primitive.
+## API behavior
 
-## Recommendation
-
-Prefer option A for a first method-level recovery feature: a dedicated `recoveryAuthorityPublicKey` with a recovery-only circuit. It solves the documented catastrophic controller-secret-loss problem without turning the DID method into a multi-controller policy system.
-
-If multi-party governance is required later, add it deliberately as a separate method version or policy layer rather than overloading recovery.
-
-## Prototype shape in this branch
-
-This branch prototypes option A:
-
-- contract ledger adds `recoveryAuthorityPublicKey`
-- constructor initializes it from `localRecoveryAuthorityPublicKey()`
-- new pure digest: `recoverControllerKeyAuthorizationDigest(...)`
-- new circuit: `recoverControllerKey(...)`
-- private state can carry `recoverySecretKey`
-- API exports `recoverControllerKey(...)`
-
-The prototype intentionally does **not** add recovery-key rotation, threshold recovery, social recovery, or multiple active controller keys.
-
-## Open design questions before productionizing
-
-1. Should recovery key rotation be controller-gated, recovery-gated, or both?
-2. Should deployment require a recovery key distinct from the controller key?
-3. Should recovery events be highlighted in resolver metadata or only observable as ledger state transitions?
-4. Should SDKs force an explicit backup acknowledgement before deploying with recovery enabled?
-5. Does adding one new exported circuit and one ledger field fit current artifact/block-size constraints for the next method version?
+The SDK creates both `secretKey` and `recoverySecretKey` in private state at DID creation. `recoverControllerKey` can use a stored recovery secret or an explicitly supplied recovery secret. Explicitly supplied recovery secrets are used for the recovery call and are not newly persisted into active private state; an already stored recovery secret is preserved when it matches the on-ledger recovery authority and the recovered controller secret is promoted.

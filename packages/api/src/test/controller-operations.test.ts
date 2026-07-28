@@ -10,20 +10,26 @@ vi.mock("../controller-authorization.js", () => ({
 }));
 
 vi.mock("../ledger-state.js", () => ({
-  requireDeployedMidnightDIDLedgerState: vi.fn(async () => ({
-    id: { bytes: new Uint8Array(32).fill(1) },
-    version: 7n,
-  })),
+  requireDeployedMidnightDIDLedgerState: vi.fn(),
 }));
 
 import {
   recoverControllerKey,
   rotateControllerKey,
 } from "../controller-operations.js";
+import { requireDeployedMidnightDIDLedgerState } from "../ledger-state.js";
 import {
   MidnightDIDPendingControllerPrivateStateId,
   MidnightDIDPrivateStateId,
 } from "../types.js";
+
+const mockLedgerForRecovery = (recoverySecretKey: Uint8Array): void => {
+  vi.mocked(requireDeployedMidnightDIDLedgerState).mockResolvedValue({
+    id: { bytes: new Uint8Array(32).fill(1) },
+    recoveryAuthorityPublicKey: deriveControllerPublicKey(recoverySecretKey),
+    version: 7n,
+  } as any);
+};
 
 describe("controller operations", () => {
   it("rotates to a locally derived controller public key and stores the new secret", async () => {
@@ -105,6 +111,7 @@ describe("controller operations", () => {
   it("recovers to a locally derived controller public key with recovery private state", async () => {
     const recoverySecretKey = new Uint8Array(32).fill(9);
     const newSecretKey = new Uint8Array(32).fill(10);
+    mockLedgerForRecovery(recoverySecretKey);
     const recoverControllerKeyTx = vi.fn(async () => ({
       public: { txId: "0x456" },
     }));
@@ -146,6 +153,7 @@ describe("controller operations", () => {
   it("recovers with only recovery private state available", async () => {
     const recoverySecretKey = new Uint8Array(32).fill(9);
     const newSecretKey = new Uint8Array(32).fill(14);
+    mockLedgerForRecovery(recoverySecretKey);
     const recoverControllerKeyTx = vi.fn(async () => ({
       public: { txId: "0xabc" },
     }));
@@ -173,6 +181,7 @@ describe("controller operations", () => {
   it("recovers with an explicitly supplied recovery secret", async () => {
     const recoverySecretKey = new Uint8Array(32).fill(15);
     const newSecretKey = new Uint8Array(32).fill(16);
+    mockLedgerForRecovery(recoverySecretKey);
     const recoverControllerKeyTx = vi.fn(async () => ({
       public: { txId: "0xdef" },
     }));
@@ -208,8 +217,9 @@ describe("controller operations", () => {
 
   it("preserves an already stored recovery secret when one is explicitly supplied", async () => {
     const storedRecoverySecretKey = new Uint8Array(32).fill(17);
-    const explicitRecoverySecretKey = new Uint8Array(32).fill(18);
+    const explicitRecoverySecretKey = storedRecoverySecretKey;
     const newSecretKey = new Uint8Array(32).fill(19);
+    mockLedgerForRecovery(explicitRecoverySecretKey);
     const recoverControllerKeyTx = vi.fn(async () => ({
       public: { txId: "0xfed" },
     }));
@@ -235,11 +245,36 @@ describe("controller operations", () => {
     );
   });
 
+  it("rejects mismatched recovery secrets before saving pending state", async () => {
+    const storedRecoverySecretKey = new Uint8Array(32).fill(20);
+    const ledgerRecoverySecretKey = new Uint8Array(32).fill(21);
+    mockLedgerForRecovery(ledgerRecoverySecretKey);
+    const recoverControllerKeyTx = vi.fn();
+    const privateStateProvider = {
+      get: vi.fn(async () => ({ recoverySecretKey: storedRecoverySecretKey })),
+      set: vi.fn(),
+      remove: vi.fn(),
+    };
+
+    await expect(
+      recoverControllerKey(
+        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        { privateStateProvider } as any,
+        new Uint8Array(32).fill(22),
+      ),
+    ).rejects.toThrow(/does not match/);
+
+    expect(privateStateProvider.set).not.toHaveBeenCalled();
+    expect(recoverControllerKeyTx).not.toHaveBeenCalled();
+  });
+
   it("rejects recovery before submitting a transaction if pending state cannot be saved", async () => {
+    const recoverySecretKey = new Uint8Array(32).fill(9);
+    mockLedgerForRecovery(recoverySecretKey);
     const recoverControllerKeyTx = vi.fn();
     const privateStateProvider = {
       get: vi.fn(async () => ({
-        recoverySecretKey: new Uint8Array(32).fill(9),
+        recoverySecretKey,
         secretKey: new Uint8Array(32).fill(8),
       })),
       set: vi.fn(async () => {
@@ -261,12 +296,14 @@ describe("controller operations", () => {
   });
 
   it("clears pending recovery state when the transaction fails before finalization", async () => {
+    const recoverySecretKey = new Uint8Array(32).fill(9);
+    mockLedgerForRecovery(recoverySecretKey);
     const recoverControllerKeyTx = vi.fn(async () => {
       throw new Error("recovery transaction rejected");
     });
     const privateStateProvider = {
       get: vi.fn(async () => ({
-        recoverySecretKey: new Uint8Array(32).fill(9),
+        recoverySecretKey,
         secretKey: new Uint8Array(32).fill(8),
       })),
       set: vi.fn(async () => undefined),
@@ -287,12 +324,14 @@ describe("controller operations", () => {
   });
 
   it("keeps pending recovery state when active promotion fails after finalization", async () => {
+    const recoverySecretKey = new Uint8Array(32).fill(9);
+    mockLedgerForRecovery(recoverySecretKey);
     const recoverControllerKeyTx = vi.fn(async () => ({
       public: { txId: "0x789" },
     }));
     const privateStateProvider = {
       get: vi.fn(async () => ({
-        recoverySecretKey: new Uint8Array(32).fill(9),
+        recoverySecretKey,
         secretKey: new Uint8Array(32).fill(8),
       })),
       set: vi

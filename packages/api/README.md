@@ -77,8 +77,8 @@ but it can submit `recoverControllerKey` when private state contains, or the
 caller explicitly supplies, the `recoverySecretKey` matching the on-ledger
 `recoveryAuthorityPublicKey`. Explicitly supplied recovery secrets are used for
 that recovery call and are not newly persisted into active private state, though
-an already stored recovery secret is preserved when the new controller secret is
-promoted.
+an already stored recovery secret that matches the on-ledger recovery authority
+is preserved when the new controller secret is promoted.
 
 Applications should back up controller and recovery private state alongside
 their wallet backup material, protect it with custody controls appropriate for

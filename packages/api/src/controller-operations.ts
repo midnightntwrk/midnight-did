@@ -26,6 +26,11 @@ import {
   type MidnightDIDProviders,
 } from "./types.js";
 
+const jubjubPointEquals = (
+  left: { readonly x: bigint; readonly y: bigint },
+  right: { readonly x: bigint; readonly y: bigint },
+): boolean => left.x === right.x && left.y === right.y;
+
 const privateStateFromSecret = (
   secretKey: Uint8Array,
   recoverySecretKey?: Uint8Array,
@@ -126,8 +131,8 @@ export const rotateControllerKey = async (
 /**
  * Rotates the DID controller key using the on-ledger recovery public key.
  *
- * Prototype note: the recovery key is intentionally narrow. It can only rotate
- * the controller key; it cannot mutate the DID document or rotate itself.
+ * The recovery key is intentionally narrow: it can only rotate the controller
+ * key; it cannot mutate the DID document or rotate itself.
  */
 export const recoverControllerKey = async (
   didContract: DeployedMidnightDIDContract,
@@ -137,13 +142,39 @@ export const recoverControllerKey = async (
 ): Promise<FinalizedTxData> => {
   const activeRecoverySecretKey =
     recoverySecretKey ?? (await requireRecoverySecretKey(providers));
-  const persistedRecoverySecretKey =
+  const ledgerState = await requireDeployedMidnightDIDLedgerState(
+    providers,
+    didContract,
+  );
+  const activeRecoveryPublicKey = deriveControllerPublicKey(
+    activeRecoverySecretKey,
+  );
+  if (
+    !jubjubPointEquals(
+      activeRecoveryPublicKey,
+      ledgerState.recoveryAuthorityPublicKey,
+    )
+  ) {
+    throw new Error(
+      "DID recovery secret key does not match the on-ledger recovery authority",
+    );
+  }
+
+  const storedRecoverySecretKey =
     recoverySecretKey === undefined
       ? activeRecoverySecretKey
       : await restoreRecoverySecretKey(providers);
+  const persistedRecoverySecretKey =
+    storedRecoverySecretKey != null &&
+    jubjubPointEquals(
+      deriveControllerPublicKey(storedRecoverySecretKey),
+      ledgerState.recoveryAuthorityPublicKey,
+    )
+      ? storedRecoverySecretKey
+      : undefined;
   const nextPrivateState = privateStateFromSecret(
     newSecretKey,
-    persistedRecoverySecretKey ?? undefined,
+    persistedRecoverySecretKey,
   );
   const nextControllerPublicKey = deriveControllerPublicKey(
     nextPrivateState.secretKey,
@@ -153,10 +184,6 @@ export const recoverControllerKey = async (
 
   let finalized = false;
   try {
-    const ledgerState = await requireDeployedMidnightDIDLedgerState(
-      providers,
-      didContract,
-    );
     const digest = asSchnorrJubjubDigest(
       DIDContract.pureCircuits.recoverControllerKeyAuthorizationDigest(
         ledgerState.id,

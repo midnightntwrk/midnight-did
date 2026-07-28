@@ -19,7 +19,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 | Read / Resolve | ✔ | `packages/did/src/ledger-to-domain.ts` reconstructs DID Document from ledger state. |
 | Update | ✔ | Individual contract circuits handle adds/updates/removals with controller-signature authorization. |
 | Deactivate | ✔ | Deactivation operation prevents further updates. |
-| Recover | △ | Dedicated `recoveryAuthorityPublicKey` can authorize `recoverControllerKey` to rotate the active controller key; threshold/social recovery and recovery-authority rotation remain unsupported. |
+| Recover | ✔ | Dedicated `recoveryAuthorityPublicKey` authorizes `recoverControllerKey` to rotate the active controller key. Threshold/social recovery and recovery-authority rotation remain outside this method version. |
 
 ## Verification Method Traits
 

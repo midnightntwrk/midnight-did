@@ -2,19 +2,18 @@
 
 ## Status
 
-Proposed.
+Accepted.
 
 ## Context
 
-A Midnight DID currently has one active controller public key. Controller-gated
+A Midnight DID has one active controller public key. Controller-gated
 mutations are authorized by wallet-local Jubjub Schnorr signatures, so delegated
 proof servers do not receive the controller secret. However, if the wallet loses
 the controller secret, the DID remains resolvable but can no longer be updated,
 rotated, or deactivated by the method itself.
 
-PR #328 documents this limitation and records that the current method does not
-support on-method recovery, multiple controllers, threshold recovery, social
-recovery, or emergency deactivation.
+The method needs a production recovery path for controller-secret loss without
+turning every mutating circuit into a multi-controller policy engine.
 
 Two recovery directions were considered:
 
@@ -31,10 +30,10 @@ can mutate the DID.
 
 ## Decision
 
-Introduce a dedicated on-ledger `recoveryAuthorityPublicKey: JubjubPoint` for a
-future method version. The recovery authority is not a DID Document verification
-method and is not part of the ordinary controller set. It is a narrow
-method-level authority used only by a dedicated recovery circuit.
+Introduce a dedicated on-ledger `recoveryAuthorityPublicKey: JubjubPoint`. The
+recovery authority is not a DID Document verification method and is not part of
+the ordinary controller set. It is a narrow method-level authority used only by a
+dedicated recovery circuit.
 
 The recovery circuit shape is:
 
@@ -61,9 +60,12 @@ verification relationships, services, aliases, deactivation state, or the
 recovery authority itself.
 
 Wallet/API private state may keep a `recoverySecretKey` alongside the active
-controller `secretKey`. The prototype SDK stores both secrets in one
-private-state record by default; applications that require cold or separate
-recovery custody must add that separation above the SDK storage layer.
+controller `secretKey`. The SDK creates both secrets in one private-state record
+by default. Recovery calls can also use an explicitly supplied recovery secret
+without newly persisting that secret into active private state; an already
+stored recovery secret is preserved only when it matches the on-ledger recovery
+authority. Applications that require cold or separate recovery custody must add
+that separation above the SDK storage layer.
 
 ## Consequences
 

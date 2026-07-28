@@ -650,22 +650,25 @@ current version, recovery operation name, and replacement controller public key.
 
 Wallets SHOULD back up the active controller private state and the recovery
 authority private state separately. Private state created before this recovery
-authority surface has no recovery authority secret and MUST NOT be silently
-reused for deployments or joins that expect `contractVersion = 2`. Loss of the
-controller secret makes ordinary controller-gated updates, controller rotation,
-and deactivation impossible until `recoverControllerKey` is used with the
-recovery authority. Loss of both the controller secret and recovery authority
-secret makes subsequent DID updates impossible. The current contract does not
-provide multi-controller, threshold, social-recovery, recovery-authority
-rotation, or emergency-deactivation circuits.
+authority surface has no recovery authority secret: it can still authorize
+ordinary controller-gated operations for a compatible contract, but it cannot
+perform `recoverControllerKey` unless the recovery secret is imported or supplied
+explicitly. Deployments of `contractVersion = 2` MUST initialize a recovery
+authority secret. Loss of the controller secret makes ordinary controller-gated
+updates, controller rotation, and deactivation impossible until
+`recoverControllerKey` is used with the recovery authority. Loss of both the
+controller secret and recovery authority secret makes subsequent DID updates
+impossible. The current contract does not provide multi-controller, threshold,
+social-recovery, recovery-authority rotation, or emergency-deactivation circuits.
 
 Controller rotation is performed with a locally derived replacement Jubjub
 `controllerPublicKey`. The replacement controller secret is generated locally by
 the wallet or SDK. Only the new `controllerPublicKey`, the current-version
 controller signature, and the expected version are supplied to the circuit. After
 the rotation transaction finalizes, the SDK MUST persist the new secret as the
-DID private state. See [Appendix 11.1](#111-controller-authorization-and-proof-servers)
-for the proof-server trust boundary.
+DID private state while preserving any stored recovery authority secret. See
+[Appendix 11.1](#111-controller-authorization-and-proof-servers) for the
+proof-server trust boundary.
 
 ## 5.3. Keys associated with the DID Document
 Midnight DID Controllers **MUST** manage the keys associated with the DID Document.
@@ -1081,6 +1084,13 @@ secret; it is not a general DID Document update authority.
     relationships, services, aliases, deactivation state, or
     `recoveryAuthorityPublicKey`.
   - Recovery after deactivation MUST fail.
+
+SDKs MAY load the recovery secret from contract-scoped private state or accept it
+as an explicit call argument. Explicitly supplied recovery secrets MUST be used
+only for the recovery authorization unless the caller separately imports them
+into private-state storage; implementations SHOULD preserve an already stored
+recovery secret only when it matches the on-ledger recovery authority while
+promoting the recovered controller secret.
 
 Example:
 ```typescript

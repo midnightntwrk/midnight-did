@@ -46,10 +46,11 @@ The contract includes a dedicated recovery authority public key that can rotate
 the active controller key via `recoverControllerKey`. Back up both controller and
 recovery private state before using a DID for production control, and verify
 rotation/recovery flows preserve the replacement secret until the ledger state
-has been reconciled. The prototype SDK stores both secrets in one private-state
-record by default, so deployments that require cold recovery custody must add
-separate storage/custody controls above the SDK layer. Loss of both controller
-and recovery authority secrets freezes the DID.
+has been reconciled. The SDK creates both secrets in one private-state record by
+default, while `recoverControllerKey` can also use an explicitly supplied
+recovery secret without persisting it. Deployments that require cold recovery
+custody must add separate storage/custody controls above the SDK layer. Loss of
+both controller and recovery authority secrets freezes the DID.
 
 Deactivation is irreversible. It prevents future updates, but it does not erase
 public ledger history or prior DID Document contents from observers, indexers,

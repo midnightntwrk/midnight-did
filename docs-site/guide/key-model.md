@@ -85,8 +85,9 @@ verification method and is not a second active controller. It can only authorize
 recovery-authority Schnorr signature.
 
 Back up both the controller private state and recovery authority private state
-before using a DID for production control. The prototype SDK stores both secrets
-in the same private-state record by default; applications that require cold or
+before using a DID for production control. The SDK creates both secrets in the
+same private-state record by default, while recovery calls can use an explicitly
+supplied recovery secret without persisting it. Applications that require cold or
 separate recovery custody must add that custody separation above the SDK storage
 layer. If the active controller secret is lost, use the recovery authority to
 rotate to a fresh controller key. If both secrets are lost, the DID remains
@@ -101,6 +102,6 @@ policy approves the operation.
 
 Deactivation is not recovery. It is irreversible, prevents future updates, and
 does not erase public ledger history or previously resolved DID Document data.
-Use controller rotation or recovery-authority rotation planning before
+Use controller rotation and recovery-authority custody planning before
 compromise or personnel loss whenever recovery of control is still possible. The
-prototype recovery circuit does not rotate the recovery authority itself.
+recovery circuit does not rotate the recovery authority itself.
