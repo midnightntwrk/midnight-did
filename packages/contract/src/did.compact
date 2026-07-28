@@ -567,6 +567,7 @@ constructor() {
   deactivated = false;
   controllerPublicKey = disclose(localControllerPublicKey());
   recoveryAuthorityPublicKey = disclose(localRecoveryAuthorityPublicKey());
+  assertControllerPublicKeyDistinctFromRecoveryAuthority(controllerPublicKey);
 
   const timestamp = disclose(currentTimestamp());
   created = timestamp;

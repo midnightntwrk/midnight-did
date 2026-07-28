@@ -132,6 +132,19 @@ describe("DID smart contract", () => {
     expect(simulator.getLedger().version).toEqual(2n);
   });
 
+  it("rejects constructor private state with matching controller and recovery authority keys", () => {
+    expect(
+      () =>
+        new DIDSimulator({
+          ...witnesses,
+          localRecoveryAuthorityPublicKey: ({ privateState }) => [
+            privateState,
+            ContractExports.deriveControllerPublicKey(privateState.secretKey)
+          ]
+        })
+    ).toThrow(/New controller key matches recovery authority key/);
+  });
+
   it("rejects constructor private state without a recovery authority secret", () => {
     expect(
       () =>
