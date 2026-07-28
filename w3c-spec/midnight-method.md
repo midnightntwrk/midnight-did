@@ -107,7 +107,118 @@ did:midnight:offchain:<persistent-hash-of-state>
 
 The long form is analogous to `did:peer:4`: the first offchain segment is a persistent hash of the encoded state, and the second segment carries the encoded state itself. A resolver that receives the long form MUST decode the state, recompute the hash, and reject the DID if the hash does not match. A resolver that receives only the short form needs the encoded state from local storage or resolver input metadata; the short form alone is not self-resolving.
 
-The method-specific identifier for the long form is `<persistent-hash-of-state>:<encoded-state>`. The encoded state MUST use the Midnight offchain DID state encoding defined by the reference implementation. In the current encoding, the state is a Compact-native binary representation wrapped as canonical unpadded base64url text using the alphabet defined by RFC 4648 Section 5. The encoded state is part of the DID method-specific identifier, not a DID URL query parameter.
+The method-specific identifier for the long form is `<persistent-hash-of-state>:<encoded-state>`. The encoded state MUST use the Midnight offchain DID state encoding `midnight-offchain-did-state-v1.base64url`. In the current encoding, the state is a Compact-native binary representation wrapped as canonical unpadded base64url text using the alphabet defined by RFC 4648 Section 5. The encoded state is part of the DID method-specific identifier, not a DID URL query parameter.
+
+### 2.1.1. Offchain state encoding v1
+
+The offchain state hash is the lowercase hexadecimal BLAKE2s-256 digest of the decoded offchain state bytes. A resolver MUST decode the canonical unpadded base64url payload, compute BLAKE2s with `dkLen = 32`, lowercase-hex encode the digest, and compare it with `offchain-state-hash`. A mismatch MUST be rejected.
+
+The decoded byte stream is framed as a Compact value chunk array:
+
+```text
+magic              = %x4d.4f.44.31               ; "MOD1"
+chunk-count        = uint32be
+chunk              = chunk-length chunk-bytes
+chunk-length       = uint32be
+encoded-state-v1   = magic chunk-count *chunk
+```
+
+`chunk-count` is the number of Compact value chunks that follow. Each `chunk-length` is the number of bytes in the following chunk. A decoder MUST reject an invalid magic value, a chunk count that cannot fit in the remaining byte stream, a chunk whose declared length exceeds the remaining bytes, or trailing bytes after the last declared chunk.
+
+The chunk payloads are the Compact runtime value emitted by the following descriptor, in order:
+
+1. `version`: `Uint<16>`.
+2. `alsoKnownAs`: `Vector<4, Opaque<"string">>` padded with empty strings.
+3. `verificationMethod`: `Vector<4, OffchainVerificationMethod>` padded with empty slots.
+4. `service`: `Vector<4, OffchainService>` padded with empty slots.
+
+`OffchainVerificationMethod` is encoded as:
+
+1. `present`: `Boolean`.
+2. `id`: `Opaque<"string">`, a fragment identifier such as `#key-1`.
+3. `keyKind`: `Uint<8>` using the table below.
+4. `x`: `Opaque<"string">`, the canonical JWK `x` value.
+5. `y`: `Opaque<"string">`, the canonical JWK `y` value, or the empty-string sentinel for OKP keys.
+6. `relationshipsMask`: `Uint<8>`.
+
+`OffchainService` is encoded as:
+
+1. `present`: `Boolean`.
+2. `id`: `Opaque<"string">`, a fragment identifier.
+3. `type`: `Opaque<"string">`.
+4. `serviceEndpoint`: `Opaque<"string">`.
+
+Empty verification-method slots have `present = false`, empty strings for `id`, `x`, and `y`, and zero for `keyKind` and `relationshipsMask`. Empty service slots have `present = false` and empty strings for `id`, `type`, and `serviceEndpoint`.
+
+`Opaque<"string">` chunks are UTF-8 bytes. `Boolean` chunks are a single byte `0x01` for `true` and an empty chunk for `false`. `Uint<8>` and `Uint<16>` chunks use Compact unsigned-integer value bytes: little-endian, minimal length, with trailing zero bytes omitted and an empty chunk representing zero.
+
+| `keyKind` | JWK profile |
+| --- | --- |
+| 1 | `kty: "EC", crv: "Jubjub"` |
+| 2 | `kty: "OKP", crv: "Ed25519"` |
+| 3 | `kty: "EC", crv: "P-256"` |
+| 4 | `kty: "OKP", crv: "X25519"` |
+| 5 | `kty: "EC", crv: "secp256k1"` |
+| 6 | `kty: "OKP", crv: "BLS12381G1"` |
+| 7 | `kty: "OKP", crv: "BLS12381G2"` |
+
+The `relationshipsMask` bits are: `authentication = 1`, `assertionMethod = 2`, `keyAgreement = 4`, `capabilityInvocation = 8`, and `capabilityDelegation = 16`.
+
+The maximum v1 state contains four `alsoKnownAs` entries, four verification methods, and four services. A state MUST contain at least one verification method. A decoder MUST reject unsupported `keyKind` values, invalid JWK material, non-fragment method or service identifiers, invalid base64url payloads, non-canonical base64url payloads, and any decoded state that does not satisfy the domain schema.
+
+### 2.1.2. Offchain state test vector
+
+The following test vector uses a single Jubjub verification method and one service:
+
+```json
+{
+  "version": 1,
+  "alsoKnownAs": ["https://example.org/holders/alice"],
+  "verificationMethod": [
+    {
+      "id": "#holder-key-1",
+      "publicKeyJwk": {
+        "kty": "EC",
+        "crv": "Jubjub",
+        "x": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "y": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"
+      },
+      "relationships": {
+        "authentication": true,
+        "assertionMethod": true,
+        "keyAgreement": false,
+        "capabilityInvocation": false,
+        "capabilityDelegation": false
+      }
+    }
+  ],
+  "service": [
+    {
+      "id": "#profile",
+      "type": "LinkedDomains",
+      "serviceEndpoint": "https://example.org/profile/alice"
+    }
+  ]
+}
+```
+
+Encoded state payload:
+
+```text
+TU9EMQAAAC0AAAABAQAAACFodHRwczovL2V4YW1wbGUub3JnL2hvbGRlcnMvYWxpY2UAAAAAAAAAAAAAAAAAAAABAQAAAA0jaG9sZGVyLWtleS0xAAAAAQEAAAArQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQAAACtBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFAAAAAQMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQAAAAgjcHJvZmlsZQAAAA1MaW5rZWREb21haW5zAAAAIWh0dHBzOi8vZXhhbXBsZS5vcmcvcHJvZmlsZS9hbGljZQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+```
+
+Short-form DID:
+
+```text
+did:midnight:offchain:3c08b85758d973a6002942c730d077ede51920c184927aaf010562035203fc21
+```
+
+Long-form DID:
+
+```text
+did:midnight:offchain:3c08b85758d973a6002942c730d077ede51920c184927aaf010562035203fc21:TU9EMQAAAC0AAAABAQAAACFodHRwczovL2V4YW1wbGUub3JnL2hvbGRlcnMvYWxpY2UAAAAAAAAAAAAAAAAAAAABAQAAAA0jaG9sZGVyLWtleS0xAAAAAQEAAAArQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQAAACtBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFAAAAAQMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQAAAAgjcHJvZmlsZQAAAA1MaW5rZWREb21haW5zAAAAIWh0dHBzOi8vZXhhbXBsZS5vcmcvcHJvZmlsZS9hbGljZQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+```
 
 A trailing colon without `offchain-state` is invalid. The long-form DID is the DID subject identifier for the resolved DID Document: resolved `id`, `controller`, and verification method controller fields use the long form so the subject remains fully self-sufficient. This intentionally differs from `did:peer:4`, where the resolved document commonly uses the short form as `id` and represents the long form as an alias.
 
