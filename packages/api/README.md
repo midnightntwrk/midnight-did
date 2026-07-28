@@ -79,7 +79,10 @@ but it can submit `recoverControllerKey` when private state contains the
 Applications should back up controller and recovery private state alongside
 their wallet backup material, protect it with custody controls appropriate for
 production signing keys, and test restore/recovery flows before relying on a DID.
-If both the active controller secret and recovery secret are lost, the DID
+Private state created before the recovery-authority contract surface contains no
+recovery secret; it must be explicitly re-provisioned or kept with the matching
+pre-recovery contract version rather than silently reused for v2 deployment or
+joins. If both the active controller secret and recovery secret are lost, the DID
 remains publicly resolvable but cannot be updated, rotated, recovered, or
 deactivated by this method version. Organizational operators that need
 multi-person approval or social recovery should implement that policy before the

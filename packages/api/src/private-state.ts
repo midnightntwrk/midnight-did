@@ -60,7 +60,7 @@ export async function requirePrivateState(
   const privateState = await restorePrivateState(providers, privateStateId);
   if (!isRestorableDIDPrivateState(privateState)) {
     throw new Error(
-      "DID controller private state is missing or malformed; import the controller and recovery secrets before using this contract",
+      "DID v2 private state is missing or malformed; import controller and recovery secrets, or re-provision pre-recovery private state before using this contract",
     );
   }
   return privateState;

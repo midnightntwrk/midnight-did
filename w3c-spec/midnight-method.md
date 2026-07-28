@@ -649,12 +649,15 @@ verifying a recovery-authority Schnorr signature bound to the DID contract id,
 current version, recovery operation name, and replacement controller public key.
 
 Wallets SHOULD back up the active controller private state and the recovery
-authority private state separately. Loss of the controller secret makes ordinary
-controller-gated updates, controller rotation, and deactivation impossible until
-`recoverControllerKey` is used with the recovery authority. Loss of both the
-controller secret and recovery authority secret makes subsequent DID updates
-impossible. The current contract does not provide multi-controller, threshold,
-social-recovery, recovery-authority rotation, or emergency-deactivation circuits.
+authority private state separately. Private state created before this recovery
+authority surface has no recovery authority secret and MUST NOT be silently
+reused for deployments or joins that expect `contractVersion = 2`. Loss of the
+controller secret makes ordinary controller-gated updates, controller rotation,
+and deactivation impossible until `recoverControllerKey` is used with the
+recovery authority. Loss of both the controller secret and recovery authority
+secret makes subsequent DID updates impossible. The current contract does not
+provide multi-controller, threshold, social-recovery, recovery-authority
+rotation, or emergency-deactivation circuits.
 
 Controller rotation is performed with a locally derived replacement Jubjub
 `controllerPublicKey`. The replacement controller secret is generated locally by
