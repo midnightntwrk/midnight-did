@@ -2,7 +2,7 @@
 name: Bug report
 about: Submit a bug report
 title: ""
-labels: public
+labels: bug, status:untriaged
 assignees: ""
 ---
 
