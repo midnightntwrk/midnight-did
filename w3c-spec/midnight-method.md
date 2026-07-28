@@ -941,19 +941,49 @@ await deactivate(didContract, providers);
 
 # 8. Security Considerations
 
-The security of the Midnight model is based on the security of the underlying blockchain ledger. Currently, the only supported blockchain is Midnight.
+The security of the Midnight DID method depends on the Midnight ledger, the DID contract verifier keys deployed for each DID, wallet-local controller custody, resolver/indexer integrity, and the release supply chain for packages and ZK artifacts. The Midnight protocol provides the ledger consensus and proof system; this method specification defines the DID-specific trust boundaries that implementations MUST account for. For more details on the underlying protocol, see the white paper: [MIDNIGHT-WHITEPAPER].
 
-The Midnight features mathematically verifiable security against attackers. Security properties for the protocol are comparable to those achieved by the Bitcoin blockchain protocol. For more details on the protocol, see the white paper: [MIDNIGHT-WHITEPAPER].
+A Midnight DID is identified by the DID contract address, but update authority is not simple address possession. Controller-gated updates are authorized by the `controllerPublicKey` stored in contract state and by wallet-local signatures as described in [section 5.2](#52-smart-contract-access-control). Implementations MUST protect the corresponding controller secret and MUST NOT send it to delegated proof servers.
 
-Midnight DID will be stored in an address controlled by the holder. This ensures that third parties can't modify, register, update, or deactivate the DID document controlled by the holder.
+Implementations SHOULD use secure storage for private keys. They MAY use random keys or an implementation-defined HD derivation convention for Midnight DID keys; an HD convention can simplify backup and recovery but is not standardized by this specification version. The concrete implementation of secret storage depends on the target platform and is outside the scope of this specification.
 
-The application is responsible for key management (see [Section 5. Private and Public Keys](#5-private-and-public-keys)).
+## 8.1. Controller custody, key loss, and deactivation
 
-Implementations SHOULD use secure storage for private keys. They MAY use random keys or an implementation-defined HD derivation convention for Midnight DID keys; an HD convention can simplify backup and recovery but is not standardized by this specification version.
+The controller secret is a high-value wallet-local secret. A party that can produce valid controller authorization signatures for the current DID version can perform controller-gated mutations. Loss of the controller secret makes further updates impossible in this specification version unless the controller was rotated before loss or a future recovery mechanism is introduced.
 
-The concrete implementation of Secret Storage depends on the target platform and is outside the scope of this specification.
+Implementations SHOULD generate distinct controller secrets for distinct DIDs. Reusing a controller secret across DID contracts causes the same controller public key to appear in multiple public states and can become a correlation handle.
 
-## 8.1. Binding to Physical Identity
+Deactivation is irreversible. A deactivated DID cannot be reactivated or updated, but its public state and historical ledger transactions remain visible to ledger observers, indexers, resolvers, and archives. Deactivation MUST NOT be treated as data erasure and is not a recovery mechanism after controller custody has already been lost.
+
+## 8.2. Delegated proving and proof servers
+
+Controller authorization is designed so a delegated proof server receives an operation-bound signature, expected version, and public operation inputs rather than the controller secret. A proof server that receives only this material can construct proofs for that exact signed operation, but cannot choose a different operation, change public arguments, or replay the signature after the version changes.
+
+Applications that delegate proving still trust the proof server and its transport for availability, correct proof generation, and confidentiality of any other witness material supplied to the proving job. They SHOULD authenticate proof server endpoints, bind wallet prompts to exact operation inputs, and avoid sending DID Document private keys or controller secrets to remote proving infrastructure.
+
+## 8.3. Resolver, indexer, and finality trust
+
+Resolution reads are indexer-backed in the reference implementation. A resolver that trusts a compromised, rogue, stale, or unfinalized indexer response can return a forged or stale DID Document. Indexer and resolver operators SHOULD use trusted indexer deployments, protect endpoint transport, monitor freshness, and prefer finalized or pinned reads when provider APIs expose block-height or block-hash constraints.
+
+Resolvers and consumers MUST treat indexer or resolver failures as availability failures, not as proof that a DID does not exist or has been deactivated. If an application requires a finality latency bound or independent state integrity check, it MUST define that policy above this specification version or use a resolver profile that exposes the required proof or block pin.
+
+## 8.4. Client-asserted metadata
+
+The `created` and `updated` metadata fields are supplied by controller/prover witnesses and then stored on ledger. They are not derived from Midnight consensus time. Resolvers MAY enforce local sanity bounds or expose these values as advisory metadata, but consumers MUST NOT treat them as authoritative timestamps without an independent ledger, indexer, timestamping, or application attestation.
+
+## 8.5. Raw Compact calls and DID state validity
+
+The contract enforces authorization and core state-transition invariants. The SDK and resolver enforce additional DID-domain constraints for URI syntax, normalization, JWK canonicality, service endpoint shape, and other values that are represented as opaque strings or structured data at the Compact boundary. A caller that bypasses the SDK with raw Compact transactions can create durable ledger state that strict resolvers or DID consumers reject.
+
+Production implementations SHOULD use the SDK validation path for mutations. Resolvers SHOULD fail clearly on malformed ledger state and operators SHOULD treat such failures as security-relevant interoperability incidents.
+
+## 8.6. ZK artifact supply chain and audit posture
+
+ZK prover, verifier, and ZKIR artifacts are release artifacts for this method. The verifier keys deployed with a DID contract are the proof-verification trust root for that contract, while the published ZK bundle supplies the matching runtime artifacts used by clients. Consumers SHOULD use version-matched packages and ZK bundles and SHOULD verify published manifests and checksums before using artifact bundles. Signed or provenanced release assets are preferred when available.
+
+This repository uses CI, code scanning, dependency automation, external review, and issue-based hardening work, but those controls do not by themselves constitute an independent production audit. Deployments SHOULD perform their own security review appropriate to their custody, resolver, and release-artifact trust requirements.
+
+## 8.7. Binding to Physical Identity
 
 Conforming Midnight DID producers MUST NOT intentionally publish personal data in DID Document fields. Ledger-backed DID Documents can still contain controller-supplied public values, so controllers and wallets are responsible for data minimization before publication. Ownership is proved by:
 - Control over the blockchain address.
@@ -963,7 +993,7 @@ It is recommended to use Verifiable Credentials as described in [VC-DATA-MODEL] 
 
 Using the DID extension to share the VC as a public ledger state is possible, but not recommended.
 
-## 8.2. DID document changes
+## 8.8. DID document changes
 
 All Midnight DIDs are created by deploying the smart contract with the corresponding public ledger state. The secret key is provided as a witness to authorize updates and is not published on-chain.
 
