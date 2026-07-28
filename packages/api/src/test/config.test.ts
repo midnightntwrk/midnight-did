@@ -31,8 +31,8 @@ describe("config", () => {
 
   it("builds testnet-local defaults and network id", () => {
     const config = new TestnetLocalConfig();
-    expect(config.indexer).toBe("http://127.0.0.1:8088/api/v3/graphql");
-    expect(config.indexerWS).toBe("ws://127.0.0.1:8088/api/v3/graphql/ws");
+    expect(config.indexer).toBe("http://127.0.0.1:8088/api/v4/graphql");
+    expect(config.indexerWS).toBe("ws://127.0.0.1:8088/api/v4/graphql/ws");
     expect(config.node).toBe("http://127.0.0.1:9944");
     expect(config.proofServer).toBe("http://127.0.0.1:6300");
     expect(config.logDir).toContain(path.join("logs", "testnet-local"));
@@ -42,8 +42,8 @@ describe("config", () => {
 
   it("builds standalone defaults and network id", () => {
     const config = new StandaloneConfig();
-    expect(config.indexer).toBe("http://127.0.0.1:8088/api/v3/graphql");
-    expect(config.indexerWS).toBe("ws://127.0.0.1:8088/api/v3/graphql/ws");
+    expect(config.indexer).toBe("http://127.0.0.1:8088/api/v4/graphql");
+    expect(config.indexerWS).toBe("ws://127.0.0.1:8088/api/v4/graphql/ws");
     expect(config.node).toBe("http://127.0.0.1:9944");
     expect(config.proofServer).toBe("http://127.0.0.1:6300");
     expect(config.logDir).toContain(path.join("logs", "standalone"));
@@ -54,10 +54,10 @@ describe("config", () => {
   it("builds testnet-remote defaults and network id", () => {
     const config = new TestnetRemoteConfig();
     expect(config.indexer).toBe(
-      "https://indexer.testnet-02.midnight.network/api/v3/graphql",
+      "https://indexer.testnet-02.midnight.network/api/v4/graphql",
     );
     expect(config.indexerWS).toBe(
-      "wss://indexer.testnet-02.midnight.network/api/v3/graphql/ws",
+      "wss://indexer.testnet-02.midnight.network/api/v4/graphql/ws",
     );
     expect(config.node).toBe("https://rpc.testnet-02.midnight.network");
     expect(config.proofServer).toBe("http://127.0.0.1:6300");

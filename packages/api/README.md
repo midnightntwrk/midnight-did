@@ -50,7 +50,8 @@ sequenceDiagram
 
   Caller->>API: addService / addVerificationMethod / ...
   API->>API: validate + normalize
-  API->>Contract: submit circuit tx
+  API->>API: sign controller authorization digest for current contract version
+  API->>Contract: submit circuit tx + controller signature
   Contract-->>API: accepted tx
   API->>Indexer: fetch current state
   API-->>Caller: updated DID state or DID Resolution Result
@@ -62,19 +63,28 @@ API enforces lifecycle rules around:
 
 - active DID: allows updates
 - deactivated DID: mutating operations rejected
-- controller rotation: generates a new wallet-local secret, derives the next controller public key locally, submits the rotation circuit, and stores the new secret after the transaction succeeds
+- controller authorization: signs a domain-separated digest containing contract id, current version, operation name, and operation arguments before each controller-gated mutation
+- controller rotation: generates a new wallet-local secret, derives the next controller public key locally, submits the rotation circuit with a current-version controller signature, and stores the new secret after the transaction succeeds
 
 (Exact schema/canonicalization rules live in `domain`.)
 
 ## Resolution Responses
 
-The API package returns the ledger-derived DID Document and DID Document
-metadata. It does not compose a full DID Core resolution envelope on its own.
-Resolver services that wrap this package into DID Core HTTP responses should add
-the `didResolutionMetadata` object at the service boundary. Successful abstract
-`resolve` responses must not set `didResolutionMetadata.contentType`; that field
-is reserved for `resolveRepresentation` responses where the body is a DID
-Document byte stream.
+The API package exposes both convenience and DID Core envelope helpers.
+`resolve` returns the ledger-derived DID Document and DID Document metadata, or
+`null` when the contract state is missing. `resolveDIDResolutionResult` returns
+the full DID Core Resolution Result envelope with `didResolutionMetadata`.
+Successful abstract `resolve` responses must not set
+`didResolutionMetadata.contentType`; that field is reserved for
+`resolveRepresentation` responses where the body is a DID Document byte stream.
+
+The API package also exports `resolveRepresentation(providers, didContract,
+options)`. It delegates to the shared `MidnightDIDResolver` and returns
+`didDocumentStream` as a `Uint8Array | null` (null on resolution errors),
+`didDocumentMetadata`, and `didResolutionMetadata`. This is the package boundary intended for
+`midnight-did-resolver`: the downstream service owns HTTP routing and status
+codes, while this package owns ledger access, representation selection, and DID
+resolution errors.
 
 ## Build & Test
 
@@ -106,6 +116,10 @@ Defaults:
 - `PreprodConfig` and `MainnetConfig` use public indexer v4 endpoints (`/api/v4/graphql` + `/ws`).
 - `MainnetConfig` defaults to local proof server (`http://127.0.0.1:6300`) so it can be used with local proving while targeting mainnet indexer/node.
 - constructing any profile config calls `setNetworkId()` through `applyMidnightNetworkProfile()`, so wallet and contract operations see the correct Midnight network before they start.
+
+The docs site publishes the generated endpoint matrix at
+<https://midnightntwrk.github.io/midnight-did/guide/network-endpoints>; it is
+generated from `src/config-profiles.ts` during docs preparation and validation.
 
 You can still override `MainnetConfig` endpoints explicitly when needed. New
 tooling should use `ProfileConfig` when the profile name is data-driven rather
@@ -151,6 +165,33 @@ Use `locations.ghcr.reference` to pull the matching GHCR OCI artifact in Node or
 CI tooling. RC and final release versions also include
 `locations.githubRelease.archiveUrl`; snapshot versions publish workflow
 artifacts and GHCR artifacts only, so `locations.githubRelease` is `null`.
+
+Node consumers can download, verify, and unpack GitHub Release assets directly:
+
+```ts
+import {
+  downloadMidnightDidGithubReleaseZkArtifacts,
+  MIDNIGHT_DID_API_VERSION,
+} from "@midnight-ntwrk/midnight-did-api";
+
+const bundle = await downloadMidnightDidGithubReleaseZkArtifacts({
+  version: MIDNIGHT_DID_API_VERSION,
+  outputDir: ".midnight-did-zk",
+});
+
+process.env.MIDNIGHT_DID_ZK_CONFIG_PATH = bundle.zkConfigPath;
+```
+
+`bundle.zkConfigPath` is the directory to pass to `NodeZkConfigProvider` or to
+expose from an HTTP server for `FetchZkConfigProvider`. The helper verifies the
+release `.sha256` file, checks that the downloaded manifest matches the embedded
+archive manifest, and validates every circuit file checksum before returning.
+When `outputDir`, `tempDir`, or `pullDir` are omitted, helper-created
+directories are retained because `bundle.archivePath` and `bundle.zkConfigPath`
+point into them. Callers that need deterministic cleanup should pass explicit
+directories and remove them after the ZK provider no longer needs the files.
+For GHCR OCI artifacts, use `pullMidnightDidGhcrZkArtifacts()` in an environment
+with the `oras` CLI available.
 
 When the ZK bundle is unpacked outside the installed package, set
 `MIDNIGHT_DID_ZK_CONFIG_PATH` to the directory containing `manifest.json`,

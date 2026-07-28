@@ -173,19 +173,20 @@ the resolved DID Document.
 
 <a id="local-secret-key"></a>
 
-### localSecretKey
+### Controller Secret
 
-A wallet-held 32-byte secret used as a private Compact witness for
-controller-gated operations. The ledger, indexer, resolver, and DID Document
-readers do not see this secret, but a delegated proof server may see it.
+A wallet-held 32-byte secret seed used to derive the DID controller Jubjub key
+pair and sign controller authorization digests. The controller secret is not a
+Compact witness for controller-gated updates and MUST NOT be sent to delegated
+proof infrastructure.
 
 <a id="controller-public-key"></a>
 
 ### controllerPublicKey
 
-The on-ledger controller commitment derived from `localSecretKey` with a
-domain-separated persistent hash. Update circuits recompute the value from the
-witness and compare it with the stored `controllerPublicKey`.
+The on-ledger native `JubjubPoint` public key for DID controller authorization.
+Controller-gated update circuits verify wallet-local SchnorrJubjub signatures
+against this public key.
 
 <a id="controller-rotation"></a>
 
@@ -207,18 +208,19 @@ infrastructure.
 
 ### Trusted Proof Server Model
 
-The current controller authorization assumption for Midnight DID. Because
-controller-gated circuits use `localSecretKey` as a private witness, any proof
-server that receives that witness must be trusted with controller authority for
-the DID.
+The retired controller-secret-witness authorization model. Current Midnight DID
+controller-gated circuits receive wallet-local SchnorrJubjub signatures instead
+of the controller secret, so delegated proof servers receive signature material
+and public operation inputs rather than controller secret custody.
 
 <a id="untrusted-prover-design"></a>
 
-### Untrusted Prover Design
+### Signature Authorization Model
 
-A future authorization model in which the wallet signs the exact operation
-intent locally and the circuit verifies that signature. The proof server would
-receive public signature material instead of the controller secret.
+The current authorization model in which the wallet signs the exact operation
+intent locally and the circuit verifies that signature against the on-ledger
+`controllerPublicKey`. The proof server receives signature material instead of
+the controller secret.
 
 <a id="operation-intent"></a>
 

@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   expectedWorkspaces,
-  githubPackageRegistry,
+  npmPackageRegistry,
   packageManifestCatalog,
   repositoryUrl,
 } from "./did-workspace-catalog.mjs";
@@ -154,7 +154,12 @@ for (const [workspace, expected] of packageManifestCatalog.entries()) {
   assertEqual(
     `${label} publishConfig.registry`,
     packageJson.publishConfig?.registry,
-    githubPackageRegistry,
+    npmPackageRegistry,
+  );
+  assertEqual(
+    `${label} publishConfig.access`,
+    packageJson.publishConfig?.access,
+    "public",
   );
   assertEqual(`${label} engines.node`, packageJson.engines?.node, ">=24");
   assertEqual(`${label} engines.pnpm`, packageJson.engines?.pnpm, ">=10");

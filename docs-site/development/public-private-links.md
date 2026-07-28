@@ -43,19 +43,7 @@ failure. If a validator reports them, classify the result as access-required
 rather than broken, then confirm the repository name and target are still the
 right owner reference.
 
-## Current Private Link Inventory
-
-The published docs currently reference private or potentially access-restricted
-Midnight repositories at a high level:
-
-- `midnight-did`, for source files that back this documentation site and method
-  specification.
-- `midnight-did-resolver`, for resolver services, manager workflows, secret
-  storage, endpoint surfaces, and local key-custody flows.
-- `midnight-verifiable-credentials`, for VC/VP packages, credential families,
-  status/revocation, and presentation workflows.
-- `midnight-trust-registry`, for registry governance and trust-list integration.
-
-This inventory is intentionally by repository and purpose. Do not maintain a
-complete URL list here; use focused link validation output when a specific page
-or anchor needs repair.
+If a future docs page must link to a private Midnight repository, add that
+repository to the access-required inventory in `scripts/docs-validate.mjs` and
+include an access-required caveat next to the link. Keep the inventory by
+repository and purpose rather than maintaining a complete URL list.

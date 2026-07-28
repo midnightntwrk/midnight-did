@@ -375,29 +375,29 @@ export const DIDDocumentSchema = z.looseObject({
   alsoKnownAs: z.nullish(z.array(URIStringSchema)),
   controller: z.nullish(z.union([DIDStringSchema, z.array(DIDStringSchema)])),
   verificationMethod: z.nullish(z.array(VerificationMethodSchema)),
-  authentication: z.nullish(
+  authentication: z.optional(
     z
       .array(DIDKeyIDSchema)
       .check(z.minLength(1, "authentication must contain at least one entry")),
   ),
-  assertionMethod: z.nullish(
+  assertionMethod: z.optional(
     z
       .array(DIDKeyIDSchema)
       .check(z.minLength(1, "assertionMethod must contain at least one entry")),
   ),
-  keyAgreement: z.nullish(
+  keyAgreement: z.optional(
     z
       .array(DIDKeyIDSchema)
       .check(z.minLength(1, "keyAgreement must contain at least one entry")),
   ),
-  capabilityInvocation: z.nullish(
+  capabilityInvocation: z.optional(
     z
       .array(DIDKeyIDSchema)
       .check(
         z.minLength(1, "capabilityInvocation must contain at least one entry"),
       ),
   ),
-  capabilityDelegation: z.nullish(
+  capabilityDelegation: z.optional(
     z
       .array(DIDKeyIDSchema)
       .check(
@@ -694,11 +694,21 @@ export function createDIDDocument(params: {
     alsoKnownAs: params.alsoKnownAs ?? null,
     controller: params.controller ?? null,
     verificationMethod: params.verificationMethod ?? null,
-    authentication: params.authentication ?? null,
-    assertionMethod: params.assertionMethod ?? null,
-    keyAgreement: params.keyAgreement ?? null,
-    capabilityInvocation: params.capabilityInvocation ?? null,
-    capabilityDelegation: params.capabilityDelegation ?? null,
+    ...(params.authentication === undefined
+      ? {}
+      : { authentication: params.authentication }),
+    ...(params.assertionMethod === undefined
+      ? {}
+      : { assertionMethod: params.assertionMethod }),
+    ...(params.keyAgreement === undefined
+      ? {}
+      : { keyAgreement: params.keyAgreement }),
+    ...(params.capabilityInvocation === undefined
+      ? {}
+      : { capabilityInvocation: params.capabilityInvocation }),
+    ...(params.capabilityDelegation === undefined
+      ? {}
+      : { capabilityDelegation: params.capabilityDelegation }),
     service: params.service ?? null,
   });
   return validateDIDDocumentConsistency(doc);

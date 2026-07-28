@@ -1,6 +1,13 @@
 import { deriveControllerPublicKey } from "@midnight-ntwrk/midnight-did-contract";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("../controller-authorization.js", () => ({
+  createControllerAuthorization: vi.fn(async () => [
+    { announcement: { x: 1n, y: 2n }, response: 3n },
+    7n,
+  ]),
+}));
+
 import { rotateControllerKey } from "../controller-operations.js";
 import {
   MidnightDIDPendingControllerPrivateStateId,
@@ -28,6 +35,8 @@ describe("controller operations", () => {
 
     expect(rotateControllerKeyTx).toHaveBeenCalledWith(
       deriveControllerPublicKey(newSecretKey),
+      { announcement: { x: 1n, y: 2n }, response: 3n },
+      7n,
     );
     expect(privateStateProvider.set).toHaveBeenNthCalledWith(
       1,

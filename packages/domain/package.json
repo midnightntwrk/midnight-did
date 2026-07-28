@@ -9,7 +9,8 @@
     "directory": "packages/domain"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "engines": {
     "node": ">=24",
@@ -39,11 +40,11 @@
     "test:ci": "vitest run",
     "coverage": "vitest run --coverage",
     "clean": "rm -rf dist && rm -rf coverage",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix"
+    "lint": "prettier --check \"src/**/*.{ts,tsx}\" && eslint src",
+    "lint:fix": "prettier --write \"src/**/*.{ts,tsx}\" && eslint src --fix"
   },
   "dependencies": {
-    "@midnight-ntwrk/compact-runtime": "0.15.0",
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
     "@noble/hashes": "^2.2.0",
     "zod": "^4.1.0"
   },

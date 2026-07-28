@@ -2,6 +2,10 @@ import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import { VerificationMethodRelationType } from "@midnight-ntwrk/midnight-did-domain";
 
 import {
+  asSchnorrJubjubDigest,
+  createControllerAuthorization,
+} from "./controller-authorization.js";
+import {
   LedgerVerificationMethodRelationMap,
   relationSetFromState,
 } from "./ledger-mappers.js";
@@ -61,15 +65,33 @@ export const assertVerificationMethodRelationPresent = (
 
 export const removePresentVerificationMethodRelations = async (
   didContract: DeployedMidnightDIDContract,
+  providers: MidnightDIDProviders,
   memberships: readonly VerificationMethodRelationMembership[],
   normalizedMethodId: string,
 ): Promise<void> => {
   for (const { relation, member } of memberships) {
     if (!member) continue;
+    const ledgerRelation = LedgerVerificationMethodRelationMap[relation];
+    const [signature, expectedVersion] = await createControllerAuthorization(
+      didContract,
+      providers,
+      (ledgerState) =>
+        asSchnorrJubjubDigest(
+          DIDContract.pureCircuits.setVerificationMethodRelationAuthorizationDigest(
+            ledgerState.id,
+            ledgerState.version,
+            ledgerRelation,
+            normalizedMethodId,
+            DIDContract.SetMutation.Remove,
+          ),
+        ),
+    );
     await didContract.callTx.setVerificationMethodRelation(
-      LedgerVerificationMethodRelationMap[relation],
+      ledgerRelation,
       normalizedMethodId,
       DIDContract.SetMutation.Remove,
+      signature,
+      expectedVersion,
     );
   }
 };
@@ -90,6 +112,7 @@ export const purgeVerificationMethodFromAllRelations = async (
 
   await removePresentVerificationMethodRelations(
     didContract,
+    providers,
     memberships,
     normalizedMethodId,
   );

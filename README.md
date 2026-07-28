@@ -4,7 +4,7 @@
 [![Quality](https://github.com/midnightntwrk/midnight-did/actions/workflows/quality.yml/badge.svg?branch=main)](https://github.com/midnightntwrk/midnight-did/actions/workflows/quality.yml)
 [![Docs](https://github.com/midnightntwrk/midnight-did/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/midnightntwrk/midnight-did/actions/workflows/docs.yml)
 [![Release](https://github.com/midnightntwrk/midnight-did/actions/workflows/publish.yml/badge.svg?branch=main)](https://github.com/midnightntwrk/midnight-did/actions/workflows/publish.yml)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/midnightntwrk/midnight-did/badge)](https://securityscorecards.dev/viewer/?uri=github.com/midnightntwrk/midnight-did)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/midnightntwrk/midnight-did/badge)](https://scorecard.dev/viewer/?uri=github.com/midnightntwrk/midnight-did)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/midnightntwrk/midnight-did/blob/main/LICENSE)
 [![Latest Release](https://img.shields.io/badge/release-v0.4.0-blue)](https://github.com/midnightntwrk/midnight-did/releases/latest)
 
@@ -124,7 +124,12 @@ Runner notes:
 - Local PR validation contract: `./run.sh --light --strict` or `pnpm run ci`.
 - `pnpm run ci:packages` keeps the legacy package-only lint/build/test lane.
 - `./run.sh` and `./run.sh full` validate DID core and API lanes.
-- `./run.sh docs` validates the documentation site.
+- `./run.sh docs` validates the documentation site. The Nix shell provides the
+  Playwright Chromium browser used by rendered layout checks; outside Nix, run
+  `pnpm exec playwright install chromium` once before the docs lane.
+- Pi is an optional local development-loop interface. See
+  [`docs/pi-development.md`](docs/pi-development.md); it is not required for
+  builds or CI.
 - `run-core.sh`, `run-api.sh`, and `run-docs.sh` remain implementation details behind cataloged `./run.sh` targets.
 - Root `./run.sh` validates only DID core/API/docs. Resolver service, manager service, and secret-storage validation moved to `midnight-did-resolver`.
 - `--skip-coverage` is still accepted for older local command history, but current split lanes do not run coverage by default.
@@ -178,8 +183,8 @@ pnpm run packages-smoke-tests
 ```
 
 It validates the root workspace list, package names, export maps, tarball
-`files`, GitHub Packages registry metadata, repository ownership, and README
-ownership for the DID-owned packages. The package content check dry-runs npm
+`files`, npmjs registry metadata, repository ownership, and README ownership
+for the DID-owned packages. The package content check dry-runs npm
 packing and rejects development-only files such as compiled `dist/test/**`
 output.
 
@@ -225,37 +230,40 @@ generated Compact output readiness and source manifests for `contract` and
 `pnpm run check:managed-artifacts` to fail on missing or stale generated
 artifacts after a local build.
 
-Release CI publishes the same packages to GitHub Packages. Snapshot versions are
-published automatically from `main` and `develop` as
+Release CI publishes the same packages to npmjs. Snapshot versions are
+published automatically from `develop` as
 `x.y.z-snapshot.<run>.<sha>` with the `snapshot` npm tag. Manual workflow
 dispatch can publish `x.y.z-rc{index}` with the `rc` npm tag from `main` or
 `develop`, and `x.y.z` with the `latest` npm tag from `main` only.
+The concrete release-train examples below are validated against the root
+`package.json` version so package and artifact documentation changes together.
 
 ZK keys are distributed separately as a validated archive:
 
 ```bash
-pnpm run zk-artifacts:bundle -- --version 0.4.0-snapshot.local
-pnpm run zk-artifacts:check -- artifacts/zk/midnight-did-zk-artifacts-0.4.0-snapshot.local.tar.gz
-pnpm run published-artifacts:smoke -- --skip-npm --zk-archive artifacts/zk/midnight-did-zk-artifacts-0.4.0-snapshot.local.tar.gz
+export VERSION="0.4.0-snapshot.local"
+export ZK_ARCHIVE="artifacts/zk/midnight-did-zk-artifacts-${VERSION}.tar.gz"
+
+pnpm run zk-artifacts:bundle -- --version "${VERSION}"
+pnpm run zk-artifacts:check -- "${ZK_ARCHIVE}"
+pnpm run published-artifacts:smoke -- --skip-npm --zk-archive "${ZK_ARCHIVE}"
 ```
 
 The archive preserves the Midnight JS provider layout:
 `keys/<circuit>.prover`, `keys/<circuit>.verifier`, and
 `zkir/<circuit>.bzkir`. Publish CI smoke-tests the exact npm package version
-from GitHub Packages and fetches the published ZK archive through
-`FetchZkConfigProvider` over runtime HTTP after pulling/downloading it from GHCR
-or GitHub Release assets. Reruns skip npm packages whose exact immutable version
-already exists.
+from npmjs and fetches the published ZK archive through `FetchZkConfigProvider`
+over runtime HTTP after pulling/downloading it from GHCR or GitHub Release
+assets. Reruns skip npm packages whose exact immutable version already exists.
 
 Release engineers can run a heavier standalone smoke against an RC or release.
-It installs the exact package version from GitHub Packages, downloads the
+It installs the exact package version from npmjs, downloads the
 matching GitHub Release ZK archive, unpacks those keys for
 `NodeZkConfigProvider`, deploys a DID contract, mutates it, and resolves the
 updated DID document:
 
 ```bash
 export VERSION="0.4.0-rc1"
-export NODE_AUTH_TOKEN="<github-token-with-package-read>"
 export GH_TOKEN="<github-token-with-repo-read>"
 
 pnpm run published-standalone:smoke -- \
@@ -290,6 +298,25 @@ const locations = createMidnightDidZkArtifactLocations(MIDNIGHT_DID_API_VERSION)
 Use `locations.ghcr.reference` for the matching GHCR OCI artifact. RC and final
 release versions also expose `locations.githubRelease.archiveUrl`; snapshots do
 not have GitHub Release assets.
+
+Published consumers can also use the Node helper exported by the API package:
+
+```ts
+import { downloadMidnightDidGithubReleaseZkArtifacts } from "@midnight-ntwrk/midnight-did-api";
+
+const bundle = await downloadMidnightDidGithubReleaseZkArtifacts({
+  version: "0.4.0-rc1",
+  outputDir: ".midnight-did-zk",
+});
+```
+
+The helper downloads the GitHub Release archive, manifest, and SHA file, verifies
+the archive digest and per-circuit manifest checksums, then returns
+`bundle.zkConfigPath` for `NodeZkConfigProvider`. Serve that same directory as an
+HTTP root when using `FetchZkConfigProvider`; its layout is
+`keys/<circuit>.prover`, `keys/<circuit>.verifier`, and
+`zkir/<circuit>.bzkir`. Use `pullMidnightDidGhcrZkArtifacts()` with the `oras`
+CLI when consuming the matching GHCR OCI artifact instead.
 
 ## Developer Entry Points
 

@@ -32,9 +32,10 @@ jobs:
       changed_file_count: ${{ steps.classify.outputs.changed_file_count }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v5
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Classify changed files
         id: classify
@@ -44,10 +45,14 @@ jobs:
         run: node scripts/ci-change-classifier.mjs --output "$GITHUB_OUTPUT"
 
       - name: Print change classification
+        env:
+          CHANGED_FILE_COUNT: ${{ steps.classify.outputs.changed_file_count }}
+          CODE_CHANGED: ${{ steps.classify.outputs.code_changed }}
+          DOCS_ONLY: ${{ steps.classify.outputs.docs_only }}
         run: |
-          echo "docs_only=${{ steps.classify.outputs.docs_only }}"
-          echo "code_changed=${{ steps.classify.outputs.code_changed }}"
-          echo "changed_file_count=${{ steps.classify.outputs.changed_file_count }}"
+          echo "docs_only=${DOCS_ONLY}"
+          echo "code_changed=${CODE_CHANGED}"
+          echo "changed_file_count=${CHANGED_FILE_COUNT}"
 
   core:
     name: Core (Lint + Contract/Domain/DID)
@@ -66,13 +71,15 @@ jobs:
       COMPACT_COMPILER_VERSION: 0.30.0
     steps:
       - name: Checkout repository
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v5
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Enable Corepack
         run: corepack enable
 
       - name: Set up Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v4
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -115,13 +122,15 @@ jobs:
       PROOF_SERVER_IMAGE: ${{ vars.PROOF_SERVER_IMAGE != '' && vars.PROOF_SERVER_IMAGE || 'midnightntwrk/proof-server:8.0.3' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v5
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Enable Corepack
         run: corepack enable
 
       - name: Set up Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v4
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: pnpm

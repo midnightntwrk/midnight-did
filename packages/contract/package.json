@@ -9,7 +9,8 @@
     "directory": "packages/contract"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "engines": {
     "node": ">=24",
@@ -41,16 +42,16 @@
     "coverage": "vitest run --coverage",
     "clean": "rm -rf dist && rm -rf coverage && rm -rf reports",
     "build": "rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/did.compact ./dist",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix",
+    "lint": "prettier --check \"src/**/*.{ts,tsx}\" \"!src/managed/**\" && eslint src",
+    "lint:fix": "prettier --write \"src/**/*.{ts,tsx}\" \"!src/managed/**\" && eslint src --fix",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "all": "pnpm run compact && pnpm run build && pnpm run test:ci"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "4.1.8"
+    "@vitest/coverage-v8": "4.1.10"
   },
   "dependencies": {
-    "@midnight-ntwrk/compact-runtime": "0.15.0",
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
     "@midnight-ntwrk/midnight-did-jubjub-schnorr": "workspace:*"
   },
   "files": [

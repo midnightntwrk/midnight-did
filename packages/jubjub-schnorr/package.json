@@ -9,7 +9,8 @@
     "directory": "packages/jubjub-schnorr"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "engines": {
     "node": ">=24",
@@ -40,18 +41,18 @@
     "coverage": "pnpm run compact && vitest run --config vitest.config.ts --coverage",
     "clean": "rm -rf dist && rm -rf coverage && rm -rf reports && rm -rf src/managed",
     "build": "pnpm run compact && rm -rf dist && tsc -b tsconfig.build.json --force && mkdir -p dist && cp -Rf ./src/managed ./dist/ && cp ./src/jubjub-schnorr.compact ./src/schnorr.compact ./dist",
-    "lint": "eslint src --ignore-pattern 'src/managed/**'",
-    "lint:fix": "eslint src --fix --ignore-pattern 'src/managed/**'",
+    "lint": "prettier --check \"src/**/*.{ts,tsx}\" \"!src/managed/**\" && eslint src --ignore-pattern 'src/managed/**'",
+    "lint:fix": "prettier --write \"src/**/*.{ts,tsx}\" \"!src/managed/**\" && eslint src --fix --ignore-pattern 'src/managed/**'",
     "typecheck": "pnpm run compact && tsc -p tsconfig.json --noEmit",
     "all": "pnpm run compact && pnpm run build && pnpm run test:ci"
   },
   "dependencies": {
-    "@midnight-ntwrk/compact-runtime": "0.15.0",
-    "@midnight-ntwrk/ledger-v8": "8.0.3",
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
+    "@midnight-ntwrk/ledger-v8": "8.1.0",
     "@noble/hashes": "^2.2.0"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "4.1.8",
+    "@vitest/coverage-v8": "4.1.10",
     "globals": "14.0.0"
   },
   "files": [

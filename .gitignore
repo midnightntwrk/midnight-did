@@ -28,6 +28,9 @@ test-results/
 jspm_packages/
 
 .turbo/
+.pi/git/
+.pi/npm/
+.pi/harness/
 
 # Optional eslint cache
 .eslintcache
@@ -92,3 +95,5 @@ docs-site/.vitepress/dist/
 docs-site/.vitepress/cache/
 docs-site/api/reference/
 docs-site/source/
+docs-site/spec/midnight-method.md
+docs-site/spec/midnight-did-traits.md

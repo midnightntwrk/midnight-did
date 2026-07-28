@@ -3,7 +3,10 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   mode: "node",
   test: {
-    pool: 'threads',
+    // The Compact runtime WASM loader is not safe under Vitest worker threads
+    // on Node 24: repeated ESM loads emit unmanaged FD warnings and can abort.
+    // Forked workers isolate the loader and keep local validation stable.
+    pool: "forks",
     fileParallelism: false,
     deps: { interopDefault: true },
     globals: true,
@@ -24,8 +27,6 @@ export default defineConfig({
         "src/test/fixtures/**",
         "**/*.test.ts",
         "src/index.ts",
-        "src/did-registrar.ts",
-        "src/did-resolver.ts",
         "vitest.config.ts"
       ],
       thresholds: {

@@ -109,6 +109,17 @@ describe("DID parsing utilities", () => {
     ).toThrow();
   });
 
+  it("rejects DID Documents with null verification relationships", () => {
+    expect(() =>
+      parseDIDDocument({
+        "@context": "https://www.w3.org/ns/did/v1",
+        id: exampleDid,
+        verificationMethod: [exampleVerificationMethodInput],
+        authentication: null,
+      }),
+    ).toThrow();
+  });
+
   it("accepts relative relation references when verificationMethod ids are absolute DID URLs", () => {
     const vmId = `${exampleDid}#key-1`;
     const doc = parseDIDDocument({

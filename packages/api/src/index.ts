@@ -9,3 +9,4 @@ export type {
 export * from "./release-artifacts.js";
 export * from "./runtime-to-domain.js";
 export * from "./types.js";
+export * from "./zk-artifacts.js";

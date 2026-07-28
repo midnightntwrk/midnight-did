@@ -700,13 +700,11 @@ export const offchainStateToDidDocument = (
     verificationMethod: parsed.verificationMethod.map((method) =>
       offchainVerificationMethodToDidDocumentMethod(did, method),
     ),
-    authentication: authentication.length > 0 ? authentication : null,
-    assertionMethod: assertionMethod.length > 0 ? assertionMethod : null,
-    keyAgreement: keyAgreement.length > 0 ? keyAgreement : null,
-    capabilityInvocation:
-      capabilityInvocation.length > 0 ? capabilityInvocation : null,
-    capabilityDelegation:
-      capabilityDelegation.length > 0 ? capabilityDelegation : null,
+    ...(authentication.length > 0 ? { authentication } : {}),
+    ...(assertionMethod.length > 0 ? { assertionMethod } : {}),
+    ...(keyAgreement.length > 0 ? { keyAgreement } : {}),
+    ...(capabilityInvocation.length > 0 ? { capabilityInvocation } : {}),
+    ...(capabilityDelegation.length > 0 ? { capabilityDelegation } : {}),
     service:
       parsed.service.length > 0
         ? parsed.service.map(offchainServiceToDidDocumentService)

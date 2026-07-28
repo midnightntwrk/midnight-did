@@ -15,7 +15,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  githubPackageRegistry,
+  npmPackageRegistry,
   repositoryUrl,
 } from "./did-workspace-catalog.mjs";
 
@@ -46,7 +46,8 @@ const distPackage = ({ name, workspace, files, exports }) => ({
     directory: workspace,
   },
   publishConfig: {
-    registry: githubPackageRegistry,
+    access: "public",
+    registry: npmPackageRegistry,
   },
   engines: {
     node: ">=24",
@@ -231,10 +232,21 @@ try {
     writeJson("packages/api/package.json", {
       ...apiPackage,
       publishConfig: {
-        registry: "https://registry.npmjs.org",
+        registry: "https://npm.pkg.github.com",
       },
     });
   }, "packages/api/package.json publishConfig.registry");
+
+  expectFailure(() => {
+    const apiPackage = readFixtureJson("packages/api/package.json");
+    writeJson("packages/api/package.json", {
+      ...apiPackage,
+      publishConfig: {
+        ...apiPackage.publishConfig,
+        access: "restricted",
+      },
+    });
+  }, "packages/api/package.json publishConfig.access");
 
   expectFailure(() => {
     const apiPackage = readFixtureJson("packages/api/package.json");

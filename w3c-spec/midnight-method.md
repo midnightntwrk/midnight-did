@@ -45,7 +45,7 @@ This specification describes a new DID method called Midnight for storing DIDs u
 9. [Privacy Considerations](#9-privacy-considerations)
 10. [Discoverability](#10-discoverability)
 11. [Appendix](#11-appendix)
-    - [11.1. Trusted proof server model](#111-trusted-proof-server-model)
+    - [11.1. Controller authorization and proof servers](#111-controller-authorization-and-proof-servers)
     - [11.2. Example DID Document](#112-example-did-document)
 
 # 1. Conformance and Terminology
@@ -211,7 +211,9 @@ Midnight normalizes identifiers to fragment form (`#...`) at the SDK/contract bo
 
 ### 3.4.2. type
 
-The value of the `type` field **MUST** be `JsonWebKey` to support the compatibility and interoperability with other SSI systems, and support the majority of the cryptography suites according to the [RFC7517] JSON Web Key (JWK) specification.
+The value of the `type` field **MUST** be `JsonWebKey`. Midnight uses this name to identify verification methods whose public key material is carried in the `publicKeyJwk` property and encoded according to [RFC7517] JSON Web Key (JWK) rules.
+
+Midnight does not emit `JsonWebKey2020`. `JsonWebKey2020` is associated with older vc-jws-2020 / JSON-LD context naming, while the Midnight DID method names the verification material form directly as `JsonWebKey`. Consumers that require a `JsonWebKey2020` term or context mapping MUST adapt the resolved DID Document at the integration boundary; the canonical Midnight DID Document representation remains `JsonWebKey`.
 
 ### 3.4.3. controller
 
@@ -229,7 +231,9 @@ The value of the `publicKeyJwk` field conforms to the [RFC7517] JSON Web Key (JW
 
 Public JWKs MUST NOT contain private key material such as `d`.
 
-The Midnight DID supports the following cryptographic algorithms: Ed25519, X25519, Jubjub (Midnight compatible), P-256, secp256k1, BLS12-381 G1, and BLS12-381 G2. Based on the cryptography suite, the values of the properties are as follows:
+The Midnight DID supports the following cryptographic algorithms: Ed25519, X25519, Jubjub (Midnight compatible), P-256, secp256k1, BLS12-381 G1, and BLS12-381 G2. Ed25519, X25519, P-256, and secp256k1 use established JOSE/JWK curve names. `Jubjub` is a Midnight-private curve name for native SchnorrJubjub methods. `BLS12381G1` and `BLS12381G2` follow draft BLS JOSE/COSE key-representation naming and are interoperability-limited until the relevant standards and library support stabilize. Generic JOSE libraries that validate `crv` against only the established JWK curve registry can reject the Midnight-private and draft curve names.
+
+Based on the cryptography suite, the values of the properties are as follows:
 
 #### 3.4.4.1 Ed25519
 Uses EdDSA over Ed25519 for signatures.
@@ -249,6 +253,8 @@ Keys are represented as JWK in uncompressed format with 32-byte little-endian fi
 - `y` parameters.
 
 Jubjub keys are stored on ledger as native `JubjubPoint` values in the `schnorrJubjubVerificationMethods` map. Resolvers project those native points into DID Document `publicKeyJwk` entries by encoding the `x` and `y` field elements as 32-byte little-endian, canonical unpadded base64url strings.
+
+`crv`=`Jubjub` is Midnight-private and is not a registered JOSE curve name. It is intended for Midnight-native SchnorrJubjub signing and verification flows, not for generic JOSE/JWK verification libraries.
 
 Current Midnight DID mutation circuits do not parse opaque JWK coordinate strings in contract code. SDK producers MUST use the SchnorrJubjub verification method API for Jubjub keys so the native `JubjubPoint` is the on-ledger source of truth. Jubjub signing and verification flows use the dedicated `jubjub-schnorr` package rather than additional exported circuits on the DID contract.
 
@@ -292,7 +298,9 @@ Uses BLS12-381 key material for pairing-friendly cryptographic suites outside th
 
 BLS12-381 JWK public keys MUST omit `y` and `d`. They are stored and resolved as DID Document key material; they are not used by current Midnight DID smart-contract verification circuits. The contract stores the BLS public key as an opaque canonical string, so the key can be larger than the Midnight proof-system field without casting the bytes to `Field`.
 
-Some W3C Data Integrity and BBS-oriented suites prefer `type: "Multikey"` with `publicKeyMultibase`. DID Core permits that verification material form, but a verification method MUST NOT contain both `publicKeyJwk` and `publicKeyMultibase` for the same key material [W3C-DID]. The current Midnight DID ledger profile supports `JsonWebKey` / `publicKeyJwk` only. Future `Multikey` support should be added as an explicit verification-method profile and storage path, not by overloading `publicKeyJwk`.
+The `BLS12381G1` and `BLS12381G2` names are draft/provisional JWK curve names. Midnight DID preserves these names for explicit BLS12-381 key storage, but generic JOSE libraries can reject them until matching standards and implementation support are available.
+
+Some W3C Data Integrity and BBS-oriented suites require `type: "Multikey"` with `publicKeyMultibase`. DID Core permits that verification material form, but a verification method MUST NOT contain both `publicKeyJwk` and `publicKeyMultibase` for the same key material [W3C-DID]. The current Midnight DID ledger profile supports `JsonWebKey` / `publicKeyJwk` only. `Multikey` / `publicKeyMultibase` verification methods are not supported by this method version.
 
 ## 3.5. Verification Relationships
 
@@ -304,7 +312,7 @@ In a Midnight DID Document, according to the DID Core verification-relationships
 - capabilityDelegation
 - keyAgreement
 
-The verification relationships are represented by the corresponding properties by referencing the verification method `id` defined in the DID Document.
+The verification relationships are represented by the corresponding properties by referencing the verification method `id` defined in the DID Document. Empty verification relationships MUST be omitted from the DID Document.
 
 Embedded verification method definition is not supported by the Midnight DID method.
 
@@ -439,11 +447,15 @@ The Midnight DID Document metadata supports the following properties according t
 
 ### 4.1. Created
 
-The property **created** represents the date when the document was created.
+The property **created** represents the controller/prover-asserted date when the DID state was created.
+
+For ledger-backed Midnight DIDs, `created` is copied from the `currentTimestamp` witness supplied during contract deployment. It is stored on ledger after the deployment transaction succeeds, but it is not derived from Midnight consensus time, block time, indexer time, or any other ledger-authoritative clock. Resolvers and SDKs can sanity-check this value for obviously invalid or implausible values, such as dates before the supported epoch/profile minimum or far-future dates outside a local policy window, but they cannot prove the exact wall-clock creation time from DID state alone.
 
 ### 4.2. Updated
 
-The property **updated** represents the date when the document was last updated.
+The property **updated** represents the controller/prover-asserted date when the DID state was last updated.
+
+For ledger-backed Midnight DIDs, `updated` is copied from the `currentTimestamp` witness supplied to each successful mutating circuit. It is stored on ledger after the transaction succeeds, but it is not ledger-authoritative operation time metadata. Resolvers and SDKs can reject, omit, warn on, or otherwise mark values that are obviously too low, too high, unparsable, non-monotonic for a local observation, or outside an application policy window; they cannot convert the value into a consensus timestamp without independent time attestation.
 
 ### 4.3. Deactivated
 
@@ -497,66 +509,66 @@ Smart-contract access control is independent from the ZK prover/verifier keys
 described in [section 5.1](#51-zk-keys). A Midnight DID controller is authorized
 by wallet-held private state, not by possession of the Compact prover artifacts.
 
-The contract uses two witnesses for controller-gated operations:
+The contract uses wallet-local Jubjub Schnorr signatures for controller-gated
+operations. The wallet or SDK creates a random 32-byte controller secret,
+derives a Jubjub controller public key, and stores only the public key on ledger
+as `controllerPublicKey`.
 
-- `localSecretKey` — a wallet-generated random 32-byte controller secret.
-- `currentTimestamp` — the current time in milliseconds since epoch, used to
-  populate `created`/`updated`.
+For each controller-gated operation, the wallet signs a domain-separated
+authorization digest with four field lanes:
 
-During deployment, the wallet or SDK creates `localSecretKey` with
-cryptographically secure randomness and stores it in private-state storage. The
-contract stores only the corresponding `controllerPublicKey` commitment:
+- a domain hash for `midnight-did-ctrl-sig:v1`,
+- a DID state hash over the DID contract id and current ledger `version`,
+- an operation-name hash, and
+- an operation-arguments hash.
 
-```text
-persistentHash<Vector<2, Bytes<32>>>([pad(32, "did:controller:pk"), localSecretKey])
-```
-
-The `controllerPublicKey` value is therefore a contract-local access-control
-commitment derived from random wallet material. It is not a DID Document
-verification method, it is not a Compact prover public key, and it is not reused
-as Ed25519, X25519, P-256, secp256k1, BLS12-381, or SchnorrJubjub key material.
-
-Each update circuit recomputes the commitment from the private `localSecretKey`
-witness and asserts that it matches the on-ledger `controllerPublicKey`. This
-ensures that only a prover with access to the wallet controller secret can mutate
-the DID state.
+The proof submitted to the contract carries the signature and expected version.
+The circuit recomputes the operation and argument hashes from the public
+arguments it is about to apply, verifies the signature against the stored
+`controllerPublicKey`, and rejects stale versions before mutating DID state. The
+controller secret is not a circuit witness and MUST NOT be sent to delegated
+proving infrastructure.
 
 The controller secret is not stored on ledger. SDKs MUST persist it in the
 wallet's private-state storage, and wallets SHOULD provide backup or recovery
 for this private state. Loss of the controller secret makes subsequent DID
 updates impossible unless a future recovery mechanism is introduced.
 
-Controller rotation is performed with
-`rotateControllerKey(newControllerPublicKey: Bytes<32>)`. The replacement
-controller secret is generated locally by the wallet or SDK, and the replacement
-`controllerPublicKey` commitment is derived locally before submitting the
-transaction. Only the new `controllerPublicKey` is supplied to the circuit. The
-new secret MUST NOT be passed as a circuit argument: private circuit arguments
-may be visible to the proving environment, especially when proving is delegated
-to a proof server. After the rotation transaction finalizes, the SDK MUST persist
-the new secret as the DID private state. See [Appendix 11.1](#111-trusted-proof-server-model)
-for the proof-server trust assumption implied by the current `localSecretKey`
-witness design.
+Controller rotation is performed with a locally derived replacement Jubjub
+`controllerPublicKey`. The replacement controller secret is generated locally by
+the wallet or SDK. Only the new `controllerPublicKey`, the current-version
+controller signature, and the expected version are supplied to the circuit. After
+the rotation transaction finalizes, the SDK MUST persist the new secret as the
+DID private state. See [Appendix 11.1](#111-controller-authorization-and-proof-servers)
+for the proof-server trust boundary.
 
 ## 5.3. Keys associated with the DID Document
 Midnight DID Controllers **MUST** manage the keys associated with the DID Document.
-It is recommended to use an HD derivation algorithm to derive keys in a predictable manner.
+Implementations MAY generate DID controller keys and DID Document verification
+keys randomly, or MAY derive them from wallet/private-state seed material with an
+implementation-defined HD convention. Implementations that use HD derivation
+SHOULD domain-separate Midnight DID material from payment, dust, metadata, and
+other wallet roles, and SHOULD document their path/index allocation so backups
+and recovery flows can reproduce the same keys.
 
-This specification does not cover key management aspects.
+This version of the specification does not standardize a single HD derivation
+path for Midnight DID controller keys or DID Document verification keys. A future
+version may define a BIP32/BIP44/CIP1852-like convention, or reserve Midnight HD
+wallet roles, for deriving all Midnight DID keys from a single seed.
 
 # 6. Midnight DID Ledger state
 
-The following table summarizes the on‑chain ledger state exported by the contract and how each field should be interpreted when reconstructing a DID Document and its metadata.
+The following table summarizes the on-chain ledger state exported by the contract and how each field should be interpreted when reconstructing a DID Document and its metadata.
 
 | Field                          | Type                                         | Description |
 |--------------------------------|----------------------------------------------|-------------|
 | contractVersion                | `Uint<32>`                                   | Contract schema/version number to support upgrades and compatibility checks. |
-| controllerPublicKey            | `Bytes<32>`                                  | Public key derived from the secret key witness; used to authorize updates. |
+| controllerPublicKey            | `JubjubPoint`                                | Controller public key used to verify wallet-local controller authorization signatures. |
 | id                             | `ContractAddress`                            | Smart‑contract address (32‑byte / 64‑hex) that uniquely identifies the DID on Midnight. |
 | alsoKnownAs                    | `Set<Opaque<"string">>`                      | The DID Document’s `alsoKnownAs` field; allows to set the alias for the DID identity. |
-| version                        | `Counter`                                    | Monotonic on‑chain revision counter for the DID state. Must be set to the `versionId` property of the DIDDocument. |
-| created                        | `Uint<64>`                                   | Creation timestamp (UNIX epoch, milliseconds) of the DID instance. Exposed as the DID Document Metadata `created` property (ISO 8601 UTC, second precision). |
-| updated                        | `Uint<64>`                                   | Last update timestamp (UNIX epoch, milliseconds) after applying operations. Exposed as the DID Document Metadata `updated` property (ISO 8601 UTC, second precision). |
+| version                        | `Counter`                                    | Monotonic on-chain revision counter for the DID state. Must be set to the `versionId` property of the DIDDocument. |
+| created                        | `Uint<64>`                                   | Client/controller-asserted creation timestamp (UNIX epoch, milliseconds) supplied by the `currentTimestamp` witness during deployment. Exposed as the DID Document Metadata `created` property (ISO 8601 UTC, second precision) after resolver/SDK sanity checks. This is not ledger-authoritative operation time. |
+| updated                        | `Uint<64>`                                   | Client/controller-asserted last update timestamp (UNIX epoch, milliseconds) supplied by the `currentTimestamp` witness during the most recent mutating operation. Exposed as the DID Document Metadata `updated` property (ISO 8601 UTC, second precision) after resolver/SDK sanity checks. This is not ledger-authoritative operation time. |
 | deactivated                    | `Boolean`                                    | Whether the DID has been deactivated. When `true`, the resolver surfaces `deactivated: true` in metadata and reuses the `updated` timestamp as the deactivation time. |
 | active                         | `Boolean`                                    | Whether the DID is active (`true`) or deactivated (`false`). If `active` is false, the resolver MUST set `deactivated: true` in DID Document metadata. |
 | operationCount                 | `Counter`                                    | Total number of DID update operations applied to this DID. Used for internal statistics. |
@@ -587,6 +599,8 @@ Example DID Document metadata emitted by the resolver layer:
 }
 ```
 
+Metadata trust note: `created` and `updated` are public ledger fields, but their values originate from the controller/prover's `currentTimestamp` witness. A resolver or SDK MAY apply profile-specific bounds and monotonicity checks before surfacing them, but consumers MUST treat them as advisory DID Document Metadata unless a separate application, indexer, ledger event, or timestamping service supplies an independent time attestation.
+
 # 7. DID operations
 
 The publisher of the smart contract is the DID Controller, who keeps the private keys associated with the corresponding smart contract and the private keys for the public key material of the DID Document.
@@ -595,9 +609,9 @@ All update operations are performed by executing one of the smart contract circu
 
 The `created` and `updated` ledger fields are populated from the `currentTimestamp` witness during contract deployment and each successful update circuit call. DID Document metadata is then composed by the resolver layer from these on-ledger values (`created`, `updated`, `deactivated`, `version`).
 
-The `currentTimestamp` value is client-asserted metadata, not a Midnight consensus timestamp. A conforming implementation MUST NOT treat `created` or `updated` as proof that an operation occurred at a particular wall-clock time unless an application adds an independent time attestation. Resolvers SHOULD surface the values as DID Document Metadata only and SHOULD document that they are controller/prover-supplied.
+The `currentTimestamp` value is client-asserted metadata, not a Midnight consensus timestamp. A conforming implementation MUST NOT treat `created` or `updated` as proof that an operation occurred at a particular wall-clock time unless an application adds an independent time attestation. Resolvers and SDKs MAY sanity-check the values for obviously too-low or too-high timestamps, malformed conversions, and local monotonicity expectations, but those checks only bound implausible values; they do not make the metadata ledger-authoritative. Resolvers SHOULD surface the values as DID Document Metadata only and SHOULD document that they are controller/prover-supplied.
 
-Each update is a separate circuit call; batching multiple logical operations into a single on‑chain call is not supported in this version.
+Each update is a separate circuit call; batching multiple logical operations into a single on-chain call is not supported in this version.
 
 ## 7.1. Create
 
@@ -673,16 +687,16 @@ keyword that starts with a letter.
 
 The method document profile requires `@context` in resolved Midnight DID
 Documents. Producers of `application/did+ld+json` MUST include it. Producers of
-`application/did+json` MUST follow DID Core JSON production rules and SHOULD
-document whether they retain `@context` as an extension for compatibility with
-Midnight's document profile or omit representation-specific JSON-LD entries for
-strict JSON consumers.
+`application/did+json` MUST follow DID Core JSON production rules and MUST omit
+the representation-specific `@context` member. This keeps the JSON and JSON-LD
+media types distinct while preserving the required context in the canonical
+Midnight DID Document and its JSON-LD representation.
 
 ## 7.3. Update
 
 Updating the Midnight DID implies that the DID Controller calls one of the smart contract's individual circuits for each type of modification.
 
-Each update circuit requires the `localSecretKey` witness to match the on‑chain `controllerPublicKey`. The `currentTimestamp` witness is used to populate the `updated` ledger field after each successful operation. The value is not constrained by ledger time and therefore remains informational metadata.
+Each update circuit requires a controller Schnorr signature over the DID contract id, current version, operation name, and operation arguments, verified against the on-chain `controllerPublicKey`. The `currentTimestamp` witness is used to populate the `updated` ledger field after each successful operation. The value is not constrained by ledger time and therefore remains informational metadata that can only be sanity-checked by resolvers and SDKs for obviously implausible values.
 
 Conformance note: due to Compact language limitations for rich URI/data-model validation, normative checks for DID URL subject binding and DID Core structure conformance (for example `serviceEndpoint` shape), JWK/base64url canonicality, opaque JWK shape (for example OKP omits `y` while EC includes `y`), and non-native key parsing are enforced at the SDK/resolver layers (`domain`, `api`, `did`). The smart contract enforces authorization, exact ledger identifier existence/uniqueness, supported opaque JWK key/curve profiles, native SchnorrJubjub point storage, and state-transition invariants.
 
@@ -706,7 +720,7 @@ Each mutating circuit increments the version counter and updates the `updated` t
 The circuit implementations are in [`packages/contract/src/did.compact`](../packages/contract/src/did.compact), and the API helpers that call these circuits are in [`packages/api/src/lib.ts`](../packages/api/src/lib.ts).
 
 Controller rotation note:
-- `rotateControllerKey` accepts only the next `controllerPublicKey`, not the next secret.
+- `rotateControllerKey` accepts only the next `controllerPublicKey`, not the next secret; authorization is supplied as a current-version controller signature.
 - The API helper generates a new 32-byte secret, derives the next public key locally with the contract package's `deriveControllerPublicKey` helper, submits the rotation transaction, and stores the new secret in private state after the transaction succeeds.
 - If the rotation transaction finalizes but private-state persistence fails, the wallet must recover the same new secret to continue updating the DID.
 - Implementations that bypass the API and submit an arbitrary `newControllerPublicKey` are responsible for retaining the matching preimage. Losing the matching secret makes subsequent DID updates impossible.
@@ -725,7 +739,7 @@ Adds a new verification method entry and (optionally, in a subsequent operation)
 
 Example (Ed25519):
 ```typescript
-await addVerificationMethod(didContract, {
+await addVerificationMethod(didContract, providers, {
   id: '#key-1',
   type: 'JsonWebKey',
   controller: 'did:midnight:testnet:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6',
@@ -748,7 +762,7 @@ Ledger normalization note:
 
 Example (SchnorrJubjub):
 ```typescript
-await addSchnorrJubjubVerificationMethod(didContract, {
+await addSchnorrJubjubVerificationMethod(didContract, providers, {
   id: '#key-jubjub-1',
   publicKey: {
     x: 12345n,
@@ -779,7 +793,7 @@ Replaces the stored definition of an existing verification method (same `id`).
 
 Example:
 ```typescript
-await updateVerificationMethod(didContract, {
+await updateVerificationMethod(didContract, providers, {
   id: '#key-1',
   type: 'JsonWebKey',
   controller: 'did:midnight:testnet:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6',
@@ -797,7 +811,7 @@ Deletes a verification method by its `id`.
 
 - Inputs: `id` — the verification method identifier.
 - Constraints:
-  - Removing a non‑existent method MUST fail.
+  - Removing a non-existent method MUST fail.
   - Removing a Jubjub method MUST use `removeSchnorrJubjubVerificationMethod`, which applies the same relation cleanup behavior as the generic API helper.
 
 Example:
@@ -844,7 +858,7 @@ Adds a service entry identified by a unique `id` with a `type` and `serviceEndpo
 
 Example:
 ```typescript
-await addService(didContract, {
+await addService(didContract, providers, {
   id: '#didcomm-1',
   type: 'DIDCommV2',
   serviceEndpoint: 'https://localhost/didcomm/v2'
@@ -862,7 +876,7 @@ Replaces the service definition with the same `id`.
 
 Example:
 ```typescript
-await updateService(didContract, {
+await updateService(didContract, providers, {
   id: '#didcomm-1',
   type: 'DIDCommV2',
   serviceEndpoint: 'https://new-endpoint.com/didcomm'
@@ -875,11 +889,11 @@ Deletes a service entry by `serviceId`.
 
 - Inputs: `serviceId` — the service identifier.
 - Constraints:
-  - Removing a non‑existent service MUST fail.
+  - Removing a non-existent service MUST fail.
 
 Example:
 ```typescript
-await removeService(didContract, '#didcomm-1');
+await removeService(didContract, providers, '#didcomm-1');
 ```
 
 ### 7.3.9. Add AlsoKnownAs
@@ -893,7 +907,7 @@ Adds an alias URI to the `alsoKnownAs` set. See [section 3.3](#33-alias) for sem
 
 Example:
 ```typescript
-await addAlsoKnownAs(didContract, 'did:example:aka-1');
+await addAlsoKnownAs(didContract, providers, 'did:example:aka-1');
 ```
 
 ### 7.3.10. Remove AlsoKnownAs
@@ -906,12 +920,12 @@ Removes an alias URI from the `alsoKnownAs` set.
 
 Example:
 ```typescript
-await removeAlsoKnownAs(didContract, 'did:example:aka-1');
+await removeAlsoKnownAs(didContract, providers, 'did:example:aka-1');
 ```
 
 ### 7.3.11. Deactivate
 
-Marks the DID as deactivated on‑chain. The public state remains readable for auditability, but no further update operations are permitted.
+Marks the DID as deactivated on-chain. The public state remains readable for auditability, but no further update operations are permitted.
 
 - Inputs: none.
 - Effects:
@@ -922,7 +936,7 @@ Marks the DID as deactivated on‑chain. The public state remains readable for a
 
 Example:
 ```typescript
-await deactivate(didContract);
+await deactivate(didContract, providers);
 ```
 
 # 8. Security Considerations
@@ -935,13 +949,13 @@ Midnight DID will be stored in an address controlled by the holder. This ensures
 
 The application is responsible for key management (see [Section 5. Private and Public Keys](#5-private-and-public-keys)).
 
-It is recommended to use secure storage for private keys and an HD derivation convention for Midnight DID keys to simplify backup and recovery.
+Implementations SHOULD use secure storage for private keys. They MAY use random keys or an implementation-defined HD derivation convention for Midnight DID keys; an HD convention can simplify backup and recovery but is not standardized by this specification version.
 
 The concrete implementation of Secret Storage depends on the target platform and is outside the scope of this specification.
 
 ## 8.1. Binding to Physical Identity
 
-A Midnight DID document stored on the Blockchain will never contain any personal information. Ownership is proved by:
+Conforming Midnight DID producers MUST NOT intentionally publish personal data in DID Document fields. Ledger-backed DID Documents can still contain controller-supplied public values, so controllers and wallets are responsible for data minimization before publication. Ownership is proved by:
 - Control over the blockchain address.
 - Control over the private keys associated with the Midnight DID Document.
 
@@ -954,13 +968,17 @@ Using the DID extension to share the VC as a public ledger state is possible, bu
 All Midnight DIDs are created by deploying the smart contract with the corresponding public ledger state. The secret key is provided as a witness to authorize updates and is not published on-chain.
 
 **NOTE**:
-It's possible to add the history of changes to the Midnight DID after the corresponding discussion.
+Ledger-backed Midnight DID state exposes the latest contract state through the resolver profile, but the public on-chain transaction transcript already records the mutation history for the DID contract address. A future resolver or indexer profile could make that history easier to query and represent, but the privacy impact exists even without a dedicated history API.
 
 # 9. Privacy Considerations
+
+This section addresses the DID Core Section 7.5 privacy considerations that are relevant to the Midnight DID method, including correlation and unlinkability, denial of service, service-endpoint correlation, and DID Document history leakage.
 
 ## 9.1. Surveillance
 
 In the public Midnight network, all transactions are visible by watching the blockchain.
+
+For ledger-backed Midnight DIDs, each DID is a distinct smart-contract deployment. The contract address in the DID is a permanent public correlation handle for all DID operations against that instance, including deployment, key updates, verification relationship changes, service changes, controller rotation, and deactivation. Indexers and observers can link those operations to the same DID contract even when the resolved DID Document does not contain personal data.
 
 ## 9.2. Stored data compromise
 
@@ -975,16 +993,42 @@ If personal information is added to the blockchain, potentially making it a viab
 
 For this reason, it is strongly suggested that personal information not be added to the blockchain.
 
-Therefore, the Midnight DID document will **NEVER** contain any personal data.
+Conforming Midnight DID producers MUST NOT intentionally place personal data in DID Document fields. This includes verification method identifiers, service endpoint URLs, service metadata, `alsoKnownAs` aliases, and other extension fields. The method cannot guarantee that controller-supplied public values are non-personal, so applications and wallets are responsible for data minimization before publication.
 
 ## 9.4. Separation of concerns
 
 The Midnight DID method separates concerns between the following roles:
-- Midnight DID smart‑contract publisher and updater (the role implies access to the ZK proving infrastructure and the wallet-held `localSecretKey` witness).
+- Midnight DID smart‑contract publisher and updater (the role can assemble and submit transactions, while controller authorization is supplied as wallet-local signatures).
 - Midnight DID Document key holder (the role implies managing the private and public keys associated with the DID ledger state).
 - Midnight DID Document reader (has access to the public ledger state and can reconstruct the DID Document).
 
 This separation of concerns allows the use of the Midnight DID method for both custodial and non‑custodial solutions.
+
+## 9.5. Correlation and unlinkability
+
+Ledger-backed Midnight DIDs are intentionally resolvable from public ledger state, so they are linkable by design once disclosed. The contract address embedded in `did:midnight:<network>:<address>` links the DID subject to one public on-chain contract instance and its mutation sequence. Publishing the same DID in Verifiable Credentials, trust registries, presentations, service endpoints, or application logs creates additional correlation points across those contexts.
+
+The offchain long form has a different privacy tradeoff. It avoids public ledger publication, but the long-form DID string contains the encoded initial DID state. Any party that observes the long-form DID can decode that state and learn the included public verification methods, service endpoints, aliases, and other public fields without contacting a resolver. Because offchain state has no in-place update mechanism, every changed long-form DID discloses the full state for that version to any party that receives it. Historical long-form DIDs that a subject previously shared remain independently decodable.
+
+Applications that need unlinkability SHOULD avoid reusing the same ledger-backed DID across unrelated contexts. They SHOULD minimize `alsoKnownAs`, avoid stable service endpoints that identify the same operator across DIDs, and prefer purpose-specific DIDs where correlation risk is material. Applications that exchange offchain DIDs SHOULD prefer the hash-only short form after the recipient already has the encoded state through an authorized channel, and SHOULD avoid placing long-form DIDs in public registries, credentials, or logs unless full-state disclosure is acceptable.
+
+## 9.6. Denial of service
+
+Midnight DID resolution depends on ledger access, indexer availability, resolver availability, and, for updates, transaction submission and proof generation. Attackers can attempt denial-of-service by flooding indexers or resolvers with resolution requests, targeting popular DID contract addresses, submitting high volumes of DID transactions, or exhausting proof-server resources used by wallet or SDK flows.
+
+Resolver and indexer operators SHOULD apply normal service protections such as rate limits, request size limits, caching of resolved public state, backpressure, abuse monitoring, and resource isolation between public query handling and update/proving paths. Wallets and SDKs SHOULD treat resolver/indexer failures as availability failures, not as proof that a DID does not exist or has been deactivated.
+
+## 9.7. Service-endpoint correlation
+
+Service endpoints are public DID Document data. Endpoint hostnames, paths, query parameters, DIDComm routing metadata, mediator identifiers, and shared infrastructure can correlate multiple DIDs to the same operator, account, device, organization, or network location. Updating a service endpoint on ledger also creates a public before/after link for that DID contract address.
+
+Controllers SHOULD publish only endpoints needed for the intended interaction, avoid embedding account identifiers or personal data in endpoint values, use pairwise or purpose-specific endpoints where possible, and rotate or remove endpoints when they are no longer needed. DID consumers SHOULD avoid assuming that a service endpoint is private merely because it is contained in a DID Document rather than in a credential.
+
+## 9.8. DID history leakage
+
+Ledger-backed Midnight DID updates are public transactions against a stable contract address. Even if a resolver returns only the latest DID Document, observers with access to ledger or indexer history can reconstruct prior public states, including removed verification methods, prior service endpoints, previous aliases, relationship changes, controller rotations, deactivation time metadata, and operation ordering.
+
+The `created` and `updated` metadata fields are not reliable mitigations for history analysis because their values are client-asserted. They can help applications order a locally observed sequence after sanity checks, but they do not hide or authenticate the public transaction history. Controllers SHOULD assume that public DID mutations are permanent, linkable, and recoverable by sufficiently capable observers.
 
 # 10. Discoverability
 
@@ -1001,25 +1045,25 @@ In every network, discoverability is ultimately provided by the Midnight ledger 
 
 # 11. Appendix
 
-## 11.1. Trusted proof server model
+## 11.1. Controller authorization and proof servers
 
-The current Midnight DID controller authorization model treats the proving environment as trusted for controller-gated operations. Each mutating circuit receives the wallet-held `localSecretKey` as a private witness and checks that:
+Midnight DID controller authorization is designed so delegated proof servers do
+not need the controller secret. Each mutating circuit receives a wallet-local
+Jubjub Schnorr signature and an expected ledger version. The signed digest is
+domain-separated with `midnight-did-ctrl-sig:v1` and includes the DID contract id,
+current version, operation name, and operation arguments.
 
-```
-persistentHash<Vector<2, Bytes<32>>>([pad(32, "did:controller:pk"), localSecretKey]) == controllerPublicKey
-```
+The controller secret is private from the ledger, indexers, resolvers, DID
+Document readers, and proof servers. A remote proof server that receives only the
+signature cannot mint an authorization for a later DID version, a different DID
+contract, a different controller operation, or changed operation arguments. If a
+submitted transaction races with another successful mutation, the version check
+fails and the wallet must sign a fresh authorization for the new state.
 
-The witness is private from the ledger, indexers, resolvers, and DID Document readers. It is not automatically private from a delegated proof server. If a remote proof server receives the `localSecretKey`, that server can learn enough material to produce future proofs for the same DID controller authorization check. If the server can also submit a transaction, or cooperate with an entity that can submit one, it can authorize controller-gated state changes, including rotating the DID to an attacker-chosen `controllerPublicKey`.
-
-For this method version, wallets and SDKs therefore MUST use one of the following operating models for controller-gated operations:
-
-- generate proofs locally in the wallet or another trusted execution environment;
-- delegate proving only to infrastructure trusted with the DID controller secret for the duration and consequences of that operation;
-- use an application-specific custody model where the proof service is intentionally authorized to operate the DID.
-
-The `rotateControllerKey` circuit reduces exposure of the replacement secret by accepting only the next locally derived `controllerPublicKey`. It does not remove the trust requirement for the current `localSecretKey`, because the current secret is still the authorization witness for the rotation operation.
-
-A future untrusted-prover design should replace hash-preimage controller authorization with in-circuit verification of a wallet-local signature over the exact operation intent, including the operation type, contract or DID identifier, current version or nonce, and all operation inputs. In that model the signing key remains in the wallet, the proof server receives only public signature material, and proof-server input manipulation is prevented by binding the signature to the fields checked inside the circuit.
+Wallets and SDKs SHOULD create the controller authorization immediately before
+submitting the intended mutation and MUST NOT reuse it after a failed stale
+version check. A proof service may still be trusted with transaction assembly and
+submission, but it is not trusted with controller secret custody.
 
 ## 11.2. Example DID Document
 
@@ -1076,9 +1120,6 @@ A simple example of a Midnight DID Document is as follows:
   "assertionMethod": [
     "#key-2"
   ],
-  "keyAgreement": null,
-  "capabilityInvocation": null,
-  "capabilityDelegation": null,
   "service": [
     {
       "id": "#linked-domain-1",

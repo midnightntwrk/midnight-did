@@ -1,7 +1,14 @@
-import { deriveControllerPublicKey } from "@midnight-ntwrk/midnight-did-contract";
+import {
+  deriveControllerPublicKey,
+  DIDContract,
+} from "@midnight-ntwrk/midnight-did-contract";
 import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
 
 import { getLogger } from "./api-logger.js";
+import {
+  asSchnorrJubjubDigest,
+  createControllerAuthorization,
+} from "./controller-authorization.js";
 import { randomBytes } from "./lightweight.js";
 import {
   clearPendingControllerPrivateState,
@@ -44,8 +51,22 @@ export const rotateControllerKey = async (
 
   let finalized = false;
   try {
+    const [signature, expectedVersion] = await createControllerAuthorization(
+      didContract,
+      providers,
+      (ledgerState) =>
+        asSchnorrJubjubDigest(
+          DIDContract.pureCircuits.rotateControllerKeyAuthorizationDigest(
+            ledgerState.id,
+            ledgerState.version,
+            nextControllerPublicKey,
+          ),
+        ),
+    );
     const result = await didContract.callTx.rotateControllerKey(
       nextControllerPublicKey,
+      signature,
+      expectedVersion,
     );
     finalized = true;
 

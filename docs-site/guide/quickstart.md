@@ -23,7 +23,7 @@ real key creation and ledger publication:
 ```bash
 ISSUER_BOOTSTRAP_SEED=<hex-seed> \
 ISSUER_KEYSTORE_OUT="$PWD/issuer-keystore.json" \
-INDEXER_URL=http://127.0.0.1:8088/api/v3/graphql \
+INDEXER_URL=http://127.0.0.1:8088/api/v4/graphql \
 NODE_RPC_URL=http://127.0.0.1:9944 \
 PROOF_SERVER_URL=http://127.0.0.1:6300 \
 pnpm exec ts-node --esm packages/api/examples/bootstrap-issuer-did.ts
@@ -90,7 +90,7 @@ const ed25519Method = createVerificationMethod({
   },
 });
 
-await addVerificationMethod(didContract, ed25519Method);
+await addVerificationMethod(didContract, providers, ed25519Method);
 ```
 
 ## Add A SchnorrJubjub Key
@@ -105,7 +105,7 @@ import { deriveJubjubPublicKeyFromSeed } from "@midnight-ntwrk/midnight-did-jubj
 const jubjubSeed = crypto.getRandomValues(new Uint8Array(32));
 const jubjubPublicKey = deriveJubjubPublicKeyFromSeed(jubjubSeed);
 
-await addSchnorrJubjubVerificationMethod(didContract, {
+await addSchnorrJubjubVerificationMethod(didContract, providers, {
   id: "#jubjub-1",
   publicKey: jubjubPublicKey,
 });

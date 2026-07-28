@@ -7,7 +7,11 @@ export {
   deactivate,
   removeAlsoKnownAs,
 } from "./document-operations.js";
-export { resolve } from "./resolution.js";
+export {
+  resolve,
+  resolveDIDResolutionResult,
+  resolveRepresentation,
+} from "./resolution.js";
 export {
   addService,
   removeService,

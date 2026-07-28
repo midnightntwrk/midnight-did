@@ -34,10 +34,10 @@ bugs while still supporting both W3C JWK output and native Midnight proofs.
 for Ed25519, X25519, P-256, and secp256k1; 48 bytes for BLS12381G1; and 96
 bytes for BLS12381G2. Public JWKs must not include private `d` material.
 
-`publicKeyMultibase` / `Multikey` is not a current Midnight DID ledger profile.
-It is the likely future fit for some W3C Data Integrity and BBS-oriented suites,
-but it needs an explicit storage/API path rather than overloading
-`publicKeyJwk`.
+`publicKeyMultibase` / `Multikey` is not a Midnight DID ledger profile in this
+method version. Data Integrity and BBS-oriented suites that require Multikey are
+not currently consumable through `did:midnight` without a separate method
+extension or integration-layer adaptation.
 
 ## Identifier Rules
 
@@ -46,24 +46,21 @@ but it needs an explicit storage/API path rather than overloading
 - Resolvers emit absolute DID URL ids in the DID Document.
 - Relation sets may reference methods from either key map.
 
-## Trusted Proof Server Model
+## Controller Authorization Signature Model
 
-Controller-gated update circuits use a private `localSecretKey` witness to prove
-that the caller controls the DID. This protects the secret from the ledger,
-indexers, resolvers, and DID Document readers.
+Controller-gated update circuits verify a wallet-local Jubjub Schnorr signature
+instead of receiving the controller secret as a witness. The ledger stores the
+controller `JubjubPoint` public key. For each mutation, the SDK signs a
+domain-separated authorization digest containing the DID contract id, current
+ledger version, operation name, and operation arguments, then passes the
+signature and expected version to the circuit.
 
-It does not automatically protect the secret from a delegated proof server. If a
-remote proof server receives the current controller secret, that server can learn
-enough material to produce future controller proofs. For this method version,
-wallets and SDKs must use one of these operating models:
+This keeps the controller secret out of the ledger, indexers, resolvers, DID
+Document readers, and delegated proof servers. A remote proof server receives
+only signature material and the public operation inputs needed to prove the
+transaction. Replayed authorizations fail after the DID version changes, and
+operation-bound signatures cannot be reused for a different mutation or changed
+arguments.
 
-- prove controller-gated operations locally, or
-- delegate proving only to infrastructure trusted with the DID controller secret.
-
-`rotateControllerKey` reduces exposure for the replacement secret by passing only
-the next derived `controllerPublicKey` to the circuit. The current secret is
-still the authorization witness for the rotation operation.
-
-Future untrusted-prover designs should replace hash-preimage controller
-authorization with in-circuit verification of a wallet-local signature over the
-exact operation intent.
+`rotateControllerKey` accepts only the next derived `controllerPublicKey`; the
+replacement secret remains wallet-local and is promoted after finalization.

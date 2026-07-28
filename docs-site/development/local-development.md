@@ -124,6 +124,19 @@ Run the full docs pipeline:
 ./run.sh docs
 ```
 
+The Nix development shell provides the Playwright Chromium browser used by
+rendered layout checks. Outside Nix, install it once:
+
+```bash
+pnpm exec playwright install chromium
+```
+
+Run only the rendered layout checks after a docs build:
+
+```bash
+pnpm run docs:visual
+```
+
 Preview the built site:
 
 ```bash
@@ -150,6 +163,10 @@ Synchronize the published specification pages from `w3c-spec/`:
 ```bash
 pnpm run docs:sync-spec
 ```
+
+The generated `docs-site/spec/midnight-method.md` and
+`docs-site/spec/midnight-did-traits.md` files are local build outputs. Commit
+changes to the canonical files under `w3c-spec/` instead.
 
 ## Important Repository Paths
 

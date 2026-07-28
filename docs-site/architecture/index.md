@@ -51,13 +51,13 @@ GitHub Release and GHCR artifact locations for the installed package version.
 
 ## Trust Model
 
-Controller-gated contract calls use the wallet-held `localSecretKey` witness.
-The ledger and resolvers do not see that witness, but a delegated proof server
-may. Production deployments should use a local prover or proof infrastructure
-trusted with DID controller authorization material until the method evolves to an
-intent-signature design that does not reveal the controller secret to the
-proving environment.
+Controller-gated contract calls use wallet-local Jubjub Schnorr signatures over
+a domain-separated authorization digest containing the DID contract id, current
+ledger version, operation name, and operation arguments. The ledger and resolvers
+see only the controller public key, and delegated proof servers receive signature
+material rather than the controller secret.
 
 ## Pages
 
 - [ADR: SDK and Contract Boundary](/architecture/adr-sdk-contract-boundary)
+- [ADR: Controller Authorization Signatures](/architecture/adr-controller-authorization-signatures)

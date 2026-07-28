@@ -5,5 +5,78 @@
   ],
   "baseBranchPatterns": [
     "develop"
+  ],
+  "packageRules": [
+    {
+      "description": "Keep Midnight runtime, Compact, ledger, and wallet/provider updates together because they can affect generated artifacts and integration behavior.",
+      "groupName": "Midnight runtime and proving dependencies",
+      "groupSlug": "midnight-runtime-proving",
+      "matchPackageNames": [
+        "@midnight-ntwrk/compact-js",
+        "@midnight-ntwrk/compact-runtime",
+        "@midnight-ntwrk/ledger-v8",
+        "/^@midnight-ntwrk\\/midnight-js-/",
+        "/^@midnight-ntwrk\\/wallet-sdk-/"
+      ],
+      "minimumReleaseAge": "7 days",
+      "semanticCommitType": "fix"
+    },
+    {
+      "description": "Group documentation-site tooling separately from package runtime updates.",
+      "groupName": "documentation tooling dependencies",
+      "groupSlug": "docs-tooling",
+      "matchPackageNames": [
+        "mermaid",
+        "typedoc",
+        "typedoc-plugin-markdown",
+        "vitepress"
+      ],
+      "minimumReleaseAge": "7 days",
+      "semanticCommitType": "chore"
+    },
+    {
+      "description": "Group lint, test, type, build, and local-development tooling separately from runtime dependencies.",
+      "groupName": "development tooling dependencies",
+      "groupSlug": "development-tooling",
+      "matchPackageNames": [
+        "@eslint/js",
+        "@playwright/test",
+        "@types/node",
+        "@types/ws",
+        "@typescript-eslint/eslint-plugin",
+        "@typescript-eslint/parser",
+        "@vitest/coverage-v8",
+        "eslint",
+        "eslint-import-resolver-typescript",
+        "eslint-plugin-import",
+        "eslint-plugin-simple-import-sort",
+        "globals",
+        "prettier",
+        "testcontainers",
+        "turbo",
+        "ts-node",
+        "typescript",
+        "vite",
+        "vitest"
+      ],
+      "minimumReleaseAge": "7 days",
+      "semanticCommitType": "chore"
+    },
+    {
+      "description": "Keep non-Midnight runtime library updates separate from the Midnight SDK/proving stack.",
+      "groupName": "general runtime dependencies",
+      "groupSlug": "general-runtime",
+      "matchPackageNames": [
+        "@noble/curves",
+        "@noble/hashes",
+        "pino",
+        "pino-pretty",
+        "rxjs",
+        "ws",
+        "zod"
+      ],
+      "minimumReleaseAge": "7 days",
+      "semanticCommitType": "fix"
+    }
   ]
 }

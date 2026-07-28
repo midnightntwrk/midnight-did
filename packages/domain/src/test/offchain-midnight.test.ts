@@ -171,6 +171,9 @@ describe("offchain Midnight DID helpers", () => {
     expect(doc.id).toBe(did);
     expect(doc.authentication).toEqual(["#holder-key-1"]);
     expect(doc.assertionMethod).toEqual(["#holder-key-1"]);
+    expect(doc).not.toHaveProperty("keyAgreement");
+    expect(doc).not.toHaveProperty("capabilityInvocation");
+    expect(doc).not.toHaveProperty("capabilityDelegation");
     expect(doc.service?.[0]?.id).toBe("#profile");
     expect(parseDIDDocument(doc).id).toBe(did);
   });

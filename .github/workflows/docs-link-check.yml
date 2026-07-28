@@ -1,0 +1,84 @@
+name: Published Docs Links
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - ".github/workflows/docs-link-check.yml"
+      - ".linkinatorrc.json"
+      - "docs-site/**"
+      - "w3c-spec/**"
+  schedule:
+    - cron: "0 12 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-link-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check Published Docs Links
+    runs-on: ubuntu-latest
+    env:
+      DOCS_SITE_URL: ${{ vars.DOCS_SITE_URL != '' && vars.DOCS_SITE_URL || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
+      LINKINATOR_VERSION: 8.0.1
+    steps:
+      - name: Checkout link checker config
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
+        with:
+          sparse-checkout: |
+            .linkinatorrc.json
+            .nvmrc
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Wait for Pages deployment
+        if: github.event_name == 'push'
+        run: sleep 90s
+
+      - name: Check published links
+        run: |
+          set +e
+          npx --yes "linkinator@${LINKINATOR_VERSION}" "${DOCS_SITE_URL}" \
+            --config .linkinatorrc.json \
+            --status-code "429:warn" \
+            --format json > link-check-results.json
+          exit_code=$?
+          set -e
+
+          if [[ "${exit_code}" -eq 0 ]]; then
+            echo "Published docs link check passed for ${DOCS_SITE_URL}" >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+
+          broken_count="$(jq '[.links[]? | select(.state == "BROKEN")] | length' link-check-results.json)"
+          {
+            echo "### Broken Published Docs Links"
+            echo
+            echo "Target: ${DOCS_SITE_URL}"
+            echo
+            echo "| URL | Status | Parent |"
+            echo "| --- | --- | --- |"
+            jq -r '.links[]? | select(.state == "BROKEN") | "| \(.url) | \(.status // "n/a") | \(.parent // "n/a") |"' link-check-results.json
+            echo
+            echo "Broken links: ${broken_count}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          exit "${exit_code}"
+
+      - name: Upload Linkinator results
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # ratchet:actions/upload-artifact@v4
+        with:
+          name: published-docs-link-check-${{ github.sha }}
+          path: link-check-results.json

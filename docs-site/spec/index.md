@@ -11,7 +11,8 @@ traits matrix used by implementers and reviewers.
 ## Canonical files
 
 The published pages are synchronized from the canonical repository files during
-the docs build:
+the docs build. Edit these files, not the generated `docs-site/spec/*.md`
+outputs:
 
 - `w3c-spec/midnight-method.md`
 - `w3c-spec/midnight-did-traits.md`
