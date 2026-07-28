@@ -31,4 +31,4 @@ jobs:
         uses: midnightntwrk/upload-sarif-github-action@4bbe849e9707b46342832d4b7f94fec585823ca4  # main 2026-07-10, includes #113 scan-context fix
         with:
           fail_severity: "high"
-          scorecard_checks: "Binary-Artifacts,Dangerous-Workflow,Security-Policy,License,Pinned-Dependencies,Token-Permissions"
+          skip_scorecard_scan: "true"

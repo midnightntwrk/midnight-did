@@ -4,7 +4,7 @@
 [![Quality](https://github.com/midnightntwrk/midnight-did/actions/workflows/quality.yml/badge.svg?branch=main)](https://github.com/midnightntwrk/midnight-did/actions/workflows/quality.yml)
 [![Docs](https://github.com/midnightntwrk/midnight-did/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/midnightntwrk/midnight-did/actions/workflows/docs.yml)
 [![Release](https://github.com/midnightntwrk/midnight-did/actions/workflows/publish.yml/badge.svg?branch=main)](https://github.com/midnightntwrk/midnight-did/actions/workflows/publish.yml)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/midnightntwrk/midnight-did/badge)](https://securityscorecards.dev/viewer/?uri=github.com/midnightntwrk/midnight-did)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/midnightntwrk/midnight-did/badge)](https://scorecard.dev/viewer/?uri=github.com/midnightntwrk/midnight-did)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/midnightntwrk/midnight-did/blob/main/LICENSE)
 [![Latest Release](https://img.shields.io/badge/release-v0.4.0-blue)](https://github.com/midnightntwrk/midnight-did/releases/latest)
 
