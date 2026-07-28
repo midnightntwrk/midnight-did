@@ -11,6 +11,7 @@ archive_name="${ARCHIVE_NAME:?ARCHIVE_NAME is required}"
 manifest="${MANIFEST:?MANIFEST is required}"
 sha256_file="${SHA256:?SHA256 is required}"
 npm_assets_dir="${NPM_ASSETS_DIR:-}"
+signature_assets_dir="${SIGNATURE_ASSETS_DIR:-}"
 download_dir="$(mktemp -d)"
 
 cleanup() {
@@ -28,6 +29,11 @@ if [[ -n "${npm_assets_dir}" ]]; then
   while IFS= read -r npm_asset; do
     release_assets+=("${npm_asset}")
   done < <(find "${npm_assets_dir}" -maxdepth 1 -type f -name '*.tgz' | sort)
+fi
+if [[ -n "${signature_assets_dir}" ]]; then
+  while IFS= read -r signature_asset; do
+    release_assets+=("${signature_asset}")
+  done < <(find "${signature_assets_dir}" -maxdepth 1 -type f \( -name '*.sig' -o -name '*.pem' \) | sort)
 fi
 
 if gh release view "${release_tag}" >/dev/null 2>&1; then

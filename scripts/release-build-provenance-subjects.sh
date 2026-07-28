@@ -16,6 +16,12 @@ if [[ -n "${NPM_ASSETS_DIR:-}" ]]; then
   done < <(find "${NPM_ASSETS_DIR}" -maxdepth 1 -type f -name '*.tgz' | sort)
 fi
 
+if [[ -n "${SIGNATURE_ASSETS_DIR:-}" ]]; then
+  while IFS= read -r signature_asset; do
+    subject_paths+=("${signature_asset}")
+  done < <(find "${SIGNATURE_ASSETS_DIR}" -maxdepth 1 -type f \( -name '*.sig' -o -name '*.pem' \) | sort)
+fi
+
 for release_asset in "${ZK_ARCHIVE:-}" "${ZK_MANIFEST:-}" "${ZK_SHA256:-}"; do
   if [[ -n "${release_asset}" ]]; then
     subject_paths+=("${release_asset}")

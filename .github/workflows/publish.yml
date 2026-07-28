@@ -186,6 +186,28 @@ jobs:
             ${{ steps.zk.outputs.zk_manifest }}
             ${{ steps.zk.outputs.zk_sha256 }}
 
+      - name: Install Cosign
+        if: steps.version.outputs.channel != 'snapshot'
+        uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # ratchet:sigstore/cosign-installer@v3.10.0
+
+      - name: Sign GitHub Release assets
+        id: signatures
+        if: steps.version.outputs.channel != 'snapshot'
+        env:
+          NPM_ASSETS_DIR: ${{ steps.npm-assets.outputs.npm_assets_dir }}
+          ZK_ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
+          ZK_MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
+          ZK_SHA256: ${{ steps.zk.outputs.zk_sha256 }}
+        run: ./scripts/release-sign-assets.sh
+
+      - name: Upload workflow signature assets
+        if: steps.version.outputs.channel != 'snapshot'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # ratchet:actions/upload-artifact@v4
+        with:
+          name: midnight-did-signatures-${{ steps.version.outputs.version }}
+          if-no-files-found: error
+          path: ${{ steps.signatures.outputs.signature_assets_dir }}/*
+
       - name: Publish npm packages to npmjs
         env:
           NODE_AUTH_TOKEN: ${{ secrets.MIDNIGHTCI_NPMJS_TOKEN }}
@@ -224,6 +246,7 @@ jobs:
           MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
           SHA256: ${{ steps.zk.outputs.zk_sha256 }}
           NPM_ASSETS_DIR: ${{ steps.npm-assets.outputs.npm_assets_dir }}
+          SIGNATURE_ASSETS_DIR: ${{ steps.signatures.outputs.signature_assets_dir }}
         run: ./scripts/publish-github-release-zk-assets.sh
 
       - name: Build SLSA provenance subject list
@@ -231,6 +254,7 @@ jobs:
         if: steps.version.outputs.channel != 'snapshot'
         env:
           NPM_ASSETS_DIR: ${{ steps.npm-assets.outputs.npm_assets_dir }}
+          SIGNATURE_ASSETS_DIR: ${{ steps.signatures.outputs.signature_assets_dir }}
           ZK_ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
           ZK_MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
           ZK_SHA256: ${{ steps.zk.outputs.zk_sha256 }}
@@ -253,7 +277,7 @@ jobs:
       actions: read
       contents: write
       id-token: write
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # ratchet:slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
       base64-subjects: ${{ needs.publish.outputs.base64_subjects }}
       upload-assets: true
@@ -278,5 +302,9 @@ jobs:
           gh release view "${RELEASE_TAG}" --json assets --jq '.assets[].name' | tee /tmp/release-assets.txt
           if ! grep -Eq '\.intoto\.jsonl$' /tmp/release-assets.txt; then
             echo "::error::GitHub Release ${RELEASE_TAG} does not include a SLSA .intoto.jsonl provenance asset."
+            exit 1
+          fi
+          if ! grep -Eq '\.sig$' /tmp/release-assets.txt; then
+            echo "::error::GitHub Release ${RELEASE_TAG} does not include Cosign .sig signature assets."
             exit 1
           fi
