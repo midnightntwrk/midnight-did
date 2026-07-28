@@ -1,0 +1,94 @@
+name: Set up Node, pnpm, and optional Compact
+description: Shared Midnight DID CI setup for Node, pnpm dependency install, and Compact toolchain installation.
+
+inputs:
+  cache:
+    description: Enable setup-node pnpm cache.
+    required: false
+    default: "true"
+  cache-dependency-path:
+    description: Dependency file used for setup-node cache keys.
+    required: false
+    default: pnpm-lock.yaml
+  compact-version:
+    description: Compact compiler version to install. Leave empty to skip Compact setup.
+    required: false
+    default: ""
+  github-token:
+    description: GitHub token for authenticated Compact setup downloads.
+    required: false
+    default: ""
+  install:
+    description: Run pnpm install after tool setup.
+    required: false
+    default: "true"
+  install-args:
+    description: Arguments passed to pnpm install.
+    required: false
+    default: --frozen-lockfile --prefer-offline
+  node-version-file:
+    description: File containing the Node version for actions/setup-node.
+    required: false
+    default: .nvmrc
+  registry-url:
+    description: Optional npm registry URL for package publication workflows.
+    required: false
+    default: ""
+  verify-compact:
+    description: Verify Compact installation when compact-version is set.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Enable Corepack
+      shell: bash
+      run: corepack enable
+
+    - name: Set up Node.js with pnpm cache
+      if: inputs.cache == 'true' && inputs.registry-url == ''
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
+        cache: pnpm
+        cache-dependency-path: ${{ inputs.cache-dependency-path }}
+
+    - name: Set up Node.js with pnpm cache and registry
+      if: inputs.cache == 'true' && inputs.registry-url != ''
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
+        cache: pnpm
+        cache-dependency-path: ${{ inputs.cache-dependency-path }}
+        registry-url: ${{ inputs.registry-url }}
+
+    - name: Set up Node.js without pnpm cache
+      if: inputs.cache != 'true' && inputs.registry-url == ''
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
+
+    - name: Set up Node.js without pnpm cache and with registry
+      if: inputs.cache != 'true' && inputs.registry-url != ''
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
+        registry-url: ${{ inputs.registry-url }}
+
+    - name: Set up Compact toolchain
+      if: inputs.compact-version != ''
+      uses: midnightntwrk/setup-compact-action@43f89f99939f716f68c1c56b2a12bba044407bfd # ratchet:midnightntwrk/setup-compact-action@v1
+      with:
+        compact-version: ${{ inputs.compact-version }}
+        github-token: ${{ inputs.github-token }}
+
+    - name: Verify Compact installation
+      if: inputs.compact-version != '' && inputs.verify-compact == 'true'
+      shell: bash
+      run: compact compile --version
+
+    - name: Install dependencies
+      if: inputs.install == 'true'
+      shell: bash
+      run: pnpm install ${{ inputs.install-args }}

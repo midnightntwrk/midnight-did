@@ -109,28 +109,12 @@ jobs:
           DISPATCH_RC_INDEX: ${{ inputs.rc_index }}
         run: ./scripts/release-resolve-context.sh
 
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-          registry-url: https://registry.npmjs.org/
-
-      - name: Set up Compact toolchain
-        uses: midnightntwrk/setup-compact-action@43f89f99939f716f68c1c56b2a12bba044407bfd # ratchet:midnightntwrk/setup-compact-action@v1
+      - name: Set up Node.js, pnpm, Compact, and npm registry
+        uses: ./.github/actions/setup-node-pnpm
         with:
           compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
           github-token: ${{ github.token }}
-
-      - name: Verify Compact installation
-        run: compact compile --version
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
+          registry-url: https://registry.npmjs.org/
 
       - name: Prepare release version
         id: version
