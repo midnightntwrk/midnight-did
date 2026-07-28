@@ -532,7 +532,10 @@ proving infrastructure.
 The controller secret is not stored on ledger. SDKs MUST persist it in the
 wallet's private-state storage, and wallets SHOULD provide backup or recovery
 for this private state. Loss of the controller secret makes subsequent DID
-updates impossible unless a future recovery mechanism is introduced.
+updates, controller rotation, and deactivation impossible unless a future
+recovery mechanism is introduced. The current contract stores one controller
+public key and does not provide multi-controller, threshold, social-recovery, or
+emergency-deactivation circuits.
 
 Controller rotation is performed with a locally derived replacement Jubjub
 `controllerPublicKey`. The replacement controller secret is generated locally by
