@@ -71,9 +71,10 @@
       "postcss": "^8.5.18",
       "esbuild@>=0.27.3 <0.28.1": "0.28.1",
       "undici": "^7.28.0",
-      "brace-expansion@<1.1.16": "5.0.8",
-      "brace-expansion@>=2.0.0 <2.1.2": "2.1.2",
-      "brace-expansion@>=3.0.0 <5.0.7": "5.0.8"
+      "brace-expansion@<5.0.8": "5.0.8"
+    },
+    "patchedDependencies": {
+      "brace-expansion@5.0.8": "patches/brace-expansion@5.0.8.patch"
     }
   },
   "type": "module",
