@@ -26,9 +26,4 @@ fi
 echo "[release-pack-npm-assets] Packed ${#package_assets[@]} npm package tarballs:"
 printf '  %s\n' "${package_assets[@]}"
 
-{
-  echo "npm_assets_dir=${assets_dir}"
-  echo "npm_assets<<EOF"
-  printf '%s\n' "${package_assets[@]}"
-  echo "EOF"
-} >> "${output_file}"
+echo "npm_assets_dir=${assets_dir}" >> "${output_file}"

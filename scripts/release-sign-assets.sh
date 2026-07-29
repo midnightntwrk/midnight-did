@@ -52,9 +52,4 @@ fi
 echo "[release-sign-assets] Produced ${#signature_assets[@]} signature/certificate assets:"
 printf '  %s\n' "${signature_assets[@]}"
 
-{
-  echo "signature_assets_dir=${signatures_dir}"
-  echo "signature_assets<<EOF"
-  printf '%s\n' "${signature_assets[@]}"
-  echo "EOF"
-} >> "${output_file}"
+echo "signature_assets_dir=${signatures_dir}" >> "${output_file}"
