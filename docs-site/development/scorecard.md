@@ -42,3 +42,19 @@ is created and reaches the intended baseline.
   the repository UI.
 
 Record the project URL, badge level, and next Scorecard result in #322 and #320.
+
+## Packaging workflow detection
+
+Scorecard `Packaging` reported `-1` / `packaging workflow not detected` for the
+`main` snapshot taken before the release-provenance workflow was promoted.
+Repository packaging is nevertheless implemented in `.github/workflows/publish.yml`:
+
+- snapshot packages publish from `develop` pushes when the change classifier finds release-relevant source changes;
+- release candidates and final releases publish through `workflow_dispatch` with explicit `channel`, `version`, and `rc_index` inputs;
+- the workflow publishes npm packages, a GHCR ZK artifact bundle, GitHub Release assets, Cosign signatures, and SLSA provenance;
+- final-release publication remains manual/intentional and must not be broadened solely to satisfy a heuristic.
+
+The safe repository-side response is to keep the workflow name, job names, and
+script names explicit (`Publish npmjs Packages and ZK Artifacts`, `Publish packages and ZK artifacts`, `publish-npm-packages.sh`) and then re-check Scorecard after `develop` is promoted to `main`. If detection still reports `-1`, treat it as a Scorecard heuristic mismatch unless OpenSSF documents a metadata-only signal that does not weaken release controls.
+
+Record the next `Packaging` result and the exact Scorecard commit in #326 and #320.
