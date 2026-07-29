@@ -41,7 +41,8 @@
     "coverage": "vitest run --coverage",
     "clean": "rm -rf dist && rm -rf coverage",
     "lint": "prettier --check \"src/**/*.{ts,tsx}\" && eslint src",
-    "lint:fix": "prettier --write \"src/**/*.{ts,tsx}\" && eslint src --fix"
+    "lint:fix": "prettier --write \"src/**/*.{ts,tsx}\" && eslint src --fix",
+    "test:fuzz": "vitest run --config vitest.fuzz.config.ts"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.16.0",
@@ -57,6 +58,7 @@
   ],
   "devDependencies": {
     "base64-js": "1.5.1",
-    "globals": "14.0.0"
+    "globals": "14.0.0",
+    "fast-check": "3.23.2"
   }
 }

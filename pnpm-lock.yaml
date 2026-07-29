@@ -294,6 +294,9 @@ importers:
       base64-js:
         specifier: 1.5.1
         version: 1.5.1
+      fast-check:
+        specifier: 3.23.2
+        version: 3.23.2
       globals:
         specifier: 14.0.0
         version: 14.0.0
