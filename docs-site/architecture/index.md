@@ -61,3 +61,4 @@ material rather than the controller secret.
 
 - [ADR: SDK and Contract Boundary](/architecture/adr-sdk-contract-boundary)
 - [ADR: Controller Authorization Signatures](/architecture/adr-controller-authorization-signatures)
+- [ADR: Controller Recovery Authority](/architecture/adr-controller-recovery-authority)

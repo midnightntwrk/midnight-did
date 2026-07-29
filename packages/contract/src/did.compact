@@ -23,6 +23,7 @@ export { Schnorr_SchnorrSignature };
 // Ledger state - Full DID Document
 export ledger contractVersion: Uint<32>;
 export ledger controllerPublicKey: JubjubPoint;
+export ledger recoveryAuthorityPublicKey: JubjubPoint;
 export ledger id: ContractAddress;
 export ledger alsoKnownAs: Set<Opaque<"string">>;
 export ledger version: Counter;
@@ -42,6 +43,7 @@ export ledger services: Map<Opaque<"string">, Service>;
 
 // Witnesses
 witness localControllerPublicKey(): JubjubPoint;
+witness localRecoveryAuthorityPublicKey(): JubjubPoint;
 witness currentTimestamp(): Uint<64>;
 
 // Enums and Structs
@@ -125,6 +127,11 @@ struct ControllerAuthorizationNoArgs {
 }
 
 struct RotateControllerKeyArgs {
+  publicKeyX: Field,
+  publicKeyY: Field,
+}
+
+struct RecoverControllerKeyArgs {
   publicKeyX: Field,
   publicKeyY: Field,
 }
@@ -213,6 +220,24 @@ export pure circuit rotateControllerKeyAuthorizationDigest(
     controllerOperationHash(pad(32, "rotateControllerKey")),
     transientHash<RotateControllerKeyArgs>(
       RotateControllerKeyArgs {
+        publicKeyX: jubjubPointX(newControllerPublicKey),
+        publicKeyY: jubjubPointY(newControllerPublicKey),
+      }
+    )
+  );
+}
+
+export pure circuit recoverControllerKeyAuthorizationDigest(
+  contractId: ContractAddress,
+  expectedVersion: Uint<64>,
+  newControllerPublicKey: JubjubPoint
+): Vector<4, Field> {
+  return controllerAuthorizationDigest(
+    contractId,
+    expectedVersion,
+    controllerOperationHash(pad(32, "recoverControllerKey")),
+    transientHash<RecoverControllerKeyArgs>(
+      RecoverControllerKeyArgs {
         publicKeyX: jubjubPointX(newControllerPublicKey),
         publicKeyY: jubjubPointY(newControllerPublicKey),
       }
@@ -386,6 +411,32 @@ circuit assertControllerCanUpdate(
   assert(active, "Contract is not active");
 }
 
+circuit assertRecoveryCanUpdate(
+  signature: Schnorr_SchnorrSignature,
+  expectedVersion: Uint<64>,
+  digest: Vector<4, Field>
+): [] {
+  assert(disclose(expectedVersion) == version, "Recovery authorization version is stale");
+  Schnorr_schnorrVerifyDigest(digest, signature, recoveryAuthorityPublicKey);
+  assert(active, "Contract is not active");
+}
+
+circuit assertControllerPublicKeyChanges(newControllerPublicKey: JubjubPoint): [] {
+  assert(
+    jubjubPointX(newControllerPublicKey) != jubjubPointX(controllerPublicKey) ||
+    jubjubPointY(newControllerPublicKey) != jubjubPointY(controllerPublicKey),
+    "New controller key matches current controller key"
+  );
+}
+
+circuit assertControllerPublicKeyDistinctFromRecoveryAuthority(newControllerPublicKey: JubjubPoint): [] {
+  assert(
+    jubjubPointX(newControllerPublicKey) != jubjubPointX(recoveryAuthorityPublicKey) ||
+    jubjubPointY(newControllerPublicKey) != jubjubPointY(recoveryAuthorityPublicKey),
+    "New controller key matches recovery authority key"
+  );
+}
+
 circuit recordUpdate(): [] {
   operationCount.increment(1);
   version.increment(1);
@@ -510,11 +561,13 @@ circuit assertExistingVerificationMethodRelationsCompatible(
 
 // Constructor
 constructor() {
-  contractVersion = 1;
+  contractVersion = 2;
   id = kernel.self();
   active = true;
   deactivated = false;
   controllerPublicKey = disclose(localControllerPublicKey());
+  recoveryAuthorityPublicKey = disclose(localRecoveryAuthorityPublicKey());
+  assertControllerPublicKeyDistinctFromRecoveryAuthority(controllerPublicKey);
 
   const timestamp = disclose(currentTimestamp());
   created = timestamp;
@@ -532,7 +585,26 @@ export circuit rotateControllerKey(
     expectedVersion,
     rotateControllerKeyAuthorizationDigest(id, disclose(expectedVersion), disclosedNewControllerPublicKey)
   );
-  assert(disclosedNewControllerPublicKey != controllerPublicKey, "New controller key matches current controller key");
+  assertControllerPublicKeyChanges(disclosedNewControllerPublicKey);
+  assertControllerPublicKeyDistinctFromRecoveryAuthority(disclosedNewControllerPublicKey);
+  controllerPublicKey = disclosedNewControllerPublicKey;
+
+  recordUpdate();
+}
+
+export circuit recoverControllerKey(
+  newControllerPublicKey: JubjubPoint,
+  recoverySignature: Schnorr_SchnorrSignature,
+  expectedVersion: Uint<64>
+): [] {
+  const disclosedNewControllerPublicKey = disclose(newControllerPublicKey);
+  assertRecoveryCanUpdate(
+    recoverySignature,
+    expectedVersion,
+    recoverControllerKeyAuthorizationDigest(id, disclose(expectedVersion), disclosedNewControllerPublicKey)
+  );
+  assertControllerPublicKeyChanges(disclosedNewControllerPublicKey);
+  assertControllerPublicKeyDistinctFromRecoveryAuthority(disclosedNewControllerPublicKey);
   controllerPublicKey = disclosedNewControllerPublicKey;
 
   recordUpdate();

@@ -7,7 +7,7 @@ import { getLogger } from "./api-logger.js";
 import { midnightDIDCompiledContract } from "./contract-instance.js";
 import {
   bindPrivateStateProvider,
-  requirePrivateState,
+  requireAttachablePrivateState,
   savePrivateState,
 } from "./private-state.js";
 import {
@@ -24,7 +24,7 @@ export const joinContract = async (
   // Private state is scoped by contract address; bind before reading so join
   // cannot create or load controller state from the wrong DID namespace.
   bindPrivateStateProvider(providers, contractAddress);
-  const initialPrivateState = await requirePrivateState(providers);
+  const initialPrivateState = await requireAttachablePrivateState(providers);
   const didContract = await findDeployedContract(providers, {
     contractAddress,
     compiledContract: midnightDIDCompiledContract,

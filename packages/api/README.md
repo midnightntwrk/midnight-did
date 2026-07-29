@@ -65,24 +65,34 @@ API enforces lifecycle rules around:
 - deactivated DID: mutating operations rejected
 - controller authorization: signs a domain-separated digest containing contract id, current version, operation name, and operation arguments before each controller-gated mutation
 - controller rotation: generates a new wallet-local secret, derives the next controller public key locally, submits the rotation circuit with a current-version controller signature, and stores the new secret after the transaction succeeds
-- controller recovery: no on-chain recovery path exists in this method version; callers must back up wallet/private-state storage and reconcile rotation state before deleting old or pending controller material
+- controller recovery: a dedicated `recoveryAuthorityPublicKey` can authorize `recoverControllerKey` to rotate the active controller key; ordinary controller-gated operations require only the active controller secret, while recovery requires the matching recovery secret
 
 (Exact schema/canonicalization rules live in `domain`.)
 
 ## Controller Secret Recovery Posture
 
-The API package can initialize, persist, rotate, and restore the controller
-private state that authorizes DID updates. It cannot recover a lost controller
-secret from ledger state. If the active controller secret is lost, the DID remains
-publicly resolvable but cannot be updated, rotated, or deactivated by this method
-version.
+The API package can initialize, persist, rotate, recover, and restore private
+state that authorizes DID updates. It cannot recover secrets from ledger state,
+but it can submit `recoverControllerKey` when private state contains, or the
+caller explicitly supplies, the `recoverySecretKey` matching the on-ledger
+`recoveryAuthorityPublicKey`. Explicitly supplied recovery secrets are used for
+that recovery call and are not newly persisted into active private state, though
+an already stored recovery secret that matches the on-ledger recovery authority
+is preserved when the new controller secret is promoted.
 
-Applications should back up controller private state alongside their wallet
-backup material, protect it with the same custody controls used for production
-signing keys, and test restore flows before relying on a DID. Organizational
-operators that need multi-person approval or social recovery should implement
-that policy before the API call that signs a controller authorization; the
-contract still receives one controller signature.
+Applications should back up controller and recovery private state alongside
+their wallet backup material, protect it with custody controls appropriate for
+production signing keys, and test restore/recovery flows before relying on a DID.
+Private state created before the recovery-authority contract surface contains no
+recovery secret; it can still authorize ordinary controller-gated operations when
+paired with a compatible contract, but it cannot submit `recoverControllerKey`
+unless the recovery secret is imported or supplied explicitly. If both the active
+controller secret and recovery secret are lost, the DID remains publicly
+resolvable but cannot be updated, rotated, recovered, or deactivated by this
+method version. Organizational operators that need multi-person approval or
+social recovery should implement that policy before the API call that signs a
+controller or recovery authorization; the contract still receives one signature
+for the selected operation.
 
 ## Resolution Responses
 

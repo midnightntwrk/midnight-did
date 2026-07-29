@@ -11,12 +11,36 @@ import {
 const isContractAddressUnsetError = (error: unknown): boolean =>
   error instanceof Error && error.message.includes("Contract address not set");
 
+type ControllerPrivateState = MidnightDIDPrivateState & {
+  readonly secretKey: Uint8Array;
+};
+
 export const isRestorableDIDPrivateState = (
   privateState: MidnightDIDPrivateState | null | undefined,
-): privateState is MidnightDIDPrivateState =>
+): privateState is ControllerPrivateState =>
   privateState != null &&
   privateState.secretKey instanceof Uint8Array &&
-  privateState.secretKey.length === 32;
+  privateState.secretKey.length === 32 &&
+  (privateState.recoverySecretKey === undefined ||
+    (privateState.recoverySecretKey instanceof Uint8Array &&
+      privateState.recoverySecretKey.length === 32));
+
+export const isRecoverableDIDPrivateState = (
+  privateState: unknown,
+): privateState is MidnightDIDPrivateState & {
+  readonly recoverySecretKey: Uint8Array;
+} =>
+  privateState != null &&
+  typeof privateState === "object" &&
+  "recoverySecretKey" in privateState &&
+  privateState.recoverySecretKey instanceof Uint8Array &&
+  privateState.recoverySecretKey.length === 32;
+
+export const isAttachableDIDPrivateState = (
+  privateState: MidnightDIDPrivateState | null | undefined,
+): privateState is MidnightDIDPrivateState =>
+  isRestorableDIDPrivateState(privateState) ||
+  isRecoverableDIDPrivateState(privateState);
 
 export const bindPrivateStateProvider = (
   providers: MidnightDIDProviders,
@@ -51,17 +75,79 @@ export async function restorePrivateState(
   return null;
 }
 
+export async function restoreRecoverySecretKey(
+  providers: MidnightDIDProviders,
+  privateStateId: MidnightDIDPrivateStateIds = MidnightDIDPrivateStateId,
+): Promise<Uint8Array | null> {
+  let providedPrivateState: unknown = null;
+  try {
+    providedPrivateState =
+      await providers.privateStateProvider.get(privateStateId);
+  } catch (error: unknown) {
+    if (!isContractAddressUnsetError(error)) {
+      throw error;
+    }
+    getLogger().info(
+      "Recovery private state restore skipped (contract address not set yet).",
+    );
+  }
+  if (!isRecoverableDIDPrivateState(providedPrivateState)) {
+    return null;
+  }
+  return providedPrivateState.recoverySecretKey;
+}
+
+export async function requireRecoverySecretKey(
+  providers: MidnightDIDProviders,
+  privateStateId: MidnightDIDPrivateStateIds = MidnightDIDPrivateStateId,
+): Promise<Uint8Array> {
+  const recoverySecretKey = await restoreRecoverySecretKey(
+    providers,
+    privateStateId,
+  );
+  if (recoverySecretKey == null) {
+    throw new Error(
+      "DID recovery private state is missing or malformed; import the recovery secret before using recovery",
+    );
+  }
+  return recoverySecretKey;
+}
+
 export async function requirePrivateState(
   providers: MidnightDIDProviders,
   privateStateId: MidnightDIDPrivateStateIds = MidnightDIDPrivateStateId,
-): Promise<MidnightDIDPrivateState> {
+): Promise<ControllerPrivateState> {
   const privateState = await restorePrivateState(providers, privateStateId);
   if (!isRestorableDIDPrivateState(privateState)) {
     throw new Error(
-      "DID controller private state is missing or malformed; import the controller secret before using this contract",
+      "DID controller private state is missing or malformed; import the controller secret before using controller operations",
     );
   }
   return privateState;
+}
+
+export async function requireAttachablePrivateState(
+  providers: MidnightDIDProviders,
+  privateStateId: MidnightDIDPrivateStateIds = MidnightDIDPrivateStateId,
+): Promise<MidnightDIDPrivateState> {
+  let providedPrivateState: MidnightDIDPrivateState | null = null;
+  try {
+    providedPrivateState =
+      await providers.privateStateProvider.get(privateStateId);
+  } catch (error: unknown) {
+    if (!isContractAddressUnsetError(error)) {
+      throw error;
+    }
+    getLogger().info(
+      "Private state restore skipped (contract address not set yet).",
+    );
+  }
+  if (!isAttachableDIDPrivateState(providedPrivateState)) {
+    throw new Error(
+      "DID private state is missing or malformed; import a controller or recovery secret before joining this contract",
+    );
+  }
+  return providedPrivateState;
 }
 
 export interface RecoverPendingControllerPrivateStateOptions {
@@ -86,7 +172,11 @@ export async function initPrivateState(
 
   getLogger().info("Creating the new private state..");
   const secretKey = randomBytes(32);
-  const privateState: MidnightDIDPrivateState = { secretKey };
+  const recoverySecretKey = randomBytes(32);
+  const privateState: MidnightDIDPrivateState = {
+    recoverySecretKey,
+    secretKey,
+  };
   try {
     await savePrivateState(providers, privateState);
   } catch (error: unknown) {
