@@ -87,9 +87,15 @@ jobs:
   publish:
     name: Publish packages and ZK artifacts
     permissions:
+      actions: read
       contents: write
+      id-token: write
       packages: write
     runs-on: ubuntu-latest
+    outputs:
+      base64_subjects: ${{ steps.provenance-subjects.outputs.base64_subjects }}
+      channel: ${{ steps.version.outputs.channel }}
+      release_tag: ${{ steps.version.outputs.release_tag }}
     needs:
       - changes
     if: github.event_name != 'push' || (github.ref == 'refs/heads/develop' && needs.changes.outputs.snapshot_release_relevant == 'true')
@@ -109,27 +115,12 @@ jobs:
           DISPATCH_RC_INDEX: ${{ inputs.rc_index }}
         run: ./scripts/release-resolve-context.sh
 
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-          registry-url: https://registry.npmjs.org/
-
-      - name: Set up Compact toolchain
-        uses: midnightntwrk/setup-compact-action@836895c8fffbbea6bd986af2b17e8941ff29d1f8 # ratchet:midnightntwrk/setup-compact-action@v1
+      - name: Set up Node.js, pnpm, Compact, and npm registry
+        uses: ./.github/actions/setup-node-pnpm
         with:
           compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
-
-      - name: Verify Compact installation
-        run: compact compile --version
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
+          github-token: ${{ github.token }}
+          registry-url: https://registry.npmjs.org/
 
       - name: Prepare release version
         id: version
@@ -144,6 +135,19 @@ jobs:
 
       - name: Check publishable package contents
         run: pnpm run packages:check-contents
+
+      - name: Pack npm package release assets
+        id: npm-assets
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/release-pack-npm-assets.sh
+
+      - name: Upload workflow npm package assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # ratchet:actions/upload-artifact@v4
+        with:
+          name: midnight-did-npm-packages-${{ steps.version.outputs.version }}
+          if-no-files-found: error
+          path: ${{ steps.npm-assets.outputs.npm_assets_dir }}/*.tgz
 
       - name: Build ZK artifact bundle
         id: zk
@@ -166,10 +170,33 @@ jobs:
             ${{ steps.zk.outputs.zk_manifest }}
             ${{ steps.zk.outputs.zk_sha256 }}
 
+      - name: Install Cosign
+        if: steps.version.outputs.channel != 'snapshot'
+        uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # ratchet:sigstore/cosign-installer@v3.10.0
+
+      - name: Sign GitHub Release assets
+        id: signatures
+        if: steps.version.outputs.channel != 'snapshot'
+        env:
+          NPM_ASSETS_DIR: ${{ steps.npm-assets.outputs.npm_assets_dir }}
+          ZK_ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
+          ZK_MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
+          ZK_SHA256: ${{ steps.zk.outputs.zk_sha256 }}
+        run: ./scripts/release-sign-assets.sh
+
+      - name: Upload workflow signature assets
+        if: steps.version.outputs.channel != 'snapshot'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # ratchet:actions/upload-artifact@v4
+        with:
+          name: midnight-did-signatures-${{ steps.version.outputs.version }}
+          if-no-files-found: error
+          path: ${{ steps.signatures.outputs.signature_assets_dir }}/*
+
       - name: Publish npm packages to npmjs
         env:
           NODE_AUTH_TOKEN: ${{ secrets.MIDNIGHTCI_NPMJS_TOKEN }}
           NPM_ACCESS: public
+          NPM_ASSETS_DIR: ${{ steps.npm-assets.outputs.npm_assets_dir }}
           NPM_TAG: ${{ steps.version.outputs.npm_tag }}
           VERSION: ${{ steps.version.outputs.version }}
         run: ./scripts/publish-npm-packages.sh
@@ -203,7 +230,20 @@ jobs:
           ARCHIVE_NAME: ${{ steps.zk.outputs.zk_archive_name }}
           MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
           SHA256: ${{ steps.zk.outputs.zk_sha256 }}
+          NPM_ASSETS_DIR: ${{ steps.npm-assets.outputs.npm_assets_dir }}
+          SIGNATURE_ASSETS_DIR: ${{ steps.signatures.outputs.signature_assets_dir }}
         run: ./scripts/publish-github-release-zk-assets.sh
+
+      - name: Build SLSA provenance subject list
+        id: provenance-subjects
+        if: steps.version.outputs.channel != 'snapshot'
+        env:
+          NPM_ASSETS_DIR: ${{ steps.npm-assets.outputs.npm_assets_dir }}
+          SIGNATURE_ASSETS_DIR: ${{ steps.signatures.outputs.signature_assets_dir }}
+          ZK_ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
+          ZK_MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
+          ZK_SHA256: ${{ steps.zk.outputs.zk_sha256 }}
+        run: ./scripts/release-build-provenance-subjects.sh
 
       - name: Print publication summary
         env:
@@ -212,3 +252,44 @@ jobs:
           OCI_REF: ${{ steps.oci.outputs.oci_ref }}
           RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
         run: ./scripts/release-print-summary.sh
+
+  github-release-provenance:
+    name: Generate GitHub Release SLSA provenance
+    needs:
+      - publish
+    if: needs.publish.result == 'success' && needs.publish.outputs.channel != 'snapshot'
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # ratchet:slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.publish.outputs.base64_subjects }}
+      upload-assets: true
+      upload-tag-name: ${{ needs.publish.outputs.release_tag }}
+
+  verify-github-release-provenance:
+    name: Verify GitHub Release provenance asset
+    needs:
+      - publish
+      - github-release-provenance
+    if: needs.publish.result == 'success' && needs.publish.outputs.channel != 'snapshot'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify release includes SLSA provenance
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.publish.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          gh release view "${RELEASE_TAG}" --json assets --jq '.assets[].name' | tee /tmp/release-assets.txt
+          if ! grep -Eq '\.intoto\.jsonl$' /tmp/release-assets.txt; then
+            echo "::error::GitHub Release ${RELEASE_TAG} does not include a SLSA .intoto.jsonl provenance asset."
+            exit 1
+          fi
+          if ! grep -Eq '\.sig$' /tmp/release-assets.txt; then
+            echo "::error::GitHub Release ${RELEASE_TAG} does not include Cosign .sig signature assets."
+            exit 1
+          fi

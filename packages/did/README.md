@@ -61,6 +61,13 @@ default representation is `application/did+ld+json`; callers may request
 resolver should use this result for its response body and map only the result's
 metadata/error to HTTP behavior.
 
+The JSON-LD representation includes the DID Core context followed by the
+`https://w3id.org/security/jwk/v1` context. Midnight emits `JsonWebKey`
+verification methods with `publicKeyJwk` material for all supported key
+profiles; it does not emit `JsonWebKey2020`. Consumers that require
+`JsonWebKey2020` naming should adapt at their integration boundary rather than
+changing the canonical Midnight DID Document.
+
 ## Identifier Canonicalization
 
 ```mermaid

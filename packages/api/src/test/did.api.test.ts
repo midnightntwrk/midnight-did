@@ -344,9 +344,7 @@ describeApi("Midnight DID method API", () => {
     const didDoc = resolution?.didDocument;
     expect(Array.isArray(didDoc?.["@context"])).toBe(true);
     expect(didDoc?.["@context"]?.[0]).toBe("https://www.w3.org/ns/did/v1");
-    expect(didDoc?.["@context"]?.[1]).toBe(
-      "https://w3c.github.io/vc-jws-2020/contexts/v1",
-    );
+    expect(didDoc?.["@context"]?.[1]).toBe("https://w3id.org/security/jwk/v1");
   });
 
   it("should resolve the DID Document with an `id` matching the format: `did:midnight:<network_id>:<contract_address>`", async () => {

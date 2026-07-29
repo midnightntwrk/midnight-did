@@ -72,7 +72,30 @@ const createNonCanonicalBase64UrlVariant = (canonical: string): string => {
   throw new Error("Unable to create non-canonical base64url variant");
 };
 
+const sampleVector = {
+  state: sampleState,
+  encodedState:
+    "TU9EMQAAAC0AAAABAQAAACFodHRwczovL2V4YW1wbGUub3JnL2hvbGRlcnMvYWxpY2UAAAAAAAAAAAAAAAAAAAABAQAAAA0jaG9sZGVyLWtleS0xAAAAAQEAAAArQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQAAACtBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFAAAAAQMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQAAAAgjcHJvZmlsZQAAAA1MaW5rZWREb21haW5zAAAAIWh0dHBzOi8vZXhhbXBsZS5vcmcvcHJvZmlsZS9hbGljZQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  shortDid:
+    "did:midnight:offchain:3c08b85758d973a6002942c730d077ede51920c184927aaf010562035203fc21",
+} as const;
+
+const sampleLongFormDid = `${sampleVector.shortDid}:${sampleVector.encodedState}`;
+
 describe("offchain Midnight DID helpers", () => {
+  it("matches the published offchain DID encoding test vector", () => {
+    expect(encodeOffchainMidnightDIDState(sampleVector.state)).toEqual({
+      encoding: "midnight-offchain-did-state-v1.base64url",
+      payload: sampleVector.encodedState,
+    });
+    expect(createOffchainMidnightDIDStringFromState(sampleVector.state)).toBe(
+      sampleVector.shortDid,
+    );
+    expect(createLongFormOffchainMidnightDIDString(sampleVector.state)).toBe(
+      sampleLongFormDid,
+    );
+  });
+
   it("encodes and decodes Compact-native state deterministically", () => {
     const first = encodeOffchainMidnightDIDState(sampleState);
     const second = encodeOffchainMidnightDIDState(sampleState);

@@ -23,6 +23,7 @@ export { Schnorr_SchnorrSignature };
 // Ledger state - Full DID Document
 export ledger contractVersion: Uint<32>;
 export ledger controllerPublicKey: JubjubPoint;
+export ledger recoveryAuthorityPublicKey: JubjubPoint;
 export ledger id: ContractAddress;
 export ledger alsoKnownAs: Set<Opaque<"string">>;
 export ledger version: Counter;
@@ -42,6 +43,7 @@ export ledger services: Map<Opaque<"string">, Service>;
 
 // Witnesses
 witness localControllerPublicKey(): JubjubPoint;
+witness localRecoveryAuthorityPublicKey(): JubjubPoint;
 witness currentTimestamp(): Uint<64>;
 
 // Enums and Structs
@@ -125,6 +127,11 @@ struct ControllerAuthorizationNoArgs {
 }
 
 struct RotateControllerKeyArgs {
+  publicKeyX: Field,
+  publicKeyY: Field,
+}
+
+struct RecoverControllerKeyArgs {
   publicKeyX: Field,
   publicKeyY: Field,
 }
@@ -213,6 +220,24 @@ export pure circuit rotateControllerKeyAuthorizationDigest(
     controllerOperationHash(pad(32, "rotateControllerKey")),
     transientHash<RotateControllerKeyArgs>(
       RotateControllerKeyArgs {
+        publicKeyX: jubjubPointX(newControllerPublicKey),
+        publicKeyY: jubjubPointY(newControllerPublicKey),
+      }
+    )
+  );
+}
+
+export pure circuit recoverControllerKeyAuthorizationDigest(
+  contractId: ContractAddress,
+  expectedVersion: Uint<64>,
+  newControllerPublicKey: JubjubPoint
+): Vector<4, Field> {
+  return controllerAuthorizationDigest(
+    contractId,
+    expectedVersion,
+    controllerOperationHash(pad(32, "recoverControllerKey")),
+    transientHash<RecoverControllerKeyArgs>(
+      RecoverControllerKeyArgs {
         publicKeyX: jubjubPointX(newControllerPublicKey),
         publicKeyY: jubjubPointY(newControllerPublicKey),
       }
@@ -386,6 +411,32 @@ circuit assertControllerCanUpdate(
   assert(active, "Contract is not active");
 }
 
+circuit assertRecoveryCanUpdate(
+  signature: Schnorr_SchnorrSignature,
+  expectedVersion: Uint<64>,
+  digest: Vector<4, Field>
+): [] {
+  assert(disclose(expectedVersion) == version, "Recovery authorization version is stale");
+  Schnorr_schnorrVerifyDigest(digest, signature, recoveryAuthorityPublicKey);
+  assert(active, "Contract is not active");
+}
+
+circuit assertControllerPublicKeyChanges(newControllerPublicKey: JubjubPoint): [] {
+  assert(
+    jubjubPointX(newControllerPublicKey) != jubjubPointX(controllerPublicKey) ||
+    jubjubPointY(newControllerPublicKey) != jubjubPointY(controllerPublicKey),
+    "New controller key matches current controller key"
+  );
+}
+
+circuit assertControllerPublicKeyDistinctFromRecoveryAuthority(newControllerPublicKey: JubjubPoint): [] {
+  assert(
+    jubjubPointX(newControllerPublicKey) != jubjubPointX(recoveryAuthorityPublicKey) ||
+    jubjubPointY(newControllerPublicKey) != jubjubPointY(recoveryAuthorityPublicKey),
+    "New controller key matches recovery authority key"
+  );
+}
+
 circuit recordUpdate(): [] {
   operationCount.increment(1);
   version.increment(1);
@@ -471,13 +522,52 @@ circuit assertVerificationMethodIsNotReferenced(id: Opaque<"string">): [] {
   assert(!capabilityDelegationRelation.member(id), "Verification method still referenced in capabilityDelegationRelation");
 }
 
+circuit isSigningVerificationMethodRelation(relation: VerificationMethodRelation): Boolean {
+  return relation == VerificationMethodRelation.Authentication ||
+    relation == VerificationMethodRelation.AssertionMethod ||
+    relation == VerificationMethodRelation.CapabilityInvocation ||
+    relation == VerificationMethodRelation.CapabilityDelegation;
+}
+
+circuit assertVerificationMethodRelationCompatible(
+  relation: VerificationMethodRelation,
+  methodId: Opaque<"string">
+): [] {
+  if (relation == VerificationMethodRelation.KeyAgreement) {
+    assert(verificationMethods.member(methodId), "KeyAgreement requires an agreement verification method");
+    const verificationMethod = verificationMethods.lookup(methodId);
+    assert(verificationMethod.publicKeyJwk.crv == CurveType.X25519, "KeyAgreement requires an X25519 verification method");
+  } else if (isSigningVerificationMethodRelation(relation)) {
+    assert(!verificationMethods.member(methodId) || verificationMethods.lookup(methodId).publicKeyJwk.crv != CurveType.X25519, "Signing verification relations cannot use X25519 verification methods");
+  }
+}
+
+circuit assertExistingVerificationMethodRelationsCompatible(
+  methodId: Opaque<"string">,
+  curve: CurveType
+): [] {
+  if (keyAgreementRelation.member(methodId)) {
+    assert(curve == CurveType.X25519, "Existing KeyAgreement relation requires an X25519 verification method");
+  }
+  if (
+    authenticationRelation.member(methodId) ||
+    assertionMethodRelation.member(methodId) ||
+    capabilityInvocationRelation.member(methodId) ||
+    capabilityDelegationRelation.member(methodId)
+  ) {
+    assert(curve != CurveType.X25519, "Existing signing verification relations cannot use X25519 verification methods");
+  }
+}
+
 // Constructor
 constructor() {
-  contractVersion = 1;
+  contractVersion = 2;
   id = kernel.self();
   active = true;
   deactivated = false;
   controllerPublicKey = disclose(localControllerPublicKey());
+  recoveryAuthorityPublicKey = disclose(localRecoveryAuthorityPublicKey());
+  assertControllerPublicKeyDistinctFromRecoveryAuthority(controllerPublicKey);
 
   const timestamp = disclose(currentTimestamp());
   created = timestamp;
@@ -495,7 +585,26 @@ export circuit rotateControllerKey(
     expectedVersion,
     rotateControllerKeyAuthorizationDigest(id, disclose(expectedVersion), disclosedNewControllerPublicKey)
   );
-  assert(disclosedNewControllerPublicKey != controllerPublicKey, "New controller key matches current controller key");
+  assertControllerPublicKeyChanges(disclosedNewControllerPublicKey);
+  assertControllerPublicKeyDistinctFromRecoveryAuthority(disclosedNewControllerPublicKey);
+  controllerPublicKey = disclosedNewControllerPublicKey;
+
+  recordUpdate();
+}
+
+export circuit recoverControllerKey(
+  newControllerPublicKey: JubjubPoint,
+  recoverySignature: Schnorr_SchnorrSignature,
+  expectedVersion: Uint<64>
+): [] {
+  const disclosedNewControllerPublicKey = disclose(newControllerPublicKey);
+  assertRecoveryCanUpdate(
+    recoverySignature,
+    expectedVersion,
+    recoverControllerKeyAuthorizationDigest(id, disclose(expectedVersion), disclosedNewControllerPublicKey)
+  );
+  assertControllerPublicKeyChanges(disclosedNewControllerPublicKey);
+  assertControllerPublicKeyDistinctFromRecoveryAuthority(disclosedNewControllerPublicKey);
   controllerPublicKey = disclosedNewControllerPublicKey;
 
   recordUpdate();
@@ -548,6 +657,7 @@ export circuit setVerificationMethod(
   assertSupportedVerificationMethod(disclosedVerificationMethod);
   if (disclosedMutation == MapMutation.Update) {
     assert(verificationMethods.member(disclosedVerificationMethod.id), "Verification method does not exist");
+    assertExistingVerificationMethodRelationsCompatible(disclosedVerificationMethod.id, disclosedVerificationMethod.publicKeyJwk.crv);
     verificationMethods.remove(disclosedVerificationMethod.id);
   } else if (disclosedMutation == MapMutation.Insert) {
     assert(!verificationMethodExists(disclosedVerificationMethod.id), "Verification method already exists");
@@ -668,6 +778,7 @@ export circuit setVerificationMethodRelation(
   const currentPresent = verificationMethodRelationMember(disclosedRelation, disclosedMethodId);
   if (disclosedMutation == SetMutation.Insert) {
     assert(!currentPresent, "Verification method relation already exists");
+    assertVerificationMethodRelationCompatible(disclosedRelation, disclosedMethodId);
     insertVerificationMethodRelation(disclosedRelation, disclosedMethodId);
   } else if (disclosedMutation == SetMutation.Remove) {
     assert(currentPresent, "Verification method relation does not exist");
