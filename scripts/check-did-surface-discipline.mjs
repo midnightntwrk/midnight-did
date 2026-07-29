@@ -137,10 +137,7 @@ assert(
   "package.json must not reintroduce service-era build:service-prereqs",
 );
 
-for (const workspace of [
-  ...expectedWorkspaces,
-  ...serviceWorkspaces,
-]) {
+for (const workspace of [...expectedWorkspaces, ...serviceWorkspaces]) {
   assertArrayIncludes(rootWorkspaces, workspace, "root package workspaces");
 }
 
@@ -291,10 +288,7 @@ for (const [docsPath, label] of [
     "docs-site/development/local-development.md",
     "docs-site local development guide",
   ],
-  [
-    "docs-site/development/testing-strategy.md",
-    "docs-site testing strategy",
-  ],
+  ["docs-site/development/testing-strategy.md", "docs-site testing strategy"],
   ["docs-site/packages/index.md", "docs-site packages overview"],
   ["docs-site/architecture/index.md", "docs-site architecture overview"],
   [
@@ -349,7 +343,12 @@ assertIncludes(
 );
 assertIncludes(
   readText(".github/workflows/ci.yml"),
-  "needs.changes.outputs.docs_only != 'true'",
+  "steps.scope.outputs.full_ci_required == 'true'",
+  ".github/workflows/ci.yml",
+);
+assertIncludes(
+  readText(".github/workflows/ci.yml"),
+  "Report skipped CI implementation",
   ".github/workflows/ci.yml",
 );
 assertIncludes(
