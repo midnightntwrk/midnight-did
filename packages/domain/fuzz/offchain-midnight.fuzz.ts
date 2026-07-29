@@ -90,10 +90,24 @@ const offchainStateArbitrary: fc.Arbitrary<OffchainMidnightDIDState> =
     },
   );
 
-const malformedPayloadArbitrary = fc.oneof(
-  fc.string({ minLength: 0, maxLength: 128 }),
+const invalidBase64UrlPayloadArbitrary = fc
+  .string({ minLength: 1, maxLength: 128 })
+  .filter(
+    (value) => !/^[A-Za-z0-9_-]+$/u.test(value) || value.length % 4 === 1,
+  );
+
+const malformedEncodedStatePayloadArbitrary = fc.oneof(
+  invalidBase64UrlPayloadArbitrary,
   fc
     .uint8Array({ minLength: 0, maxLength: 128 })
+    .filter(
+      (bytes) =>
+        bytes.length < 4 ||
+        bytes[0] !== 0x4d ||
+        bytes[1] !== 0x4f ||
+        bytes[2] !== 0x44 ||
+        bytes[3] !== 0x31,
+    )
     .map((bytes) => Buffer.from(bytes).toString("base64url")),
 );
 
@@ -111,30 +125,26 @@ describe("offchain Midnight DID fuzz targets", () => {
 
   it("rejects malformed encoded states without uncaught non-Error crashes", () => {
     fc.assert(
-      fc.property(malformedPayloadArbitrary, (payload) => {
-        try {
+      fc.property(malformedEncodedStatePayloadArbitrary, (payload) => {
+        expect(() =>
           decodeOffchainMidnightDIDState({
             encoding: OFFCHAIN_STATE_ENCODING,
             payload,
-          });
-        } catch (error) {
-          expect(error).toBeInstanceOf(Error);
-        }
+          }),
+        ).toThrow(Error);
       }),
       { numRuns: fuzzRuns },
     );
   });
 
-  it("rejects malformed long-form DID payloads without accepting mismatched hashes", () => {
+  it("rejects long-form DIDs when the encoded state does not match the state hash", () => {
     fc.assert(
-      fc.property(malformedPayloadArbitrary, (payload) => {
+      fc.property(offchainStateArbitrary, (state) => {
+        const { payload } = encodeOffchainMidnightDIDState(state);
         const candidate = `did:midnight:offchain:${"0".repeat(64)}:${payload}`;
-        try {
-          const parsed = parseLongFormOffchainMidnightDIDString(candidate);
-          expect(parsed.stateHash).not.toBe("0".repeat(64));
-        } catch (error) {
-          expect(error).toBeInstanceOf(Error);
-        }
+        expect(() => parseLongFormOffchainMidnightDIDString(candidate)).toThrow(
+          /state does not match the DID state hash/u,
+        );
       }),
       { numRuns: fuzzRuns },
     );
