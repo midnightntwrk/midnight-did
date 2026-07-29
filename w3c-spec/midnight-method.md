@@ -242,7 +242,7 @@ Below is the basic structure of the Midnight DID Document:
 {
   "@context": [
     "https://www.w3.org/ns/did/v1",
-    "https://w3c.github.io/vc-jws-2020/contexts/v1"
+    "https://w3id.org/security/jwk/v1"
   ],
   "id": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
   "controller": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
@@ -280,7 +280,7 @@ A Midnight DID document **MUST** include a `@context` property.
 
 The value of the `@context` property **MUST** be an array containing the following URIs, in order:
 1. `https://www.w3.org/ns/did/v1` (reference to the context of the DID Core specification v1)
-2. `https://w3c.github.io/vc-jws-2020/contexts/v1` (reference to the context of the `publicKeyJwk2020` specification v1)
+2. `https://w3id.org/security/jwk/v1` (reference to the security vocabulary context that defines `JsonWebKey` and type-scoped `publicKeyJwk`)
 
 For more information, see [W3C-DID].
 
@@ -324,7 +324,7 @@ Midnight normalizes identifiers to fragment form (`#...`) at the SDK/contract bo
 
 The value of the `type` field **MUST** be `JsonWebKey`. Midnight uses this name to identify verification methods whose public key material is carried in the `publicKeyJwk` property and encoded according to [RFC7517] JSON Web Key (JWK) rules.
 
-Midnight does not emit `JsonWebKey2020`. `JsonWebKey2020` is associated with older vc-jws-2020 / JSON-LD context naming, while the Midnight DID method names the verification material form directly as `JsonWebKey`. Consumers that require a `JsonWebKey2020` term or context mapping MUST adapt the resolved DID Document at the integration boundary; the canonical Midnight DID Document representation remains `JsonWebKey`.
+Midnight does not emit `JsonWebKey2020`. `JsonWebKey2020` is associated with older vc-jws-2020 / JSON-LD context naming, while the Midnight DID method uses the `https://w3id.org/security/jwk/v1` context that defines the verification material form directly as `JsonWebKey` with type-scoped `publicKeyJwk`. Consumers that require a `JsonWebKey2020` term or context mapping MUST adapt the resolved DID Document at the integration boundary; the canonical Midnight DID Document representation remains `JsonWebKey`.
 
 ### 3.4.3. controller
 
@@ -1223,7 +1223,7 @@ A simple example of a Midnight DID Document is as follows:
 {
   "@context": [
     "https://www.w3.org/ns/did/v1",
-    "https://w3c.github.io/vc-jws-2020/contexts/v1"
+    "https://w3id.org/security/jwk/v1"
   ],
   "id": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
   "alsoKnownAs": [

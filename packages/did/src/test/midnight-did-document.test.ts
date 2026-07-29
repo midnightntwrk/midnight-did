@@ -52,7 +52,7 @@ describe("Midnight DID Document", () => {
       expect(doc.id).toBe(exampleMidnightDid);
       expect(doc["@context"]).toEqual([
         "https://www.w3.org/ns/did/v1",
-        "https://w3c.github.io/vc-jws-2020/contexts/v1",
+        "https://w3id.org/security/jwk/v1",
       ]);
       expect(doc.controller).toBe(exampleMidnightDid);
       expect(doc.verificationMethod).toHaveLength(1);
@@ -145,7 +145,7 @@ describe("Midnight DID Document", () => {
       const input = {
         "@context": [
           "https://www.w3.org/ns/did/v1",
-          "https://w3c.github.io/vc-jws-2020/contexts/v1",
+          "https://w3id.org/security/jwk/v1",
         ],
         id: exampleMidnightDid,
         controller: exampleMidnightDid,
@@ -183,7 +183,7 @@ describe("Midnight DID Document", () => {
       const input = {
         "@context": [
           "https://example.com/wrong",
-          "https://w3c.github.io/vc-jws-2020/contexts/v1",
+          "https://w3id.org/security/jwk/v1",
         ],
         id: exampleMidnightDid,
       };
@@ -211,7 +211,7 @@ describe("Midnight DID Document", () => {
       const input = {
         "@context": [
           "https://www.w3.org/ns/did/v1",
-          "https://w3c.github.io/vc-jws-2020/contexts/v1",
+          "https://w3id.org/security/jwk/v1",
         ],
         id: "did:example:123",
       };
@@ -225,7 +225,7 @@ describe("Midnight DID Document", () => {
       const input = {
         "@context": [
           "https://www.w3.org/ns/did/v1",
-          "https://w3c.github.io/vc-jws-2020/contexts/v1",
+          "https://w3id.org/security/jwk/v1",
         ],
         id: exampleMidnightDid,
         controller: `did:midnight:testnet:${"f".repeat(64)}`,
@@ -240,7 +240,7 @@ describe("Midnight DID Document", () => {
       const input = {
         "@context": [
           "https://www.w3.org/ns/did/v1",
-          "https://w3c.github.io/vc-jws-2020/contexts/v1",
+          "https://w3id.org/security/jwk/v1",
         ],
         id: exampleMidnightDid,
         controller: exampleMidnightDid,
@@ -259,7 +259,7 @@ describe("Midnight DID Document", () => {
       const input = {
         "@context": [
           "https://www.w3.org/ns/did/v1",
-          "https://w3c.github.io/vc-jws-2020/contexts/v1",
+          "https://w3id.org/security/jwk/v1",
         ],
         id: exampleMidnightDid,
         controller: exampleMidnightDid,
@@ -283,7 +283,7 @@ describe("Midnight DID Document", () => {
       const input = {
         "@context": [
           "https://www.w3.org/ns/did/v1",
-          "https://w3c.github.io/vc-jws-2020/contexts/v1",
+          "https://w3id.org/security/jwk/v1",
         ],
         id: exampleMidnightDid,
         controller: exampleMidnightDid,
@@ -303,7 +303,7 @@ describe("Midnight DID Document", () => {
       const input = {
         "@context": [
           "https://www.w3.org/ns/did/v1",
-          "https://w3c.github.io/vc-jws-2020/contexts/v1",
+          "https://w3id.org/security/jwk/v1",
         ],
         id: exampleMidnightDid,
         controller: exampleMidnightDid,
@@ -326,7 +326,7 @@ describe("Midnight DID Document", () => {
       const input = {
         "@context": [
           "https://www.w3.org/ns/did/v1",
-          "https://w3c.github.io/vc-jws-2020/contexts/v1",
+          "https://w3id.org/security/jwk/v1",
         ],
         id: exampleMidnightDid,
         controller: exampleMidnightDid,

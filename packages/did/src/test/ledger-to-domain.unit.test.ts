@@ -378,7 +378,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(doc.id.startsWith("did:midnight:devnet:")).toBe(true);
     expect(doc["@context"]).toEqual([
       "https://www.w3.org/ns/did/v1",
-      "https://w3c.github.io/vc-jws-2020/contexts/v1",
+      "https://w3id.org/security/jwk/v1",
     ]);
     expect(doc.controller).toBeDefined();
     expect(doc.verificationMethod?.length).toBe(1);

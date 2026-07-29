@@ -692,7 +692,7 @@ export const offchainStateToDidDocument = (
   return {
     "@context": [
       "https://www.w3.org/ns/did/v1",
-      "https://w3c.github.io/vc-jws-2020/contexts/v1",
+      "https://w3id.org/security/jwk/v1",
     ],
     id: did,
     alsoKnownAs: parsed.alsoKnownAs.length > 0 ? parsed.alsoKnownAs : null,

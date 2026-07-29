@@ -30,7 +30,7 @@ import { MidnightDIDSchema, type MidnightDIDString } from "./midnight.js";
 
 const REQUIRED_CONTEXTS = [
   "https://www.w3.org/ns/did/v1",
-  "https://w3c.github.io/vc-jws-2020/contexts/v1",
+  "https://w3id.org/security/jwk/v1",
 ] as const;
 
 /** Midnight-specific verification method validation */

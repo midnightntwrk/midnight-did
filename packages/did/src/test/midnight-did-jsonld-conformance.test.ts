@@ -11,10 +11,10 @@ import { MidnightDIDSchema } from "../midnight.js";
 import { createMidnightDIDDocument } from "../midnight-did-document.js";
 
 const DID_CONTEXT_URL = "https://www.w3.org/ns/did/v1";
-const JWS_CONTEXT_URL = "https://w3c.github.io/vc-jws-2020/contexts/v1";
-const DID_IRI = "https://www.w3.org/ns/did#";
+const JWK_CONTEXT_URL = "https://w3id.org/security/jwk/v1";
 const SECURITY_IRI = "https://w3id.org/security#";
 const JSON_WEB_KEY_IRI = `${SECURITY_IRI}JsonWebKey`;
+const PUBLIC_KEY_JWK_IRI = `${SECURITY_IRI}publicKeyJwk`;
 
 const exampleMidnightDid = MidnightDIDSchema.parse(
   "did:midnight:testnet:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
@@ -34,58 +34,77 @@ const documentLoader = async (url: string): Promise<TestRemoteDocument> => {
       documentUrl: url,
       document: {
         "@context": {
+          "@protected": true,
           id: "@id",
           type: "@type",
-          controller: { "@id": `${DID_IRI}controller`, "@type": "@id" },
+          controller: { "@id": `${SECURITY_IRI}controller`, "@type": "@id" },
           verificationMethod: {
-            "@id": `${DID_IRI}verificationMethod`,
-            "@container": "@set",
+            "@id": `${SECURITY_IRI}verificationMethod`,
+            "@type": "@id",
           },
           authentication: {
-            "@id": `${DID_IRI}authentication`,
+            "@id": `${SECURITY_IRI}authenticationMethod`,
             "@type": "@id",
             "@container": "@set",
           },
           assertionMethod: {
-            "@id": `${DID_IRI}assertionMethod`,
+            "@id": `${SECURITY_IRI}assertionMethod`,
             "@type": "@id",
             "@container": "@set",
           },
           keyAgreement: {
-            "@id": `${DID_IRI}keyAgreement`,
+            "@id": `${SECURITY_IRI}keyAgreementMethod`,
             "@type": "@id",
             "@container": "@set",
           },
           capabilityInvocation: {
-            "@id": `${DID_IRI}capabilityInvocation`,
+            "@id": `${SECURITY_IRI}capabilityInvocationMethod`,
             "@type": "@id",
             "@container": "@set",
           },
           capabilityDelegation: {
-            "@id": `${DID_IRI}capabilityDelegation`,
+            "@id": `${SECURITY_IRI}capabilityDelegationMethod`,
             "@type": "@id",
             "@container": "@set",
           },
-          publicKeyJwk: {
-            "@id": `${SECURITY_IRI}publicKeyJwk`,
-            "@type": "@json",
-          },
-          JsonWebKey: JSON_WEB_KEY_IRI,
         },
       },
     };
   }
 
-  if (url === JWS_CONTEXT_URL) {
+  if (url === JWK_CONTEXT_URL) {
     return {
       documentUrl: url,
       document: {
         "@context": {
-          publicKeyJwk: {
-            "@id": `${SECURITY_IRI}publicKeyJwk`,
-            "@type": "@json",
+          JsonWebKey: {
+            "@id": JSON_WEB_KEY_IRI,
+            "@context": {
+              "@protected": true,
+              id: "@id",
+              type: "@type",
+              controller: {
+                "@id": `${SECURITY_IRI}controller`,
+                "@type": "@id",
+              },
+              revoked: {
+                "@id": `${SECURITY_IRI}revoked`,
+                "@type": "http://www.w3.org/2001/XMLSchema#dateTime",
+              },
+              expires: {
+                "@id": `${SECURITY_IRI}expiration`,
+                "@type": "http://www.w3.org/2001/XMLSchema#dateTime",
+              },
+              publicKeyJwk: {
+                "@id": PUBLIC_KEY_JWK_IRI,
+                "@type": "@json",
+              },
+              secretKeyJwk: {
+                "@id": `${SECURITY_IRI}secretKeyJwk`,
+                "@type": "@json",
+              },
+            },
           },
-          JsonWebKey: JSON_WEB_KEY_IRI,
         },
       },
     };
@@ -108,7 +127,8 @@ const expandMidnightDocument = async (document: JsonLdDocument) => {
 
   const [expandedDocument] = expanded;
   const expandedRecord = expandedDocument as Record<string, unknown>;
-  const verificationMethods = expandedRecord[`${DID_IRI}verificationMethod`];
+  const verificationMethods =
+    expandedRecord[`${SECURITY_IRI}verificationMethod`];
   if (!Array.isArray(verificationMethods)) {
     throw new Error("Expanded DID Document is missing verificationMethod");
   }
@@ -120,6 +140,9 @@ const expandMidnightDocument = async (document: JsonLdDocument) => {
       throw new Error(
         `Unsupported verification method JSON-LD type: ${String(types)}`,
       );
+    }
+    if (!Array.isArray(methodRecord[PUBLIC_KEY_JWK_IRI])) {
+      throw new Error("Expanded JsonWebKey is missing publicKeyJwk");
     }
   }
 
@@ -214,11 +237,25 @@ describe("Midnight DID Document JSON-LD conformance", () => {
 
     const expanded = await expandMidnightDocument(document);
 
-    expect(expanded[`${DID_IRI}verificationMethod`]).toHaveLength(7);
-    expect(expanded[`${DID_IRI}authentication`]).toEqual([
+    const verificationMethods = expanded[`${SECURITY_IRI}verificationMethod`];
+    expect(verificationMethods).toHaveLength(7);
+    expect(expanded[`${SECURITY_IRI}authenticationMethod`]).toEqual([
       { "@id": `${exampleMidnightDid}#key-ed25519` },
     ]);
-    expect(expanded[`${SECURITY_IRI}publicKeyJwk`]).toBeUndefined();
+    expect(
+      (verificationMethods as Record<string, unknown>[])[0]?.[
+        PUBLIC_KEY_JWK_IRI
+      ],
+    ).toEqual([
+      {
+        "@type": "@json",
+        "@value": {
+          kty: KeyType.OKP,
+          crv: CurveType.Ed25519,
+          x: encodeZeros(32),
+        },
+      },
+    ]);
   });
 
   it("documents that JsonWebKey2020 is not the Midnight JSON-LD verification method type", async () => {
