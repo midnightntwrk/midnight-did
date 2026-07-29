@@ -5,9 +5,99 @@ This document outlines security procedures and general policies for Midnight Fou
 This policy adheres to the [vulnerability management guidance](https://www.linuxfoundation.org/security)
 for Linux Foundation projects.
 
+- [Midnight DID threat model](#midnight-did-threat-model)
 - [Disclosing a security issue](#disclosing-a-security-issue)
 - [Vulnerability management](#vulnerability-management)
 - [Suggesting changes](#suggesting-changes)
+
+## Midnight DID threat model
+
+`midnight-did` implements the `did:midnight` method. It stores DID state in a
+Midnight smart contract and resolves DID Documents from public ledger/indexer
+state. This section names the main security boundaries integrators must account
+for in addition to the vulnerability disclosure process below.
+
+### Controller authorization and custody
+
+Controller-gated DID updates are authorized by wallet-local Jubjub Schnorr
+signatures. The controller secret stays in wallet/private-state storage; proof
+servers receive operation-bound signatures and public inputs, not the controller
+secret. Wallets and SDKs must still treat the controller secret as high-value
+custody material: compromise permits controller-gated updates, while loss makes
+ordinary updates impossible unless the dedicated recovery authority remains
+available.
+
+Use distinct controller and recovery authority secrets per DID. Reusing either
+secret across DIDs creates a public correlation handle because the same public
+key can appear in multiple contracts.
+
+### Delegated proving
+
+Delegated proof servers are trusted for availability, correct proof generation,
+and confidentiality of any witness material they receive. They are not trusted
+with controller-secret custody in the current authorization model. Integrators
+that use remote proof servers must authenticate the endpoint, bind signatures to
+exact operation inputs, and avoid sending wallet-local controller secrets or DID
+Document private keys to the prover.
+
+### Key loss, rotation, and deactivation
+
+The contract includes a dedicated recovery authority public key that can rotate
+the active controller key via `recoverControllerKey`. Back up both controller and
+recovery private state before using a DID for production control, and verify
+rotation/recovery flows preserve the replacement secret until the ledger state
+has been reconciled. The SDK creates both secrets in one private-state record by
+default, while `recoverControllerKey` can also use an explicitly supplied
+recovery secret without persisting it. Deployments that require cold recovery
+custody must add separate storage/custody controls above the SDK layer. Loss of
+both controller and recovery authority secrets freezes the DID.
+
+Deactivation is irreversible. It prevents future updates, but it does not erase
+public ledger history or prior DID Document contents from observers, indexers,
+or archives. Treat deactivation as a final state transition, not as compromise
+recovery after custody has already been lost.
+
+### Resolver and indexer trust
+
+Resolution reads are indexer-backed. A resolver that trusts a compromised,
+misconfigured, or stale indexer can return forged, stale, or unfinalized DID
+state. Operators should run or select trusted indexers, protect transport
+security, and prefer finalized/pinned reads when those provider capabilities are
+available. Resolver failures or indexer outages are availability failures, not
+proof that a DID does not exist or is deactivated.
+
+### Client-asserted timestamps
+
+`created` and `updated` metadata are supplied by controller/prover witnesses and
+stored on ledger after successful transactions. They are useful ordering and UX
+metadata, but they are not consensus timestamps unless an application adds a
+separate time attestation or validates them against independent ledger/indexer
+events.
+
+### Raw Compact calls and state validity
+
+The TypeScript SDK and resolver enforce DID-domain validation that Compact cannot
+fully express for opaque strings and JSON-like values. A raw Compact caller that
+bypasses the SDK can create ledger state that is later rejected by strict
+resolvers or consumers. Production clients should use the SDK validation path and
+should treat malformed on-ledger DID state as a security-relevant interoperability
+failure.
+
+### ZK artifact supply chain
+
+ZK prover, verifier, and ZKIR artifacts are part of the release supply chain.
+The on-chain verifier keys are the proof-verification trust root for deployed
+contracts, while published ZK bundles are what clients use to deploy and call
+circuits. Consumers should use version-matched packages and ZK bundles, verify
+checksums and manifests, and prefer signed/provenanced release assets when the
+release pipeline provides them.
+
+### Audit posture
+
+This repository uses CI, code scanning, dependency automation, external review,
+and issue-based hardening work, but those controls are not a substitute for an
+independent production security audit. Treat unaudited contract/API changes as
+requiring application-specific review before production deployment.
 
 ## Disclosing a security issue
 

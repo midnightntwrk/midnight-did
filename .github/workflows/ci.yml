@@ -15,21 +15,25 @@ permissions:
   pull-requests: read
 
 env:
+  COMPACT_COMPILER_VERSION: 0.30.0
   PNPM_CONFIG_AUDIT: "false"
   PNPM_CONFIG_FUND: "false"
+  # Optional optimization: point this repository variable to a pre-bootstrapped proof-server image
+  # (for example ghcr.io/<org>/<image>:<tag>) to reduce cold-start time in Docker-based tests.
+  PROOF_SERVER_IMAGE: ${{ vars.PROOF_SERVER_IMAGE != '' && vars.PROOF_SERVER_IMAGE || 'midnightntwrk/proof-server:8.0.3' }}
 
 concurrency:
   group: did-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  changes:
-    name: Classify Changes
+  run-pipeline:
+    # Stable aggregate context for branch protection. Classification, setup,
+    # core, package smoke, and API work are kept as steps to reduce duplicate
+    # check contexts and avoid repeated shared setup.
+    name: Build, Lint, Test, and Coverage
     runs-on: ubuntu-latest
-    outputs:
-      docs_only: ${{ steps.classify.outputs.docs_only }}
-      code_changed: ${{ steps.classify.outputs.code_changed }}
-      changed_file_count: ${{ steps.classify.outputs.changed_file_count }}
+    timeout-minutes: 120
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
@@ -44,154 +48,45 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: node scripts/ci-change-classifier.mjs --output "$GITHUB_OUTPUT"
 
-      - name: Print change classification
+      - name: Resolve CI scope
+        id: scope
         env:
           CHANGED_FILE_COUNT: ${{ steps.classify.outputs.changed_file_count }}
           CODE_CHANGED: ${{ steps.classify.outputs.code_changed }}
           DOCS_ONLY: ${{ steps.classify.outputs.docs_only }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
+          echo "event_name=${EVENT_NAME}"
           echo "docs_only=${DOCS_ONLY}"
           echo "code_changed=${CODE_CHANGED}"
           echo "changed_file_count=${CHANGED_FILE_COUNT}"
-
-  core:
-    name: Core (Lint + Contract/Domain/DID)
-    runs-on: ubuntu-latest
-    needs:
-      - changes
-    if: >-
-      ${{
-        github.event_name == 'schedule' ||
-        github.event_name == 'workflow_dispatch' ||
-        needs.changes.outputs.code_changed == 'true' &&
-        needs.changes.outputs.docs_only != 'true'
-      }}
-    timeout-minutes: 60
-    env:
-      COMPACT_COMPILER_VERSION: 0.30.0
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
-        with:
-          persist-credentials: false
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Set up Compact toolchain
-        uses: midnightntwrk/setup-compact-action@836895c8fffbbea6bd986af2b17e8941ff29d1f8 # ratchet:midnightntwrk/setup-compact-action@v1
-        with:
-          compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
-
-      - name: Verify Compact installation
-        run: compact compile --version
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
-
-      - name: Run core workflow
-        run: ./run.sh core --strict
-
-      - name: Run package smoke tests
-        run: pnpm run packages-smoke-tests
-
-  api:
-    name: API pipeline
-    runs-on: ubuntu-latest
-    needs:
-      - changes
-    if: >-
-      ${{
-        github.event_name == 'schedule' ||
-        github.event_name == 'workflow_dispatch' ||
-        needs.changes.outputs.code_changed == 'true' &&
-        needs.changes.outputs.docs_only != 'true'
-      }}
-    timeout-minutes: 60
-    env:
-      COMPACT_COMPILER_VERSION: 0.30.0
-      # Optional optimization: point this repository variable to a pre-bootstrapped proof-server image
-      # (for example ghcr.io/<org>/<image>:<tag>) to reduce cold-start time in Docker-based tests.
-      PROOF_SERVER_IMAGE: ${{ vars.PROOF_SERVER_IMAGE != '' && vars.PROOF_SERVER_IMAGE || 'midnightntwrk/proof-server:8.0.3' }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
-        with:
-          persist-credentials: false
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Set up Compact toolchain
-        uses: midnightntwrk/setup-compact-action@836895c8fffbbea6bd986af2b17e8941ff29d1f8 # ratchet:midnightntwrk/setup-compact-action@v1
-        with:
-          compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
-
-      - name: Verify Compact installation
-        run: compact compile --version
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
-
-      - name: Run API workflow
-        run: ./run.sh api --strict
-
-  run-pipeline:
-    name: Build, Lint, Test, and Coverage
-    runs-on: ubuntu-latest
-    if: always()
-    needs:
-      - changes
-      - core
-      - api
-    steps:
-      - name: Check dependency jobs
-        env:
-          API_RESULT: ${{ needs.api.result }}
-          CHANGED_FILE_COUNT: ${{ needs.changes.outputs.changed_file_count }}
-          CODE_CHANGED: ${{ needs.changes.outputs.code_changed }}
-          CORE_RESULT: ${{ needs.core.result }}
-          DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          echo "event_name: ${EVENT_NAME}"
-          echo "docs_only: ${DOCS_ONLY}"
-          echo "code_changed: ${CODE_CHANGED}"
-          echo "changed_file_count: ${CHANGED_FILE_COUNT}"
-          echo "core: ${CORE_RESULT}"
-          echo "api: ${API_RESULT}"
 
           full_ci_required="false"
           if [[ "${EVENT_NAME}" == "schedule" || "${EVENT_NAME}" == "workflow_dispatch" || "${CODE_CHANGED}" == "true" ]]; then
             full_ci_required="true"
           fi
 
-          if [[ "${full_ci_required}" != "true" ]]; then
-            if [[ "${CORE_RESULT}" != "skipped" || "${API_RESULT}" != "skipped" ]]; then
-              echo "Non-code change should skip core and API jobs."
-              exit 1
-            fi
-            echo "No code-impacting changes detected; core and API jobs were intentionally skipped."
-            exit 0
-          fi
+          echo "full_ci_required=${full_ci_required}" >> "$GITHUB_OUTPUT"
 
-          if [[ "${CORE_RESULT}" != "success" || "${API_RESULT}" != "success" ]]; then
-            echo "One or more CI jobs failed."
-            exit 1
-          fi
+      - name: Report skipped CI implementation
+        if: steps.scope.outputs.full_ci_required != 'true'
+        run: echo "No code-impacting changes detected; core/API implementation skipped."
 
-          echo "All CI jobs passed."
+      - name: Set up Node.js, pnpm, and Compact
+        if: steps.scope.outputs.full_ci_required == 'true'
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
+          github-token: ${{ github.token }}
+
+      - name: Run core workflow
+        if: steps.scope.outputs.full_ci_required == 'true'
+        run: ./run.sh core --strict
+
+      - name: Run package smoke tests
+        if: steps.scope.outputs.full_ci_required == 'true'
+        run: pnpm run packages-smoke-tests
+
+      - name: Run API workflow
+        if: steps.scope.outputs.full_ci_required == 'true'
+        run: ./run.sh api --strict

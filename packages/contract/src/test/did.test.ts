@@ -68,7 +68,7 @@ describe("DID smart contract", () => {
   it("properly initializes ledger state and private state", () => {
     const simulator = new DIDSimulator();
     const initialLedgerState = simulator.getLedger();
-    expect(initialLedgerState.contractVersion).toEqual(1n);
+    expect(initialLedgerState.contractVersion).toEqual(2n);
     expect(initialLedgerState.controllerPublicKey.x).toBeTypeOf("bigint");
     expect(initialLedgerState.controllerPublicKey.y).toBeTypeOf("bigint");
     expect(initialLedgerState.id.bytes).toBeInstanceOf(Uint8Array);
@@ -83,9 +83,16 @@ describe("DID smart contract", () => {
     expect(initialLedgerState.operationCount).toEqual(0n);
     const initialPrivateState = simulator.getPrivateState();
     expect(initialPrivateState.secretKey).toBeInstanceOf(Uint8Array);
-    expect(initialPrivateState.secretKey.length).toEqual(32);
+    expect(initialPrivateState.secretKey?.length).toEqual(32);
+    expect(initialPrivateState.recoverySecretKey).toBeInstanceOf(Uint8Array);
+    expect(initialPrivateState.recoverySecretKey?.length).toEqual(32);
     expect(initialLedgerState.controllerPublicKey).toEqual(
-      ContractExports.deriveControllerPublicKey(initialPrivateState.secretKey)
+      ContractExports.deriveControllerPublicKey(initialPrivateState.secretKey!)
+    );
+    expect(initialLedgerState.recoveryAuthorityPublicKey).toEqual(
+      ContractExports.deriveControllerPublicKey(
+        initialPrivateState.recoverySecretKey!
+      )
     );
   });
 
@@ -101,7 +108,7 @@ describe("DID smart contract", () => {
       ContractExports.deriveControllerPublicKey(newSecretKey);
 
     expect(newControllerPublicKey).not.toEqual(
-      ContractExports.deriveControllerPublicKey(oldSecretKey)
+      ContractExports.deriveControllerPublicKey(oldSecretKey!)
     );
 
     simulator.rotateControllerPublicKey(newControllerPublicKey);
@@ -114,12 +121,201 @@ describe("DID smart contract", () => {
       /Invalid Jubjub Schnorr signature/
     );
 
-    simulator.setPrivateState({ secretKey: newSecretKey });
+    simulator.setPrivateState({
+      ...simulator.getPrivateState(),
+      secretKey: newSecretKey
+    });
     simulator.addAlsoKnownAs("did:example:new-secret");
     expect(
       simulator.getLedger().alsoKnownAs.member("did:example:new-secret")
     ).toEqual(true);
     expect(simulator.getLedger().version).toEqual(2n);
+  });
+
+  it("rejects constructor private state with matching controller and recovery authority keys", () => {
+    expect(
+      () =>
+        new DIDSimulator({
+          ...witnesses,
+          localRecoveryAuthorityPublicKey: ({ privateState }) => [
+            privateState,
+            ContractExports.deriveControllerPublicKey(privateState.secretKey!)
+          ]
+        })
+    ).toThrow(/New controller key matches recovery authority key/);
+  });
+
+  it("rejects constructor private state without a recovery authority secret", () => {
+    expect(
+      () =>
+        new DIDSimulator({
+          ...witnesses,
+          localRecoveryAuthorityPublicKey: ({ privateState }) =>
+            witnesses.localRecoveryAuthorityPublicKey({
+              privateState: { secretKey: privateState.secretKey } as any
+            } as any)
+        })
+    ).toThrow(/recovery secret key is required/);
+  });
+
+  it("recovers controller control with the recovery public key", () => {
+    const simulator = new DIDSimulator();
+    const oldSecretKey = simulator.getPrivateState().secretKey;
+    const recoveryAuthorityPublicKey =
+      simulator.getLedger().recoveryAuthorityPublicKey;
+    const recoveredSecretKey = keyBytes(77);
+    const recoveredPublicKey =
+      ContractExports.deriveControllerPublicKey(recoveredSecretKey);
+
+    expect(recoveryAuthorityPublicKey).not.toEqual(
+      simulator.getLedger().controllerPublicKey
+    );
+
+    simulator.recoverControllerKey(recoveredSecretKey);
+    expect(simulator.getLedger().controllerPublicKey).toEqual(
+      recoveredPublicKey
+    );
+    expect(simulator.getLedger().recoveryAuthorityPublicKey).toEqual(
+      recoveryAuthorityPublicKey
+    );
+
+    simulator.setPrivateState({
+      ...simulator.getPrivateState(),
+      secretKey: oldSecretKey
+    });
+    expect(() =>
+      simulator.addAlsoKnownAs("did:example:old-controller")
+    ).toThrow(/Invalid Jubjub Schnorr signature/);
+
+    simulator.setPrivateState({
+      ...simulator.getPrivateState(),
+      secretKey: recoveredSecretKey
+    });
+    simulator.addAlsoKnownAs("did:example:recovered-controller");
+    expect(
+      simulator
+        .getLedger()
+        .alsoKnownAs.member("did:example:recovered-controller")
+    ).toEqual(true);
+  });
+
+  it("rejects controller signatures for recovery operations", () => {
+    const simulator = new DIDSimulator();
+    const recoveredSecretKey = keyBytes(77);
+    const recoveredPublicKey =
+      ContractExports.deriveControllerPublicKey(recoveredSecretKey);
+    const expectedVersion = simulator.getLedger().version;
+    const [controllerSignature] = simulator.controllerAuthorization(
+      pureCircuits.recoverControllerKeyAuthorizationDigest(
+        simulator.getLedger().id,
+        expectedVersion,
+        recoveredPublicKey
+      )
+    );
+
+    expect(() =>
+      simulator.contract.impureCircuits.recoverControllerKey(
+        simulator.circuitContext,
+        recoveredPublicKey,
+        controllerSignature,
+        expectedVersion
+      )
+    ).toThrow(/Invalid Jubjub Schnorr signature/);
+  });
+
+  it("rejects recovery signatures for normal controller operations", () => {
+    const simulator = new DIDSimulator();
+    const alias = "did:example:recovery-not-controller";
+    const expectedVersion = simulator.getLedger().version;
+    const [recoverySignature] = simulator.recoveryAuthorization(
+      pureCircuits.setAlsoKnownAsAuthorizationDigest(
+        simulator.getLedger().id,
+        expectedVersion,
+        alias,
+        SetMutation.Insert
+      )
+    );
+
+    expect(() =>
+      simulator.contract.impureCircuits.setAlsoKnownAs(
+        simulator.circuitContext,
+        alias,
+        SetMutation.Insert,
+        recoverySignature,
+        expectedVersion
+      )
+    ).toThrow(/Invalid Jubjub Schnorr signature/);
+  });
+
+  it("rejects stale and no-op recovery attempts", () => {
+    const simulator = new DIDSimulator();
+    const recoveredSecretKey = keyBytes(77);
+    const recoveredPublicKey =
+      ContractExports.deriveControllerPublicKey(recoveredSecretKey);
+    const expectedVersion = simulator.getLedger().version;
+    const [signature] = simulator.recoveryAuthorization(
+      pureCircuits.recoverControllerKeyAuthorizationDigest(
+        simulator.getLedger().id,
+        expectedVersion,
+        recoveredPublicKey
+      )
+    );
+
+    simulator.addAlsoKnownAs("did:example:version-bump");
+    expect(() =>
+      simulator.contract.impureCircuits.recoverControllerKey(
+        simulator.circuitContext,
+        recoveredPublicKey,
+        signature,
+        expectedVersion
+      )
+    ).toThrow(/Recovery authorization version is stale/);
+
+    const currentPublicKey = simulator.getLedger().controllerPublicKey;
+    const [currentKeySignature, currentVersion] =
+      simulator.recoveryAuthorization(
+        pureCircuits.recoverControllerKeyAuthorizationDigest(
+          simulator.getLedger().id,
+          simulator.getLedger().version,
+          currentPublicKey
+        )
+      );
+    expect(() =>
+      simulator.contract.impureCircuits.recoverControllerKey(
+        simulator.circuitContext,
+        currentPublicKey,
+        currentKeySignature,
+        currentVersion
+      )
+    ).toThrow(/New controller key matches current controller key/);
+
+    const recoveryAuthorityPublicKey =
+      simulator.getLedger().recoveryAuthorityPublicKey;
+    const [recoveryKeySignature, recoveryKeyVersion] =
+      simulator.recoveryAuthorization(
+        pureCircuits.recoverControllerKeyAuthorizationDigest(
+          simulator.getLedger().id,
+          simulator.getLedger().version,
+          recoveryAuthorityPublicKey
+        )
+      );
+    expect(() =>
+      simulator.contract.impureCircuits.recoverControllerKey(
+        simulator.circuitContext,
+        recoveryAuthorityPublicKey,
+        recoveryKeySignature,
+        recoveryKeyVersion
+      )
+    ).toThrow(/New controller key matches recovery authority key/);
+  });
+
+  it("rejects recovery after deactivation", () => {
+    const simulator = new DIDSimulator();
+    simulator.deactivate();
+
+    expect(() => simulator.recoverControllerKey(keyBytes(77))).toThrow(
+      /Contract is not active/
+    );
   });
 
   it("rejects controller signatures reused with different operation arguments", () => {
@@ -686,7 +882,7 @@ describe("DID smart contract", () => {
 
     beforeEach(() => {
       simulator = new DIDSimulator();
-      // Add a verification method first
+      // Add verification methods first
       simulator.addVerificationMethod({
         id: "#key-1",
         typ: VerificationMethodType.JsonWebKey,
@@ -694,6 +890,15 @@ describe("DID smart contract", () => {
           kty: KeyType.OKP,
           crv: CurveType.Ed25519,
           ...okpKey(111)
+        }
+      });
+      simulator.addVerificationMethod({
+        id: "#key-x25519",
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.X25519,
+          ...okpKey(112)
         }
       });
     });
@@ -722,11 +927,63 @@ describe("DID smart contract", () => {
     it("should add KeyAgreement relation", () => {
       simulator.addVerificationMethodRelation(
         VerificationMethodRelation.KeyAgreement,
-        "#key-1"
+        "#key-x25519"
       );
 
       const ledger = simulator.getLedger();
-      expect(ledger.keyAgreementRelation.member("#key-1")).toEqual(true);
+      expect(ledger.keyAgreementRelation.member("#key-x25519")).toEqual(true);
+    });
+
+    it("should reject signing keys in KeyAgreement relation", () => {
+      expect(() =>
+        simulator.addVerificationMethodRelation(
+          VerificationMethodRelation.KeyAgreement,
+          "#key-1"
+        )
+      ).toThrow("KeyAgreement requires an X25519 verification method");
+    });
+
+    it("should reject X25519 keys in signing relations", () => {
+      expect(() =>
+        simulator.addVerificationMethodRelation(
+          VerificationMethodRelation.Authentication,
+          "#key-x25519"
+        )
+      ).toThrow("Signing verification relations cannot use X25519");
+    });
+
+    it("should reject updates that would make existing relations incompatible", () => {
+      simulator.addVerificationMethodRelation(
+        VerificationMethodRelation.Authentication,
+        "#key-1"
+      );
+      expect(() =>
+        simulator.updateVerificationMethod({
+          id: "#key-1",
+          typ: VerificationMethodType.JsonWebKey,
+          publicKeyJwk: {
+            kty: KeyType.OKP,
+            crv: CurveType.X25519,
+            ...okpKey(113)
+          }
+        })
+      ).toThrow("Existing signing verification relations cannot use X25519");
+
+      simulator.addVerificationMethodRelation(
+        VerificationMethodRelation.KeyAgreement,
+        "#key-x25519"
+      );
+      expect(() =>
+        simulator.updateVerificationMethod({
+          id: "#key-x25519",
+          typ: VerificationMethodType.JsonWebKey,
+          publicKeyJwk: {
+            kty: KeyType.OKP,
+            crv: CurveType.Ed25519,
+            ...okpKey(114)
+          }
+        })
+      ).toThrow("Existing KeyAgreement relation requires an X25519");
     });
 
     it("should add CapabilityInvocation relation", () => {

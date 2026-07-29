@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 env:
   COMPACT_COMPILER_VERSION: 0.30.0
@@ -27,40 +28,62 @@ concurrency:
 
 jobs:
   quality:
-    name: Typecheck and Static Contracts
+    # Stable aggregate context for branch protection. Keep this name stable even
+    # if future implementation lanes split underneath a reusable workflow.
+    name: Typecheck, Audit, and Static Contracts
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
         with:
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Classify changed files
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: node scripts/ci-change-classifier.mjs --output "$GITHUB_OUTPUT"
 
-      - name: Set up Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+      - name: Resolve quality scope
+        id: scope
+        env:
+          CHANGED_FILE_COUNT: ${{ steps.classify.outputs.changed_file_count }}
+          CODE_CHANGED: ${{ steps.classify.outputs.code_changed }}
+          DOCS_ONLY: ${{ steps.classify.outputs.docs_only }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          echo "event_name=${EVENT_NAME}"
+          echo "docs_only=${DOCS_ONLY}"
+          echo "code_changed=${CODE_CHANGED}"
+          echo "changed_file_count=${CHANGED_FILE_COUNT}"
 
-      - name: Set up Compact toolchain
-        uses: midnightntwrk/setup-compact-action@836895c8fffbbea6bd986af2b17e8941ff29d1f8 # ratchet:midnightntwrk/setup-compact-action@v1
+          full_quality_required="false"
+          if [[ "${EVENT_NAME}" == "schedule" || "${EVENT_NAME}" == "workflow_dispatch" || "${CODE_CHANGED}" == "true" ]]; then
+            full_quality_required="true"
+          fi
+
+          echo "full_quality_required=${full_quality_required}" >> "$GITHUB_OUTPUT"
+
+      - name: Report skipped quality implementation
+        if: steps.scope.outputs.full_quality_required != 'true'
+        run: echo "No code-impacting changes detected; Compact/typecheck/static quality implementation skipped."
+
+      - name: Set up Node.js, pnpm, and Compact
+        if: steps.scope.outputs.full_quality_required == 'true'
+        uses: ./.github/actions/setup-node-pnpm
         with:
           compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
-
-      - name: Verify Compact installation
-        run: compact compile --version
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
+          github-token: ${{ github.token }}
 
       - name: Build typecheck prerequisites
+        if: steps.scope.outputs.full_quality_required == 'true'
         run: pnpm run build:all
 
       - name: Typecheck all workspaces
+        if: steps.scope.outputs.full_quality_required == 'true'
         run: |
           pnpm --filter ./packages/jubjub-schnorr typecheck
           pnpm --filter ./packages/contract typecheck
@@ -69,6 +92,7 @@ jobs:
           pnpm --filter ./packages/api typecheck
 
       - name: Run static contract checks
+        if: steps.scope.outputs.full_quality_required == 'true'
         run: |
           pnpm run check:workspace-manifests
           pnpm run check:did-surface-discipline

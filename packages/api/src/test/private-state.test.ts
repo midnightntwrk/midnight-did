@@ -67,10 +67,22 @@ describe("DID private state lifecycle", () => {
     }
   });
 
-  it("accepts only 32-byte Uint8Array secret keys as restorable state", () => {
-    expect(isRestorableDIDPrivateState({ secretKey: new Uint8Array(32) })).toBe(
-      true,
-    );
+  it("accepts 32-byte controller state with optional 32-byte recovery state", () => {
+    expect(
+      isRestorableDIDPrivateState({
+        recoverySecretKey: new Uint8Array(32),
+        secretKey: new Uint8Array(32),
+      }),
+    ).toBe(true);
+    expect(
+      isRestorableDIDPrivateState({ secretKey: new Uint8Array(32) } as any),
+    ).toBe(true);
+    expect(
+      isRestorableDIDPrivateState({
+        recoverySecretKey: new Uint8Array(31),
+        secretKey: new Uint8Array(32),
+      } as any),
+    ).toBe(false);
     expect(
       isRestorableDIDPrivateState({ secretKey: new Uint8Array(31) } as any),
     ).toBe(false);
@@ -85,7 +97,10 @@ describe("DID private state lifecycle", () => {
   });
 
   it("returns provider state without deriving or saving a replacement", async () => {
-    const storedPrivateState = { secretKey: new Uint8Array(32).fill(7) };
+    const storedPrivateState = {
+      recoverySecretKey: new Uint8Array(32).fill(8),
+      secretKey: new Uint8Array(32).fill(7),
+    };
     const { providers, privateStateProvider } = makeProviders({
       storedPrivateState,
     });
@@ -117,6 +132,7 @@ describe("DID private state lifecycle", () => {
 
     expect(privateState.secretKey).toBeInstanceOf(Uint8Array);
     expect(privateState.secretKey).toHaveLength(32);
+    expect(privateState.recoverySecretKey).toHaveLength(32);
     expect(privateStateProvider.set).toHaveBeenCalledWith(
       MidnightDIDPrivateStateId,
       privateState,
@@ -176,7 +192,10 @@ describe("DID private state lifecycle", () => {
   });
 
   it("promotes pending controller private state for recovery", async () => {
-    const pendingPrivateState = { secretKey: new Uint8Array(32).fill(9) };
+    const pendingPrivateState = {
+      recoverySecretKey: new Uint8Array(32).fill(10),
+      secretKey: new Uint8Array(32).fill(9),
+    };
     const { providers, privateStateProvider } = makeProviders({
       storedPrivateState: pendingPrivateState,
     });
@@ -200,7 +219,10 @@ describe("DID private state lifecycle", () => {
 
   it("refuses to recover pending controller private state without finalization confirmation", async () => {
     const { providers, privateStateProvider } = makeProviders({
-      storedPrivateState: { secretKey: new Uint8Array(32).fill(9) },
+      storedPrivateState: {
+        recoverySecretKey: new Uint8Array(32).fill(10),
+        secretKey: new Uint8Array(32).fill(9),
+      },
     });
 
     await expect(

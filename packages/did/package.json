@@ -54,7 +54,9 @@
     "zod": "^4.1.0"
   },
   "devDependencies": {
-    "globals": "14.0.0"
+    "@types/jsonld": "^1.5.15",
+    "globals": "14.0.0",
+    "jsonld": "^9.0.0"
   },
   "files": [
     "dist/**",

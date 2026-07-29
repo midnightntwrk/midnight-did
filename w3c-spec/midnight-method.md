@@ -107,7 +107,118 @@ did:midnight:offchain:<persistent-hash-of-state>
 
 The long form is analogous to `did:peer:4`: the first offchain segment is a persistent hash of the encoded state, and the second segment carries the encoded state itself. A resolver that receives the long form MUST decode the state, recompute the hash, and reject the DID if the hash does not match. A resolver that receives only the short form needs the encoded state from local storage or resolver input metadata; the short form alone is not self-resolving.
 
-The method-specific identifier for the long form is `<persistent-hash-of-state>:<encoded-state>`. The encoded state MUST use the Midnight offchain DID state encoding defined by the reference implementation. In the current encoding, the state is a Compact-native binary representation wrapped as canonical unpadded base64url text using the alphabet defined by RFC 4648 Section 5. The encoded state is part of the DID method-specific identifier, not a DID URL query parameter.
+The method-specific identifier for the long form is `<persistent-hash-of-state>:<encoded-state>`. The encoded state MUST use the Midnight offchain DID state encoding `midnight-offchain-did-state-v1.base64url`. In the current encoding, the state is a Compact-native binary representation wrapped as canonical unpadded base64url text using the alphabet defined by RFC 4648 Section 5. The encoded state is part of the DID method-specific identifier, not a DID URL query parameter.
+
+### 2.1.1. Offchain state encoding v1
+
+The offchain state hash is the lowercase hexadecimal BLAKE2s-256 digest of the decoded offchain state bytes. A resolver MUST decode the canonical unpadded base64url payload, compute BLAKE2s with `dkLen = 32`, lowercase-hex encode the digest, and compare it with `offchain-state-hash`. A mismatch MUST be rejected.
+
+The decoded byte stream is framed as a Compact value chunk array:
+
+```text
+magic              = %x4d.4f.44.31               ; "MOD1"
+chunk-count        = uint32be
+chunk              = chunk-length chunk-bytes
+chunk-length       = uint32be
+encoded-state-v1   = magic chunk-count *chunk
+```
+
+`chunk-count` is the number of Compact value chunks that follow. Each `chunk-length` is the number of bytes in the following chunk. A decoder MUST reject an invalid magic value, a chunk count that cannot fit in the remaining byte stream, a chunk whose declared length exceeds the remaining bytes, or trailing bytes after the last declared chunk.
+
+The chunk payloads are the Compact runtime value emitted by the following descriptor, in order:
+
+1. `version`: `Uint<16>`.
+2. `alsoKnownAs`: `Vector<4, Opaque<"string">>` padded with empty strings.
+3. `verificationMethod`: `Vector<4, OffchainVerificationMethod>` padded with empty slots.
+4. `service`: `Vector<4, OffchainService>` padded with empty slots.
+
+`OffchainVerificationMethod` is encoded as:
+
+1. `present`: `Boolean`.
+2. `id`: `Opaque<"string">`, a fragment identifier such as `#key-1`.
+3. `keyKind`: `Uint<8>` using the table below.
+4. `x`: `Opaque<"string">`, the canonical JWK `x` value.
+5. `y`: `Opaque<"string">`, the canonical JWK `y` value, or the empty-string sentinel for OKP keys.
+6. `relationshipsMask`: `Uint<8>`.
+
+`OffchainService` is encoded as:
+
+1. `present`: `Boolean`.
+2. `id`: `Opaque<"string">`, a fragment identifier.
+3. `type`: `Opaque<"string">`.
+4. `serviceEndpoint`: `Opaque<"string">`.
+
+Empty verification-method slots have `present = false`, empty strings for `id`, `x`, and `y`, and zero for `keyKind` and `relationshipsMask`. Empty service slots have `present = false` and empty strings for `id`, `type`, and `serviceEndpoint`.
+
+`Opaque<"string">` chunks are UTF-8 bytes. `Boolean` chunks are a single byte `0x01` for `true` and an empty chunk for `false`. `Uint<8>` and `Uint<16>` chunks use Compact unsigned-integer value bytes: little-endian, minimal length, with trailing zero bytes omitted and an empty chunk representing zero.
+
+| `keyKind` | JWK profile |
+| --- | --- |
+| 1 | `kty: "EC", crv: "Jubjub"` |
+| 2 | `kty: "OKP", crv: "Ed25519"` |
+| 3 | `kty: "EC", crv: "P-256"` |
+| 4 | `kty: "OKP", crv: "X25519"` |
+| 5 | `kty: "EC", crv: "secp256k1"` |
+| 6 | `kty: "OKP", crv: "BLS12381G1"` |
+| 7 | `kty: "OKP", crv: "BLS12381G2"` |
+
+The `relationshipsMask` bits are: `authentication = 1`, `assertionMethod = 2`, `keyAgreement = 4`, `capabilityInvocation = 8`, and `capabilityDelegation = 16`.
+
+The maximum v1 state contains four `alsoKnownAs` entries, four verification methods, and four services. A state MUST contain at least one verification method. A decoder MUST reject unsupported `keyKind` values, invalid JWK material, non-fragment method or service identifiers, invalid base64url payloads, non-canonical base64url payloads, and any decoded state that does not satisfy the domain schema.
+
+### 2.1.2. Offchain state test vector
+
+The following test vector uses a single Jubjub verification method and one service:
+
+```json
+{
+  "version": 1,
+  "alsoKnownAs": ["https://example.org/holders/alice"],
+  "verificationMethod": [
+    {
+      "id": "#holder-key-1",
+      "publicKeyJwk": {
+        "kty": "EC",
+        "crv": "Jubjub",
+        "x": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "y": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"
+      },
+      "relationships": {
+        "authentication": true,
+        "assertionMethod": true,
+        "keyAgreement": false,
+        "capabilityInvocation": false,
+        "capabilityDelegation": false
+      }
+    }
+  ],
+  "service": [
+    {
+      "id": "#profile",
+      "type": "LinkedDomains",
+      "serviceEndpoint": "https://example.org/profile/alice"
+    }
+  ]
+}
+```
+
+Encoded state payload:
+
+```text
+TU9EMQAAAC0AAAABAQAAACFodHRwczovL2V4YW1wbGUub3JnL2hvbGRlcnMvYWxpY2UAAAAAAAAAAAAAAAAAAAABAQAAAA0jaG9sZGVyLWtleS0xAAAAAQEAAAArQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQAAACtBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFAAAAAQMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQAAAAgjcHJvZmlsZQAAAA1MaW5rZWREb21haW5zAAAAIWh0dHBzOi8vZXhhbXBsZS5vcmcvcHJvZmlsZS9hbGljZQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+```
+
+Short-form DID:
+
+```text
+did:midnight:offchain:3c08b85758d973a6002942c730d077ede51920c184927aaf010562035203fc21
+```
+
+Long-form DID:
+
+```text
+did:midnight:offchain:3c08b85758d973a6002942c730d077ede51920c184927aaf010562035203fc21:TU9EMQAAAC0AAAABAQAAACFodHRwczovL2V4YW1wbGUub3JnL2hvbGRlcnMvYWxpY2UAAAAAAAAAAAAAAAAAAAABAQAAAA0jaG9sZGVyLWtleS0xAAAAAQEAAAArQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQAAACtBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFAAAAAQMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQAAAAgjcHJvZmlsZQAAAA1MaW5rZWREb21haW5zAAAAIWh0dHBzOi8vZXhhbXBsZS5vcmcvcHJvZmlsZS9hbGljZQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+```
 
 A trailing colon without `offchain-state` is invalid. The long-form DID is the DID subject identifier for the resolved DID Document: resolved `id`, `controller`, and verification method controller fields use the long form so the subject remains fully self-sufficient. This intentionally differs from `did:peer:4`, where the resolved document commonly uses the short form as `id` and represents the long form as an alias.
 
@@ -131,7 +242,7 @@ Below is the basic structure of the Midnight DID Document:
 {
   "@context": [
     "https://www.w3.org/ns/did/v1",
-    "https://w3c.github.io/vc-jws-2020/contexts/v1"
+    "https://w3id.org/security/jwk/v1"
   ],
   "id": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
   "controller": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
@@ -169,7 +280,7 @@ A Midnight DID document **MUST** include a `@context` property.
 
 The value of the `@context` property **MUST** be an array containing the following URIs, in order:
 1. `https://www.w3.org/ns/did/v1` (reference to the context of the DID Core specification v1)
-2. `https://w3c.github.io/vc-jws-2020/contexts/v1` (reference to the context of the `publicKeyJwk2020` specification v1)
+2. `https://w3id.org/security/jwk/v1` (reference to the security vocabulary context that defines `JsonWebKey` and type-scoped `publicKeyJwk`)
 
 For more information, see [W3C-DID].
 
@@ -213,7 +324,7 @@ Midnight normalizes identifiers to fragment form (`#...`) at the SDK/contract bo
 
 The value of the `type` field **MUST** be `JsonWebKey`. Midnight uses this name to identify verification methods whose public key material is carried in the `publicKeyJwk` property and encoded according to [RFC7517] JSON Web Key (JWK) rules.
 
-Midnight does not emit `JsonWebKey2020`. `JsonWebKey2020` is associated with older vc-jws-2020 / JSON-LD context naming, while the Midnight DID method names the verification material form directly as `JsonWebKey`. Consumers that require a `JsonWebKey2020` term or context mapping MUST adapt the resolved DID Document at the integration boundary; the canonical Midnight DID Document representation remains `JsonWebKey`.
+Midnight does not emit `JsonWebKey2020`. `JsonWebKey2020` is associated with older vc-jws-2020 / JSON-LD context naming, while the Midnight DID method uses the `https://w3id.org/security/jwk/v1` context that defines the verification material form directly as `JsonWebKey` with type-scoped `publicKeyJwk`. Consumers that require a `JsonWebKey2020` term or context mapping MUST adapt the resolved DID Document at the integration boundary; the canonical Midnight DID Document representation remains `JsonWebKey`.
 
 ### 3.4.3. controller
 
@@ -530,17 +641,34 @@ controller secret is not a circuit witness and MUST NOT be sent to delegated
 proving infrastructure.
 
 The controller secret is not stored on ledger. SDKs MUST persist it in the
-wallet's private-state storage, and wallets SHOULD provide backup or recovery
-for this private state. Loss of the controller secret makes subsequent DID
-updates impossible unless a future recovery mechanism is introduced.
+wallet's private-state storage. The contract also stores a dedicated
+`recoveryAuthorityPublicKey: JubjubPoint`. The recovery authority is not a DID
+Document verification method and is not a second active controller. It can only
+authorize `recoverControllerKey`, which rotates `controllerPublicKey` after
+verifying a recovery-authority Schnorr signature bound to the DID contract id,
+current version, recovery operation name, and replacement controller public key.
+
+Wallets SHOULD back up the active controller private state and the recovery
+authority private state separately. Private state created before this recovery
+authority surface has no recovery authority secret: it can still authorize
+ordinary controller-gated operations for a compatible contract, but it cannot
+perform `recoverControllerKey` unless the recovery secret is imported or supplied
+explicitly. Deployments of `contractVersion = 2` MUST initialize a recovery
+authority secret. Loss of the controller secret makes ordinary controller-gated
+updates, controller rotation, and deactivation impossible until
+`recoverControllerKey` is used with the recovery authority. Loss of both the
+controller secret and recovery authority secret makes subsequent DID updates
+impossible. The current contract does not provide multi-controller, threshold,
+social-recovery, recovery-authority rotation, or emergency-deactivation circuits.
 
 Controller rotation is performed with a locally derived replacement Jubjub
 `controllerPublicKey`. The replacement controller secret is generated locally by
 the wallet or SDK. Only the new `controllerPublicKey`, the current-version
 controller signature, and the expected version are supplied to the circuit. After
 the rotation transaction finalizes, the SDK MUST persist the new secret as the
-DID private state. See [Appendix 11.1](#111-controller-authorization-and-proof-servers)
-for the proof-server trust boundary.
+DID private state while preserving any stored recovery authority secret. See
+[Appendix 11.1](#111-controller-authorization-and-proof-servers) for the
+proof-server trust boundary.
 
 ## 5.3. Keys associated with the DID Document
 Midnight DID Controllers **MUST** manage the keys associated with the DID Document.
@@ -563,7 +691,8 @@ The following table summarizes the on-chain ledger state exported by the contrac
 | Field                          | Type                                         | Description |
 |--------------------------------|----------------------------------------------|-------------|
 | contractVersion                | `Uint<32>`                                   | Contract schema/version number to support upgrades and compatibility checks. |
-| controllerPublicKey            | `JubjubPoint`                                | Controller public key used to verify wallet-local controller authorization signatures. |
+| controllerPublicKey            | `JubjubPoint`                                | Active controller public key used to verify wallet-local controller authorization signatures. |
+| recoveryAuthorityPublicKey      | `JubjubPoint`                                | Dedicated recovery authority public key used only by `recoverControllerKey` to rotate `controllerPublicKey`. It is not emitted as a DID Document verification method. |
 | id                             | `ContractAddress`                            | Smart‑contract address (32‑byte / 64‑hex) that uniquely identifies the DID on Midnight. |
 | alsoKnownAs                    | `Set<Opaque<"string">>`                      | The DID Document’s `alsoKnownAs` field; allows to set the alias for the DID identity. |
 | version                        | `Counter`                                    | Monotonic on-chain revision counter for the DID state. Must be set to the `versionId` property of the DIDDocument. |
@@ -619,6 +748,8 @@ Creating a DID involves deploying the corresponding smart contract instance to t
 
 To deploy the smart-contract instance, the following prerequisites MUST be met:
 - Smart-contract prover and verifier ZK-keys MUST be generated
+- Controller and recovery authority private keys MUST be available to the deploying wallet or SDK
+- The initial controller public key MUST be distinct from the recovery authority public key
 
 After the smart-contract publishing, the Midnight DID is deployed, but doesn't contain the public information. It's still resolvable and contains the following properties:
 - `id` the smart-contract address
@@ -702,6 +833,7 @@ Conformance note: due to Compact language limitations for rich URI/data-model va
 
 Each update operation is implemented by a small set/toggle circuit surface in the `did.compact` contract:
 - `rotateControllerKey` - rotates the DID controller commitment to a locally derived controller public key
+- `recoverControllerKey` - rotates the DID controller commitment using a dedicated recovery authority signature
 - `setVerificationMethod` - adds or updates an opaque JWK verification method according to a `MapMutation.Insert` or `MapMutation.Update` value
 - `removeVerificationMethod` - removes an opaque JWK verification method
 - `setSchnorrJubjubVerificationMethod` - adds or updates a native SchnorrJubjub verification method according to a `MapMutation.Insert` or `MapMutation.Update` value
@@ -719,11 +851,12 @@ Each mutating circuit increments the version counter and updates the `updated` t
 
 The circuit implementations are in [`packages/contract/src/did.compact`](../packages/contract/src/did.compact), and the API helpers that call these circuits are in [`packages/api/src/lib.ts`](../packages/api/src/lib.ts).
 
-Controller rotation note:
-- `rotateControllerKey` accepts only the next `controllerPublicKey`, not the next secret; authorization is supplied as a current-version controller signature.
-- The API helper generates a new 32-byte secret, derives the next public key locally with the contract package's `deriveControllerPublicKey` helper, submits the rotation transaction, and stores the new secret in private state after the transaction succeeds.
-- If the rotation transaction finalizes but private-state persistence fails, the wallet must recover the same new secret to continue updating the DID.
-- Implementations that bypass the API and submit an arbitrary `newControllerPublicKey` are responsible for retaining the matching preimage. Losing the matching secret makes subsequent DID updates impossible.
+Controller rotation and recovery notes:
+- `rotateControllerKey` accepts only the next `controllerPublicKey`, not the next secret; authorization is supplied as a current-version controller signature. The next controller public key MUST differ from the current controller public key and from the recovery authority public key.
+- `recoverControllerKey` accepts only the next `controllerPublicKey`, a recovery-authority signature, and the expected version. The recovery authority can rotate the active controller key but cannot mutate DID Document content, verification methods, services, aliases, deactivation state, or the recovery authority itself.
+- The API helper generates a new 32-byte secret, derives the next public key locally with the contract package's `deriveControllerPublicKey` helper, submits the rotation or recovery transaction, and stores the new secret in private state after the transaction succeeds.
+- If the transaction finalizes but private-state persistence fails, the wallet must recover the same new secret to continue updating the DID.
+- Implementations that bypass the API and submit an arbitrary `newControllerPublicKey` are responsible for retaining the matching preimage. Losing the matching secret makes subsequent DID updates impossible unless the recovery authority remains available.
 
 ### 7.3.1 Add Verification Method
 
@@ -827,6 +960,12 @@ Associate an existing verification method `methodId` with a DID Core verificatio
 - Constraints:
   - `methodId` MUST refer to an existing verification method and MUST be expressed as a DID URL for the subject or a relative identifier (e.g., `#key-1`).
   - Adding the same relation twice MUST fail.
+  - The verification method curve MUST be compatible with the requested relationship.
+    `X25519` methods are key-agreement methods and MUST only be added to
+    `KeyAgreement`. Signing-capable methods (`Ed25519`, `P-256`, `secp256k1`,
+    `BLS12381G1`, `BLS12381G2`, and native SchnorrJubjub/Jubjub) MUST NOT be
+    added to `KeyAgreement`; they are valid for `Authentication`,
+    `AssertionMethod`, `CapabilityInvocation`, and `CapabilityDelegation`.
 
 Example:
 ```typescript
@@ -923,7 +1062,44 @@ Example:
 await removeAlsoKnownAs(didContract, providers, 'did:example:aka-1');
 ```
 
-### 7.3.11. Deactivate
+### 7.3.11. Recover Controller Key
+
+Rotates the active controller public key using the dedicated recovery authority.
+This is a break-glass recovery operation for loss of the active controller
+secret; it is not a general DID Document update authority.
+
+- Inputs:
+  - `newControllerPublicKey` — replacement Jubjub controller public key.
+  - `recoverySignature` — Schnorr signature by the private key corresponding to
+    `recoveryAuthorityPublicKey`.
+  - `expectedVersion` — caller-expected current DID version.
+- Effects:
+  - Replaces `controllerPublicKey` with `newControllerPublicKey`.
+  - Increments the DID version and updates `updated`.
+- Constraints:
+  - The recovery signature MUST be bound to the DID contract id, expected
+    version, recovery operation name, and `newControllerPublicKey`.
+  - Stale `expectedVersion` values MUST fail.
+  - The new controller public key MUST differ from the current controller public
+    key and from `recoveryAuthorityPublicKey`.
+  - The circuit MUST NOT update DID Document verification methods, verification
+    relationships, services, aliases, deactivation state, or
+    `recoveryAuthorityPublicKey`.
+  - Recovery after deactivation MUST fail.
+
+SDKs MAY load the recovery secret from contract-scoped private state or accept it
+as an explicit call argument. Explicitly supplied recovery secrets MUST be used
+only for the recovery authorization unless the caller separately imports them
+into private-state storage; implementations SHOULD preserve an already stored
+recovery secret only when it matches the on-ledger recovery authority while
+promoting the recovered controller secret.
+
+Example:
+```typescript
+await recoverControllerKey(didContract, providers);
+```
+
+### 7.3.12. Deactivate
 
 Marks the DID as deactivated on-chain. The public state remains readable for auditability, but no further update operations are permitted.
 
@@ -941,19 +1117,51 @@ await deactivate(didContract, providers);
 
 # 8. Security Considerations
 
-The security of the Midnight model is based on the security of the underlying blockchain ledger. Currently, the only supported blockchain is Midnight.
+The security of the Midnight DID method depends on the Midnight ledger, the DID contract verifier keys deployed for each DID, wallet-local controller custody, resolver/indexer integrity, and the release supply chain for packages and ZK artifacts. The Midnight protocol provides the ledger consensus and proof system; this method specification defines the DID-specific trust boundaries that implementations MUST account for. For more details on the underlying protocol, see the white paper: [MIDNIGHT-WHITEPAPER].
 
-The Midnight features mathematically verifiable security against attackers. Security properties for the protocol are comparable to those achieved by the Bitcoin blockchain protocol. For more details on the protocol, see the white paper: [MIDNIGHT-WHITEPAPER].
+A Midnight DID is identified by the DID contract address, but update authority is not simple address possession. Controller-gated updates are authorized by the `controllerPublicKey` stored in contract state and by wallet-local signatures as described in [section 5.2](#52-smart-contract-access-control). Implementations MUST protect the corresponding controller secret and MUST NOT send it to delegated proof servers.
 
-Midnight DID will be stored in an address controlled by the holder. This ensures that third parties can't modify, register, update, or deactivate the DID document controlled by the holder.
+Implementations SHOULD use secure storage for private keys. They MAY use random keys or an implementation-defined HD derivation convention for Midnight DID keys; an HD convention can simplify backup and recovery but is not standardized by this specification version. The concrete implementation of secret storage depends on the target platform and is outside the scope of this specification.
 
-The application is responsible for key management (see [Section 5. Private and Public Keys](#5-private-and-public-keys)).
+## 8.1. Controller custody, key loss, and deactivation
 
-Implementations SHOULD use secure storage for private keys. They MAY use random keys or an implementation-defined HD derivation convention for Midnight DID keys; an HD convention can simplify backup and recovery but is not standardized by this specification version.
+The controller secret is a high-value wallet-local secret. A party that can produce valid controller authorization signatures for the current DID version can perform controller-gated mutations. Loss of the controller secret prevents ordinary controller-gated updates until `recoverControllerKey` is used with the dedicated recovery authority. Loss of both the controller secret and recovery authority secret makes further updates impossible in this specification version.
 
-The concrete implementation of Secret Storage depends on the target platform and is outside the scope of this specification.
+The recovery authority secret is also high-value custody material. A party that can produce a valid recovery authorization can rotate the active controller key, and this method version does not provide an on-chain recovery-authority rotation circuit. Implementations SHOULD keep the recovery authority secret in separate or colder custody than the active controller secret where operationally possible.
 
-## 8.1. Binding to Physical Identity
+Implementations SHOULD generate distinct controller and recovery authority secrets for distinct DIDs. Reusing either secret across DID contracts causes the same public key to appear in multiple public states and can become a correlation handle.
+
+Deactivation is irreversible. A deactivated DID cannot be reactivated, updated, or recovered, but its public state and historical ledger transactions remain visible to ledger observers, indexers, resolvers, and archives. Deactivation MUST NOT be treated as data erasure and is not a recovery mechanism after controller custody has already been lost.
+
+## 8.2. Delegated proving and proof servers
+
+Controller authorization is designed so a delegated proof server receives an operation-bound signature, expected version, and public operation inputs rather than the controller secret. A proof server that receives only this material can construct proofs for that exact signed operation, but cannot choose a different operation, change public arguments, or replay the signature after the version changes.
+
+Applications that delegate proving still trust the proof server and its transport for availability, correct proof generation, and confidentiality of any other witness material supplied to the proving job. They SHOULD authenticate proof server endpoints, bind wallet prompts to exact operation inputs, and avoid sending DID Document private keys or controller secrets to remote proving infrastructure.
+
+## 8.3. Resolver, indexer, and finality trust
+
+Resolution reads are indexer-backed in the reference implementation. A resolver that trusts a compromised, rogue, stale, or unfinalized indexer response can return a forged or stale DID Document. Indexer and resolver operators SHOULD use trusted indexer deployments, protect endpoint transport, monitor freshness, and prefer finalized or pinned reads when provider APIs expose block-height or block-hash constraints.
+
+Resolvers and consumers MUST treat indexer or resolver failures as availability failures, not as proof that a DID does not exist or has been deactivated. If an application requires a finality latency bound or independent state integrity check, it MUST define that policy above this specification version or use a resolver profile that exposes the required proof or block pin.
+
+## 8.4. Client-asserted metadata
+
+The `created` and `updated` metadata fields are supplied by controller/prover witnesses and then stored on ledger. They are not derived from Midnight consensus time. Resolvers MAY enforce local sanity bounds or expose these values as advisory metadata, but consumers MUST NOT treat them as authoritative timestamps without an independent ledger, indexer, timestamping, or application attestation.
+
+## 8.5. Raw Compact calls and DID state validity
+
+The contract enforces authorization and core state-transition invariants. The SDK and resolver enforce additional DID-domain constraints for URI syntax, normalization, JWK canonicality, service endpoint shape, and other values that are represented as opaque strings or structured data at the Compact boundary. A caller that bypasses the SDK with raw Compact transactions can create durable ledger state that strict resolvers or DID consumers reject.
+
+Production implementations SHOULD use the SDK validation path for mutations. Resolvers SHOULD fail clearly on malformed ledger state and operators SHOULD treat such failures as security-relevant interoperability incidents.
+
+## 8.6. ZK artifact supply chain and audit posture
+
+ZK prover, verifier, and ZKIR artifacts are release artifacts for this method. The verifier keys deployed with a DID contract are the proof-verification trust root for that contract, while the published ZK bundle supplies the matching runtime artifacts used by clients. Consumers SHOULD use version-matched packages and ZK bundles and SHOULD verify published manifests and checksums before using artifact bundles. Signed or provenanced release assets are preferred when available.
+
+This repository uses CI, code scanning, dependency automation, external review, and issue-based hardening work, but those controls do not by themselves constitute an independent production audit. Deployments SHOULD perform their own security review appropriate to their custody, resolver, and release-artifact trust requirements.
+
+## 8.7. Binding to Physical Identity
 
 Conforming Midnight DID producers MUST NOT intentionally publish personal data in DID Document fields. Ledger-backed DID Documents can still contain controller-supplied public values, so controllers and wallets are responsible for data minimization before publication. Ownership is proved by:
 - Control over the blockchain address.
@@ -963,7 +1171,7 @@ It is recommended to use Verifiable Credentials as described in [VC-DATA-MODEL] 
 
 Using the DID extension to share the VC as a public ledger state is possible, but not recommended.
 
-## 8.2. DID document changes
+## 8.8. DID document changes
 
 All Midnight DIDs are created by deploying the smart contract with the corresponding public ledger state. The secret key is provided as a witness to authorize updates and is not published on-chain.
 
@@ -1073,7 +1281,7 @@ A simple example of a Midnight DID Document is as follows:
 {
   "@context": [
     "https://www.w3.org/ns/did/v1",
-    "https://w3c.github.io/vc-jws-2020/contexts/v1"
+    "https://w3id.org/security/jwk/v1"
   ],
   "id": "did:midnight:undeployed:c569622e7f33d2d020ba1cae242e6077268941327846d62d8cbf0cc923ae41f6",
   "alsoKnownAs": [

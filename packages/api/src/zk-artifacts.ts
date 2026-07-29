@@ -73,7 +73,14 @@ export interface MidnightDidZkArtifactBundle {
   readonly zkConfigPath: string;
 }
 
+export interface MidnightDidZkArtifactLimits {
+  readonly archiveBytes?: number;
+  readonly entryCount?: number;
+  readonly extractedBytes?: number;
+}
+
 export interface MidnightDidUnpackZkArtifactArchiveOptions {
+  readonly limits?: MidnightDidZkArtifactLimits;
   readonly archivePath: string;
   readonly expectedManifest?: MidnightDidZkArtifactManifest;
   readonly expectedManifestJson?: unknown;
@@ -84,6 +91,7 @@ export interface MidnightDidUnpackZkArtifactArchiveOptions {
 
 export interface MidnightDidDownloadGithubReleaseZkArtifactsOptions {
   readonly fetch?: MidnightDidArtifactFetch;
+  readonly limits?: MidnightDidZkArtifactLimits;
   readonly location?: MidnightDidGithubReleaseArtifactLocation;
   readonly outputDir?: string;
   readonly tempDir?: string;
@@ -92,6 +100,7 @@ export interface MidnightDidDownloadGithubReleaseZkArtifactsOptions {
 }
 
 export interface MidnightDidPullGhcrZkArtifactsOptions {
+  readonly limits?: MidnightDidZkArtifactLimits;
   readonly location?: MidnightDidGhcrArtifactLocation;
   readonly orasCommand?: string;
   readonly outputDir?: string;
@@ -105,6 +114,10 @@ export interface MidnightDidArtifactFetchResponse {
   readonly status: number;
   readonly statusText: string;
   readonly arrayBuffer: () => Promise<ArrayBuffer>;
+  readonly body?: ReadableStream<Uint8Array> | null;
+  readonly headers?: {
+    readonly get: (name: string) => string | null;
+  };
   readonly text: () => Promise<string>;
 }
 
@@ -354,6 +367,34 @@ const assertSafeArchiveEntry = (entry: string): void => {
   }
 };
 
+const defaultZkArtifactLimits = Object.freeze({
+  archiveBytes: 256 * 1024 * 1024,
+  entryCount: 256,
+  extractedBytes: 512 * 1024 * 1024,
+} satisfies Required<MidnightDidZkArtifactLimits>);
+
+const resolveZkArtifactLimits = (
+  limits?: MidnightDidZkArtifactLimits,
+): Required<MidnightDidZkArtifactLimits> => ({
+  archiveBytes: limits?.archiveBytes ?? defaultZkArtifactLimits.archiveBytes,
+  entryCount: limits?.entryCount ?? defaultZkArtifactLimits.entryCount,
+  extractedBytes:
+    limits?.extractedBytes ?? defaultZkArtifactLimits.extractedBytes,
+});
+
+const assertArchiveSizeLimit = (
+  archivePath: string,
+  limitBytes: number,
+): void => {
+  const size = fs.statSync(archivePath).size;
+  if (size > limitBytes) {
+    throw new MidnightDidZkArtifactError(
+      "unsafe_archive",
+      `ZK artifact archive ${archivePath} is ${size} bytes, exceeding limit ${limitBytes}`,
+    );
+  }
+};
+
 const assertAllowedArchiveEntry = (entry: string): void => {
   if (
     entry === "manifest.json" ||
@@ -368,9 +409,31 @@ const assertAllowedArchiveEntry = (entry: string): void => {
   );
 };
 
-const listArchiveEntries = (archivePath: string): readonly string[] => {
-  const typedResult = spawnSync("tar", ["-tvzf", archivePath], {
+const tarVerboseDatePattern =
+  /^(?:\d{4}-\d{2}-\d{2}|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/u;
+
+const parseTarVerboseFileSize = (line: string): number => {
+  const parts = line.trim().split(/\s+/u);
+  const dateIndex = parts.findIndex((part) => tarVerboseDatePattern.test(part));
+  const size = dateIndex > 0 ? Number(parts[dateIndex - 1]) : Number.NaN;
+  if (!Number.isSafeInteger(size) || size < 0) {
+    throw new MidnightDidZkArtifactError(
+      "unsafe_archive",
+      `Could not parse ZK artifact archive entry size: ${line}`,
+    );
+  }
+  return size;
+};
+
+const tarEnvironment = Object.freeze({ ...process.env, LC_ALL: "C" });
+
+const listArchiveEntries = (
+  archivePath: string,
+  limits: Required<MidnightDidZkArtifactLimits>,
+): readonly string[] => {
+  const typedResult = spawnSync("tar", ["--numeric-owner", "-tvzf", archivePath], {
     encoding: "utf8",
+    env: tarEnvironment,
   });
   if (typedResult.status !== 0) {
     throw new MidnightDidZkArtifactError(
@@ -378,6 +441,7 @@ const listArchiveEntries = (archivePath: string): readonly string[] => {
       `Could not inspect ZK artifact archive ${archivePath}:\n${typedResult.stdout}${typedResult.stderr}`,
     );
   }
+  let declaredExtractedBytes = 0;
   for (const line of typedResult.stdout.split(/\r?\n/u)) {
     if (line.length === 0) {
       continue;
@@ -389,9 +453,21 @@ const listArchiveEntries = (archivePath: string): readonly string[] => {
         `Unsafe ZK artifact archive entry type: ${line}`,
       );
     }
+    if (entryType === "-") {
+      declaredExtractedBytes += parseTarVerboseFileSize(line);
+      if (declaredExtractedBytes > limits.extractedBytes) {
+        throw new MidnightDidZkArtifactError(
+          "unsafe_archive",
+          `ZK artifact archive declares ${declaredExtractedBytes} extracted bytes, exceeding limit ${limits.extractedBytes}`,
+        );
+      }
+    }
   }
 
-  const result = spawnSync("tar", ["-tzf", archivePath], { encoding: "utf8" });
+  const result = spawnSync("tar", ["-tzf", archivePath], {
+    encoding: "utf8",
+    env: tarEnvironment,
+  });
   if (result.status !== 0) {
     throw new MidnightDidZkArtifactError(
       "unsafe_archive",
@@ -404,10 +480,10 @@ const listArchiveEntries = (archivePath: string): readonly string[] => {
     .map((entry) => entry.replace(/^\.\//u, ""))
     .filter((entry) => entry.length > 0);
 
-  if (!entries.includes("manifest.json")) {
+  if (entries.length > limits.entryCount) {
     throw new MidnightDidZkArtifactError(
-      "manifest_mismatch",
-      "ZK artifact archive is missing manifest.json",
+      "unsafe_archive",
+      `ZK artifact archive contains ${entries.length} entries, exceeding limit ${limits.entryCount}`,
     );
   }
 
@@ -418,6 +494,13 @@ const listArchiveEntries = (archivePath: string): readonly string[] => {
     }
   }
 
+  if (!entries.includes("manifest.json")) {
+    throw new MidnightDidZkArtifactError(
+      "manifest_mismatch",
+      "ZK artifact archive is missing manifest.json",
+    );
+  }
+
   return entries;
 };
 
@@ -425,12 +508,52 @@ const extractArchive = (archivePath: string, outputDir: string): void => {
   fs.mkdirSync(outputDir, { recursive: true });
   const result = spawnSync("tar", ["-xzf", archivePath, "-C", outputDir], {
     encoding: "utf8",
+    env: tarEnvironment,
   });
   if (result.status !== 0) {
     throw new MidnightDidZkArtifactError(
       "unsafe_archive",
       `Could not extract ZK artifact archive ${archivePath}:\n${result.stdout}${result.stderr}`,
     );
+  }
+};
+
+const assertExtractedTreeSafe = (
+  outputDir: string,
+  entries: readonly string[],
+  limits: Required<MidnightDidZkArtifactLimits>,
+): void => {
+  const rootRealPath = fs.realpathSync(outputDir);
+  let extractedBytes = 0;
+
+  for (const entry of entries) {
+    const absolutePath = path.join(outputDir, ...entry.split("/"));
+    const stat = fs.lstatSync(absolutePath);
+    const realPath = fs.realpathSync(absolutePath);
+    if (
+      realPath !== rootRealPath &&
+      !realPath.startsWith(`${rootRealPath}${path.sep}`)
+    ) {
+      throw new MidnightDidZkArtifactError(
+        "unsafe_archive",
+        `Extracted ZK artifact path escapes output directory: ${absolutePath}`,
+      );
+    }
+    if (!stat.isDirectory() && !stat.isFile()) {
+      throw new MidnightDidZkArtifactError(
+        "unsafe_archive",
+        `Extracted ZK artifact entry must be a regular file or directory: ${absolutePath}`,
+      );
+    }
+    if (stat.isFile()) {
+      extractedBytes += stat.size;
+      if (extractedBytes > limits.extractedBytes) {
+        throw new MidnightDidZkArtifactError(
+          "unsafe_archive",
+          `Extracted ZK artifact tree is larger than ${limits.extractedBytes} bytes`,
+        );
+      }
+    }
   }
 };
 
@@ -532,9 +655,23 @@ const defaultFetch = async (
   return fetchImplementation(input);
 };
 
+const parseContentLength = (
+  value: string | null | undefined,
+): number | undefined => {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  const size = Number(value);
+  if (!Number.isSafeInteger(size) || size < 0) {
+    return undefined;
+  }
+  return size;
+};
+
 const fetchBinary = async (
   fetchImplementation: MidnightDidArtifactFetch,
   url: string,
+  maxBytes?: number,
 ): Promise<Buffer> => {
   const response = await fetchImplementation(url);
   if (!response.ok) {
@@ -543,7 +680,53 @@ const fetchBinary = async (
       `Could not download ZK artifact ${url}: ${response.status} ${response.statusText}`,
     );
   }
-  return Buffer.from(await response.arrayBuffer());
+  const contentLength = parseContentLength(
+    response.headers?.get("content-length"),
+  );
+  if (
+    maxBytes !== undefined &&
+    contentLength !== undefined &&
+    contentLength > maxBytes
+  ) {
+    throw new MidnightDidZkArtifactError(
+      "unsafe_archive",
+      `ZK artifact ${url} is ${contentLength} bytes, exceeding limit ${maxBytes}`,
+    );
+  }
+
+  if (response.body !== undefined && response.body !== null) {
+    const chunks: Uint8Array[] = [];
+    let totalBytes = 0;
+    const reader = response.body.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      totalBytes += value.byteLength;
+      if (maxBytes !== undefined && totalBytes > maxBytes) {
+        await reader.cancel();
+        throw new MidnightDidZkArtifactError(
+          "unsafe_archive",
+          `ZK artifact ${url} download exceeded limit ${maxBytes}`,
+        );
+      }
+      chunks.push(value);
+    }
+    return Buffer.concat(
+      chunks.map((chunk) => Buffer.from(chunk)),
+      totalBytes,
+    );
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (maxBytes !== undefined && buffer.byteLength > maxBytes) {
+    throw new MidnightDidZkArtifactError(
+      "unsafe_archive",
+      `ZK artifact ${url} is ${buffer.byteLength} bytes, exceeding limit ${maxBytes}`,
+    );
+  }
+  return buffer;
 };
 
 const fetchText = async (
@@ -667,12 +850,15 @@ export const unpackMidnightDidZkArtifactArchive = (
     );
   }
 
-  listArchiveEntries(archivePath);
+  const limits = resolveZkArtifactLimits(options.limits);
+  assertArchiveSizeLimit(archivePath, limits.archiveBytes);
+  const archiveEntries = listArchiveEntries(archivePath, limits);
   const outputDir =
     options.outputDir === undefined
       ? fs.mkdtempSync(path.join(os.tmpdir(), "midnight-did-zk-"))
       : path.resolve(options.outputDir);
   extractArchive(archivePath, outputDir);
+  assertExtractedTreeSafe(outputDir, archiveEntries, limits);
 
   const manifest = verifyMidnightDidZkArtifactManifest({
     expectedManifest: options.expectedManifest,
@@ -711,6 +897,7 @@ export const downloadMidnightDidGithubReleaseZkArtifacts = async (
   }
 
   const fetchImplementation = options.fetch ?? defaultFetch;
+  const limits = resolveZkArtifactLimits(options.limits);
   const tempDir =
     options.tempDir === undefined
       ? fs.mkdtempSync(path.join(os.tmpdir(), "midnight-did-zk-download-"))
@@ -718,7 +905,11 @@ export const downloadMidnightDidGithubReleaseZkArtifacts = async (
   const archivePath = writeDownloadedFile(
     tempDir,
     locations.archiveName,
-    await fetchBinary(fetchImplementation, location.archiveUrl),
+    await fetchBinary(
+      fetchImplementation,
+      location.archiveUrl,
+      limits.archiveBytes,
+    ),
   );
   const sha256Contents = await fetchText(
     fetchImplementation,
@@ -743,6 +934,7 @@ export const downloadMidnightDidGithubReleaseZkArtifacts = async (
     expectedManifest,
     expectedManifestJson,
     fetchBaseUrl: options.fetchBaseUrl,
+    limits,
     outputDir: options.outputDir,
     version,
   });
@@ -793,6 +985,7 @@ export const pullMidnightDidGhcrZkArtifacts = (
         ? undefined
         : readJsonFile(manifestPath, "ZK artifact manifest"),
     fetchBaseUrl: options.fetchBaseUrl,
+    limits: options.limits,
     outputDir: options.outputDir,
     version,
   });
