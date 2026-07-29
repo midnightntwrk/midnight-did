@@ -10,6 +10,8 @@ archive="${ARCHIVE:?ARCHIVE is required}"
 archive_name="${ARCHIVE_NAME:?ARCHIVE_NAME is required}"
 manifest="${MANIFEST:?MANIFEST is required}"
 sha256_file="${SHA256:?SHA256 is required}"
+npm_assets_dir="${NPM_ASSETS_DIR:-}"
+signature_assets_dir="${SIGNATURE_ASSETS_DIR:-}"
 download_dir="$(mktemp -d)"
 
 cleanup() {
@@ -22,10 +24,22 @@ if [[ "${prerelease}" == "true" ]]; then
   release_args+=(--prerelease)
 fi
 
+release_assets=("${archive}" "${manifest}" "${sha256_file}")
+if [[ -n "${npm_assets_dir}" ]]; then
+  while IFS= read -r npm_asset; do
+    release_assets+=("${npm_asset}")
+  done < <(find "${npm_assets_dir}" -maxdepth 1 -type f -name '*.tgz' | sort)
+fi
+if [[ -n "${signature_assets_dir}" ]]; then
+  while IFS= read -r signature_asset; do
+    release_assets+=("${signature_asset}")
+  done < <(find "${signature_assets_dir}" -maxdepth 1 -type f \( -name '*.sig' -o -name '*.pem' \) | sort)
+fi
+
 if gh release view "${release_tag}" >/dev/null 2>&1; then
-  gh release upload "${release_tag}" "${archive}" "${manifest}" "${sha256_file}" --clobber
+  gh release upload "${release_tag}" "${release_assets[@]}" --clobber
 else
-  gh release create "${release_tag}" "${archive}" "${manifest}" "${sha256_file}" "${release_args[@]}"
+  gh release create "${release_tag}" "${release_assets[@]}" "${release_args[@]}"
 fi
 
 gh release download "${release_tag}" --pattern "${archive_name}" --dir "${download_dir}"

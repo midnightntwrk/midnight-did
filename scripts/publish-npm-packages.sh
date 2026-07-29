@@ -33,6 +33,25 @@ package_name_for_workspace() {
   node -e 'const fs = require("node:fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).name);' "$1/package.json"
 }
 
+packed_tarball_for_package() {
+  local package_name="$1"
+
+  if [[ -z "${NPM_ASSETS_DIR:-}" ]]; then
+    return 1
+  fi
+
+  local tarball_name
+  tarball_name="$(node -e 'const name = process.argv[1]; const version = process.argv[2]; console.log(`${name.replace(/^@/, "").replace(/\//g, "-")}-${version}.tgz`);' "${package_name}" "${version}")"
+  local tarball_path="${NPM_ASSETS_DIR}/${tarball_name}"
+
+  if [[ ! -f "${tarball_path}" ]]; then
+    echo "::error::Expected packed npm asset for ${package_name}@${version} was not found: ${tarball_path}" >&2
+    exit 1
+  fi
+
+  printf '%s\n' "${tarball_path}"
+}
+
 published_version_for_package() {
   local package_name="$1"
   local output
@@ -92,12 +111,21 @@ while IFS= read -r workspace; do
     continue
   fi
 
-  echo "[publish-npm-packages] Publishing ${package_name}@${version} with npm tag ${npm_tag}"
-  publish_args=(publish --no-git-checks --registry "${registry}" --tag "${npm_tag}")
+  echo "[publish-npm-packages] Publishing ${package_name}@${version} with npm tag ${npm_tag} and Sigstore provenance"
+  publish_args=(publish --provenance --no-git-checks --registry "${registry}" --tag "${npm_tag}")
   if [[ -n "${publish_access}" ]]; then
     publish_args+=(--access "${publish_access}")
   fi
-  pnpm --filter "./${workspace}" "${publish_args[@]}"
+
+  if [[ -n "${NPM_ASSETS_DIR:-}" ]]; then
+    tarball_path="$(packed_tarball_for_package "${package_name}")"
+    echo "[publish-npm-packages] Publishing pre-packed tarball ${tarball_path}"
+    pnpm "${publish_args[@]}" "${tarball_path}"
+  else
+    echo "[publish-npm-packages] NPM_ASSETS_DIR is not set; publishing from workspace ${workspace}"
+    pnpm --filter "./${workspace}" "${publish_args[@]}"
+  fi
+
   ensure_public_access "${package_name}"
   ensure_npm_dist_tag "${package_name}"
 done < <(node scripts/did-workspace-catalog.mjs --publish-workspaces)
