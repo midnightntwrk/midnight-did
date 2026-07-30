@@ -57,7 +57,7 @@ published_version_for_package() {
   local output
   local status
 
-  if output="$(npm view "${package_name}@${version}" version --registry "${registry}" 2>&1)"; then
+  if output="$(npm view "${package_name}@${version}" version --loglevel=error --registry "${registry}" 2>&1)"; then
     printf '%s\n' "${output}"
     return 0
   fi
