@@ -1,0 +1,47 @@
+name: Fuzzing
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - ".github/workflows/fuzz.yml"
+      - "packages/domain/package.json"
+      - "packages/domain/fuzz/**"
+      - "pnpm-lock.yaml"
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: "fast-check generated cases per property"
+        required: false
+        type: string
+        default: "1000"
+  schedule:
+    - cron: "45 2 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: did-fuzz-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz-domain-parsers:
+    name: Fuzz domain parser surfaces
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js and pnpm
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Run domain parser fuzz suite
+        env:
+          FUZZ_RUNS: ${{ inputs.runs || '1000' }}
+        run: pnpm --filter ./packages/domain test:fuzz

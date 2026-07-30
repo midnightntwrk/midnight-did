@@ -11,9 +11,12 @@ overrides:
   postcss: ^8.5.18
   esbuild@>=0.27.3 <0.28.1: 0.28.1
   undici: ^7.28.0
-  brace-expansion@<1.1.16: 5.0.8
-  brace-expansion@>=2.0.0 <2.1.2: 2.1.2
-  brace-expansion@>=3.0.0 <5.0.7: 5.0.8
+  brace-expansion@<5.0.8: 5.0.8
+
+patchedDependencies:
+  brace-expansion@5.0.8:
+    hash: 904b0ccfb1df9de738453accb1c72a76c580b67a887cf3673cc8ec4bd1c5724e
+    path: patches/brace-expansion@5.0.8.patch
 
 importers:
 
@@ -294,6 +297,9 @@ importers:
       base64-js:
         specifier: 1.5.1
         version: 1.5.1
+      fast-check:
+        specifier: 3.23.2
+        version: 3.23.2
       globals:
         specifier: 14.0.0
         version: 14.0.0
@@ -2174,9 +2180,6 @@ packages:
       react-native-b4a:
         optional: true
 
-  balanced-match@1.0.2:
-    resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
-
   balanced-match@4.0.4:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
     engines: {node: 18 || 20 || >=22}
@@ -2236,9 +2239,6 @@ packages:
 
   bn.js@5.2.3:
     resolution: {integrity: sha512-EAcmnPkxpntVL+DS7bO1zhcZNvCkxqtkd0ZY53h06GNQ3DEkkGZ/gKgmDv6DdZQGj9BgfSPKtJJ7Dp1GPP8f7w==}
-
-  brace-expansion@2.1.2:
-    resolution: {integrity: sha512-w5JZcKgdhDOgOwm8H+KgbosopHMuGcl6qbulwjtz3SM7I7P3yW1eAjzMPLrIE+NQ9vjgANKHWeMHnrT0OXW1oA==}
 
   brace-expansion@5.0.8:
     resolution: {integrity: sha512-JZyDyq3D4AUifKTPOB7DELf6XsB3WdPuNxCtob1vFXPsSXhdAiHBWJ/tJ8HAc9aH84BK+5JFZLNkJKx3G9kzQg==}
@@ -6631,8 +6631,6 @@ snapshots:
 
   b4a@1.8.1: {}
 
-  balanced-match@1.0.2: {}
-
   balanced-match@4.0.4: {}
 
   bare-events@2.8.3: {}
@@ -6683,11 +6681,7 @@ snapshots:
 
   bn.js@5.2.3: {}
 
-  brace-expansion@2.1.2:
-    dependencies:
-      balanced-match: 1.0.2
-
-  brace-expansion@5.0.8:
+  brace-expansion@5.0.8(patch_hash=904b0ccfb1df9de738453accb1c72a76c580b67a887cf3673cc8ec4bd1c5724e):
     dependencies:
       balanced-match: 4.0.4
 
@@ -8018,19 +8012,19 @@ snapshots:
 
   minimatch@10.2.5:
     dependencies:
-      brace-expansion: 5.0.8
+      brace-expansion: 5.0.8(patch_hash=904b0ccfb1df9de738453accb1c72a76c580b67a887cf3673cc8ec4bd1c5724e)
 
   minimatch@3.1.5:
     dependencies:
-      brace-expansion: 5.0.8
+      brace-expansion: 5.0.8(patch_hash=904b0ccfb1df9de738453accb1c72a76c580b67a887cf3673cc8ec4bd1c5724e)
 
   minimatch@5.1.9:
     dependencies:
-      brace-expansion: 2.1.2
+      brace-expansion: 5.0.8(patch_hash=904b0ccfb1df9de738453accb1c72a76c580b67a887cf3673cc8ec4bd1c5724e)
 
   minimatch@9.0.9:
     dependencies:
-      brace-expansion: 2.1.2
+      brace-expansion: 5.0.8(patch_hash=904b0ccfb1df9de738453accb1c72a76c580b67a887cf3673cc8ec4bd1c5724e)
 
   minimist@1.2.8: {}
 

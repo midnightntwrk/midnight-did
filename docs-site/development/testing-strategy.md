@@ -37,6 +37,16 @@ PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh --strict
 
 Use the full loop for API/provider/runtime changes that need Docker-backed integration coverage.
 
+## Fuzzing
+
+Parser and serialization fuzz/property coverage lives next to the package that owns the surface. The initial suite covers offchain DID state encoding, malformed payload rejection, and long-form hash verification in `packages/domain/fuzz/` using `fast-check`.
+
+```bash
+FUZZ_RUNS=1000 pnpm --filter ./packages/domain test:fuzz
+```
+
+The `Fuzzing` workflow runs weekly, on demand, and for PRs that change fuzz targets, domain fuzz dependencies, or the fuzz workflow. Keep normal PR checks fast by adding new long-running fuzz targets behind that workflow rather than the default `test:ci` lane.
+
 ## Guard Scripts
 
 ```bash
