@@ -245,38 +245,44 @@ fs.writeFileSync(
 );
 fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
-const tar = spawnSync(
-  tarBinary(),
-  [
-    "--sort=name",
-    `--mtime=@${reproducibleEpoch}`,
-    "--owner=0",
-    "--group=0",
-    "--numeric-owner",
-    "-cf",
-    "-",
-    "-C",
-    stagingRoot,
-    ".",
-  ],
-  { cwd: repoRoot },
-);
-if (tar.status !== 0) {
-  throw new Error(
-    `tar failed:\n${tar.stdout?.toString() ?? ""}${tar.stderr?.toString() ?? ""}`,
+const tarPath = `${archivePath}.tar`;
+try {
+  const tar = spawnSync(
+    tarBinary(),
+    [
+      "--sort=name",
+      `--mtime=@${reproducibleEpoch}`,
+      "--owner=0",
+      "--group=0",
+      "--numeric-owner",
+      "-cf",
+      tarPath,
+      "-C",
+      stagingRoot,
+      ".",
+    ],
+    { cwd: repoRoot, encoding: "utf8" },
   );
-}
+  if (tar.status !== 0) {
+    throw new Error(`tar failed:\n${tar.stdout}${tar.stderr}`);
+  }
 
-const gzip = spawnSync("gzip", ["-n"], {
-  cwd: repoRoot,
-  input: tar.stdout,
-});
-if (gzip.status !== 0) {
-  throw new Error(
-    `gzip failed:\n${gzip.stdout?.toString() ?? ""}${gzip.stderr?.toString() ?? ""}`,
-  );
+  const archiveFile = fs.openSync(archivePath, "w");
+  try {
+    const gzip = spawnSync("gzip", ["-n", "-c", tarPath], {
+      cwd: repoRoot,
+      stdio: ["ignore", archiveFile, "pipe"],
+      encoding: "utf8",
+    });
+    if (gzip.status !== 0) {
+      throw new Error(`gzip failed:\n${gzip.stderr}`);
+    }
+  } finally {
+    fs.closeSync(archiveFile);
+  }
+} finally {
+  fs.rmSync(tarPath, { force: true });
 }
-fs.writeFileSync(archivePath, gzip.stdout);
 
 const archiveSha = sha256(archivePath);
 fs.writeFileSync(sha256Path, `${archiveSha}  ${archiveName}\n`);
