@@ -91,6 +91,30 @@ const compactVersion = () => {
   }
 };
 
+const sourceDateEpoch = () => {
+  const value =
+    process.env.SOURCE_DATE_EPOCH ?? git("show", "-s", "--format=%ct", "HEAD");
+  if (!/^\d+$/u.test(value ?? "")) {
+    throw new Error(
+      `SOURCE_DATE_EPOCH must be a non-negative integer; got ${value ?? "<empty>"}`,
+    );
+  }
+  return Number(value);
+};
+
+const tarBinary = () => {
+  const candidates = process.platform === "darwin" ? ["gtar", "tar"] : ["tar"];
+  for (const candidate of candidates) {
+    try {
+      execFileSync("which", [candidate], { stdio: "ignore" });
+      return candidate;
+    } catch {
+      // Try the next available tar implementation.
+    }
+  }
+  throw new Error("GNU tar is required to build reproducible ZK archives");
+};
+
 const copyFile = (source, target) => {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.copyFileSync(source, target);
@@ -100,7 +124,9 @@ const writeGitHubOutput = (outputPath, entries) => {
   if (!outputPath) {
     return;
   }
-  const lines = Object.entries(entries).map(([key, value]) => `${key}=${value}`);
+  const lines = Object.entries(entries).map(
+    ([key, value]) => `${key}=${value}`,
+  );
   fs.appendFileSync(outputPath, `${lines.join("\n")}\n`);
 };
 
@@ -113,6 +139,7 @@ const requireDirectory = (label, directory) => {
 const options = parseArgs();
 const rootPackage = readJson("package.json");
 const version = options.version ?? rootPackage.version;
+const reproducibleEpoch = sourceDateEpoch();
 const managedRoot = path.resolve(repoRoot, options.managedRoot);
 const keysRoot = path.join(managedRoot, "keys");
 const zkirRoot = path.join(managedRoot, "zkir");
@@ -182,7 +209,7 @@ const manifest = {
   packageName: "@midnight-ntwrk/midnight-did-contract",
   repository: repositoryUrl,
   gitSha: process.env.GITHUB_SHA ?? git("rev-parse", "HEAD") ?? "unknown",
-  generatedAt: new Date().toISOString(),
+  generatedAt: new Date(reproducibleEpoch * 1000).toISOString(),
   compactCompilerVersion: compactVersion(),
   managedRoot: options.managedRoot,
   providerLayout: {
@@ -196,7 +223,10 @@ const manifest = {
     circuitCount: circuits.length,
     bytes: circuits.reduce(
       (total, circuit) =>
-        total + circuit.bytes.prover + circuit.bytes.verifier + circuit.bytes.zkir,
+        total +
+        circuit.bytes.prover +
+        circuit.bytes.verifier +
+        circuit.bytes.zkir,
       0,
     ),
   },
@@ -215,13 +245,38 @@ fs.writeFileSync(
 );
 fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
-const tar = spawnSync("tar", ["-czf", archivePath, "-C", stagingRoot, "."], {
-  cwd: repoRoot,
-  encoding: "utf8",
-});
+const tar = spawnSync(
+  tarBinary(),
+  [
+    "--sort=name",
+    `--mtime=@${reproducibleEpoch}`,
+    "--owner=0",
+    "--group=0",
+    "--numeric-owner",
+    "-cf",
+    "-",
+    "-C",
+    stagingRoot,
+    ".",
+  ],
+  { cwd: repoRoot },
+);
 if (tar.status !== 0) {
-  throw new Error(`tar failed:\n${tar.stdout}${tar.stderr}`);
+  throw new Error(
+    `tar failed:\n${tar.stdout?.toString() ?? ""}${tar.stderr?.toString() ?? ""}`,
+  );
 }
+
+const gzip = spawnSync("gzip", ["-n"], {
+  cwd: repoRoot,
+  input: tar.stdout,
+});
+if (gzip.status !== 0) {
+  throw new Error(
+    `gzip failed:\n${gzip.stdout?.toString() ?? ""}${gzip.stderr?.toString() ?? ""}`,
+  );
+}
+fs.writeFileSync(archivePath, gzip.stdout);
 
 const archiveSha = sha256(archivePath);
 fs.writeFileSync(sha256Path, `${archiveSha}  ${archiveName}\n`);

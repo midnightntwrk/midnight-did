@@ -6,7 +6,16 @@ set -euo pipefail
 
 output_file="${GITHUB_OUTPUT:?GITHUB_OUTPUT is required}"
 subjects_file="${SUBJECTS_FILE:-dist/release/provenance-subjects.txt}"
+release_tag="${RELEASE_TAG:-}"
+subjects_download_dir=""
 mkdir -p "$(dirname "${subjects_file}")"
+
+cleanup() {
+  if [[ -n "${subjects_download_dir}" ]]; then
+    rm -rf "${subjects_download_dir}"
+  fi
+}
+trap cleanup EXIT
 
 subject_paths=()
 
@@ -40,8 +49,23 @@ for subject_path in "${subject_paths[@]}"; do
   fi
 done
 
+published_subject_paths=("${subject_paths[@]}")
+if [[ -n "${release_tag}" ]]; then
+  : "${GH_TOKEN:?GH_TOKEN is required when RELEASE_TAG is set}"
+  subjects_download_dir="$(mktemp -d)"
+  published_subject_paths=()
+  for subject_path in "${subject_paths[@]}"; do
+    subject_name="$(basename "${subject_path}")"
+    gh release download "${release_tag}" \
+      --pattern "${subject_name}" \
+      --dir "${subjects_download_dir}" \
+      --clobber
+    published_subject_paths+=("${subjects_download_dir}/${subject_name}")
+  done
+fi
+
 : > "${subjects_file}"
-for subject_path in "${subject_paths[@]}"; do
+for subject_path in "${published_subject_paths[@]}"; do
   digest="$(sha256sum "${subject_path}" | awk '{print $1}')"
   printf '%s  %s\n' "${digest}" "$(basename "${subject_path}")" >> "${subjects_file}"
 done

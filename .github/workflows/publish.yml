@@ -96,6 +96,7 @@ jobs:
       base64_subjects: ${{ steps.provenance-subjects.outputs.base64_subjects }}
       channel: ${{ steps.version.outputs.channel }}
       release_tag: ${{ steps.version.outputs.release_tag }}
+      provenance_present: ${{ steps.release-assets.outputs.provenance_present }}
     needs:
       - changes
     if: github.event_name != 'push' || (github.ref == 'refs/heads/develop' && needs.changes.outputs.snapshot_release_relevant == 'true')
@@ -221,6 +222,7 @@ jobs:
         run: ./scripts/publish-ghcr-zk-artifact.sh
 
       - name: Publish and verify GitHub Release ZK assets
+        id: release-assets
         if: steps.version.outputs.channel != 'snapshot'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -234,10 +236,12 @@ jobs:
           SIGNATURE_ASSETS_DIR: ${{ steps.signatures.outputs.signature_assets_dir }}
         run: ./scripts/publish-github-release-zk-assets.sh
 
-      - name: Build SLSA provenance subject list
+      - name: Build SLSA provenance subject list from published assets
         id: provenance-subjects
         if: steps.version.outputs.channel != 'snapshot'
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
           NPM_ASSETS_DIR: ${{ steps.npm-assets.outputs.npm_assets_dir }}
           SIGNATURE_ASSETS_DIR: ${{ steps.signatures.outputs.signature_assets_dir }}
           ZK_ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
@@ -257,7 +261,7 @@ jobs:
     name: Generate GitHub Release SLSA provenance
     needs:
       - publish
-    if: needs.publish.result == 'success' && needs.publish.outputs.channel != 'snapshot'
+    if: needs.publish.result == 'success' && needs.publish.outputs.channel != 'snapshot' && needs.publish.outputs.provenance_present != 'true'
     permissions:
       actions: read
       contents: write
@@ -273,7 +277,7 @@ jobs:
     needs:
       - publish
       - github-release-provenance
-    if: needs.publish.result == 'success' && needs.publish.outputs.channel != 'snapshot'
+    if: always() && needs.publish.result == 'success' && needs.publish.outputs.channel != 'snapshot'
     permissions:
       contents: read
     runs-on: ubuntu-latest
