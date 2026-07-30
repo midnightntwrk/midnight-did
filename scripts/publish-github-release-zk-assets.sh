@@ -37,7 +37,20 @@ if [[ -n "${signature_assets_dir}" ]]; then
 fi
 
 if gh release view "${release_tag}" >/dev/null 2>&1; then
-  gh release upload "${release_tag}" "${release_assets[@]}" --clobber
+  existing_asset_names="$(gh release view "${release_tag}" --json assets --jq '.assets[].name')"
+  assets_to_upload=()
+  for asset in "${release_assets[@]}"; do
+    asset_name="$(basename "${asset}")"
+    if grep -Fqx "${asset_name}" <<< "${existing_asset_names}"; then
+      echo "[publish-github-release-zk-assets] Keeping existing immutable release asset ${asset_name}"
+    else
+      assets_to_upload+=("${asset}")
+    fi
+  done
+
+  if (( ${#assets_to_upload[@]} > 0 )); then
+    gh release upload "${release_tag}" "${assets_to_upload[@]}"
+  fi
 else
   gh release create "${release_tag}" "${release_assets[@]}" "${release_args[@]}"
 fi
