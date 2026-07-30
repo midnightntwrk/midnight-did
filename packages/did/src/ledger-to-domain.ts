@@ -12,7 +12,6 @@ import {
   Service,
   ServiceEndpointSchema,
   VerificationMethod,
-  VerificationMethodRelationType,
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
 
@@ -37,15 +36,12 @@ const bytesToHex = (bytes: Iterable<number>): string => {
 const LedgerCurveType = DIDContract.CurveType;
 const LedgerKeyType = DIDContract.KeyType;
 const LedgerVerificationMethodType = DIDContract.VerificationMethodType;
-const LedgerVerificationMethodRelation = DIDContract.VerificationMethodRelation;
 
 type LedgerKeyTypeValue = (typeof LedgerKeyType)[keyof typeof LedgerKeyType];
 type LedgerCurveTypeValue =
   (typeof LedgerCurveType)[keyof typeof LedgerCurveType];
 type LedgerVerificationMethodTypeValue =
   (typeof LedgerVerificationMethodType)[keyof typeof LedgerVerificationMethodType];
-type LedgerVerificationMethodRelationValue =
-  (typeof LedgerVerificationMethodRelation)[keyof typeof LedgerVerificationMethodRelation];
 type Ledger = DIDContract.Ledger;
 type LedgerPublicKeyJwk = DIDContract.PublicKeyJwk;
 type LedgerSchnorrJubjubVerificationMethod =
@@ -96,24 +92,6 @@ export class LedgerToDomain {
     [LedgerVerificationMethodType.Undefined]: VerificationMethodType.Undefined,
     [LedgerVerificationMethodType.JsonWebKey]:
       VerificationMethodType.JsonWebKey,
-  };
-
-  private static readonly VerificationMethodRelationMap: Record<
-    LedgerVerificationMethodRelationValue,
-    VerificationMethodRelationType
-  > = {
-    [LedgerVerificationMethodRelation.Undefined]:
-      VerificationMethodRelationType.Undefined,
-    [LedgerVerificationMethodRelation.Authentication]:
-      VerificationMethodRelationType.Authentication,
-    [LedgerVerificationMethodRelation.AssertionMethod]:
-      VerificationMethodRelationType.AssertionMethod,
-    [LedgerVerificationMethodRelation.KeyAgreement]:
-      VerificationMethodRelationType.KeyAgreement,
-    [LedgerVerificationMethodRelation.CapabilityInvocation]:
-      VerificationMethodRelationType.CapabilityInvocation,
-    [LedgerVerificationMethodRelation.CapabilityDelegation]:
-      VerificationMethodRelationType.CapabilityDelegation,
   };
 
   static publicKeyJwk(publicKeyJwk: LedgerPublicKeyJwk): PublicKeyJwk {

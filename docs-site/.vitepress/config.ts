@@ -79,6 +79,10 @@ export default defineConfig({
               link: "/development/public-private-links",
             },
             { text: "Publishing", link: "/development/publishing" },
+            {
+              text: "OpenSSF Scorecard and Best Practices",
+              link: "/development/scorecard",
+            },
           ],
         },
       ],
@@ -99,17 +103,13 @@ export default defineConfig({
       "/api/": [
         {
           text: "API",
-          items: [
-            { text: "Overview", link: "/api/" },
-          ],
+          items: [{ text: "Overview", link: "/api/" }],
         },
       ],
       "/compact/": [
         {
           text: "Compact",
-          items: [
-            { text: "Contract Surface", link: "/compact/" },
-          ],
+          items: [{ text: "Contract Surface", link: "/compact/" }],
         },
       ],
       "/use-cases/": [

@@ -20,7 +20,6 @@
     "build:api-prereqs": "pnpm --filter ./packages/contract build:prepared && pnpm --filter ./packages/did build && pnpm --filter ./packages/api build",
     "pack:contract": "pnpm --filter ./packages/contract pack",
     "pack:all": "pnpm run pack:contract && echo 'Artifacts:' && ls -1 *.tgz || true && ls -1 packages/contract/*.tgz || true",
-    "checkdeps": "bash scripts/check-deps.sh",
     "docs:sync-spec": "pnpm --filter docs-site docs:sync-spec",
     "docs:sync-network-endpoints": "pnpm --filter docs-site docs:sync-network-endpoints",
     "docs:validate": "node scripts/docs-validate.mjs",
@@ -30,7 +29,6 @@
     "docs:build": "pnpm --filter docs-site docs:build",
     "docs:preview": "pnpm --filter docs-site docs:preview",
     "artifacts:pack": "./scripts/pack-artifacts.sh",
-    "release:prepare-version": "node scripts/prepare-release-version.mjs",
     "packages:check-contents": "node scripts/check-package-contents.mjs",
     "zk-artifacts:bundle": "node scripts/build-zk-artifact-bundle.mjs",
     "zk-artifacts:check": "node scripts/check-zk-artifact-bundle.mjs",
@@ -71,9 +69,10 @@
       "postcss": "^8.5.18",
       "esbuild@>=0.27.3 <0.28.1": "0.28.1",
       "undici": "^7.28.0",
-      "brace-expansion@<1.1.16": "5.0.8",
-      "brace-expansion@>=2.0.0 <2.1.2": "2.1.2",
-      "brace-expansion@>=3.0.0 <5.0.7": "5.0.8"
+      "brace-expansion@<5.0.8": "5.0.8"
+    },
+    "patchedDependencies": {
+      "brace-expansion@5.0.8": "patches/brace-expansion@5.0.8.patch"
     }
   },
   "type": "module",
