@@ -161,9 +161,23 @@ For snapshot versions, `githubRelease` is `null` because snapshots are published
 as workflow artifacts and GHCR OCI artifacts. For RC and final release versions,
 `githubRelease` contains the expected release tag and asset URLs.
 
-Exact npm package versions are immutable. If a workflow is rerun after a partial
-publish, the npm publication step skips packages whose exact version already
-exists and continues with missing packages plus artifact verification.
+Exact npm package versions are immutable. The publication flow is designed for
+safe reruns after partial failure:
+
+- npm skips an existing version only after verifying the published `dist.integrity`
+  matches the release tarball, then reconciles its dist-tag;
+- GHCR preserves an existing version tag, pulls it back, and verifies the bundle
+  payload and manifest instead of overwriting it;
+- GitHub Release assets are immutable: existing payloads are verified, missing
+  assets are uploaded, and existing signatures are preserved;
+- SLSA subjects are calculated from the assets actually present in the GitHub
+  Release, so reruns cannot attest newly generated files that were not uploaded;
+- ZK archives use a reproducible timestamp, ordering, ownership, and gzip header
+  so equivalent builds produce the same payload.
+
+A remote artifact with a different payload fails closed rather than being
+replaced. This keeps a partial publication recoverable without making an
+immutable release mutable.
 
 The ZK bundle preserves the provider layout used by Midnight JS:
 

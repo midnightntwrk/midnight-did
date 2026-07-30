@@ -36,12 +36,70 @@ if [[ -n "${signature_assets_dir}" ]]; then
   done < <(find "${signature_assets_dir}" -maxdepth 1 -type f \( -name '*.sig' -o -name '*.pem' \) | sort)
 fi
 
-if gh release view "${release_tag}" >/dev/null 2>&1; then
-  gh release upload "${release_tag}" "${release_assets[@]}" --clobber
-else
-  gh release create "${release_tag}" "${release_assets[@]}" "${release_args[@]}"
+release_exists=false
+if release_json="$(gh release view "${release_tag}" --json isDraft,isPrerelease,assets 2>/dev/null)"; then
+  release_exists=true
+  if [[ "$(jq -r '.isDraft' <<<"${release_json}")" == "true" ]]; then
+    echo "::error::GitHub Release ${release_tag} is a draft; refusing to publish into it." >&2
+    exit 1
+  fi
+  expected_prerelease="${prerelease}"
+  actual_prerelease="$(jq -r '.isPrerelease' <<<"${release_json}")"
+  if [[ "${actual_prerelease}" != "${expected_prerelease}" ]]; then
+    echo "::error::GitHub Release ${release_tag} prerelease state is ${actual_prerelease}, expected ${expected_prerelease}." >&2
+    exit 1
+  fi
 fi
 
-gh release download "${release_tag}" --pattern "${archive_name}" --dir "${download_dir}"
+if [[ "${release_exists}" == "false" ]]; then
+  gh release create "${release_tag}" "${release_assets[@]}" "${release_args[@]}"
+else
+  existing_asset_names="$(jq -r '.assets[].name' <<<"${release_json}")"
+  assets_to_upload=()
+  for asset in "${release_assets[@]}"; do
+    asset_name="$(basename "${asset}")"
+    if grep -Fqx "${asset_name}" <<<"${existing_asset_names}"; then
+      echo "[publish-github-release-zk-assets] Reusing immutable release asset ${asset_name}"
+    else
+      assets_to_upload+=("${asset}")
+    fi
+  done
+
+  if (( ${#assets_to_upload[@]} > 0 )); then
+    gh release upload "${release_tag}" "${assets_to_upload[@]}"
+  fi
+fi
+
+rm -rf "${download_dir}"
+mkdir -p "${download_dir}"
+for asset in "${release_assets[@]}"; do
+  asset_name="$(basename "${asset}")"
+  gh release download "${release_tag}" --pattern "${asset_name}" --dir "${download_dir}" --clobber
+  if [[ "${asset_name}" == *.sig || "${asset_name}" == *.pem ]]; then
+    continue
+  fi
+  if [[ "${asset_name}" == "${archive_name}" || "${asset_name}" == "$(basename "${manifest}")" ]]; then
+    continue
+  fi
+  if [[ "${asset_name}" == *.tgz ]]; then
+    if ! cmp -s "${asset}" "${download_dir}/${asset_name}"; then
+      echo "::error::Existing GitHub Release package asset differs: ${asset_name}" >&2
+      exit 1
+    fi
+  fi
+done
+
+remote_manifest="${download_dir}/$(basename "${manifest}")"
+( cd "${download_dir}" && sha256sum -c "$(basename "${sha256_file}")" )
 node scripts/check-zk-artifact-bundle.mjs "${download_dir}/${archive_name}"
+node scripts/verify-zk-artifact-identity.mjs \
+  --expected-archive "${archive}" \
+  --actual-archive "${download_dir}/${archive_name}" \
+  --expected-manifest "${manifest}" \
+  --actual-manifest "${remote_manifest}"
 node scripts/smoke-published-artifacts.mjs --skip-npm --zk-archive "${download_dir}/${archive_name}"
+
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+  provenance_present="$(gh release view "${release_tag}" --json assets --jq '[.assets[].name | select(test("\\.intoto\\.jsonl$"))] | length > 0')"
+  echo "provenance_present=${provenance_present}" >> "${GITHUB_OUTPUT}"
+fi

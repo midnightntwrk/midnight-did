@@ -13,6 +13,7 @@
         packages = with pkgs; [
           docker
           git
+          gnutar
           just
           nodejs_24
           oras
@@ -23,6 +24,7 @@
         ];
 
         shellHook = ''
+          export PATH=${pkgs.gnutar}/bin:$PATH
           export PLAYWRIGHT_BROWSERS_PATH=${pkgs.playwright-driver.browsers}
           export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
           export COMPACT_DIRECTORY=${self'.packages.compact-toolchain}
