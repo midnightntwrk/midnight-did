@@ -95,9 +95,11 @@ jobs:
     outputs:
       base64_subjects: ${{ steps.provenance-subjects.outputs.base64_subjects }}
       channel: ${{ steps.version.outputs.channel }}
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
       release_tag: ${{ steps.version.outputs.release_tag }}
-      provenance_present: ${{ steps.release-assets.outputs.provenance_present }}
-      release_draft: ${{ steps.release-assets.outputs.release_draft }}
+      provenance_present: ${{ steps.release-state.outputs.provenance_present }}
+      release_exists: ${{ steps.release-state.outputs.release_exists }}
     needs:
       - changes
     if: github.event_name != 'push' || (github.ref == 'refs/heads/develop' && needs.changes.outputs.snapshot_release_relevant == 'true')
@@ -222,34 +224,34 @@ jobs:
           MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
         run: ./scripts/publish-ghcr-zk-artifact.sh
 
-      - name: Publish and verify GitHub Release ZK assets
-        id: release-assets
-        if: steps.version.outputs.channel != 'snapshot'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
-          PRERELEASE: ${{ steps.version.outputs.prerelease }}
-          DRAFT_RELEASE: "true"
-          ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
-          ARCHIVE_NAME: ${{ steps.zk.outputs.zk_archive_name }}
-          MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
-          SHA256: ${{ steps.zk.outputs.zk_sha256 }}
-          NPM_ASSETS_DIR: ${{ steps.npm-assets.outputs.npm_assets_dir }}
-          SIGNATURE_ASSETS_DIR: ${{ steps.signatures.outputs.signature_assets_dir }}
-        run: ./scripts/publish-github-release-zk-assets.sh
-
-      - name: Build SLSA provenance subject list from published assets
+      - name: Build SLSA provenance subject list from release assets
         id: provenance-subjects
         if: steps.version.outputs.channel != 'snapshot'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
           NPM_ASSETS_DIR: ${{ steps.npm-assets.outputs.npm_assets_dir }}
           SIGNATURE_ASSETS_DIR: ${{ steps.signatures.outputs.signature_assets_dir }}
           ZK_ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
           ZK_MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
           ZK_SHA256: ${{ steps.zk.outputs.zk_sha256 }}
         run: ./scripts/release-build-provenance-subjects.sh
+
+      - name: Check existing GitHub Release state
+        id: release-state
+        if: steps.version.outputs.channel != 'snapshot'
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          release_exists=false
+          provenance_present=false
+          if release_json="$(gh release view "${RELEASE_TAG}" --repo "${GH_REPO}" --json assets 2>/dev/null)"; then
+            release_exists=true
+            provenance_present="$(jq -r '[.assets[].name | select(test("\\.intoto\\.jsonl$"))] | length > 0' <<<"${release_json}")"
+          fi
+          echo "release_exists=${release_exists}" >> "${GITHUB_OUTPUT}"
+          echo "provenance_present=${provenance_present}" >> "${GITHUB_OUTPUT}"
 
       - name: Print publication summary
         env:
@@ -266,34 +268,82 @@ jobs:
     if: needs.publish.result == 'success' && needs.publish.outputs.channel != 'snapshot' && needs.publish.outputs.provenance_present != 'true'
     permissions:
       actions: read
-      contents: write
+      contents: read
       id-token: write
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0 # zizmor: ignore[unpinned-uses] SLSA requires the release tag to resolve its prebuilt generator
     with:
       base64-subjects: ${{ needs.publish.outputs.base64_subjects }}
-      upload-assets: true
-      upload-tag-name: ${{ needs.publish.outputs.release_tag }}
+      upload-assets: false
 
   finalize-github-release:
-    name: Publish GitHub Release after provenance
+    name: Publish GitHub Release with provenance
     needs:
       - publish
       - github-release-provenance
     if: >-
       always() && needs.publish.result == 'success' &&
       needs.publish.outputs.channel != 'snapshot' &&
-      needs.publish.outputs.release_draft == 'true' &&
       (needs.publish.outputs.provenance_present == 'true' || needs.github-release-provenance.result == 'success')
     permissions:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - name: Publish release draft
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Download npm package assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # ratchet:actions/download-artifact@v4
+        with:
+          name: midnight-did-npm-packages-${{ needs.publish.outputs.version }}
+          path: dist/release/npm
+
+      - name: Download ZK assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # ratchet:actions/download-artifact@v4
+        with:
+          name: midnight-did-zk-artifacts-${{ needs.publish.outputs.version }}
+          path: dist/release/zk
+
+      - name: Download signature assets
+        if: needs.publish.outputs.channel != 'snapshot'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # ratchet:actions/download-artifact@v4
+        with:
+          name: midnight-did-signatures-${{ needs.publish.outputs.version }}
+          path: dist/release/signatures
+
+      - name: Download generated provenance
+        if: needs.publish.outputs.provenance_present != 'true'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # ratchet:actions/download-artifact@v4
+        with:
+          name: ${{ needs.github-release-provenance.outputs.provenance-name }}
+          path: dist/release/provenance
+
+      - name: Publish and verify GitHub Release assets
         env:
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.publish.outputs.release_tag }}
-        run: gh release edit "${RELEASE_TAG}" --draft=false
+          PRERELEASE: ${{ needs.publish.outputs.prerelease }}
+          VERSION: ${{ needs.publish.outputs.version }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          archive="$(find dist/release/zk -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+          manifest="$(find dist/release/zk -maxdepth 1 -type f -name '*.json' -print -quit)"
+          sha256_file="$(find dist/release/zk -maxdepth 1 -type f -name '*.sha256' -print -quit)"
+          provenance_file=""
+          if [[ "${{ needs.publish.outputs.provenance_present }}" != "true" ]]; then
+            provenance_file="$(find dist/release/provenance -maxdepth 1 -type f -name '*.intoto.jsonl' -print -quit)"
+          fi
+          ARCHIVE="${archive}" \
+          ARCHIVE_NAME="$(basename "${archive}")" \
+          MANIFEST="${manifest}" \
+          SHA256="${sha256_file}" \
+          NPM_ASSETS_DIR=dist/release/npm \
+          SIGNATURE_ASSETS_DIR=dist/release/signatures \
+          PROVENANCE_FILE="${provenance_file}" \
+          ./scripts/publish-github-release-assets.sh
 
   verify-github-release-provenance:
     name: Verify GitHub Release provenance asset
