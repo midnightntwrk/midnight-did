@@ -849,7 +849,7 @@ Keeping the exported circuit count low is a deployment requirement, not just a p
 
 Each mutating circuit increments the version counter and updates the `updated` timestamp. `verifySchnorrJubjubDigestSignature` is non-mutating and MUST NOT change DID version metadata.
 
-The circuit implementations are in [`packages/contract/src/did.compact`](../packages/contract/src/did.compact), and the API helpers that call these circuits are in [`packages/api/src/lib.ts`](../packages/api/src/lib.ts).
+The circuit implementations are in [`packages/contract/src/did.compact`](https://github.com/midnightntwrk/midnight-did/blob/main/packages/contract/src/did.compact), and the API helpers that call these circuits are in [`packages/api/src/lib.ts`](https://github.com/midnightntwrk/midnight-did/blob/main/packages/api/src/lib.ts).
 
 Controller rotation and recovery notes:
 - `rotateControllerKey` accepts only the next `controllerPublicKey`, not the next secret; authorization is supplied as a current-version controller signature. The next controller public key MUST differ from the current controller public key and from the recovery authority public key.

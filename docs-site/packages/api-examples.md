@@ -8,7 +8,7 @@ Use them when you need a concrete standalone flow instead of small API snippets.
 
 ## Bootstrap An Issuer DID
 
-[`bootstrap-issuer-did.ts`](https://github.com/midnightntwrk/midnight-did/blob/develop/packages/api/examples/bootstrap-issuer-did.ts)
+[`bootstrap-issuer-did.ts`](https://github.com/midnightntwrk/midnight-did/blob/main/packages/api/examples/bootstrap-issuer-did.ts)
 is the end-to-end example for creating an issuer DID with real key material. It
 deploys a DID contract, creates an Ed25519 authentication key, creates a
 SchnorrJubjub assertion key, publishes both verification methods, attaches their

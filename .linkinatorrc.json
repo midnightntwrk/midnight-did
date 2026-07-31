@@ -8,6 +8,7 @@
   "retryErrorsCount": 2,
   "skip": [
     "^https://identus\\.io/?$",
+    "^https://iamx\\.id/?$",
     "^mailto:",
     "^did:"
   ],
