@@ -75,11 +75,11 @@ token.
 
 Publication channels:
 
-| Channel | Trigger | Branches | Version shape | npm tag | ZK artifacts |
-| --- | --- | --- | --- | --- | --- |
-| Snapshot | Push or manual dispatch | `develop` | `x.y.z-snapshot.<run>.<sha>` | `snapshot` | Workflow artifact and GHCR OCI artifact |
-| RC | Manual workflow dispatch | `main`, `develop` | `x.y.z-rc{index}` | `rc` | GitHub Release asset and GHCR OCI artifact |
-| Release | Manual workflow dispatch | `main` only | `x.y.z` | `latest` | GitHub Release asset and GHCR OCI artifact |
+| Channel  | Trigger                  | Branches          | Version shape                | npm tag    | ZK artifacts                               |
+| -------- | ------------------------ | ----------------- | ---------------------------- | ---------- | ------------------------------------------ |
+| Snapshot | Push or manual dispatch  | `develop`         | `x.y.z-snapshot.<run>.<sha>` | `snapshot` | Workflow artifact and GHCR OCI artifact    |
+| RC       | Manual workflow dispatch | `main`, `develop` | `x.y.z-rc{index}`            | `rc`       | GitHub Release asset and GHCR OCI artifact |
+| Release  | Manual workflow dispatch | `main` only       | `x.y.z`                      | `latest`   | GitHub Release asset and GHCR OCI artifact |
 
 Automated snapshot publication is intentionally gated. A push to `main` or
 `develop` publishes a snapshot only when the diff contains Compact, TypeScript,
@@ -93,11 +93,11 @@ not gated by this classifier.
 
 Publication supports these consumer paths:
 
-| Use case | Source | Intended consumer |
-| --- | --- | --- |
-| Snapshot validation | npmjs packages plus GHCR OCI artifact | CI, release engineers, downstream repository smoke tests |
-| RC/release validation | npmjs packages plus GitHub Release asset | Release engineers and users who want stable HTTPS assets |
-| Public npm consumption | npmjs packages plus GitHub Release asset | Public users who install packages from `registry.npmjs.org` |
+| Use case                      | Source                                      | Intended consumer                                                                 |
+| ----------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------- |
+| Snapshot validation           | npmjs packages plus GHCR OCI artifact       | CI, release engineers, downstream repository smoke tests                          |
+| RC/release validation         | npmjs packages plus GitHub Release asset    | Release engineers and users who want stable HTTPS assets                          |
+| Public npm consumption        | npmjs packages plus GitHub Release asset    | Public users who install packages from `registry.npmjs.org`                       |
 | Server-side runtime bootstrap | GHCR OCI artifact or unpacked release asset | Node services, DID resolver/manager services, and CI jobs that cache proving keys |
 
 The publish workflow rebuilds the packages and managed Compact artifacts,
@@ -151,7 +151,9 @@ import {
   createMidnightDidZkArtifactLocations,
 } from "@midnight-ntwrk/midnight-did-api";
 
-const locations = createMidnightDidZkArtifactLocations(MIDNIGHT_DID_API_VERSION);
+const locations = createMidnightDidZkArtifactLocations(
+  MIDNIGHT_DID_API_VERSION,
+);
 
 console.log(locations.ghcr.reference);
 console.log(locations.githubRelease?.archiveUrl);
@@ -176,9 +178,10 @@ safe reruns after partial failure:
   so equivalent builds produce the same payload.
 
 A remote artifact with a different payload fails closed rather than being
-replaced. RC and final releases are created as drafts, receive their SLSA
-provenance, and are published only after the provenance gate passes. This keeps
-a partial publication recoverable without making an immutable release mutable.
+replaced. RC and final releases receive their SLSA provenance before the
+immutable GitHub Release is created, and all release assets are supplied in the
+initial creation request. This keeps a partial publication recoverable without
+making an immutable release mutable.
 
 The ZK bundle preserves the provider layout used by Midnight JS:
 
