@@ -85,15 +85,38 @@ verify_published_package_integrity() {
   local_integrity="sha512-$(node -e 'const fs = require("node:fs"); const crypto = require("node:crypto"); console.log(crypto.createHash("sha512").update(fs.readFileSync(process.argv[1])).digest("base64"));' "${tarball_path}")"
   remote_integrity="$(npm view "${package_name}@${version}" dist.integrity --json --loglevel=error 2>/dev/null | node -e 'let value = ""; process.stdin.on("data", (chunk) => { value += chunk; }); process.stdin.on("end", () => { try { const parsed = JSON.parse(value); process.stdout.write(typeof parsed === "string" ? parsed : ""); } catch { process.stdout.write(""); } });')"
 
-  if [[ -n "${remote_integrity}" && "${remote_integrity}" != "${local_integrity}" ]]; then
-    echo "::error::Published ${package_name}@${version} integrity differs from the release tarball." >&2
-    echo "::error::expected=${local_integrity} actual=${remote_integrity}" >&2
-    exit 1
-  fi
   if [[ -z "${remote_integrity}" ]]; then
     echo "::error::Published ${package_name}@${version} has no dist.integrity metadata to verify." >&2
     exit 1
   fi
+  if [[ "${remote_integrity}" == "${local_integrity}" ]]; then
+    return 0
+  fi
+
+  local remote_url
+  local remote_tarball
+  remote_url="$(npm view "${package_name}@${version}" dist.tarball --json --loglevel=error 2>/dev/null | node -e 'let value = ""; process.stdin.on("data", (chunk) => { value += chunk; }); process.stdin.on("end", () => { try { const parsed = JSON.parse(value); process.stdout.write(typeof parsed === "string" ? parsed : ""); } catch { process.stdout.write(""); } });')"
+  if [[ -z "${remote_url}" ]]; then
+    echo "::error::Published ${package_name}@${version} has no dist.tarball URL to compare." >&2
+    exit 1
+  fi
+
+  remote_tarball="$(mktemp)"
+  if ! curl --fail --silent --show-error --location "${remote_url}" --output "${remote_tarball}"; then
+    rm -f "${remote_tarball}"
+    echo "::error::Unable to download published ${package_name}@${version} for identity verification." >&2
+    exit 1
+  fi
+  if ! node scripts/verify-npm-package-identity.mjs \
+    --expected "${tarball_path}" \
+    --actual "${remote_tarball}"; then
+    rm -f "${remote_tarball}"
+    echo "::error::Published ${package_name}@${version} payload differs from the release tarball." >&2
+    echo "::error::expected=${local_integrity} actual=${remote_integrity}" >&2
+    exit 1
+  fi
+  rm -f "${remote_tarball}"
+  echo "[publish-npm-packages] ${package_name}@${version} matches published package contents despite tarball metadata differences."
 }
 
 ensure_public_access() {
