@@ -327,13 +327,14 @@ jobs:
           PRERELEASE: ${{ needs.publish.outputs.prerelease }}
           VERSION: ${{ needs.publish.outputs.version }}
           GITHUB_SHA: ${{ github.sha }}
+          PROVENANCE_PRESENT: ${{ needs.publish.outputs.provenance_present }}
         run: |
           set -euo pipefail
           archive="$(find dist/release/zk -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
           manifest="$(find dist/release/zk -maxdepth 1 -type f -name '*.json' -print -quit)"
           sha256_file="$(find dist/release/zk -maxdepth 1 -type f -name '*.sha256' -print -quit)"
           provenance_file=""
-          if [[ "${{ needs.publish.outputs.provenance_present }}" != "true" ]]; then
+          if [[ "${PROVENANCE_PRESENT}" != "true" ]]; then
             provenance_file="$(find dist/release/provenance -maxdepth 1 -type f -name '*.intoto.jsonl' -print -quit)"
           fi
           ARCHIVE="${archive}" \
