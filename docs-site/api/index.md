@@ -43,7 +43,7 @@ downstream issuer.
 
 Start with [API Examples](/packages/api-examples#bootstrap-an-issuer-did) or
 read the source at
-[`packages/api/examples/bootstrap-issuer-did.ts`](https://github.com/midnightntwrk/midnight-did/blob/develop/packages/api/examples/bootstrap-issuer-did.ts).
+[`packages/api/examples/bootstrap-issuer-did.ts`](https://github.com/midnightntwrk/midnight-did/blob/main/packages/api/examples/bootstrap-issuer-did.ts).
 
 ## Package Split
 

@@ -49,4 +49,4 @@ Controller-gated DID updates use wallet-local Jubjub Schnorr signatures over a
 domain-separated digest containing the DID contract id, current version,
 operation name, and operation arguments. A delegated proof server receives
 signature material, not the controller secret.
-See [Key Model](/guide/key-model#controller-authorization-signature-model), the [DID Method security considerations](/spec/midnight-method#8-security-considerations), and the repository [`SECURITY.md`](https://github.com/midnightntwrk/midnight-did/blob/develop/SECURITY.md) for the current trust boundary and threat model.
+See [Key Model](/guide/key-model#controller-authorization-signature-model), the [DID Method security considerations](/spec/midnight-method#8-security-considerations), and the repository [`SECURITY.md`](https://github.com/midnightntwrk/midnight-did/blob/main/SECURITY.md) for the current trust boundary and threat model.

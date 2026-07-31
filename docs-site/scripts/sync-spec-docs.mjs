@@ -5,7 +5,7 @@ import { dirname, join, relative, resolve } from "node:path";
 const repoRoot = resolve(new URL("..", import.meta.url).pathname, "..");
 const docsRoot = resolve(repoRoot, "docs-site");
 const githubBlobBase =
-  "https://github.com/midnightntwrk/midnight-did/blob/develop/";
+  "https://github.com/midnightntwrk/midnight-did/blob/main/";
 
 const specs = [
   {
