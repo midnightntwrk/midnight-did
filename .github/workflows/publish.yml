@@ -268,7 +268,7 @@ jobs:
     if: needs.publish.result == 'success' && needs.publish.outputs.channel != 'snapshot' && needs.publish.outputs.provenance_present != 'true'
     permissions:
       actions: read
-      contents: read
+      contents: write
       id-token: write
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0 # zizmor: ignore[unpinned-uses] SLSA requires the release tag to resolve its prebuilt generator
     with:
