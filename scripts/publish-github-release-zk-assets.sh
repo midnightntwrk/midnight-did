@@ -82,7 +82,9 @@ for asset in "${release_assets[@]}"; do
     continue
   fi
   if [[ "${asset_name}" == *.tgz ]]; then
-    if ! cmp -s "${asset}" "${download_dir}/${asset_name}"; then
+    if ! cmp -s "${asset}" "${download_dir}/${asset_name}" && ! node scripts/verify-npm-package-identity.mjs \
+      --expected "${asset}" \
+      --actual "${download_dir}/${asset_name}"; then
       echo "::error::Existing GitHub Release package asset differs: ${asset_name}" >&2
       exit 1
     fi
