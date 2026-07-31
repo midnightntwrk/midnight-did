@@ -97,6 +97,7 @@ jobs:
       channel: ${{ steps.version.outputs.channel }}
       release_tag: ${{ steps.version.outputs.release_tag }}
       provenance_present: ${{ steps.release-assets.outputs.provenance_present }}
+      release_draft: ${{ steps.release-assets.outputs.release_draft }}
     needs:
       - changes
     if: github.event_name != 'push' || (github.ref == 'refs/heads/develop' && needs.changes.outputs.snapshot_release_relevant == 'true')
@@ -228,6 +229,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
           PRERELEASE: ${{ steps.version.outputs.prerelease }}
+          DRAFT_RELEASE: "true"
           ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
           ARCHIVE_NAME: ${{ steps.zk.outputs.zk_archive_name }}
           MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
@@ -272,11 +274,33 @@ jobs:
       upload-assets: true
       upload-tag-name: ${{ needs.publish.outputs.release_tag }}
 
+  finalize-github-release:
+    name: Publish GitHub Release after provenance
+    needs:
+      - publish
+      - github-release-provenance
+    if: >-
+      always() && needs.publish.result == 'success' &&
+      needs.publish.outputs.channel != 'snapshot' &&
+      needs.publish.outputs.release_draft == 'true' &&
+      (needs.publish.outputs.provenance_present == 'true' || needs.github-release-provenance.result == 'success')
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish release draft
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.publish.outputs.release_tag }}
+        run: gh release edit "${RELEASE_TAG}" --draft=false
+
   verify-github-release-provenance:
     name: Verify GitHub Release provenance asset
     needs:
       - publish
       - github-release-provenance
+      - finalize-github-release
     if: always() && needs.publish.result == 'success' && needs.publish.outputs.channel != 'snapshot'
     permissions:
       contents: read
@@ -284,6 +308,7 @@ jobs:
     steps:
       - name: Verify release includes SLSA provenance
         env:
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.publish.outputs.release_tag }}
         run: |
