@@ -6,6 +6,7 @@ set -euo pipefail
 
 release_tag="${RELEASE_TAG:?RELEASE_TAG is required}"
 prerelease="${PRERELEASE:?PRERELEASE is required}"
+draft_release="${DRAFT_RELEASE:-true}"
 archive="${ARCHIVE:?ARCHIVE is required}"
 archive_name="${ARCHIVE_NAME:?ARCHIVE_NAME is required}"
 manifest="${MANIFEST:?MANIFEST is required}"
@@ -23,6 +24,9 @@ release_args=(--target "${GITHUB_SHA:?GITHUB_SHA is required}" --title "${releas
 if [[ "${prerelease}" == "true" ]]; then
   release_args+=(--prerelease)
 fi
+if [[ "${draft_release}" == "true" ]]; then
+  release_args+=(--draft)
+fi
 
 release_assets=("${archive}" "${manifest}" "${sha256_file}")
 if [[ -n "${npm_assets_dir}" ]]; then
@@ -39,9 +43,13 @@ fi
 release_exists=false
 if release_json="$(gh release view "${release_tag}" --json isDraft,isPrerelease,assets 2>/dev/null)"; then
   release_exists=true
-  if [[ "$(jq -r '.isDraft' <<<"${release_json}")" == "true" ]]; then
-    echo "::error::GitHub Release ${release_tag} is a draft; refusing to publish into it." >&2
+  actual_draft="$(jq -r '.isDraft' <<<"${release_json}")"
+  if [[ "${actual_draft}" == "true" && "${draft_release}" != "true" ]]; then
+    echo "::error::GitHub Release ${release_tag} is a draft, but this publication does not expect a draft release." >&2
     exit 1
+  fi
+  if [[ "${actual_draft}" == "false" && "${draft_release}" == "true" ]]; then
+    echo "[publish-github-release-zk-assets] Reusing already-published immutable release ${release_tag}"
   fi
   expected_prerelease="${prerelease}"
   actual_prerelease="$(jq -r '.isPrerelease' <<<"${release_json}")"
@@ -102,6 +110,9 @@ node scripts/verify-zk-artifact-identity.mjs \
 node scripts/smoke-published-artifacts.mjs --skip-npm --zk-archive "${download_dir}/${archive_name}"
 
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
-  provenance_present="$(gh release view "${release_tag}" --json assets --jq '[.assets[].name | select(test("\\.intoto\\.jsonl$"))] | length > 0')"
+  release_state="$(gh release view "${release_tag}" --json isDraft,assets)"
+  provenance_present="$(jq -r '[.assets[].name | select(test("\\.intoto\\.jsonl$"))] | length > 0' <<<"${release_state}")"
+  release_is_draft="$(jq -r '.isDraft' <<<"${release_state}")"
   echo "provenance_present=${provenance_present}" >> "${GITHUB_OUTPUT}"
+  echo "release_draft=${release_is_draft}" >> "${GITHUB_OUTPUT}"
 fi

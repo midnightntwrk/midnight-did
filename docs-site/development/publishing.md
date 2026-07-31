@@ -176,8 +176,9 @@ safe reruns after partial failure:
   so equivalent builds produce the same payload.
 
 A remote artifact with a different payload fails closed rather than being
-replaced. This keeps a partial publication recoverable without making an
-immutable release mutable.
+replaced. RC and final releases are created as drafts, receive their SLSA
+provenance, and are published only after the provenance gate passes. This keeps
+a partial publication recoverable without making an immutable release mutable.
 
 The ZK bundle preserves the provider layout used by Midnight JS:
 
