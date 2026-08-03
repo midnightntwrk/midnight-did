@@ -59,10 +59,10 @@ describe("release artifact metadata", () => {
   });
 
   it("describes final release artifacts", () => {
-    const locations = createMidnightDidZkArtifactLocations("0.4.0");
+    const locations = createMidnightDidZkArtifactLocations("0.5.0");
 
     expect(locations.channel).toBe("release");
-    expect(locations.githubRelease?.tag).toBe("v0.4.0");
+    expect(locations.githubRelease?.tag).toBe("v0.5.0");
     expect(locations.providerLayout).toEqual({
       proverKey: "keys/{circuitId}.prover",
       verifierKey: "keys/{circuitId}.verifier",

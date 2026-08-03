@@ -1,4 +1,4 @@
-# Midnight DID Specification Draft v0.4.0
+# Midnight DID Specification Draft v0.5.0
 
 # Status of This Document
 

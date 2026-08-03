@@ -203,7 +203,7 @@ the same layout used by `FetchZkConfigProvider` or `NodeZkConfigProvider`.
 pnpm run build:all
 pnpm run packages:check-contents
 
-export VERSION="0.4.0-snapshot.local"
+export VERSION="0.5.0-snapshot.local"
 export ZK_ARCHIVE="artifacts/zk/midnight-did-zk-artifacts-${VERSION}.tar.gz"
 
 pnpm run zk-artifacts:bundle -- --version "${VERSION}"
@@ -221,7 +221,7 @@ trigger the snapshot publication path. Use the version printed by the workflow
 summary:
 
 ```bash
-export VERSION="0.4.0-snapshot.<run>.<sha>"
+export VERSION="0.5.0-snapshot.<run>.<sha>"
 export GH_TOKEN="<github-token-with-repo-read>"
 export OCI_REF="ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${VERSION}"
 
@@ -234,7 +234,7 @@ pnpm run published-artifacts:smoke -- \
 For an RC or final release, smoke-test both public distribution paths:
 
 ```bash
-export VERSION="0.4.0-rc1"
+export VERSION="0.5.0-rc1"
 export GH_TOKEN="<github-token-with-repo-read>"
 export OCI_REF="ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${VERSION}"
 
@@ -266,7 +266,7 @@ adds and updates a service, and resolves the updated DID document.
 Local equivalent:
 
 ```bash
-export VERSION="0.4.0-rc1"
+export VERSION="0.5.0-rc1"
 export GH_TOKEN="<github-token-with-repo-read>"
 
 pnpm run published-standalone:smoke -- \
