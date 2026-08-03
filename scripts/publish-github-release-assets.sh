@@ -104,6 +104,10 @@ for asset in "${release_assets[@]}"; do
   fi
 done
 
+COSIGN_CERTIFICATE_IDENTITY="${COSIGN_CERTIFICATE_IDENTITY:?COSIGN_CERTIFICATE_IDENTITY is required}" \
+COSIGN_CERTIFICATE_OIDC_ISSUER="${COSIGN_CERTIFICATE_OIDC_ISSUER:-https://token.actions.githubusercontent.com}" \
+./scripts/verify-release-signatures.sh --assets-dir "${download_dir}"
+
 remote_manifest="${download_dir}/$(basename "${manifest}")"
 ( cd "${download_dir}" && sha256sum -c "$(basename "${sha256_file}")" )
 node scripts/check-zk-artifact-bundle.mjs "${download_dir}/${archive_name}"

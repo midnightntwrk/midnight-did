@@ -42,3 +42,21 @@ is created and reaches the intended baseline.
   the repository UI.
 
 Record the project URL, badge level, and next Scorecard result in #322 and #320.
+
+## Branch protection and code review posture
+
+Branch protection and ruleset changes are organization policy and infrastructure-as-code concerns. Do not change them manually from the repository UI as part of a feature PR; open or link the owning IaC change instead.
+
+Current observed `main` protection:
+
+- strict status checks enabled;
+- required checks: `scan`, `Build, Lint, Test, and Coverage`, and `Typecheck, Audit, and Static Contracts`;
+- stale review dismissal enabled;
+- CODEOWNERS review required;
+- required approving review count: 1.
+
+Scorecard reports reduced `Branch-Protection` because the required approving review count is 1. Moving to two approvals should be decided and rolled out through the owning IaC/ruleset path so release-promotion and emergency-fix process expectations are updated at the same time.
+
+For `Code-Review`, release-promotion PRs from `develop` to `main` should receive an explicit human approval before merge. Squash/merge automation and bot-authored follow-up pushes should not bypass the visible approval trail Scorecard uses to infer review posture.
+
+Record any IaC link, required-review-count decision, and the next `Branch-Protection` / `Code-Review` Scorecard result in #325 and #320.
