@@ -61,6 +61,50 @@ Resolver service, DID manager, and secret-storage validation moved to the
 
 For shared JubJub Schnorr or contract changes, run `pnpm --filter ./packages/contract test`.
 
+## Release Testing
+
+Use the merged `main` branch for RC and final release tests. First wait for the complete `main` CI suite to pass, then dispatch the publication workflow explicitly:
+
+```bash
+VERSION=0.5.0
+GH_TOKEN=<token>
+gh workflow run publish.yml --repo midnightntwrk/midnight-did --ref main \\
+  -f channel=rc -f version="${VERSION}" -f rc_index=5
+```
+
+Watch the resulting run to completion with `gh run watch`. A successful release-train run must complete package build/content checks, exact-version npm publication and smoke tests, GHCR push/pull verification, Cosign signing, SLSA provenance generation, immutable GitHub Release reconciliation, cryptographic signature verification, and provenance-presence verification.
+
+RC reruns are reconciliation runs: reuse the occupied immutable `v${VERSION}-rc5` tag and never delete, draft-stage, or overwrite an existing release asset. If an exact npm version or remote artifact already exists, verify its identity and continue; fail closed on a mismatch.
+
+After the workflow succeeds, independently verify both public paths and the standalone release flow. The standalone workflow is a required release gate, not an optional convenience:
+
+```bash
+gh workflow run release-smoke.yml --repo midnightntwrk/midnight-did --ref main \\
+  -f version="${VERSION}-rc5" -f release_tag="v${VERSION}-rc5"
+# Watch the returned run to completion with gh run watch.
+```
+
+Then download the immutable release assets and run the local checks. The signature check requires Cosign; install the same pinned version used by `.github/workflows/publish.yml` and fail closed if `command -v cosign` is unavailable:
+
+```bash
+TMP_DIR="$(mktemp -d)"
+gh release download "v${VERSION}-rc5" --repo midnightntwrk/midnight-did --dir "${TMP_DIR}"
+for sums in "${TMP_DIR}"/*.sha256; do (cd "${TMP_DIR}" && sha256sum -c "$(basename "${sums}")"); done
+test -s "${TMP_DIR}/multiple.intoto.jsonl"
+COSIGN_CERTIFICATE_IDENTITY="https://github.com/midnightntwrk/midnight-did/.github/workflows/publish.yml@refs/heads/main" \\
+COSIGN_CERTIFICATE_OIDC_ISSUER="https://token.actions.githubusercontent.com" \\
+nix develop --command ./scripts/verify-release-signatures.sh --assets-dir "${TMP_DIR}"
+nix develop --command pnpm run published-artifacts:smoke -- \\
+  --version "${VERSION}-rc5" --github-release-tag "v${VERSION}-rc5"
+nix develop --command pnpm run published-artifacts:smoke -- \\
+  --version "${VERSION}-rc5" \\
+  --oci-ref "ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${VERSION}-rc5"
+nix develop --command pnpm run published-standalone:smoke -- \\
+  --version "${VERSION}-rc5" --github-release-tag "v${VERSION}-rc5"
+```
+
+Only trigger `channel=release` for `0.5.0` after RC5 is fully green, all independent checks pass, `main` remains unchanged, and explicit human release approval has been recorded.
+
 ## Change Discipline
 
 - Keep `packages/contract`, `packages/domain`, `packages/did`, and
