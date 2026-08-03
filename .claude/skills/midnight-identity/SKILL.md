@@ -76,7 +76,15 @@ Watch the resulting run to completion with `gh run watch`. A successful release-
 
 RC reruns are reconciliation runs: reuse the occupied immutable `v${VERSION}-rc5` tag and never delete, draft-stage, or overwrite an existing release asset. If an exact npm version or remote artifact already exists, verify its identity and continue; fail closed on a mismatch.
 
-After the workflow succeeds, independently verify both public paths and the standalone release flow:
+After the workflow succeeds, independently verify both public paths and the standalone release flow. The standalone workflow is a required release gate, not an optional convenience:
+
+```bash
+gh workflow run release-smoke.yml --repo midnightntwrk/midnight-did --ref main \\
+  -f version="${VERSION}-rc5" -f release_tag="v${VERSION}-rc5"
+# Watch the returned run to completion with gh run watch.
+```
+
+Then download the immutable release assets and run the local checks:
 
 ```bash
 TMP_DIR="$(mktemp -d)"
