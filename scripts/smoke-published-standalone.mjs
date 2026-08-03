@@ -500,6 +500,7 @@ const installPublishedPackages = async ({
   npmInstallAttempts,
   npmInstallRetryDelayMs,
   registry,
+  token = process.env.NODE_AUTH_TOKEN ?? process.env.NPM_TOKEN,
   version,
 }) => {
   const consumerRoot = fs.mkdtempSync(
