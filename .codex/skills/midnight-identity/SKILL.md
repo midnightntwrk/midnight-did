@@ -84,7 +84,7 @@ gh workflow run release-smoke.yml --repo midnightntwrk/midnight-did --ref main \
 # Watch the returned run to completion with gh run watch.
 ```
 
-Then download the immutable release assets and run the local checks:
+Then download the immutable release assets and run the local checks. The signature check requires Cosign; install the same pinned version used by `.github/workflows/publish.yml` and fail closed if `command -v cosign` is unavailable:
 
 ```bash
 TMP_DIR="$(mktemp -d)"
