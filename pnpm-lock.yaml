@@ -11,12 +11,7 @@ overrides:
   postcss: ^8.5.18
   esbuild@>=0.27.3 <0.28.1: 0.28.1
   undici: ^7.28.0
-  brace-expansion@<5.0.8: 5.0.8
-
-patchedDependencies:
-  brace-expansion@5.0.8:
-    hash: 904b0ccfb1df9de738453accb1c72a76c580b67a887cf3673cc8ec4bd1c5724e
-    path: patches/brace-expansion@5.0.8.patch
+  brace-expansion@<5.0.8: 5.0.9
 
 importers:
 
@@ -2240,8 +2235,8 @@ packages:
   bn.js@5.2.3:
     resolution: {integrity: sha512-EAcmnPkxpntVL+DS7bO1zhcZNvCkxqtkd0ZY53h06GNQ3DEkkGZ/gKgmDv6DdZQGj9BgfSPKtJJ7Dp1GPP8f7w==}
 
-  brace-expansion@5.0.8:
-    resolution: {integrity: sha512-JZyDyq3D4AUifKTPOB7DELf6XsB3WdPuNxCtob1vFXPsSXhdAiHBWJ/tJ8HAc9aH84BK+5JFZLNkJKx3G9kzQg==}
+  brace-expansion@5.0.9:
+    resolution: {integrity: sha512-ScQ4IuvIEF1TMlP7Zt+vjJ//9zlPb2SDcxWxM3bk8s6t6GGdJ7KO1dCcTidOPJKePW30LE/2cT7wCyPho9/Wxg==}
     engines: {node: 20 || >=22}
 
   browser-level@3.0.0:
@@ -6681,7 +6676,7 @@ snapshots:
 
   bn.js@5.2.3: {}
 
-  brace-expansion@5.0.8(patch_hash=904b0ccfb1df9de738453accb1c72a76c580b67a887cf3673cc8ec4bd1c5724e):
+  brace-expansion@5.0.9:
     dependencies:
       balanced-match: 4.0.4
 
@@ -8012,19 +8007,19 @@ snapshots:
 
   minimatch@10.2.5:
     dependencies:
-      brace-expansion: 5.0.8(patch_hash=904b0ccfb1df9de738453accb1c72a76c580b67a887cf3673cc8ec4bd1c5724e)
+      brace-expansion: 5.0.9
 
   minimatch@3.1.5:
     dependencies:
-      brace-expansion: 5.0.8(patch_hash=904b0ccfb1df9de738453accb1c72a76c580b67a887cf3673cc8ec4bd1c5724e)
+      brace-expansion: 5.0.9
 
   minimatch@5.1.9:
     dependencies:
-      brace-expansion: 5.0.8(patch_hash=904b0ccfb1df9de738453accb1c72a76c580b67a887cf3673cc8ec4bd1c5724e)
+      brace-expansion: 5.0.9
 
   minimatch@9.0.9:
     dependencies:
-      brace-expansion: 5.0.8(patch_hash=904b0ccfb1df9de738453accb1c72a76c580b67a887cf3673cc8ec4bd1c5724e)
+      brace-expansion: 5.0.9
 
   minimist@1.2.8: {}
 
