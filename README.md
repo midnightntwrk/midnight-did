@@ -6,7 +6,7 @@
 [![Release](https://github.com/midnightntwrk/midnight-did/actions/workflows/publish.yml/badge.svg?branch=main)](https://github.com/midnightntwrk/midnight-did/actions/workflows/publish.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/midnightntwrk/midnight-did/badge)](https://scorecard.dev/viewer/?uri=github.com/midnightntwrk/midnight-did)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/midnightntwrk/midnight-did/blob/main/LICENSE)
-[![Latest Release](https://img.shields.io/badge/release-v0.4.0-blue)](https://github.com/midnightntwrk/midnight-did/releases/latest)
+[![Latest Release](https://img.shields.io/badge/release-v0.5.0-blue)](https://github.com/midnightntwrk/midnight-did/releases/latest)
 
 Midnight DID is the reference implementation of the `did:midnight` method.
 This repository owns the core DID contract, domain model, ledger mapping, and TypeScript API orchestration.
@@ -241,7 +241,7 @@ The concrete release-train examples below are validated against the root
 ZK keys are distributed separately as a validated archive:
 
 ```bash
-export VERSION="0.4.0-snapshot.local"
+export VERSION="0.5.0-snapshot.local"
 export ZK_ARCHIVE="artifacts/zk/midnight-did-zk-artifacts-${VERSION}.tar.gz"
 
 pnpm run zk-artifacts:bundle -- --version "${VERSION}"
@@ -263,7 +263,7 @@ matching GitHub Release ZK archive, unpacks those keys for
 updated DID document:
 
 ```bash
-export VERSION="0.4.0-rc1"
+export VERSION="0.5.0-rc1"
 export GH_TOKEN="<github-token-with-repo-read>"
 
 pnpm run published-standalone:smoke -- \
@@ -305,7 +305,7 @@ Published consumers can also use the Node helper exported by the API package:
 import { downloadMidnightDidGithubReleaseZkArtifacts } from "@midnight-ntwrk/midnight-did-api";
 
 const bundle = await downloadMidnightDidGithubReleaseZkArtifacts({
-  version: "0.4.0-rc1",
+  version: "0.5.0-rc1",
   outputDir: ".midnight-did-zk",
 });
 ```

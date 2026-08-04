@@ -109,7 +109,7 @@ const createFixtureArchive = (
 } => {
   const tempRoot = makeTempRoot();
   const contentRoot = path.join(tempRoot, "content");
-  const version = options.version ?? "0.4.0";
+  const version = options.version ?? "0.5.0";
   const files = {
     prover: "keys/add.prover",
     verifier: "keys/add.verifier",
@@ -217,12 +217,12 @@ describe("ZK artifact consumption helpers", () => {
     const bundle = unpackMidnightDidZkArtifactArchive({
       archivePath: fixture.archivePath,
       outputDir,
-      version: "0.4.0",
+      version: "0.5.0",
     });
 
     expect(bundle.zkConfigPath).toBe(outputDir);
     expect(bundle.providers.zkConfigPath).toBe(outputDir);
-    expect(bundle.manifest.version).toBe("0.4.0");
+    expect(bundle.manifest.version).toBe("0.5.0");
     expect(fs.existsSync(path.join(outputDir, "keys", "add.prover"))).toBe(
       true,
     );
@@ -256,7 +256,7 @@ describe("ZK artifact consumption helpers", () => {
 
   it("accepts uppercase SHA-256 digests in the manifest", () => {
     const tempRoot = makeTempRoot();
-    const baseline = createFixtureArchive();
+    const baseline = createFixtureArchive({ version: "0.5.0" });
     const manifest = {
       ...baseline.manifest,
       circuits: baseline.manifest.circuits.map((circuit) => ({
@@ -279,7 +279,7 @@ describe("ZK artifact consumption helpers", () => {
     );
     const archivePath = path.join(
       tempRoot,
-      "midnight-did-zk-artifacts-0.4.0.tar.gz",
+      "midnight-did-zk-artifacts-0.5.0.tar.gz",
     );
     const result = spawnSync(
       "tar",
@@ -293,7 +293,7 @@ describe("ZK artifact consumption helpers", () => {
     const bundle = unpackMidnightDidZkArtifactArchive({
       archivePath,
       outputDir: path.join(tempRoot, "unpacked"),
-      version: "0.4.0",
+      version: "0.5.0",
     });
 
     expect(bundle.manifest.circuits[0].sha256.prover).toBe(
