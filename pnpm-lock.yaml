@@ -8,9 +8,9 @@ overrides:
   vitepress>vite: ^6.4.2
   dompurify: ^3.4.12
   js-yaml: ^4.3.0
-  postcss: ^8.5.18
+  postcss: ^8.5.23
   esbuild@>=0.27.3 <0.28.1: 0.28.1
-  undici: ^7.28.0
+  undici: ^7.29.0
   brace-expansion@<5.0.8: 5.0.9
 
 importers:
@@ -149,7 +149,7 @@ importers:
         version: 4.12.0(typedoc@0.28.20(typescript@5.9.3))
       vitepress:
         specifier: 1.6.4
-        version: 1.6.4(@algolia/client-search@5.52.1)(@types/node@24.13.3)(postcss@8.5.21)(search-insights@2.17.3)(typescript@5.9.3)(yaml@2.9.0)
+        version: 1.6.4(@algolia/client-search@5.52.1)(@types/node@24.13.3)(postcss@8.5.24)(search-insights@2.17.3)(typescript@5.9.3)(yaml@2.9.0)
 
   packages/api:
     dependencies:
@@ -3665,8 +3665,8 @@ packages:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
     engines: {node: '>= 0.4'}
 
-  postcss@8.5.21:
-    resolution: {integrity: sha512-v4sDNP3fdNiWMfabO7OwOQdOX8TiQSztKyT1Wj0w+j7LDallJThJRBBBmzVGyYj0crMh7jlV4zepPkiNu9UwDQ==}
+  postcss@8.5.24:
+    resolution: {integrity: sha512-8RyVklq0owXUTa4xlpzu4l9AaVKIdQvAcOHZWaMh98HgySsUtxRVf/chRe3dsSLqb6i40BzGRzEUddRaI+9TSw==}
     engines: {node: ^10 || ^12 || >=14}
 
   preact@10.29.2:
@@ -4180,8 +4180,8 @@ packages:
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
-  undici@7.28.0:
-    resolution: {integrity: sha512-cRZYrTDwWznlnRiPjggAGxZXanty6M8RV1ff8Wm4LWXBp7/IG8v5DnOm74DtUBp9OONpK75YlPnIjQqX0dBDtA==}
+  undici@7.29.0:
+    resolution: {integrity: sha512-IDxfleLmmbSskfWSUATiN1nfn2rDuvnMOqb5CWR92iIfojA0Ud+ulOAAEQ57LPr9rWmsreUyf5lwyao+7GNNVw==}
     engines: {node: '>=20.18.1'}
 
   unist-util-is@6.0.1:
@@ -4306,7 +4306,7 @@ packages:
     hasBin: true
     peerDependencies:
       markdown-it-mathjax3: ^4
-      postcss: ^8.5.18
+      postcss: ^8.5.23
     peerDependenciesMeta:
       markdown-it-mathjax3:
         optional: true
@@ -4643,7 +4643,7 @@ snapshots:
   '@digitalbazaar/http-client@4.3.0':
     dependencies:
       ky: 1.14.3
-      undici: 7.28.0
+      undici: 7.29.0
 
   '@docsearch/css@3.8.2': {}
 
@@ -6372,7 +6372,7 @@ snapshots:
       '@vue/shared': 3.5.34
       estree-walker: 2.0.2
       magic-string: 0.30.21
-      postcss: 8.5.21
+      postcss: 8.5.24
       source-map-js: 1.2.1
 
   '@vue/compiler-ssr@3.5.34':
@@ -8276,7 +8276,7 @@ snapshots:
 
   possible-typed-array-names@1.1.0: {}
 
-  postcss@8.5.21:
+  postcss@8.5.24:
     dependencies:
       nanoid: 3.3.16
       picocolors: 1.1.1
@@ -8784,7 +8784,7 @@ snapshots:
       ssh-remote-port-forward: 1.0.4
       tar-fs: 3.1.2
       tmp: 0.2.7
-      undici: 7.28.0
+      undici: 7.29.0
     transitivePeerDependencies:
       - bare-abort-controller
       - bare-buffer
@@ -8933,7 +8933,7 @@ snapshots:
 
   undici-types@7.18.2: {}
 
-  undici@7.28.0: {}
+  undici@7.29.0: {}
 
   unist-util-is@6.0.1:
     dependencies:
@@ -9010,7 +9010,7 @@ snapshots:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
-      postcss: 8.5.21
+      postcss: 8.5.24
       rollup: 4.62.0
       tinyglobby: 0.2.17
     optionalDependencies:
@@ -9023,7 +9023,7 @@ snapshots:
       esbuild: 0.28.1
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
-      postcss: 8.5.21
+      postcss: 8.5.24
       rollup: 4.62.0
       tinyglobby: 0.2.17
     optionalDependencies:
@@ -9031,7 +9031,7 @@ snapshots:
       fsevents: 2.3.3
       yaml: 2.9.0
 
-  vitepress@1.6.4(@algolia/client-search@5.52.1)(@types/node@24.13.3)(postcss@8.5.21)(search-insights@2.17.3)(typescript@5.9.3)(yaml@2.9.0):
+  vitepress@1.6.4(@algolia/client-search@5.52.1)(@types/node@24.13.3)(postcss@8.5.24)(search-insights@2.17.3)(typescript@5.9.3)(yaml@2.9.0):
     dependencies:
       '@docsearch/css': 3.8.2
       '@docsearch/js': 3.8.2(@algolia/client-search@5.52.1)(search-insights@2.17.3)
@@ -9052,7 +9052,7 @@ snapshots:
       vite: 6.4.3(@types/node@24.13.3)(yaml@2.9.0)
       vue: 3.5.34(typescript@5.9.3)
     optionalDependencies:
-      postcss: 8.5.21
+      postcss: 8.5.24
     transitivePeerDependencies:
       - '@algolia/client-search'
       - '@types/node'
