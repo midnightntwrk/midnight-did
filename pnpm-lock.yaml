@@ -232,6 +232,9 @@ importers:
       '@midnight-ntwrk/midnight-did-jubjub-schnorr':
         specifier: workspace:*
         version: link:../jubjub-schnorr
+      '@vitest/coverage-v8':
+        specifier: 4.1.10
+        version: 4.1.10(vitest@4.1.10)
       globals:
         specifier: 14.0.0
         version: 14.0.0
@@ -270,6 +273,9 @@ importers:
       '@types/jsonld':
         specifier: ^1.5.15
         version: 1.5.15
+      '@vitest/coverage-v8':
+        specifier: 4.1.10
+        version: 4.1.10(vitest@4.1.10)
       globals:
         specifier: 14.0.0
         version: 14.0.0
@@ -289,6 +295,9 @@ importers:
         specifier: ^4.1.0
         version: 4.4.3
     devDependencies:
+      '@vitest/coverage-v8':
+        specifier: 4.1.10
+        version: 4.1.10(vitest@4.1.10)
       base64-js:
         specifier: 1.5.1
         version: 1.5.1
