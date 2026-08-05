@@ -52,8 +52,8 @@ Resolve the repository's actual default/base branch from GitHub; do not assume
 `develop`.
 
 For repositories with `humanMergeOnly` or an equivalent dev-loop policy, stop
-before merge and report readiness. Do not merge without explicit human
-authorization.
+before merge and report readiness. Explicit user authorization does not override
+that repository invariant; only an explicit policy/configuration change can.
 
 Do not merge a PR until all of these are true:
 
@@ -110,8 +110,8 @@ Do not spam busy polling.
 
 When the bottom PR is fully green and mergeable:
 
-- merge it only when the repository policy and explicit user authorization
-  allow agent-controlled merge
+- merge it only when the repository policy allows agent-controlled merge;
+  obtain explicit user authorization wherever that policy permits agent merge
 - confirm merged state
 - note merge time or merge commit if useful
 

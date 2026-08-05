@@ -22,7 +22,12 @@ async function skillFiles(root, relative = "") {
     const entryRelative = path.join(relative, entry.name);
     if (entry.isDirectory()) {
       files.push(...(await skillFiles(root, entryRelative)));
-    } else if (entry.name === "SKILL.md") {
+    } else if (
+      (entry.isFile() || entry.isSymbolicLink()) &&
+      entry.name === "SKILL.md"
+    ) {
+      // Supporting files may be harness-specific (for example Codex agent
+      // metadata), so only the portable skill contract must match.
       files.push(entryRelative);
     }
   }
@@ -30,12 +35,24 @@ async function skillFiles(root, relative = "") {
   return files;
 }
 
-const [codexFiles, claudeFiles] = await Promise.all([
-  skillFiles(codexRoot),
-  skillFiles(claudeRoot),
+async function listSkillFiles(root) {
+  try {
+    return { files: await skillFiles(root), missing: false };
+  } catch (error) {
+    if (error?.code === "ENOENT") return { files: [], missing: true };
+    throw error;
+  }
+}
+
+const [codex, claude] = await Promise.all([
+  listSkillFiles(codexRoot),
+  listSkillFiles(claudeRoot),
 ]);
-const allFiles = [...new Set([...codexFiles, ...claudeFiles])].sort();
+const allFiles = [...new Set([...codex.files, ...claude.files])].sort();
 const mismatches = [];
+
+if (codex.missing) mismatches.push(".codex/skills: directory is missing");
+if (claude.missing) mismatches.push(".claude/skills: directory is missing");
 
 for (const relative of allFiles) {
   const codexPath = path.join(codexRoot, relative);

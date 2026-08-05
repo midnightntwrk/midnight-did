@@ -26,8 +26,9 @@ restored API formatting, and corrected the semantic PR-title scope.
 - The repository had moved to `main`, while repository guidance and several
   global skills still assumed `develop`.
 - The `.devloops` file used keys from an older or different policy contract.
-  The pinned `dev-loops@0.9.0` loader rejected the file, so its repository-
-  specific gates were not being applied.
+  The pinned `dev-loops@0.9.0` loader reported schema errors and fell back to
+  defaults; the high-level `doctor`/`gates` commands did not surface that
+  failure clearly, so repository-specific gates were not reliably applied.
 - Draft-first behavior was documented but not enforced by the manual PR
   creation path.
 - Signature and DCO requirements were documented, but the execution loop did
@@ -41,7 +42,9 @@ restored API formatting, and corrected the semantic PR-title scope.
 
 - Keep `.devloops` schema-valid and limited to supported lifecycle settings.
 - Keep command-level validation and repository-specific engineering rules in
-  `AGENT.md` and the synchronized repository skills.
+  `AGENT.md` and the synchronized repository skills. These rules are currently
+  prose/CI-enforced because `dev-loops@0.9.0` does not expose corresponding
+  base-branch, validation-order, or CI-watch fields in its config schema.
 - Resolve the current default branch before implementation; this repository
   currently uses `main`.
 - Use dedicated worktrees and draft PRs.
