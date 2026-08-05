@@ -45,6 +45,7 @@ jobs:
             docs
             deps
             config
+            ci
             scripts
             jubjub-schnorr
             release
