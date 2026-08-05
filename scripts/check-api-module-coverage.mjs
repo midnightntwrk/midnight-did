@@ -1,5 +1,6 @@
 import { basename, resolve } from "node:path";
 import { readFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 
 export const protectedApiModuleThresholds = Object.freeze({
   "controller-authorization.ts": {
@@ -48,9 +49,12 @@ export const checkApiModuleCoverage = (coverage) => {
     }
 
     for (const metric of ["statements", "branches", "functions"]) {
-      const actual = percentage(
-        Object.values(fileCoverage[coverageKeys[metric]] ?? []),
-      );
+      const key = coverageKeys[metric];
+      if (!(key in fileCoverage)) {
+        failures.push(`${module} ${metric}: coverage metric is missing`);
+        continue;
+      }
+      const actual = percentage(Object.values(fileCoverage[key]));
       if (actual < thresholds[metric]) {
         failures.push(
           `${module} ${metric}: ${actual.toFixed(2)}% is below ${thresholds[metric]}%`,
@@ -62,18 +66,23 @@ export const checkApiModuleCoverage = (coverage) => {
   return failures;
 };
 
-const coveragePath = resolve(
-  process.cwd(),
-  process.argv[2] ?? "packages/api/coverage/coverage-final.json",
-);
-const coverage = JSON.parse(await readFile(coveragePath, "utf8"));
-const failures = checkApiModuleCoverage(coverage);
-if (failures.length > 0) {
-  console.error("API module coverage failed:");
-  for (const failure of failures) console.error(`- ${failure}`);
-  process.exitCode = 1;
-} else {
-  console.log(
-    `API module coverage passed (${Object.keys(protectedApiModuleThresholds).length} protected modules).`,
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  const coveragePath = resolve(
+    process.cwd(),
+    process.argv[2] ?? "packages/api/coverage/coverage-final.json",
   );
+  const coverage = JSON.parse(await readFile(coveragePath, "utf8"));
+  const failures = checkApiModuleCoverage(coverage);
+  if (failures.length > 0) {
+    console.error("API module coverage failed:");
+    for (const failure of failures) console.error(`- ${failure}`);
+    process.exitCode = 1;
+  } else {
+    console.log(
+      `API module coverage passed (${Object.keys(protectedApiModuleThresholds).length} protected modules).`,
+    );
+  }
 }

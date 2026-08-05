@@ -36,8 +36,10 @@ test("reports missing protected modules and threshold failures", () => {
     0: 1,
     1: 0,
   };
+  delete coverage["/workspace/packages/api/src/controller-authorization.ts"].f;
 
   assert.deepEqual(checkApiModuleCoverage(coverage), [
+    "controller-authorization.ts functions: coverage metric is missing",
     "service-operations.ts statements: 50.00% is below 90%",
     "wallet-keys.ts: coverage entry is missing",
   ]);
