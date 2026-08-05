@@ -73,13 +73,16 @@ const serveBuiltDocs = async () => {
     try {
       const filePath = await fileForRequest(request.url ?? "/");
       if (!filePath) {
-        response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+        response.writeHead(404, {
+          "content-type": "text/plain; charset=utf-8",
+        });
         response.end("Not found");
         return;
       }
 
       response.writeHead(200, {
-        "content-type": contentTypes[extname(filePath)] ?? "application/octet-stream",
+        "content-type":
+          contentTypes[extname(filePath)] ?? "application/octet-stream",
       });
       response.end(await readFile(filePath));
     } catch (error) {
@@ -116,7 +119,10 @@ const fail = (message, details) => {
 const rgbToParts = (value) => {
   const match = value.match(/rgba?\(([^)]+)\)/u);
   if (!match) return undefined;
-  return match[1].split(",").slice(0, 3).map((part) => Number(part.trim()));
+  return match[1]
+    .split(",")
+    .slice(0, 3)
+    .map((part) => Number(part.trim()));
 };
 
 const luminance = (color) => {
@@ -132,7 +138,9 @@ const luminance = (color) => {
       : ((channel + 0.055) / 1.055) ** 2.4;
   });
 
-  return 0.2126 * normalized[0] + 0.7152 * normalized[1] + 0.0722 * normalized[2];
+  return (
+    0.2126 * normalized[0] + 0.7152 * normalized[1] + 0.0722 * normalized[2]
+  );
 };
 
 const contrastRatio = (foreground, background) => {
@@ -149,13 +157,17 @@ const checkNoPageOverflow = async (page, label) => {
         const rect = element.getBoundingClientRect();
         return {
           tag: element.tagName.toLowerCase(),
-          className: typeof element.className === "string" ? element.className : "",
+          className:
+            typeof element.className === "string" ? element.className : "",
           left: Math.round(rect.left),
           right: Math.round(rect.right),
           width: Math.round(rect.width),
         };
       })
-      .filter((entry) => entry.width > 0 && (entry.left < -2 || entry.right > width + 2))
+      .filter(
+        (entry) =>
+          entry.width > 0 && (entry.left < -2 || entry.right > width + 2),
+      )
       .slice(0, 6);
 
     return {
@@ -176,12 +188,16 @@ const checkNav = async (page, viewportName) => {
   await nav.waitFor({ state: "visible" });
 
   const navLayout = await page.evaluate((isDesktop) => {
-    const navRect = document.querySelector(".VPNavBar")?.getBoundingClientRect();
+    const navRect = document
+      .querySelector(".VPNavBar")
+      ?.getBoundingClientRect();
     const links = [...document.querySelectorAll(".VPNavBarMenuLink")]
       .filter((element) => {
         const rect = element.getBoundingClientRect();
         const styles = window.getComputedStyle(element);
-        return rect.width > 0 && rect.height > 0 && styles.visibility !== "hidden";
+        return (
+          rect.width > 0 && rect.height > 0 && styles.visibility !== "hidden"
+        );
       })
       .map((element) => {
         const rect = element.getBoundingClientRect();
@@ -193,7 +209,9 @@ const checkNav = async (page, viewportName) => {
           bottom: Math.round(rect.bottom),
         };
       });
-    const hamburger = document.querySelector(".VPNavBarHamburger")?.getBoundingClientRect();
+    const hamburger = document
+      .querySelector(".VPNavBarHamburger")
+      ?.getBoundingClientRect();
 
     return {
       nav: navRect
@@ -205,7 +223,9 @@ const checkNav = async (page, viewportName) => {
           }
         : undefined,
       links,
-      hamburgerVisible: Boolean(hamburger && hamburger.width > 0 && hamburger.height > 0),
+      hamburgerVisible: Boolean(
+        hamburger && hamburger.width > 0 && hamburger.height > 0,
+      ),
       isDesktop,
     };
   }, viewportName === "desktop");
@@ -213,7 +233,8 @@ const checkNav = async (page, viewportName) => {
   if (!navLayout.nav) fail(`${viewportName} nav is missing`);
 
   if (viewportName === "desktop") {
-    if (navLayout.links.length < 5) fail("desktop nav links are not visible", navLayout);
+    if (navLayout.links.length < 5)
+      fail("desktop nav links are not visible", navLayout);
     const overflowingLinks = navLayout.links.filter(
       (link) =>
         link.left < navLayout.nav.left - 1 ||
@@ -222,7 +243,10 @@ const checkNav = async (page, viewportName) => {
         link.bottom > navLayout.nav.bottom + 1,
     );
     if (overflowingLinks.length > 0) {
-      fail("desktop nav links overflow the navbar", { ...navLayout, overflowingLinks });
+      fail("desktop nav links overflow the navbar", {
+        ...navLayout,
+        overflowingLinks,
+      });
     }
   } else if (!navLayout.hamburgerVisible) {
     fail("mobile nav hamburger is not visible", navLayout);
@@ -237,7 +261,9 @@ const checkSidebar = async (page, viewportName) => {
       document.querySelector(".VPDoc .content-container");
     const sidebarRect = sidebarElement?.getBoundingClientRect();
     const contentRect = contentElement?.getBoundingClientRect();
-    const styles = sidebarElement ? window.getComputedStyle(sidebarElement) : undefined;
+    const styles = sidebarElement
+      ? window.getComputedStyle(sidebarElement)
+      : undefined;
 
     return {
       display: styles?.display,
@@ -261,7 +287,11 @@ const checkSidebar = async (page, viewportName) => {
   }, viewportName === "desktop");
 
   if (viewportName === "desktop") {
-    if (!sidebar.sidebar || sidebar.sidebar.width < 220 || sidebar.display === "none") {
+    if (
+      !sidebar.sidebar ||
+      sidebar.sidebar.width < 220 ||
+      sidebar.display === "none"
+    ) {
       fail("desktop sidebar is not visible", sidebar);
     }
     if (sidebar.article && sidebar.article.left < sidebar.sidebar.right - 2) {
@@ -291,7 +321,10 @@ const checkCodeBlocks = async (page, label) => {
   });
 
   const textContrast = contrastRatio(colors.codeColor, colors.blockBackground);
-  const blockContrast = contrastRatio(colors.blockBackground, colors.pageBackground);
+  const blockContrast = contrastRatio(
+    colors.blockBackground,
+    colors.pageBackground,
+  );
 
   if (textContrast < 4.5) {
     fail(`${label} code text contrast is below WCAG AA`, {
@@ -301,10 +334,13 @@ const checkCodeBlocks = async (page, label) => {
   }
 
   if (blockContrast < 1.25) {
-    fail(`${label} code block is not visually separated from the page background`, {
-      ...colors,
-      contrast: Number(blockContrast.toFixed(2)),
-    });
+    fail(
+      `${label} code block is not visually separated from the page background`,
+      {
+        ...colors,
+        contrast: Number(blockContrast.toFixed(2)),
+      },
+    );
   }
 };
 
@@ -337,7 +373,10 @@ const checkTables = async (page, label) => {
   );
 
   if (clipped.length > 0) {
-    fail(`${label} table layout is clipped or not horizontally scrollable`, clipped);
+    fail(
+      `${label} table layout is clipped or not horizontally scrollable`,
+      clipped,
+    );
   }
 };
 
@@ -377,7 +416,11 @@ const main = async () => {
   await mkdir(artifactRoot, { recursive: true });
 
   const server = await serveBuiltDocs();
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(
+    process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+      ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+      : undefined,
+  );
 
   try {
     for (const viewport of viewports) {

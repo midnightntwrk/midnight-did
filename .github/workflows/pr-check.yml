@@ -46,6 +46,7 @@ jobs:
             deps
             config
             harness
+            ci
             scripts
             jubjub-schnorr
             release
