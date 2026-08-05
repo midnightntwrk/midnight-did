@@ -431,10 +431,14 @@ const listArchiveEntries = (
   archivePath: string,
   limits: Required<MidnightDidZkArtifactLimits>,
 ): readonly string[] => {
-  const typedResult = spawnSync("tar", ["--numeric-owner", "-tvzf", archivePath], {
-    encoding: "utf8",
-    env: tarEnvironment,
-  });
+  const typedResult = spawnSync(
+    "tar",
+    ["--numeric-owner", "-tvzf", archivePath],
+    {
+      encoding: "utf8",
+      env: tarEnvironment,
+    },
+  );
   if (typedResult.status !== 0) {
     throw new MidnightDidZkArtifactError(
       "unsafe_archive",
