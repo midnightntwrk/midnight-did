@@ -15,7 +15,8 @@ Use this skill from the `midnight-did` repository, whether cloned independently 
 
 ## Defaults
 
-- Target branch is `develop` unless instructed otherwise.
+- Resolve the repository's current default branch before starting work; for
+  `midnight-did` it is currently `main`.
 - Use DCO/GPG for repository-facing commits: `git commit -S --signoff -m "<type>: <subject>"`.
 - Treat `~/.midnight-did` as sensitive local state.
 - Use the Nix development shell for local package-manager, Compact, and
@@ -26,14 +27,35 @@ Use this skill from the `midnight-did` repository, whether cloned independently 
 - Before pushing, verify `git log -1 --show-signature --pretty=fuller` shows a
   good signature and a `Signed-off-by` trailer.
 
+## Harness and worktree discipline
+
+- Use a dedicated worktree for implementation, validation, and review; do not
+  use a dirty primary checkout.
+- Create pull requests as drafts first. Do not mark a PR ready until the draft
+  gate and validation evidence are complete.
+- Run `npx dev-loops@0.9.0 doctor` and `npx dev-loops@0.9.0 gates` before a
+  dev-loop. Configuration errors are blockers, not warnings to ignore.
+- Keep `.devloops` limited to the schema supported by the pinned package.
+- Treat GitHub Issues, pull requests, and CI as authoritative lifecycle state.
+- Record a retrospective after meaningful audit or harness work, including
+  configuration drift, process gaps, and tracked follow-up actions.
+
 ## PR Gate (required before any PR)
 
 - Mandatory:
   - `./run.sh --light --strict`
   - `./run.sh core --strict`
   - `./run.sh integration-report`
+- For API, contract, integration, runner, or dependency changes:
+  - `./run.sh --strict`
+  - `./run.sh check-integration` when the local environment supports it
+- For docs-site or Nix/browser changes:
+  - `pnpm run docs:build`
+  - `pnpm run docs:visual` inside `nix develop`
 
-Do not open or push PRs before completing this gate.
+Do not open or push PRs before completing the applicable gate and verifying
+that the latest commit has both a good GPG signature and a `Signed-off-by`
+trailer.
 
 ## Validation
 
@@ -60,6 +82,12 @@ Resolver service, DID manager, and secret-storage validation moved to the
 `midnight-did-resolver` repository; do not add those targets back here.
 
 For shared JubJub Schnorr or contract changes, run `pnpm --filter ./packages/contract test`.
+
+For coverage work, keep deterministic V8 measurement and CI thresholds
+independent of any reporting provider. Classify each production module as
+unit-tested, integration-tested, intentionally excluded with a documented
+reason, or requiring additional tests. Aggregate coverage must not mask
+security- or state-critical orchestration modules.
 
 ## Release Testing
 
