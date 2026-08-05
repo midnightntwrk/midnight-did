@@ -31,6 +31,10 @@ Use this skill from the `midnight-did` repository, whether cloned independently 
 
 - Use a dedicated worktree for implementation, validation, and review; do not
   use a dirty primary checkout.
+- Periodically reconcile and clean the worktree: inspect `git status`, remove
+  generated/disposable artifacts with `./run.sh clean-artifacts`, and prune
+  stale worktree metadata only after confirming no active work depends on it.
+  Never delete unrelated user changes.
 - Create pull requests as drafts first. Do not mark a PR ready until the draft
   gate and validation evidence are complete.
 - Run `npx dev-loops@0.9.0 doctor` and `npx dev-loops@0.9.0 gates` before a
