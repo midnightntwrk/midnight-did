@@ -1,5 +1,8 @@
 {
   "packages": [
     "npm:dev-loops@0.9.0"
+  ],
+  "skills": [
+    "../.codex/skills"
   ]
 }

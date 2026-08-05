@@ -47,6 +47,20 @@ The harness is deliberately additive. GitHub Issues, pull requests, protected
 branches, and GitHub Actions remain the source of truth for work and CI state.
 Pi does not merge pull requests or replace branch protection.
 
+## Shared project skills
+
+Project-local skills are available to Pi through `.pi/settings.json`, which
+loads the repository's `.codex/skills` directory. The same generic skills are
+mirrored under `.claude/skills` for Claude Code and `.codex/skills` for Codex:
+
+- `ci-triage`: bounded CI monitoring and branch-owned failure classification;
+- `agents-pr-review`: read-only external-agent PR review and evidence handling;
+- `pr-merge-loop`: guarded stacked-PR operations that respect human-merge policy.
+
+The repository intentionally does not copy personal GitHub-access instructions,
+provider-specific Compact optimization notes, or autonomous stack-merging
+automation into the project. Those remain operator-specific global skills.
+
 ## Automation interfaces
 
 For a wrapper or CI experiment, Pi provides two structured local interfaces:
