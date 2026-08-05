@@ -21,7 +21,7 @@ export default defineConfig({
     reporters: ['default'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'html', 'lcov'],
       include: ['src/**/*.ts'],
       exclude: [
         'dist/**',
@@ -34,6 +34,12 @@ export default defineConfig({
         'vitest.unit.config.ts',
         'vitest.api.config.ts',
       ],
+      thresholds: {
+        branches: 75,
+        functions: 70,
+        lines: 75,
+        statements: 75,
+      },
     },
   },
   resolve: {
