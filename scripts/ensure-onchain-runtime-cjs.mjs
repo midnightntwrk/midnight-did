@@ -31,12 +31,10 @@ async function ensureFileExists(filePath) {
 }
 
 async function copyShim() {
-  if (!(await ensureFileExists(runtimeDir))) {
-    console.warn(
-      "[ensure-onchain-runtime-cjs] @midnight-ntwrk/onchain-runtime is not installed; skipping shim copy.",
-    );
-    return false;
-  }
+  // Compact Runtime v3 ships the Node filesystem entry point directly. The
+  // shim is only needed for the legacy package when it is installed at the
+  // repository root; its absence is therefore an expected no-op.
+  if (!(await ensureFileExists(runtimeDir))) return false;
 
   if (!(await ensureFileExists(sourceFile))) {
     throw new Error(
@@ -57,7 +55,10 @@ async function patchPackageJson() {
   const pkgBuffer = await fs.readFile(packageJsonPath, "utf8");
   const pkgJson = JSON.parse(pkgBuffer);
 
-  pkgJson.files = ensureEntry(pkgJson.files, "midnight_onchain_runtime_wasm_fs.cjs");
+  pkgJson.files = ensureEntry(
+    pkgJson.files,
+    "midnight_onchain_runtime_wasm_fs.cjs",
+  );
   pkgJson.sideEffects = ensureEntry(
     pkgJson.sideEffects,
     "./midnight_onchain_runtime_wasm_fs.cjs",

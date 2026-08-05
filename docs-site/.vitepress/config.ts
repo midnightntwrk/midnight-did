@@ -11,6 +11,13 @@ export default defineConfig({
     "Documentation for the Midnight DID contract, domain model, DID mapper, and API packages.",
   cleanUrls: true,
   lastUpdated: true,
+  vite: {
+    build: {
+      // Mermaid/Cynefin diagram bundles are intentionally larger than Vite's
+      // default threshold; they are lazy-loaded by the generated site.
+      chunkSizeWarningLimit: 700,
+    },
+  },
   appearance: false,
   markdown: {
     theme: "github-light",
