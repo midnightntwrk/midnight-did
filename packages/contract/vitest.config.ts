@@ -28,7 +28,7 @@ export default defineConfig({
     root: ".",
     coverage: {
       provider: "v8",
-      reporter: ["text", "json", "html"],
+      reporter: ["text", "json", "html", "lcov"],
       include: ["src/**/*.ts"],
       exclude: [
         "src/test/**",
@@ -42,7 +42,7 @@ export default defineConfig({
         branches: 25,
         functions: 73,
         lines: 72,
-        statements: -269
+        statements: 85
       }
     },
     reporters: ["default", ["junit", { outputFile: "reports/report.xml" }]]

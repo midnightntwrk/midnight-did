@@ -28,6 +28,9 @@ concurrency:
 
 jobs:
   run-pipeline:
+    permissions:
+      contents: read
+      pull-requests: read
     # Stable aggregate context for branch protection. Classification, setup,
     # core, package smoke, and API work are kept as steps to reduce duplicate
     # check contexts and avoid repeated shared setup.
@@ -90,3 +93,21 @@ jobs:
       - name: Run API workflow
         if: steps.scope.outputs.full_ci_required == 'true'
         run: ./run.sh api --strict
+
+      - name: Run test coverage and enforce thresholds
+        id: coverage
+        if: steps.scope.outputs.full_ci_required == 'true'
+        run: pnpm run coverage:all
+
+      - name: Upload coverage reports
+        if: always() && steps.coverage.outcome != 'skipped'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-coverage-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            packages/api/coverage
+            packages/contract/coverage
+            packages/did/coverage
+            packages/domain/coverage
+            packages/jubjub-schnorr/coverage

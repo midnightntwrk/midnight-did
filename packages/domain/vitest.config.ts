@@ -16,7 +16,7 @@ export default defineConfig({
     root: ".",
     coverage: {
       provider: "v8",
-      reporter: ["text", "json", "html"],
+      reporter: ["text", "json", "html", "lcov"],
       include: [
         "src/**/*.ts",
       ],
@@ -30,10 +30,10 @@ export default defineConfig({
         "vitest.config.ts"
       ],
       thresholds: {
-        branches: 70,
-        functions: 70,
-        lines: 70,
-        statements: 70
+        branches: 80,
+        functions: 90,
+        lines: 90,
+        statements: 90
       }
     }
   },
