@@ -6,7 +6,6 @@
 [![Release](https://github.com/midnightntwrk/midnight-did/actions/workflows/publish.yml/badge.svg?branch=main)](https://github.com/midnightntwrk/midnight-did/actions/workflows/publish.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/midnightntwrk/midnight-did/badge)](https://scorecard.dev/viewer/?uri=github.com/midnightntwrk/midnight-did)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13956/badge)](https://www.bestpractices.dev/projects/13956)
-[![codecov](https://codecov.io/gh/midnightntwrk/midnight-did/branch/main/graph/badge.svg)](https://codecov.io/gh/midnightntwrk/midnight-did)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/midnightntwrk/midnight-did/blob/main/LICENSE)
 [![Latest Release](https://img.shields.io/badge/release-v0.5.0-blue)](https://github.com/midnightntwrk/midnight-did/releases/latest)
 
@@ -134,7 +133,7 @@ Runner notes:
   builds or CI.
 - `run-core.sh`, `run-api.sh`, and `run-docs.sh` remain implementation details behind cataloged `./run.sh` targets.
 - Root `./run.sh` validates only DID core/API/docs. Resolver service, manager service, and secret-storage validation moved to `midnight-did-resolver`.
-- `pnpm run coverage:all` runs V8 coverage for all test-bearing packages and enforces the package thresholds configured in the Vitest configs. CI uploads the LCOV reports to Codecov and preserves the full reports as workflow artifacts.
+- `pnpm run coverage:all` runs V8 coverage for all test-bearing packages and enforces the package thresholds configured in the Vitest configs. CI preserves the LCOV reports as workflow artifacts while the reporting provider decision is pending.
 - `./run.sh clean-artifacts` removes generated outputs, nested local log
   directories, local Midnight runtime/test state (`.midnight-db/`,
   `.midnight-test/`, `midnight-level-db/`), and disposable historical

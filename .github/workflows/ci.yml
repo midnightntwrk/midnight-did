@@ -31,7 +31,6 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-      id-token: write
     # Stable aggregate context for branch protection. Classification, setup,
     # core, package smoke, and API work are kept as steps to reduce duplicate
     # check contexts and avoid repeated shared setup.
@@ -112,12 +111,3 @@ jobs:
             packages/did/coverage
             packages/domain/coverage
             packages/jubjub-schnorr/coverage
-
-      - name: Upload coverage to Codecov
-        if: steps.coverage.outcome == 'success'
-        uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1 # v7.0.0
-        with:
-          use_oidc: true
-          files: packages/api/coverage/lcov.info,packages/contract/coverage/lcov.info,packages/did/coverage/lcov.info,packages/domain/coverage/lcov.info,packages/jubjub-schnorr/coverage/lcov.info
-          disable_search: true
-          fail_ci_if_error: true
