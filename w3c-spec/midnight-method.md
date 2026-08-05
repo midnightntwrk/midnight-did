@@ -1173,7 +1173,7 @@ Using the DID extension to share the VC as a public ledger state is possible, bu
 
 ## 8.8. DID document changes
 
-All Midnight DIDs are created by deploying the smart contract with the corresponding public ledger state. The secret key is provided as a witness to authorize updates and is not published on-chain.
+All Midnight DIDs are created by deploying the smart contract with the corresponding public ledger state. Controller-gated updates are authorized with wallet-local Jubjub Schnorr signatures over the current operation intent; the controller secret is used only by the wallet or SDK to create the signature, is not sent to the authorization circuit or delegated proof server, and is not published on-chain.
 
 **NOTE**:
 Ledger-backed Midnight DID state exposes the latest contract state through the resolver profile, but the public on-chain transaction transcript already records the mutation history for the DID contract address. A future resolver or indexer profile could make that history easier to query and represent, but the privacy impact exists even without a dedicated history API.
