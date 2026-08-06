@@ -14,7 +14,6 @@ export const midnightDIDCompiledContract = CompiledContract.make(
   CompiledContract.withCompiledFileAssets(contractConfig.zkConfigPath),
 );
 
-export const midnightDIDContractInstance: MidnightDIDContract =
-  new (DIDContract.Contract as unknown as new (
-    ...args: any[]
-  ) => MidnightDIDContract)(witnesses);
+export const midnightDIDContractInstance: MidnightDIDContract = new (
+  DIDContract.Contract as unknown as new (...args: any[]) => MidnightDIDContract
+)(witnesses);
