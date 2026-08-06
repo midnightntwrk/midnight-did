@@ -94,11 +94,21 @@ async function fileExists(file) {
   }
 }
 
-async function resolveAgentReviewInvocation() {
+async function resolveRepoRoot(start = process.cwd()) {
+  let current = path.resolve(start);
+  while (true) {
+    if (await fileExists(path.join(current, ".git"))) return current;
+    const parent = path.dirname(current);
+    if (parent === current) return path.resolve(start);
+    current = parent;
+  }
+}
+
+async function resolveAgentReviewInvocation(repoRoot) {
   const configured = process.env.AGENT_REVIEW_CLI;
   const candidates = [
     configured,
-    path.join(process.cwd(), ".pi", "npm", "node_modules", REVIEW_PACKAGE),
+    path.join(repoRoot, ".pi", "npm", "node_modules", REVIEW_PACKAGE),
     path.join(os.homedir(), ".pi", "agent", "npm", "node_modules", REVIEW_PACKAGE),
     path.join(os.homedir(), ".pi", "npm", "node_modules", REVIEW_PACKAGE),
   ].filter(Boolean);
@@ -131,7 +141,7 @@ function run(command, args, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd = process.cwd(
 
     child.stdout.on("data", (chunk) => { stdout += chunk; });
     child.stderr.on("data", (chunk) => { stderr += chunk; });
-    child.on("error", (error) => finish({ ok: false, reason: error.message, exitCode: null }));
+    child.on("error", (error) => finish({ ok: false, reason: error.message, errorCode: error.code, exitCode: null }));
     child.on("close", (exitCode, signal) => finish({
       ok: exitCode === 0,
       reason: exitCode === 0 ? null : `exit ${exitCode ?? "unknown"}${signal ? ` (${signal})` : ""}`,
@@ -144,7 +154,7 @@ function commandText(invocation, args) {
   return [invocation.command, ...invocation.prefix, ...args].join(" ");
 }
 
-async function runExternalReview(options, invocation) {
+async function runExternalReview(options, invocation, repoRoot) {
   const bootstrapArgs = ["labels", "bootstrap", "--repo", options.repo];
   const requestArgs = ["request", "--repo", options.repo, "--pr", options.pr];
   if (options.reviewers.length) requestArgs.push("--reviewers", options.reviewers.join(","));
@@ -158,17 +168,17 @@ async function runExternalReview(options, invocation) {
     };
   }
 
-  const bootstrap = await run(invocation.command, [...invocation.prefix, ...bootstrapArgs], { timeoutMs: options.timeoutMs });
+  const bootstrap = await run(invocation.command, [...invocation.prefix, ...bootstrapArgs], { timeoutMs: options.timeoutMs, cwd: repoRoot });
   if (!bootstrap.ok) return { ok: false, step: "labels bootstrap", bootstrap };
-  const request = await run(invocation.command, [...invocation.prefix, ...requestArgs], { timeoutMs: options.timeoutMs });
+  const request = await run(invocation.command, [...invocation.prefix, ...requestArgs], { timeoutMs: options.timeoutMs, cwd: repoRoot });
   return { ok: request.ok, step: "request", bootstrap, request };
 }
 
-async function runLocalReview(agent, options, outputPath) {
+async function runLocalReview(agent, options, outputPath, repoRoot) {
   const prompt = agent === "claude"
     ? `/review ${options.url}`
     : `Review this pull request: ${options.url}. Focus on correctness, security, tests, docs, and release risk. Return actionable findings with file references.`;
-  const result = await run(agent, ["-p", prompt], { timeoutMs: options.timeoutMs });
+  const result = await run(agent, ["-p", prompt], { timeoutMs: options.timeoutMs, cwd: repoRoot });
   const content = [
     `Command: ${agent} -p ${prompt}`,
     `Exit: ${result.exitCode ?? "unavailable"}`,
@@ -178,30 +188,61 @@ async function runLocalReview(agent, options, outputPath) {
     result.stderr ? `\n[stderr]\n${result.stderr}` : "",
   ].join("\n");
   await writeFile(outputPath, content, "utf8");
-  return { agent, ok: result.ok, outputPath, reason: result.reason };
+  const unavailable = result.errorCode === "ENOENT";
+  return {
+    agent,
+    ok: result.ok,
+    available: !unavailable,
+    status: unavailable ? "unavailable" : result.ok ? "completed" : "failed",
+    outputPath,
+    reason: result.reason,
+  };
+}
+
+function compactProcessResult(result) {
+  if (!result) return result;
+  return {
+    ok: result.ok,
+    reason: result.reason,
+    errorCode: result.errorCode,
+    exitCode: result.exitCode,
+  };
 }
 
 function serializable(result) {
   if (!result) return result;
-  if (result.stdout !== undefined || result.stderr !== undefined) {
-    return { ok: result.ok, step: result.step, reason: result.reason, exitCode: result.exitCode };
+  if (result.bootstrap || result.request) {
+    return {
+      ok: result.ok,
+      step: result.step,
+      bootstrap: compactProcessResult(result.bootstrap),
+      request: compactProcessResult(result.request),
+    };
   }
+  if (result.stdout !== undefined || result.stderr !== undefined) return compactProcessResult(result);
   return result;
 }
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
+  const repoRoot = await resolveRepoRoot();
   const repoSlug = options.repo.replaceAll("/", "-");
   const sha = options.headsha.slice(0, 12);
-  const ledgerPath = path.join("tmp", "peer-reviews", repoSlug, `pr-${options.pr}`, `${options.headsha}.json`);
-  if (!options.force && await fileExists(ledgerPath)) {
-    const previous = JSON.parse(await readFile(ledgerPath, "utf8"));
-    console.log(JSON.stringify({ ok: true, status: "already-dispatched", ledgerPath, previous }, null, 2));
-    return;
+  const ledgerPath = path.join(repoRoot, "tmp", "peer-reviews", repoSlug, `pr-${options.pr}`, `${options.headsha}.json`);
+  if (!options.force && !options.dryRun && await fileExists(ledgerPath)) {
+    try {
+      const previous = JSON.parse(await readFile(ledgerPath, "utf8"));
+      if (previous.ok === true) {
+        console.log(JSON.stringify({ ok: true, status: "already-dispatched", ledgerPath, previous }, null, 2));
+        return;
+      }
+    } catch {
+      // A corrupt or incomplete ledger must not suppress a retry.
+    }
   }
 
-  const invocation = await resolveAgentReviewInvocation();
-  const outputDir = path.join("review");
+  const invocation = await resolveAgentReviewInvocation(repoRoot);
+  const outputDir = path.join(repoRoot, "review");
   const localOutput = options.localAgents.map((agent) => ({
     agent,
     path: path.join(outputDir, `${repoSlug}-${options.pr}.${agent}-${sha}-review.txt`),
@@ -210,19 +251,22 @@ async function main() {
     console.log(JSON.stringify({
       ok: true,
       status: "dry-run",
-      external: await runExternalReview(options, invocation),
+      external: await runExternalReview(options, invocation, repoRoot),
       local: localOutput.map(({ agent, path: outputPath }) => ({ agent, outputPath, command: `${agent} -p <PR review prompt>` })),
     }, null, 2));
     return;
   }
 
   await mkdir(outputDir, { recursive: true });
-  const externalPromise = runExternalReview(options, invocation);
-  const localPromise = Promise.all(localOutput.map(({ agent, path: outputPath }) => runLocalReview(agent, options, outputPath)));
+  const externalPromise = runExternalReview(options, invocation, repoRoot);
+  const localPromise = Promise.all(localOutput.map(({ agent, path: outputPath }) => runLocalReview(agent, options, outputPath, repoRoot)));
   const [external, local] = await Promise.all([externalPromise, localPromise]);
+  const localFailures = local.filter((review) => review.available && !review.ok);
+  const localWarnings = local.filter((review) => !review.available);
+  const ok = external.ok && localFailures.length === 0;
   const result = {
-    ok: external.ok && local.every((review) => review.ok),
-    status: external.ok && local.every((review) => review.ok) ? "completed" : "blocked",
+    ok,
+    status: ok ? (localWarnings.length ? "completed-with-warnings" : "completed") : "blocked",
     repo: options.repo,
     pr: Number(options.pr),
     url: options.url,
