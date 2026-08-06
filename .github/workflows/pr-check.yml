@@ -45,6 +45,7 @@ jobs:
             docs
             deps
             config
+            harness
             ci
             scripts
             jubjub-schnorr

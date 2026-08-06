@@ -1,10 +1,33 @@
 # Repository-specific dev-loops policy for midnight-did.
-# Keep repository rules in AGENT.md and the bundled midnight-identity skill.
+#
+# This file must use the schema supported by the pinned dev-loops package.
+# Repository engineering rules and command-level validation live in AGENT.md and
+# the bundled midnight-identity skill.
+version: 1
 
-repository:
-  defaultBaseBranch: develop
-  requirePrBase: develop
+# The repository's current GitHub default branch is main. Base-branch policy is
+# documented in AGENT.md because dev-loops 0.9.0 does not expose a repository
+# base-branch field in this file schema.
 
+refinement:
+  fanOut: 3
+  mode: parallel
+  # This repository uses the configured local review fan-out; Copilot follow-up
+  # is not an automatic gate.
+  maxCopilotRounds: 0
+  stopOnLowSignal: false
+  lowSignalRoundThreshold: 3
+  lowSignalMaxComments: 2
+  roles:
+    - scope
+    - coverage
+    - correctness
+    - security
+    - midnight-did-surface
+    - contract-artifacts
+
+# Draft and pre-approval gates use repository-specific DID/Compact lenses in
+# addition to the standard lifecycle checks.
 gates:
   draft:
     angles:
@@ -21,6 +44,10 @@ gates:
       - midnight-did-surface
       - security
       - external-review
+    mandatoryAngles:
+      - pr-description
+    required: true
+    requireCi: true
   preApproval:
     angles:
       - correctness
@@ -35,6 +62,15 @@ gates:
       - security
       - midnight-did-surface
       - external-review
+    mandatoryAngles:
+      - pr-checklist-matrix
+    required: true
+    requireCi: true
+  requireFanoutEvidence: true
+  requireFanoutProvenance: false
+  maxFanoutReviewers: 8
+  postFindingsComments: true
+  rejectForeignAngles: true
 
 personas:
   security:
@@ -68,25 +104,18 @@ personas:
   external-review:
     persona: review
     prompt: >-
-      Run independent PR review with configured external reviewers when
-      available. Focus on correctness, security, stale docs, API compatibility,
-      tests, and regression risk. For Compact changes, check authorization
-      binding, witness secrecy, managed artifact freshness, circuit k/size
-      changes, and spec/docs drift. Do not modify files. Return only actionable
-      findings with file/line references, or "No findings".
+      Independently review the PR for correctness, security, stale docs, API
+      compatibility, tests, and regression risk. For Compact changes, check
+      authorization binding, witness secrecy, managed artifact freshness,
+      circuit k/size changes, and spec/docs drift. Do not modify files. Return
+      only actionable findings with file/line references, or No findings.
     defaultModel: null
 
-refinement:
-  fanOut: 3
-  maxCopilotRounds: 0
-
 autonomy:
-  # Draft PR creation is a pause before human review, not a hard stop for the
-  # post-draft automation below. The loop may run external review, triage,
-  # local fixes, validation, and CI watch while the PR remains draft, but it
-  # must stop before marking ready for human review or merging.
+  # Allow the loop to complete draft review and feedback triage, but stop at
+  # the pre-approval human checkpoint. Merge is always human-only.
   stopAt:
-    - ready-for-review
+    - pre-approval
     - merge
   humanMergeOnly: true
 
@@ -94,165 +123,3 @@ workflow:
   requireDraftFirst: true
   requireRetrospective: true
   devModeDefault: false
-  preflight:
-    fetchBaseBeforeWork: true
-    failIfPrBaseNotDefault: true
-  postDraftPr:
-    - external-review
-    - triage-review-feedback
-    - apply-review-fixes
-    - validate
-    - summarize-review-triage
-  readyForReviewAfter:
-    - validate
-    - summarize-review-triage
-
-validation:
-  preCommit:
-    required: true
-    commands:
-      light:
-        command: ./run.sh --light --strict
-        required: true
-        when: always
-      fullForContractApiOrIntegration:
-        command: ./run.sh --strict
-        required: true
-        whenChanged:
-          - packages/contract/**
-          - packages/api/**
-          - packages/jubjub-schnorr/**
-          - "**/*.compact"
-          - packages/**/src/test/**
-          - packages/**/test/**
-          - integration/**
-          - tests/**
-          - scripts/report-integration.mjs
-          - scripts/smoke-*.mjs
-          - run.sh
-          - flake.nix
-          - flake.lock
-          - package.json
-          - pnpm-lock.yaml
-          - turbo.json
-      integrationForContractApiOrIntegration:
-        command: ./run.sh check-integration
-        required: true
-        whenChanged:
-          - packages/contract/**
-          - packages/api/**
-          - packages/jubjub-schnorr/**
-          - "**/*.compact"
-          - integration/**
-          - tests/**
-          - scripts/report-integration.mjs
-          - scripts/smoke-*.mjs
-          - run.sh
-  prePr:
-    required: true
-    repeatPreCommit: true
-    failIfMissingEvidence: true
-  ordering:
-    - ./run.sh --light --strict
-    - ./run.sh --strict
-    - ./run.sh check-integration
-  evidence:
-    record:
-      - command
-      - exitCode
-      - timestamp
-      - changedFileTrigger
-
-externalReview:
-  enabled: true
-  trigger:
-    - afterDraftPrCreated
-    - afterMeaningfulPush
-  maxRounds: 2
-  requireCleanWorktreeBeforeReview: true
-  requireDraftPr: true
-  reviewers:
-    claude:
-      enabled: true
-      command: >-
-        claude --print --allowedTools 'Bash(git *),Bash(gh *),Bash(rg *),Read'
-    codex:
-      enabled: true
-      command: >-
-        codex -m gpt-5.5 review --base origin/develop
-  instructions: >-
-    Review this PR for correctness, security, stale docs, API compatibility,
-    tests, and regression risk. Do not modify files. Return only actionable
-    findings with file/line references, or "No findings".
-
-reviewTriage:
-  agentMay:
-    - inspectFindings
-    - classifyFindings
-    - implementValidFixes
-    - addRegressionTests
-    - updateDocs
-    - postTriageSummary
-  agentMustNot:
-    - dismissHumanReview
-    - markReadyBeforeValidation
-    - merge
-  stopForHumanOn:
-    - architecturalDisagreement
-    - publicApiBreakingChange
-    - unresolvedSecurityTradeoff
-    - unclearProductDecision
-    - finalApproval
-  staleReviewHandling:
-    enabled: true
-    classifyOlderCommitFindings: stale-if-fixed
-  validationAfterFixes:
-    - ./run.sh --light --strict
-    - ./run.sh --strict
-    - ./run.sh check-integration
-
-ciWatch:
-  enabled: true
-  trigger:
-    - afterDraftPrCreated
-    - afterPush
-    - afterReadyForReview
-  maxConsecutiveFailures: 5
-  pollIntervalSeconds: 30
-  timeoutMinutesPerHeadSha: 45
-  fetchLogs:
-    enabled: true
-    include:
-      - failedChecks
-      - failedJobs
-      - annotations
-      - conclusion
-      - workflowName
-      - jobName
-  triage:
-    classify:
-      - repoFixable
-      - flakyOrTransient
-      - ciConfigRequired
-      - githubSettingsRequired
-      - secretsOrPermissionsRequired
-      - externalServiceOutage
-      - unknownAfterInvestigation
-    stopForUserOn:
-      - ciConfigRequired
-      - githubSettingsRequired
-      - secretsOrPermissionsRequired
-      - externalServiceOutage
-      - unknownAfterInvestigation
-  fixLoop:
-    enabled: true
-    maxFixCommitsPerCycle: 1
-    requireSignedCommits: true
-    requireDco: true
-    validateLocallyBeforePush: true
-    validationPreference:
-      - narrowFailedTarget
-      - ./run.sh --light --strict
-      - ./run.sh --strict
-      - ./run.sh check-integration
-    pushAfterFix: true
