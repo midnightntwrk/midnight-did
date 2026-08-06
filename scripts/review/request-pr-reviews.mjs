@@ -76,6 +76,10 @@ function parseArgs(argv) {
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(options.repo)) {
     throw new Error("--repo must be owner/name");
   }
+  const [owner, repository] = options.repo.split("/");
+  if (owner === "." || owner === ".." || repository === "." || repository === "..") {
+    throw new Error("--repo must be owner/name");
+  }
   options.url ??= `https://github.com/${options.repo}/pull/${options.pr}`;
   options.reviewers = options.reviewers ? csv(options.reviewers) : [];
   options.skills = options.skills ? csv(options.skills) : [];
@@ -123,13 +127,14 @@ async function resolveAgentReviewInvocation(repoRoot) {
   }
   const candidates = [
     path.join(repoRoot, ".pi", "npm", "node_modules", REVIEW_PACKAGE),
+    path.join(repoRoot, "node_modules", ".bin", "agent-review"),
     path.join(os.homedir(), ".pi", "agent", "npm", "node_modules", REVIEW_PACKAGE),
     path.join(os.homedir(), ".pi", "npm", "node_modules", REVIEW_PACKAGE),
   ].filter(Boolean);
 
   for (const candidate of candidates) {
     if (await fileExists(candidate)) {
-      if (candidate.endsWith(".js")) return { command: process.execPath, prefix: [candidate] };
+      if (/\.[cm]?js$/i.test(candidate)) return { command: process.execPath, prefix: [candidate] };
       return { command: candidate, prefix: [] };
     }
   }

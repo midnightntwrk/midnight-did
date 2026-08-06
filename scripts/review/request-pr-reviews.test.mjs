@@ -3,7 +3,7 @@ import { execFile } from "node:child_process";
 import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
-import { dirname, join, resolve } from "node:path";
+import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -58,7 +58,7 @@ test("rejects malformed repository names", async () => {
   assert.match(result.stderr, /repo must be owner\/name/);
 });
 
-test("reuses only a successful per-head ledger", async () => {
+test("reuses only a successful per-head ledger", { skip: process.platform === "win32" }, async () => {
   const temporaryRepo = await mkdtemp(join(tmpdir(), "pr-review-dispatch-"));
   const bin = join(temporaryRepo, "bin");
   await mkdir(bin);
@@ -76,7 +76,7 @@ test("reuses only a successful per-head ledger", async () => {
     ...process.env,
     AGENT_REVIEW_CLI: external,
     REVIEW_TEST_LOG: log,
-    PATH: `${bin}:${process.env.PATH ?? ""}`,
+    PATH: `${bin}${delimiter}${process.env.PATH ?? ""}`,
   };
   const args = [
     "--repo", "example/repo",
