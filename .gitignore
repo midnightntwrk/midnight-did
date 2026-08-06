@@ -24,6 +24,10 @@ test-results/
 # Test reports
 **/reports
 
+# Local PR review dispatch artifacts
+/review/
+/tmp/peer-reviews/
+
 # Dependency directories
 jspm_packages/
 
