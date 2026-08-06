@@ -13,7 +13,8 @@ refinement:
   fanOut: 3
   mode: parallel
   # This repository uses the configured local review fan-out; Copilot follow-up
-  # is not an automatic gate.
+  # is not an automatic gate. The post-PR dispatch wrapper also requests the
+  # configured GitHub-routed reviewer; see AGENT.md.
   maxCopilotRounds: 0
   stopOnLowSignal: false
   lowSignalRoundThreshold: 3
