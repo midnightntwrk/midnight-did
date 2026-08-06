@@ -80,6 +80,7 @@ authorization signature model.
 ## Ledger-Bound SchnorrJubjub Verification
 
 `verifySchnorrJubjubDigestSignature` accepts a verification method id, private
-digest, and private signature. It reads the public key from
+digest, and private signature. The private circuit inputs are the digest and
+signature, not the controller secret. It reads the public key from
 `schnorrJubjubVerificationMethods`, so the proof is tied to the current DID
 ledger state instead of a caller-supplied public key.

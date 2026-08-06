@@ -218,6 +218,35 @@ test("validateContentRules reports stale endpoints and spec labels", async () =>
   }
 });
 
+test("validateContentRules catches retired controller-secret witness prose", async () => {
+  const root = await mkdtemp(resolve(tmpdir(), "docs-validate-"));
+  try {
+    await mkdir(resolve(root, "docs-site", "scripts"), { recursive: true });
+    await mkdir(resolve(root, "w3c-spec"), { recursive: true });
+    await writeFile(resolve(root, "docs-site", "index.md"), "# Home\n");
+    await writeFile(
+      resolve(root, "w3c-spec", "midnight-method.md"),
+      "The secret key is provided as a witness to authorize updates.\n",
+    );
+    await writeFile(
+      resolve(root, "docs-site", "scripts", "sync-network-endpoints.mjs"),
+      "Treat the remote service as trusted with controller-secret witness material.\n",
+    );
+
+    const failures = await validateContentRules(root);
+    assert.equal(failures.length, 2);
+    assert.deepEqual(
+      failures.map((failure) => failure.message),
+      [
+        "stale controller-secret authorization model; document wallet-local signatures instead",
+        "stale controller-secret authorization model; document wallet-local signatures instead",
+      ],
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
 test("validateAccessRequiredLinks requires a caveat for private repo links", async () => {
   const root = await mkdtemp(resolve(tmpdir(), "docs-validate-"));
   try {
