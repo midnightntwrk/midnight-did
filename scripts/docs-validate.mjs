@@ -250,6 +250,16 @@ const staleContentRules = [
     pattern: /Midnight DID Specification Draft v0\.2/iu,
     message: "stale Midnight DID specification version label",
   },
+  {
+    pattern: /secret key is provided as a witness to authorize updates/iu,
+    message:
+      "stale controller-secret authorization model; document wallet-local signatures instead",
+  },
+  {
+    pattern: /controller-secret witness material/iu,
+    message:
+      "stale controller-secret authorization model; document wallet-local signatures instead",
+  },
 ];
 
 const accessRequiredGithubRepos = new Set([]);
@@ -277,7 +287,7 @@ const markdownFilesUnder = async (root) =>
     ? walkFiles(root, (filePath) => extname(filePath) === ".md")
     : [];
 
-const documentationMarkdownEntries = async (root = repoRoot) => {
+const documentationEntries = async (root = repoRoot) => {
   const localDocsRoot = resolve(root, "docs-site");
   const localSpecRoot = resolve(root, "w3c-spec");
   const localPackagesRoot = resolve(root, "packages");
@@ -294,7 +304,16 @@ const documentationMarkdownEntries = async (root = repoRoot) => {
       )
     : [];
 
-  const files = [...docsFiles, ...specFiles, ...rootFiles, ...packageReadmes];
+  const sourceFiles = [
+    resolve(root, "docs-site/scripts/sync-network-endpoints.mjs"),
+  ].filter((filePath) => existsSync(filePath));
+  const files = [
+    ...docsFiles,
+    ...specFiles,
+    ...rootFiles,
+    ...packageReadmes,
+    ...sourceFiles,
+  ];
   return Promise.all(
     files.map(async (filePath) => ({
       filePath,
@@ -306,7 +325,7 @@ const documentationMarkdownEntries = async (root = repoRoot) => {
 const validateContentRules = async (root = repoRoot) => {
   const failures = [];
 
-  for (const entry of await documentationMarkdownEntries(root)) {
+  for (const entry of await documentationEntries(root)) {
     for (const rule of staleContentRules) {
       const match = rule.pattern.exec(entry.content);
       if (match) {
