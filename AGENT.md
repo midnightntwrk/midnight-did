@@ -31,10 +31,12 @@ compact update 0.30.0
 ```
 
 The Nix development shell is the expected local environment. It provides the
-repository baseline for Node.js, pnpm, the Compact toolchain, supporting CLI
-dependencies, and the Chromium executable used by docs visual checks. When
-changing tool versions or environment dependencies, update `flake.nix` /
-`flake.lock` and the setup documentation in the same PR.
+repository baseline for Node.js, pnpm, the Compact toolchain, the pinned Pi
+CLI, supporting CLI dependencies, and the Chromium executable used by docs
+visual checks. The project-local Pi settings provide the agent-peer-review
+extension and skill; enter `nix develop` before using Pi. When changing tool
+versions or environment dependencies, update `flake.nix` / `flake.lock` and
+the setup documentation in the same PR.
 
 Fast validation:
 
