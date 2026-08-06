@@ -29,6 +29,22 @@ Routing rules:
   request, label, claim, or approval gate. Conversely, a routed review must not
   be replaced by a local CLI run.
 
+### Dev-loop automatic dispatch
+
+When the repository dev-loop invokes the post-PR review seam, the local mode is
+explicitly selected by that seam. Run the repository wrapper once after draft
+PR creation and once after every push that changes the PR head:
+
+```bash
+node scripts/review/request-pr-reviews.mjs \
+  --repo <owner/name> --pr <number> --head-sha <current-head-sha>
+```
+
+The wrapper runs the configured local CLIs and requests the configured GitHub
+reviewer through `agent-review`. It records a per-head ledger so repeated
+resume/detection passes do not rerun a completed dispatch. Inspect the local
+review artifacts before continuing; findings remain advisory until verified.
+
 ## Preconditions
 
 - Run from the relevant local git repository or a dedicated worktree; do not

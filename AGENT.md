@@ -164,6 +164,14 @@ For shared Schnorr changes, run:
 pnpm --filter ./packages/contract test
 ```
 
+## PR review dispatch
+
+The dev-loop must run `scripts/review/request-pr-reviews.mjs` after creating a
+PR and after every push that changes its head SHA. This dispatch runs the local
+review CLIs and requests the configured GitHub-routed reviewer; it is keyed by
+head SHA so resume passes are idempotent. Review the generated artifacts and
+verify findings before continuing the PR loop.
+
 ## Development Cycle
 
 1. Start from the repository's current default branch (`origin/main` for this repository) unless asked otherwise.
