@@ -1,11 +1,51 @@
 ---
 name: agents-pr-review
-description: Use this when the user wants a second-opinion PR review from external coding agents such as Claude Code or Antigravity. Run one or both agents against a GitHub pull request URL, wait up to five minutes for each output, and summarize actionable findings. Store output under the workspace review/ directory when persistence is useful.
+description: Use this for an explicitly requested local second-opinion PR review by Claude Code or Antigravity installed on this machine. Run one or both local CLIs against a GitHub pull request URL, wait up to five minutes for each output, and summarize actionable findings. This is distinct from the GitHub-routed agent-review skill.
 ---
 
-# Agents PR Review
+# Local Agents PR Review
 
-Use this skill when the user wants another agent's point of view on a pull request.
+Use this skill only for the **local-CLI review mode**: an operator explicitly asks
+for Claude Code, Antigravity (`agy`), or another reviewer CLI configured on this
+machine to inspect a PR.
+
+This skill is intentionally separate from the `agent-review` skill supplied by
+`@input-output-hk/agent-review-pi`:
+
+| Mode | Select when | Transport | Result |
+| --- | --- | --- | --- |
+| Local second opinion (this skill) | The user names a local reviewer/CLI, asks for a local review, or asks to run configured agents | `claude`/`agy` in the local checkout | Advisory output saved under `review/`; no GitHub review request or review submission |
+| Routed peer review (`agent-review`) | The user asks for an engineer's/peer agent's review, an `ai-review`, or the repository's GitHub review convention | GitHub `ai-review` label + native review request/claim tools | A pinned, native GitHub review; the anchor/enricher panel protocol applies |
+
+Routing rules:
+
+- Prefer the routed `agent-review` mode for an unqualified “peer review” or
+  “request a review” request when that integration is installed.
+- Use this local mode only when local execution is explicit or the routed
+  integration is unavailable and the user accepts the fallback.
+- Do not run both modes by default. Run both only when the user explicitly asks
+  for local and routed reviews.
+- A local result is advisory evidence and does not satisfy a GitHub review
+  request, label, claim, or approval gate. Conversely, a routed review must not
+  be replaced by a local CLI run.
+
+### Dev-loop automatic dispatch
+
+When the repository dev-loop invokes the post-PR review seam, the local mode is
+explicitly selected by that seam. Run the repository wrapper once after draft
+PR creation and once after every push that changes the PR head:
+
+```bash
+node scripts/review/request-pr-reviews.mjs \
+  --repo <owner/name> --pr <number> --head-sha <current-head-sha>
+```
+
+The wrapper runs the configured local CLIs and requests the configured GitHub
+reviewer through `agent-review`. It records a per-head ledger so repeated
+resume/detection passes do not rerun a completed dispatch. A missing or failed
+local CLI is reported as a warning; the GitHub-routed request remains required.
+Inspect the local review artifacts before continuing; findings remain advisory
+until verified.
 
 ## Preconditions
 
@@ -41,16 +81,19 @@ Notes:
 - The command is `/review`, not `/reivew`.
 - In Codex shell usage, run it with `shell="bash"` and `login=true` when possible.
 - Give each agent up to 5 minutes before deciding it is hung or silent.
-- Treat external agent output as input to verify, not as a final answer.
+- Treat local agent output as input to verify, not as a final answer.
 
 ## When to run it
 
-Run a fresh agent review:
+Run a fresh **local** review only when the local mode was selected by the
+routing rules above, for example:
 
-- after opening a new PR
-- after pushing new commits to an existing PR
-- after addressing substantive review feedback
-- when the user asks for Claude, Antigravity, `agy`, or multi-agent PR review
+- the user explicitly asks for Claude, Antigravity, `agy`, or configured local agents
+- the user asks to rerun the local second opinion after substantive changes
+- a merge-loop operator explicitly selects local review as the repository's review route
+
+Do not start this skill merely because a PR was opened or updated when the
+repository uses the GitHub-routed `agent-review` convention.
 
 Overwrite the same artifact file if you want the latest review for that PR, or use a timestamped variant if the history matters.
 
@@ -126,11 +169,14 @@ cat <workspace-root>/review/<repo>-<pr-number>.claude.exitcode 2>/dev/null || tr
 ## Guardrails
 
 - Do not invent review findings if the command fails or produces no output.
-- Treat external review as advisory evidence; verify every finding against the
-  current PR head before changing code.
+- Treat local CLI output as advisory evidence; verify every finding against the
+  pinned/current PR head before changing code.
+- This skill never calls `review_create`, `review_claim`, `review_complete`, or
+  `review_enrich`, and never adds/removes GitHub review labels or requests.
 - Do not mark a PR ready or merge it from this review skill; leave lifecycle
   transitions to the repository's dev-loop and human approval policy.
-- If a requested agent is unavailable or authentication is missing, report that plainly and continue with any available requested agents.
+- If a requested local agent is unavailable or authentication is missing, report
+  that plainly and continue with any other explicitly requested local agent.
 - Keep the PR URL exact; do not substitute branch diffs when the user explicitly asked for PR review.
 - Prefer direct commands and a 5-minute wait before switching to background execution.
 - Keep review artifacts inside the workspace `review/` directory unless the user explicitly asks for another location.

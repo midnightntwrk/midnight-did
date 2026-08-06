@@ -46,6 +46,28 @@ Typical cases:
 For private GitHub access, use the operator's configured GitHub authentication
 without committing tokens or personal access instructions.
 
+## Review-route selection
+
+This skill does not choose between the two PR-review integrations by wording
+alone. Select exactly one route per PR unless the operator explicitly asks for
+both:
+
+- **GitHub-routed peer review (preferred when configured):** use the `agent-review`
+  skill and its `ai-review` label/native request, claim, and completion
+  convention. This is the review of record for the engineer's agent.
+- **Local second opinion:** use `agents-pr-review` only when the operator
+  explicitly selects Claude Code/Antigravity or local configured agents. Its
+  output is advisory and does not create GitHub review evidence.
+
+An unqualified “peer review” or “request a review” means the GitHub-routed route
+when it is installed. Never silently run both routes, and never count a local
+CLI transcript as a substitute for a requested GitHub review.
+
+For repository-managed PRs, invoke `scripts/review/request-pr-reviews.mjs`
+after PR creation and after every push that advances the PR head. The wrapper
+is the single dispatch point for both configured local agents and the
+GitHub-routed reviewer; its per-head ledger makes retries safe.
+
 ## Default Merge Gates
 
 Resolve the repository's actual default/base branch from GitHub; do not assume
@@ -60,10 +82,9 @@ Do not merge a PR until all of these are true:
 1. PR is not draft
 2. PR is mergeable
 3. required CI checks are green
-4. required review pass is complete
-5. Claude PR review has been run for that PR
-6. critical Claude findings are fixed
-7. GPG/DCO requirements are satisfied if the repo expects them
+4. the selected review route is complete
+5. all blocking findings from that route are fixed and verified
+6. GPG/DCO requirements are satisfied if the repo expects them
 
 If any gate is unclear, report it explicitly before merging.
 
@@ -71,12 +92,16 @@ If any gate is unclear, report it explicitly before merging.
 
 For each PR in the queue:
 
-1. run Claude review on the PR URL
-2. store the artifact under `<repo>/review/` when useful
-3. fix critical findings before merge
-4. rerun Claude review after substantive fixes when the PR changed materially
+1. select the review route using the policy above
+2. complete that route against the exact PR URL/head
+3. fix blocking findings before merge
+4. rerun the selected route after substantive fixes when the PR changed materially
 
-Use the repository's `agents-pr-review` skill for the review step.
+For the GitHub-routed route, follow the `agent-review` skill's pinned-SHA,
+anchor/enricher, and native completion protocol. For the local route, follow
+`agents-pr-review`; save its advisory artifact under `<repo>/review/` when
+useful. Do not use a local transcript to satisfy GitHub review-request or
+approval evidence.
 
 ## Execution Loop
 
@@ -139,7 +164,7 @@ Stop immediately if:
 
 - a baseline PR fails CI for a real reason
 - mergeability changes to conflicting and needs real conflict resolution
-- a Claude review finds a critical issue not yet fixed
+- the selected review route finds a critical issue not yet fixed
 - the next PR depends on assumptions invalidated by the merge below it
 - stack depth or drift makes another stacked step low quality
 
