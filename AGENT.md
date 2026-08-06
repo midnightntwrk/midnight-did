@@ -31,14 +31,22 @@ compact update 0.30.0
 ```
 
 The Nix development shell is the expected local environment. It provides the
-repository baseline for Node.js, pnpm, the Compact toolchain, and supporting
-CLI dependencies. When changing tool versions or environment dependencies,
-update `flake.nix` / `flake.lock` and the setup documentation in the same PR.
+repository baseline for Node.js, pnpm, the Compact toolchain, supporting CLI
+dependencies, and the Chromium executable used by docs visual checks. When
+changing tool versions or environment dependencies, update `flake.nix` /
+`flake.lock` and the setup documentation in the same PR.
 
 Fast validation:
 
 ```bash
 ./run.sh --light --strict
+```
+
+For docs-site or Nix/browser changes, also run from `nix develop`:
+
+```bash
+pnpm run docs:build
+pnpm run docs:visual
 ```
 
 Current baseline: this repository is pnpm/Turbo-native and long-running API
@@ -156,8 +164,8 @@ pnpm --filter ./packages/contract test
 
 ## Development Cycle
 
-1. Start from `origin/develop` unless asked otherwise.
-2. Create a focused branch, normally with `codex/` prefix.
+1. Start from the repository's current default branch (`origin/main` for this repository) unless asked otherwise.
+2. Create a focused branch, normally with `codex/` prefix, in a dedicated worktree rather than the main checkout.
 3. Change the owning package and nearby docs/tests together.
 4. Run a focused package lane.
 5. Keep public behavior, package exports, documentation, and tests in the same
@@ -170,7 +178,11 @@ pnpm --filter ./packages/contract test
    `fix: omit empty DID relations` or `docs: clarify release artifacts`.
 9. Write PR descriptions that explain what changed, why it changed, how it was
    validated, and which issues are closed.
-10. Commit with DCO and GPG for repository-facing work.
+10. Keep the worktree clean before creating a draft PR; unrelated local edits
+    must remain outside the branch.
+11. Create PRs as drafts first and do not mark them ready until the draft gate
+    and validation evidence are complete.
+12. Commit with DCO and GPG for repository-facing work.
 
 Commit form:
 
@@ -184,6 +196,27 @@ Before pushing, verify the latest commit includes a good signature and
 ```bash
 git log -1 --show-signature --pretty=fuller
 ```
+
+## Dev-loop and retrospective discipline
+
+The pinned dev-loop configuration is schema-validated. Run these checks before
+starting or resuming a loop and treat configuration errors as blockers:
+
+```bash
+npx dev-loops@0.9.0 doctor
+npx dev-loops@0.9.0 gates
+```
+
+The repository uses `main` as its current default branch. Do not reintroduce
+`develop` as a default in skills, review commands, or local branch instructions.
+The `.devloops` file contains only keys supported by the pinned package; command
+validation, coverage policy, docs visual checks, and CI triage remain in this
+file and the synchronized repository skills.
+
+For every retrospective, record what worked, what failed, configuration drift,
+process gaps, and one or more tracked follow-up actions. Do not treat a green
+aggregate result as proof that critical modules, warnings, or runtime assets
+were covered.
 
 ## pnpm and Turbo Notes
 
