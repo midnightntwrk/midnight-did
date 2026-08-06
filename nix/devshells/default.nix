@@ -43,7 +43,7 @@
           # into the Nix store. The project settings remain the source of truth.
           if [ -f .pi/settings.json ] && [ -n "''${GITHUB_TOKEN:-}" ] && [ ! -d .pi/npm/node_modules/@input-output-hk/agent-review-pi ]; then
             echo "Installing project-local agent-peer-review Pi package..."
-            pi install npm:@input-output-hk/agent-review-pi@0.3.0 --local --approve
+            pi install npm:@input-output-hk/agent-review-pi@0.4.0 --local --approve
           fi
         '';
       };
