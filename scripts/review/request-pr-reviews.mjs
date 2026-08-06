@@ -54,7 +54,12 @@ function parseArgs(argv) {
     const key = arg.slice(2).replaceAll("-", "");
     const value = argv[++i];
     if (!value || value.startsWith("--")) throw new Error(`${arg} requires a value`);
-    if (key === "localagents") options.localAgents = csv(value);
+    if (key === "localagents") {
+      options.localAgents = csv(value);
+      if (options.localAgents.some((agent) => !/^[A-Za-z0-9_-]+$/.test(agent))) {
+        throw new Error("--local-agents entries must be executable names containing only letters, numbers, _ or -");
+      }
+    }
     else if (key === "timeoutms") options.timeoutMs = positiveInt(value, "--timeout-ms");
     else if (["repo", "pr", "headsha", "url", "reviewers", "skills"].includes(key)) {
       options[key] = value;
@@ -106,6 +111,9 @@ async function resolveRepoRoot(start = process.cwd()) {
 
 async function resolveAgentReviewInvocation(repoRoot) {
   const configured = process.env.AGENT_REVIEW_CLI;
+  if (configured && !configured.includes("/") && !configured.includes("\\")) {
+    return { command: configured, prefix: [] };
+  }
   const candidates = [
     configured,
     path.join(repoRoot, ".pi", "npm", "node_modules", REVIEW_PACKAGE),
@@ -261,12 +269,11 @@ async function main() {
   const externalPromise = runExternalReview(options, invocation, repoRoot);
   const localPromise = Promise.all(localOutput.map(({ agent, path: outputPath }) => runLocalReview(agent, options, outputPath, repoRoot)));
   const [external, local] = await Promise.all([externalPromise, localPromise]);
-  const localFailures = local.filter((review) => review.available && !review.ok);
-  const localWarnings = local.filter((review) => !review.available);
-  const ok = external.ok && localFailures.length === 0;
+  const localWarnings = local.filter((review) => !review.available || !review.ok);
+  const ok = external.ok;
   const result = {
     ok,
-    status: ok ? (localWarnings.length ? "completed-with-warnings" : "completed") : "blocked",
+    status: !ok ? "blocked" : (localWarnings.length ? "completed-with-warnings" : "completed"),
     repo: options.repo,
     pr: Number(options.pr),
     url: options.url,

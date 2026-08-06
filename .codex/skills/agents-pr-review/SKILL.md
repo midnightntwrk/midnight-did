@@ -42,8 +42,10 @@ node scripts/review/request-pr-reviews.mjs \
 
 The wrapper runs the configured local CLIs and requests the configured GitHub
 reviewer through `agent-review`. It records a per-head ledger so repeated
-resume/detection passes do not rerun a completed dispatch. Inspect the local
-review artifacts before continuing; findings remain advisory until verified.
+resume/detection passes do not rerun a completed dispatch. A missing or failed
+local CLI is reported as a warning; the GitHub-routed request remains required.
+Inspect the local review artifacts before continuing; findings remain advisory
+until verified.
 
 ## Preconditions
 
