@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -73,7 +73,9 @@ function parseArgs(argv) {
   }
   if (!/^\d+$/.test(options.pr)) throw new Error("--pr must be a positive integer");
   if (!/^[0-9a-f]{7,64}$/i.test(options.headsha)) throw new Error("--head-sha must be a git SHA");
-  if (!/^\S+\/\S+$/.test(options.repo)) throw new Error("--repo must be owner/name");
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(options.repo)) {
+    throw new Error("--repo must be owner/name");
+  }
   options.url ??= `https://github.com/${options.repo}/pull/${options.pr}`;
   options.reviewers = options.reviewers ? csv(options.reviewers) : [];
   options.skills = options.skills ? csv(options.skills) : [];
@@ -114,8 +116,12 @@ async function resolveAgentReviewInvocation(repoRoot) {
   if (configured && !configured.includes("/") && !configured.includes("\\")) {
     return { command: configured, prefix: [] };
   }
+  if (configured) {
+    const configuredPath = path.isAbsolute(configured) ? configured : path.resolve(repoRoot, configured);
+    if (configuredPath.endsWith(".js")) return { command: process.execPath, prefix: [configuredPath] };
+    return { command: configuredPath, prefix: [] };
+  }
   const candidates = [
-    configured,
     path.join(repoRoot, ".pi", "npm", "node_modules", REVIEW_PACKAGE),
     path.join(os.homedir(), ".pi", "agent", "npm", "node_modules", REVIEW_PACKAGE),
     path.join(os.homedir(), ".pi", "npm", "node_modules", REVIEW_PACKAGE),
@@ -207,6 +213,12 @@ async function runLocalReview(agent, options, outputPath, repoRoot) {
   };
 }
 
+async function writeJsonAtomically(file, value) {
+  const temporary = `${file}.tmp-${process.pid}`;
+  await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  await rename(temporary, file);
+}
+
 function compactProcessResult(result) {
   if (!result) return result;
   return {
@@ -282,7 +294,7 @@ async function main() {
     local,
   };
   await mkdir(path.dirname(ledgerPath), { recursive: true });
-  await writeFile(ledgerPath, `${JSON.stringify(result, null, 2)}\n`, "utf8");
+  await writeJsonAtomically(ledgerPath, result);
   console.log(JSON.stringify({ ...result, ledgerPath }, null, 2));
   if (!result.ok) process.exitCode = 1;
 }
