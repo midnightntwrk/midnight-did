@@ -166,11 +166,12 @@ pnpm --filter ./packages/contract test
 
 ## PR review dispatch
 
-The dev-loop must run `scripts/review/request-pr-reviews.mjs` after creating a
-PR and after every push that changes its head SHA. This dispatch runs the local
-review CLIs and requests the configured GitHub-routed reviewer; it is keyed by
-head SHA so resume passes are idempotent. Review the generated artifacts and
-verify findings before continuing the PR loop.
+Any PR workflow—dev-loop or standalone—must run
+`scripts/review/request-pr-reviews.mjs` after creating a PR and after every push
+that changes its head SHA. This dispatch runs the local review CLIs and requests
+the configured GitHub-routed reviewer; it is keyed by head SHA so resume passes
+are idempotent. Review the generated artifacts and verify findings before
+continuing the PR workflow.
 
 ## Development Cycle
 
