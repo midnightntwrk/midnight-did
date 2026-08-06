@@ -23,17 +23,18 @@ Routing rules:
   “request a review” request when that integration is installed.
 - Use this local mode only when local execution is explicit or the routed
   integration is unavailable and the user accepts the fallback.
-- Do not run both modes by default. Run both only when the user explicitly asks
-  for local and routed reviews.
+- Do not run both modes for an ad hoc request unless the user asks for both.
+  The repository's automatic post-PR dispatch is an explicit policy exception
+  and runs both routes together.
 - A local result is advisory evidence and does not satisfy a GitHub review
   request, label, claim, or approval gate. Conversely, a routed review must not
   be replaced by a local CLI run.
 
-### Dev-loop automatic dispatch
+### Automatic post-PR dispatch
 
-When the repository dev-loop invokes the post-PR review seam, the local mode is
-explicitly selected by that seam. Run the repository wrapper once after draft
-PR creation and once after every push that changes the PR head:
+The repository policy explicitly runs both review routes after every PR
+creation and every push that changes the PR head, whether the PR is managed by
+dev-loop or by a standalone workflow. Run the repository wrapper once per head:
 
 ```bash
 node scripts/review/request-pr-reviews.mjs \
@@ -45,7 +46,8 @@ reviewer through `agent-review`. It records a per-head ledger so repeated
 resume/detection passes do not rerun a completed dispatch. A missing or failed
 local CLI is reported as a warning; the GitHub-routed request remains required.
 Inspect the local review artifacts before continuing; findings remain advisory
-until verified.
+until verified. Do not invoke the direct local commands below separately when
+this wrapper has already dispatched the current head.
 
 ## Preconditions
 
@@ -85,15 +87,15 @@ Notes:
 
 ## When to run it
 
-Run a fresh **local** review only when the local mode was selected by the
-routing rules above, for example:
+Run a fresh **local** review directly only when the local mode was selected by
+the routing rules above, for example:
 
 - the user explicitly asks for Claude, Antigravity, `agy`, or configured local agents
 - the user asks to rerun the local second opinion after substantive changes
-- a merge-loop operator explicitly selects local review as the repository's review route
+- the automatic wrapper is unavailable and the user accepts a local-only fallback
 
-Do not start this skill merely because a PR was opened or updated when the
-repository uses the GitHub-routed `agent-review` convention.
+For normal repository PR creation and updates, use the automatic wrapper above
+instead of selecting only the local mode.
 
 Overwrite the same artifact file if you want the latest review for that PR, or use a timestamped variant if the history matters.
 
