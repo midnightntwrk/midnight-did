@@ -14,7 +14,7 @@ pi
 
 The first session may ask you to trust the repository because it contains
 `.pi/settings.json`. Trust is required before Pi loads the project-local
-`dev-loops` package.
+packages and skills.
 
 Check the loop tooling with:
 
@@ -32,6 +32,28 @@ Use the normal issue and pull-request lifecycle from the Pi shell:
 ```
 
 The exact command help exposed by the installed package is authoritative.
+
+## Nix-provisioned peer review
+
+The Nix development shell provides the pinned Pi CLI version required by the
+repository's peer-review extension. Enter the shell before starting Pi:
+
+```sh
+nix develop
+pi --version
+pi list
+```
+
+The project-local `.pi/settings.json` installs
+`@input-output-hk/agent-review-pi@0.3.0`, which provides the native review tools
+and the `agent-review` skill. The repository `.npmrc` points the private scope
+to GitHub Packages and reads the token from `GITHUB_TOKEN`; the token is never
+committed. It needs `read:packages` for installation and the review workflow
+also needs the repository pull-request/issues permissions described by the
+upstream project.
+
+Use the skill for the asynchronous reviewer workflow; it never merges. Human
+approval and the repository's merge policy remain authoritative.
 
 ## Repository harness policy
 
