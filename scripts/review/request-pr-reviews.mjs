@@ -118,7 +118,7 @@ async function resolveAgentReviewInvocation(repoRoot) {
   }
   if (configured) {
     const configuredPath = path.isAbsolute(configured) ? configured : path.resolve(repoRoot, configured);
-    if (configuredPath.endsWith(".js")) return { command: process.execPath, prefix: [configuredPath] };
+    if (/\.[cm]?js$/i.test(configuredPath)) return { command: process.execPath, prefix: [configuredPath] };
     return { command: configuredPath, prefix: [] };
   }
   const candidates = [
@@ -150,6 +150,8 @@ function run(command, args, { timeoutMs = DEFAULT_TIMEOUT_MS, cwd = process.cwd(
     };
     const timer = setTimeout(() => {
       child.kill("SIGTERM");
+      const forceTimer = setTimeout(() => child.kill("SIGKILL"), 5000);
+      forceTimer.unref();
       finish({ ok: false, reason: `timeout after ${timeoutMs}ms`, exitCode: null });
     }, timeoutMs);
 
@@ -282,6 +284,8 @@ async function main() {
   const localPromise = Promise.all(localOutput.map(({ agent, path: outputPath }) => runLocalReview(agent, options, outputPath, repoRoot)));
   const [external, local] = await Promise.all([externalPromise, localPromise]);
   const localWarnings = local.filter((review) => !review.available || !review.ok);
+  // Local results are advisory: the routed GitHub request is the only result
+  // that determines whether this head has a completed dispatch ledger.
   const ok = external.ok;
   const result = {
     ok,
