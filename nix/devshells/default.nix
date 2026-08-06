@@ -24,6 +24,7 @@
           just
           nodejs_24
           oras
+          pi-coding-agent
           playwright-browsers
           turbo
           self'.packages.compact-midnight
