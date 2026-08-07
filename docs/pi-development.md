@@ -14,7 +14,7 @@ pi
 
 The first session may ask you to trust the repository because it contains
 `.pi/settings.json`. Trust is required before Pi loads the project-local
-`dev-loops` package.
+packages and skills.
 
 Check the loop tooling with:
 
@@ -33,17 +33,55 @@ Use the normal issue and pull-request lifecycle from the Pi shell:
 
 The exact command help exposed by the installed package is authoritative.
 
+## Nix-provisioned peer review
+
+The Nix development shell provides the pinned Pi CLI version required by the
+repository's peer-review extension. Enter the shell before starting Pi:
+
+```sh
+nix develop
+pi --version
+pi list
+```
+
+The project-local `.pi/settings.json` installs
+`@input-output-hk/agent-review-pi@0.3.0`, which provides the native review tools
+and the `agent-review` skill. The repository `.npmrc` points the private scope
+to GitHub Packages and reads the token from `GITHUB_TOKEN`; the token is never
+committed. It needs `read:packages` for installation and the review workflow
+also needs the repository pull-request/issues permissions described by the
+upstream project.
+
+Use the skill for the asynchronous reviewer workflow; it never merges. Human
+approval and the repository's merge policy remain authoritative.
+
 ## Repository harness policy
 
 The repository-root `.devloops` file configures the review and lifecycle
 policy. It requires refinement, draft-first pull requests, review of DID/API/
-package boundaries, and a human-only merge. The authoritative repository rules
-remain `AGENT.md`, the bundled `midnight-identity` skill, the pull-request
-template, and the `./run.sh` validation targets.
+package boundaries, and a human-only merge. The file must remain valid for the
+pinned `dev-loops@0.9.0` schema; command-level validation and repository rules
+remain in `AGENT.md`, the synchronized `midnight-identity` skills, the
+pull-request template, and the `./run.sh` validation targets. The current
+GitHub default branch is `main`.
 
 The harness is deliberately additive. GitHub Issues, pull requests, protected
 branches, and GitHub Actions remain the source of truth for work and CI state.
 Pi does not merge pull requests or replace branch protection.
+
+## Shared project skills
+
+Project-local skills are available to Pi through `.pi/settings.json`, which
+loads the repository's `.codex/skills` directory. The same generic skills are
+mirrored under `.claude/skills` for Claude Code and `.codex/skills` for Codex:
+
+- `ci-triage`: bounded CI monitoring and branch-owned failure classification;
+- `agents-pr-review`: read-only external-agent PR review and evidence handling;
+- `pr-merge-loop`: guarded stacked-PR operations that respect human-merge policy.
+
+The repository intentionally does not copy personal GitHub-access instructions,
+provider-specific Compact optimization notes, or autonomous stack-merging
+automation into the project. Those remain operator-specific global skills.
 
 ## Automation interfaces
 
@@ -79,7 +117,9 @@ tooling: Pi packages and extensions run with the permissions of the invoking
 user. Update the pin deliberately and validate the development workflow before
 merging.
 
-Check the effective repository configuration before starting work:
+Check the effective repository configuration before starting work. A config
+schema error means the repository-specific policy was not applied and must be
+fixed before continuing:
 
 ```sh
 npx dev-loops@0.9.0 doctor

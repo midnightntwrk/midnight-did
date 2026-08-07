@@ -1,6 +1,6 @@
 {
   "name": "@midnight-ntwrk/midnight-did",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "license": "Apache-2.0",
   "type": "module",
   "repository": {
@@ -54,6 +54,7 @@
     "zod": "^4.1.0"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "4.1.10",
     "@types/jsonld": "^1.5.15",
     "globals": "14.0.0",
     "jsonld": "^9.0.0"

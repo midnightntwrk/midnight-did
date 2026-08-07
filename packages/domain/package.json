@@ -1,6 +1,6 @@
 {
   "name": "@midnight-ntwrk/midnight-did-domain",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "license": "Apache-2.0",
   "type": "module",
   "repository": {
@@ -59,6 +59,7 @@
   "devDependencies": {
     "base64-js": "1.5.1",
     "globals": "14.0.0",
-    "fast-check": "3.23.2"
+    "fast-check": "3.23.2",
+    "@vitest/coverage-v8": "4.1.10"
   }
 }

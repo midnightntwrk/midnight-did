@@ -1,6 +1,6 @@
 {
   "name": "midnight-did",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "engines": {
     "node": ">=24",
     "pnpm": ">=10.34.1"
@@ -14,9 +14,10 @@
     "typecheck:all": "turbo run typecheck --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --filter=./packages/api --continue",
     "test:all": "turbo run test:ci --concurrency=1 --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --filter=./packages/api --continue",
     "coverage": "pnpm --filter ./packages/contract coverage",
+    "coverage:all": "pnpm --filter ./packages/domain coverage && pnpm --filter ./packages/did coverage && pnpm --filter ./packages/contract coverage && pnpm --filter ./packages/jubjub-schnorr coverage && pnpm --filter ./packages/api coverage && pnpm run check:api-module-coverage",
     "ci": "./run.sh --light --strict",
     "ci:packages": "pnpm run lint && pnpm run build:all && pnpm run test:all",
-    "ci:core": "pnpm run test:ci-change-classifier && pnpm run test:did-surface-discipline && pnpm run check:did-surface-discipline && pnpm run test:workspace-manifests && pnpm run check:workspace-manifests && pnpm run test:artifact-workspaces && pnpm run test:zk-artifact-bundle && pnpm run test:managed-artifacts && pnpm run test:integration-report && pnpm run test:source-imports && pnpm run check:source-imports && pnpm run test:engine-agnostic-imports && pnpm run check:engine-agnostic-imports && pnpm run check:run-target-catalog && SKIP_LINT_FIX=1 pnpm run lint:core && pnpm --filter ./packages/jubjub-schnorr build && pnpm --filter ./packages/jubjub-schnorr test:ci && pnpm --filter ./packages/contract build:prepared && SKIP_RUNTIME_TESTS=1 pnpm --filter ./packages/contract test:ci && pnpm run check:managed-artifacts && pnpm --filter ./packages/domain build && pnpm --filter ./packages/domain test:ci && pnpm --filter ./packages/did build && pnpm --filter ./packages/did test:ci",
+    "ci:core": "pnpm run test:ci-change-classifier && pnpm run test:pr-review-dispatch && pnpm run check:agent-skills && pnpm run test:did-surface-discipline && pnpm run check:did-surface-discipline && pnpm run test:workspace-manifests && pnpm run check:workspace-manifests && pnpm run test:artifact-workspaces && pnpm run test:zk-artifact-bundle && pnpm run test:managed-artifacts && pnpm run test:integration-report && pnpm run test:source-imports && pnpm run check:source-imports && pnpm run test:engine-agnostic-imports && pnpm run check:engine-agnostic-imports && pnpm run test:ensure-onchain-runtime && pnpm run check:run-target-catalog && SKIP_LINT_FIX=1 pnpm run lint:core && pnpm --filter ./packages/jubjub-schnorr build && pnpm --filter ./packages/jubjub-schnorr test:ci && pnpm --filter ./packages/contract build:prepared && SKIP_RUNTIME_TESTS=1 pnpm --filter ./packages/contract test:ci && pnpm run check:managed-artifacts && pnpm --filter ./packages/domain build && pnpm --filter ./packages/domain test:ci && pnpm --filter ./packages/did build && pnpm --filter ./packages/did test:ci",
     "build:api-prereqs": "pnpm --filter ./packages/contract build:prepared && pnpm --filter ./packages/did build && pnpm --filter ./packages/api build",
     "pack:contract": "pnpm --filter ./packages/contract pack",
     "pack:all": "pnpm run pack:contract && echo 'Artifacts:' && ls -1 *.tgz || true && ls -1 packages/contract/*.tgz || true",
@@ -42,7 +43,12 @@
     "check:managed-artifacts": "node scripts/managed-artifact-catalog.mjs --check",
     "check:api-source-imports": "node scripts/check-source-imports.mjs packages/api/src",
     "test:ci-change-classifier": "node --test scripts/ci-change-classifier.test.mjs",
+    "test:pr-review-dispatch": "node --test scripts/review/request-pr-reviews.test.mjs",
+    "check:api-module-coverage": "node scripts/check-api-module-coverage.mjs",
+    "test:api-module-coverage": "node --test scripts/check-api-module-coverage.test.mjs",
+    "check:agent-skills": "node scripts/check-agent-skills.mjs",
     "test:run-sh": "node scripts/run-sh-contract.test.mjs",
+    "test:ensure-onchain-runtime": "node --test scripts/ensure-onchain-runtime-cjs.test.mjs",
     "check:run-target-catalog": "node scripts/check-run-target-catalog.mjs",
     "check:did-surface-discipline": "node scripts/check-did-surface-discipline.mjs",
     "test:did-surface-discipline": "node --test scripts/did-production-cast-rules.test.mjs",
@@ -66,9 +72,9 @@
       "vitepress>vite": "^6.4.2",
       "dompurify": "^3.4.12",
       "js-yaml": "^4.3.1",
-      "postcss": "^8.5.18",
+      "postcss": "^8.5.23",
       "esbuild@>=0.27.3 <0.28.1": "0.28.1",
-      "undici": "^7.28.0",
+      "undici": "^7.29.0",
       "brace-expansion@<5.0.8": "5.0.9"
     }
   },

@@ -349,7 +349,7 @@ const mountReleaseZkAssetsForPublishedPackage = ({
     );
   }
 
-  // v0.4.0-rc1 resolves this source-layout path inside the installed package.
+  // Older release packages resolve this source-layout path inside the installed package.
   // Newer packages can use MIDNIGHT_DID_ZK_CONFIG_PATH directly.
   const legacyExpectedPath = path.join(
     contractPackageRoot,

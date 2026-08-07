@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     coverage: {
       provider: "v8",
-      reporter: ["text", "json", "html"],
+      reporter: ["text", "json", "html", "lcov"],
       include: ["src/**/*.ts"],
       exclude: [
         "dist/**",
@@ -15,6 +15,12 @@ export default defineConfig({
         "eslint.config.mjs",
         "vitest.config.ts",
       ],
+      thresholds: {
+        branches: 80,
+        functions: 90,
+        lines: 88,
+        statements: 85,
+      },
     },
   },
 });

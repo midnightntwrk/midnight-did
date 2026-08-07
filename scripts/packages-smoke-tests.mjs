@@ -74,11 +74,11 @@ await smoke("node package imports", async () => {
         if (typeof api.createDID !== "function") {
           throw new Error("api createDID export is unavailable");
         }
-        if (api.MIDNIGHT_DID_API_VERSION !== "0.4.0") {
+        if (api.MIDNIGHT_DID_API_VERSION !== "0.5.0") {
           throw new Error("api release artifact version metadata is unavailable");
         }
         const locations = api.createMidnightDidZkArtifactLocations(api.MIDNIGHT_DID_API_VERSION);
-        if (locations.ghcr.reference !== "ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.4.0") {
+        if (locations.ghcr.reference !== "ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.5.0") {
           throw new Error("api release artifact GHCR metadata is unavailable");
         }
         if (!apiBrowser.DomainToRuntime.NetworkMap) {
@@ -93,7 +93,7 @@ await smoke("node package imports", async () => {
         if (apiBrowser.randomBytes(4).length !== 4) {
           throw new Error("api browser randomBytes returned an unexpected length");
         }
-        if (apiBrowser.MIDNIGHT_DID_ZK_ARTIFACT_LOCATIONS.version !== "0.4.0") {
+        if (apiBrowser.MIDNIGHT_DID_ZK_ARTIFACT_LOCATIONS.version !== "0.5.0") {
           throw new Error("api browser release artifact metadata is unavailable");
         }
       `,
@@ -120,7 +120,7 @@ await smoke("browser bundle imports", async () => {
         const parsedSeed = parseSeed("00".repeat(32));
         const random = randomBytes(4);
 
-        if (!DomainToRuntime.NetworkMap || !RuntimeToDomain.NetworkMap || parsedSeed.length !== 64 || random.length !== 4 || MIDNIGHT_DID_ZK_ARTIFACT_LOCATIONS.version !== "0.4.0") {
+        if (!DomainToRuntime.NetworkMap || !RuntimeToDomain.NetworkMap || parsedSeed.length !== 64 || random.length !== 4 || MIDNIGHT_DID_ZK_ARTIFACT_LOCATIONS.version !== "0.5.0") {
           throw new Error("api browser smoke exports are unavailable");
         }
       `,

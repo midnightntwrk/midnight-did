@@ -5,8 +5,9 @@
 [![Docs](https://github.com/midnightntwrk/midnight-did/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/midnightntwrk/midnight-did/actions/workflows/docs.yml)
 [![Release](https://github.com/midnightntwrk/midnight-did/actions/workflows/publish.yml/badge.svg?branch=main)](https://github.com/midnightntwrk/midnight-did/actions/workflows/publish.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/midnightntwrk/midnight-did/badge)](https://scorecard.dev/viewer/?uri=github.com/midnightntwrk/midnight-did)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13956/badge)](https://www.bestpractices.dev/projects/13956)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/midnightntwrk/midnight-did/blob/main/LICENSE)
-[![Latest Release](https://img.shields.io/badge/release-v0.4.0-blue)](https://github.com/midnightntwrk/midnight-did/releases/latest)
+[![Latest Release](https://img.shields.io/badge/release-v0.5.0-blue)](https://github.com/midnightntwrk/midnight-did/releases/latest)
 
 Midnight DID is the reference implementation of the `did:midnight` method.
 This repository owns the core DID contract, domain model, ledger mapping, and TypeScript API orchestration.
@@ -132,7 +133,7 @@ Runner notes:
   builds or CI.
 - `run-core.sh`, `run-api.sh`, and `run-docs.sh` remain implementation details behind cataloged `./run.sh` targets.
 - Root `./run.sh` validates only DID core/API/docs. Resolver service, manager service, and secret-storage validation moved to `midnight-did-resolver`.
-- `--skip-coverage` is still accepted for older local command history, but current split lanes do not run coverage by default.
+- `pnpm run coverage:all` runs V8 coverage for all test-bearing packages and enforces the package thresholds configured in the Vitest configs. CI preserves the LCOV reports as workflow artifacts while the reporting provider decision is pending.
 - `./run.sh clean-artifacts` removes generated outputs, nested local log
   directories, local Midnight runtime/test state (`.midnight-db/`,
   `.midnight-test/`, `midnight-level-db/`), and disposable historical
@@ -148,6 +149,12 @@ Metrics example:
 
 ```bash
 ./run.sh --light --strict --metrics --metrics-json /tmp/midnight-did-run.json
+```
+
+Test coverage:
+
+```bash
+pnpm run coverage:all
 ```
 
 Surface guards:
@@ -241,7 +248,7 @@ The concrete release-train examples below are validated against the root
 ZK keys are distributed separately as a validated archive:
 
 ```bash
-export VERSION="0.4.0-snapshot.local"
+export VERSION="0.5.0-snapshot.local"
 export ZK_ARCHIVE="artifacts/zk/midnight-did-zk-artifacts-${VERSION}.tar.gz"
 
 pnpm run zk-artifacts:bundle -- --version "${VERSION}"
@@ -263,7 +270,7 @@ matching GitHub Release ZK archive, unpacks those keys for
 updated DID document:
 
 ```bash
-export VERSION="0.4.0-rc1"
+export VERSION="0.5.0-rc1"
 export GH_TOKEN="<github-token-with-repo-read>"
 
 pnpm run published-standalone:smoke -- \
@@ -305,7 +312,7 @@ Published consumers can also use the Node helper exported by the API package:
 import { downloadMidnightDidGithubReleaseZkArtifacts } from "@midnight-ntwrk/midnight-did-api";
 
 const bundle = await downloadMidnightDidGithubReleaseZkArtifacts({
-  version: "0.4.0-rc1",
+  version: "0.5.0-rc1",
   outputDir: ".midnight-did-zk",
 });
 ```

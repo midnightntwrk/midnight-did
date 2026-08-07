@@ -42,6 +42,9 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      - name: Update NPM
+        run: npm install -g npm@12.0.2
+
       - name: Wait for Pages deployment
         if: github.event_name == 'push'
         run: sleep 90s
