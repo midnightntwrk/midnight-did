@@ -14,6 +14,9 @@ pnpm run build:api-prereqs
 echo "[api] Build API"
 pnpm --filter ./packages/api build
 
+echo "[api] Lint API"
+pnpm --filter ./packages/api lint
+
 echo "[api] Typecheck API examples"
 pnpm --filter ./packages/api typecheck:examples
 

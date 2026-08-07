@@ -58,8 +58,7 @@ export type MidnightDIDProviders = MidnightProviders<
 export type MidnightDIDContract = MidnightDIDProvableContract;
 
 export type DeployedMidnightDIDContract =
-  | DeployedContract<MidnightDIDContract>
-  | FoundContract<MidnightDIDContract>;
+  DeployedContract<MidnightDIDContract> | FoundContract<MidnightDIDContract>;
 
 export interface SchnorrJubjubVerificationMethod {
   readonly id: string;
