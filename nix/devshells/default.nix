@@ -38,12 +38,10 @@
           export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
           export COMPACT_DIRECTORY=${self'.packages.compact-toolchain}
 
-          # The Pi extension is private on GitHub Packages, so install it at
-          # shell entry using the caller's token rather than baking credentials
-          # into the Nix store. The project settings remain the source of truth.
+          # Provision the pinned project-local Pi packages from settings. Public
+          # packages install without credentials; the private review package is
+          # attempted only when a GitHub token is available.
           if [ -f .pi/settings.json ]; then
-            # gh conventionally exports GH_TOKEN; retain compatibility with
-            # GITHUB_TOKEN and the historical GH_TOKENS spelling as well.
             if [ -z "''${GITHUB_TOKEN:-}" ]; then
               if [ -n "''${GH_TOKEN:-}" ]; then
                 export GITHUB_TOKEN="''${GH_TOKEN}"
@@ -52,20 +50,37 @@
               fi
             fi
 
-            if [ -n "''${GITHUB_TOKEN:-}" ]; then
-              agent_review_spec="$(grep -Eo 'npm:@input-output-hk/agent-review-pi@[^" ]+' .pi/settings.json | head -n 1 || true)"
-              agent_review_package_json=".pi/npm/node_modules/@input-output-hk/agent-review-pi/package.json"
-              agent_review_installed_version=""
-              if [ -f "$agent_review_package_json" ]; then
-                agent_review_installed_version="$(sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([^" ]*\)".*/\1/p' "$agent_review_package_json" | head -n 1 || true)"
+            while IFS=$'\t' read -r pi_spec pi_package pi_version; do
+              [ -n "$pi_spec" ] || continue
+              pi_package_json=".pi/npm/node_modules/$pi_package/package.json"
+              pi_installed_version=""
+              if [ -f "$pi_package_json" ]; then
+                pi_installed_version="$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).version ?? "")' "$pi_package_json")"
               fi
-              agent_review_requested_version="''${agent_review_spec##*@}"
 
-              if [ -n "$agent_review_spec" ] && [ "$agent_review_installed_version" != "$agent_review_requested_version" ]; then
-                echo "Installing project-local agent-peer-review Pi package ($agent_review_spec)..."
-                pi install "$agent_review_spec" --local --approve
+              if [ -n "$pi_installed_version" ] && { [ -z "$pi_version" ] || [ "$pi_installed_version" = "$pi_version" ]; }; then
+                continue
               fi
-            fi
+
+              if [ "$pi_package" = "@input-output-hk/agent-review-pi" ] && [ -z "''${GITHUB_TOKEN:-}" ]; then
+                echo "Skipping private Pi package $pi_spec (set GITHUB_TOKEN, GH_TOKEN, or GH_TOKENS to install it)."
+                continue
+              fi
+
+              echo "Installing project-local Pi package $pi_spec..."
+              pi install "$pi_spec" --local --approve </dev/null
+            done < <(node -e '
+              const fs = require("fs");
+              const settings = JSON.parse(fs.readFileSync(".pi/settings.json", "utf8"));
+              for (const spec of settings.packages ?? []) {
+                if (typeof spec !== "string" || !spec.startsWith("npm:")) continue;
+                const ref = spec.slice(4);
+                const at = ref.startsWith("@") ? ref.indexOf("@", 1) : ref.indexOf("@");
+                const name = at === -1 ? ref : ref.slice(0, at);
+                const version = at === -1 ? "" : ref.slice(at + 1);
+                console.log([spec, name, version].join("\t"));
+              }
+            ')
           fi
         '';
       };

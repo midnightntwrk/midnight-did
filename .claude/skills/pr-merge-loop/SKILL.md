@@ -63,12 +63,6 @@ An unqualified “peer review” or “request a review” means the GitHub-rout
 when it is installed. Never silently run both routes, and never count a local
 CLI transcript as a substitute for a requested GitHub review.
 
-For repository-managed PRs, including standalone workflows that do not use
-dev-loop, invoke `scripts/review/request-pr-reviews.mjs` after PR creation and
-after every push that advances the PR head. The wrapper
-is the single dispatch point for both configured local agents and the
-GitHub-routed reviewer; its per-head ledger makes retries safe.
-
 ## Default Merge Gates
 
 Resolve the repository's actual default/base branch from GitHub; do not assume
