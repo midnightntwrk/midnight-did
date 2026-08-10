@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- BREAKING: DID Document constructors omit absent optional members and DID
+  Document parsers reject explicit JSON `null` for optional properties instead
+  of accepting or emitting null-valued fields.
+
 ## [0.5.0] - 2026-08-03
 
 ### Added
