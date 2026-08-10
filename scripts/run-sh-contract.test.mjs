@@ -40,6 +40,14 @@ function assertNotContains(haystack, expected, label) {
   );
 }
 
+const apiRunner = readFileSync(path.join(ROOT_DIR, "run-api.sh"), "utf8");
+assertContains(
+  apiRunner,
+  "pnpm --filter ./packages/api lint",
+  "API runner",
+);
+assertNotContains(apiRunner, "lint:fix", "API runner");
+
 const helpResult = runRunSh(["--help"]);
 assert.equal(helpResult.exitCode, 0, "help should exit successfully");
 assertContains(helpResult.stdout, "Usage: ./run.sh", "help output");
