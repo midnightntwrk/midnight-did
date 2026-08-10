@@ -55,9 +55,9 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "4.1.10",
-    "@types/jsonld": "^1.5.15",
+    "@types/jsonld": "1.5.15",
     "globals": "14.0.0",
-    "jsonld": "^9.0.0"
+    "jsonld": "9.0.0"
   },
   "files": [
     "dist/**",
