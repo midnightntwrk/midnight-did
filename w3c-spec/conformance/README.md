@@ -1,7 +1,7 @@
 # Midnight DID W3C Conformance Evidence
 
 **Phase 1 status:** evidence-first audit (initial snapshot, not a certification claim).
-**Source of record:** [GitHub issue #405](https://github.com/midnightntwrk/midnight-did/issues/405), enriched from [`docs/W3C-COMPLIANCE-PLAN.md`](../W3C-COMPLIANCE-PLAN.md).
+**Source of record:** [GitHub issue #405](https://github.com/midnightntwrk/midnight-did/issues/405), enriched from [`docs/W3C-COMPLIANCE-PLAN.md`](../../docs/W3C-COMPLIANCE-PLAN.md).
 
 This area separates three questions:
 
