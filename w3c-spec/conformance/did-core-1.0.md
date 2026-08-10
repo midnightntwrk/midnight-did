@@ -1,6 +1,6 @@
 # DID Core 1.0 Conformance Matrix (Initial Phase 1 Audit)
 
-**Baseline:** [W3C DID Core 1.0 Recommendation, 19 July 2022](https://www.w3.org/TR/2022/REC-did-core-20220719/). **Audited commit:** `59ef0b027777006924d9aa27009d50097eb217fe`.
+**Baseline:** [W3C DID Core 1.0 Recommendation, 19 July 2022](https://www.w3.org/TR/2022/REC-did-core-20220719/). **Audited commit:** `d3b4102f9d7b0b3675d847ae09340973f3b1d6ee`.
 
 This is the initial evidence matrix required by issue #405. Rows are grouped by normative surface rather than presented as a claim that every sentence of the Recommendation has already been converted into an executable assertion. `FAIL` and `UNKNOWN` rows have a concrete follow-up in [the audit queue](./README.md#phase-1-follow-up-queue).
 
@@ -15,7 +15,7 @@ This is the initial evidence matrix required by issue #405. Rows are grouped by 
 | DOC-002 | `@context` is a valid DID representation context (§7.1) | §3.1 | `createMidnightDIDDocument`, required context checks | document and JSON-LD tests | PASS WITH RESTRICTION | Canonical JSON-LD output requires DID + JWK contexts. DID JSON removes `@context` as required by representation handling. |
 | DOC-003 | Optional `controller` is a valid URI/DID (§7.1) | §3.2 | single-controller refinement and ledger projection | document controller tests | PASS WITH RESTRICTION | Method profile requires controller equal to subject when present. |
 | DOC-004 | `alsoKnownAs` entries are URIs (§7.1) | §3.3 | `URIStringSchema`, ledger alias projection | document/domain alias tests | PASS | Alias validation is exercised for DID and HTTPS URIs. |
-| DOC-005 | Optional properties are omitted or valid values, not JSON `null` (§7.1) | §3.1, §3.5, §3.6 | `createMidnightDIDDocument` and `createDIDDocument` omit absent members; generic and method-specific schemas reject `null` | domain/DID null-regression tests; resolver mapping tests | PASS | Fixed in Phase 2 commit `d3b4102`; offchain mapping also omits empty optional members. |
+| DOC-005 | Optional properties are omitted or valid values, not JSON `null` (§7.1) | §3.1, §3.5, §3.6 | `createMidnightDIDDocument` and `createDIDDocument` omit absent members; generic and method-specific schemas reject `null` | domain/DID null-regression tests; resolver mapping tests | PASS | Fixed in Phase 2 commit `d3b4102`; the offchain state schema requires at least one verification method, while schema-valid empty alias/service arrays are omitted by the offchain mapper. |
 | DOC-006 | Verification method objects have valid `id`, `type`, `controller`, and public material (§7.1) | §3.4 | `VerificationMethodSchema`, `MidnightVerificationMethodSchema`, `LedgerToDomain` | document and JSON-LD conformance tests | PASS WITH RESTRICTION | Only referenced `JsonWebKey` methods and supported OKP/EC profiles are accepted. |
 | DOC-007 | Verification method IDs are unique and subject-bound (§7.1) | §3.4.1, §6.3 | canonical ID checks in `did-document.ts`, `ledger-to-domain.ts`, contract maps | domain parse duplicate-ID tests; resolver duplicate checks | PASS WITH RESTRICTION | Method canonicalizes ledger fragments and emits absolute DID URLs. |
 | DOC-008 | Public JWKs contain no private key material (§7.1) | §3.4.4 | `PublicKeyJwkSchema` rejects `d` | domain schema tests and profile tests | PASS | Cryptographic interoperability is tracked separately. |

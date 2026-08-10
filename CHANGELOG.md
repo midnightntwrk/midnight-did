@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - BREAKING: DID Document constructors omit absent optional members and DID
   Document parsers reject explicit JSON `null` for optional properties instead
   of accepting or emitting null-valued fields.
+  Consumers persisting documents from versions up to 0.5.0 must omit legacy
+  null-valued optional members before parsing them with this release.
 
 ## [0.5.0] - 2026-08-03
 
