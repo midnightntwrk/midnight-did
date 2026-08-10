@@ -45,7 +45,6 @@ DID Core 1.0 is the primary release gate. DID Core 1.1 remains a separate compat
 
 | Priority | Finding | Focused next work |
 | --- | --- | --- |
-| P0 | Optional DID Document members can be emitted/accepted as JSON `null` by `createMidnightDIDDocument` and the generic domain schema. | Add malformed-document tests for `null`; omit absent members in constructors and reject `null` in public parsers. Re-run DID Core document matrix. |
 | P0 | DID URL dereferencing is not exposed by the inspected resolver/API surfaces. | Maintainer decision: implement fragment/resource dereferencing, or explicitly scope it out; then add positive/negative dereferencing vectors or a separately tracked limitation issue. |
 | P1 | JSON-LD coverage expands documents but does not yet prove compaction and semantic round-trip equivalence. | Add `expand → compact → compare` tests for all supported verification profiles and custom contexts. |
 | P1 | Syntax coverage does not yet cover the complete issue-required network/offchain and extra-component matrix. | Add fixtures for all networks, case behavior, invalid lengths/hex/base64url, hash mismatch, trailing colon, and DID URL components. |

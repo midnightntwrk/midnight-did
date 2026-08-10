@@ -13,7 +13,7 @@ DID Core 1.1 is tracked separately and is **not** substituted for the DID Core 1
 | Verification method structure | PASS WITH RESTRICTION | PASS WITH RESTRICTION | domain schemas and resolver mapping | Keep `JsonWebKey` method boundary explicit; test all supported profiles. |
 | Verification relationships | PASS | PASS | relation schemas/mappers and contract relation tests | Add complete negative vectors for missing/duplicate targets. |
 | Service data model | PASS WITH RESTRICTION | PASS WITH RESTRICTION | `ServiceSchema`, ledger service mapping | Complete duplicate and malformed endpoint vectors. |
-| Optional-member omission/null behavior | FAIL | FAIL | constructors and generic schema allow/emit `null` | P0: fix and re-run both matrices; do not hide this by changing matrix status. |
+| Optional-member omission/null behavior | PASS | PASS | constructors omit absent members and generic/method-specific schemas reject `null` | Fixed in Phase 2 commit `d3b4102`; retain regression coverage as the 1.1 compatibility gate. |
 | DID JSON representation | PASS WITH RESTRICTION | UNKNOWN | `resolveRepresentation` and resolver tests | Verify 1.1 representation changes and semantic equivalence. |
 | DID JSON-LD representation | PASS | UNKNOWN | deterministic expansion test, no compaction round trip | Add compact/expand semantic round-trip tests under the 1.1 baseline. |
 | Create/read/update/deactivate method operations | PASS WITH RESTRICTION | PASS WITH RESTRICTION | contract/API lifecycle and resolver tests | Add deterministic lifecycle vectors and map any 1.1 clarification. |
