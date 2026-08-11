@@ -1,8 +1,47 @@
 {
   "nodes": {
+    "flake-collection": {
+      "inputs": {
+        "flake-parts": "flake-parts",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1786449051,
+        "narHash": "sha256-Er2+cbRKcilRx1EXrrxH9v0ILQ3GSWNC7VzSY4H7OV4=",
+        "owner": "MediaNoxLabs",
+        "repo": "flake-collection",
+        "rev": "fbc948baae944d6a1fe813fe2d626e538b210027",
+        "type": "github"
+      },
+      "original": {
+        "owner": "MediaNoxLabs",
+        "repo": "flake-collection",
+        "type": "github"
+      }
+    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": "nixpkgs-lib"
+      },
+      "locked": {
+        "lastModified": 1785627969,
+        "narHash": "sha256-4dtXQk/NMePegK/nWp5NSeuZKLATItOq61lpEvmXqGw=",
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "rev": "427bf4bd9435fdf21321c8cc628c24efc14c0f7a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "type": "github"
+      }
+    },
+    "flake-parts_2": {
+      "inputs": {
+        "nixpkgs-lib": "nixpkgs-lib_2"
       },
       "locked": {
         "lastModified": 1775087534,
@@ -36,6 +75,21 @@
     },
     "nixpkgs-lib": {
       "locked": {
+        "lastModified": 1785031560,
+        "narHash": "sha256-OmshNvn2vupOFpYinLUu+1Dnpu4n7Q5N3ggGVNHpkUI=",
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
+        "rev": "0e79af5e3d4dcfcd676ab5ba3f95d2e3352e078c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
+        "type": "github"
+      }
+    },
+    "nixpkgs-lib_2": {
+      "locked": {
         "lastModified": 1774748309,
         "narHash": "sha256-+U7gF3qxzwD5TZuANzZPeJTZRHS29OFQgkQ2kiTJBIQ=",
         "owner": "nix-community",
@@ -51,7 +105,8 @@
     },
     "root": {
       "inputs": {
-        "flake-parts": "flake-parts",
+        "flake-collection": "flake-collection",
+        "flake-parts": "flake-parts_2",
         "nixpkgs": "nixpkgs"
       }
     }

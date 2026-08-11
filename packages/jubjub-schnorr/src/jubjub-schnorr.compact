@@ -2,7 +2,7 @@
 // Copyright (C) 2025 Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-pragma language_version 0.22;
+pragma language_version >= 0.22;
 
 import CompactStandardLibrary;
 import "schnorr" prefix Schnorr_;

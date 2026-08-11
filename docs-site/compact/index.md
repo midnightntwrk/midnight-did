@@ -38,23 +38,23 @@ and resolved DID Document output.
 ## Circuit Artifact Profile
 
 The following profile is generated from the managed DID artifacts compiled with
-Compact toolchain `0.30.0`. The `k` and row values come from `zkir compile -v`;
+Compact toolchain `0.31.1`. The `k` and row values come from `zkir compile -v`;
 artifact sizes are byte sizes for files under
 `packages/contract/src/managed/did`.
 
 | Circuit | k | rows | prover key | verifier key | bzkir | zkir |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `rotateControllerKey` | 11 | 1,840 | 688,661 B | 1,591 B | 681 B | 10,113 B |
-| `setVerificationMethod` | 12 | 2,161 | 1,348,160 B | 1,591 B | 1,336 B | 18,133 B |
-| `removeVerificationMethod` | 11 | 1,831 | 688,870 B | 1,591 B | 1,056 B | 16,187 B |
-| `setSchnorrJubjubVerificationMethod` | 11 | 2,030 | 689,482 B | 1,591 B | 1,191 B | 16,426 B |
-| `removeSchnorrJubjubVerificationMethod` | 11 | 1,831 | 688,833 B | 1,591 B | 1,050 B | 16,142 B |
+| `rotateControllerKey` | 11 | 1,930 | 689,028 B | 1,591 B | 968 B | 14,057 B |
+| `setVerificationMethod` | 12 | 2,359 | 1,349,033 B | 1,591 B | 2,023 B | 27,314 B |
+| `removeVerificationMethod` | 11 | 1,831 | 688,875 B | 1,591 B | 1,057 B | 16,187 B |
+| `setSchnorrJubjubVerificationMethod` | 11 | 2,030 | 689,481 B | 1,591 B | 1,191 B | 16,425 B |
+| `removeSchnorrJubjubVerificationMethod` | 11 | 1,831 | 688,838 B | 1,591 B | 1,050 B | 16,142 B |
 | `verifySchnorrJubjubDigestSignature` | 11 | 1,608 | 687,799 B | 1,591 B | 381 B | 4,847 B |
-| `setVerificationMethodRelation` | 12 | 2,446 | 1,351,617 B | 1,591 B | 2,825 B | 36,577 B |
-| `setService` | 11 | 1,991 | 689,327 B | 1,591 B | 1,037 B | 14,595 B |
+| `setVerificationMethodRelation` | 12 | 2,718 | 1,352,930 B | 1,591 B | 3,600 B | 46,279 B |
+| `setService` | 11 | 1,991 | 689,331 B | 1,591 B | 1,037 B | 14,594 B |
 | `removeService` | 11 | 1,806 | 688,589 B | 1,591 B | 699 B | 10,019 B |
-| `setAlsoKnownAs` | 11 | 1,974 | 689,247 B | 1,591 B | 1,086 B | 14,730 B |
-| `deactivate` | 11 | 1,804 | 688,590 B | 1,591 B | 670 B | 9,955 B |
+| `setAlsoKnownAs` | 11 | 1,974 | 689,248 B | 1,591 B | 1,086 B | 14,729 B |
+| `deactivate` | 11 | 1,804 | 688,594 B | 1,591 B | 670 B | 9,955 B |
 
 ## Why The Surface Is Small
 

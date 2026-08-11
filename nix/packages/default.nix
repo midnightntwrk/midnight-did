@@ -1,11 +1,11 @@
-{ self, ... }:
+{ ... }:
 
 {
   perSystem =
-    { pkgs, ... }:
+    { inputs', ... }:
     let
-      compact-midnight = pkgs.callPackage ./compact-midnight.nix { };
-      compact-toolchain = pkgs.callPackage ./compact-toolchain.nix { };
+      compact-midnight = inputs'.flake-collection.packages.compact-midnight;
+      compact-toolchain = inputs'.flake-collection.packages.compact-toolchain;
     in
     {
       packages = {

@@ -7,12 +7,12 @@ stored in ledger state.
 ## Prerequisites
 
 - Node.js 24 and pnpm 10.
-- Midnight Compact compiler `0.30.0`.
+- Midnight Compact compiler `0.31.1`.
 - The standalone Midnight services required by `./run.sh api --light --strict`.
 
 ```bash
 pnpm install
-compact update 0.30.0
+compact update 0.31.1
 ```
 
 ## Prefer A Runnable Issuer Bootstrap
