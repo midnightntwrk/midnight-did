@@ -11,10 +11,6 @@
     {
       packages = {
         inherit compact-midnight compact-toolchain midnight-circuit-params;
-        npm-artifacts = pkgs.callPackage ./npm-artifacts.nix {
-          inherit compact-midnight compact-toolchain midnight-circuit-params;
-          src = self;
-        };
       };
     };
 }
