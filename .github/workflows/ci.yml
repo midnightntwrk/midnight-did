@@ -15,7 +15,7 @@ permissions:
   pull-requests: read
 
 env:
-  COMPACT_COMPILER_VERSION: 0.30.0
+  COMPACT_COMPILER_VERSION: 0.31.1
   PNPM_CONFIG_AUDIT: "false"
   PNPM_CONFIG_FUND: "false"
   # Optional optimization: point this repository variable to a pre-bootstrapped proof-server image

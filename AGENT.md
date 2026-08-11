@@ -27,7 +27,7 @@ Then run repository setup from inside the Nix shell:
 
 ```bash
 pnpm install
-compact update 0.30.0
+compact update 0.31.1
 ```
 
 The Nix development shell is the expected local environment. It provides the

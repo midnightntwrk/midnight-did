@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Upgrade the Compact toolchain from 0.30.0 to 0.31.1, now consumed from the
+  external `MediaNoxLabs/flake-collection` flake input instead of the vendored
+  `nix/packages/compact-toolchain.nix` derivation. Relax the
+  `jubjub-schnorr.compact` language-version pragma from an exact `0.22` pin to
+  `>= 0.22`.
+
+### Removed
+
+- Drop the `align-runtime-version.mjs` post-build workaround scripts from the
+  `contract` and `jubjub-schnorr` packages; `compactc` 0.31.1 emits a
+  `checkRuntimeVersion` guard that matches the installed runtime natively, so
+  no rewriting is required. As a packaging-visible consequence, the published
+  `@midnight-ntwrk/midnight-did-jubjub-schnorr` `.d.ts` no longer carries the
+  invalid duplicate `provableCircuits` declaration the rewrite previously
+  injected.
+
 ## [0.5.0] - 2026-08-03
 
 ### Added
