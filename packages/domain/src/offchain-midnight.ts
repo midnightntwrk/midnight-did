@@ -695,7 +695,9 @@ export const offchainStateToDidDocument = (
       "https://w3id.org/security/jwk/v1",
     ],
     id: did,
-    alsoKnownAs: parsed.alsoKnownAs.length > 0 ? parsed.alsoKnownAs : null,
+    ...(parsed.alsoKnownAs.length > 0
+      ? { alsoKnownAs: parsed.alsoKnownAs }
+      : {}),
     controller: did,
     verificationMethod: parsed.verificationMethod.map((method) =>
       offchainVerificationMethodToDidDocumentMethod(did, method),
@@ -705,10 +707,11 @@ export const offchainStateToDidDocument = (
     ...(keyAgreement.length > 0 ? { keyAgreement } : {}),
     ...(capabilityInvocation.length > 0 ? { capabilityInvocation } : {}),
     ...(capabilityDelegation.length > 0 ? { capabilityDelegation } : {}),
-    service:
-      parsed.service.length > 0
-        ? parsed.service.map(offchainServiceToDidDocumentService)
-        : null,
+    ...(parsed.service.length > 0
+      ? {
+          service: parsed.service.map(offchainServiceToDidDocumentService),
+        }
+      : {}),
   };
 };
 

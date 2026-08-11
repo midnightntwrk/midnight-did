@@ -28,6 +28,18 @@ const exampleVerificationMethod = createVerificationMethod({
   },
 });
 
+const optionalDIDDocumentMembers = [
+  "alsoKnownAs",
+  "controller",
+  "verificationMethod",
+  "authentication",
+  "assertionMethod",
+  "keyAgreement",
+  "capabilityInvocation",
+  "capabilityDelegation",
+  "service",
+] as const;
+
 const exampleJubjubVerificationMethod = createVerificationMethod({
   id: "#key-jubjub",
   type: VerificationMethodType.JsonWebKey,
@@ -61,6 +73,18 @@ describe("Midnight DID Document", () => {
       expect(doc).not.toHaveProperty("keyAgreement");
       expect(doc).not.toHaveProperty("capabilityInvocation");
       expect(doc).not.toHaveProperty("capabilityDelegation");
+    });
+
+    it("omits absent optional members instead of emitting null", () => {
+      const doc = createMidnightDIDDocument({ id: exampleMidnightDid });
+
+      for (const member of optionalDIDDocumentMembers) {
+        if (member !== "controller") {
+          expect(doc).not.toHaveProperty(member);
+        }
+      }
+      expect(doc.controller).toBe(exampleMidnightDid);
+      expect(JSON.stringify(doc)).not.toContain("null");
     });
 
     it("allows additional contexts beyond the required two", () => {
@@ -155,6 +179,35 @@ describe("Midnight DID Document", () => {
 
       const doc = parseMidnightDIDDocument(input);
       expect(doc.id).toBe(exampleMidnightDid);
+    });
+
+    it("rejects null optional DID Document members", () => {
+      for (const member of optionalDIDDocumentMembers) {
+        expect(() =>
+          parseMidnightDIDDocument({
+            "@context": [
+              "https://www.w3.org/ns/did/v1",
+              "https://w3id.org/security/jwk/v1",
+            ],
+            id: exampleMidnightDid,
+            [member]: null,
+          }),
+        ).toThrow();
+      }
+    });
+
+    it("preserves omission of optional DID Document members", () => {
+      const doc = parseMidnightDIDDocument({
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+      });
+
+      for (const member of optionalDIDDocumentMembers) {
+        expect(doc).not.toHaveProperty(member);
+      }
     });
 
     it("rejects document with string @context", () => {

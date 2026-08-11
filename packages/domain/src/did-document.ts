@@ -408,9 +408,9 @@ export type Service = z.infer<typeof ServiceSchema>;
 export const DIDDocumentSchema = z.looseObject({
   "@context": z.union([z.string(), z.array(z.string())]),
   id: DIDStringSchema,
-  alsoKnownAs: z.nullish(z.array(URIStringSchema)),
-  controller: z.nullish(z.union([DIDStringSchema, z.array(DIDStringSchema)])),
-  verificationMethod: z.nullish(z.array(VerificationMethodSchema)),
+  alsoKnownAs: z.optional(z.array(URIStringSchema)),
+  controller: z.optional(z.union([DIDStringSchema, z.array(DIDStringSchema)])),
+  verificationMethod: z.optional(z.array(VerificationMethodSchema)),
   authentication: z.optional(
     z
       .array(DIDKeyIDSchema)
@@ -440,7 +440,7 @@ export const DIDDocumentSchema = z.looseObject({
         z.minLength(1, "capabilityDelegation must contain at least one entry"),
       ),
   ),
-  service: z.nullish(z.array(ServiceSchema)),
+  service: z.optional(z.array(ServiceSchema)),
 });
 
 function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
@@ -727,9 +727,15 @@ export function createDIDDocument(params: {
   const doc = DIDDocumentSchema.parse({
     "@context": params.context ?? "https://www.w3.org/ns/did/v1",
     id: params.id,
-    alsoKnownAs: params.alsoKnownAs ?? null,
-    controller: params.controller ?? null,
-    verificationMethod: params.verificationMethod ?? null,
+    ...(params.alsoKnownAs === undefined
+      ? {}
+      : { alsoKnownAs: params.alsoKnownAs }),
+    ...(params.controller === undefined
+      ? {}
+      : { controller: params.controller }),
+    ...(params.verificationMethod === undefined
+      ? {}
+      : { verificationMethod: params.verificationMethod }),
     ...(params.authentication === undefined
       ? {}
       : { authentication: params.authentication }),
@@ -745,7 +751,7 @@ export function createDIDDocument(params: {
     ...(params.capabilityDelegation === undefined
       ? {}
       : { capabilityDelegation: params.capabilityDelegation }),
-    service: params.service ?? null,
+    ...(params.service === undefined ? {} : { service: params.service }),
   });
   return validateDIDDocumentConsistency(doc);
 }

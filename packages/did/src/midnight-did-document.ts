@@ -137,15 +137,15 @@ export const MidnightDIDDocumentSchema = DIDDocumentSchema.check(
 export type MidnightDIDDocument = {
   "@context": [string, string, ...string[]]; // At least 2 entries required
   id: MidnightDIDString;
-  alsoKnownAs?: URIString[] | null;
-  controller?: MidnightDIDString | MidnightDIDString[] | null; // Must equal id if present
-  verificationMethod?: VerificationMethod[] | null;
+  alsoKnownAs?: URIString[];
+  controller?: MidnightDIDString | MidnightDIDString[]; // Must equal id if present
+  verificationMethod?: VerificationMethod[];
   authentication?: DIDKeyID[];
   assertionMethod?: DIDKeyID[];
   keyAgreement?: DIDKeyID[];
   capabilityInvocation?: DIDKeyID[];
   capabilityDelegation?: DIDKeyID[];
-  service?: Service[] | null;
+  service?: Service[];
 };
 
 /**
@@ -195,9 +195,13 @@ export function createMidnightDIDDocument(params: {
       ...(params.additionalContexts ?? []),
     ],
     id: params.id,
-    alsoKnownAs: params.alsoKnownAs ?? null,
+    ...(params.alsoKnownAs === undefined
+      ? {}
+      : { alsoKnownAs: params.alsoKnownAs }),
     controller: params.id, // Always equals subject for Midnight DID
-    verificationMethod: params.verificationMethod ?? null,
+    ...(params.verificationMethod === undefined
+      ? {}
+      : { verificationMethod: params.verificationMethod }),
     ...(params.authentication === undefined
       ? {}
       : { authentication: params.authentication }),
@@ -213,16 +217,20 @@ export function createMidnightDIDDocument(params: {
     ...(params.capabilityDelegation === undefined
       ? {}
       : { capabilityDelegation: params.capabilityDelegation }),
-    service: params.service ?? null,
+    ...(params.service === undefined ? {} : { service: params.service }),
   };
 
   const parsed = MidnightDIDDocumentSchema.parse(doc) as DIDDocument;
   return {
     "@context": parsed["@context"] as [string, string, ...string[]],
     id: params.id,
-    alsoKnownAs: parsed.alsoKnownAs ?? null,
+    ...(parsed.alsoKnownAs === undefined
+      ? {}
+      : { alsoKnownAs: parsed.alsoKnownAs }),
     controller: params.id,
-    verificationMethod: parsed.verificationMethod ?? null,
+    ...(parsed.verificationMethod === undefined
+      ? {}
+      : { verificationMethod: parsed.verificationMethod }),
     ...(parsed.authentication === undefined
       ? {}
       : { authentication: parsed.authentication }),
@@ -238,7 +246,7 @@ export function createMidnightDIDDocument(params: {
     ...(parsed.capabilityDelegation === undefined
       ? {}
       : { capabilityDelegation: parsed.capabilityDelegation }),
-    service: parsed.service ?? null,
+    ...(parsed.service === undefined ? {} : { service: parsed.service }),
   } as MidnightDIDDocument;
 }
 
@@ -265,9 +273,13 @@ export const parseMidnightDIDDocument = (
   return {
     "@context": parsed["@context"] as [string, string, ...string[]],
     id,
-    alsoKnownAs: parsed.alsoKnownAs ?? null,
-    controller,
-    verificationMethod: parsed.verificationMethod ?? null,
+    ...(parsed.alsoKnownAs === undefined
+      ? {}
+      : { alsoKnownAs: parsed.alsoKnownAs }),
+    ...(controller === undefined ? {} : { controller }),
+    ...(parsed.verificationMethod === undefined
+      ? {}
+      : { verificationMethod: parsed.verificationMethod }),
     ...(parsed.authentication === undefined
       ? {}
       : { authentication: parsed.authentication }),
@@ -283,6 +295,6 @@ export const parseMidnightDIDDocument = (
     ...(parsed.capabilityDelegation === undefined
       ? {}
       : { capabilityDelegation: parsed.capabilityDelegation }),
-    service: parsed.service ?? null,
+    ...(parsed.service === undefined ? {} : { service: parsed.service }),
   } as MidnightDIDDocument;
 };
