@@ -111,6 +111,20 @@ describe("offchain Midnight DID helpers", () => {
     );
   });
 
+  it("canonicalizes offchain DID document subjects", () => {
+    const did = createOffchainMidnightDIDStringFromState(sampleState);
+    const parts = did.split(":");
+    const uppercaseDid = `${parts.slice(0, 3).join(":")}:${parts[3]?.toUpperCase()}`;
+    const document = offchainStateToDidDocument(
+      uppercaseDid as never,
+      sampleState,
+    );
+
+    expect(document.id).toBe(did);
+    expect(document.controller).toBe(did);
+    expect(document.verificationMethod[0]?.controller).toBe(did);
+  });
+
   it("encodes and decodes Compact-native state deterministically", () => {
     const first = encodeOffchainMidnightDIDState(sampleState);
     const second = encodeOffchainMidnightDIDState(sampleState);

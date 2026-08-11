@@ -657,7 +657,7 @@ export const offchainVerificationMethodToDidDocumentMethod = (
   createVerificationMethod({
     id: method.id,
     type: VerificationMethodType.JsonWebKey,
-    controller: did,
+    controller: parseMidnightDIDString(did),
     publicKeyJwk: method.publicKeyJwk,
   });
 
@@ -674,6 +674,7 @@ export const offchainStateToDidDocument = (
   did: MidnightDIDString,
   state: OffchainMidnightDIDState,
 ) => {
+  const canonicalDid = parseMidnightDIDString(did);
   const parsed = OffchainMidnightDIDStateSchema.parse(state);
   const authentication = parsed.verificationMethod
     .filter((method) => method.relationships.authentication)
@@ -696,11 +697,11 @@ export const offchainStateToDidDocument = (
       "https://www.w3.org/ns/did/v1",
       "https://w3id.org/security/jwk/v1",
     ],
-    id: did,
+    id: canonicalDid,
     alsoKnownAs: parsed.alsoKnownAs.length > 0 ? parsed.alsoKnownAs : null,
-    controller: did,
+    controller: canonicalDid,
     verificationMethod: parsed.verificationMethod.map((method) =>
-      offchainVerificationMethodToDidDocumentMethod(did, method),
+      offchainVerificationMethodToDidDocumentMethod(canonicalDid, method),
     ),
     ...(authentication.length > 0 ? { authentication } : {}),
     ...(assertionMethod.length > 0 ? { assertionMethod } : {}),
