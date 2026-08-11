@@ -32,6 +32,8 @@ test("dry-run resolves both review dispatches without mutating state", async () 
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.status, "dry-run");
   assert.equal(payload.external.commands.length, 2);
+  assert.deepEqual(payload.external.reviewers, ["patextreme"]);
+  assert.match(payload.external.commands[1], /--reviewers patextreme/);
   assert.deepEqual(payload.local.map(({ agent }) => agent), ["claude", "agy"]);
 });
 
@@ -56,6 +58,26 @@ test("rejects malformed repository names", async () => {
   ]);
   assert.notEqual(result.code, 0);
   assert.match(result.stderr, /repo must be owner\/name/);
+});
+
+test("requires user-level agent-peer-review configuration before dispatch", async () => {
+  const temporaryRepo = await mkdtemp(join(tmpdir(), "pr-review-config-"));
+  try {
+    await writeFile(join(temporaryRepo, ".git"), "gitdir: test\\n");
+    const result = await runCli([
+      "--repo", "example/repo",
+      "--pr", "42",
+      "--head-sha", "abcdef3",
+    ], temporaryRepo, {
+      ...process.env,
+      AGENT_PEER_REVIEW_CONFIG: join(temporaryRepo, "missing-config.json"),
+    });
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /global configuration is missing/);
+    assert.match(result.stderr, /ask the user to run/);
+  } finally {
+    await rm(temporaryRepo, { recursive: true, force: true });
+  }
 });
 
 test("reuses only a successful per-head ledger", { skip: process.platform === "win32" }, async () => {
