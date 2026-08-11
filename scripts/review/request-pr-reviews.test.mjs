@@ -86,6 +86,8 @@ test("reuses only a successful per-head ledger", { skip: process.platform === "w
   await mkdir(bin);
   await writeFile(join(temporaryRepo, ".git"), "gitdir: test\n");
   const log = join(temporaryRepo, "invocations.log");
+  const config = join(temporaryRepo, "agent-peer-review-config.json");
+  await writeFile(config, JSON.stringify({ defaultRepo: "example/repo" }));
   const external = join(temporaryRepo, "agent-review.cjs");
   await writeFile(external, `#!/usr/bin/env node\nconst fs = require("node:fs");\nfs.appendFileSync(process.env.REVIEW_TEST_LOG, process.argv.slice(2).join(" ") + "\\n");\nconsole.log(JSON.stringify({ ok: true }));\n`);
   await chmod(external, 0o755);
@@ -97,6 +99,7 @@ test("reuses only a successful per-head ledger", { skip: process.platform === "w
   const env = {
     ...process.env,
     AGENT_REVIEW_CLI: external,
+    AGENT_PEER_REVIEW_CONFIG: config,
     REVIEW_TEST_LOG: log,
     PATH: `${bin}${delimiter}${process.env.PATH ?? ""}`,
   };
