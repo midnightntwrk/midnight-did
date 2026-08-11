@@ -1,6 +1,6 @@
 # Midnight DID W3C Conformance Evidence
 
-**Phase 1 status:** evidence-first audit (initial snapshot, not a certification claim).
+**Phase status:** Phase 1 evidence audit plus the bounded Phase 2 DID syntax audit; this is not a certification claim.
 **Source of record:** [GitHub issue #405](https://github.com/midnightntwrk/midnight-did/issues/405), enriched from [`docs/W3C-COMPLIANCE-PLAN.md`](../../docs/W3C-COMPLIANCE-PLAN.md).
 
 This area separates three questions:
@@ -47,12 +47,11 @@ DID Core 1.0 is the primary release gate. DID Core 1.1 remains a separate compat
 | --- | --- | --- |
 | P0 | DID URL dereferencing is not exposed by the inspected resolver/API surfaces. | Maintainer decision: implement fragment/resource dereferencing, or explicitly scope it out; then add positive/negative dereferencing vectors or a separately tracked limitation issue. |
 | P1 | JSON-LD coverage expands documents but does not yet prove compaction and semantic round-trip equivalence. | Add `expand → compact → compare` tests for all supported verification profiles and custom contexts. |
-| P1 | Syntax coverage does not yet cover the complete issue-required network/offchain and extra-component matrix. | Add fixtures for all networks, case behavior, invalid lengths/hex/base64url, hash mismatch, trailing colon, and DID URL components. |
 | P1 | Resolution negotiation tests cover common q-values but not malformed q-values, all precedence ties, or resolver failures. | Add focused representation negotiation/error vectors and verify metadata/body omission invariants. |
 | P2 | Lifecycle behavior is tested in package-specific suites but not yet assembled into reproducible conformance vectors. | Add create/resolve/update/deactivate/rotation/recovery vectors with initial/final state and metadata. |
 | P2 | Registry submission, public wording, external suite usefulness, and current BLS source remain maintainer decisions. | Record decisions before publication; do not add Multikey/new curves or VC/resolver-service behavior in this repository. |
 
-The queue is intentionally implementation-sized. It does not authorize redesigning the DID method or mixing VC/resolver-service work into this repository.
+The Phase 2 syntax slice is evidenced by `packages/domain/src/test/midnight-did-syntax.conformance.test.ts` and its fixtures. The queue is intentionally implementation-sized. It does not authorize redesigning the DID method or mixing VC/resolver-service work into this repository.
 
 ## Matrices
 
