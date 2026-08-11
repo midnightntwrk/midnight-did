@@ -2,6 +2,7 @@ import {
   deployContract,
   findDeployedContract,
 } from "@midnight-ntwrk/midnight-js-contracts";
+import { parseContractAddress } from "@midnight-ntwrk/midnight-did/midnight";
 
 import { getLogger } from "./api-logger.js";
 import { midnightDIDCompiledContract } from "./contract-instance.js";
@@ -21,12 +22,13 @@ export const joinContract = async (
   providers: MidnightDIDProviders,
   contractAddress: string,
 ): Promise<DeployedMidnightDIDContract> => {
+  const canonicalContractAddress = parseContractAddress(contractAddress);
   // Private state is scoped by contract address; bind before reading so join
   // cannot create or load controller state from the wrong DID namespace.
-  bindPrivateStateProvider(providers, contractAddress);
+  bindPrivateStateProvider(providers, canonicalContractAddress);
   const initialPrivateState = await requireAttachablePrivateState(providers);
   const didContract = await findDeployedContract(providers, {
-    contractAddress,
+    contractAddress: canonicalContractAddress,
     compiledContract: midnightDIDCompiledContract,
     privateStateId: MidnightDIDPrivateStateId,
     initialPrivateState: initialPrivateState,
@@ -49,7 +51,7 @@ export const deploy = async (
   });
   bindPrivateStateProvider(
     providers,
-    didContract.deployTxData.public.contractAddress,
+    parseContractAddress(didContract.deployTxData.public.contractAddress),
   );
   // `deployContract` receives the initial state for proving; this explicit
   // post-bind save makes the controller key durable for subsequent sessions.

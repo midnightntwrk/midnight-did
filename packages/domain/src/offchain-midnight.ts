@@ -555,7 +555,9 @@ const bytesToStateHash = (bytes: Uint8Array): OffchainStateHash =>
   ) as OffchainStateHash;
 
 export const parseOffchainStateHash = (input: string): OffchainStateHash =>
-  OffchainStateHashSchema.parse(input) as OffchainStateHash;
+  (
+    OffchainStateHashSchema.parse(input) as string
+  ).toLowerCase() as OffchainStateHash;
 
 const encodeAndHashState = (
   state: OffchainMidnightDIDState,

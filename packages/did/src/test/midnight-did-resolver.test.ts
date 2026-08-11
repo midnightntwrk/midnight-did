@@ -120,6 +120,27 @@ describe("MidnightDIDResolver", () => {
     expect(ledgerReader).toHaveBeenCalledWith("a".repeat(64));
   });
 
+  it("normalizes uppercase ledger identifiers before reading and emitting documents", async () => {
+    const mixedCaseAddress = `${"A".repeat(32)}${"b".repeat(32)}`;
+    const ledgerReader = vi.fn().mockResolvedValue(ledgerState);
+    const resolver = new MidnightDIDResolver({
+      ledgerReader,
+      expectedNetwork: MidnightNetwork.DevNet,
+    });
+
+    const result = await resolver.resolveResult(
+      `did:midnight:devnet:${mixedCaseAddress}`,
+    );
+
+    expect(result?.didDocument.id).toBe(
+      `did:midnight:devnet:${mixedCaseAddress.toLowerCase()}`,
+    );
+    expect(result?.didDocument.controller).toBe(
+      `did:midnight:devnet:${mixedCaseAddress.toLowerCase()}`,
+    );
+    expect(ledgerReader).toHaveBeenCalledWith(mixedCaseAddress.toLowerCase());
+  });
+
   it("returns null when DID state is not found", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => null,

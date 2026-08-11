@@ -11,7 +11,11 @@ import {
 } from "@midnight-ntwrk/midnight-did-domain";
 import { z } from "zod/v4-mini";
 
-import { MidnightDIDSchema, type MidnightDIDString } from "./midnight.js";
+import {
+  MidnightDIDSchema,
+  parseMidnightDIDString,
+  type MidnightDIDString,
+} from "./midnight.js";
 
 /**
  * Midnight DID Document
@@ -188,15 +192,16 @@ export function createMidnightDIDDocument(params: {
   capabilityDelegation?: string[];
   service?: Service[];
 }): MidnightDIDDocument {
+  const canonicalId = parseMidnightDIDString(params.id);
   const doc = {
     "@context": [
       REQUIRED_CONTEXTS[0],
       REQUIRED_CONTEXTS[1],
       ...(params.additionalContexts ?? []),
     ],
-    id: params.id,
+    id: canonicalId,
     alsoKnownAs: params.alsoKnownAs ?? null,
-    controller: params.id, // Always equals subject for Midnight DID
+    controller: canonicalId, // Always equals subject for Midnight DID
     verificationMethod: params.verificationMethod ?? null,
     ...(params.authentication === undefined
       ? {}
@@ -219,9 +224,9 @@ export function createMidnightDIDDocument(params: {
   const parsed = MidnightDIDDocumentSchema.parse(doc) as DIDDocument;
   return {
     "@context": parsed["@context"] as [string, string, ...string[]],
-    id: params.id,
+    id: canonicalId,
     alsoKnownAs: parsed.alsoKnownAs ?? null,
-    controller: params.id,
+    controller: canonicalId,
     verificationMethod: parsed.verificationMethod ?? null,
     ...(parsed.authentication === undefined
       ? {}
@@ -253,15 +258,13 @@ export const parseMidnightDIDDocument = (
   input: unknown,
 ): MidnightDIDDocument => {
   const parsed = MidnightDIDDocumentSchema.parse(input) as DIDDocument;
-  const id = MidnightDIDSchema.parse(parsed.id) as MidnightDIDString;
+  const id = parseMidnightDIDString(parsed.id);
   const controller =
     parsed.controller == null
       ? parsed.controller
       : Array.isArray(parsed.controller)
-        ? parsed.controller.map(
-            (value) => MidnightDIDSchema.parse(value) as MidnightDIDString,
-          )
-        : (MidnightDIDSchema.parse(parsed.controller) as MidnightDIDString);
+        ? parsed.controller.map((value) => parseMidnightDIDString(value))
+        : parseMidnightDIDString(parsed.controller);
   return {
     "@context": parsed["@context"] as [string, string, ...string[]],
     id,

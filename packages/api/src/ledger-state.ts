@@ -16,10 +16,11 @@ export const getMidnightDIDLedgerState = async (
   providers: MidnightDIDProviders,
   contractAddress: ContractAddress,
 ): Promise<DIDContract.Ledger | null> => {
-  assertIsContractAddress(contractAddress);
+  const canonicalContractAddress = parseContractAddress(contractAddress);
+  assertIsContractAddress(canonicalContractAddress);
   getLogger().info("Checking MidnightDID contract ledger state...");
   const state = await providers.publicDataProvider
-    .queryContractState(contractAddress)
+    .queryContractState(canonicalContractAddress)
     .then((contractState) =>
       contractState != null ? DIDContract.ledger(contractState.data) : null,
     );

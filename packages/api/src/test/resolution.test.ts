@@ -38,7 +38,7 @@ vi.mock("@midnight-ntwrk/midnight-did", () => ({
 }));
 
 vi.mock("@midnight-ntwrk/midnight-did/midnight", () => ({
-  parseContractAddress: vi.fn((value: string) => value),
+  parseContractAddress: vi.fn((value: string) => value.toLowerCase()),
 }));
 
 vi.mock("../did-subject.js", () => ({
@@ -111,14 +111,14 @@ describe("resolution helpers", () => {
     );
 
     await resolveDIDResolutionResult(providers, didContract as never);
-    const result = await midnightDidMocks.state.options?.ledgerReader(
-      "b".repeat(64),
-    );
+    const mixedCaseAddress = `${"B".repeat(32)}${"c".repeat(32)}`;
+    const result =
+      await midnightDidMocks.state.options?.ledgerReader(mixedCaseAddress);
 
-    expect(parseContractAddress).toHaveBeenCalledWith("b".repeat(64));
+    expect(parseContractAddress).toHaveBeenCalledWith(mixedCaseAddress);
     expect(getMidnightDIDLedgerState).toHaveBeenCalledWith(
       providers,
-      "b".repeat(64),
+      mixedCaseAddress.toLowerCase(),
     );
     expect(result).toBe(ledgerState);
   });

@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ContractAddressHexSchema,
   createMidnightDIDString,
+  MidnightDIDSchema,
   MidnightNetwork,
+  OffchainStateHashHexSchema,
   parseContractAddress,
   parseMidnightDID,
   parseMidnightDIDString,
@@ -11,11 +14,33 @@ import {
 const sampleAddress = "c".repeat(64);
 
 describe("Midnight DID helpers", () => {
-  it("parses contract addresses and builds DID strings", () => {
-    const address = parseContractAddress(sampleAddress);
-    expect(address).toBe(sampleAddress);
+  it("normalizes contract addresses and builds DID strings", () => {
+    const mixedCaseAddress = `${"A".repeat(32)}${"c".repeat(32)}`;
+    const address = parseContractAddress(mixedCaseAddress);
+    expect(address).toBe(mixedCaseAddress.toLowerCase());
     const did = createMidnightDIDString(address, MidnightNetwork.DevNet);
-    expect(did).toBe(`did:midnight:devnet:${sampleAddress}`);
+    expect(did).toBe(`did:midnight:devnet:${mixedCaseAddress.toLowerCase()}`);
+    expect(() =>
+      createMidnightDIDString(
+        "not-an-address" as never,
+        MidnightNetwork.DevNet,
+      ),
+    ).toThrow();
+  });
+
+  it("normalizes direct schema parses at the domain boundary", () => {
+    const mixedCaseAddress = `${"A".repeat(32)}${"c".repeat(32)}`;
+    const did = `did:midnight:testnet:${mixedCaseAddress}`;
+
+    expect(ContractAddressHexSchema.parse(mixedCaseAddress)).toBe(
+      mixedCaseAddress.toLowerCase(),
+    );
+    expect(OffchainStateHashHexSchema.parse(mixedCaseAddress)).toBe(
+      mixedCaseAddress.toLowerCase(),
+    );
+    expect(MidnightDIDSchema.parse(did)).toBe(
+      `did:midnight:testnet:${mixedCaseAddress.toLowerCase()}`,
+    );
   });
 
   it("rejects invalid contract address strings", () => {
@@ -39,9 +64,9 @@ describe("Midnight DID helpers", () => {
     expect(() =>
       parseMidnightDIDString(`did:midnight:devnet:${"c".repeat(63)}`),
     ).toThrow(/Invalid method-specific identifier/);
-    expect(() =>
+    expect(
       parseMidnightDIDString(`did:midnight:offchain:${"C".repeat(64)}`),
-    ).toThrow(/lowercase hex/);
+    ).toBe(`did:midnight:offchain:${"c".repeat(64)}`);
     expect(() =>
       parseMidnightDIDString(
         `did:midnight:offchain:${"c".repeat(64)}:not+base64url`,

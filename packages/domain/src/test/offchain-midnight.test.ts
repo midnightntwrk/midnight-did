@@ -9,6 +9,7 @@ import {
   type OffchainMidnightDIDState,
   offchainStateToDidDocument,
   parseLongFormOffchainMidnightDIDString,
+  parseOffchainStateHash,
 } from "../offchain-midnight.js";
 
 const sampleState: OffchainMidnightDIDState = {
@@ -93,6 +94,20 @@ describe("offchain Midnight DID helpers", () => {
     );
     expect(createLongFormOffchainMidnightDIDString(sampleVector.state)).toBe(
       sampleLongFormDid,
+    );
+  });
+
+  it("normalizes uppercase offchain state hashes", () => {
+    const longForm = createLongFormOffchainMidnightDIDString(sampleState);
+    const parts = longForm.split(":");
+    const uppercaseHash = parts[3]?.toUpperCase();
+    const uppercaseDid = `${parts.slice(0, 3).join(":")}:${uppercaseHash}:${parts[4]}`;
+
+    expect(parseOffchainStateHash(uppercaseHash ?? "")).toBe(
+      parts[3]?.toLowerCase(),
+    );
+    expect(parseLongFormOffchainMidnightDIDString(uppercaseDid).did).toBe(
+      longForm,
     );
   });
 
