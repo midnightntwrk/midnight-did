@@ -8,6 +8,7 @@ import {
   parseDIDURL,
 } from "../did-document.js";
 import {
+  didDocumentOptionalMembers,
   exampleDid,
   exampleEcJsonWebKey,
   examplePathServiceInput,
@@ -135,6 +136,15 @@ describe("DID document construction", () => {
         serviceEndpoint: "not-a-uri",
       }),
     ).toThrow(/Invalid URI/);
+  });
+
+  it("omits absent optional members when creating a DID Document", () => {
+    const document = createDIDDocument({ id: exampleDid });
+
+    for (const member of didDocumentOptionalMembers) {
+      expect(document).not.toHaveProperty(member);
+    }
+    expect(JSON.stringify(document)).not.toContain("null");
   });
 
   it("creates a DID Document with a verification method", () => {

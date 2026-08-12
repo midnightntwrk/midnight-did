@@ -28,6 +28,18 @@ const exampleVerificationMethod = createVerificationMethod({
   },
 });
 
+const optionalDIDDocumentMembers = [
+  "alsoKnownAs",
+  "controller",
+  "verificationMethod",
+  "authentication",
+  "assertionMethod",
+  "keyAgreement",
+  "capabilityInvocation",
+  "capabilityDelegation",
+  "service",
+] as const;
+
 const exampleJubjubVerificationMethod = createVerificationMethod({
   id: "#key-jubjub",
   type: VerificationMethodType.JsonWebKey,
@@ -173,6 +185,35 @@ describe("Midnight DID Document", () => {
       const doc = parseMidnightDIDDocument(input);
       expect(doc.id).toBe(exampleMidnightDid);
       expect(doc.controller).toBe(exampleMidnightDid);
+    });
+
+    it("rejects null optional DID Document members", () => {
+      for (const member of optionalDIDDocumentMembers) {
+        expect(() =>
+          parseMidnightDIDDocument({
+            "@context": [
+              "https://www.w3.org/ns/did/v1",
+              "https://w3id.org/security/jwk/v1",
+            ],
+            id: exampleMidnightDid,
+            [member]: null,
+          }),
+        ).toThrow();
+      }
+    });
+
+    it("preserves omission of optional DID Document members", () => {
+      const doc = parseMidnightDIDDocument({
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+      });
+
+      for (const member of optionalDIDDocumentMembers) {
+        expect(doc).not.toHaveProperty(member);
+      }
     });
 
     it("rejects document with string @context", () => {

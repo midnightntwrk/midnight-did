@@ -217,6 +217,21 @@ describe("offchain Midnight DID helpers", () => {
     );
   });
 
+  it("omits absent optional members from an offchain DID document", () => {
+    const state = {
+      ...sampleState,
+      alsoKnownAs: [],
+      service: [],
+    };
+    const did = createOffchainMidnightDIDStringFromState(state);
+    const doc = offchainStateToDidDocument(did, state);
+
+    expect(doc).not.toHaveProperty("alsoKnownAs");
+    expect(doc).not.toHaveProperty("service");
+    expect(JSON.stringify(doc)).not.toContain("null");
+    expect(parseDIDDocument(doc).id).toBe(did);
+  });
+
   it("derives a DID document from the offchain state", () => {
     const did = createOffchainMidnightDIDStringFromState(sampleState);
     const doc = offchainStateToDidDocument(did, sampleState);

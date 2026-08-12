@@ -208,3 +208,15 @@ export const invalidDidStrings = [
   "did:example:abc#frag",
   "example:xyz",
 ];
+
+export const didDocumentOptionalMembers = [
+  "alsoKnownAs",
+  "controller",
+  "verificationMethod",
+  "authentication",
+  "assertionMethod",
+  "keyAgreement",
+  "capabilityInvocation",
+  "capabilityDelegation",
+  "service",
+] as const;
