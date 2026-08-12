@@ -157,6 +157,24 @@ describe("Midnight DID Document", () => {
       expect(doc.id).toBe(exampleMidnightDid);
     });
 
+    it("normalizes case-divergent document id and controller", () => {
+      const mixedCaseDid = exampleMidnightDid.replace("c569", "C569");
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: mixedCaseDid,
+        controller: exampleMidnightDid,
+        verificationMethod: [exampleVerificationMethod],
+        authentication: ["#key-1"],
+      };
+
+      const doc = parseMidnightDIDDocument(input);
+      expect(doc.id).toBe(exampleMidnightDid);
+      expect(doc.controller).toBe(exampleMidnightDid);
+    });
+
     it("rejects document with string @context", () => {
       const input = {
         "@context": "https://www.w3.org/ns/did/v1",

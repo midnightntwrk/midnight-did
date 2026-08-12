@@ -1,3 +1,5 @@
+import { parseContractAddress } from "@midnight-ntwrk/midnight-did/midnight";
+
 import { getLogger } from "./api-logger.js";
 import { randomBytes } from "./lightweight.js";
 import {
@@ -46,7 +48,9 @@ export const bindPrivateStateProvider = (
   providers: MidnightDIDProviders,
   contractAddress: string,
 ): void => {
-  providers.privateStateProvider.setContractAddress(contractAddress);
+  providers.privateStateProvider.setContractAddress(
+    parseContractAddress(contractAddress),
+  );
 };
 
 export async function restorePrivateState(
