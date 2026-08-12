@@ -1,7 +1,7 @@
 import { LedgerToDomain } from "@midnight-ntwrk/midnight-did";
 import {
-  parseContractAddress,
   type ContractAddress,
+  parseContractAddress,
 } from "@midnight-ntwrk/midnight-did/midnight";
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import { assertIsContractAddress } from "@midnight-ntwrk/midnight-js-utils";
