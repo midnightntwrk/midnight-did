@@ -184,10 +184,11 @@ describe("DID private state lifecycle", () => {
   it("binds the private-state provider to a contract address", () => {
     const { providers, privateStateProvider } = makeProviders();
 
-    bindPrivateStateProvider(providers, "0200abc");
+    const mixedCaseAddress = `${"A".repeat(32)}${"c".repeat(32)}`;
+    bindPrivateStateProvider(providers, mixedCaseAddress);
 
     expect(privateStateProvider.setContractAddress).toHaveBeenCalledWith(
-      "0200abc",
+      mixedCaseAddress.toLowerCase(),
     );
   });
 

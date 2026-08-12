@@ -112,17 +112,20 @@ export const MidnightDIDDocumentSchema = DIDDocumentSchema.check(
     "id must be a valid Midnight DID (did:midnight:<network>:<identifier>)",
   ),
   z.refine((doc) => {
-    // Controller must equal subject (single-controller model)
+    // Controller must equal subject (single-controller model), comparing the
+    // canonical DID spellings so case-only differences are accepted.
     if (!doc.controller) return true; // Optional, but if present must match
+    const canonicalId = parseMidnightDIDString(doc.id);
     if (typeof doc.controller === "string") {
-      return doc.controller === doc.id;
+      const parsedController = MidnightDIDSchema.safeParse(doc.controller);
+      return parsedController.success && parsedController.data === canonicalId;
     }
-    // If array, must have exactly one entry equal to id
-    return (
-      Array.isArray(doc.controller) &&
-      doc.controller.length === 1 &&
-      doc.controller[0] === doc.id
-    );
+    // If array, it must have exactly one canonical entry equal to id.
+    if (!Array.isArray(doc.controller) || doc.controller.length !== 1) {
+      return false;
+    }
+    const parsedController = MidnightDIDSchema.safeParse(doc.controller[0]);
+    return parsedController.success && parsedController.data === canonicalId;
   }, "controller must equal DID subject for Midnight DID (single-controller model)"),
   z.refine((doc) => {
     // All verification methods must be JsonWebKey and use supported key types

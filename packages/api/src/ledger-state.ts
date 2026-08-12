@@ -1,7 +1,7 @@
 import { LedgerToDomain } from "@midnight-ntwrk/midnight-did";
 import {
-  type ContractAddress,
   parseContractAddress,
+  type ContractAddress,
 } from "@midnight-ntwrk/midnight-did/midnight";
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import { assertIsContractAddress } from "@midnight-ntwrk/midnight-js-utils";
@@ -16,11 +16,10 @@ export const getMidnightDIDLedgerState = async (
   providers: MidnightDIDProviders,
   contractAddress: ContractAddress,
 ): Promise<DIDContract.Ledger | null> => {
-  const canonicalContractAddress = parseContractAddress(contractAddress);
-  assertIsContractAddress(canonicalContractAddress);
+  assertIsContractAddress(contractAddress);
   getLogger().info("Checking MidnightDID contract ledger state...");
   const state = await providers.publicDataProvider
-    .queryContractState(canonicalContractAddress)
+    .queryContractState(contractAddress)
     .then((contractState) =>
       contractState != null ? DIDContract.ledger(contractState.data) : null,
     );

@@ -43,8 +43,8 @@ export function createMidnightDIDString(
   const identifier =
     network === MidnightNetwork.Offchain
       ? (OffchainStateHashHexSchema.parse(String(contractAddress)) as string)
-      : (ContractAddressHexSchema.parse(String(contractAddress)) as string);
-  return `did:midnight:${net}:${identifier.toLowerCase()}` as MidnightDIDString;
+      : parseContractAddress(String(contractAddress));
+  return `did:midnight:${net}:${identifier}` as MidnightDIDString;
 }
 
 // did:midnight:<network>:<contract_address>

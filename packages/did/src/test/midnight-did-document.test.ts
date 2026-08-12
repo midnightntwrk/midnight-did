@@ -157,7 +157,7 @@ describe("Midnight DID Document", () => {
       expect(doc.id).toBe(exampleMidnightDid);
     });
 
-    it("normalizes uppercase identifier in document id and controller", () => {
+    it("normalizes case-divergent document id and controller", () => {
       const mixedCaseDid = exampleMidnightDid.replace("c569", "C569");
       const input = {
         "@context": [
@@ -165,7 +165,7 @@ describe("Midnight DID Document", () => {
           "https://w3id.org/security/jwk/v1",
         ],
         id: mixedCaseDid,
-        controller: mixedCaseDid,
+        controller: exampleMidnightDid,
         verificationMethod: [exampleVerificationMethod],
         authentication: ["#key-1"],
       };

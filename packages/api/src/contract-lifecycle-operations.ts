@@ -33,9 +33,7 @@ export const joinContract = async (
     privateStateId: MidnightDIDPrivateStateId,
     initialPrivateState: initialPrivateState,
   });
-  getLogger().info(
-    `Joined contract at address: ${didContract.deployTxData.public.contractAddress}`,
-  );
+  getLogger().info(`Joined contract at address: ${canonicalContractAddress}`);
   return didContract;
 };
 
@@ -49,16 +47,14 @@ export const deploy = async (
     privateStateId: MidnightDIDPrivateStateId,
     initialPrivateState: privateState,
   });
-  bindPrivateStateProvider(
-    providers,
-    parseContractAddress(didContract.deployTxData.public.contractAddress),
+  const canonicalContractAddress = parseContractAddress(
+    didContract.deployTxData.public.contractAddress,
   );
+  bindPrivateStateProvider(providers, canonicalContractAddress);
   // `deployContract` receives the initial state for proving; this explicit
   // post-bind save makes the controller key durable for subsequent sessions.
   await savePrivateState(providers, privateState);
-  getLogger().info(
-    `Deployed contract at address: ${didContract.deployTxData.public.contractAddress}`,
-  );
+  getLogger().info(`Deployed contract at address: ${canonicalContractAddress}`);
   return didContract;
 };
 
@@ -69,7 +65,7 @@ export const createDID = async (
   getLogger().info("Creating DID...");
   const didContract = await deploy(providers, privateState);
   getLogger().info(
-    `Created DID at contract address: ${didContract.deployTxData.public.contractAddress}`,
+    `Created DID at contract address: ${didContract.deployTxData.public.contractAddress.toLowerCase()}`,
   );
   return didContract;
 };
