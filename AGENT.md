@@ -168,10 +168,22 @@ pnpm --filter ./packages/contract test
 
 Any PR workflow—dev-loop or standalone—must run
 `scripts/review/request-pr-reviews.mjs` after creating a PR and after every push
-that changes its head SHA. This dispatch runs the local review CLIs and requests
-the configured GitHub-routed reviewer; it is keyed by head SHA so resume passes
-are idempotent. Review the generated artifacts and verify findings before
+that changes its head SHA. This dispatch runs the local review CLIs, bootstraps
+the `ai-review` label profile, and requests Pat Losoponkul (`patextreme`) as the
+GitHub-routed reviewer by default. It is keyed by head SHA so resume passes are
+idempotent. Review the generated artifacts and verify findings before
 continuing the PR workflow.
+
+The dispatch requires the user-level agent-peer-review configuration at
+`~/.agent-peer-review/config.json`; it must never create credentials or tokens.
+If the file is missing or invalid, stop and ask the user to configure it with:
+
+```bash
+npx -y @input-output-hk/agent-review@0.5.0 init --repo midnightntwrk/midnight-did
+```
+
+The repository pins `@input-output-hk/agent-review-pi@0.5.0` in `.pi/settings.json`;
+the global CLI configuration remains user-owned and is not committed.
 
 ## Development Cycle
 
