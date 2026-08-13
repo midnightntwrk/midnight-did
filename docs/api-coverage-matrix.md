@@ -21,6 +21,17 @@ No module in this matrix is intentionally excluded from measurement. The
 long-running API integration suite remains a separate integration signal; it
 does not replace direct unit coverage for state-critical orchestration.
 
+## DID identifier conformance
+
+| Boundary | Canonicalization requirement | Regression coverage |
+| --- | --- | --- |
+| Domain address/hash and DID parsers | Accept valid hexadecimal input and emit lowercase identifiers; malformed scheme, network, length, and encoding remain rejected | `packages/domain/src/test/midnight.test.ts`, `offchain-midnight.test.ts` |
+| DID document and resolver mapping | DID document IDs, controllers, and resolver ledger-reader inputs are lowercase | `packages/did/src/test/midnight-did-document.test.ts`, `midnight-did-resolver.test.ts` |
+| API lifecycle and ledger reads | Joined/deployed contract addresses are parsed before private-state binding and ledger queries | `packages/api/src/test/contract-lifecycle-operations.test.ts` |
+
+This matrix records the lowercase identifier behavior introduced for issue #405;
+it does not expand the API package surface or imply resolver-service/VC scope.
+
 ## Protected modules
 
 `scripts/check-api-module-coverage.mjs` enforces module-level minimums for the

@@ -72,16 +72,6 @@ export const invalidSyntaxFixtures = [
     error: /method-specific identifier/,
   },
   {
-    label: "offchain hash is uppercase",
-    did: `did:midnight:offchain:${"A".repeat(64)}`,
-    error: /lowercase hex/,
-  },
-  {
-    label: "offchain hash is mixed case",
-    did: `did:midnight:offchain:${"aA".repeat(32)}`,
-    error: /lowercase hex/,
-  },
-  {
     label: "offchain hash is too short",
     did: `did:midnight:offchain:${"a".repeat(63)}`,
     error: /method-specific identifier/,

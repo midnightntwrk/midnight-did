@@ -8,6 +8,7 @@ import { spawn } from "node:child_process";
 
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 const DEFAULT_LOCAL_AGENTS = ["claude", "agy"];
+const DEFAULT_EXTERNAL_REVIEWER = "patextreme";
 const REVIEW_PACKAGE = "@input-output-hk/agent-review/dist/cli/index.js";
 
 function usage() {
@@ -18,7 +19,7 @@ review CLIs once for the supplied PR head SHA.
 
 Options:
   --url <url>                 Exact PR URL (defaults to the canonical GitHub URL)
-  --reviewers <csv>           Forward reviewers to agent-review (otherwise use its config)
+  --reviewers <csv>           Forward reviewers to agent-review (default: Pat/patextreme)
   --skills <csv>              Forward review skills to agent-review
   --local-agents <csv>        Local CLIs (default: claude,agy)
   --timeout-ms <number>       Per-reviewer timeout (default: ${DEFAULT_TIMEOUT_MS})
@@ -88,6 +89,21 @@ function parseArgs(argv) {
 
 function csv(value) {
   return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+async function requireGlobalConfiguration() {
+  const configPath = process.env.AGENT_PEER_REVIEW_CONFIG ?? path.join(os.homedir(), ".agent-peer-review", "config.json");
+  if (!(await fileExists(configPath))) {
+    throw new Error(`agent-peer-review global configuration is missing at ${configPath}; ask the user to run "npx -y @input-output-hk/agent-review@0.5.0 init --repo <owner/name>" before dispatching reviews`);
+  }
+  try {
+    const config = JSON.parse(await readFile(configPath, "utf8"));
+    if (!config || typeof config !== "object" || Array.isArray(config)) {
+      throw new Error("configuration is not an object");
+    }
+  } catch (error) {
+    throw new Error(`agent-peer-review global configuration at ${configPath} is invalid: ${error.message}`);
+  }
 }
 
 function positiveInt(value, name) {
@@ -178,13 +194,15 @@ function commandText(invocation, args) {
 async function runExternalReview(options, invocation, repoRoot) {
   const bootstrapArgs = ["labels", "bootstrap", "--repo", options.repo];
   const requestArgs = ["request", "--repo", options.repo, "--pr", options.pr];
-  if (options.reviewers.length) requestArgs.push("--reviewers", options.reviewers.join(","));
+  const reviewers = options.reviewers.length ? options.reviewers : [DEFAULT_EXTERNAL_REVIEWER];
+  requestArgs.push("--reviewers", reviewers.join(","));
   if (options.skills.length) requestArgs.push("--skills", options.skills.join(","));
 
   if (options.dryRun) {
     return {
       ok: true,
       dryRun: true,
+      reviewers,
       commands: [commandText(invocation, bootstrapArgs), commandText(invocation, requestArgs)],
     };
   }
@@ -284,6 +302,7 @@ async function main() {
     return;
   }
 
+  await requireGlobalConfiguration();
   await mkdir(outputDir, { recursive: true });
   const externalPromise = runExternalReview(options, invocation, repoRoot);
   const localPromise = Promise.all(localOutput.map(({ agent, path: outputPath }) => runLocalReview(agent, options, outputPath, repoRoot)));

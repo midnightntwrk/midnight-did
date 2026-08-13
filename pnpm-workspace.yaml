@@ -12,6 +12,8 @@ trustPolicy: no-downgrade
 minimumReleaseAgeExclude:
   # Renovate security update: brace-expansion@5.0.8
   - brace-expansion@5.0.8
+  # Renovate security update: mermaid@11.16.1
+  - mermaid@11.16.1
 trustPolicyExclude:
   # mermaid@11.16.0 pulls @antfu/install-pkg via @iconify/utils, which resolves
   # tinyexec@1.2.2. pnpm flags the package's attestation-only publication as a

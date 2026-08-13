@@ -29,6 +29,18 @@ Routing rules:
   request, label, claim, or approval gate. Conversely, a routed review must not
   be replaced by a local CLI run.
 
+For this repository's SDLC, the routed lane requests Pat Losoponkul
+(`patextreme`) by default and applies the `ai-review` label. The dispatch helper
+uses the pinned `@input-output-hk/agent-review-pi@0.5.0` integration. It requires
+the user-owned `~/.agent-peer-review/config.json`; if that file is missing or
+invalid, stop and ask the user to run:
+
+```bash
+npx -y @input-output-hk/agent-review@0.5.0 init --repo midnightntwrk/midnight-did
+```
+
+Never create or copy the user's GitHub credentials into the repository.
+
 ## Preconditions
 
 - Run from the relevant local git repository or a dedicated worktree; do not

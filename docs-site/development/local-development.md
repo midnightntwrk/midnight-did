@@ -4,14 +4,14 @@
 
 - Node.js 24 and pnpm 10. Run `corepack enable` once so Node uses the
   repository-pinned package manager from `packageManager`.
-- Midnight Compact compiler `0.30.0`.
+- Midnight Compact compiler `0.31.1`.
 - Docker for API integration tests.
 
 ## Setup
 
 ```bash
 pnpm install
-compact update 0.30.0
+compact update 0.31.1
 ```
 
 ## Repository Layout

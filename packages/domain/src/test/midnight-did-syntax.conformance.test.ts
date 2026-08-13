@@ -58,18 +58,18 @@ describe("DID Core syntax conformance fixtures", () => {
     expect(parseLongFormOffchainMidnightDIDString(longForm).did).toBe(longForm);
   });
 
-  it("treats ledger hexadecimal case as spelling, not normalization", () => {
+  it("canonicalizes ledger hexadecimal case to lowercase", () => {
     const lower = `did:midnight:testnet:${"abcdef01".repeat(8)}`;
     const upper = lower
       .toUpperCase()
       .replace("DID:MIDNIGHT:TESTNET", "did:midnight:testnet");
     expect(parseMidnightDIDString(lower)).toBe(lower);
-    expect(parseMidnightDIDString(upper)).toBe(upper);
+    expect(parseMidnightDIDString(upper)).toBe(lower);
     const mixed = `did:midnight:testnet:${"0123456789AbCdEf".repeat(4)}`;
-    expect(parseMidnightDIDString(mixed)).toBe(mixed);
+    expect(parseMidnightDIDString(mixed)).toBe(mixed.toLowerCase());
     expect(upper).not.toBe(lower);
     expect(parseMidnightDID(parseMidnightDIDString(upper)).id).toBe(
-      upper.split(":")[3],
+      lower.split(":")[3],
     );
   });
 

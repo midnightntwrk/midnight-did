@@ -13,8 +13,9 @@ refinement:
   fanOut: 3
   mode: parallel
   # This repository uses the configured local review fan-out; Copilot follow-up
-  # is not an automatic gate. The post-PR dispatch wrapper also requests the
-  # configured GitHub-routed reviewer; see AGENT.md.
+  # is not an automatic gate. The post-PR dispatch wrapper also requests Pat's
+  # GitHub-routed review (`patextreme`) and applies the ai-review label; see
+  # AGENT.md.
   maxCopilotRounds: 0
   stopOnLowSignal: false
   lowSignalRoundThreshold: 3
@@ -106,10 +107,11 @@ personas:
     persona: review
     prompt: >-
       Independently review the PR for correctness, security, stale docs, API
-      compatibility, tests, and regression risk. For Compact changes, check
-      authorization binding, witness secrecy, managed artifact freshness,
-      circuit k/size changes, and spec/docs drift. Do not modify files. Return
-      only actionable findings with file/line references, or No findings.
+      compatibility, tests, and regression risk as Pat's external GitHub-routed
+      review lane. For Compact changes, check authorization binding, witness
+      secrecy, managed artifact freshness, circuit k/size changes, and spec/docs
+      drift. Do not modify files. Return only actionable findings with file/line
+      references, or No findings.
     defaultModel: null
 
 autonomy:

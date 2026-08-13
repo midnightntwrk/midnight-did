@@ -17,6 +17,9 @@ vi.mock("../contract-instance.js", () => ({
 }));
 
 describe("contract lifecycle operations", () => {
+  const contractAddress = "A".repeat(64);
+  const deployedContractAddress = "D".repeat(64);
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -31,16 +34,16 @@ describe("contract lifecycle operations", () => {
       get: vi.fn(async () => privateState),
     };
     const joinedContract = {
-      deployTxData: { public: { contractAddress: "0200abc" } },
+      deployTxData: { public: { contractAddress } },
     };
     vi.mocked(findDeployedContract).mockResolvedValue(joinedContract as any);
 
     await expect(
-      joinContract({ privateStateProvider } as any, "0200abc"),
+      joinContract({ privateStateProvider } as any, contractAddress),
     ).resolves.toBe(joinedContract);
 
     expect(privateStateProvider.setContractAddress).toHaveBeenCalledWith(
-      "0200abc",
+      contractAddress.toLowerCase(),
     );
     expect(
       privateStateProvider.setContractAddress.mock.invocationCallOrder[0],
@@ -54,7 +57,7 @@ describe("contract lifecycle operations", () => {
     expect(findDeployedContract).toHaveBeenCalledWith(
       { privateStateProvider },
       expect.objectContaining({
-        contractAddress: "0200abc",
+        contractAddress: contractAddress.toLowerCase(),
         privateStateId: MidnightDIDPrivateStateId,
         initialPrivateState: privateState,
       }),
@@ -70,12 +73,12 @@ describe("contract lifecycle operations", () => {
       get: vi.fn(async () => privateState),
     };
     const joinedContract = {
-      deployTxData: { public: { contractAddress: "0200abc" } },
+      deployTxData: { public: { contractAddress } },
     };
     vi.mocked(findDeployedContract).mockResolvedValue(joinedContract as any);
 
     await expect(
-      joinContract({ privateStateProvider } as any, "0200abc"),
+      joinContract({ privateStateProvider } as any, contractAddress),
     ).resolves.toBe(joinedContract);
 
     expect(findDeployedContract).toHaveBeenCalledWith(
@@ -91,7 +94,7 @@ describe("contract lifecycle operations", () => {
     };
 
     await expect(
-      joinContract({ privateStateProvider } as any, "0200abc"),
+      joinContract({ privateStateProvider } as any, contractAddress),
     ).rejects.toThrow(/private state is missing or malformed/);
 
     expect(findDeployedContract).not.toHaveBeenCalled();
@@ -107,7 +110,7 @@ describe("contract lifecycle operations", () => {
       set: vi.fn(async () => undefined),
     };
     const deployedContract = {
-      deployTxData: { public: { contractAddress: "0200def" } },
+      deployTxData: { public: { contractAddress: deployedContractAddress } },
     };
     vi.mocked(deployContract).mockResolvedValue(deployedContract as any);
 
@@ -116,7 +119,7 @@ describe("contract lifecycle operations", () => {
     ).resolves.toBe(deployedContract);
 
     expect(privateStateProvider.setContractAddress).toHaveBeenCalledWith(
-      "0200def",
+      deployedContractAddress.toLowerCase(),
     );
     expect(privateStateProvider.set).toHaveBeenCalledWith(
       MidnightDIDPrivateStateId,

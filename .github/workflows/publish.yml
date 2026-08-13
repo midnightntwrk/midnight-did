@@ -28,7 +28,7 @@ permissions:
   contents: read
 
 env:
-  COMPACT_COMPILER_VERSION: 0.30.0
+  COMPACT_COMPILER_VERSION: 0.31.1
   NPM_REGISTRY: https://registry.npmjs.org/
   ORAS_VERSION: 1.2.3
   PNPM_CONFIG_AUDIT: "false"

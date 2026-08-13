@@ -11,7 +11,11 @@ import {
 } from "@midnight-ntwrk/midnight-did-domain";
 import { z } from "zod/v4-mini";
 
-import { MidnightDIDSchema, type MidnightDIDString } from "./midnight.js";
+import {
+  MidnightDIDSchema,
+  type MidnightDIDString,
+  parseMidnightDIDString,
+} from "./midnight.js";
 
 /**
  * Midnight DID Document
@@ -108,17 +112,20 @@ export const MidnightDIDDocumentSchema = DIDDocumentSchema.check(
     "id must be a valid Midnight DID (did:midnight:<network>:<identifier>)",
   ),
   z.refine((doc) => {
-    // Controller must equal subject (single-controller model)
+    // Controller must equal subject (single-controller model), comparing the
+    // canonical DID spellings so case-only differences are accepted.
     if (!doc.controller) return true; // Optional, but if present must match
+    const canonicalId = parseMidnightDIDString(doc.id);
     if (typeof doc.controller === "string") {
-      return doc.controller === doc.id;
+      const parsedController = MidnightDIDSchema.safeParse(doc.controller);
+      return parsedController.success && parsedController.data === canonicalId;
     }
-    // If array, must have exactly one entry equal to id
-    return (
-      Array.isArray(doc.controller) &&
-      doc.controller.length === 1 &&
-      doc.controller[0] === doc.id
-    );
+    // If array, it must have exactly one canonical entry equal to id.
+    if (!Array.isArray(doc.controller) || doc.controller.length !== 1) {
+      return false;
+    }
+    const parsedController = MidnightDIDSchema.safeParse(doc.controller[0]);
+    return parsedController.success && parsedController.data === canonicalId;
   }, "controller must equal DID subject for Midnight DID (single-controller model)"),
   z.refine((doc) => {
     // All verification methods must be JsonWebKey and use supported key types
@@ -137,15 +144,15 @@ export const MidnightDIDDocumentSchema = DIDDocumentSchema.check(
 export type MidnightDIDDocument = {
   "@context": [string, string, ...string[]]; // At least 2 entries required
   id: MidnightDIDString;
-  alsoKnownAs?: URIString[];
-  controller?: MidnightDIDString | MidnightDIDString[]; // Must equal id if present
-  verificationMethod?: VerificationMethod[];
+  alsoKnownAs?: URIString[] | null;
+  controller?: MidnightDIDString | MidnightDIDString[] | null; // Must equal id if present
+  verificationMethod?: VerificationMethod[] | null;
   authentication?: DIDKeyID[];
   assertionMethod?: DIDKeyID[];
   keyAgreement?: DIDKeyID[];
   capabilityInvocation?: DIDKeyID[];
   capabilityDelegation?: DIDKeyID[];
-  service?: Service[];
+  service?: Service[] | null;
 };
 
 /**
@@ -188,17 +195,18 @@ export function createMidnightDIDDocument(params: {
   capabilityDelegation?: string[];
   service?: Service[];
 }): MidnightDIDDocument {
+  const canonicalId = parseMidnightDIDString(params.id);
   const doc = {
     "@context": [
       REQUIRED_CONTEXTS[0],
       REQUIRED_CONTEXTS[1],
       ...(params.additionalContexts ?? []),
     ],
-    id: params.id,
+    id: canonicalId,
     ...(params.alsoKnownAs === undefined
       ? {}
       : { alsoKnownAs: params.alsoKnownAs }),
-    controller: params.id, // Always equals subject for Midnight DID
+    controller: canonicalId, // Always equals subject for Midnight DID
     ...(params.verificationMethod === undefined
       ? {}
       : { verificationMethod: params.verificationMethod }),
@@ -223,11 +231,11 @@ export function createMidnightDIDDocument(params: {
   const parsed = MidnightDIDDocumentSchema.parse(doc) as DIDDocument;
   return {
     "@context": parsed["@context"] as [string, string, ...string[]],
-    id: params.id,
+    id: canonicalId,
     ...(parsed.alsoKnownAs === undefined
       ? {}
       : { alsoKnownAs: parsed.alsoKnownAs }),
-    controller: params.id,
+    controller: canonicalId,
     ...(parsed.verificationMethod === undefined
       ? {}
       : { verificationMethod: parsed.verificationMethod }),
@@ -261,15 +269,13 @@ export const parseMidnightDIDDocument = (
   input: unknown,
 ): MidnightDIDDocument => {
   const parsed = MidnightDIDDocumentSchema.parse(input) as DIDDocument;
-  const id = MidnightDIDSchema.parse(parsed.id) as MidnightDIDString;
+  const id = parseMidnightDIDString(parsed.id);
   const controller =
     parsed.controller == null
       ? parsed.controller
       : Array.isArray(parsed.controller)
-        ? parsed.controller.map(
-            (value) => MidnightDIDSchema.parse(value) as MidnightDIDString,
-          )
-        : (MidnightDIDSchema.parse(parsed.controller) as MidnightDIDString);
+        ? parsed.controller.map((value) => parseMidnightDIDString(value))
+        : parseMidnightDIDString(parsed.controller);
   return {
     "@context": parsed["@context"] as [string, string, ...string[]],
     id,
