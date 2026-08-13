@@ -64,11 +64,6 @@ export const createDID = async (
 ): Promise<DeployedMidnightDIDContract> => {
   getLogger().info("Creating DID...");
   const didContract = await deploy(providers, privateState);
-  const canonicalContractAddress = parseContractAddress(
-    didContract.deployTxData.public.contractAddress,
-  );
-  getLogger().info(
-    `Created DID at contract address: ${canonicalContractAddress}`,
-  );
+  getLogger().info("Created DID successfully");
   return didContract;
 };

@@ -291,6 +291,21 @@ describe("Midnight DID Document", () => {
       );
     });
 
+    it("reports invalid id cleanly when controller is present", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: "did:example:123",
+        controller: exampleMidnightDid,
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /id must be a valid Midnight DID \(did:midnight:<network>:<identifier>\)/,
+      );
+    });
+
     it("rejects document where controller does not equal id", () => {
       const input = {
         "@context": [
