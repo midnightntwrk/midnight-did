@@ -93,6 +93,17 @@ describe("Midnight DID Document", () => {
       expect(doc.controller).toBe(exampleMidnightDid);
     });
 
+    it("omits absent optional members instead of emitting null", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+      });
+
+      for (const member of optionalDIDDocumentMembers) {
+        if (member === "controller") continue;
+        expect(doc).not.toHaveProperty(member);
+      }
+    });
+
     it("accepts Ed25519 (OKP) verification methods", () => {
       const doc = createMidnightDIDDocument({
         id: exampleMidnightDid,
