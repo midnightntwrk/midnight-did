@@ -304,6 +304,9 @@ describe("Midnight DID Document", () => {
       expect(() => parseMidnightDIDDocument(input)).toThrow(
         /id must be a valid Midnight DID \(did:midnight:<network>:<identifier>\)/,
       );
+      expect(() => parseMidnightDIDDocument(input)).not.toThrow(
+        /controller must equal DID subject/,
+      );
     });
 
     it("rejects document where controller does not equal id", () => {
