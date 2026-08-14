@@ -115,7 +115,9 @@ export const MidnightDIDDocumentSchema = DIDDocumentSchema.check(
     // Controller must equal subject (single-controller model), comparing the
     // canonical DID spellings so case-only differences are accepted.
     if (!doc.controller) return true; // Optional, but if present must match
-    const canonicalId = parseMidnightDIDString(doc.id);
+    const parsedId = MidnightDIDSchema.safeParse(doc.id);
+    if (!parsedId.success) return true;
+    const canonicalId = parsedId.data;
     if (typeof doc.controller === "string") {
       const parsedController = MidnightDIDSchema.safeParse(doc.controller);
       return parsedController.success && parsedController.data === canonicalId;

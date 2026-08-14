@@ -93,6 +93,17 @@ describe("Midnight DID Document", () => {
       expect(doc.controller).toBe(exampleMidnightDid);
     });
 
+    it("omits absent optional members instead of emitting null", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+      });
+
+      for (const member of optionalDIDDocumentMembers) {
+        if (member === "controller") continue;
+        expect(doc).not.toHaveProperty(member);
+      }
+    });
+
     it("accepts Ed25519 (OKP) verification methods", () => {
       const doc = createMidnightDIDDocument({
         id: exampleMidnightDid,
@@ -277,6 +288,24 @@ describe("Midnight DID Document", () => {
 
       expect(() => parseMidnightDIDDocument(input)).toThrow(
         /must be a valid Midnight DID/,
+      );
+    });
+
+    it("reports invalid id cleanly when controller is present", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: "did:example:123",
+        controller: exampleMidnightDid,
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /id must be a valid Midnight DID \(did:midnight:<network>:<identifier>\)/,
+      );
+      expect(() => parseMidnightDIDDocument(input)).not.toThrow(
+        /controller must equal DID subject/,
       );
     });
 
