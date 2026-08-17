@@ -467,6 +467,10 @@ export function validateDIDDocumentConsistency(
     const fragment = value.startsWith("#") ? value : `#${value}`;
     return `${normalizedDoc.id}${fragment}`;
   };
+  const canonicalizeServiceReference = (value: string): string => {
+    if (value.startsWith("did:")) return value;
+    return value.startsWith("#") ? `${normalizedDoc.id}${value}` : value;
+  };
 
   verificationMethods.forEach((vm, index) => {
     const canonicalId = canonicalizeKeyReference(vm.id);
@@ -519,10 +523,13 @@ export function validateDIDDocumentConsistency(
   const services = normalizedDoc.service ?? [];
   const seenServiceIds = new Set<string>();
   services.forEach((service, index) => {
-    const canonicalServiceId = canonicalizeKeyReference(service.id);
-    if (seenServiceIds.has(canonicalServiceId)) {
+    const canonicalServiceId = canonicalizeServiceReference(service.id);
+    if (
+      seenVerificationMethodIds.has(canonicalServiceId) ||
+      seenServiceIds.has(canonicalServiceId)
+    ) {
       issues.push({
-        message: "service ids must be unique",
+        message: "service ids must be unique across the DID document",
         path: ["service", index, "id"],
       });
     } else {

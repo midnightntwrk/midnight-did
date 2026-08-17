@@ -187,10 +187,13 @@ const normalizeMidnightDocumentReferences = (
     keyAgreement: normalizeReferences(doc.keyAgreement),
     capabilityInvocation: normalizeReferences(doc.capabilityInvocation),
     capabilityDelegation: normalizeReferences(doc.capabilityDelegation),
-    service: doc.service?.map((service) => ({
-      ...service,
-      id: canonicalizeMidnightReference(service.id),
-    })),
+    service: doc.service?.map((service) => {
+      const id = canonicalizeMidnightReference(service.id);
+      if (id.startsWith("did:") && !id.startsWith(`${did}#`)) {
+        throw new Error(`service id '${service.id}' must be subject-bound`);
+      }
+      return { ...service, id };
+    }),
   } as unknown as DIDDocument;
 };
 

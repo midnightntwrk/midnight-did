@@ -538,6 +538,63 @@ describe("Midnight DID Document", () => {
       );
     });
 
+    it("rejects services from another DID subject", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        service: [
+          {
+            id: "did:example:other#service-1",
+            type: "LinkedDomains",
+            serviceEndpoint: "https://example.com",
+          },
+        ],
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /service id .* must be subject-bound/,
+      );
+    });
+
+    it("keeps distinct relative service identifiers distinct", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+        service: [
+          {
+            id: "service-1",
+            type: "LinkedDomains",
+            serviceEndpoint: "https://example.com",
+          } as Service,
+          {
+            id: "#service-1",
+            type: "LinkedDomains",
+            serviceEndpoint: "https://example.org",
+          } as Service,
+        ],
+      });
+
+      expect(doc.service).toHaveLength(2);
+    });
+
+    it("rejects service identifiers that collide with verification methods", () => {
+      expect(() =>
+        createMidnightDIDDocument({
+          id: exampleMidnightDid,
+          verificationMethod: [exampleVerificationMethod],
+          service: [
+            {
+              id: `${exampleMidnightDid}#key-1`,
+              type: "LinkedDomains",
+              serviceEndpoint: "https://example.com",
+            } as Service,
+          ],
+        }),
+      ).toThrow(/service ids must be unique across the DID document/);
+    });
+
     it("accepts verification method with DID URL containing fragment", () => {
       const input = {
         "@context": [

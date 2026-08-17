@@ -88,6 +88,13 @@ const resolutionErrorCode = (error: unknown): DIDResolutionErrorCode => {
   ) {
     return "methodNotSupported";
   }
+  if (
+    /duplicate verification method id/i.test(message) ||
+    /ids must be unique/i.test(message) ||
+    /must not contain duplicate entries/i.test(message)
+  ) {
+    return "notAllowedLocalDuplicateKey";
+  }
   return "internalError";
 };
 
