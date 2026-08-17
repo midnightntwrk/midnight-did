@@ -51,14 +51,6 @@ export const normalizeBoundFragmentId = (
     return `#${trimmed.slice(hashIndex + 1)}`;
   }
 
-  if (
-    trimmed.startsWith("/") ||
-    trimmed.startsWith(".") ||
-    trimmed.startsWith("?")
-  ) {
-    return `#${trimmed}`;
-  }
-
   if (hasUriScheme.test(trimmed)) {
     throw new Error(`${field} must be a DID URL or relative reference`);
   }

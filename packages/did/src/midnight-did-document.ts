@@ -198,11 +198,13 @@ const normalizeMidnightDocumentReferences = (
       const canonicalServiceId = service.id.startsWith("did:")
         ? canonicalizeMidnightReference(service.id)
         : undefined;
-      if (
-        canonicalServiceId !== undefined &&
-        referenceSubject(canonicalServiceId) !== did
-      ) {
-        throw new Error(`service id '${service.id}' must be subject-bound`);
+      if (canonicalServiceId !== undefined) {
+        if (referenceSubject(canonicalServiceId) !== did) {
+          throw new Error(`service id '${service.id}' must be subject-bound`);
+        }
+        if (!canonicalServiceId.includes("#")) {
+          throw new Error(`service id '${service.id}' must include a fragment`);
+        }
       }
       const id = canonicalServiceId ?? normalizeFragmentId(service.id);
       return { ...service, id };
