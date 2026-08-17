@@ -430,7 +430,7 @@ export class LedgerToDomain {
 
     return createMidnightDIDDocument({
       id: did,
-      ...(verificationMethod.length === 0 ? {} : { verificationMethod }),
+      verificationMethod,
       authentication,
       assertionMethod,
       keyAgreement,

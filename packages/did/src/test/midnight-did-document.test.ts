@@ -105,6 +105,19 @@ describe("Midnight DID Document", () => {
       }
     });
 
+    it("omits empty optional arrays", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+        alsoKnownAs: [],
+        verificationMethod: [],
+        service: [],
+      });
+
+      expect(doc).not.toHaveProperty("alsoKnownAs");
+      expect(doc).not.toHaveProperty("verificationMethod");
+      expect(doc).not.toHaveProperty("service");
+    });
+
     it("accepts Ed25519 (OKP) verification methods", () => {
       const doc = createMidnightDIDDocument({
         id: exampleMidnightDid,
@@ -273,6 +286,23 @@ describe("Midnight DID Document", () => {
       for (const member of optionalDIDDocumentMembers) {
         expect(doc).not.toHaveProperty(member);
       }
+    });
+
+    it("omits empty optional arrays when parsing", () => {
+      const doc = parseMidnightDIDDocument({
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        alsoKnownAs: [],
+        verificationMethod: [],
+        service: [],
+      });
+
+      expect(doc).not.toHaveProperty("alsoKnownAs");
+      expect(doc).not.toHaveProperty("verificationMethod");
+      expect(doc).not.toHaveProperty("service");
     });
 
     it("rejects document with string @context", () => {

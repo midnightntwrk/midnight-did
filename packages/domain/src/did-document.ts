@@ -534,8 +534,11 @@ export function validateDIDDocumentConsistency(
       : [service.serviceEndpoint];
     const seenEndpoints = new Set<string>();
     endpoints.forEach((endpoint, endpointIndex) => {
+      const normalizedEndpoint = normalizeServiceEndpoint(endpoint);
       const key =
-        typeof endpoint === "string" ? endpoint : JSON.stringify(endpoint);
+        typeof normalizedEndpoint === "string"
+          ? normalizedEndpoint
+          : JSON.stringify(normalizedEndpoint);
       if (seenEndpoints.has(key)) {
         issues.push({
           message: "serviceEndpoint values must be unique",

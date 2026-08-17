@@ -215,9 +215,12 @@ const projectMidnightDIDDocument = (
   ({
     "@context": doc["@context"] as [string, string, ...string[]],
     id,
-    ...(doc.alsoKnownAs === undefined ? {} : { alsoKnownAs: doc.alsoKnownAs }),
+    ...(doc.alsoKnownAs === undefined || doc.alsoKnownAs.length === 0
+      ? {}
+      : { alsoKnownAs: doc.alsoKnownAs }),
     ...(doc.controller === undefined ? {} : { controller: doc.controller }),
-    ...(doc.verificationMethod === undefined
+    ...(doc.verificationMethod === undefined ||
+    doc.verificationMethod.length === 0
       ? {}
       : { verificationMethod: doc.verificationMethod }),
     ...(doc.authentication === undefined
@@ -235,7 +238,9 @@ const projectMidnightDIDDocument = (
     ...(doc.capabilityDelegation === undefined
       ? {}
       : { capabilityDelegation: doc.capabilityDelegation }),
-    ...(doc.service === undefined ? {} : { service: doc.service }),
+    ...(doc.service === undefined || doc.service.length === 0
+      ? {}
+      : { service: doc.service }),
   }) as MidnightDIDDocument;
 
 /**
