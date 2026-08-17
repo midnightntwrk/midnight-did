@@ -4,6 +4,7 @@ import {
   DIDDocumentSchema,
   DIDKeyID,
   KeyType,
+  normalizeFragmentId,
   Service,
   URIString,
   validateDIDDocumentConsistency,
@@ -188,7 +189,9 @@ const normalizeMidnightDocumentReferences = (
     capabilityInvocation: normalizeReferences(doc.capabilityInvocation),
     capabilityDelegation: normalizeReferences(doc.capabilityDelegation),
     service: doc.service?.map((service) => {
-      const id = canonicalizeMidnightReference(service.id);
+      const id = service.id.startsWith("did:")
+        ? canonicalizeMidnightReference(service.id)
+        : normalizeFragmentId(service.id);
       if (id.startsWith("did:") && !id.startsWith(`${did}#`)) {
         throw new Error(`service id '${service.id}' must be subject-bound`);
       }

@@ -68,21 +68,21 @@ const offchainStateArbitrary: fc.Arbitrary<OffchainMidnightDIDState> =
     {
       version: fc.integer({ min: 1, max: 65535 }),
       alsoKnownAs: fc.array(uriArbitrary, { minLength: 0, maxLength: 4 }),
-      verificationMethod: fc.array(
+      verificationMethod: fc.uniqueArray(
         fc.record({
           id: fragmentArbitrary,
           publicKeyJwk: jwkArbitrary,
           relationships: relationshipsArbitrary,
         }),
-        { minLength: 1, maxLength: 4 },
+        { minLength: 1, maxLength: 4, selector: (value) => value.id },
       ),
-      service: fc.array(
+      service: fc.uniqueArray(
         fc.record({
           id: fragmentArbitrary,
           type: fc.string({ minLength: 1, maxLength: 32 }),
           serviceEndpoint: uriArbitrary,
         }),
-        { minLength: 0, maxLength: 4 },
+        { minLength: 0, maxLength: 4, selector: (value) => value.id },
       ),
     },
     {

@@ -202,7 +202,18 @@ export class LedgerToDomain {
   ): Service["serviceEndpoint"] {
     const normalize = (
       value: Service["serviceEndpoint"],
-    ): Service["serviceEndpoint"] => normalizeServiceEndpoint(value);
+    ): Service["serviceEndpoint"] => {
+      const normalized = normalizeServiceEndpoint(value);
+      if (!Array.isArray(normalized)) return normalized;
+      const seen = new Set<string>();
+      const unique = normalized.filter((entry) => {
+        const key = typeof entry === "string" ? entry : JSON.stringify(entry);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      return unique.length === 1 ? unique[0]! : unique;
+    };
 
     if (Array.isArray(endpoint)) {
       const filtered = endpoint

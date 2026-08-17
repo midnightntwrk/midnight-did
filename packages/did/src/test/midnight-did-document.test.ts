@@ -559,24 +559,24 @@ describe("Midnight DID Document", () => {
       );
     });
 
-    it("keeps distinct relative service identifiers distinct", () => {
-      const doc = createMidnightDIDDocument({
-        id: exampleMidnightDid,
-        service: [
-          {
-            id: "service-1",
-            type: "LinkedDomains",
-            serviceEndpoint: "https://example.com",
-          } as Service,
-          {
-            id: "#service-1",
-            type: "LinkedDomains",
-            serviceEndpoint: "https://example.org",
-          } as Service,
-        ],
-      });
-
-      expect(doc.service).toHaveLength(2);
+    it("rejects relative service identifiers that normalize to duplicates", () => {
+      expect(() =>
+        createMidnightDIDDocument({
+          id: exampleMidnightDid,
+          service: [
+            {
+              id: "service-1",
+              type: "LinkedDomains",
+              serviceEndpoint: "https://example.com",
+            } as Service,
+            {
+              id: "#service-1",
+              type: "LinkedDomains",
+              serviceEndpoint: "https://example.org",
+            } as Service,
+          ],
+        }),
+      ).toThrow(/service ids must be unique/);
     });
 
     it("accepts verification method with DID URL containing fragment", () => {

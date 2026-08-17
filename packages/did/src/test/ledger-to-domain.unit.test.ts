@@ -313,6 +313,16 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       serviceEndpoint: JSON.stringify("https://multi.example"),
     } as any);
     expect(multiTypeService.type).toEqual(["DIDCommV2", "LinkedDomains"]);
+
+    const duplicateEndpoints = LedgerToDomain.service({
+      id: "svc-dedup",
+      type: "T",
+      serviceEndpoint: JSON.stringify([
+        "https://example.com",
+        "https://EXAMPLE.com:443",
+      ]),
+    } as any);
+    expect(duplicateEndpoints.serviceEndpoint).toBe("https://example.com");
   });
 
   it("service rejects malformed serviceType and serviceEndpoint payloads", () => {
