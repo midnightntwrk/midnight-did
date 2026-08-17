@@ -1,6 +1,6 @@
 # DID Core 1.1 Compatibility Matrix (Baseline Refresh)
 
-**Baseline:** [W3C DID Core 1.1 Candidate Recommendation Snapshot, 05 March 2026](https://www.w3.org/TR/2026/CR-did-1.1-20260305/). **Audited commit:** `3bbd40a291a252d6348fae3983cd85fb13b8342b`.
+**Baseline:** [W3C DID Core 1.1 Candidate Recommendation Snapshot, 05 March 2026](https://www.w3.org/TR/2026/CR-did-1.1-20260305/). **Audited commit:** `820d26d95d56499e5b7b9de162e280ff9951faa6`.
 
 DID Core 1.1 is tracked separately and is **not** substituted for the DID Core 1.0 Recommendation release gate. This initial matrix reuses the evidence rows in [the DID Core 1.0 matrix](./did-core-1.0.md), while recording where compatibility evidence is incomplete or requires a 1.1-specific review.
 

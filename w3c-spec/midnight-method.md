@@ -514,7 +514,7 @@ The `service` property is OPTIONAL. If present, the associated value MUST be a s
 
 #### 3.6.1.1. Id
 
-The value of the `id` property MUST be either a DID URL for the Midnight DID subject (for example, `did:midnight:<network>:<addr>#service-1`) or a relative URL resolved against that DID (for example, `#service-1`, `/routing`, or `?service=messaging`). Midnight DID deployments normalize service IDs to fragment identifiers (`#fragment`) when serializing services in ledger transactions. During DID Document resolution, service IDs are emitted as canonical absolute DID URLs. A conforming producer MUST NOT emit multiple service entries with the same `id`, and a conforming consumer MUST produce an error if duplicate `id` values are detected.
+The value of the `id` property MUST be either a DID URL for the Midnight DID subject (for example, `did:midnight:<network>:<addr>#service-1`) or a relative URL resolved against that DID (for example, `#service-1`, `/routing`, or `?service=messaging`). Midnight DID deployments normalize service IDs to fragment identifiers (`#fragment`) when serializing services in ledger transactions: the fragment component is the storage identity, so relative forms with the same fragment (including path/query forms) collide and MUST NOT be emitted together. During DID Document resolution, service IDs are emitted as canonical absolute DID URLs. A conforming producer MUST NOT emit multiple service entries with the same canonical `id`, and a conforming consumer MUST produce an error if duplicate `id` values are detected.
 
 #### 3.6.1.2. Type
 
