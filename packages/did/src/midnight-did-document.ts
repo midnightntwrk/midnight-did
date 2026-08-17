@@ -156,9 +156,11 @@ const canonicalizeMidnightReference = (value: string): string => {
   const subject = referenceSubject(value);
   if (subject === undefined) return value;
   const referenceDid = MidnightDIDSchema.safeParse(subject);
-  return referenceDid.success
-    ? `${referenceDid.data}${value.slice(subject.length)}`
-    : value;
+  const fragmentIndex = value.indexOf("#");
+  if (!referenceDid.success) return value;
+  return fragmentIndex >= 0
+    ? `${referenceDid.data}${value.slice(fragmentIndex)}`
+    : referenceDid.data;
 };
 
 const normalizeMidnightDocumentReferences = (

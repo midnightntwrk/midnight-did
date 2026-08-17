@@ -239,6 +239,28 @@ describe("Midnight DID Document", () => {
       expect(doc.verificationMethod?.[0]?.controller).toBe(exampleMidnightDid);
     });
 
+    it("canonicalizes path and query DID URL references to fragments", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        verificationMethod: [
+          {
+            ...exampleVerificationMethod,
+            id: `${exampleMidnightDid}/keys?versionId=1#key-1`,
+          },
+        ],
+        authentication: [`${exampleMidnightDid}#key-1`],
+      };
+
+      const doc = parseMidnightDIDDocument(input);
+      expect(doc.verificationMethod?.[0]?.id).toBe(
+        `${exampleMidnightDid}#key-1`,
+      );
+    });
+
     it("rejects verification methods from another DID subject", () => {
       const input = {
         "@context": [
