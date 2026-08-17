@@ -42,7 +42,12 @@ export const normalizeBoundFragmentId = (
         `${field} DID URL must include a non-empty fragment identifier`,
       );
     }
-    const didSubject = trimmed.slice(0, hashIndex);
+    const didUrlSubject = trimmed.slice(0, hashIndex);
+    const subjectBoundary = didUrlSubject.search(/[/?]/u);
+    const didSubject =
+      subjectBoundary === -1
+        ? didUrlSubject
+        : didUrlSubject.slice(0, subjectBoundary);
     if (didSubject !== expectedDidSubject) {
       throw new Error(
         `${field} DID URL subject must match the current DID (${expectedDidSubject})`,

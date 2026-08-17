@@ -4,7 +4,7 @@ import {
   DIDDocumentSchema,
   DIDKeyID,
   KeyType,
-  normalizeFragmentId,
+  normalizeBoundFragmentId,
   Service,
   URIString,
   validateDIDDocumentConsistency,
@@ -157,13 +157,19 @@ const canonicalizeMidnightReference = (value: string): string => {
     : value;
 };
 
+const referenceSubject = (value: string): string | undefined => {
+  if (!value.startsWith("did:")) return undefined;
+  const boundary = value.search(/[/?#]/u);
+  return boundary === -1 ? value : value.slice(0, boundary);
+};
+
 const normalizeMidnightDocumentReferences = (
   doc: DIDDocument,
   did: MidnightDIDString,
 ): DIDDocument => {
   const verificationMethod = doc.verificationMethod?.map((method) => {
     const id = canonicalizeMidnightReference(method.id);
-    if (id.startsWith("did:") && !id.startsWith(`${did}#`)) {
+    if (id.startsWith("did:") && referenceSubject(id) !== did) {
       throw new Error(
         `verificationMethod id '${method.id}' must be subject-bound`,
       );
@@ -189,12 +195,18 @@ const normalizeMidnightDocumentReferences = (
     capabilityInvocation: normalizeReferences(doc.capabilityInvocation),
     capabilityDelegation: normalizeReferences(doc.capabilityDelegation),
     service: doc.service?.map((service) => {
-      const id = service.id.startsWith("did:")
+      const canonicalServiceId = service.id.startsWith("did:")
         ? canonicalizeMidnightReference(service.id)
-        : normalizeFragmentId(service.id);
-      if (id.startsWith("did:") && !id.startsWith(`${did}#`)) {
+        : undefined;
+      if (
+        canonicalServiceId !== undefined &&
+        referenceSubject(canonicalServiceId) !== did
+      ) {
         throw new Error(`service id '${service.id}' must be subject-bound`);
       }
+      const id =
+        canonicalServiceId ??
+        normalizeBoundFragmentId(service.id, "service.id", did);
       return { ...service, id };
     }),
   } as unknown as DIDDocument;

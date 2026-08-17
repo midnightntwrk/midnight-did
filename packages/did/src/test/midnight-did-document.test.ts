@@ -559,6 +559,21 @@ describe("Midnight DID Document", () => {
       );
     });
 
+    it("preserves path-form relative service identifiers when normalizing", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+        service: [
+          {
+            id: "/services/a#service-1",
+            type: "LinkedDomains",
+            serviceEndpoint: "https://example.com",
+          } as Service,
+        ],
+      });
+
+      expect(doc.service?.[0]?.id).toBe("#/services/a#service-1");
+    });
+
     it("rejects relative service identifiers that normalize to duplicates", () => {
       expect(() =>
         createMidnightDIDDocument({
