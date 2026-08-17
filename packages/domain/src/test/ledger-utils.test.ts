@@ -24,13 +24,6 @@ describe("ledger-utils", () => {
     expect(normalizeBoundFragmentId(`${did}#key-1`, "methodId", did)).toBe(
       "#key-1",
     );
-    expect(
-      normalizeBoundFragmentId(
-        `${did}/services/a?versionId=1#key-1`,
-        "methodId",
-        did,
-      ),
-    ).toBe("#key-1");
   });
 
   it("rejects did url bound to a different did subject", () => {

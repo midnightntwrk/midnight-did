@@ -212,7 +212,7 @@ export class LedgerToDomain {
         seen.add(key);
         return true;
       });
-      return unique.length === 1 ? unique[0]! : unique;
+      return unique;
     };
 
     if (Array.isArray(endpoint)) {

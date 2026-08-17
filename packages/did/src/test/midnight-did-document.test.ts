@@ -559,7 +559,7 @@ describe("Midnight DID Document", () => {
       );
     });
 
-    it("preserves path-form relative service identifiers when normalizing", () => {
+    it("canonicalizes path-form relative service identifiers", () => {
       const doc = createMidnightDIDDocument({
         id: exampleMidnightDid,
         service: [
@@ -571,7 +571,7 @@ describe("Midnight DID Document", () => {
         ],
       });
 
-      expect(doc.service?.[0]?.id).toBe("#/services/a#service-1");
+      expect(doc.service?.[0]?.id).toBe("#service-1");
     });
 
     it("rejects relative service identifiers that normalize to duplicates", () => {

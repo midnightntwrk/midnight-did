@@ -4,7 +4,7 @@ import {
   DIDDocumentSchema,
   DIDKeyID,
   KeyType,
-  normalizeBoundFragmentId,
+  normalizeFragmentId,
   Service,
   URIString,
   validateDIDDocumentConsistency,
@@ -204,9 +204,7 @@ const normalizeMidnightDocumentReferences = (
       ) {
         throw new Error(`service id '${service.id}' must be subject-bound`);
       }
-      const id =
-        canonicalServiceId ??
-        normalizeBoundFragmentId(service.id, "service.id", did);
+      const id = canonicalServiceId ?? normalizeFragmentId(service.id);
       return { ...service, id };
     }),
   } as unknown as DIDDocument;
