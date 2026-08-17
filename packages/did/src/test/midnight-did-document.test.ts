@@ -579,22 +579,6 @@ describe("Midnight DID Document", () => {
       expect(doc.service).toHaveLength(2);
     });
 
-    it("rejects service identifiers that collide with verification methods", () => {
-      expect(() =>
-        createMidnightDIDDocument({
-          id: exampleMidnightDid,
-          verificationMethod: [exampleVerificationMethod],
-          service: [
-            {
-              id: `${exampleMidnightDid}#key-1`,
-              type: "LinkedDomains",
-              serviceEndpoint: "https://example.com",
-            } as Service,
-          ],
-        }),
-      ).toThrow(/service ids must be unique across the DID document/);
-    });
-
     it("accepts verification method with DID URL containing fragment", () => {
       const input = {
         "@context": [

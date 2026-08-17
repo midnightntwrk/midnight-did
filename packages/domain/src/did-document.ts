@@ -524,12 +524,9 @@ export function validateDIDDocumentConsistency(
   const seenServiceIds = new Set<string>();
   services.forEach((service, index) => {
     const canonicalServiceId = canonicalizeServiceReference(service.id);
-    if (
-      seenVerificationMethodIds.has(canonicalServiceId) ||
-      seenServiceIds.has(canonicalServiceId)
-    ) {
+    if (seenServiceIds.has(canonicalServiceId)) {
       issues.push({
-        message: "service ids must be unique across the DID document",
+        message: "service ids must be unique",
         path: ["service", index, "id"],
       });
     } else {
