@@ -3,6 +3,7 @@ import {
   createVerificationMethod,
   CurveType,
   KeyType,
+  Service,
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
 import { describe, expect, it } from "vitest";
@@ -198,6 +199,53 @@ describe("Midnight DID Document", () => {
       expect(doc.controller).toBe(exampleMidnightDid);
     });
 
+    it("canonicalizes absolute method references with mixed-case DIDs", () => {
+      const mixedCaseDid = exampleMidnightDid.replace("c569", "C569");
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: mixedCaseDid,
+        controller: mixedCaseDid,
+        verificationMethod: [
+          {
+            ...exampleVerificationMethod,
+            id: `${mixedCaseDid}#key-1`,
+            controller: mixedCaseDid,
+          },
+        ],
+        authentication: ["#key-1"],
+      };
+
+      const doc = parseMidnightDIDDocument(input);
+      expect(doc.id).toBe(exampleMidnightDid);
+      expect(doc.verificationMethod?.[0]?.id).toBe(
+        `${exampleMidnightDid}#key-1`,
+      );
+      expect(doc.verificationMethod?.[0]?.controller).toBe(exampleMidnightDid);
+    });
+
+    it("rejects verification methods from another DID subject", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        verificationMethod: [
+          {
+            ...exampleVerificationMethod,
+            id: `did:midnight:testnet:${"f".repeat(64)}#key-1`,
+          },
+        ],
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /verificationMethod id .* must be subject-bound/,
+      );
+    });
+
     it("rejects null optional DID Document members", () => {
       for (const member of optionalDIDDocumentMembers) {
         expect(() =>
@@ -387,6 +435,23 @@ describe("Midnight DID Document", () => {
       expect(() => parseMidnightDIDDocument(input)).toThrow();
     });
 
+    it("preserves service endpoint spelling while validating consistency", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+        service: [
+          {
+            id: "#service-1",
+            type: "LinkedDomains",
+            serviceEndpoint: "https://Example.com:443/",
+          } as Service,
+        ],
+      });
+
+      expect(doc.service?.[0]?.serviceEndpoint).toBe(
+        "https://Example.com:443/",
+      );
+    });
+
     it("rejects duplicate verification method ids", () => {
       const input = {
         "@context": [
@@ -432,7 +497,10 @@ describe("Midnight DID Document", () => {
           "https://w3id.org/security/jwk/v1",
         ],
         id: exampleMidnightDid,
-        service: [service, service],
+        service: [
+          service,
+          { ...service, id: `${exampleMidnightDid}#service-1` },
+        ],
       };
 
       expect(() => parseMidnightDIDDocument(input)).toThrow(

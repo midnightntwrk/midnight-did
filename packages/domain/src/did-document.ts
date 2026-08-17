@@ -443,9 +443,12 @@ export const DIDDocumentSchema = z.looseObject({
   service: z.optional(z.array(ServiceSchema)),
 });
 
-export function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
+export function validateDIDDocumentConsistency(
+  doc: DIDDocument,
+  options: { normalizeServiceEndpoints?: boolean } = {},
+): DIDDocument {
   const normalizedDoc: DIDDocument =
-    doc.service == null
+    options.normalizeServiceEndpoints === false || doc.service == null
       ? doc
       : {
           ...doc,
@@ -516,13 +519,14 @@ export function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
   const services = normalizedDoc.service ?? [];
   const seenServiceIds = new Set<string>();
   services.forEach((service, index) => {
-    if (seenServiceIds.has(service.id)) {
+    const canonicalServiceId = canonicalizeKeyReference(service.id);
+    if (seenServiceIds.has(canonicalServiceId)) {
       issues.push({
         message: "service ids must be unique",
         path: ["service", index, "id"],
       });
     } else {
-      seenServiceIds.add(service.id);
+      seenServiceIds.add(canonicalServiceId);
     }
 
     const endpoints = Array.isArray(service.serviceEndpoint)
