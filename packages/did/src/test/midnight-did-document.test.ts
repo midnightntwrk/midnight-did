@@ -648,10 +648,11 @@ describe("Midnight DID Document", () => {
         id: exampleMidnightDid,
         controller: exampleMidnightDid,
         verificationMethod: [exampleVerificationMethod], // Uses #key-1
-        authentication: ["#key-1"],
+        authentication: ["key-1"],
       };
 
       const doc = parseMidnightDIDDocument(input);
+      expect(doc.authentication).toEqual(["#key-1"]);
       expect(doc.verificationMethod?.[0].id).toBe("#key-1");
     });
   });

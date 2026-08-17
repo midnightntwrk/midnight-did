@@ -184,7 +184,11 @@ const normalizeMidnightDocumentReferences = (
   });
 
   const normalizeReferences = (values: string[] | undefined) =>
-    values?.map((value) => canonicalizeMidnightReference(value));
+    values?.map((value) =>
+      value.startsWith("did:")
+        ? canonicalizeMidnightReference(value)
+        : normalizeFragmentId(value),
+    );
 
   return {
     ...doc,

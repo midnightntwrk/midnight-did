@@ -322,7 +322,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
         "https://EXAMPLE.com:443",
       ]),
     } as any);
-    expect(duplicateEndpoints.serviceEndpoint).toEqual(["https://example.com"]);
+    expect(duplicateEndpoints.serviceEndpoint).toBe("https://example.com");
   });
 
   it("service rejects malformed serviceType and serviceEndpoint payloads", () => {

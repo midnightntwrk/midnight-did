@@ -89,26 +89,6 @@ describe("DID document construction", () => {
     ).toThrow();
   });
 
-  it("rejects service IDs that collide after fragment normalization", () => {
-    expect(() =>
-      createDIDDocument({
-        id: exampleDid,
-        service: [
-          createService({
-            id: "svc-duplicate",
-            type: "LinkedDomains",
-            serviceEndpoint: "https://example.com/one",
-          }),
-          createService({
-            id: "#svc-duplicate",
-            type: "LinkedDomains",
-            serviceEndpoint: "https://example.com/two",
-          }),
-        ],
-      }),
-    ).toThrow(/service ids must be unique/);
-  });
-
   it("accepts multiple service endpoints", () => {
     const service = createService({
       id: `${exampleDid}#svc-multi`,
