@@ -1,6 +1,6 @@
 # DID Resolution Conformance Matrix (Baseline Refresh)
 
-**Baseline:** [DID Resolution v1, W3C Candidate Recommendation Snapshot, 06 August 2026](https://www.w3.org/TR/2026/CR-did-resolution-1.0-20260806/). **Audited commit:** `3a03100f47a2274834cec34e2b029c71d68753c1`.
+**Baseline:** [DID Resolution v1, W3C Candidate Recommendation Snapshot, 06 August 2026](https://www.w3.org/TR/2026/CR-did-resolution-1.0-20260806/). **Audited commit:** `1bb10c7b62ff57ebc5d94fdce2e74e9be255fac4`.
 
 The exact baseline is recorded separately from DID Core because DID Resolution evolves independently. This matrix covers the inspected resolver/API surfaces, not an HTTP resolver service.
 

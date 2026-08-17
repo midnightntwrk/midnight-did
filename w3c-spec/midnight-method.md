@@ -514,7 +514,7 @@ The `service` property is OPTIONAL. If present, the associated value MUST be a s
 
 #### 3.6.1.1. Id
 
-The value of the `id` property MUST be either a DID URL for the Midnight DID subject (for example, `did:midnight:<network>:<addr>#service-1`) or a relative URL resolved against that DID (for example, `#service-1`, `/routing`, or `?service=messaging`). Midnight DID deployments normalize service IDs to fragment identifiers (`#fragment`) when serializing services in ledger transactions: the fragment component is the storage identity, so relative forms with the same fragment (including path/query forms) collide and MUST NOT be emitted together. During DID Document resolution, service IDs are emitted as canonical absolute DID URLs. A conforming producer MUST NOT emit multiple service entries with the same canonical `id`, and a conforming consumer MUST produce an error if duplicate `id` values are detected.
+The value of the `id` property MUST be either a DID URL for the Midnight DID subject (for example, `did:midnight:<network>:<addr>#service-1`) or a relative URL resolved against that DID (for example, `#service-1`, `/routing`, or `?service=messaging`). Midnight DID deployments normalize service IDs to fragment identifiers (`#fragment`) when serializing services in ledger transactions: the fragment component is the storage identity, so relative forms with the same fragment (including path/query forms) collide and MUST NOT be emitted together. A relative form without `#` is converted to `#` plus its normalized relative value; a form with `#` uses its final fragment component. During DID Document resolution, service IDs are emitted as canonical absolute DID URLs. A conforming producer MUST NOT emit multiple service entries with the same canonical `id`, and a conforming consumer MUST produce an error if duplicate `id` values are detected.
 
 #### 3.6.1.2. Type
 
@@ -864,7 +864,7 @@ Adds a new verification method entry and (optionally, in a subsequent operation)
 
 - Inputs: `verificationMethod` object with `id`, `type`, `controller`, and `publicKeyJwk` fields.
 - Constraints:
-  - `id` MUST be either a DID URL bound to this DID (for example, `did:midnight:<network>:<addr>#key-1`) or a relative identifier that resolves against the DID (for example, `#key-1`). On-ledger, Midnight canonicalizes to fragment form (`#key-1`) for storage. Resolver output emits the absolute DID URL form.
+  - `id` MUST be either a DID URL bound to this DID (for example, `did:midnight:<network>:<addr>#key-1`) or a relative identifier that resolves against the DID (for example, `#key-1`). On-ledger, Midnight canonicalizes the fragment identity to fragment form (`#key-1`) for storage, including path/query DID URL forms that carry the same fragment. Resolver output emits the absolute DID URL form.
   - `controller` MUST equal the DID subject.
   - `type` MUST be `JsonWebKey`.
   - `publicKeyJwk` MUST follow the opaque JWK profiles defined in [section 3.4.4](#344-publickeyjwk) for Ed25519, X25519, P-256, secp256k1, BLS12381G1, or BLS12381G2. Jubjub keys MUST use the SchnorrJubjub verification method API because their canonical ledger representation is a native `JubjubPoint`.
