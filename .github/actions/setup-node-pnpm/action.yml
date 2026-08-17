@@ -49,6 +49,8 @@ runs:
     - name: Set up Node.js with pnpm cache
       if: inputs.cache == 'true' && inputs.registry-url == ''
       uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
         node-version-file: ${{ inputs.node-version-file }}
         cache: pnpm
@@ -57,6 +59,8 @@ runs:
     - name: Set up Node.js with pnpm cache and registry
       if: inputs.cache == 'true' && inputs.registry-url != ''
       uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
         node-version-file: ${{ inputs.node-version-file }}
         cache: pnpm
@@ -66,19 +70,23 @@ runs:
     - name: Set up Node.js without pnpm cache
       if: inputs.cache != 'true' && inputs.registry-url == ''
       uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
         node-version-file: ${{ inputs.node-version-file }}
 
     - name: Set up Node.js without pnpm cache and with registry
       if: inputs.cache != 'true' && inputs.registry-url != ''
       uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
         node-version-file: ${{ inputs.node-version-file }}
         registry-url: ${{ inputs.registry-url }}
 
     - name: Set up Compact toolchain
       if: inputs.compact-version != ''
-      uses: midnightntwrk/setup-compact-action@43f89f99939f716f68c1c56b2a12bba044407bfd # ratchet:midnightntwrk/setup-compact-action@v1
+      uses: midnightntwrk/setup-compact-action@836895c8fffbbea6bd986af2b17e8941ff29d1f8 # ratchet:midnightntwrk/setup-compact-action@v1
       with:
         compact-version: ${{ inputs.compact-version }}
         github-token: ${{ inputs.github-token }}
@@ -92,5 +100,6 @@ runs:
       if: inputs.install == 'true'
       shell: bash
       env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
         INSTALL_ARGS: ${{ inputs.install-args }}
       run: pnpm install ${INSTALL_ARGS}
