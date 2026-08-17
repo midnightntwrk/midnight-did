@@ -109,15 +109,21 @@ export const OffchainMidnightDIDStateSchema = z.object({
       (value) => value.length <= MAX_VERIFICATION_METHODS,
       `verificationMethod must contain at most ${MAX_VERIFICATION_METHODS} entries`,
     ),
-  ),
-  service: z
-    .array(OffchainServiceSchema)
-    .check(
-      z.refine(
-        (value) => value.length <= MAX_SERVICES,
-        `service must contain at most ${MAX_SERVICES} entries`,
-      ),
+    z.refine(
+      (value) => new Set(value.map(({ id }) => id)).size === value.length,
+      "verificationMethod ids must be unique",
     ),
+  ),
+  service: z.array(OffchainServiceSchema).check(
+    z.refine(
+      (value) => value.length <= MAX_SERVICES,
+      `service must contain at most ${MAX_SERVICES} entries`,
+    ),
+    z.refine(
+      (value) => new Set(value.map(({ id }) => id)).size === value.length,
+      "service ids must be unique",
+    ),
+  ),
 });
 
 export type OffchainMidnightDIDState = z.infer<

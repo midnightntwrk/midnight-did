@@ -403,6 +403,24 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     );
   });
 
+  it("ledgerStateToDIDDocument omits empty verification methods", () => {
+    const addr = parseContractAddress("0".repeat(64));
+    stubLedger.verificationMethods = makeIterablePairs<string, any>([]);
+    stubLedger.alsoKnownAs = makeIterable<string>([]);
+    stubLedger.services = makeIterablePairs<string, any>([]);
+    stubLedger.authenticationRelation = makeIterable<string>([]);
+
+    const doc = LedgerToDomain.ledgerStateToDIDDocument(
+      stubLedger,
+      MidnightNetwork.DevNet,
+      addr,
+    );
+
+    expect(doc).not.toHaveProperty("verificationMethod");
+    expect(doc).not.toHaveProperty("service");
+    expect(doc).not.toHaveProperty("alsoKnownAs");
+  });
+
   it("ledgerStateToDIDDocument merges native SchnorrJubjub methods", () => {
     const addr = parseContractAddress("0".repeat(64));
     const didSubject = `did:midnight:devnet:${"0".repeat(64)}`;

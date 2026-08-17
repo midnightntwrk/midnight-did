@@ -387,6 +387,59 @@ describe("Midnight DID Document", () => {
       expect(() => parseMidnightDIDDocument(input)).toThrow();
     });
 
+    it("rejects duplicate verification method ids", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        verificationMethod: [
+          exampleVerificationMethod,
+          exampleVerificationMethod,
+        ],
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /verificationMethod ids must be unique/,
+      );
+    });
+
+    it("rejects dangling verification relationships", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        authentication: ["#missing-key"],
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /authentication references a verificationMethod id that does not exist/,
+      );
+    });
+
+    it("rejects duplicate service ids", () => {
+      const service = createService({
+        id: "#service-1",
+        type: "LinkedDomains",
+        serviceEndpoint: "https://example.com",
+      });
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        service: [service, service],
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /service ids must be unique/,
+      );
+    });
+
     it("accepts verification method with DID URL containing fragment", () => {
       const input = {
         "@context": [

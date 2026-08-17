@@ -443,7 +443,7 @@ export const DIDDocumentSchema = z.looseObject({
   service: z.optional(z.array(ServiceSchema)),
 });
 
-function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
+export function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
   const normalizedDoc: DIDDocument =
     doc.service == null
       ? doc

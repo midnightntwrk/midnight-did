@@ -68,6 +68,42 @@ describe("offchain Midnight DID facade", () => {
     expect(resolved.didDocumentMetadata.versionId).toBe("1");
   });
 
+  it("rejects duplicate verification method ids in offchain state", () => {
+    const duplicateState: OffchainMidnightDIDState = {
+      ...state,
+      verificationMethod: [
+        state.verificationMethod[0],
+        state.verificationMethod[0],
+      ],
+    };
+
+    expect(() =>
+      createLongFormOffchainMidnightDIDString(duplicateState),
+    ).toThrow(/verificationMethod ids must be unique/);
+  });
+
+  it("rejects duplicate service ids in offchain state", () => {
+    const duplicateState: OffchainMidnightDIDState = {
+      ...state,
+      service: [
+        {
+          id: "#service-1",
+          type: "LinkedDomains",
+          serviceEndpoint: "https://example.com",
+        },
+        {
+          id: "#service-1",
+          type: "LinkedDomains",
+          serviceEndpoint: "https://example.org",
+        },
+      ],
+    };
+
+    expect(() =>
+      createLongFormOffchainMidnightDIDString(duplicateState),
+    ).toThrow(/service ids must be unique/);
+  });
+
   it("rejects short-form offchain DIDs in the long-form resolver", () => {
     expect(() =>
       resolveLongFormOffchainMidnightDID(
