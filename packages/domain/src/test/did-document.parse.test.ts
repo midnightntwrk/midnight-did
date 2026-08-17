@@ -14,6 +14,7 @@ import {
   VerificationMethodType,
 } from "../did-document.js";
 import {
+  didDocumentOptionalMembers,
   exampleDid,
   exampleDidUrl,
   exampleMethodId,
@@ -73,6 +74,30 @@ describe("DID parsing utilities", () => {
     expect(parseVerificationMethodRelation("Authentication")).toBe(
       "Authentication",
     );
+  });
+
+  it.each(didDocumentOptionalMembers)(
+    "rejects null optional DID Document member %s",
+    (member) => {
+      expect(() =>
+        parseDIDDocument({
+          "@context": "https://www.w3.org/ns/did/v1",
+          id: exampleDid,
+          [member]: null,
+        }),
+      ).toThrow();
+    },
+  );
+
+  it("preserves omission of optional DID Document members", () => {
+    const doc = parseDIDDocument({
+      "@context": "https://www.w3.org/ns/did/v1",
+      id: exampleDid,
+    });
+
+    for (const member of didDocumentOptionalMembers) {
+      expect(doc).not.toHaveProperty(member);
+    }
   });
 
   it("parses DID Documents with array @context", () => {

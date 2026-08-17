@@ -64,8 +64,6 @@ export const createDID = async (
 ): Promise<DeployedMidnightDIDContract> => {
   getLogger().info("Creating DID...");
   const didContract = await deploy(providers, privateState);
-  getLogger().info(
-    `Created DID at contract address: ${didContract.deployTxData.public.contractAddress.toLowerCase()}`,
-  );
+  getLogger().info("Created DID successfully");
   return didContract;
 };

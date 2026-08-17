@@ -28,6 +28,18 @@ const exampleVerificationMethod = createVerificationMethod({
   },
 });
 
+const optionalDIDDocumentMembers = [
+  "alsoKnownAs",
+  "controller",
+  "verificationMethod",
+  "authentication",
+  "assertionMethod",
+  "keyAgreement",
+  "capabilityInvocation",
+  "capabilityDelegation",
+  "service",
+] as const;
+
 const exampleJubjubVerificationMethod = createVerificationMethod({
   id: "#key-jubjub",
   type: VerificationMethodType.JsonWebKey,
@@ -79,6 +91,17 @@ describe("Midnight DID Document", () => {
       });
 
       expect(doc.controller).toBe(exampleMidnightDid);
+    });
+
+    it("omits absent optional members instead of emitting null", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+      });
+
+      for (const member of optionalDIDDocumentMembers) {
+        if (member === "controller") continue;
+        expect(doc).not.toHaveProperty(member);
+      }
     });
 
     it("accepts Ed25519 (OKP) verification methods", () => {
@@ -175,6 +198,35 @@ describe("Midnight DID Document", () => {
       expect(doc.controller).toBe(exampleMidnightDid);
     });
 
+    it("rejects null optional DID Document members", () => {
+      for (const member of optionalDIDDocumentMembers) {
+        expect(() =>
+          parseMidnightDIDDocument({
+            "@context": [
+              "https://www.w3.org/ns/did/v1",
+              "https://w3id.org/security/jwk/v1",
+            ],
+            id: exampleMidnightDid,
+            [member]: null,
+          }),
+        ).toThrow();
+      }
+    });
+
+    it("preserves omission of optional DID Document members", () => {
+      const doc = parseMidnightDIDDocument({
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+      });
+
+      for (const member of optionalDIDDocumentMembers) {
+        expect(doc).not.toHaveProperty(member);
+      }
+    });
+
     it("rejects document with string @context", () => {
       const input = {
         "@context": "https://www.w3.org/ns/did/v1",
@@ -236,6 +288,24 @@ describe("Midnight DID Document", () => {
 
       expect(() => parseMidnightDIDDocument(input)).toThrow(
         /must be a valid Midnight DID/,
+      );
+    });
+
+    it("reports invalid id cleanly when controller is present", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: "did:example:123",
+        controller: exampleMidnightDid,
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /id must be a valid Midnight DID \(did:midnight:<network>:<identifier>\)/,
+      );
+      expect(() => parseMidnightDIDDocument(input)).not.toThrow(
+        /controller must equal DID subject/,
       );
     });
 

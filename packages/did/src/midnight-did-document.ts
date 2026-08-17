@@ -115,7 +115,9 @@ export const MidnightDIDDocumentSchema = DIDDocumentSchema.check(
     // Controller must equal subject (single-controller model), comparing the
     // canonical DID spellings so case-only differences are accepted.
     if (!doc.controller) return true; // Optional, but if present must match
-    const canonicalId = parseMidnightDIDString(doc.id);
+    const parsedId = MidnightDIDSchema.safeParse(doc.id);
+    if (!parsedId.success) return true;
+    const canonicalId = parsedId.data;
     if (typeof doc.controller === "string") {
       const parsedController = MidnightDIDSchema.safeParse(doc.controller);
       return parsedController.success && parsedController.data === canonicalId;
@@ -203,9 +205,13 @@ export function createMidnightDIDDocument(params: {
       ...(params.additionalContexts ?? []),
     ],
     id: canonicalId,
-    alsoKnownAs: params.alsoKnownAs ?? null,
+    ...(params.alsoKnownAs === undefined
+      ? {}
+      : { alsoKnownAs: params.alsoKnownAs }),
     controller: canonicalId, // Always equals subject for Midnight DID
-    verificationMethod: params.verificationMethod ?? null,
+    ...(params.verificationMethod === undefined
+      ? {}
+      : { verificationMethod: params.verificationMethod }),
     ...(params.authentication === undefined
       ? {}
       : { authentication: params.authentication }),
@@ -221,16 +227,20 @@ export function createMidnightDIDDocument(params: {
     ...(params.capabilityDelegation === undefined
       ? {}
       : { capabilityDelegation: params.capabilityDelegation }),
-    service: params.service ?? null,
+    ...(params.service === undefined ? {} : { service: params.service }),
   };
 
   const parsed = MidnightDIDDocumentSchema.parse(doc) as DIDDocument;
   return {
     "@context": parsed["@context"] as [string, string, ...string[]],
     id: canonicalId,
-    alsoKnownAs: parsed.alsoKnownAs ?? null,
+    ...(parsed.alsoKnownAs === undefined
+      ? {}
+      : { alsoKnownAs: parsed.alsoKnownAs }),
     controller: canonicalId,
-    verificationMethod: parsed.verificationMethod ?? null,
+    ...(parsed.verificationMethod === undefined
+      ? {}
+      : { verificationMethod: parsed.verificationMethod }),
     ...(parsed.authentication === undefined
       ? {}
       : { authentication: parsed.authentication }),
@@ -246,7 +256,7 @@ export function createMidnightDIDDocument(params: {
     ...(parsed.capabilityDelegation === undefined
       ? {}
       : { capabilityDelegation: parsed.capabilityDelegation }),
-    service: parsed.service ?? null,
+    ...(parsed.service === undefined ? {} : { service: parsed.service }),
   } as MidnightDIDDocument;
 }
 
@@ -271,9 +281,13 @@ export const parseMidnightDIDDocument = (
   return {
     "@context": parsed["@context"] as [string, string, ...string[]],
     id,
-    alsoKnownAs: parsed.alsoKnownAs ?? null,
-    controller,
-    verificationMethod: parsed.verificationMethod ?? null,
+    ...(parsed.alsoKnownAs === undefined
+      ? {}
+      : { alsoKnownAs: parsed.alsoKnownAs }),
+    ...(controller === undefined ? {} : { controller }),
+    ...(parsed.verificationMethod === undefined
+      ? {}
+      : { verificationMethod: parsed.verificationMethod }),
     ...(parsed.authentication === undefined
       ? {}
       : { authentication: parsed.authentication }),
@@ -289,6 +303,6 @@ export const parseMidnightDIDDocument = (
     ...(parsed.capabilityDelegation === undefined
       ? {}
       : { capabilityDelegation: parsed.capabilityDelegation }),
-    service: parsed.service ?? null,
+    ...(parsed.service === undefined ? {} : { service: parsed.service }),
   } as MidnightDIDDocument;
 };
