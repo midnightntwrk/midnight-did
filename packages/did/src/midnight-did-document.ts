@@ -145,22 +145,20 @@ export const MidnightDIDDocumentSchema = DIDDocumentSchema.check(
  *
  * Extends the generic DIDDocument with Midnight-specific constraints
  */
-const canonicalizeMidnightReference = (value: string): string => {
-  if (!value.startsWith("did:")) return value;
-  const fragmentIndex = value.indexOf("#");
-  if (fragmentIndex === -1) return value;
-  const referenceDid = MidnightDIDSchema.safeParse(
-    value.slice(0, fragmentIndex),
-  );
-  return referenceDid.success
-    ? `${referenceDid.data}${value.slice(fragmentIndex)}`
-    : value;
-};
-
 const referenceSubject = (value: string): string | undefined => {
   if (!value.startsWith("did:")) return undefined;
   const boundary = value.search(/[/?#]/u);
   return boundary === -1 ? value : value.slice(0, boundary);
+};
+
+const canonicalizeMidnightReference = (value: string): string => {
+  if (!value.startsWith("did:")) return value;
+  const subject = referenceSubject(value);
+  if (subject === undefined) return value;
+  const referenceDid = MidnightDIDSchema.safeParse(subject);
+  return referenceDid.success
+    ? `${referenceDid.data}${value.slice(subject.length)}`
+    : value;
 };
 
 const normalizeMidnightDocumentReferences = (
