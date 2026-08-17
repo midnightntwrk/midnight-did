@@ -1,6 +1,6 @@
 # DID Core 1.0 Conformance Matrix (Baseline Refresh)
 
-**Baseline:** [W3C DID Core 1.0 Recommendation, 19 July 2022](https://www.w3.org/TR/2022/REC-did-core-20220719/). **Audited commit:** `07695f39ad68bd1cb37788eebbb4e546030386b8`.
+**Baseline:** [W3C DID Core 1.0 Recommendation, 19 July 2022](https://www.w3.org/TR/2022/REC-did-core-20220719/). **Audited commit:** `3bbd40a291a252d6348fae3983cd85fb13b8342b`.
 
 This is the initial evidence matrix required by issue #405. Rows are grouped by normative surface rather than presented as a claim that every sentence of the Recommendation has already been converted into an executable assertion. `FAIL` and `UNKNOWN` rows have a concrete follow-up in [the audit queue](./README.md#phase-1-follow-up-queue).
 
@@ -19,7 +19,7 @@ This is the initial evidence matrix required by issue #405. Rows are grouped by 
 | DOC-006 | Verification method objects have valid `id`, `type`, `controller`, and public material (§7.1) | §3.4 | `VerificationMethodSchema`, `MidnightVerificationMethodSchema`, `LedgerToDomain` | document and JSON-LD conformance tests | PASS WITH RESTRICTION | Only referenced `JsonWebKey` methods and supported OKP/EC profiles are accepted. |
 | DOC-007 | Verification method IDs are unique and subject-bound (§7.1) | §3.4.1, §6.3 | `validateDIDDocumentConsistency` is enforced by method-specific create/parse paths; ledger mapper checks | method parser, offchain, and ledger duplicate-ID vectors | PASS WITH RESTRICTION | Duplicate IDs are rejected at the supported Midnight document/offchain boundaries; the method still supports only referenced verification methods. |
 | DOC-008 | Public JWKs contain no private key material (§7.1) | §3.4.4 | `PublicKeyJwkSchema` rejects `d` | domain schema tests and profile tests | PASS | Cryptographic interoperability is tracked separately. |
-| VM-001 | Verification relationships reference valid methods (§7.1) | §3.5 | relation target checks in `ledger-to-domain.ts`; `validateDIDDocumentConsistency` at method boundaries | method parser dangling-reference vectors; resolver and contract relation tests | PASS | Duplicate and dangling relationship references are rejected by method-specific parsing and ledger mapping. |
+| VM-001 | Verification relationships reference valid methods (§7.1) | §3.5 | relation target checks in `ledger-to-domain.ts`; `validateDIDDocumentConsistency` at method boundaries | method parser dangling-reference vectors; resolver and contract relation tests | PASS WITH RESTRICTION | Duplicate and dangling relationship references are rejected for the Midnight method's local verification-method profile; broader DID Core external-reference profiles are not claimed. |
 | VM-002 | `authentication` is a non-empty set when present (§7.1) | §3.5.2 | relation schema and ledger relation mapping | resolver/contract relation tests | PASS | Empty output is omitted. |
 | VM-003 | `assertionMethod` is a non-empty set when present (§7.1) | §3.5.1 | relation schema and mapper | contract relation tests; JSON-LD test | PASS | Empty output is omitted. |
 | VM-004 | `keyAgreement` is a non-empty set when present (§7.1) | §3.5.5 | relation schema, curve compatibility checks, mapper | relation tests; JSON-LD test | PASS WITH RESTRICTION | Current method permits X25519 key agreement only. |
