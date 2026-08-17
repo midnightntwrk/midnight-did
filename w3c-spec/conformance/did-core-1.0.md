@@ -1,6 +1,6 @@
 # DID Core 1.0 Conformance Matrix (Baseline Refresh)
 
-**Baseline:** [W3C DID Core 1.0 Recommendation, 19 July 2022](https://www.w3.org/TR/2022/REC-did-core-20220719/). **Audited commit:** `287e4155614b8bd6d11cb0385ed3d0f557775451`.
+**Baseline:** [W3C DID Core 1.0 Recommendation, 19 July 2022](https://www.w3.org/TR/2022/REC-did-core-20220719/). **Audited commit:** `56d60cabf73440b5e069b9ac30ed492381cb0705`.
 
 This is the initial evidence matrix required by issue #405. Rows are grouped by normative surface rather than presented as a claim that every sentence of the Recommendation has already been converted into an executable assertion. `FAIL` and `UNKNOWN` rows have a concrete follow-up in [the audit queue](./README.md#phase-1-follow-up-queue).
 
@@ -25,9 +25,9 @@ This is the initial evidence matrix required by issue #405. Rows are grouped by 
 | VM-004 | `keyAgreement` is a non-empty set when present (§7.1) | §3.5.5 | relation schema, curve compatibility checks, mapper | relation tests; JSON-LD test | PASS WITH RESTRICTION | Current method permits X25519 key agreement only. |
 | VM-005 | `capabilityInvocation` is a non-empty set when present (§7.1) | §3.5.3 | relation schema and mapper | contract relation tests; JSON-LD test | PASS | Empty output is omitted. |
 | VM-006 | `capabilityDelegation` is a non-empty set when present (§7.1) | §3.5.4 | relation schema and mapper | contract relation tests; JSON-LD test | PASS | Empty output is omitted. |
-| SRV-001 | Services have `id`, `type`, and `serviceEndpoint` (§7.1) | §3.6 | `ServiceSchema`, `LedgerToDomain.service`, `validateDIDDocumentConsistency`, offchain state schema | method parser and offchain duplicate-service vectors; resolver tests | PASS | Service shape and duplicate-ID validation are enforced at the supported method-specific and offchain boundaries. |
+| SRV-001 | Services have `id`, `type`, and `serviceEndpoint` (§7.1) | §3.6 | `ServiceSchema`, `LedgerToDomain.service`, `validateDIDDocumentConsistency`, offchain state schema | method parser and offchain duplicate-service vectors; resolver tests | PASS | Service shape, endpoint-equivalence checks, and duplicate-ID validation are enforced at the supported method-specific and offchain boundaries. |
 | SRV-002 | Service endpoints support string/object/array forms (§7.1) | §3.6 | `ServiceEndpointSchema`, endpoint parser | domain endpoint variation tests | PASS | Ledger serialization/rehydration needs lifecycle vectors. |
-| SRV-003 | Service IDs are unique and subject-bound (§7.1) | §3.6 | ledger map and service ID normalization | duplicate service tests are domain-level; ledger duplicate audit is not complete | UNKNOWN | Add resolver/contract duplicate-ID vectors and malformed service fixtures. |
+| SRV-003 | Service IDs are unique and subject-bound (§7.1) | §3.6 | method-boundary service-reference validation; ledger map and service ID normalization | method parser subject-bound/duplicate vectors; offchain and resolver tests | PASS WITH RESTRICTION | Supported method-specific documents reject foreign-DID service IDs and collapse same-subject relative/absolute fragment references; broader relative URI semantics remain method-profile-specific. |
 | REP-001 | DID JSON representation is valid and equivalent (§7.2) | §3.1, §7.1 | `documentForRepresentation` removes `@context` | resolver representation tests | PASS WITH RESTRICTION | Existing test validates shape, not a complete semantic round trip. |
 | REP-002 | DID JSON-LD representation expands with valid terms (§7.2) | §3.1, §7.1 | required DID/JWK contexts and `JsonWebKey` profile | `midnight-did-jsonld-conformance.test.ts` | PASS | Existing test uses a deterministic context loader. |
 | REP-003 | JSON-LD compaction and semantic round trip preserve the data model (§7.2) | §3.1 | no compact/round-trip helper in inspected surface | no compaction/round-trip test found | UNKNOWN | P1: add expand → compact → equivalent-model tests. |
