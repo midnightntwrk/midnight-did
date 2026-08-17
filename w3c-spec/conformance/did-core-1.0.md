@@ -1,6 +1,6 @@
 # DID Core 1.0 Conformance Matrix (Baseline Refresh)
 
-**Baseline:** [W3C DID Core 1.0 Recommendation, 19 July 2022](https://www.w3.org/TR/2022/REC-did-core-20220719/). **Audited commit:** `891b38ac6ae6d242a2cb360a88c547c4d6c6b0f4`.
+**Baseline:** [W3C DID Core 1.0 Recommendation, 19 July 2022](https://www.w3.org/TR/2022/REC-did-core-20220719/). **Audited commit:** `523ec95527bcb6b7e6c694d42899e1d9f726f708`.
 
 This is the initial evidence matrix required by issue #405. Rows are grouped by normative surface rather than presented as a claim that every sentence of the Recommendation has already been converted into an executable assertion. `FAIL` and `UNKNOWN` rows have a concrete follow-up in [the audit queue](./README.md#phase-1-follow-up-queue).
 

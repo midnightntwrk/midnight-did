@@ -26,7 +26,7 @@ DID Core 1.0 is the primary release gate. DID Core 1.1 remains a separate compat
 ## Tested repository snapshot
 
 - Repository: `midnightntwrk/midnight-did`
-- Commit inspected: `891b38ac6ae6d242a2cb360a88c547c4d6c6b0f4`
+- Commit inspected: `523ec95527bcb6b7e6c694d42899e1d9f726f708`
 - Package version: `0.5.0` (`package.json`)
 - Package manager: `pnpm@10.34.1`
 - Node requirement: `>=24`
