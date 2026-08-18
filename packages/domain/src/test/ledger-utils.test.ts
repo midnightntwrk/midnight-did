@@ -16,6 +16,7 @@ describe("ledger-utils", () => {
     expect(normalizeFragmentId("key-1")).toBe("#key-1");
     expect(normalizeFragmentId("#key-1")).toBe("#key-1");
     expect(normalizeFragmentId(`${did}#key-1`)).toBe("#key-1");
+    expect(normalizeFragmentId("/services/a#key-1#alias")).toBe("#alias");
   });
 
   it("normalizes bound fragment ids", () => {

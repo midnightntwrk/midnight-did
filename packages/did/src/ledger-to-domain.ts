@@ -257,6 +257,12 @@ export class LedgerToDomain {
     return `${did}${normalized}`;
   }
 
+  static absoluteServiceUrlReference(did: string, id: string): string {
+    const normalized = id.startsWith("did:") ? id : normalizeFragmentId(id);
+    if (normalized.startsWith("did:")) return normalized;
+    return `${did}${normalized}`;
+  }
+
   static toJSON(ledger: Ledger): object {
     const created = this.timestampToIsoString(ledger.created);
     const updated = this.timestampToIsoString(ledger.updated);
@@ -415,7 +421,7 @@ export class LedgerToDomain {
       : Array.from(ledger.services, ([, s]) => {
           const parsed = this.service(s);
           return createService({
-            id: this.absoluteDidUrlReference(did, parsed.id),
+            id: this.absoluteServiceUrlReference(did, parsed.id),
             type: parsed.type,
             serviceEndpoint: parsed.serviceEndpoint,
           });

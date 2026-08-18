@@ -213,9 +213,7 @@ describe("MidnightDIDResolver", () => {
     const result = await resolver.resolveDIDResolutionResult(did);
 
     expect(result.didDocument).toBeNull();
-    expect(result.didResolutionMetadata.error).toBe(
-      "notAllowedLocalDuplicateKey",
-    );
+    expect(result.didResolutionMetadata.error).toBe("invalidDidDocument");
   });
 
   it("throws on network mismatch", async () => {

@@ -191,7 +191,13 @@ export const serviceToLedger = (
   let endpoint: string;
   try {
     endpoint = serviceEndpointToLedgerValue(service.serviceEndpoint);
-  } catch {
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes("serviceEndpoint values must be unique")
+    ) {
+      throw error;
+    }
     throw new Error("Invalid serviceEndpoint: could not serialize to JSON");
   }
 

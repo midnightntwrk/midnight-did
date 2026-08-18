@@ -16,7 +16,7 @@ const hasUriScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
 export const normalizeFragmentId = (value: string): string => {
   const trimmed = value.trim();
   if (trimmed.startsWith("#")) return trimmed;
-  const hashIndex = trimmed.indexOf("#");
+  const hashIndex = trimmed.lastIndexOf("#");
   if (hashIndex >= 0) return `#${trimmed.slice(hashIndex + 1)}`;
   return `#${trimmed}`;
 };
@@ -40,7 +40,7 @@ export const normalizeBoundFragmentId = (
     return trimmed;
   }
 
-  const hashIndex = trimmed.indexOf("#");
+  const hashIndex = trimmed.lastIndexOf("#");
   if (trimmed.startsWith("did:")) {
     if (hashIndex <= 0 || hashIndex === trimmed.length - 1) {
       throw new Error(

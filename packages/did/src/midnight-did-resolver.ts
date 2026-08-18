@@ -73,12 +73,21 @@ const resolutionEnvelope = (
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
+const invalidDidDocumentError = (error: unknown): Error => {
+  const wrapped = new Error(errorMessage(error), { cause: error });
+  wrapped.name = "InvalidDIDDocumentError";
+  return wrapped;
+};
+
 const resolutionErrorCode = (error: unknown): DIDResolutionErrorCode => {
   const message = errorMessage(error);
+  const isInvalidDocument =
+    error instanceof Error && error.name === "InvalidDIDDocumentError";
   if (
-    message.includes("Invalid DID") ||
-    message.includes("Invalid method-specific identifier") ||
-    message.includes("id must be a valid Midnight DID")
+    !isInvalidDocument &&
+    (message.includes("Invalid DID") ||
+      message.includes("Invalid method-specific identifier") ||
+      message.includes("id must be a valid Midnight DID"))
   ) {
     return "invalidDid";
   }
@@ -89,34 +98,23 @@ const resolutionErrorCode = (error: unknown): DIDResolutionErrorCode => {
     return "methodNotSupported";
   }
   if (
-    message.includes("Duplicate verification method id") ||
-    message.includes("verificationMethod ids must be unique") ||
-    message.includes("service ids must be unique") ||
-    message.includes("must not contain duplicate entries") ||
-    message.includes("serviceEndpoint values must be unique")
+    isInvalidDocument &&
+    (message.includes("Duplicate verification method id") ||
+      message.includes("verificationMethod ids must be unique"))
   ) {
     return "notAllowedLocalDuplicateKey";
   }
   if (
-    message.includes("Unsupported verification method type") ||
-    message.includes("All verification methods must meet")
+    isInvalidDocument &&
+    (message.includes("Unsupported verification method type") ||
+      message.includes("All verification methods must meet"))
   ) {
     return "notAllowedVerificationMethodType";
   }
-  if (message.includes("publicKeyJwk")) {
+  if (isInvalidDocument && message.includes("publicKeyJwk")) {
     return "invalidPublicKey";
   }
-  if (
-    message.includes("Invalid service type") ||
-    message.includes("Invalid serviceEndpoint") ||
-    message.includes("references missing verification method") ||
-    message.includes(
-      "references a verificationMethod id that does not exist",
-    ) ||
-    message.includes("must be subject-bound") ||
-    message.includes("must identify a service") ||
-    message.includes("must equal DID subject")
-  ) {
+  if (isInvalidDocument) {
     return "invalidDidDocument";
   }
   return "internalError";
@@ -247,12 +245,19 @@ export class MidnightDIDResolver implements MidnightDIDResolverInterface {
     const ledgerState = await this.ledgerReader(contractAddress);
     if (ledgerState === null) return null;
 
-    return {
-      didDocument: LedgerToDomain.ledgerStateToDIDDocument(
+    let didDocument: MidnightDIDDocument;
+    try {
+      didDocument = LedgerToDomain.ledgerStateToDIDDocument(
         ledgerState,
         network,
         contractAddress,
-      ),
+      );
+    } catch (error) {
+      throw invalidDidDocumentError(error);
+    }
+
+    return {
+      didDocument,
       didDocumentMetadata: LedgerToDomain.ledgerStateToMetadata(ledgerState),
     };
   }
