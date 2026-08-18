@@ -90,6 +90,16 @@ export const serviceTypeToLedger = (serviceType: string | string[]): string => {
 export const serviceEndpointToLedger = (endpoint: unknown): string => {
   const parsed = ServiceEndpointSchema.parse(endpoint) as ServiceEndpoint;
   const normalized = normalizeServiceEndpoint(parsed);
+  if (Array.isArray(normalized)) {
+    const seen = new Set<string>();
+    for (const entry of normalized) {
+      const key = typeof entry === "string" ? entry : JSON.stringify(entry);
+      if (seen.has(key)) {
+        throw new Error("serviceEndpoint values must be unique");
+      }
+      seen.add(key);
+    }
+  }
   return JSON.stringify(normalized);
 };
 

@@ -98,6 +98,17 @@ const resolutionErrorCode = (error: unknown): DIDResolutionErrorCode => {
     return "notAllowedLocalDuplicateKey";
   }
   if (
+    message.includes("Unsupported verification method type") ||
+    message.includes("All verification methods must meet")
+  ) {
+    return "notAllowedVerificationMethodType";
+  }
+  if (message.includes("publicKeyJwk")) {
+    return "invalidPublicKey";
+  }
+  if (
+    message.includes("Invalid service type") ||
+    message.includes("Invalid serviceEndpoint") ||
     message.includes("references missing verification method") ||
     message.includes(
       "references a verificationMethod id that does not exist",

@@ -51,6 +51,12 @@ describe("ledger-utils", () => {
     expect(serviceEndpointToLedger("https://example.com/path")).toBe(
       JSON.stringify("https://example.com/path"),
     );
+    expect(() =>
+      serviceEndpointToLedger([
+        "https://example.com",
+        "https://EXAMPLE.com:443",
+      ]),
+    ).toThrow(/serviceEndpoint values must be unique/);
   });
 
   it("validates absolute alias uri", () => {
