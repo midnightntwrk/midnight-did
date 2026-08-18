@@ -219,6 +219,28 @@ describe("MidnightDIDResolver", () => {
     expect(result.didResolutionMetadata.error).toBeUndefined();
   });
 
+  it("maps invalid ledger document state to invalidDid", async () => {
+    ledgerState.services = makeIterablePairs<string, any>([
+      [
+        "invalid-service",
+        {
+          id: "#",
+          typ: "LinkedDomains",
+          serviceEndpoint: JSON.stringify("https://example.com"),
+        },
+      ],
+    ]);
+
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument).toBeNull();
+    expect(result.didResolutionMetadata.error).toBe("invalidDid");
+  });
+
   it("throws on network mismatch", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => ledgerState,
