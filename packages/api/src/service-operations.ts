@@ -6,7 +6,7 @@ import {
   asSchnorrJubjubDigest,
   createControllerAuthorization,
 } from "./controller-authorization.js";
-import { normalizeBoundFragmentId } from "./did-subject.js";
+import { normalizeBoundDIDURL } from "./did-subject.js";
 import { serviceToLedger } from "./ledger-mappers.js";
 import {
   type DeployedMidnightDIDContract,
@@ -74,7 +74,7 @@ export const removeService = async (
   providers: MidnightDIDProviders,
   serviceId: string,
 ): Promise<FinalizedTxData> => {
-  const normalizedServiceId = normalizeBoundFragmentId(
+  const normalizedServiceId = normalizeBoundDIDURL(
     didContract,
     serviceId,
     "serviceId",

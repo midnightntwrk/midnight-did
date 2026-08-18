@@ -13,7 +13,11 @@ import {
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
 
-import { getDidSubject, normalizeBoundFragmentId } from "./did-subject.js";
+import {
+  getDidSubject,
+  normalizeBoundDIDURL,
+  normalizeBoundFragmentId,
+} from "./did-subject.js";
 import {
   type DeployedMidnightDIDContract,
   type SchnorrJubjubVerificationMethod,
@@ -202,7 +206,7 @@ export const serviceToLedger = (
   }
 
   return {
-    id: normalizeBoundFragmentId(didContract, service.id, "service.id"),
+    id: normalizeBoundDIDURL(didContract, service.id, "service.id"),
     typ: serviceTypeToLedgerValue(service.type),
     serviceEndpoint: endpoint,
   };

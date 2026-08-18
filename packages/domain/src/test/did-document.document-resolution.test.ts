@@ -101,30 +101,24 @@ describe("DID document construction", () => {
     expect(service.serviceEndpoint).toHaveLength(2);
   });
 
-  it("reports duplicate service endpoints", () => {
-    try {
-      createDIDDocument({
-        id: exampleDid,
-        service: [
-          {
-            id: parseDIDURL(`${exampleDid}#svc-dup`),
-            type: "DIDCommV2",
-            serviceEndpoint: [
-              "https://example.com/didcomm",
-              "https://example.com/didcomm",
-            ],
-          },
-        ],
-      });
-      throw new Error("Expected duplicate serviceEndpoint error");
-    } catch (error) {
-      expect(error).toBeInstanceOf(Error);
-      const err = error as Error & { issues?: Array<{ message: string }> };
-      expect(err.message).toMatch(/serviceEndpoint values must be unique/);
-      expect(err.issues?.[0]?.message).toBe(
-        "serviceEndpoint values must be unique",
-      );
-    }
+  it("preserves duplicate service endpoints", () => {
+    const doc = createDIDDocument({
+      id: exampleDid,
+      service: [
+        {
+          id: parseDIDURL(`${exampleDid}#svc-dup`),
+          type: "DIDCommV2",
+          serviceEndpoint: [
+            "https://example.com/didcomm",
+            "https://example.com/didcomm",
+          ],
+        },
+      ],
+    });
+    expect(doc.service?.[0]?.serviceEndpoint).toEqual([
+      "https://example.com/didcomm",
+      "https://example.com/didcomm",
+    ]);
   });
 
   it("rejects invalid service endpoints", () => {

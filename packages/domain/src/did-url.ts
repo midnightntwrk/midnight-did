@@ -6,19 +6,33 @@ const splitDIDSubject = (value: string): string => {
 };
 
 const removeDotSegments = (path: string): string => {
-  const output: string[] = [];
-  for (const segment of path.split("/")) {
-    if (segment === ".") continue;
-    if (segment === "..") {
-      // Keep the leading empty segment that represents the root path, while
-      // preserving duplicate slashes and trailing slashes verbatim.
-      if (output.length > 1) output.pop();
-      continue;
+  let input = path;
+  let output = "";
+  while (input.length > 0) {
+    if (input.startsWith("../")) {
+      input = input.slice(3);
+    } else if (input.startsWith("./")) {
+      input = input.slice(2);
+    } else if (input.startsWith("/./")) {
+      input = `/${input.slice(3)}`;
+    } else if (input === "/.") {
+      input = "/";
+    } else if (input.startsWith("/../")) {
+      input = `/${input.slice(4)}`;
+      output = output.replace(/\/[^/]*$/u, "");
+    } else if (input === "/..") {
+      input = "/";
+      output = output.replace(/\/[^/]*$/u, "");
+    } else if (input === "." || input === "..") {
+      input = "";
+    } else {
+      const match = input.match(/^\/[^/]*|^[^/]+/u);
+      if (match === null) break;
+      output += match[0];
+      input = input.slice(match[0].length);
     }
-    output.push(segment);
   }
-  const normalized = output.join("/");
-  return normalized.length === 0 ? "/" : normalized;
+  return output || "/";
 };
 
 const splitPathAndSuffix = (reference: string): [string, string] => {
@@ -69,14 +83,16 @@ export const resolveDIDURLReference = (
   if (URI_SCHEME.test(value)) {
     if (value.toLowerCase().startsWith("did:")) {
       const subject = splitDIDSubject(value);
-      if (
-        !options.allowExternalDID &&
-        subject.toLowerCase() !== did.toLowerCase()
-      ) {
+      const isOffchainDID = subject
+        .toLowerCase()
+        .startsWith("did:midnight:offchain:");
+      const subjectsMatch = isOffchainDID
+        ? subject === did
+        : subject.toLowerCase() === did.toLowerCase();
+      if (!options.allowExternalDID && !subjectsMatch) {
         throw new Error(`DID URL subject must match the current DID (${did})`);
       }
-      const canonicalSubject =
-        subject.toLowerCase() === did.toLowerCase() ? did : subject;
+      const canonicalSubject = subjectsMatch ? did : subject;
       return `${canonicalSubject}${value.slice(subject.length)}`;
     }
 

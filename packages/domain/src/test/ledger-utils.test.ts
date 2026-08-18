@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   assertAbsoluteUri,
+  normalizeBoundDIDURL,
   normalizeBoundFragmentId,
   normalizeFragmentId,
   serviceEndpointToLedger,
@@ -20,6 +21,9 @@ describe("ledger-utils", () => {
   });
 
   it("resolves bound references without losing URL components", () => {
+    expect(normalizeBoundFragmentId("key-1", "methodId", did)).toBe(
+      `${did}#key-1`,
+    );
     expect(normalizeBoundFragmentId("#key-1", "methodId", did)).toBe(
       `${did}#key-1`,
     );
@@ -29,15 +33,11 @@ describe("ledger-utils", () => {
     expect(
       normalizeBoundFragmentId("/services/a#key-1", "service.id", did),
     ).toBe(`${did}/services/a#key-1`);
+    expect(normalizeBoundDIDURL("?service=messaging", "service.id", did)).toBe(
+      `${did}?service=messaging`,
+    );
     expect(
-      normalizeBoundFragmentId("?service=messaging", "service.id", did),
-    ).toBe(`${did}?service=messaging`);
-    expect(
-      normalizeBoundFragmentId(
-        "https://example.com/service",
-        "service.id",
-        did,
-      ),
+      normalizeBoundDIDURL("https://example.com/service", "service.id", did),
     ).toBe("https://example.com/service");
     expect(() => normalizeBoundFragmentId("#", "service.id", did)).toThrow(
       /non-empty fragment/,
@@ -63,12 +63,12 @@ describe("ledger-utils", () => {
     expect(serviceEndpointToLedger("https://example.com/path")).toBe(
       JSON.stringify("https://example.com/path"),
     );
-    expect(() =>
+    expect(
       serviceEndpointToLedger([
         "https://example.com",
         "https://EXAMPLE.com:443",
       ]),
-    ).toThrow(/serviceEndpoint values must be unique/);
+    ).toBe(JSON.stringify(["https://example.com", "https://example.com"]));
   });
 
   it("validates absolute alias uri", () => {

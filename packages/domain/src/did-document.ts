@@ -531,26 +531,6 @@ export function validateDIDDocumentConsistency(
     } else {
       seenServiceIds.add(canonicalServiceId);
     }
-
-    const endpoints = Array.isArray(service.serviceEndpoint)
-      ? service.serviceEndpoint
-      : [service.serviceEndpoint];
-    const seenEndpoints = new Set<string>();
-    endpoints.forEach((endpoint, endpointIndex) => {
-      const normalizedEndpoint = normalizeServiceEndpoint(endpoint);
-      const key =
-        typeof normalizedEndpoint === "string"
-          ? normalizedEndpoint
-          : JSON.stringify(normalizedEndpoint);
-      if (seenEndpoints.has(key)) {
-        issues.push({
-          message: "serviceEndpoint values must be unique",
-          path: ["service", index, "serviceEndpoint", endpointIndex],
-        });
-      } else {
-        seenEndpoints.add(key);
-      }
-    });
   });
 
   if (issues.length > 0) {

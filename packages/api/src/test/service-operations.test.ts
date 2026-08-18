@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   createControllerAuthorization: vi.fn(),
   asSchnorrJubjubDigest: vi.fn((digest) => digest),
   serviceToLedger: vi.fn(),
-  normalizeBoundFragmentId: vi.fn(),
+  normalizeBoundDIDURL: vi.fn(),
   setServiceAuthorizationDigest: vi.fn(() => [1n, 2n, 3n, 4n]),
   removeServiceAuthorizationDigest: vi.fn(() => [5n, 6n, 7n, 8n]),
 }));
@@ -25,7 +25,7 @@ vi.mock("../controller-authorization.js", () => ({
 }));
 
 vi.mock("../did-subject.js", () => ({
-  normalizeBoundFragmentId: mocks.normalizeBoundFragmentId,
+  normalizeBoundDIDURL: mocks.normalizeBoundDIDURL,
 }));
 
 vi.mock("../ledger-mappers.js", () => ({
@@ -56,7 +56,7 @@ describe("service operations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.serviceToLedger.mockReturnValue(ledgerService);
-    mocks.normalizeBoundFragmentId.mockReturnValue("#service");
+    mocks.normalizeBoundDIDURL.mockReturnValue("did:midnight:example#service");
     mocks.createControllerAuthorization.mockImplementation(
       async (_didContract, _providers, digestFactory) => {
         digestFactory({ id: "did-id", version: 4n });
@@ -111,7 +111,7 @@ describe("service operations", () => {
       removeService(didContract, providers, "did:midnight:example#service"),
     ).resolves.toEqual({ txId: "remove" });
 
-    expect(mocks.normalizeBoundFragmentId).toHaveBeenCalledWith(
+    expect(mocks.normalizeBoundDIDURL).toHaveBeenCalledWith(
       didContract,
       "did:midnight:example#service",
       "serviceId",
@@ -119,10 +119,10 @@ describe("service operations", () => {
     expect(mocks.removeServiceAuthorizationDigest).toHaveBeenCalledWith(
       "did-id",
       4n,
-      "#service",
+      "did:midnight:example#service",
     );
     expect(didContract.callTx.removeService).toHaveBeenCalledWith(
-      "#service",
+      "did:midnight:example#service",
       signature,
       9n,
     );

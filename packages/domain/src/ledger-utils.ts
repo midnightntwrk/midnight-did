@@ -47,8 +47,35 @@ export const normalizeBoundDIDURL = (
   }
 };
 
-/** @deprecated Use normalizeBoundDIDURL; retained for package compatibility. */
-export const normalizeBoundFragmentId = normalizeBoundDIDURL;
+export const normalizeBoundFragmentId = (
+  value: string,
+  field: BoundIdField,
+  expectedDidSubject: string,
+): string => {
+  const trimmed = value.trim();
+  const isBareLabel =
+    !trimmed.includes("#") &&
+    !trimmed.startsWith("/") &&
+    !trimmed.startsWith(".") &&
+    !trimmed.startsWith("?") &&
+    !/^[A-Za-z][A-Za-z0-9+.-]*:/u.test(trimmed);
+  const resolved = normalizeBoundDIDURL(
+    isBareLabel ? `#${trimmed}` : trimmed,
+    field,
+    expectedDidSubject,
+  );
+  if (!resolved.includes("#")) {
+    throw new Error(`${field} must include a non-empty fragment identifier`);
+  }
+  if (
+    !resolved.startsWith(`${expectedDidSubject}#`) &&
+    !resolved.startsWith(`${expectedDidSubject}/`) &&
+    !resolved.startsWith(`${expectedDidSubject}?`)
+  ) {
+    throw new Error(`${field} must be bound to the current DID`);
+  }
+  return resolved;
+};
 
 export const serviceTypeToLedger = (serviceType: string | string[]): string => {
   if (typeof serviceType === "string") {
@@ -74,16 +101,6 @@ export const serviceTypeToLedger = (serviceType: string | string[]): string => {
 export const serviceEndpointToLedger = (endpoint: unknown): string => {
   const parsed = ServiceEndpointSchema.parse(endpoint) as ServiceEndpoint;
   const normalized = normalizeServiceEndpoint(parsed);
-  if (Array.isArray(normalized)) {
-    const seen = new Set<string>();
-    for (const entry of normalized) {
-      const key = typeof entry === "string" ? entry : JSON.stringify(entry);
-      if (seen.has(key)) {
-        throw new Error("serviceEndpoint values must be unique");
-      }
-      seen.add(key);
-    }
-  }
   return JSON.stringify(normalized);
 };
 
