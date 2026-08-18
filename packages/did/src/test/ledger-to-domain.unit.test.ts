@@ -420,6 +420,29 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     );
   });
 
+  it("ledgerStateToDIDDocument uses normalized ledger service identifiers", () => {
+    const addr = parseContractAddress("0".repeat(64));
+    const didSubject = `did:midnight:devnet:${"0".repeat(64)}`;
+    stubLedger.services = makeIterablePairs<string, any>([
+      [
+        "legacy-path",
+        {
+          id: "/routes/messaging#service-1",
+          typ: "DIDCommMessaging",
+          serviceEndpoint: JSON.stringify("https://messaging.example"),
+        },
+      ],
+    ]);
+
+    const doc = LedgerToDomain.ledgerStateToDIDDocument(
+      stubLedger,
+      MidnightNetwork.DevNet,
+      addr,
+    );
+
+    expect(doc.service?.[0]?.id).toBe(`${didSubject}#service-1`);
+  });
+
   it("ledgerStateToDIDDocument omits empty verification methods", () => {
     const addr = parseContractAddress("0".repeat(64));
     stubLedger.verificationMethods = makeIterablePairs<string, any>([]);

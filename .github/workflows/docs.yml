@@ -59,6 +59,8 @@ jobs:
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # ratchet:actions/configure-pages@v6.0.0
 
       - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: pnpm install --frozen-lockfile
 
       - name: Install docs browser

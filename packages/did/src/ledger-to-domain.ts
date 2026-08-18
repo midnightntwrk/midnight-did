@@ -426,7 +426,7 @@ export class LedgerToDomain {
       : Array.from(ledger.services, ([, s]) => {
           const parsed = this.service(s);
           return createService({
-            id: this.absoluteDidUrlReference(did, s.id),
+            id: this.absoluteDidUrlReference(did, parsed.id),
             type: parsed.type,
             serviceEndpoint: parsed.serviceEndpoint,
           });
