@@ -241,6 +241,19 @@ describe("MidnightDIDResolver", () => {
     expect(result.didResolutionMetadata.error).toBe("invalidDid");
   });
 
+  it("maps schema validation failures to invalidDid", async () => {
+    ledgerState.alsoKnownAs = makeIterable<string>(["not a URI"]);
+
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument).toBeNull();
+    expect(result.didResolutionMetadata.error).toBe("invalidDid");
+  });
+
   it("throws on network mismatch", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => ledgerState,

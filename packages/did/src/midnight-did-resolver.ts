@@ -73,46 +73,95 @@ const resolutionEnvelope = (
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
-const isLedgerDocumentValidationError = (error: unknown): boolean => {
+type LedgerDocumentResolutionCode = Extract<
+  DIDResolutionErrorCode,
+  | "invalidDid"
+  | "notAllowedLocalDuplicateKey"
+  | "notAllowedVerificationMethodType"
+  | "invalidPublicKey"
+>;
+
+class InvalidDIDDocumentError extends Error {
+  readonly resolutionCode: LedgerDocumentResolutionCode;
+
+  constructor(
+    error: unknown,
+    resolutionCode: LedgerDocumentResolutionCode = "invalidDid",
+  ) {
+    super(errorMessage(error), { cause: error });
+    this.name = "InvalidDIDDocumentError";
+    this.resolutionCode = resolutionCode;
+  }
+}
+
+/**
+ * Classify only errors known to be caused by malformed ledger document data.
+ * Unexpected exceptions deliberately remain internalError instead of being
+ * reclassified by their message text.
+ */
+const ledgerDocumentResolutionCode = (
+  error: unknown,
+): LedgerDocumentResolutionCode | null => {
   const message = errorMessage(error);
-  return [
-    "Duplicate verification method id",
-    "Unsupported verification method type",
-    "All verification methods must meet",
-    "publicKeyJwk",
-    "Invalid service type",
-    "Invalid serviceEndpoint",
-    "references missing verification method",
-    "references a verificationMethod id that does not exist",
-    "must be subject-bound",
-    "must identify a service",
-    "must equal DID subject",
-    "must match the current DID",
-    "must not be a network-path reference",
-    "must not be empty",
-    "Invalid service id",
-    "Invalid DID Key ID format",
-    "must be an absolute URL",
-    "must not contain duplicate entries",
-    "ids must be unique",
-  ].some((part) => message.includes(part));
+  const isZodError =
+    error instanceof Error &&
+    (error.name === "ZodError" ||
+      Array.isArray((error as Error & { issues?: unknown }).issues));
+  const knownValidationError =
+    isZodError ||
+    [
+      "Duplicate verification method id",
+      "Unsupported verification method type",
+      "All verification methods must meet",
+      "publicKeyJwk",
+      "Invalid service type",
+      "Invalid serviceEndpoint",
+      "references missing verification method",
+      "references a verificationMethod id that does not exist",
+      "must be subject-bound",
+      "must identify a service",
+      "must equal DID subject",
+      "must match the current DID",
+      "must not be a network-path reference",
+      "must not be empty",
+      "Invalid service id",
+      "Invalid DID Key ID format",
+      "must be an absolute URL",
+      "must not contain duplicate entries",
+      "ids must be unique",
+    ].some((part) => message.includes(part));
+
+  if (!knownValidationError) return null;
+  if (
+    message.includes("Duplicate verification method id") ||
+    message.includes("verificationMethod ids must be unique")
+  ) {
+    return "notAllowedLocalDuplicateKey";
+  }
+  if (
+    message.includes("Unsupported verification method type") ||
+    message.includes("All verification methods must meet")
+  ) {
+    return "notAllowedVerificationMethodType";
+  }
+  if (message.includes("publicKeyJwk")) return "invalidPublicKey";
+  return "invalidDid";
 };
 
-const invalidDidDocumentError = (error: unknown): Error => {
-  const wrapped = new Error(errorMessage(error), { cause: error });
-  wrapped.name = "InvalidDIDDocumentError";
-  return wrapped;
-};
+const invalidDidDocumentError = (error: unknown): InvalidDIDDocumentError =>
+  new InvalidDIDDocumentError(
+    error,
+    ledgerDocumentResolutionCode(error) ?? "invalidDid",
+  );
 
 const resolutionErrorCode = (error: unknown): DIDResolutionErrorCode => {
+  if (error instanceof InvalidDIDDocumentError) return error.resolutionCode;
+
   const message = errorMessage(error);
-  const isInvalidDocument =
-    error instanceof Error && error.name === "InvalidDIDDocumentError";
   if (
-    !isInvalidDocument &&
-    (message.includes("Invalid DID") ||
-      message.includes("Invalid method-specific identifier") ||
-      message.includes("id must be a valid Midnight DID"))
+    message.includes("Invalid DID") ||
+    message.includes("Invalid method-specific identifier") ||
+    message.includes("id must be a valid Midnight DID")
   ) {
     return "invalidDid";
   }
@@ -121,26 +170,6 @@ const resolutionErrorCode = (error: unknown): DIDResolutionErrorCode => {
     message.includes("Network mismatch")
   ) {
     return "methodNotSupported";
-  }
-  if (
-    isInvalidDocument &&
-    (message.includes("Duplicate verification method id") ||
-      message.includes("verificationMethod ids must be unique"))
-  ) {
-    return "notAllowedLocalDuplicateKey";
-  }
-  if (
-    isInvalidDocument &&
-    (message.includes("Unsupported verification method type") ||
-      message.includes("All verification methods must meet"))
-  ) {
-    return "notAllowedVerificationMethodType";
-  }
-  if (isInvalidDocument && message.includes("publicKeyJwk")) {
-    return "invalidPublicKey";
-  }
-  if (isInvalidDocument) {
-    return "invalidDid";
   }
   return "internalError";
 };
@@ -278,7 +307,7 @@ export class MidnightDIDResolver implements MidnightDIDResolverInterface {
         contractAddress,
       );
     } catch (error) {
-      if (isLedgerDocumentValidationError(error)) {
+      if (ledgerDocumentResolutionCode(error) !== null) {
         throw invalidDidDocumentError(error);
       }
       throw error;
