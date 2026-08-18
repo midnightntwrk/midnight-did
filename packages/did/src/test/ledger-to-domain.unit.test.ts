@@ -353,6 +353,13 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     ).toThrow(/Invalid serviceEndpoint/);
   });
 
+  it("uses the shared fragment normalizer for ledger JSON identifiers", () => {
+    const did = `did:midnight:devnet:${"a".repeat(64)}`;
+
+    expect(LedgerToDomain.verificationMethodId(`${did}:key-1`)).toBe("#key-1");
+    expect(LedgerToDomain.verificationMethodId(`${did}#key-1`)).toBe("#key-1");
+  });
+
   it("toJSON flattens ledger to plain JSON with arrays", () => {
     const json = LedgerToDomain.toJSON(stubLedger) as any;
     expect(typeof json.id).toBe("string");

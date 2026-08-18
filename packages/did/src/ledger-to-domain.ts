@@ -9,6 +9,7 @@ import {
   normalizeServiceEndpoint,
   PublicKeyJwk,
   PublicKeyJwkSchema,
+  normalizeFragmentId,
   resolveDIDURLReference,
   Service,
   ServiceEndpointSchema,
@@ -238,17 +239,15 @@ export class LedgerToDomain {
   }
 
   static verificationMethodId(id: string): string {
+    // Ledger JSON uses the historical fragment-only representation. Keep it
+    // aligned with the shared normalizer; resolution itself uses
+    // absoluteDidUrlReference so path/query/fragment identity is preserved.
     const rawId = id.trim();
-    if (rawId.startsWith("did:")) {
-      if (rawId.includes("#")) return rawId;
-      return `${rawId}#${rawId.slice(rawId.lastIndexOf(":") + 1)}`;
-    }
-    const needsFragmentPrefix =
-      !rawId.startsWith("#") &&
-      !rawId.startsWith("/") &&
-      !rawId.startsWith(".") &&
-      !rawId.startsWith("?");
-    return needsFragmentPrefix ? `#${rawId}` : rawId;
+    const fragment =
+      rawId.startsWith("did:") && !rawId.includes("#")
+        ? rawId.slice(rawId.lastIndexOf(":") + 1)
+        : rawId;
+    return normalizeFragmentId(fragment);
   }
 
   static absoluteDidUrlReference(did: string, id: string): string {
