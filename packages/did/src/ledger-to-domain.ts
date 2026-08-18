@@ -6,6 +6,7 @@ import {
   DIDDocumentMetadata,
   encodeBase64Url,
   KeyType,
+  normalizeFragmentId,
   normalizeServiceEndpoint,
   PublicKeyJwk,
   PublicKeyJwkSchema,
@@ -147,14 +148,9 @@ export class LedgerToDomain {
 
   static service(service: LedgerService): Service {
     const rawId = service.id.trim();
-    const needsFragmentPrefix =
-      rawId.startsWith("//") ||
-      (!rawId.startsWith("did:") &&
-        !rawId.startsWith("#") &&
-        !rawId.startsWith("/") &&
-        !rawId.startsWith(".") &&
-        !rawId.startsWith("?"));
-    const serviceId = needsFragmentPrefix ? `#${rawId}` : rawId;
+    const serviceId = rawId.startsWith("did:")
+      ? rawId
+      : normalizeFragmentId(rawId);
 
     const serviceEndpoint = this.parseServiceEndpoint(service.serviceEndpoint);
     const serviceType = this.parseServiceType(
@@ -212,7 +208,7 @@ export class LedgerToDomain {
         seen.add(key);
         return true;
       });
-      return unique.length === 1 ? unique[0]! : unique;
+      return unique;
     };
 
     if (Array.isArray(endpoint)) {

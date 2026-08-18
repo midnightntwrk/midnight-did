@@ -560,6 +560,29 @@ describe("Midnight DID Document", () => {
       );
     });
 
+    it("canonicalizes subject-bound absolute service path and query references", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+        service: [
+          {
+            id: `${exampleMidnightDid}/services/profile`,
+            type: "LinkedDomains",
+            serviceEndpoint: "https://example.com/profile",
+          } as Service,
+          {
+            id: `${exampleMidnightDid}?service=messaging`,
+            type: "DIDCommMessaging",
+            serviceEndpoint: "https://example.com/messaging",
+          } as Service,
+        ],
+      });
+
+      expect(doc.service?.map((service) => service.id)).toEqual([
+        `${exampleMidnightDid}#/services/profile`,
+        `${exampleMidnightDid}#?service=messaging`,
+      ]);
+    });
+
     it("rejects services from another DID subject", () => {
       const input = {
         "@context": [

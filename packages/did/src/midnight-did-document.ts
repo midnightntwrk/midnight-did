@@ -163,6 +163,24 @@ const canonicalizeMidnightReference = (value: string): string => {
     : referenceDid.data;
 };
 
+const canonicalizeMidnightServiceReference = (
+  value: string,
+  did: MidnightDIDString,
+): string => {
+  if (!value.startsWith("did:")) return normalizeFragmentId(value);
+  const subject = referenceSubject(value);
+  if (subject === undefined) return value;
+  const referenceDid = MidnightDIDSchema.safeParse(subject);
+  if (!referenceDid.success || referenceDid.data !== did) {
+    throw new Error(`service id '${value}' must be subject-bound`);
+  }
+  const suffix = value.slice(subject.length);
+  if (suffix.length === 0) {
+    throw new Error(`service id '${value}' must identify a service`);
+  }
+  return `${did}${normalizeFragmentId(suffix)}`;
+};
+
 const normalizeMidnightDocumentReferences = (
   doc: DIDDocument,
   did: MidnightDIDString,
@@ -198,21 +216,10 @@ const normalizeMidnightDocumentReferences = (
     keyAgreement: normalizeReferences(doc.keyAgreement),
     capabilityInvocation: normalizeReferences(doc.capabilityInvocation),
     capabilityDelegation: normalizeReferences(doc.capabilityDelegation),
-    service: doc.service?.map((service) => {
-      const canonicalServiceId = service.id.startsWith("did:")
-        ? canonicalizeMidnightReference(service.id)
-        : undefined;
-      if (canonicalServiceId !== undefined) {
-        if (referenceSubject(canonicalServiceId) !== did) {
-          throw new Error(`service id '${service.id}' must be subject-bound`);
-        }
-        if (!canonicalServiceId.includes("#")) {
-          throw new Error(`service id '${service.id}' must include a fragment`);
-        }
-      }
-      const id = canonicalServiceId ?? normalizeFragmentId(service.id);
-      return { ...service, id };
-    }),
+    service: doc.service?.map((service) => ({
+      ...service,
+      id: canonicalizeMidnightServiceReference(service.id, did),
+    })),
   } as unknown as DIDDocument;
 };
 

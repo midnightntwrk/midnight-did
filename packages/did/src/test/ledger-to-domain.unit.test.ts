@@ -291,7 +291,14 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
         "https://c.example/alt",
       ]),
     } as any);
-    expect(relativeService.id).toBe("/routes/messaging");
+    expect(relativeService.id).toBe("#/routes/messaging");
+
+    const queryService = LedgerToDomain.service({
+      id: "?service=messaging",
+      type: "T",
+      serviceEndpoint: JSON.stringify("https://query.example"),
+    } as any);
+    expect(queryService.id).toBe("#?service=messaging");
 
     const networkPathService = LedgerToDomain.service({
       id: "//peer",
@@ -322,7 +329,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
         "https://EXAMPLE.com:443",
       ]),
     } as any);
-    expect(duplicateEndpoints.serviceEndpoint).toBe("https://example.com");
+    expect(duplicateEndpoints.serviceEndpoint).toEqual(["https://example.com"]);
   });
 
   it("service rejects malformed serviceType and serviceEndpoint payloads", () => {
