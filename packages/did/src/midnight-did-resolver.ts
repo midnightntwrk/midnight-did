@@ -87,9 +87,13 @@ const isLedgerDocumentValidationError = (error: unknown): boolean => {
     "must be subject-bound",
     "must identify a service",
     "must equal DID subject",
+    "must match the current DID",
     "must not be a network-path reference",
     "must not be empty",
     "Invalid service id",
+    "Invalid DID Key ID format",
+    "must be an absolute URL",
+    "must not contain duplicate entries",
     "ids must be unique",
   ].some((part) => message.includes(part));
 };

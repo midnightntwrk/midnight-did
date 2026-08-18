@@ -53,9 +53,7 @@ export type RelativeURL = z.infer<typeof RelativeURLSchema>;
 
 const extractKeyFragment = (value: string) => {
   const fragmentIndex = value.indexOf("#");
-  if (fragmentIndex >= 0) return value.slice(fragmentIndex + 1);
-  if (value.startsWith("#") || value.startsWith("did:")) return "";
-  return value;
+  return fragmentIndex >= 0 ? value.slice(fragmentIndex + 1) : "";
 };
 
 /** DID Key ID (e.g. did:example:123#key-1 or #key-1) */

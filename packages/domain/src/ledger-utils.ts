@@ -37,23 +37,24 @@ export const normalizeBoundDIDURL = (
   if (trimmed.endsWith("#")) {
     throw new Error(`${field} must include a non-empty fragment identifier`);
   }
+  let resolved: string;
   try {
-    const resolved = resolveDIDURLReference(trimmed, expectedDidSubject, {
+    resolved = resolveDIDURLReference(trimmed, expectedDidSubject, {
       caseInsensitiveDIDSubject: true,
     });
-    if (
-      (field === "service.id" || field === "serviceId") &&
-      resolved === expectedDidSubject
-    ) {
-      throw new Error(`${field} must identify a service`);
-    }
-    return resolved;
   } catch (error) {
     if (error instanceof Error) {
       throw new Error(`${field} ${error.message}`);
     }
     throw error;
   }
+  if (
+    (field === "service.id" || field === "serviceId") &&
+    resolved === expectedDidSubject
+  ) {
+    throw new Error(`${field} must identify a service`);
+  }
+  return resolved;
 };
 
 export const normalizeBoundFragmentId = (
