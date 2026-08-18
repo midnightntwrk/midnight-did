@@ -167,7 +167,15 @@ const canonicalizeMidnightServiceReference = (
   value: string,
   did: MidnightDIDString,
 ): string => {
-  if (!value.startsWith("did:")) return normalizeFragmentId(value);
+  const normalizeServiceFragment = (reference: string): string => {
+    const normalized = normalizeFragmentId(reference);
+    if (normalized === "#") {
+      throw new Error(`service id '${value}' must identify a service`);
+    }
+    return normalized;
+  };
+
+  if (!value.startsWith("did:")) return normalizeServiceFragment(value);
   const subject = referenceSubject(value);
   if (subject === undefined) return value;
   const referenceDid = MidnightDIDSchema.safeParse(subject);
@@ -178,7 +186,7 @@ const canonicalizeMidnightServiceReference = (
   if (suffix.length === 0) {
     throw new Error(`service id '${value}' must identify a service`);
   }
-  return `${did}${normalizeFragmentId(suffix)}`;
+  return `${did}${normalizeServiceFragment(suffix)}`;
 };
 
 const normalizeMidnightDocumentReferences = (
@@ -186,7 +194,9 @@ const normalizeMidnightDocumentReferences = (
   did: MidnightDIDString,
 ): DIDDocument => {
   const verificationMethod = doc.verificationMethod?.map((method) => {
-    const id = canonicalizeMidnightReference(method.id);
+    const id = method.id.startsWith("did:")
+      ? canonicalizeMidnightReference(method.id)
+      : normalizeFragmentId(method.id);
     if (id.startsWith("did:") && referenceSubject(id) !== did) {
       throw new Error(
         `verificationMethod id '${method.id}' must be subject-bound`,

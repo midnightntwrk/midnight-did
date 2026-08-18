@@ -88,6 +88,26 @@ const resolutionErrorCode = (error: unknown): DIDResolutionErrorCode => {
   ) {
     return "methodNotSupported";
   }
+  if (
+    message.includes("Duplicate verification method id") ||
+    message.includes("verificationMethod ids must be unique") ||
+    message.includes("service ids must be unique") ||
+    message.includes("must not contain duplicate entries") ||
+    message.includes("serviceEndpoint values must be unique")
+  ) {
+    return "notAllowedLocalDuplicateKey";
+  }
+  if (
+    message.includes("references missing verification method") ||
+    message.includes(
+      "references a verificationMethod id that does not exist",
+    ) ||
+    message.includes("must be subject-bound") ||
+    message.includes("must identify a service") ||
+    message.includes("must equal DID subject")
+  ) {
+    return "invalidDid";
+  }
   return "internalError";
 };
 

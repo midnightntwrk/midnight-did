@@ -186,6 +186,38 @@ describe("MidnightDIDResolver", () => {
     expect(result.didResolutionMetadata.error).toBe("invalidDid");
   });
 
+  it("maps duplicate normalized ledger services to a resolution error", async () => {
+    ledgerState.services = makeIterablePairs<string, any>([
+      [
+        "service-a",
+        {
+          id: "/routes/a#service",
+          typ: "LinkedDomains",
+          serviceEndpoint: JSON.stringify("https://a.example"),
+        },
+      ],
+      [
+        "service-b",
+        {
+          id: "/routes/b#service",
+          typ: "LinkedDomains",
+          serviceEndpoint: JSON.stringify("https://b.example"),
+        },
+      ],
+    ]);
+
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument).toBeNull();
+    expect(result.didResolutionMetadata.error).toBe(
+      "notAllowedLocalDuplicateKey",
+    );
+  });
+
   it("throws on network mismatch", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => ledgerState,

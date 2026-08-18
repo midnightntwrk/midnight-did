@@ -662,6 +662,38 @@ describe("Midnight DID Document", () => {
       );
     });
 
+    it("normalizes relative verification method references consistently", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        controller: exampleMidnightDid,
+        verificationMethod: [{ ...exampleVerificationMethod, id: ".key-1" }],
+        authentication: [".key-1"],
+      };
+
+      const doc = parseMidnightDIDDocument(input);
+      expect(doc.authentication).toEqual(["#.key-1"]);
+      expect(doc.verificationMethod?.[0].id).toBe("#.key-1");
+    });
+
+    it("rejects empty service references", () => {
+      expect(() =>
+        createMidnightDIDDocument({
+          id: exampleMidnightDid,
+          service: [
+            {
+              id: "#",
+              type: "LinkedDomains",
+              serviceEndpoint: "https://example.com",
+            } as Service,
+          ],
+        }),
+      ).toThrow(/service id .* must identify a service/);
+    });
+
     it("accepts verification method with relative fragment identifier", () => {
       const input = {
         "@context": [
