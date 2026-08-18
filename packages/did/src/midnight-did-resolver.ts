@@ -4,6 +4,7 @@ import {
   type DIDDocumentMetadata,
   type DIDDocumentRepresentationMediaTypes,
   type DIDResolutionErrorCode,
+  type KnownDIDResolutionErrorCode,
   parseMidnightDID,
   parseMidnightDIDString,
 } from "@midnight-ntwrk/midnight-did-domain";
@@ -74,7 +75,7 @@ const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
 type LedgerDocumentResolutionCode = Extract<
-  DIDResolutionErrorCode,
+  KnownDIDResolutionErrorCode,
   | "invalidDid"
   | "notAllowedLocalDuplicateKey"
   | "notAllowedVerificationMethodType"
