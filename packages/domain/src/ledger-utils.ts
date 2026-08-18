@@ -38,9 +38,16 @@ export const normalizeBoundDIDURL = (
     throw new Error(`${field} must include a non-empty fragment identifier`);
   }
   try {
-    return resolveDIDURLReference(trimmed, expectedDidSubject, {
+    const resolved = resolveDIDURLReference(trimmed, expectedDidSubject, {
       caseInsensitiveDIDSubject: true,
     });
+    if (
+      (field === "service.id" || field === "serviceId") &&
+      resolved === expectedDidSubject
+    ) {
+      throw new Error(`${field} must identify a service`);
+    }
+    return resolved;
   } catch (error) {
     if (error instanceof Error) {
       throw new Error(`${field} ${error.message}`);
