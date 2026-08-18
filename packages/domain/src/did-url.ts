@@ -96,7 +96,10 @@ export const resolveDIDURLReference = (
         throw new Error(`DID URL subject must match the current DID (${did})`);
       }
       const canonicalSubject = subjectsMatch ? did : subject;
-      return `${canonicalSubject}${value.slice(subject.length)}`;
+      const suffix = value.slice(subject.length);
+      return suffix.length === 0
+        ? canonicalSubject
+        : resolveRelativeDIDURL(canonicalSubject, suffix);
     }
 
     try {

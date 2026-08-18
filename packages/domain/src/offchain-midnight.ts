@@ -686,14 +686,22 @@ export const offchainVerificationMethodToDidDocumentMethod = (
   });
 
 export const offchainServiceToDidDocumentService = (
-  did: MidnightDIDString,
-  service: OffchainService,
-): Service =>
-  createService({
-    id: resolveDIDURLReference(service.id, did, { allowExternalDID: true }),
+  didOrService: MidnightDIDString | OffchainService,
+  maybeService?: OffchainService,
+): Service => {
+  const did = typeof didOrService === "string" ? didOrService : undefined;
+  const service = maybeService ?? (didOrService as OffchainService);
+  return createService({
+    id:
+      did === undefined
+        ? service.id
+        : resolveDIDURLReference(service.id, did, {
+            allowExternalDID: true,
+          }),
     type: service.type,
     serviceEndpoint: service.serviceEndpoint,
   });
+};
 
 export const offchainStateToDidDocument = (
   did: MidnightDIDString,

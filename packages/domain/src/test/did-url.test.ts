@@ -22,6 +22,15 @@ describe("resolveDIDURLReference", () => {
     expect(resolveDIDURLReference(reference, did)).toBe(expected);
   });
 
+  it("normalizes dot segments in absolute DID URLs", () => {
+    expect(resolveDIDURLReference(`${did}/routing/../messages`, did)).toBe(
+      `${did}/messages`,
+    );
+    expect(resolveDIDURLReference(`${did}/routing/..#svc`, did)).toBe(
+      `${did}/#svc`,
+    );
+  });
+
   it("does not collapse distinct path references with the same fragment", () => {
     expect(resolveDIDURLReference("/a#svc", did)).not.toBe(
       resolveDIDURLReference("/b#svc", did),

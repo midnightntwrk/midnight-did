@@ -252,6 +252,7 @@ export class LedgerToDomain {
   }
 
   static absoluteDidUrlReference(did: string, id: string): string {
+    id = id.trim();
     // Ledger verification-method keys historically stored bare fragments.
     // Preserve that method-level key convention while retaining any explicit
     // path/query/fragment DID URL supplied by newer entries.
@@ -269,6 +270,7 @@ export class LedgerToDomain {
 
   static absoluteServiceUrlReference(did: string, id: string): string {
     const trimmed = id.trim();
+    if (trimmed.startsWith("//")) return `${did}#${trimmed}`;
     const legacyBareLabel =
       !trimmed.includes("#") &&
       !trimmed.startsWith("/") &&

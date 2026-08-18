@@ -73,6 +73,24 @@ const resolutionEnvelope = (
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
+const isLedgerDocumentValidationError = (error: unknown): boolean => {
+  const message = errorMessage(error);
+  return [
+    "Duplicate verification method id",
+    "Unsupported verification method type",
+    "All verification methods must meet",
+    "publicKeyJwk",
+    "Invalid service type",
+    "Invalid serviceEndpoint",
+    "references missing verification method",
+    "references a verificationMethod id that does not exist",
+    "must be subject-bound",
+    "must identify a service",
+    "must equal DID subject",
+    "ids must be unique",
+  ].some((part) => message.includes(part));
+};
+
 const invalidDidDocumentError = (error: unknown): Error => {
   const wrapped = new Error(errorMessage(error), { cause: error });
   wrapped.name = "InvalidDIDDocumentError";
@@ -253,7 +271,10 @@ export class MidnightDIDResolver implements MidnightDIDResolverInterface {
         contractAddress,
       );
     } catch (error) {
-      throw invalidDidDocumentError(error);
+      if (isLedgerDocumentValidationError(error)) {
+        throw invalidDidDocumentError(error);
+      }
+      throw error;
     }
 
     return {
