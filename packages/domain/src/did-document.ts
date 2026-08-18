@@ -465,7 +465,9 @@ export function validateDIDDocumentConsistency(
   const verificationMethods = normalizedDoc.verificationMethod ?? [];
   const seenVerificationMethodIds = new Map<string, number>();
   const canonicalizeKeyReference = (value: string): string =>
-    resolveDIDURLReference(value, normalizedDoc.id);
+    resolveDIDURLReference(value, normalizedDoc.id, {
+      allowExternalDID: true,
+    });
   const canonicalizeServiceReference = (value: string): string =>
     resolveDIDURLReference(value, normalizedDoc.id, {
       allowExternalDID: true,

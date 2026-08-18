@@ -154,7 +154,8 @@ const referenceSubject = (value: string): string | undefined => {
 const canonicalizeMidnightReference = (
   value: string,
   did: MidnightDIDString,
-): string => resolveDIDURLReference(value, did);
+): string =>
+  resolveDIDURLReference(value, did, { caseInsensitiveDIDSubject: true });
 
 const canonicalizeMidnightServiceReference = (
   value: string,
@@ -165,7 +166,9 @@ const canonicalizeMidnightServiceReference = (
   }
   let resolved: string;
   try {
-    resolved = resolveDIDURLReference(value, did);
+    resolved = resolveDIDURLReference(value, did, {
+      caseInsensitiveDIDSubject: true,
+    });
   } catch (error) {
     if (error instanceof Error && error.message.includes("current DID")) {
       throw new Error(`service id '${value}' must be subject-bound`);

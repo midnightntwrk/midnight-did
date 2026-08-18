@@ -268,7 +268,18 @@ export class LedgerToDomain {
   }
 
   static absoluteServiceUrlReference(did: string, id: string): string {
-    return resolveDIDURLReference(id, did, { allowExternalDID: true });
+    const trimmed = id.trim();
+    const legacyBareLabel =
+      !trimmed.includes("#") &&
+      !trimmed.startsWith("/") &&
+      !trimmed.startsWith(".") &&
+      !trimmed.startsWith("?") &&
+      !trimmed.startsWith("did:") &&
+      !/^[A-Za-z][A-Za-z0-9+.-]*:/u.test(trimmed);
+    const reference = legacyBareLabel ? `#${trimmed}` : trimmed;
+    return resolveDIDURLReference(reference, did, {
+      allowExternalDID: true,
+    });
   }
 
   static toJSON(ledger: Ledger): object {

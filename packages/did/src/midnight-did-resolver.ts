@@ -115,7 +115,7 @@ const resolutionErrorCode = (error: unknown): DIDResolutionErrorCode => {
     return "invalidPublicKey";
   }
   if (isInvalidDocument) {
-    return "invalidDidDocument";
+    return "invalidDid";
   }
   return "internalError";
 };

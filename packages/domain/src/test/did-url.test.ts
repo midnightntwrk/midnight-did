@@ -29,9 +29,11 @@ describe("resolveDIDURLReference", () => {
   });
 
   it("canonicalizes an equivalent absolute DID subject", () => {
-    expect(resolveDIDURLReference(`${did.toUpperCase()}#svc`, did)).toBe(
-      `${did}#svc`,
-    );
+    expect(
+      resolveDIDURLReference(`${did.toUpperCase()}#svc`, did, {
+        caseInsensitiveDIDSubject: true,
+      }),
+    ).toBe(`${did}#svc`);
   });
 
   it("accepts absolute non-DID URLs", () => {

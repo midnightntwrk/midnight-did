@@ -410,9 +410,9 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(doc).not.toHaveProperty("capabilityInvocation");
     expect(doc).not.toHaveProperty("capabilityDelegation");
     expect(doc.service?.length).toBe(2);
-    expect(doc.service?.[0].id).toBe(`${didSubject}/svc-1`);
+    expect(doc.service?.[0].id).toBe(`${didSubject}#svc-1`);
     expect(doc.service?.[0].serviceEndpoint).toBe("https://u.example");
-    expect(doc.service?.[1].id).toBe(`${didSubject}/svc-2`);
+    expect(doc.service?.[1].id).toBe(`${didSubject}#svc-2`);
     expect(doc.service?.[1].serviceEndpoint).toEqual([
       "wss://x.example",
       { uri: "https://y.example" },

@@ -812,8 +812,8 @@ keyword. Midnight resolvers SHOULD use `invalidDid`, `notFound`, and
 `representationNotSupported` for those DID Core-defined cases, and SHOULD use
 registered DID resolution keywords such as `methodNotSupported` and
 `internalError` for broader resolver failures. This implementation documents
-`invalidDidDocument` for a ledger state that cannot be projected into a valid
-Midnight DID Document, and `notAllowedLocalDuplicateKey` for duplicate
+`invalidDid` for a ledger state that cannot be projected into a valid Midnight
+DID Document, and `notAllowedLocalDuplicateKey` for duplicate
 verification-method keys in the normalized ledger state. Resolver-specific extension values MAY be used when
 they are registered or documented as a single ASCII keyword that starts with a
 letter.

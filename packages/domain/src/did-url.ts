@@ -57,6 +57,8 @@ const resolveRelativeDIDURL = (did: string, reference: string): string => {
 export type DIDURLResolutionOptions = {
   /** Allow an absolute DID URL belonging to another DID subject. */
   allowExternalDID?: boolean;
+  /** Accept method-specific case variations in the DID subject. */
+  caseInsensitiveDIDSubject?: boolean;
 };
 
 /**
@@ -86,9 +88,10 @@ export const resolveDIDURLReference = (
       const isOffchainDID = subject
         .toLowerCase()
         .startsWith("did:midnight:offchain:");
-      const subjectsMatch = isOffchainDID
-        ? subject === did
-        : subject.toLowerCase() === did.toLowerCase();
+      const subjectsMatch =
+        isOffchainDID || !options.caseInsensitiveDIDSubject
+          ? subject === did
+          : subject.toLowerCase() === did.toLowerCase();
       if (!options.allowExternalDID && !subjectsMatch) {
         throw new Error(`DID URL subject must match the current DID (${did})`);
       }

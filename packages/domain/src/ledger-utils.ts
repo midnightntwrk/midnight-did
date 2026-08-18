@@ -38,7 +38,9 @@ export const normalizeBoundDIDURL = (
     throw new Error(`${field} must include a non-empty fragment identifier`);
   }
   try {
-    return resolveDIDURLReference(trimmed, expectedDidSubject);
+    return resolveDIDURLReference(trimmed, expectedDidSubject, {
+      caseInsensitiveDIDSubject: true,
+    });
   } catch (error) {
     if (error instanceof Error) {
       throw new Error(`${field} ${error.message}`);
