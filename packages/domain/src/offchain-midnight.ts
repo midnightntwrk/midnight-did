@@ -685,17 +685,12 @@ export const offchainVerificationMethodToDidDocumentMethod = (
     publicKeyJwk: method.publicKeyJwk,
   });
 
-export function offchainServiceToDidDocumentService(
-  service: OffchainService,
-): Service;
-export function offchainServiceToDidDocumentService(
-  did: MidnightDIDString,
-  service: OffchainService,
-): Service;
-export function offchainServiceToDidDocumentService(
-  didOrService: MidnightDIDString | OffchainService,
-  maybeService?: OffchainService,
-): Service {
+export const offchainServiceToDidDocumentService = (
+  ...args:
+    | [service: OffchainService]
+    | [did: MidnightDIDString, service: OffchainService]
+): Service => {
+  const [didOrService, maybeService] = args;
   const did = typeof didOrService === "string" ? didOrService : undefined;
   if (did !== undefined && maybeService === undefined) {
     throw new Error("Offchain service mapping requires a service value");
@@ -711,7 +706,7 @@ export function offchainServiceToDidDocumentService(
     type: service.type,
     serviceEndpoint: service.serviceEndpoint,
   });
-}
+};
 
 export const offchainStateToDidDocument = (
   did: MidnightDIDString,

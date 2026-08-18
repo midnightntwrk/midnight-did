@@ -57,6 +57,7 @@ export const normalizeBoundDIDURL = (
   return resolved;
 };
 
+/** @deprecated Use normalizeBoundDIDURL; this name is retained for compatibility. */
 export const normalizeBoundFragmentId = (
   value: string,
   field: BoundIdField,

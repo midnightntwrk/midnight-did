@@ -258,19 +258,21 @@ const projectMidnightDIDDocument = (
     doc.verificationMethod.length === 0
       ? {}
       : { verificationMethod: doc.verificationMethod }),
-    ...(doc.authentication === undefined
+    ...(doc.authentication === undefined || doc.authentication.length === 0
       ? {}
       : { authentication: doc.authentication }),
-    ...(doc.assertionMethod === undefined
+    ...(doc.assertionMethod === undefined || doc.assertionMethod.length === 0
       ? {}
       : { assertionMethod: doc.assertionMethod }),
-    ...(doc.keyAgreement === undefined
+    ...(doc.keyAgreement === undefined || doc.keyAgreement.length === 0
       ? {}
       : { keyAgreement: doc.keyAgreement }),
-    ...(doc.capabilityInvocation === undefined
+    ...(doc.capabilityInvocation === undefined ||
+    doc.capabilityInvocation.length === 0
       ? {}
       : { capabilityInvocation: doc.capabilityInvocation }),
-    ...(doc.capabilityDelegation === undefined
+    ...(doc.capabilityDelegation === undefined ||
+    doc.capabilityDelegation.length === 0
       ? {}
       : { capabilityDelegation: doc.capabilityDelegation }),
     ...(doc.service === undefined || doc.service.length === 0
