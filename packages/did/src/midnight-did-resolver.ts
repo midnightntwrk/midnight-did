@@ -106,7 +106,7 @@ const resolutionErrorCode = (error: unknown): DIDResolutionErrorCode => {
     message.includes("must identify a service") ||
     message.includes("must equal DID subject")
   ) {
-    return "invalidDid";
+    return "invalidDidDocument";
   }
   return "internalError";
 };

@@ -469,7 +469,8 @@ export function validateDIDDocumentConsistency(
   };
   const canonicalizeServiceReference = (value: string): string => {
     if (value.startsWith("did:")) return value;
-    return value.startsWith("#") ? `${normalizedDoc.id}${value}` : value;
+    const fragment = value.startsWith("#") ? value : `#${value}`;
+    return `${normalizedDoc.id}${fragment}`;
   };
 
   verificationMethods.forEach((vm, index) => {

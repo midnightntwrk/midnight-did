@@ -33,7 +33,12 @@ export const normalizeBoundFragmentId = (
   if (trimmed.startsWith("//")) {
     throw new Error(`${field} must be a DID URL or relative reference`);
   }
-  if (trimmed.startsWith("#")) return trimmed;
+  if (trimmed.startsWith("#")) {
+    if (trimmed === "#") {
+      throw new Error(`${field} must include a non-empty fragment identifier`);
+    }
+    return trimmed;
+  }
 
   const hashIndex = trimmed.indexOf("#");
   if (trimmed.startsWith("did:")) {
@@ -54,7 +59,11 @@ export const normalizeBoundFragmentId = (
   if (hasUriScheme.test(trimmed)) {
     throw new Error(`${field} must be a DID URL or relative reference`);
   }
-  return normalizeFragmentId(trimmed);
+  const normalized = normalizeFragmentId(trimmed);
+  if (normalized === "#") {
+    throw new Error(`${field} must include a non-empty fragment identifier`);
+  }
+  return normalized;
 };
 
 export const serviceTypeToLedger = (serviceType: string | string[]): string => {

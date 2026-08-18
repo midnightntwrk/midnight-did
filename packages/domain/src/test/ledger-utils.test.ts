@@ -27,6 +27,12 @@ describe("ledger-utils", () => {
     expect(
       normalizeBoundFragmentId("/services/a#key-1", "service.id", did),
     ).toBe("#key-1");
+    expect(() => normalizeBoundFragmentId("#", "service.id", did)).toThrow(
+      /non-empty fragment/,
+    );
+    expect(() =>
+      normalizeBoundFragmentId("/services/a#", "service.id", did),
+    ).toThrow(/non-empty fragment/);
   });
 
   it("rejects did url bound to a different did subject", () => {

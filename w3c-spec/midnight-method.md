@@ -812,9 +812,12 @@ Failure responses MUST set `didResolutionMetadata.error` to a DID Core error
 keyword. Midnight resolvers SHOULD use `invalidDid`, `notFound`, and
 `representationNotSupported` for those DID Core-defined cases, and SHOULD use
 registered DID resolution keywords such as `methodNotSupported` and
-`internalError` for broader resolver failures. Resolver-specific extension
-values MAY be used when they are registered or documented as a single ASCII
-keyword that starts with a letter.
+`internalError` for broader resolver failures. This implementation documents
+`invalidDidDocument` for a ledger state that cannot be projected into a valid
+Midnight DID Document, and `notAllowedLocalDuplicateKey` for normalized local
+identifier collisions. Resolver-specific extension values MAY be used when
+they are registered or documented as a single ASCII keyword that starts with a
+letter.
 
 The method document profile requires `@context` in resolved Midnight DID
 Documents. Producers of `application/did+ld+json` MUST include it. Producers of

@@ -198,6 +198,25 @@ describe("DID parsing utilities", () => {
     ).toThrow(/verificationMethod ids must be unique/);
   });
 
+  it("rejects duplicate service ids after canonicalization", () => {
+    expect(() =>
+      parseDIDDocument({
+        "@context": "https://www.w3.org/ns/did/v1",
+        id: exampleDid,
+        service: [
+          {
+            ...exampleServiceInput,
+            id: "service-1",
+          },
+          {
+            ...exampleServiceInput,
+            id: "#service-1",
+          },
+        ],
+      }),
+    ).toThrow(/service ids must be unique/);
+  });
+
   it("accepts URI aliases in alsoKnownAs", () => {
     const doc = parseDIDDocument({
       "@context": "https://www.w3.org/ns/did/v1",
