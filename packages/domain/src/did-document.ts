@@ -1,6 +1,7 @@
 import { z } from "zod/v4-mini";
 
 import { decodeBase64UrlBytes } from "./crypto-codecs.js";
+import { resolveDIDURLReference } from "./did-url.js";
 
 /** DID URL schema */
 export const DIDURLSchema = z
@@ -51,12 +52,9 @@ export const RelativeURLSchema = z
 export type RelativeURL = z.infer<typeof RelativeURLSchema>;
 
 const extractKeyFragment = (value: string) => {
-  if (value.startsWith("#")) return value.slice(1);
-  if (value.startsWith("did:")) {
-    const fragmentIndex = value.indexOf("#");
-    if (fragmentIndex === -1) return "";
-    return value.substring(fragmentIndex + 1);
-  }
+  const fragmentIndex = value.indexOf("#");
+  if (fragmentIndex >= 0) return value.slice(fragmentIndex + 1);
+  if (value.startsWith("#") || value.startsWith("did:")) return "";
   return value;
 };
 
@@ -393,7 +391,11 @@ export function normalizeServiceEndpoint(
   return normalizeEndpointValue(endpoint) as Record<string, unknown>;
 }
 
-export const ServiceIdSchema = z.union([DIDURLSchema, RelativeURLSchema]);
+export const ServiceIdSchema = z.union([
+  DIDURLSchema,
+  URIStringSchema,
+  RelativeURLSchema,
+]);
 export type ServiceId = z.infer<typeof ServiceIdSchema>;
 
 /** Service */
@@ -462,23 +464,12 @@ export function validateDIDDocumentConsistency(
   const issues: ValidationIssue[] = [];
   const verificationMethods = normalizedDoc.verificationMethod ?? [];
   const seenVerificationMethodIds = new Map<string, number>();
-  const canonicalizeKeyReference = (value: string): string => {
-    if (value.startsWith("did:")) return value;
-    const fragment = value.startsWith("#") ? value : `#${value}`;
-    return `${normalizedDoc.id}${fragment}`;
-  };
-  const canonicalizeServiceReference = (value: string): string => {
-    if (value.startsWith("did:")) return value;
-    if (
-      value.startsWith("#") ||
-      value.startsWith("/") ||
-      value.startsWith(".") ||
-      value.startsWith("?")
-    ) {
-      return `${normalizedDoc.id}${value}`;
-    }
-    return `${normalizedDoc.id}#${value}`;
-  };
+  const canonicalizeKeyReference = (value: string): string =>
+    resolveDIDURLReference(value, normalizedDoc.id);
+  const canonicalizeServiceReference = (value: string): string =>
+    resolveDIDURLReference(value, normalizedDoc.id, {
+      allowExternalDID: true,
+    });
 
   verificationMethods.forEach((vm, index) => {
     const canonicalId = canonicalizeKeyReference(vm.id);

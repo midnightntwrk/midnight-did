@@ -272,7 +272,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       type: "T",
       serviceEndpoint: JSON.stringify("https://a.example"),
     } as any);
-    expect(svc.id).toBe("#svc-x");
+    expect(svc.id).toBe("svc-x");
     expect(typeof svc.serviceEndpoint).toBe("string");
     expect(svc.serviceEndpoint).toBe("https://a.example");
 
@@ -291,21 +291,21 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
         "https://c.example/alt",
       ]),
     } as any);
-    expect(relativeService.id).toBe("#/routes/messaging");
+    expect(relativeService.id).toBe("/routes/messaging");
 
     const queryService = LedgerToDomain.service({
       id: "?service=messaging",
       type: "T",
       serviceEndpoint: JSON.stringify("https://query.example"),
     } as any);
-    expect(queryService.id).toBe("#?service=messaging");
+    expect(queryService.id).toBe("?service=messaging");
 
     const networkPathService = LedgerToDomain.service({
       id: "//peer",
       type: "T",
       serviceEndpoint: JSON.stringify({ uri: "https://d.example" }),
     } as any);
-    expect(networkPathService.id).toBe("#//peer");
+    expect(networkPathService.id).toBe("//peer");
 
     const legacyService = LedgerToDomain.service({
       id: "legacy",
@@ -382,8 +382,8 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     const normalizedServices = Array.from(stubLedger.services, ([, service]) =>
       LedgerToDomain.service(service),
     );
-    expect(normalizedServices[0].id).toBe("#svc-1");
-    expect(normalizedServices[1].id).toBe("#svc-2");
+    expect(normalizedServices[0].id).toBe("svc-1");
+    expect(normalizedServices[1].id).toBe("svc-2");
     let doc;
     try {
       doc = LedgerToDomain.ledgerStateToDIDDocument(
@@ -404,15 +404,15 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(doc.verificationMethod?.length).toBe(1);
     expect(doc.authentication?.length).toBe(1);
     expect(doc.verificationMethod?.[0].id).toBe(`${didSubject}#key-1`);
-    expect(doc.authentication?.[0]).toBe("#key-1");
+    expect(doc.authentication?.[0]).toBe(`${didSubject}#key-1`);
     expect(doc).not.toHaveProperty("assertionMethod");
     expect(doc).not.toHaveProperty("keyAgreement");
     expect(doc).not.toHaveProperty("capabilityInvocation");
     expect(doc).not.toHaveProperty("capabilityDelegation");
     expect(doc.service?.length).toBe(2);
-    expect(doc.service?.[0].id).toBe(`${didSubject}#svc-1`);
+    expect(doc.service?.[0].id).toBe(`${didSubject}/svc-1`);
     expect(doc.service?.[0].serviceEndpoint).toBe("https://u.example");
-    expect(doc.service?.[1].id).toBe(`${didSubject}#svc-2`);
+    expect(doc.service?.[1].id).toBe(`${didSubject}/svc-2`);
     expect(doc.service?.[1].serviceEndpoint).toEqual([
       "wss://x.example",
       { uri: "https://y.example" },
@@ -443,7 +443,9 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       addr,
     );
 
-    expect(doc.service?.[0]?.id).toBe(`${didSubject}#service-1`);
+    expect(doc.service?.[0]?.id).toBe(
+      `${didSubject}/routes/messaging#service-1`,
+    );
   });
 
   it("ledgerStateToDIDDocument omits empty verification methods", () => {
@@ -500,7 +502,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       x: fieldString(1n),
       y: fieldString(256n),
     });
-    expect(doc.assertionMethod).toEqual(["#key-schnorr-jubjub"]);
+    expect(doc.assertionMethod).toEqual([`${didSubject}#key-schnorr-jubjub`]);
   });
 
   it("ledgerStateToDIDDocument rejects duplicate normalized verification method ids", () => {

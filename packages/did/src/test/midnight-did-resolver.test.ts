@@ -115,7 +115,7 @@ describe("MidnightDIDResolver", () => {
 
     expect(result).not.toBeNull();
     expect(result?.didDocument.id).toBe(did);
-    expect(result?.didDocument.authentication).toEqual(["#key-1"]);
+    expect(result?.didDocument.authentication).toEqual([`${did}#key-1`]);
     expect(result?.didDocumentMetadata.versionId).toBe("1");
     expect(ledgerReader).toHaveBeenCalledWith("a".repeat(64));
   });
@@ -186,7 +186,7 @@ describe("MidnightDIDResolver", () => {
     expect(result.didResolutionMetadata.error).toBe("invalidDid");
   });
 
-  it("maps duplicate normalized ledger services to a resolution error", async () => {
+  it("preserves distinct path services with the same fragment", async () => {
     ledgerState.services = makeIterablePairs<string, any>([
       [
         "service-a",
@@ -212,8 +212,11 @@ describe("MidnightDIDResolver", () => {
 
     const result = await resolver.resolveDIDResolutionResult(did);
 
-    expect(result.didDocument).toBeNull();
-    expect(result.didResolutionMetadata.error).toBe("invalidDidDocument");
+    expect(result.didDocument?.service?.map((service) => service.id)).toEqual([
+      `${did}/routes/a#service`,
+      `${did}/routes/b#service`,
+    ]);
+    expect(result.didResolutionMetadata.error).toBeUndefined();
   });
 
   it("throws on network mismatch", async () => {

@@ -6,10 +6,10 @@ import {
   DIDDocumentMetadata,
   encodeBase64Url,
   KeyType,
-  normalizeFragmentId,
   normalizeServiceEndpoint,
   PublicKeyJwk,
   PublicKeyJwkSchema,
+  resolveDIDURLReference,
   Service,
   ServiceEndpointSchema,
   VerificationMethod,
@@ -147,10 +147,10 @@ export class LedgerToDomain {
   }
 
   static service(service: LedgerService): Service {
-    const rawId = service.id.trim();
-    const serviceId = rawId.startsWith("did:")
-      ? rawId
-      : normalizeFragmentId(rawId);
+    const serviceId = service.id.trim();
+    if (serviceId.length === 0) {
+      throw new Error("Invalid service id: empty value");
+    }
 
     const serviceEndpoint = this.parseServiceEndpoint(service.serviceEndpoint);
     const serviceType = this.parseServiceType(
@@ -252,15 +252,23 @@ export class LedgerToDomain {
   }
 
   static absoluteDidUrlReference(did: string, id: string): string {
-    const normalized = this.verificationMethodId(id);
-    if (normalized.startsWith("did:")) return normalized;
-    return `${did}${normalized}`;
+    // Ledger verification-method keys historically stored bare fragments.
+    // Preserve that method-level key convention while retaining any explicit
+    // path/query/fragment DID URL supplied by newer entries.
+    const reference =
+      id.startsWith("#") ||
+      id.startsWith("/") ||
+      id.startsWith(".") ||
+      id.startsWith("?") ||
+      id.startsWith("did:") ||
+      /^[A-Za-z][A-Za-z0-9+.-]*:/u.test(id)
+        ? id
+        : `#${id}`;
+    return resolveDIDURLReference(reference, did);
   }
 
   static absoluteServiceUrlReference(did: string, id: string): string {
-    const normalized = id.startsWith("did:") ? id : normalizeFragmentId(id);
-    if (normalized.startsWith("did:")) return normalized;
-    return `${did}${normalized}`;
+    return resolveDIDURLReference(id, did, { allowExternalDID: true });
   }
 
   static toJSON(ledger: Ledger): object {
@@ -331,7 +339,7 @@ export class LedgerToDomain {
     const verificationMethod: VerificationMethod[] = [];
     const verificationMethodIds = new Set<string>();
     const registerVerificationMethodId = (id: string): void => {
-      const normalizedId = this.verificationMethodId(id);
+      const normalizedId = this.absoluteDidUrlReference(did, id);
       if (verificationMethodIds.has(normalizedId)) {
         throw new Error(
           `Duplicate verification method id '${this.absoluteDidUrlReference(did, id)}'`,
@@ -377,7 +385,11 @@ export class LedgerToDomain {
     ) => {
       if (relation.isEmpty()) return;
       for (const methodId of relation) {
-        if (!verificationMethodIds.has(this.verificationMethodId(methodId))) {
+        if (
+          !verificationMethodIds.has(
+            this.absoluteDidUrlReference(did, methodId),
+          )
+        ) {
           throw new Error(
             `${relationName} references missing verification method '${this.absoluteDidUrlReference(did, methodId)}'`,
           );
@@ -405,7 +417,9 @@ export class LedgerToDomain {
     ): string[] | undefined =>
       relation.isEmpty()
         ? undefined
-        : Array.from(relation, (value) => this.verificationMethodId(value));
+        : Array.from(relation, (value) =>
+            this.absoluteDidUrlReference(did, value),
+          );
 
     const assertionMethod = mapRelation(ledger.assertionMethodRelation);
     const authentication = mapRelation(ledger.authenticationRelation);

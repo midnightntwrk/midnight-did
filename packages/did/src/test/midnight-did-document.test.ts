@@ -69,7 +69,7 @@ describe("Midnight DID Document", () => {
       ]);
       expect(doc.controller).toBe(exampleMidnightDid);
       expect(doc.verificationMethod).toHaveLength(1);
-      expect(doc.authentication).toEqual(["#key-1"]);
+      expect(doc.authentication).toEqual([`${exampleMidnightDid}#key-1`]);
       expect(doc).not.toHaveProperty("assertionMethod");
       expect(doc).not.toHaveProperty("keyAgreement");
       expect(doc).not.toHaveProperty("capabilityInvocation");
@@ -173,7 +173,7 @@ describe("Midnight DID Document", () => {
       });
 
       expect(doc.service).toHaveLength(1);
-      expect(doc.service?.[0].id).toBe("#service-1");
+      expect(doc.service?.[0].id).toBe(`${exampleMidnightDid}#service-1`);
     });
   });
 
@@ -239,7 +239,7 @@ describe("Midnight DID Document", () => {
       expect(doc.verificationMethod?.[0]?.controller).toBe(exampleMidnightDid);
     });
 
-    it("canonicalizes path and query DID URL references to fragments", () => {
+    it("resolves path and query DID URL references losslessly", () => {
       const input = {
         "@context": [
           "https://www.w3.org/ns/did/v1",
@@ -252,12 +252,12 @@ describe("Midnight DID Document", () => {
             id: `${exampleMidnightDid}/keys?versionId=1#key-1`,
           },
         ],
-        authentication: [`${exampleMidnightDid}#key-1`],
+        authentication: [`${exampleMidnightDid}/keys?versionId=1#key-1`],
       };
 
       const doc = parseMidnightDIDDocument(input);
       expect(doc.verificationMethod?.[0]?.id).toBe(
-        `${exampleMidnightDid}#key-1`,
+        `${exampleMidnightDid}/keys?versionId=1#key-1`,
       );
     });
 
@@ -560,7 +560,7 @@ describe("Midnight DID Document", () => {
       );
     });
 
-    it("canonicalizes subject-bound absolute service path and query references", () => {
+    it("resolves subject-bound absolute service path and query references", () => {
       const doc = createMidnightDIDDocument({
         id: exampleMidnightDid,
         service: [
@@ -578,9 +578,24 @@ describe("Midnight DID Document", () => {
       });
 
       expect(doc.service?.map((service) => service.id)).toEqual([
-        `${exampleMidnightDid}#/services/profile`,
-        `${exampleMidnightDid}#?service=messaging`,
+        `${exampleMidnightDid}/services/profile`,
+        `${exampleMidnightDid}?service=messaging`,
       ]);
+    });
+
+    it("accepts absolute non-DID service URLs", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+        service: [
+          {
+            id: "https://service.example/routing",
+            type: "LinkedDomains",
+            serviceEndpoint: "https://service.example/endpoint",
+          } as Service,
+        ],
+      });
+
+      expect(doc.service?.[0]?.id).toBe("https://service.example/routing");
     });
 
     it("rejects services from another DID subject", () => {
@@ -604,7 +619,7 @@ describe("Midnight DID Document", () => {
       );
     });
 
-    it("canonicalizes path-form relative service identifiers", () => {
+    it("resolves path-form relative service identifiers", () => {
       const doc = createMidnightDIDDocument({
         id: exampleMidnightDid,
         service: [
@@ -616,7 +631,9 @@ describe("Midnight DID Document", () => {
         ],
       });
 
-      expect(doc.service?.[0]?.id).toBe("#service-1");
+      expect(doc.service?.[0]?.id).toBe(
+        `${exampleMidnightDid}/services/a#service-1`,
+      );
     });
 
     it("rejects relative service identifiers that normalize to duplicates", () => {
@@ -625,12 +642,12 @@ describe("Midnight DID Document", () => {
           id: exampleMidnightDid,
           service: [
             {
-              id: "service-1",
+              id: "/service-1",
               type: "LinkedDomains",
               serviceEndpoint: "https://example.com",
             } as Service,
             {
-              id: "#service-1",
+              id: `${exampleMidnightDid}/service-1`,
               type: "LinkedDomains",
               serviceEndpoint: "https://example.org",
             } as Service,
@@ -670,13 +687,19 @@ describe("Midnight DID Document", () => {
         ],
         id: exampleMidnightDid,
         controller: exampleMidnightDid,
-        verificationMethod: [{ ...exampleVerificationMethod, id: ".key-1" }],
-        authentication: [".key-1"],
+        verificationMethod: [
+          { ...exampleVerificationMethod, id: "/keys/holder#key-1" },
+        ],
+        authentication: ["/keys/holder#key-1"],
       };
 
       const doc = parseMidnightDIDDocument(input);
-      expect(doc.authentication).toEqual(["#.key-1"]);
-      expect(doc.verificationMethod?.[0].id).toBe("#.key-1");
+      expect(doc.authentication).toEqual([
+        `${exampleMidnightDid}/keys/holder#key-1`,
+      ]);
+      expect(doc.verificationMethod?.[0].id).toBe(
+        `${exampleMidnightDid}/keys/holder#key-1`,
+      );
     });
 
     it("rejects empty service references", () => {
@@ -703,12 +726,14 @@ describe("Midnight DID Document", () => {
         id: exampleMidnightDid,
         controller: exampleMidnightDid,
         verificationMethod: [exampleVerificationMethod], // Uses #key-1
-        authentication: ["key-1"],
+        authentication: ["#key-1"],
       };
 
       const doc = parseMidnightDIDDocument(input);
-      expect(doc.authentication).toEqual(["#key-1"]);
-      expect(doc.verificationMethod?.[0].id).toBe("#key-1");
+      expect(doc.authentication).toEqual([`${exampleMidnightDid}#key-1`]);
+      expect(doc.verificationMethod?.[0].id).toBe(
+        `${exampleMidnightDid}#key-1`,
+      );
     });
   });
 });

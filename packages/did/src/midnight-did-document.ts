@@ -4,7 +4,7 @@ import {
   DIDDocumentSchema,
   DIDKeyID,
   KeyType,
-  normalizeFragmentId,
+  resolveDIDURLReference,
   Service,
   URIString,
   validateDIDDocumentConsistency,
@@ -81,9 +81,9 @@ const MidnightVerificationMethodSchema = z
       return false;
     }, "OKP keys must use Ed25519, X25519, BLS12381G1, or BLS12381G2 curve; EC keys must use Jubjub, P-256, or secp256k1 curve"),
     z.refine((vm) => {
-      // Verification methods must be referenced (contain # or be relative)
+      // Verification methods must be referenceable by a fragment.
       const id = vm.id;
-      return id.includes("#") || id.startsWith("/") || id.startsWith(".");
+      return id.includes("#") && !id.endsWith("#");
     }, "Midnight DID does not support embedded verification methods - use referenced methods with fragments"),
   );
 
@@ -151,42 +151,31 @@ const referenceSubject = (value: string): string | undefined => {
   return boundary === -1 ? value : value.slice(0, boundary);
 };
 
-const canonicalizeMidnightReference = (value: string): string => {
-  if (!value.startsWith("did:")) return value;
-  const subject = referenceSubject(value);
-  if (subject === undefined) return value;
-  const referenceDid = MidnightDIDSchema.safeParse(subject);
-  const fragmentIndex = value.indexOf("#");
-  if (!referenceDid.success) return value;
-  return fragmentIndex >= 0
-    ? `${referenceDid.data}${value.slice(fragmentIndex)}`
-    : referenceDid.data;
-};
+const canonicalizeMidnightReference = (
+  value: string,
+  did: MidnightDIDString,
+): string => resolveDIDURLReference(value, did);
 
 const canonicalizeMidnightServiceReference = (
   value: string,
   did: MidnightDIDString,
 ): string => {
-  const normalizeServiceFragment = (reference: string): string => {
-    const normalized = normalizeFragmentId(reference);
-    if (normalized === "#") {
-      throw new Error(`service id '${value}' must identify a service`);
-    }
-    return normalized;
-  };
-
-  if (!value.startsWith("did:")) return normalizeServiceFragment(value);
-  const subject = referenceSubject(value);
-  if (subject === undefined) return value;
-  const referenceDid = MidnightDIDSchema.safeParse(subject);
-  if (!referenceDid.success || referenceDid.data !== did) {
-    throw new Error(`service id '${value}' must be subject-bound`);
-  }
-  const suffix = value.slice(subject.length);
-  if (suffix.length === 0) {
+  if (value.endsWith("#")) {
     throw new Error(`service id '${value}' must identify a service`);
   }
-  return `${did}${normalizeServiceFragment(suffix)}`;
+  let resolved: string;
+  try {
+    resolved = resolveDIDURLReference(value, did);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("current DID")) {
+      throw new Error(`service id '${value}' must be subject-bound`);
+    }
+    throw error;
+  }
+  if (resolved === did) {
+    throw new Error(`service id '${value}' must identify a service`);
+  }
+  return resolved;
 };
 
 const normalizeMidnightDocumentReferences = (
@@ -194,9 +183,17 @@ const normalizeMidnightDocumentReferences = (
   did: MidnightDIDString,
 ): DIDDocument => {
   const verificationMethod = doc.verificationMethod?.map((method) => {
-    const id = method.id.startsWith("did:")
-      ? canonicalizeMidnightReference(method.id)
-      : normalizeFragmentId(method.id);
+    let id: string;
+    try {
+      id = canonicalizeMidnightReference(method.id, did);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("current DID")) {
+        throw new Error(
+          `verificationMethod id '${method.id}' must be subject-bound`,
+        );
+      }
+      throw error;
+    }
     if (id.startsWith("did:") && referenceSubject(id) !== did) {
       throw new Error(
         `verificationMethod id '${method.id}' must be subject-bound`,
@@ -212,11 +209,7 @@ const normalizeMidnightDocumentReferences = (
   });
 
   const normalizeReferences = (values: string[] | undefined) =>
-    values?.map((value) =>
-      value.startsWith("did:")
-        ? canonicalizeMidnightReference(value)
-        : normalizeFragmentId(value),
-    );
+    values?.map((value) => canonicalizeMidnightReference(value, did));
 
   return {
     ...doc,

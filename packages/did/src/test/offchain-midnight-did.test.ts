@@ -56,8 +56,12 @@ describe("offchain Midnight DID facade", () => {
     expect(resolved.didDocument.id).toBe(resolved.did);
     expect(resolved.did).toMatch(/^did:midnight:offchain:[0-9a-f]{64}:/);
     expect(resolved.didDocument.controller).toBe(resolved.did);
-    expect(resolved.didDocument.authentication).toEqual(["#issuer-key-1"]);
-    expect(resolved.didDocument.assertionMethod).toEqual(["#issuer-key-1"]);
+    expect(resolved.didDocument.authentication).toEqual([
+      `${resolved.did}#issuer-key-1`,
+    ]);
+    expect(resolved.didDocument.assertionMethod).toEqual([
+      `${resolved.did}#issuer-key-1`,
+    ]);
     expect(resolved.didDocument.verificationMethod).toHaveLength(1);
     expect(resolved.didDocument.verificationMethod?.[0]?.controller).toBe(
       resolved.did,

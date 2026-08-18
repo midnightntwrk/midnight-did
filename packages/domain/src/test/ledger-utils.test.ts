@@ -19,15 +19,26 @@ describe("ledger-utils", () => {
     expect(normalizeFragmentId("/services/a#key-1#alias")).toBe("#alias");
   });
 
-  it("normalizes bound fragment ids", () => {
-    expect(normalizeBoundFragmentId("key-1", "methodId", did)).toBe("#key-1");
-    expect(normalizeBoundFragmentId("#key-1", "methodId", did)).toBe("#key-1");
+  it("resolves bound references without losing URL components", () => {
+    expect(normalizeBoundFragmentId("#key-1", "methodId", did)).toBe(
+      `${did}#key-1`,
+    );
     expect(normalizeBoundFragmentId(`${did}#key-1`, "methodId", did)).toBe(
-      "#key-1",
+      `${did}#key-1`,
     );
     expect(
       normalizeBoundFragmentId("/services/a#key-1", "service.id", did),
-    ).toBe("#key-1");
+    ).toBe(`${did}/services/a#key-1`);
+    expect(
+      normalizeBoundFragmentId("?service=messaging", "service.id", did),
+    ).toBe(`${did}?service=messaging`);
+    expect(
+      normalizeBoundFragmentId(
+        "https://example.com/service",
+        "service.id",
+        did,
+      ),
+    ).toBe("https://example.com/service");
     expect(() => normalizeBoundFragmentId("#", "service.id", did)).toThrow(
       /non-empty fragment/,
     );

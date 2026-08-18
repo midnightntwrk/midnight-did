@@ -79,14 +79,13 @@ describe("DID document construction", () => {
     expect(document.service?.length).toBe(exampleServiceSet.length);
   });
 
-  it("rejects non-DID absolute service identifiers", () => {
-    expect(() =>
-      createService({
-        id: "https://example.com/service",
-        type: "LinkedDomains",
-        serviceEndpoint: "https://example.com/service",
-      }),
-    ).toThrow();
+  it("accepts absolute non-DID service identifiers", () => {
+    const service = createService({
+      id: "https://example.com/service",
+      type: "LinkedDomains",
+      serviceEndpoint: "https://example.com/service",
+    });
+    expect(service.id).toBe("https://example.com/service");
   });
 
   it("accepts multiple service endpoints", () => {

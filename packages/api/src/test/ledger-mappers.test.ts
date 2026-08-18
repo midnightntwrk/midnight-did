@@ -12,7 +12,10 @@ import {
 import { afterAll, describe, expect, it } from "vitest";
 
 import { getDidSubject } from "../did-subject.js";
-import { verificationMethodToLedger } from "../ledger-mappers.js";
+import {
+  serviceToLedger,
+  verificationMethodToLedger,
+} from "../ledger-mappers.js";
 import { type DeployedMidnightDIDContract } from "../types.js";
 
 let previousNetworkId: string | undefined;
@@ -43,6 +46,29 @@ const blsG1Key =
   "BgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYG";
 
 describe("ledger mappers", () => {
+  it("preserves complete service URL identity when mapping to ledger", () => {
+    expect(
+      serviceToLedger(didContract, {
+        id: "/routing#messaging",
+        type: "DIDCommMessaging",
+        serviceEndpoint: "https://example.com/messaging",
+      }),
+    ).toMatchObject({
+      id: `${didSubject}/routing#messaging`,
+      typ: "DIDCommMessaging",
+    });
+
+    expect(
+      serviceToLedger(didContract, {
+        id: "?service=messaging",
+        type: "DIDCommMessaging",
+        serviceEndpoint: "https://example.com/messaging",
+      }),
+    ).toMatchObject({
+      id: `${didSubject}?service=messaging`,
+    });
+  });
+
   it("normalizes OKP keys to the ledger y sentinel", () => {
     expect(
       verificationMethodToLedger(

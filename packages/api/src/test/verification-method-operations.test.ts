@@ -55,6 +55,6 @@ describe("verification method operations", () => {
 
     expect(
       didContract.callTx.verifySchnorrJubjubDigestSignature,
-    ).toHaveBeenCalledWith("#key-1", digest, signature);
+    ).toHaveBeenCalledWith(`${didSubject}#key-1`, digest, signature);
   });
 });

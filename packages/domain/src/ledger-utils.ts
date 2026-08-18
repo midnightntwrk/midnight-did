@@ -3,6 +3,7 @@ import {
   type ServiceEndpoint,
   ServiceEndpointSchema,
 } from "./did-document.js";
+import { resolveDIDURLReference } from "./did-url.js";
 
 export type BoundIdField =
   | "verificationMethod.id"
@@ -10,8 +11,6 @@ export type BoundIdField =
   | "service.id"
   | "methodId"
   | "serviceId";
-
-const hasUriScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
 
 export const normalizeFragmentId = (value: string): string => {
   const trimmed = value.trim();
@@ -21,7 +20,12 @@ export const normalizeFragmentId = (value: string): string => {
   return `#${trimmed}`;
 };
 
-export const normalizeBoundFragmentId = (
+/**
+ * Resolve an identifier against the current DID without dropping path, query,
+ * or fragment components. The historical name is retained for API callers;
+ * its value is now the complete canonical absolute URL.
+ */
+export const normalizeBoundDIDURL = (
   value: string,
   field: BoundIdField,
   expectedDidSubject: string,
@@ -30,41 +34,21 @@ export const normalizeBoundFragmentId = (
   if (trimmed.length === 0) {
     throw new Error(`${field} must not be empty`);
   }
-  if (trimmed.startsWith("//")) {
-    throw new Error(`${field} must be a DID URL or relative reference`);
-  }
-  if (trimmed.startsWith("#")) {
-    if (trimmed === "#") {
-      throw new Error(`${field} must include a non-empty fragment identifier`);
-    }
-    return trimmed;
-  }
-
-  const hashIndex = trimmed.lastIndexOf("#");
-  if (trimmed.startsWith("did:")) {
-    if (hashIndex <= 0 || hashIndex === trimmed.length - 1) {
-      throw new Error(
-        `${field} DID URL must include a non-empty fragment identifier`,
-      );
-    }
-    const didSubject = trimmed.slice(0, hashIndex);
-    if (didSubject !== expectedDidSubject) {
-      throw new Error(
-        `${field} DID URL subject must match the current DID (${expectedDidSubject})`,
-      );
-    }
-    return `#${trimmed.slice(hashIndex + 1)}`;
-  }
-
-  if (hasUriScheme.test(trimmed)) {
-    throw new Error(`${field} must be a DID URL or relative reference`);
-  }
-  const normalized = normalizeFragmentId(trimmed);
-  if (normalized === "#") {
+  if (trimmed.endsWith("#")) {
     throw new Error(`${field} must include a non-empty fragment identifier`);
   }
-  return normalized;
+  try {
+    return resolveDIDURLReference(trimmed, expectedDidSubject);
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`${field} ${error.message}`);
+    }
+    throw error;
+  }
 };
+
+/** @deprecated Use normalizeBoundDIDURL; retained for package compatibility. */
+export const normalizeBoundFragmentId = normalizeBoundDIDURL;
 
 export const serviceTypeToLedger = (serviceType: string | string[]): string => {
   if (typeof serviceType === "string") {
