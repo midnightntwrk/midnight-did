@@ -1,0 +1,44 @@
+name: PR Commit Integrity
+
+# Trusted-base gate: never check out or execute pull-request-controlled code.
+# The workflow begins protecting PRs after this file and verifier reach the base
+# branch (the introduction PR is necessarily a bootstrap exception).
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  verify-pr-commits:
+    name: Verify every PR commit signature and DCO trailer
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact trusted base
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          cache: "false"
+          install: "false"
+
+      - name: Verify every pull-request commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          node scripts/review/verify-pr-commits.mjs
+          --repo "${GITHUB_REPOSITORY}"
+          --pr "${{ github.event.pull_request.number }}"
+          --head-sha "${{ github.event.pull_request.head.sha }}"

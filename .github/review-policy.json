@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "routedReview": {
+    "backend": "agent-review",
+    "reviewers": ["patextreme"]
+  },
+  "audit": {
+    "requiredReviewerLogins": ["patextreme"],
+    "structuredMarker": "agentflow-pr-review",
+    "cleanVerdicts": ["approve", "approved", "clean", "pass"],
+    "findingVerdicts": [
+      "blocked",
+      "changes",
+      "changes-requested",
+      "fail",
+      "findings"
+    ],
+    "timeoutVerdicts": ["timeout"],
+    "pageSize": 100,
+    "maxPages": 10
+  }
+}

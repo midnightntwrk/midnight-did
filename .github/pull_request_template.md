@@ -10,8 +10,10 @@ Target branch: usually `develop`; release-promotion PRs target `main`.
 
 - [ ] Useful pull request description
 - [ ] Tests are provided (if possible)
-- [ ] Local PR validation passed with `./run.sh --light --strict` or `pnpm run ci`
-  - If you used `pnpm run ci:packages` as a package-only fallback, explain why in the PR body.
+- [ ] Mandatory local source-change gate passed with `nix develop --command pnpm run verify`
+  - This includes strict light/core, integration-report, and `pnpm run coverage:all`. Explain any unavailable command in the PR body.
+- [ ] Every PR commit has a GitHub-verified GPG signature and matching terminal DCO trailer
+- [ ] Any history rewrite reverified every commit, tree identity, and `git range-diff` where applicable
 - [ ] Key commits have useful messages
 - [ ] All check jobs of the CI have succeeded
 - [ ] Self-reviewed the diff

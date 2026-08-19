@@ -1,0 +1,59 @@
+{
+  "headSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "commits": {
+    "goodFirst": {
+      "oid": "1111111111111111111111111111111111111111",
+      "message": "feat: first commit\n\nSigned-off-by: Alice Example <alice@example.com>",
+      "author": { "name": "Alice Example", "email": "alice@example.com" },
+      "signature": {
+        "isValid": true,
+        "signature": "-----BEGIN PGP SIGNATURE-----\nfixture\n-----END PGP SIGNATURE-----"
+      }
+    },
+    "badMiddleSignature": {
+      "oid": "2222222222222222222222222222222222222222",
+      "message": "fix: middle commit\n\nSigned-off-by: Bob Example <bob@example.com>",
+      "author": { "name": "Bob Example", "email": "bob@example.com" },
+      "signature": {
+        "isValid": false,
+        "signature": "-----BEGIN PGP SIGNATURE-----\nfixture\n-----END PGP SIGNATURE-----"
+      }
+    },
+    "goodLast": {
+      "oid": "3333333333333333333333333333333333333333",
+      "message": "docs: final commit\n\nSigned-off-by: Carol Example <carol@example.com>\n",
+      "author": { "name": "Carol Example", "email": "carol@example.com" },
+      "signature": {
+        "isValid": true,
+        "signature": "-----BEGIN PGP SIGNATURE-----\nfixture\n-----END PGP SIGNATURE-----"
+      }
+    },
+    "missingDco": {
+      "oid": "4444444444444444444444444444444444444444",
+      "message": "test: no sign-off",
+      "author": { "name": "Alice Example", "email": "alice@example.com" },
+      "signature": {
+        "isValid": true,
+        "signature": "-----BEGIN PGP SIGNATURE-----\nfixture\n-----END PGP SIGNATURE-----"
+      }
+    },
+    "mismatchedDco": {
+      "oid": "5555555555555555555555555555555555555555",
+      "message": "test: wrong sign-off\n\nSigned-off-by: Mallory Example <mallory@example.com>",
+      "author": { "name": "Alice Example", "email": "alice@example.com" },
+      "signature": {
+        "isValid": true,
+        "signature": "-----BEGIN PGP SIGNATURE-----\nfixture\n-----END PGP SIGNATURE-----"
+      }
+    },
+    "nonTerminalDco": {
+      "oid": "6666666666666666666666666666666666666666",
+      "message": "test: buried sign-off\n\nSigned-off-by: Alice Example <alice@example.com>\nCo-authored-by: Carol Example <carol@example.com>",
+      "author": { "name": "Alice Example", "email": "alice@example.com" },
+      "signature": {
+        "isValid": true,
+        "signature": "-----BEGIN PGP SIGNATURE-----\nfixture\n-----END PGP SIGNATURE-----"
+      }
+    }
+  }
+}
