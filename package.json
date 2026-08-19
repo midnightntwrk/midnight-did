@@ -3,7 +3,7 @@
   "version": "0.5.0",
   "engines": {
     "node": ">=24",
-    "pnpm": ">=10.34.1"
+    "pnpm": ">=10.34.4"
   },
   "scripts": {
     "clean": "turbo run clean --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --filter=./packages/api --continue",
@@ -72,7 +72,7 @@
     "retrospective:complete": "node scripts/harness/complete-retrospective.mjs"
   },
   "private": true,
-  "packageManager": "pnpm@10.34.1",
+  "packageManager": "pnpm@10.34.4",
   "pnpm": {
     "overrides": {
       "vitepress>vite": "^6.4.2",
