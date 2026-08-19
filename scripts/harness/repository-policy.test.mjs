@@ -4,6 +4,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { load as loadYaml } from "js-yaml";
+
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../..",
@@ -26,73 +28,28 @@ function shellTokens(command) {
   );
 }
 
-function inlineYamlScalar(value) {
-  const trimmed = value.trim();
-  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-    try {
-      return JSON.parse(trimmed);
-    } catch {
-      return trimmed.slice(1, -1);
-    }
-  }
-  if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
-    return trimmed.slice(1, -1).replaceAll("''", "'");
-  }
-  return trimmed;
-}
-
-function foldYamlBlock(lines) {
-  let value = "";
-  for (const line of lines) {
-    if (line === "") {
-      value = `${value.trimEnd()}\n`;
-    } else if (value === "" || value.endsWith("\n")) {
-      value += line;
-    } else {
-      value += ` ${line}`;
-    }
-  }
-  return value;
-}
-
 function githubActionsRunCommands(workflow) {
-  const lines = workflow.replaceAll("\r\n", "\n").split("\n");
-  const commands = [];
+  const document = loadYaml(workflow);
+  if (document == null || typeof document !== "object") return [];
 
-  for (let index = 0; index < lines.length; index += 1) {
-    const match = /^(\s*)(?:-\s+)?run:\s*(.*)$/.exec(lines[index]);
-    if (!match) continue;
-    const [, indentation, rawValue] = match;
-    const block = /^([>|])[+-]?\d?$/.exec(rawValue.trim());
-    if (!block) {
-      commands.push(inlineYamlScalar(rawValue));
+  const jobs = document.jobs;
+  if (jobs == null || typeof jobs !== "object") return [];
+
+  const commands = [];
+  for (const job of Object.values(jobs)) {
+    if (job == null || typeof job !== "object" || !Array.isArray(job.steps)) {
       continue;
     }
-
-    const blockLines = [];
-    let nextIndex = index + 1;
-    while (nextIndex < lines.length) {
-      const line = lines[nextIndex];
-      const leading = /^\s*/.exec(line)?.[0].length ?? 0;
-      if (line.trim() !== "" && leading <= indentation.length) break;
-      blockLines.push(line);
-      nextIndex += 1;
+    for (const step of job.steps) {
+      if (
+        step != null &&
+        typeof step === "object" &&
+        typeof step.run === "string"
+      ) {
+        commands.push(step.run);
+      }
     }
-    index = nextIndex - 1;
-
-    const contentIndent = Math.min(
-      ...blockLines
-        .filter((line) => line.trim() !== "")
-        .map((line) => /^\s*/.exec(line)?.[0].length ?? 0),
-    );
-    const content = blockLines.map((line) =>
-      line.trim() === "" ? "" : line.slice(contentIndent),
-    );
-    commands.push(
-      block[1] === ">" ? foldYamlBlock(content) : content.join("\n"),
-    );
   }
-
   return commands;
 }
 
@@ -192,10 +149,15 @@ function resolvedNanoid3Versions(lockfile) {
   ];
 }
 
-test("detects global npm installs in GitHub Actions run scalars", () => {
-  for (const workflow of [
+function workflowWithRunScalar(runScalar) {
+  return `jobs:\n  check:\n    steps:\n      - name: Check\n        ${runScalar.replaceAll("\n", "\n        ")}\n`;
+}
+
+test("detects global npm installs in parsed GitHub Actions run scalars", () => {
+  for (const runScalar of [
     "run: npm install -g npm@12",
     'run: "npm install -g npm@12"',
+    'run: "npm install -g npm@12" # trailing comment',
     "run: 'npm install -g npm@12'",
     "run: if npm install -g npm@12; then echo installed; fi",
     "run: npm install --silent -g npm@12",
@@ -206,22 +168,43 @@ test("detects global npm installs in GitHub Actions run scalars", () => {
     "run: npm i --location global npm@12",
     "run: echo ready && npm --silent i --location=GLOBAL npm@12",
     "run: |\n  echo ready\n  npm install -g npm@12",
+    "run: |2-\n  npm install -g npm@12",
+    "run: |-2\n  npm install -g npm@12",
     "run: >-\n  if npm install -g npm@12; then\n  echo installed; fi",
+    "run: >-\n  echo ready\n    npm install -g npm@12",
   ]) {
-    assert.equal(containsGlobalNpmInstall(workflow), true, workflow);
+    const workflow = workflowWithRunScalar(runScalar);
+    assert.equal(containsGlobalNpmInstall(workflow), true, runScalar);
   }
 
-  for (const workflow of [
+  for (const runScalar of [
     "run: pnpm install --frozen-lockfile",
     "run: npm install",
     "run: npm install --global=false package",
     "run: npm install --location=project package",
-    'run: "echo npm install -g"',
+    'run: "echo npm install -g" # trailing comment',
     "run: 'printf npm install -g'",
-    "run: |\n  echo 'npm install -g npm@12'\n  pnpm install",
+    "run: |2-\n  echo 'npm install -g npm@12'\n  pnpm install",
+    "run: >-\n  echo ready\n    printf 'npm install -g npm@12'",
   ]) {
-    assert.equal(containsGlobalNpmInstall(workflow), false, workflow);
+    const workflow = workflowWithRunScalar(runScalar);
+    assert.equal(containsGlobalNpmInstall(workflow), false, runScalar);
   }
+});
+
+test("scans only jobs.*.steps[].run string values", () => {
+  const workflow = `
+run: npm install -g npm@12
+jobs:
+  ignored:
+    run: npm install -g npm@12
+    steps:
+      - uses: actions/checkout@immutable
+      - run: pnpm install --frozen-lockfile
+  reusable:
+    uses: owner/repo/.github/workflows/reusable.yml@immutable
+`;
+  assert.equal(containsGlobalNpmInstall(workflow), false);
 });
 
 test("extracts compatible nanoid 3.x floors and compares versions semantically", () => {
