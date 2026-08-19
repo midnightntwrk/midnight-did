@@ -1,6 +1,6 @@
 # Midnight DID W3C Conformance Evidence
 
-**Phase status:** Phase 1 evidence audit plus the bounded Phase 2 DID syntax audit; this is not a certification claim.
+**Phase status:** Phase 1 evidence audit plus the bounded Phase 2 DID syntax audit and method-boundary consistency follow-up; this is not a certification claim.
 **Source of record:** [GitHub issue #405](https://github.com/midnightntwrk/midnight-did/issues/405), enriched from [`docs/W3C-COMPLIANCE-PLAN.md`](../../docs/W3C-COMPLIANCE-PLAN.md).
 
 This area separates three questions:
@@ -26,7 +26,7 @@ DID Core 1.0 is the primary release gate. DID Core 1.1 remains a separate compat
 ## Tested repository snapshot
 
 - Repository: `midnightntwrk/midnight-did`
-- Commit inspected: `d3b4102f9d7b0b3675d847ae09340973f3b1d6ee`
+- Commit inspected: `1bb10c7b62ff57ebc5d94fdce2e74e9be255fac4`
 - Package version: `0.5.0` (`package.json`)
 - Package manager: `pnpm@10.34.1`
 - Node requirement: `>=24`
@@ -47,7 +47,6 @@ DID Core 1.0 is the primary release gate. DID Core 1.1 remains a separate compat
 | --- | --- | --- |
 | P0 | DID URL dereferencing is not exposed by the inspected resolver/API surfaces. | Maintainer decision: implement fragment/resource dereferencing, or explicitly scope it out; then add positive/negative dereferencing vectors or a separately tracked limitation issue. |
 | P1 | JSON-LD coverage expands documents but does not yet prove compaction and semantic round-trip equivalence. | Add `expand → compact → compare` tests for all supported verification profiles and custom contexts. |
-| P1 | Method-specific DID document/offchain parsing does not yet prove duplicate verification-method IDs, dangling relations, duplicate relation entries, and duplicate service IDs are rejected at the public boundary. | Add consistency validation or equivalent method-level checks, then add parser/resolver/offchain vectors before marking DOC-007, VM-001, and SRV-001 as `PASS`. |
 | P1 | Resolution negotiation tests cover common q-values but not malformed q-values, all precedence ties, or resolver failures. | Add focused representation negotiation/error vectors and verify metadata/body omission invariants. |
 | P2 | Lifecycle behavior is tested in package-specific suites but not yet assembled into reproducible conformance vectors. | Add create/resolve/update/deactivate/rotation/recovery vectors with initial/final state and metadata. |
 | P2 | Registry submission, public wording, external suite usefulness, and current BLS source remain maintainer decisions. | Record decisions before publication; do not add Multikey/new curves or VC/resolver-service behavior in this repository. |

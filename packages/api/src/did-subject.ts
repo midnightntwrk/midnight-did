@@ -5,6 +5,7 @@ import {
 } from "@midnight-ntwrk/midnight-did/midnight";
 import {
   type BoundIdField,
+  normalizeBoundDIDURL as normalizeBoundDIDURLWithSubject,
   normalizeBoundFragmentId as normalizeBoundFragmentIdWithSubject,
 } from "@midnight-ntwrk/midnight-did-domain";
 import { getNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
@@ -30,3 +31,10 @@ export const normalizeBoundFragmentId = (
   field: BoundIdField,
 ): string =>
   normalizeBoundFragmentIdWithSubject(value, field, getDidSubject(didContract));
+
+export const normalizeBoundDIDURL = (
+  didContract: DeployedMidnightDIDContract,
+  value: string,
+  field: BoundIdField,
+): string =>
+  normalizeBoundDIDURLWithSubject(value, field, getDidSubject(didContract));

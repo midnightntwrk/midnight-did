@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   assertAbsoluteUri,
+  normalizeBoundDIDURL,
   normalizeBoundFragmentId,
   normalizeFragmentId,
   serviceEndpointToLedger,
@@ -16,23 +17,53 @@ describe("ledger-utils", () => {
     expect(normalizeFragmentId("key-1")).toBe("#key-1");
     expect(normalizeFragmentId("#key-1")).toBe("#key-1");
     expect(normalizeFragmentId(`${did}#key-1`)).toBe("#key-1");
+    expect(normalizeFragmentId("/services/a#key-1#alias")).toBe("#alias");
   });
 
-  it("normalizes bound fragment ids", () => {
-    expect(normalizeBoundFragmentId("key-1", "methodId", did)).toBe("#key-1");
-    expect(normalizeBoundFragmentId("#key-1", "methodId", did)).toBe("#key-1");
-    expect(normalizeBoundFragmentId(`${did}#key-1`, "methodId", did)).toBe(
-      "#key-1",
+  it("resolves bound references without losing URL components", () => {
+    expect(normalizeBoundFragmentId("key-1", "methodId", did)).toBe(
+      `${did}#key-1`,
     );
+    expect(normalizeBoundFragmentId("#key-1", "methodId", did)).toBe(
+      `${did}#key-1`,
+    );
+    expect(normalizeBoundFragmentId(`${did}#key-1`, "methodId", did)).toBe(
+      `${did}#key-1`,
+    );
+    expect(
+      normalizeBoundFragmentId("/services/a#key-1", "service.id", did),
+    ).toBe(`${did}/services/a#key-1`);
+    expect(normalizeBoundDIDURL("?service=messaging", "service.id", did)).toBe(
+      `${did}?service=messaging`,
+    );
+    expect(
+      normalizeBoundDIDURL("https://example.com/service", "service.id", did),
+    ).toBe("https://example.com/service");
+    expect(() => normalizeBoundFragmentId("#", "service.id", did)).toThrow(
+      /non-empty fragment/,
+    );
+    expect(() =>
+      normalizeBoundFragmentId("/services/a#", "service.id", did),
+    ).toThrow(/non-empty fragment/);
   });
 
-  it("rejects did url bound to a different did subject", () => {
+  it("rejects verification method references outside the current DID", () => {
+    expect(() =>
+      normalizeBoundFragmentId(
+        "https://attacker.example/key#key-1",
+        "methodId",
+        did,
+      ),
+    ).toThrow(/bound to the current DID/);
     expect(() =>
       normalizeBoundFragmentId(
         "did:midnight:testnet:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#k",
         "methodId",
         did,
       ),
+    ).toThrow(/must match the current DID/);
+    expect(() =>
+      normalizeBoundDIDURL("did:example:other#service", "service.id", did),
     ).toThrow(/must match the current DID/);
   });
 
@@ -41,6 +72,23 @@ describe("ledger-utils", () => {
     expect(serviceTypeToLedger(["A", "B"])).toBe(JSON.stringify(["A", "B"]));
     expect(serviceEndpointToLedger("https://example.com/path")).toBe(
       JSON.stringify("https://example.com/path"),
+    );
+    expect(() =>
+      serviceEndpointToLedger([
+        "https://EXAMPLE.com:443/path",
+        "https://example.com/path",
+      ]),
+    ).toThrow(/serviceEndpoint values must be unique/);
+    expect(
+      serviceEndpointToLedger([
+        "https://example.com/primary",
+        "https://EXAMPLE.com:443/secondary",
+      ]),
+    ).toBe(
+      JSON.stringify([
+        "https://example.com/primary",
+        "https://example.com/secondary",
+      ]),
     );
   });
 

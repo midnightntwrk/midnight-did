@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Preserve complete canonical DID URL identity for verification methods,
+  relationships, and services while keeping existing current-subject
+  fragment-keyed ledger records operable through fail-closed state-aware key
+  selection. Canonical and legacy keys for one logical identity are rejected as
+  ambiguous.
+- Add a provider-aware `verifySchnorrJubjubDigestSignature` overload that
+  selects the sole existing canonical or compatible legacy physical ledger key;
+  retain the historical fragment-keyed signature as a deprecated compatibility
+  overload.
+- Restore DID Core service endpoint set validation: each endpoint array must be
+  non-empty and unique after URI and structural normalization.
 - Upgrade the Compact toolchain from 0.30.0 to 0.31.1, now consumed from the
   external `MediaNoxLabs/flake-collection` flake input instead of the vendored
   `nix/packages/compact-toolchain.nix` derivation. Relax the
