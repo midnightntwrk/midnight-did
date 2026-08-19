@@ -531,7 +531,7 @@ The value of the `serviceEndpoint` property MUST comply with the [DID-CORE-SERVI
 - an object (map) whose members describe transport data (for example, DIDComm service metadata as profiled in [CID-1.0]); or
 - an array composed of strings and/or objects of the above forms.
 
-When persisted on-ledger, Midnight serialises the `serviceEndpoint` value as a JSON string so that all conforming representations can be recovered when reconstructing the DID Document.
+When persisted on-ledger, Midnight serialises the `serviceEndpoint` value as a JSON string so that all conforming representations can be recovered when reconstructing the DID Document. Repeated values inside a `serviceEndpoint` array are preserved; endpoint-value uniqueness is not a Midnight method invariant. Uniqueness applies to service `id` values, not endpoint values.
 
 Example of the `service` property:
 
@@ -711,6 +711,10 @@ The following table summarizes the on-chain ledger state exported by the contrac
 | capabilityInvocationRelation   | `Set<Opaque<"string">>`                        | Set of full canonical absolute verification-method identifiers authorized for `capabilityInvocation`. The DIDDocument's `capabilityInvocation` property is reconstructed from this state. |
 | capabilityDelegationRelation   | `Set<Opaque<"string">>`                        | Set of full canonical absolute verification-method identifiers authorized for `capabilityDelegation`. The DIDDocument's `capabilityDelegation` property is reconstructed from this state. |
 | services                       | `Map<Opaque<"string">, Service>`               | Map from full canonical absolute service URLs to service definitions. The `serviceEndpoint` value is stored as a JSON string so that any DID Core-compliant representation (string, object, or array) can be rehydrated when reconstructing the DID Document. Resolver output retains canonical absolute service URLs. |
+
+### 6.1. Canonical identifier storage migration
+
+This method version stores verification-method, verification-relationship, and service keys as complete canonical absolute DID URLs. Deployments created with an earlier fragment-keyed or otherwise legacy identifier profile are not transparently migrated by these SDK operations: update, removal, relationship, and signing lookups use the canonical key profile described above. Such a deployment MUST be migrated through an explicit state migration supported by the deployment environment or redeployed before using this profile. Resolvers MUST NOT silently merge legacy and canonical keys when doing so could create duplicate identity.
 
 The `verificationMethods` and `schnorrJubjubVerificationMethods` maps share one verification method identifier namespace. Resolvers MUST reject duplicate identifiers across the two maps after full absolute-DID-URL normalization, and relation sets MAY target entries from either map. The two maps are not duplicate storage for the same key material: each verification method is stored in exactly one canonical representation. This avoids consistency hazards while preserving both W3C `publicKeyJwk` interoperability for non-Jubjub keys and native `JubjubPoint` storage for SchnorrJubjub keys.
 
