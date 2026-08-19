@@ -15,8 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   selected relationships explicitly and now receive the typed
   `VerificationMethodReferencedError` while references remain.
 - Preserve pending controller private state whenever controller rotation or
-  recovery does not return finalized transaction data, preventing receipt-loss
-  failures from deleting the only persisted replacement secret.
+  recovery does not return finalized transaction data, and reject blind or
+  overlapping attempts with `PendingControllerPrivateStateExistsError` so the
+  retained replacement secret cannot be overwritten. Applications explicitly
+  promote or discard the candidate after reconciling the ledger outcome.
 - Preserve complete canonical DID URL identity for verification methods,
   relationships, and services while keeping existing current-subject
   fragment-keyed ledger records operable through fail-closed state-aware key

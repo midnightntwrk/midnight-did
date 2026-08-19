@@ -13,11 +13,13 @@ vi.mock("../ledger-state.js", () => ({
   requireDeployedMidnightDIDLedgerState: vi.fn(),
 }));
 
+import { createControllerAuthorization } from "../controller-authorization.js";
 import {
   recoverControllerKey,
   rotateControllerKey,
 } from "../controller-operations.js";
 import { requireDeployedMidnightDIDLedgerState } from "../ledger-state.js";
+import { PendingControllerPrivateStateExistsError } from "../private-state.js";
 import {
   MidnightDIDPendingControllerPrivateStateId,
   MidnightDIDPrivateStateId,
@@ -30,6 +32,16 @@ const mockLedgerForRecovery = (recoverySecretKey: Uint8Array): void => {
     version: 7n,
   } as any);
 };
+
+const getPrivateState = (
+  activePrivateState: unknown,
+  pendingPrivateState: unknown = null,
+) =>
+  vi.fn(async (privateStateId: string) =>
+    privateStateId === MidnightDIDPendingControllerPrivateStateId
+      ? pendingPrivateState
+      : activePrivateState,
+  );
 
 describe("controller operations", () => {
   beforeEach(() => {
@@ -44,10 +56,10 @@ describe("controller operations", () => {
     }));
     const recoverySecretKey = new Uint8Array(32).fill(99);
     const privateStateProvider = {
-      get: vi.fn(async () => ({
+      get: getPrivateState({
         recoverySecretKey,
         secretKey: new Uint8Array(32).fill(98),
-      })),
+      }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
     };
@@ -91,7 +103,7 @@ describe("controller operations", () => {
       public: { txId: "0x234" },
     }));
     const privateStateProvider = {
-      get: vi.fn(async () => ({ secretKey: new Uint8Array(32).fill(4) })),
+      get: getPrivateState({ secretKey: new Uint8Array(32).fill(4) }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
     };
@@ -119,10 +131,10 @@ describe("controller operations", () => {
       public: { txId: "0x456" },
     }));
     const privateStateProvider = {
-      get: vi.fn(async () => ({
+      get: getPrivateState({
         recoverySecretKey,
         secretKey: new Uint8Array(32).fill(8),
-      })),
+      }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
     };
@@ -161,7 +173,7 @@ describe("controller operations", () => {
       public: { txId: "0xabc" },
     }));
     const privateStateProvider = {
-      get: vi.fn(async () => ({ recoverySecretKey })),
+      get: getPrivateState({ recoverySecretKey }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
     };
@@ -189,7 +201,7 @@ describe("controller operations", () => {
       public: { txId: "0xdef" },
     }));
     const privateStateProvider = {
-      get: vi.fn(async () => null),
+      get: getPrivateState(null),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
     };
@@ -227,7 +239,7 @@ describe("controller operations", () => {
       public: { txId: "0xfed" },
     }));
     const privateStateProvider = {
-      get: vi.fn(async () => ({ recoverySecretKey: storedRecoverySecretKey })),
+      get: getPrivateState({ recoverySecretKey: storedRecoverySecretKey }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
     };
@@ -277,9 +289,9 @@ describe("controller operations", () => {
     } as any);
     const recoverControllerKeyTx = vi.fn();
     const privateStateProvider = {
-      get: vi.fn(async () => ({
+      get: getPrivateState({
         recoverySecretKey: new Uint8Array(32).fill(20),
-      })),
+      }),
       set: vi.fn(),
       remove: vi.fn(),
     };
@@ -302,7 +314,7 @@ describe("controller operations", () => {
     mockLedgerForRecovery(ledgerRecoverySecretKey);
     const recoverControllerKeyTx = vi.fn();
     const privateStateProvider = {
-      get: vi.fn(async () => ({ recoverySecretKey: storedRecoverySecretKey })),
+      get: getPrivateState({ recoverySecretKey: storedRecoverySecretKey }),
       set: vi.fn(),
       remove: vi.fn(),
     };
@@ -324,10 +336,10 @@ describe("controller operations", () => {
     mockLedgerForRecovery(recoverySecretKey);
     const recoverControllerKeyTx = vi.fn();
     const privateStateProvider = {
-      get: vi.fn(async () => ({
+      get: getPrivateState({
         recoverySecretKey,
         secretKey: new Uint8Array(32).fill(8),
-      })),
+      }),
       set: vi.fn(async () => {
         throw new Error("recovery storage offline");
       }),
@@ -346,6 +358,36 @@ describe("controller operations", () => {
     expect(privateStateProvider.remove).not.toHaveBeenCalled();
   });
 
+  it("rejects recovery before submission when a pending candidate exists", async () => {
+    const recoverySecretKey = new Uint8Array(32).fill(9);
+    const pendingSecretKey = new Uint8Array(32).fill(31);
+    mockLedgerForRecovery(recoverySecretKey);
+    const recoverControllerKeyTx = vi.fn();
+    const privateStateProvider = {
+      get: getPrivateState(
+        {
+          recoverySecretKey,
+          secretKey: new Uint8Array(32).fill(8),
+        },
+        { recoverySecretKey, secretKey: pendingSecretKey },
+      ),
+      set: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+    };
+
+    await expect(
+      recoverControllerKey(
+        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        { privateStateProvider } as any,
+        new Uint8Array(32).fill(12),
+      ),
+    ).rejects.toBeInstanceOf(PendingControllerPrivateStateExistsError);
+
+    expect(privateStateProvider.set).not.toHaveBeenCalled();
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+    expect(recoverControllerKeyTx).not.toHaveBeenCalled();
+  });
+
   it("keeps pending recovery state when transaction outcome is unknown", async () => {
     const recoverySecretKey = new Uint8Array(32).fill(9);
     mockLedgerForRecovery(recoverySecretKey);
@@ -353,10 +395,10 @@ describe("controller operations", () => {
       throw new Error("recovery transaction rejected");
     });
     const privateStateProvider = {
-      get: vi.fn(async () => ({
+      get: getPrivateState({
         recoverySecretKey,
         secretKey: new Uint8Array(32).fill(8),
-      })),
+      }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
     };
@@ -379,10 +421,10 @@ describe("controller operations", () => {
       public: { txId: "0x789" },
     }));
     const privateStateProvider = {
-      get: vi.fn(async () => ({
+      get: getPrivateState({
         recoverySecretKey,
         secretKey: new Uint8Array(32).fill(8),
-      })),
+      }),
       set: vi
         .fn()
         .mockResolvedValueOnce(undefined)
@@ -409,10 +451,10 @@ describe("controller operations", () => {
         { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
         {
           privateStateProvider: {
-            get: vi.fn(async () => ({
+            get: getPrivateState({
               recoverySecretKey: new Uint8Array(32).fill(5),
               secretKey: new Uint8Array(32).fill(4),
-            })),
+            }),
             set: vi.fn(),
             remove: vi.fn(),
           },
@@ -427,10 +469,10 @@ describe("controller operations", () => {
   it("rejects before submitting a transaction if pending state cannot be saved", async () => {
     const rotateControllerKeyTx = vi.fn();
     const privateStateProvider = {
-      get: vi.fn(async () => ({
+      get: getPrivateState({
         recoverySecretKey: new Uint8Array(32).fill(5),
         secretKey: new Uint8Array(32).fill(4),
-      })),
+      }),
       set: vi.fn(async () => {
         throw new Error("storage offline");
       }),
@@ -449,15 +491,105 @@ describe("controller operations", () => {
     expect(privateStateProvider.remove).not.toHaveBeenCalled();
   });
 
+  it("rejects rotation before authorization when a pending candidate exists", async () => {
+    const activeSecretKey = new Uint8Array(32).fill(4);
+    const pendingSecretKey = new Uint8Array(32).fill(27);
+    const rotateControllerKeyTx = vi.fn();
+    const privateStateProvider = {
+      get: getPrivateState(
+        { secretKey: activeSecretKey },
+        { secretKey: pendingSecretKey },
+      ),
+      set: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+    };
+
+    await expect(
+      rotateControllerKey(
+        { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+        { privateStateProvider } as any,
+        new Uint8Array(32).fill(28),
+      ),
+    ).rejects.toMatchObject({
+      code: "pendingControllerPrivateStateExists",
+      name: "PendingControllerPrivateStateExistsError",
+    });
+
+    expect(privateStateProvider.set).not.toHaveBeenCalled();
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+    expect(createControllerAuthorization).not.toHaveBeenCalled();
+    expect(rotateControllerKeyTx).not.toHaveBeenCalled();
+  });
+
+  it("serializes the pending-slot absence check for overlapping rotations", async () => {
+    const activeSecretKey = new Uint8Array(32).fill(4);
+    const candidateA = new Uint8Array(32).fill(29);
+    const candidateB = new Uint8Array(32).fill(30);
+    let pendingPrivateState: { readonly secretKey: Uint8Array } | null = null;
+    let releasePendingRead!: () => void;
+    const pendingReadGate = new Promise<void>((resolve) => {
+      releasePendingRead = resolve;
+    });
+    let pendingReadStarted!: () => void;
+    const pendingReadStart = new Promise<void>((resolve) => {
+      pendingReadStarted = resolve;
+    });
+    let pendingReads = 0;
+    const privateStateProvider = {
+      get: vi.fn(async (privateStateId: string) => {
+        if (privateStateId !== MidnightDIDPendingControllerPrivateStateId) {
+          return { secretKey: activeSecretKey };
+        }
+        pendingReads += 1;
+        if (pendingReads === 1) {
+          pendingReadStarted();
+          await pendingReadGate;
+        }
+        return pendingPrivateState;
+      }),
+      set: vi.fn(async (privateStateId: string, privateState: unknown) => {
+        if (privateStateId === MidnightDIDPendingControllerPrivateStateId) {
+          pendingPrivateState = privateState as {
+            readonly secretKey: Uint8Array;
+          };
+        }
+      }),
+      remove: vi.fn(async () => undefined),
+    };
+    const rotateControllerKeyTx = vi.fn(async () => {
+      throw new Error("candidate A outcome unknown");
+    });
+    const didContract = {
+      callTx: { rotateControllerKey: rotateControllerKeyTx },
+    } as any;
+    const providers = { privateStateProvider } as any;
+
+    const operationA = rotateControllerKey(didContract, providers, candidateA);
+    await pendingReadStart;
+    const operationB = rotateControllerKey(didContract, providers, candidateB);
+
+    await expect(operationB).rejects.toBeInstanceOf(
+      PendingControllerPrivateStateExistsError,
+    );
+    releasePendingRead();
+    await expect(operationA).rejects.toThrow(/candidate A outcome unknown/);
+
+    expect(createControllerAuthorization).toHaveBeenCalledTimes(1);
+    expect(rotateControllerKeyTx).toHaveBeenCalledTimes(1);
+    expect(privateStateProvider.set).toHaveBeenCalledTimes(1);
+    expect(pendingPrivateState).toEqual({ secretKey: candidateA });
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+  });
+
   it("keeps pending state when transaction outcome is unknown", async () => {
     const rotateControllerKeyTx = vi.fn(async () => {
       throw new Error("transaction rejected");
     });
     const privateStateProvider = {
-      get: vi.fn(async () => ({
+      get: getPrivateState({
         recoverySecretKey: new Uint8Array(32).fill(5),
         secretKey: new Uint8Array(32).fill(4),
-      })),
+      }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
     };
@@ -484,7 +616,7 @@ describe("controller operations", () => {
       },
     );
     const privateStateProvider = {
-      get: vi.fn(async () => ({ secretKey: oldSecretKey })),
+      get: getPrivateState({ secretKey: oldSecretKey }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
     };
@@ -520,7 +652,7 @@ describe("controller operations", () => {
       },
     );
     const privateStateProvider = {
-      get: vi.fn(async () => ({ recoverySecretKey, secretKey: oldSecretKey })),
+      get: getPrivateState({ recoverySecretKey, secretKey: oldSecretKey }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
     };
@@ -548,10 +680,10 @@ describe("controller operations", () => {
       public: { txId: "0x123" },
     }));
     const privateStateProvider = {
-      get: vi.fn(async () => ({
+      get: getPrivateState({
         recoverySecretKey: new Uint8Array(32).fill(5),
         secretKey: new Uint8Array(32).fill(4),
-      })),
+      }),
       set: vi
         .fn()
         .mockResolvedValueOnce(undefined)

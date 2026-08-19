@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getLogger, setLogger } from "../api-logger.js";
 import {
   bindPrivateStateProvider,
+  discardPendingControllerPrivateState,
   initPrivateState,
   isRestorableDIDPrivateState,
   recoverPendingControllerPrivateState,
@@ -216,6 +217,39 @@ describe("DID private state lifecycle", () => {
     expect(privateStateProvider.remove).toHaveBeenCalledWith(
       MidnightDIDPendingControllerPrivateStateId,
     );
+  });
+
+  it("discards pending controller private state only after non-finalization confirmation", async () => {
+    const pendingPrivateState = {
+      secretKey: new Uint8Array(32).fill(9),
+    };
+    const { providers, privateStateProvider } = makeProviders({
+      storedPrivateState: pendingPrivateState,
+    });
+
+    await expect(
+      discardPendingControllerPrivateState(providers, {
+        rotationFinalized: false,
+      }),
+    ).resolves.toBeUndefined();
+    expect(privateStateProvider.get).toHaveBeenCalledWith(
+      MidnightDIDPendingControllerPrivateStateId,
+    );
+    expect(privateStateProvider.remove).toHaveBeenCalledWith(
+      MidnightDIDPendingControllerPrivateStateId,
+    );
+  });
+
+  it("refuses to discard pending state without non-finalization confirmation", async () => {
+    const { providers, privateStateProvider } = makeProviders({
+      storedPrivateState: { secretKey: new Uint8Array(32).fill(9) },
+    });
+
+    await expect(
+      discardPendingControllerPrivateState(providers),
+    ).rejects.toThrow(/only be discarded after confirming/);
+    expect(privateStateProvider.get).not.toHaveBeenCalled();
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
   });
 
   it("refuses to recover pending controller private state without finalization confirmation", async () => {

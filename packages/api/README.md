@@ -105,9 +105,19 @@ If rotation or recovery submission throws without finalized transaction data, th
 API retains the pending replacement secret because receipt loss cannot prove that
 the on-chain operation failed. Re-read the on-ledger `controllerPublicKey` before
 retrying. If the replacement public key is active, promote the retained secret
-with `recoverPendingControllerPrivateState({ rotationFinalized: true })`; if the
-old public key is still active, a new attempt may replace the stale pending
-candidate. Do not retry while the ledger outcome is unknown.
+with
+`recoverPendingControllerPrivateState(providers, { rotationFinalized: true })`.
+If the old public key is still active, discard that candidate explicitly with
+`discardPendingControllerPrivateState(providers, { rotationFinalized: false })`
+before starting another attempt. A blind or overlapping rotation/recovery fails
+with `PendingControllerPrivateStateExistsError` and cannot replace the retained
+candidate.
+
+Pending-slot reservation is serialized for calls sharing one provider object,
+and the persisted slot protects retries and process restarts. The provider API
+has no cross-process compare-and-set primitive, so applications using multiple
+processes or provider instances against one DID private-state store MUST enforce
+an external single-writer lock around controller rotation/recovery.
 
 Applications should back up controller and recovery private state alongside
 their wallet backup material, protect it with custody controls appropriate for

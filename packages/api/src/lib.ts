@@ -19,7 +19,9 @@ export {
 } from "./document-operations.js";
 export { getMidnightDIDLedgerState } from "./ledger-state.js";
 export {
+  discardPendingControllerPrivateState,
   initPrivateState,
+  PendingControllerPrivateStateExistsError,
   recoverPendingControllerPrivateState,
   requirePrivateState,
   restorePrivateState,

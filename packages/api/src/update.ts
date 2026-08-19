@@ -8,6 +8,11 @@ export {
   removeAlsoKnownAs,
 } from "./document-operations.js";
 export {
+  discardPendingControllerPrivateState,
+  PendingControllerPrivateStateExistsError,
+  recoverPendingControllerPrivateState,
+} from "./private-state.js";
+export {
   resolve,
   resolveDIDResolutionResult,
   resolveRepresentation,

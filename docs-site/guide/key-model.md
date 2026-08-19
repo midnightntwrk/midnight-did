@@ -77,9 +77,29 @@ arguments.
 replacement secret remains wallet-local in a pending slot and is promoted after
 finalized transaction data returns. If submission/finality throws, the pending
 secret is retained because receipt loss cannot determine ledger outcome. Re-read
-`controllerPublicKey` before retrying and use
-`recoverPendingControllerPrivateState({ rotationFinalized: true })` only after
-confirming that the replacement key finalized.
+`controllerPublicKey` before retrying. After confirming the replacement key
+finalized, promote it explicitly:
+
+```ts
+await recoverPendingControllerPrivateState(providers, {
+  rotationFinalized: true,
+});
+```
+
+After confirming the old key remains active, discard the candidate explicitly
+before retrying:
+
+```ts
+await discardPendingControllerPrivateState(providers, {
+  rotationFinalized: false,
+});
+```
+
+Blind or overlapping attempts fail with
+`PendingControllerPrivateStateExistsError` rather than overwriting the candidate.
+Calls sharing one provider object are serialized, but the storage provider has no
+cross-process compare-and-set primitive; deployments with multiple writers MUST
+lock rotation/recovery externally per DID private-state store.
 
 ## Controller Recovery and Backup Posture
 

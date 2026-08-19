@@ -25,8 +25,13 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   idempotent no-op. Retry logic must re-read state and skip work already visible
   on-ledger.
 - Controller rotation and recovery retain pending replacement state whenever
-  finalized transaction data was not returned. Callers reconcile the on-ledger
-  controller public key before retrying or promoting the pending secret.
+  finalized transaction data was not returned. A typed error prevents blind or
+  overlapping attempts from replacing that candidate; callers reconcile the
+  on-ledger controller public key, then explicitly promote or discard the slot.
+- The provider interface has no compare-and-set primitive. A provider-scoped
+  process-local reservation closes the in-process read/write race, while
+  deployments with multiple writer processes must lock externally per DID
+  private-state store.
 - The specification distinguishes the method's no-batch-circuit design from
   Midnight's inability to merge multiple non-empty contract-call sections.
 
@@ -40,6 +45,8 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   relationship mutations.
 - Receipt-loss tests simulate the ledger key changing immediately before the
   client call throws, which exercises the exact destructive window from #240.
+  Additional persistent-state and overlapping-call regressions prove candidate
+  A remains stored and candidate B never authorizes or submits.
 - `pnpm run verify`, managed-artifact checks, package-surface checks, and the
   complete docs build/visual lane passed from the Nix development shell.
 

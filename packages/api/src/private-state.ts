@@ -17,6 +17,28 @@ type ControllerPrivateState = MidnightDIDPrivateState & {
   readonly secretKey: Uint8Array;
 };
 
+/**
+ * Raised when a controller rotation/recovery candidate is already pending.
+ *
+ * The existing candidate must be reconciled against the on-ledger controller
+ * key before another candidate can be persisted.
+ */
+export class PendingControllerPrivateStateExistsError extends Error {
+  readonly code = "pendingControllerPrivateStateExists" as const;
+
+  constructor() {
+    super(
+      "Pending controller private state already exists; reconcile it against the on-ledger controllerPublicKey before starting another rotation or recovery",
+    );
+    this.name = "PendingControllerPrivateStateExistsError";
+  }
+}
+
+// The provider API has no compare-and-set operation. This reservation closes
+// the in-process read-then-write race for callers sharing one provider object;
+// the persistent pending slot closes blind retries and process restarts.
+const pendingControllerStateReservations = new WeakSet<object>();
+
 export const isRestorableDIDPrivateState = (
   privateState: MidnightDIDPrivateState | null | undefined,
 ): privateState is ControllerPrivateState =>
@@ -158,6 +180,10 @@ export interface RecoverPendingControllerPrivateStateOptions {
   readonly rotationFinalized: true;
 }
 
+export interface DiscardPendingControllerPrivateStateOptions {
+  readonly rotationFinalized: false;
+}
+
 export async function savePrivateState(
   providers: MidnightDIDProviders,
   privateState: MidnightDIDPrivateState,
@@ -199,11 +225,26 @@ export async function savePendingControllerPrivateState(
   providers: MidnightDIDProviders,
   privateState: MidnightDIDPrivateState,
 ): Promise<void> {
-  await savePrivateState(
-    providers,
-    privateState,
-    MidnightDIDPendingControllerPrivateStateId,
-  );
+  const provider = providers.privateStateProvider;
+  if (pendingControllerStateReservations.has(provider)) {
+    throw new PendingControllerPrivateStateExistsError();
+  }
+
+  pendingControllerStateReservations.add(provider);
+  try {
+    const existing = await provider.get(
+      MidnightDIDPendingControllerPrivateStateId,
+    );
+    if (existing != null) {
+      throw new PendingControllerPrivateStateExistsError();
+    }
+    await provider.set(
+      MidnightDIDPendingControllerPrivateStateId,
+      privateState,
+    );
+  } finally {
+    pendingControllerStateReservations.delete(provider);
+  }
 }
 
 export async function clearPendingControllerPrivateState(
@@ -212,6 +253,22 @@ export async function clearPendingControllerPrivateState(
   await providers.privateStateProvider.remove(
     MidnightDIDPendingControllerPrivateStateId,
   );
+}
+
+export async function discardPendingControllerPrivateState(
+  providers: MidnightDIDProviders,
+  options?: DiscardPendingControllerPrivateStateOptions,
+): Promise<void> {
+  if (options?.rotationFinalized !== false) {
+    throw new Error(
+      "Pending controller private state can only be discarded after confirming the key-rotation transaction did not finalize",
+    );
+  }
+  await requirePrivateState(
+    providers,
+    MidnightDIDPendingControllerPrivateStateId,
+  );
+  await clearPendingControllerPrivateState(providers);
 }
 
 export async function recoverPendingControllerPrivateState(

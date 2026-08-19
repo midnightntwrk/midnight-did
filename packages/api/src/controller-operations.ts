@@ -133,7 +133,7 @@ export const rotateControllerKey = async (
     } else {
       getLogger().error(
         { error },
-        "Controller key rotation finalized, but active private state promotion failed. Use recoverPendingControllerPrivateState() before submitting further controller operations.",
+        "Controller key rotation finalized, but active private state promotion failed. Use recoverPendingControllerPrivateState(providers, { rotationFinalized: true }) before submitting further controller operations.",
       );
     }
     throw error;
@@ -247,7 +247,7 @@ export const recoverControllerKey = async (
     } else {
       getLogger().error(
         { error },
-        "Controller recovery finalized, but active private state promotion failed. Use recoverPendingControllerPrivateState() before submitting further controller operations.",
+        "Controller recovery finalized, but active private state promotion failed. Use recoverPendingControllerPrivateState(providers, { rotationFinalized: true }) before submitting further controller operations.",
       );
     }
     throw error;

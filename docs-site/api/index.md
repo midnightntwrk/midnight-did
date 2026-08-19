@@ -71,9 +71,13 @@ purges relationships implicitly and throws `VerificationMethodReferencedError`
 Missing relationship removals continue to fail explicitly.
 
 Controller rotation and recovery retain the pending replacement secret whenever
-finalized transaction data is not returned. Reconcile `controllerPublicKey`
-from ledger state before retrying; promote the pending secret only after
-confirming the replacement key finalized.
+finalized transaction data is not returned. A later or overlapping attempt fails
+with the typed pending-controller-state error instead of overwriting it.
+Reconcile `controllerPublicKey` from ledger state, then explicitly promote the
+candidate after confirmed finalization or discard it after confirmed
+non-finalization. Calls sharing one provider are serialized; multi-process
+writers must provide an external per-DID private-state lock because the provider
+interface has no compare-and-set operation.
 
 ## Generated TypeDoc
 
