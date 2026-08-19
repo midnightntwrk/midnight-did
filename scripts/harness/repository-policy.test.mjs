@@ -26,9 +26,91 @@ function shellTokens(command) {
   );
 }
 
-function containsGlobalNpmInstall(workflow) {
-  const tokens = shellTokens(workflow.replaceAll(/\\\r?\n/g, " "));
+function inlineYamlScalar(value) {
+  const trimmed = value.trim();
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return trimmed.slice(1, -1);
+    }
+  }
+  if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    return trimmed.slice(1, -1).replaceAll("''", "'");
+  }
+  return trimmed;
+}
+
+function foldYamlBlock(lines) {
+  let value = "";
+  for (const line of lines) {
+    if (line === "") {
+      value = `${value.trimEnd()}\n`;
+    } else if (value === "" || value.endsWith("\n")) {
+      value += line;
+    } else {
+      value += ` ${line}`;
+    }
+  }
+  return value;
+}
+
+function githubActionsRunCommands(workflow) {
+  const lines = workflow.replaceAll("\r\n", "\n").split("\n");
+  const commands = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = /^(\s*)(?:-\s+)?run:\s*(.*)$/.exec(lines[index]);
+    if (!match) continue;
+    const [, indentation, rawValue] = match;
+    const block = /^([>|])[+-]?\d?$/.exec(rawValue.trim());
+    if (!block) {
+      commands.push(inlineYamlScalar(rawValue));
+      continue;
+    }
+
+    const blockLines = [];
+    let nextIndex = index + 1;
+    while (nextIndex < lines.length) {
+      const line = lines[nextIndex];
+      const leading = /^\s*/.exec(line)?.[0].length ?? 0;
+      if (line.trim() !== "" && leading <= indentation.length) break;
+      blockLines.push(line);
+      nextIndex += 1;
+    }
+    index = nextIndex - 1;
+
+    const contentIndent = Math.min(
+      ...blockLines
+        .filter((line) => line.trim() !== "")
+        .map((line) => /^\s*/.exec(line)?.[0].length ?? 0),
+    );
+    const content = blockLines.map((line) =>
+      line.trim() === "" ? "" : line.slice(contentIndent),
+    );
+    commands.push(
+      block[1] === ">" ? foldYamlBlock(content) : content.join("\n"),
+    );
+  }
+
+  return commands;
+}
+
+function shellCommandContainsGlobalNpmInstall(command) {
+  const tokens = shellTokens(command.replaceAll(/\\\r?\n/g, " "));
   const separators = new Set(["\n", "&&", "||", ";", "&", "|"]);
+  const controlPrefixes = new Set([
+    "!",
+    "(",
+    "{",
+    "do",
+    "elif",
+    "else",
+    "if",
+    "then",
+    "until",
+    "while",
+  ]);
 
   for (let index = 0; index < tokens.length; index += 1) {
     if (tokens[index] !== "npm") continue;
@@ -38,10 +120,7 @@ function containsGlobalNpmInstall(workflow) {
     const commandPrefix = prefix.filter(
       (token) =>
         token !== "-" &&
-        token !== "run:" &&
-        token !== "then" &&
-        token !== "do" &&
-        token !== "else" &&
+        !controlPrefixes.has(token) &&
         !/^[A-Za-z_][A-Za-z0-9_]*=.*/.test(token),
     );
     if (commandPrefix.length > 0) continue;
@@ -78,6 +157,12 @@ function containsGlobalNpmInstall(workflow) {
   return false;
 }
 
+function containsGlobalNpmInstall(workflow) {
+  return githubActionsRunCommands(workflow).some(
+    shellCommandContainsGlobalNpmInstall,
+  );
+}
+
 function compareVersions(left, right) {
   const leftParts = left.split(".").map(Number);
   const rightParts = right.split(".").map(Number);
@@ -107,37 +192,48 @@ function resolvedNanoid3Versions(lockfile) {
   ];
 }
 
-test("detects global npm install command forms without flag-order assumptions", () => {
-  for (const command of [
-    "npm install -g npm@12",
-    "npm install --silent -g npm@12",
-    "npm i --global npm@12",
-    "npm --global install npm@12",
-    "npm install --global=true npm@12",
-    "npm install --location=global npm@12",
-    "npm i --location global npm@12",
-    "echo ready && npm --silent i --location=GLOBAL npm@12",
+test("detects global npm installs in GitHub Actions run scalars", () => {
+  for (const workflow of [
+    "run: npm install -g npm@12",
+    'run: "npm install -g npm@12"',
+    "run: 'npm install -g npm@12'",
+    "run: if npm install -g npm@12; then echo installed; fi",
+    "run: npm install --silent -g npm@12",
+    "run: npm i --global npm@12",
+    "run: npm --global install npm@12",
+    "run: npm install --global=true npm@12",
+    "run: npm install --location=global npm@12",
+    "run: npm i --location global npm@12",
+    "run: echo ready && npm --silent i --location=GLOBAL npm@12",
+    "run: |\n  echo ready\n  npm install -g npm@12",
+    "run: >-\n  if npm install -g npm@12; then\n  echo installed; fi",
   ]) {
-    assert.equal(containsGlobalNpmInstall(`run: ${command}`), true, command);
+    assert.equal(containsGlobalNpmInstall(workflow), true, workflow);
   }
 
-  for (const command of [
-    "pnpm install --frozen-lockfile",
-    "npm install",
-    "npm install --global=false package",
-    "npm install --location=project package",
-    "echo npm install -g",
+  for (const workflow of [
+    "run: pnpm install --frozen-lockfile",
+    "run: npm install",
+    "run: npm install --global=false package",
+    "run: npm install --location=project package",
+    'run: "echo npm install -g"',
+    "run: 'printf npm install -g'",
+    "run: |\n  echo 'npm install -g npm@12'\n  pnpm install",
   ]) {
-    assert.equal(containsGlobalNpmInstall(`run: ${command}`), false, command);
+    assert.equal(containsGlobalNpmInstall(workflow), false, workflow);
   }
 });
 
-test("extracts compatible nanoid 3.x floors and every resolved 3.x version", () => {
+test("extracts compatible nanoid 3.x floors and compares versions semantically", () => {
   assert.equal(nanoid3OverrideFloor("^3.3.18"), "3.3.18");
   assert.equal(nanoid3OverrideFloor("~3.3.19"), "3.3.19");
   assert.equal(nanoid3OverrideFloor(">=3.3.18 <4"), "3.3.18");
   assert.equal(nanoid3OverrideFloor("^3.3.17"), "3.3.17");
   assert.equal(nanoid3OverrideFloor("*"), null);
+  assert.ok(compareVersions("3.3.17", "3.3.18") < 0);
+  assert.ok(compareVersions("3.3.19", "3.3.18") > 0);
+  assert.ok(compareVersions("3.10.0", "3.3.18") > 0);
+  assert.equal(compareVersions("3.3.18", "3.3.18"), 0);
   assert.deepEqual(
     resolvedNanoid3Versions(
       "  nanoid@3.3.18:\n  nanoid@3.3.19:\n  nanoid@5.1.6:\n  nanoid@3.3.18:\n",
