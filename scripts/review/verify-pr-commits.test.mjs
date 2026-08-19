@@ -308,16 +308,18 @@ test("trusted-base workflow and package scripts retain local/CI integrity wiring
     workflow,
     /permissions:\n  contents: read\n  pull-requests: read/,
   );
+  assert.doesNotMatch(workflow, /actions\/checkout/);
+  assert.doesNotMatch(workflow, /refs\/pull|github\.head_ref/);
   assert.match(
     workflow,
-    /ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/,
+    /BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/,
   );
-  assert.doesNotMatch(
+  assert.match(
     workflow,
-    /ref:\s+.*(?:pull_request\.head|refs\/pull|github\.head_ref)/,
+    /contents\/scripts\/review\/verify-pr-commits\.mjs\?ref=\$\{BASE_SHA\}/,
   );
+  assert.match(workflow, /node "\$\{RUNNER_TEMP\}\/verify-pr-commits\.mjs"/);
   assert.match(workflow, /- edited/);
-  assert.match(workflow, /node scripts\/review\/verify-pr-commits\.mjs/);
   assert.match(
     packageJson.scripts["test:pr-commit-integrity"],
     /verify-pr-commits\.test\.mjs/,
