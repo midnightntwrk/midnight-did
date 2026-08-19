@@ -6,7 +6,9 @@
       "message": "feat: first commit\n\nSigned-off-by: Alice Example <alice@example.com>",
       "author": { "name": "Alice Example", "email": "alice@example.com" },
       "signature": {
+        "__typename": "GpgSignature",
         "isValid": true,
+        "state": "VALID",
         "signature": "-----BEGIN PGP SIGNATURE-----\nfixture\n-----END PGP SIGNATURE-----"
       }
     },
@@ -15,7 +17,9 @@
       "message": "fix: middle commit\n\nSigned-off-by: Bob Example <bob@example.com>",
       "author": { "name": "Bob Example", "email": "bob@example.com" },
       "signature": {
+        "__typename": "GpgSignature",
         "isValid": false,
+        "state": "INVALID",
         "signature": "-----BEGIN PGP SIGNATURE-----\nfixture\n-----END PGP SIGNATURE-----"
       }
     },
@@ -24,7 +28,63 @@
       "message": "docs: final commit\n\nSigned-off-by: Carol Example <carol@example.com>\n",
       "author": { "name": "Carol Example", "email": "carol@example.com" },
       "signature": {
+        "__typename": "GpgSignature",
         "isValid": true,
+        "state": "VALID",
+        "signature": "-----BEGIN PGP SIGNATURE-----\nfixture\n-----END PGP SIGNATURE-----"
+      }
+    },
+    "sshSigned": {
+      "oid": "7777777777777777777777777777777777777777",
+      "message": "fix: signed with SSH\n\nSigned-off-by: Pat Example <pat@example.com>",
+      "author": { "name": "Pat Example", "email": "pat@example.com" },
+      "signature": {
+        "__typename": "SshSignature",
+        "isValid": true,
+        "state": "VALID",
+        "signature": "-----BEGIN SSH SIGNATURE-----\nfixture\n-----END SSH SIGNATURE-----"
+      }
+    },
+    "unsupportedSignature": {
+      "oid": "8888888888888888888888888888888888888888",
+      "message": "fix: signed with unsupported type\n\nSigned-off-by: Sam Example <sam@example.com>",
+      "author": { "name": "Sam Example", "email": "sam@example.com" },
+      "signature": {
+        "__typename": "SmimeSignature",
+        "isValid": true,
+        "state": "VALID",
+        "signature": "fixture"
+      }
+    },
+    "dependabot": {
+      "oid": "9999999999999999999999999999999999999999",
+      "message": "chore(deps): update dependency\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+      "author": {
+        "name": "dependabot[bot]",
+        "email": "49699333+dependabot[bot]@users.noreply.github.com",
+        "user": { "login": "dependabot[bot]" }
+      },
+      "signature": {
+        "__typename": "GpgSignature",
+        "isValid": true,
+        "state": "VALID",
+        "signer": { "login": "web-flow" },
+        "signature": "-----BEGIN PGP SIGNATURE-----\nfixture\n-----END PGP SIGNATURE-----"
+      }
+    },
+    "renovate": {
+      "oid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+      "message": "chore(deps): renovate dependency",
+      "author": {
+        "name": "renovate[bot]",
+        "email": "29139614+renovate[bot]@users.noreply.github.com",
+        "user": { "login": "renovate[bot]" }
+      },
+      "signature": {
+        "__typename": "GpgSignature",
+        "isValid": true,
+        "state": "VALID",
+        "signer": { "login": "web-flow" },
         "signature": "-----BEGIN PGP SIGNATURE-----\nfixture\n-----END PGP SIGNATURE-----"
       }
     },
@@ -33,7 +93,9 @@
       "message": "test: no sign-off",
       "author": { "name": "Alice Example", "email": "alice@example.com" },
       "signature": {
+        "__typename": "GpgSignature",
         "isValid": true,
+        "state": "VALID",
         "signature": "-----BEGIN PGP SIGNATURE-----\nfixture\n-----END PGP SIGNATURE-----"
       }
     },
@@ -42,7 +104,9 @@
       "message": "test: wrong sign-off\n\nSigned-off-by: Mallory Example <mallory@example.com>",
       "author": { "name": "Alice Example", "email": "alice@example.com" },
       "signature": {
+        "__typename": "GpgSignature",
         "isValid": true,
+        "state": "VALID",
         "signature": "-----BEGIN PGP SIGNATURE-----\nfixture\n-----END PGP SIGNATURE-----"
       }
     },
@@ -51,7 +115,9 @@
       "message": "test: buried sign-off\n\nSigned-off-by: Alice Example <alice@example.com>\nCo-authored-by: Carol Example <carol@example.com>",
       "author": { "name": "Alice Example", "email": "alice@example.com" },
       "signature": {
+        "__typename": "GpgSignature",
         "isValid": true,
+        "state": "VALID",
         "signature": "-----BEGIN PGP SIGNATURE-----\nfixture\n-----END PGP SIGNATURE-----"
       }
     }

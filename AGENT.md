@@ -218,7 +218,7 @@ node .pi/npm/node_modules/@input-output-hk/agent-review/dist/cli/index.js init -
     must remain outside the branch.
 11. Create PRs as drafts first and do not mark them ready until the draft gate
     and validation evidence are complete.
-12. Commit with DCO and GPG for repository-facing work.
+12. Commit with DCO and a GitHub-verifiable GPG or SSH signature for repository-facing work.
 
 Commit form:
 
@@ -226,13 +226,16 @@ Commit form:
 git commit -S --signoff -m "<type>: <subject>"
 ```
 
-Before pushing, verify every commit in the PR range has a good GPG signature and
-a terminal `Signed-off-by` trailer. After push, run the GitHub-backed all-commit
-verifier for the exact head; latest-commit-only checks are insufficient.
+Before pushing, verify every commit in the PR range against repository policy.
+Each human-authored commit needs a valid GitHub-verifiable GPG or SSH signature
+and a terminal `Signed-off-by` trailer. Policy-listed dependency bots retain the
+signature requirement but are exempt from the human author/trailer match. After push, run the GitHub-backed
+all-commit verifier for the exact head; latest-commit-only checks are
+insufficient.
 
 ```bash
 git log --show-signature --pretty=fuller origin/<actual-base>..HEAD
-node scripts/review/verify-pr-commits.mjs --repo midnightntwrk/midnight-did --issue <issue> --pr <n> --head-sha <full-sha>
+node scripts/review/verify-pr-commits.mjs --repo midnightntwrk/midnight-did --pr <n> --head-sha <full-sha>
 ```
 
 Any amend, rebase, or force-push invalidates prior commit, validation, and review

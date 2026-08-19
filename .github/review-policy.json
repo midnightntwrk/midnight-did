@@ -4,6 +4,19 @@
     "backend": "agent-review",
     "reviewers": ["patextreme"]
   },
+  "commitIntegrity": {
+    "acceptedSignatureTypes": ["GpgSignature", "SshSignature"],
+    "dcoExemptBots": [
+      {
+        "authorLogin": "dependabot[bot]",
+        "signatureSignerLogins": ["web-flow"]
+      },
+      {
+        "authorLogin": "renovate[bot]",
+        "signatureSignerLogins": ["web-flow"]
+      }
+    ]
+  },
   "audit": {
     "requiredReviewerLogins": ["patextreme"],
     "structuredMarker": "agentflow-pr-review",

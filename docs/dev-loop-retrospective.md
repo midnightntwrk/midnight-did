@@ -48,7 +48,7 @@ restored API formatting, and corrected the semantic PR-title scope.
 - Use `develop` for normal feature integration and `main` for release promotion; preserve an existing PR's actual base.
 - Use dedicated worktrees and draft PRs.
 - Treat configuration errors as blockers.
-- Verify GPG signature and DCO trailer before pushing.
+- Verify every commit against the repository signature/DCO policy before pushing.
 - Keep coverage measurement and gating independent of provider selection.
 - Require module-level coverage classification for critical orchestration code.
 - Treat new warning output as a validation failure unless it is explicitly

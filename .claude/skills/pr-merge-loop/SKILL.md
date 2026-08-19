@@ -79,7 +79,7 @@ Do not merge a PR until all of these are true:
 3. required CI checks are green
 4. the selected review route is complete
 5. all blocking findings from that route are fixed and verified
-6. every PR commit has current GitHub-verified GPG and DCO evidence when the repository requires it
+6. every PR commit has current accepted GitHub-verified signature and DCO evidence when the repository requires it
 
 If any gate is unclear, report it explicitly before merging.
 
@@ -141,7 +141,7 @@ After a lower PR merges:
 
 - rebase the next PR onto the updated default branch or the correct new base
 - resolve conflicts carefully
-- reverify GPG/DCO for every rewritten commit, tree identity, and range-diff evidence if the repo requires them
+- reverify signature/DCO policy for every rewritten commit, tree identity, and range-diff evidence if the repo requires them
 - force-push with `--force-with-lease`
 - rerun the smallest relevant local validation if the rebase was non-trivial
 

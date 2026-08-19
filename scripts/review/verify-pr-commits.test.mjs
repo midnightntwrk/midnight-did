@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 
 import {
   evaluateCommitIntegrity,
+  loadCommitIntegrityPolicy,
   verifyPullRequestCommits,
 } from "./verify-pr-commits.mjs";
 
@@ -135,6 +136,103 @@ test("parses the complete terminal trailer block and reports missing or mismatch
   );
   assert.match(result[0].failures[0].reason, /terminal trailer block/);
   assert.match(result[1].failures[0].reason, /does not match commit author/);
+});
+
+test("accepts configured GPG and SSH signatures and reports unsupported types clearly", () => {
+  const result = evaluateCommitIntegrity([
+    fixture.commits.goodFirst,
+    fixture.commits.sshSigned,
+    fixture.commits.unsupportedSignature,
+    fixture.commits.badMiddleSignature,
+  ]);
+
+  assert.deepEqual(
+    result.map(({ ok }) => ok),
+    [true, true, false, false],
+  );
+  assert.match(result[2].failures[0].reason, /SmimeSignature is not allowed/);
+  assert.doesNotMatch(result[2].failures[0].reason, /not valid \(VALID\)/);
+  assert.match(result[3].failures[0].reason, /not valid \(INVALID\)/);
+});
+
+test("DCO exemptions are explicit and bound to GitHub-resolved bot logins", () => {
+  const policy = {
+    acceptedSignatureTypes: ["GpgSignature", "SshSignature"],
+    dcoExemptBots: [
+      {
+        authorLogin: "dependabot[bot]",
+        signatureSignerLogins: ["web-flow"],
+      },
+      {
+        authorLogin: "renovate[bot]",
+        signatureSignerLogins: ["web-flow"],
+      },
+    ],
+  };
+  const spoofedRenovate = {
+    ...fixture.commits.renovate,
+    oid: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1",
+    author: {
+      ...fixture.commits.renovate.author,
+      user: { login: "untrusted-contributor" },
+    },
+  };
+  const untrustedSignerBot = {
+    ...fixture.commits.renovate,
+    oid: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2",
+    signature: {
+      ...fixture.commits.renovate.signature,
+      signer: { login: "untrusted-contributor" },
+    },
+  };
+  const result = evaluateCommitIntegrity(
+    [
+      fixture.commits.dependabot,
+      fixture.commits.renovate,
+      spoofedRenovate,
+      untrustedSignerBot,
+    ],
+    policy,
+  );
+
+  assert.deepEqual(
+    result.map(({ ok }) => ok),
+    [true, true, false, false],
+  );
+  assert.deepEqual(
+    result
+      .slice(0, 2)
+      .map(({ exemptions }) => [
+        exemptions[0].authorLogin,
+        exemptions[0].signatureSignerLogin,
+      ]),
+    [
+      ["dependabot[bot]", "web-flow"],
+      ["renovate[bot]", "web-flow"],
+    ],
+  );
+  assert.equal(result[2].failures[0].type, "dco");
+  assert.equal(result[3].failures[0].type, "dco");
+});
+
+test("loads the repository commit-integrity policy", async () => {
+  const policy = await loadCommitIntegrityPolicy(
+    join(repoRoot, ".github", "review-policy.json"),
+  );
+  assert.deepEqual(policy.acceptedSignatureTypes, [
+    "GpgSignature",
+    "SshSignature",
+  ]);
+  assert.deepEqual(policy.dcoExemptBots, [
+    {
+      authorLogin: "dependabot[bot]",
+      signatureSignerLogins: ["web-flow"],
+    },
+    {
+      authorLogin: "renovate[bot]",
+      signatureSignerLogins: ["web-flow"],
+    },
+  ]);
 });
 
 test("empty commit sets fail closed", async () => {
@@ -318,8 +416,17 @@ test("trusted-base workflow and package scripts retain local/CI integrity wiring
     workflow,
     /contents\/scripts\/review\/verify-pr-commits\.mjs\?ref=\$\{BASE_SHA\}/,
   );
-  assert.match(workflow, /node "\$\{RUNNER_TEMP\}\/verify-pr-commits\.mjs"/);
+  assert.match(
+    workflow,
+    /contents\/\.github\/review-policy\.json\?ref=\$\{BASE_SHA\}/,
+  );
+  assert.match(workflow, /--policy "\$\{RUNNER_TEMP\}\/review-policy\.json"/);
   assert.match(workflow, /- edited/);
+  assert.match(
+    workflow,
+    /group: pr-commit-integrity-\$\{\{ github\.event\.pull_request\.number \}\}/,
+  );
+  assert.match(workflow, /cancel-in-progress: true/);
   assert.match(
     packageJson.scripts["test:pr-commit-integrity"],
     /verify-pr-commits\.test\.mjs/,

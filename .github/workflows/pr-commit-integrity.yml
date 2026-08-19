@@ -11,6 +11,10 @@ on:
       - synchronize
       - edited
 
+concurrency:
+  group: pr-commit-integrity-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pull-requests: read
@@ -32,11 +36,17 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           verifier="${RUNNER_TEMP}/verify-pr-commits.mjs"
+          policy="${RUNNER_TEMP}/review-policy.json"
           gh api \
             -H "Accept: application/vnd.github.raw+json" \
             "repos/${GITHUB_REPOSITORY}/contents/scripts/review/verify-pr-commits.mjs?ref=${BASE_SHA}" \
             > "${verifier}"
+          gh api \
+            -H "Accept: application/vnd.github.raw+json" \
+            "repos/${GITHUB_REPOSITORY}/contents/.github/review-policy.json?ref=${BASE_SHA}" \
+            > "${policy}"
           test -s "${verifier}"
+          test -s "${policy}"
 
       - name: Verify every pull-request commit
         env:
@@ -48,3 +58,4 @@ jobs:
           --repo "${GITHUB_REPOSITORY}"
           --pr "${PR_NUMBER}"
           --head-sha "${HEAD_SHA}"
+          --policy "${RUNNER_TEMP}/review-policy.json"

@@ -12,7 +12,7 @@ Target branch: usually `develop`; release-promotion PRs target `main`.
 - [ ] Tests are provided (if possible)
 - [ ] Mandatory local source-change gate passed with `nix develop --command pnpm run verify`
   - This includes strict light/core, integration-report, and `pnpm run coverage:all`. Explain any unavailable command in the PR body.
-- [ ] Every PR commit has a GitHub-verified GPG signature and matching terminal DCO trailer
+- [ ] Every PR commit has an accepted GitHub-verified signature; every non-exempt human commit has a matching terminal DCO trailer
 - [ ] Any history rewrite reverified every commit, tree identity, and `git range-diff` where applicable
 - [ ] Key commits have useful messages
 - [ ] All check jobs of the CI have succeeded

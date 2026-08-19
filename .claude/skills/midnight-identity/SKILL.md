@@ -50,7 +50,7 @@ Use the dedicated authoritative worktree and Nix environment required by
 For Compact/Schnorr work, include the contract build/tests and managed-artifact
 checks. For docs/Nix/browser work, include docs build and visual checks.
 
-Repository-facing commits and PRs follow the exact-head, all-commit GPG/DCO,
+Repository-facing commits and PRs follow the exact-head, all-commit signature/DCO,
 routed-review, current-head feedback-audit, retrospective, and human-approval
 procedures in `AGENT.md`. This skill provides no alternate merge or review path.
 

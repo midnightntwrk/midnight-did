@@ -1,13 +1,19 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_MAX_PAGES = 10;
+const DEFAULT_POLICY_PATH = ".github/review-policy.json";
+const DEFAULT_COMMIT_INTEGRITY_POLICY = Object.freeze({
+  acceptedSignatureTypes: Object.freeze(["GpgSignature", "SshSignature"]),
+  dcoExemptBots: Object.freeze([]),
+});
 
-const COMMITS_QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$pageSize:Int!,$cursor:String){repository(owner:$owner,name:$repo){pullRequest(number:$pr){headRefOid commits(first:$pageSize,after:$cursor){totalCount nodes{commit{oid message author{name email} signature{isValid state signature}}} pageInfo{hasNextPage endCursor}}}}}`;
+const COMMITS_QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$pageSize:Int!,$cursor:String){repository(owner:$owner,name:$repo){pullRequest(number:$pr){headRefOid commits(first:$pageSize,after:$cursor){totalCount nodes{commit{oid message author{name email user{login}} signature{__typename isValid state signature signer{login}}}} pageInfo{hasNextPage endCursor}}}}}`;
 const HEAD_QUERY = `query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){headRefOid}}}`;
 
 function usage() {
@@ -17,6 +23,7 @@ Verify the GitHub signature state and terminal DCO trailer of every commit in a
 pull request. The result is valid only for the supplied exact head SHA.
 
 Options:
+  --policy <path>       Trusted review policy (default: ${DEFAULT_POLICY_PATH})
   --page-size <number>  GraphQL page size (default: ${DEFAULT_PAGE_SIZE}, max: 100)
   --max-pages <number>  Fail-closed pagination cap (default: ${DEFAULT_MAX_PAGES})
   -h, --help            Show this help
@@ -32,7 +39,11 @@ function positiveInt(value, name, max = Number.MAX_SAFE_INTEGER) {
 }
 
 function parseArgs(argv) {
-  const options = { pageSize: DEFAULT_PAGE_SIZE, maxPages: DEFAULT_MAX_PAGES };
+  const options = {
+    pageSize: DEFAULT_PAGE_SIZE,
+    maxPages: DEFAULT_MAX_PAGES,
+    policyPath: DEFAULT_POLICY_PATH,
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "-h" || arg === "--help") return { help: true };
@@ -43,6 +54,7 @@ function parseArgs(argv) {
     if (arg === "--repo") options.repo = value;
     else if (arg === "--pr") options.pr = positiveInt(value, "--pr");
     else if (arg === "--head-sha") options.expectedHeadSha = value;
+    else if (arg === "--policy") options.policyPath = value;
     else if (arg === "--page-size")
       options.pageSize = positiveInt(value, "--page-size", 100);
     else if (arg === "--max-pages")
@@ -85,46 +97,158 @@ function terminalSignoffs(message) {
   });
 }
 
-export function evaluateCommitIntegrity(commits) {
+function normalizeCommitIntegrityPolicy(policy) {
+  const acceptedSignatureTypes = policy?.acceptedSignatureTypes;
+  const dcoExemptBots = policy?.dcoExemptBots;
+  if (
+    !Array.isArray(acceptedSignatureTypes) ||
+    acceptedSignatureTypes.length === 0 ||
+    acceptedSignatureTypes.some(
+      (type) =>
+        typeof type !== "string" ||
+        !/^[A-Za-z][A-Za-z0-9]*Signature$/.test(type),
+    )
+  ) {
+    throw new Error(
+      "commit integrity policy must define a non-empty acceptedSignatureTypes array",
+    );
+  }
+  if (
+    !Array.isArray(dcoExemptBots) ||
+    dcoExemptBots.some(
+      (entry) =>
+        !entry ||
+        typeof entry !== "object" ||
+        typeof entry.authorLogin !== "string" ||
+        !/^[A-Za-z0-9-]+\[bot\]$/.test(entry.authorLogin) ||
+        !Array.isArray(entry.signatureSignerLogins) ||
+        entry.signatureSignerLogins.length === 0 ||
+        entry.signatureSignerLogins.some(
+          (login) =>
+            typeof login !== "string" ||
+            !/^[A-Za-z0-9-]+(?:\[bot\])?$/.test(login),
+        ),
+    )
+  ) {
+    throw new Error(
+      "commit integrity policy must define dcoExemptBots with bot authorLogin and non-empty signatureSignerLogins",
+    );
+  }
+  return {
+    acceptedSignatureTypes: [...new Set(acceptedSignatureTypes)],
+    dcoExemptBots: dcoExemptBots.map((entry) => ({
+      authorLogin: entry.authorLogin.toLowerCase(),
+      signatureSignerLogins: [
+        ...new Set(
+          entry.signatureSignerLogins.map((login) => login.toLowerCase()),
+        ),
+      ],
+    })),
+  };
+}
+
+export async function loadCommitIntegrityPolicy(policyPath) {
+  let raw;
+  try {
+    raw = await readFile(policyPath, "utf8");
+  } catch (error) {
+    throw new Error(
+      `could not read commit integrity policy at ${policyPath}: ${error.message}`,
+    );
+  }
+  let document;
+  try {
+    document = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(
+      `commit integrity policy at ${policyPath} is invalid JSON: ${error.message}`,
+    );
+  }
+  if (document?.version !== 1 || !document.commitIntegrity) {
+    throw new Error(
+      `commit integrity policy at ${policyPath} must define version 1 and commitIntegrity`,
+    );
+  }
+  return normalizeCommitIntegrityPolicy(document.commitIntegrity);
+}
+
+export function evaluateCommitIntegrity(
+  commits,
+  policy = DEFAULT_COMMIT_INTEGRITY_POLICY,
+) {
+  const normalizedPolicy = normalizeCommitIntegrityPolicy(policy);
+  const acceptedTypes = new Set(normalizedPolicy.acceptedSignatureTypes);
+  const dcoExemptBots = new Map(
+    normalizedPolicy.dcoExemptBots.map((entry) => [
+      entry.authorLogin,
+      new Set(entry.signatureSignerLogins),
+    ]),
+  );
   return commits.map((commit) => {
     const failures = [];
-    if (
-      commit?.signature?.isValid !== true ||
-      !String(commit?.signature?.signature ?? "").includes(
-        "BEGIN PGP SIGNATURE",
-      )
-    ) {
+    const exemptions = [];
+    if (commit?.signature?.isValid !== true) {
       failures.push({
         type: "signature",
         reason: `GitHub signature verification is not valid${commit?.signature?.state ? ` (${commit.signature.state})` : ""}`,
       });
+    } else if (!acceptedTypes.has(commit?.signature?.__typename)) {
+      failures.push({
+        type: "signature",
+        reason: `GitHub signature type ${commit?.signature?.__typename ?? "missing"} is not allowed (accepted: ${normalizedPolicy.acceptedSignatureTypes.join(", ")})`,
+      });
     }
-    const signoffs = terminalSignoffs(commit?.message);
-    const authorName = String(commit?.author?.name ?? "").trim();
-    const authorEmail = String(commit?.author?.email ?? "")
+
+    const authorLogin = String(commit?.author?.user?.login ?? "")
       .trim()
       .toLowerCase();
-    if (signoffs.length === 0) {
-      failures.push({
-        type: "dco",
-        reason:
-          "terminal trailer block has no Signed-off-by: Name <email> trailer",
-      });
-    } else if (
-      !authorName ||
-      !authorEmail ||
-      !signoffs.some(
-        (signoff) =>
-          signoff.name === authorName && signoff.email === authorEmail,
-      )
+    const signatureSignerLogin = String(commit?.signature?.signer?.login ?? "")
+      .trim()
+      .toLowerCase();
+    if (
+      authorLogin &&
+      signatureSignerLogin &&
+      dcoExemptBots.get(authorLogin)?.has(signatureSignerLogin)
     ) {
-      failures.push({
+      exemptions.push({
         type: "dco",
-        reason:
-          "Signed-off-by trailer does not match commit author name and email",
+        authorLogin,
+        signatureSignerLogin,
+        reason: `DCO trailer requirement is exempt for policy-listed bot ${authorLogin} signed by ${signatureSignerLogin}`,
       });
+    } else {
+      const signoffs = terminalSignoffs(commit?.message);
+      const authorName = String(commit?.author?.name ?? "").trim();
+      const authorEmail = String(commit?.author?.email ?? "")
+        .trim()
+        .toLowerCase();
+      if (signoffs.length === 0) {
+        failures.push({
+          type: "dco",
+          reason:
+            "terminal trailer block has no Signed-off-by: Name <email> trailer",
+        });
+      } else if (
+        !authorName ||
+        !authorEmail ||
+        !signoffs.some(
+          (signoff) =>
+            signoff.name === authorName && signoff.email === authorEmail,
+        )
+      ) {
+        failures.push({
+          type: "dco",
+          reason:
+            "Signed-off-by trailer does not match commit author name and email",
+        });
+      }
     }
-    return { sha: commit?.oid ?? null, ok: failures.length === 0, failures };
+    return {
+      sha: commit?.oid ?? null,
+      ok: failures.length === 0,
+      failures,
+      exemptions,
+    };
   });
 }
 
@@ -170,6 +294,7 @@ export async function verifyPullRequestCommits({
   expectedHeadSha,
   pageSize = DEFAULT_PAGE_SIZE,
   maxPages = DEFAULT_MAX_PAGES,
+  policy = DEFAULT_COMMIT_INTEGRITY_POLICY,
   requestGraphql = defaultGraphqlRequest,
 }) {
   const [owner, name] = repo.split("/");
@@ -266,7 +391,7 @@ export async function verifyPullRequestCommits({
     });
   }
 
-  const evaluated = evaluateCommitIntegrity(commits);
+  const evaluated = evaluateCommitIntegrity(commits, policy);
   failures.push(...flattenFailures(evaluated));
   const status = failures.some((failure) => failure.type === "api")
     ? "error"
@@ -338,7 +463,8 @@ async function main() {
     process.stdout.write(`${usage()}\n`);
     return;
   }
-  const result = await verifyPullRequestCommits(options);
+  const policy = await loadCommitIntegrityPolicy(options.policyPath);
+  const result = await verifyPullRequestCommits({ ...options, policy });
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   if (!result.ok) process.exitCode = 1;
 }

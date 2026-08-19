@@ -52,6 +52,8 @@ test("branch, runtime, local-validation, and exact-head review invariants stay d
   assert.match(agent, /records only `requested`/);
   assert.match(agent, /audit-pr-feedback\.mjs/);
   assert.match(agent, /verify every commit in the PR range/);
+  assert.match(agent, /GPG or SSH signature/);
+  assert.match(agent, /Policy-listed dependency bots/);
   assert.match(packageJson.scripts.verify, /coverage:all/);
   for (const runtimePath of [
     "/.pi-subagents/",
@@ -61,4 +63,18 @@ test("branch, runtime, local-validation, and exact-head review invariants stay d
     assert.match(ignore, new RegExp(runtimePath.replaceAll("/", "\\/")));
   }
   assert.deepEqual(policy.audit.requiredReviewerLogins, ["patextreme"]);
+  assert.deepEqual(policy.commitIntegrity.acceptedSignatureTypes, [
+    "GpgSignature",
+    "SshSignature",
+  ]);
+  assert.deepEqual(policy.commitIntegrity.dcoExemptBots, [
+    {
+      authorLogin: "dependabot[bot]",
+      signatureSignerLogins: ["web-flow"],
+    },
+    {
+      authorLogin: "renovate[bot]",
+      signatureSignerLogins: ["web-flow"],
+    },
+  ]);
 });

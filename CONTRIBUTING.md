@@ -29,7 +29,7 @@ Please do not report suspected security vulnerabilities in public issues. Follow
 - **Follow existing style:** Use the repository's TypeScript, Compact, linting, and formatting conventions.
 - **Write tests:** Include unit tests, integration tests, or documented validation evidence appropriate to the change.
 - **Use clear commits:** Prefer Conventional Commit style messages, for example `fix(api): handle invalid DID resolution`.
-- **Sign and sign off every commit:** Every PR commit must have a GitHub-verified GPG signature and a terminal DCO trailer matching the commit author (`Signed-off-by: Name <email>`).
+- **Sign and sign off every commit:** Every human-authored PR commit must have a GitHub-verified GPG or SSH signature and a terminal DCO trailer matching the commit author (`Signed-off-by: Name <email>`). Repository-policy-listed dependency bots must still have a valid accepted signature, but are exempt from the human DCO author/trailer match because their GitHub-generated trailers do not consistently use the bot account email.
 - **Open a PR to the right branch:** Most PRs target `develop`; release-promotion PRs target `main`.
 - **Respond to review:** Maintainers may request changes, additional tests, documentation updates, or downstream-impact notes.
 
