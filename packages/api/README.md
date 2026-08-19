@@ -64,10 +64,31 @@ API enforces lifecycle rules around:
 - active DID: allows updates
 - deactivated DID: mutating operations rejected
 - controller authorization: signs a domain-separated digest containing contract id, current version, operation name, and operation arguments before each controller-gated mutation
-- controller rotation: generates a new wallet-local secret, derives the next controller public key locally, submits the rotation circuit with a current-version controller signature, and stores the new secret after the transaction succeeds
+- controller rotation: generates a new wallet-local secret, persists it in a pending slot, derives the next controller public key locally, and submits the rotation circuit with a current-version controller signature. The pending secret is promoted and cleared only after finalized transaction data returns; ambiguous submission/finality failures retain it for ledger reconciliation
 - controller recovery: a dedicated `recoveryAuthorityPublicKey` can authorize `recoverControllerKey` to rotate the active controller key; ordinary controller-gated operations require only the active controller secret, while recovery requires the matching recovery secret
 
 (Exact schema/canonicalization rules live in `domain`.)
+
+## Explicit Verification-Method Removal
+
+`removeVerificationMethod` and `removeSchnorrJubjubVerificationMethod` each
+submit at most one removal circuit call. They never remove DID verification
+relationships implicitly. If the method is still referenced, the API rejects
+before signing or submission with `VerificationMethodReferencedError`:
+
+- `code` is `verification_method_referenced`;
+- `methodId` is the selected physical ledger identifier;
+- `relations` lists current references in canonical DID relation order.
+
+Applications choose the cleanup order by calling
+`removeVerificationMethodRelation` once per relationship and then calling the
+method-removal helper. These independently finalized transactions are not
+atomic. After an ambiguous or partial failure, re-read ledger/DID state, skip
+operations already reflected on-chain, and submit only the outstanding steps.
+Removing an absent relationship remains an explicit error rather than an
+idempotent no-op. The Compact removal circuits independently reject referenced
+methods, so API preflight is useful typed feedback but not the authority for
+direct callers or concurrent updates.
 
 ## Controller Secret Recovery Posture
 
@@ -79,6 +100,14 @@ caller explicitly supplies, the `recoverySecretKey` matching the on-ledger
 that recovery call and are not newly persisted into active private state, though
 an already stored recovery secret that matches the on-ledger recovery authority
 is preserved when the new controller secret is promoted.
+
+If rotation or recovery submission throws without finalized transaction data, the
+API retains the pending replacement secret because receipt loss cannot prove that
+the on-chain operation failed. Re-read the on-ledger `controllerPublicKey` before
+retrying. If the replacement public key is active, promote the retained secret
+with `recoverPendingControllerPrivateState({ rotationFinalized: true })`; if the
+old public key is still active, a new attempt may replace the stale pending
+candidate. Do not retry while the ledger outcome is unknown.
 
 Applications should back up controller and recovery private state alongside
 their wallet backup material, protect it with custody controls appropriate for

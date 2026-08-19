@@ -68,7 +68,9 @@ const privateStateFromSecret = (
  * Rotates the DID controller key to a freshly derived controller public key.
  *
  * The replacement secret is first written to a pending recovery slot, then
- * promoted to active private state after the transaction finalizes.
+ * promoted to active private state after finalized transaction data returns.
+ * Ambiguous submission/finality failures retain the pending slot so receipt
+ * loss cannot destroy the only persisted copy of a finalized replacement key.
  */
 export const rotateControllerKey = async (
   didContract: DeployedMidnightDIDContract,
@@ -86,7 +88,8 @@ export const rotateControllerKey = async (
 
   await savePendingControllerPrivateState(providers, nextPrivateState);
 
-  let finalized = false;
+  let submissionStarted = false;
+  let finalizedDataReceived = false;
   try {
     const [signature, expectedVersion] = await createControllerAuthorization(
       didContract,
@@ -100,12 +103,13 @@ export const rotateControllerKey = async (
           ),
         ),
     );
+    submissionStarted = true;
     const result = await didContract.callTx.rotateControllerKey(
       nextControllerPublicKey,
       signature,
       expectedVersion,
     );
-    finalized = true;
+    finalizedDataReceived = true;
 
     await savePrivateState(providers, nextPrivateState);
     try {
@@ -119,15 +123,13 @@ export const rotateControllerKey = async (
 
     return result.public;
   } catch (error: unknown) {
-    if (!finalized) {
-      try {
-        await clearPendingControllerPrivateState(providers);
-      } catch (cleanupError: unknown) {
-        getLogger().warn(
-          { error: cleanupError },
-          "Controller key rotation failed before finalization, and pending private state cleanup failed.",
-        );
-      }
+    if (!finalizedDataReceived) {
+      getLogger().warn(
+        { error, submissionStarted },
+        submissionStarted
+          ? "Controller key rotation did not return finalized transaction data. Pending private state was retained because the ledger outcome is unknown; re-read controllerPublicKey before retrying."
+          : "Controller key rotation failed before submission. Pending private state was retained; confirm the on-ledger controllerPublicKey before retrying.",
+      );
     } else {
       getLogger().error(
         { error },
@@ -142,7 +144,8 @@ export const rotateControllerKey = async (
  * Rotates the DID controller key using the on-ledger recovery public key.
  *
  * The recovery key is intentionally narrow: it can only rotate the controller
- * key; it cannot mutate the DID document or rotate itself.
+ * key; it cannot mutate the DID document or rotate itself. Pending replacement
+ * state follows the same receipt-loss retention rule as controller rotation.
  */
 export const recoverControllerKey = async (
   didContract: DeployedMidnightDIDContract,
@@ -200,7 +203,8 @@ export const recoverControllerKey = async (
 
   await savePendingControllerPrivateState(providers, nextPrivateState);
 
-  let finalized = false;
+  let submissionStarted = false;
+  let finalizedDataReceived = false;
   try {
     const digest = asSchnorrJubjubDigest(
       DIDContract.pureCircuits.recoverControllerKeyAuthorizationDigest(
@@ -213,12 +217,13 @@ export const recoverControllerKey = async (
       activeRecoverySecretKey,
       digest,
     );
+    submissionStarted = true;
     const result = await didContract.callTx.recoverControllerKey(
       nextControllerPublicKey,
       signature,
       ledgerState.version,
     );
-    finalized = true;
+    finalizedDataReceived = true;
 
     await savePrivateState(providers, nextPrivateState);
     try {
@@ -232,15 +237,13 @@ export const recoverControllerKey = async (
 
     return result.public;
   } catch (error: unknown) {
-    if (!finalized) {
-      try {
-        await clearPendingControllerPrivateState(providers);
-      } catch (cleanupError: unknown) {
-        getLogger().warn(
-          { error: cleanupError },
-          "Controller recovery failed before finalization, and pending private state cleanup failed.",
-        );
-      }
+    if (!finalizedDataReceived) {
+      getLogger().warn(
+        { error, submissionStarted },
+        submissionStarted
+          ? "Controller recovery did not return finalized transaction data. Pending private state was retained because the ledger outcome is unknown; re-read controllerPublicKey before retrying."
+          : "Controller recovery failed before submission. Pending private state was retained; confirm the on-ledger controllerPublicKey before retrying.",
+      );
     } else {
       getLogger().error(
         { error },

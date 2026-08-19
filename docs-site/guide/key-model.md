@@ -74,7 +74,12 @@ operation-bound signatures cannot be reused for a different mutation or changed
 arguments.
 
 `rotateControllerKey` accepts only the next derived `controllerPublicKey`; the
-replacement secret remains wallet-local and is promoted after finalization.
+replacement secret remains wallet-local in a pending slot and is promoted after
+finalized transaction data returns. If submission/finality throws, the pending
+secret is retained because receipt loss cannot determine ledger outcome. Re-read
+`controllerPublicKey` before retrying and use
+`recoverPendingControllerPrivateState({ rotationFinalized: true })` only after
+confirming that the replacement key finalized.
 
 ## Controller Recovery and Backup Posture
 

@@ -12,14 +12,13 @@ vi.mock("../controller-authorization.js", () => ({
   ]),
 }));
 
-import { LedgerVerificationMethodRelationMap } from "../ledger-mappers.js";
-import { type DeployedMidnightDIDContract } from "../types.js";
+import { VerificationMethodReferencedError } from "../verification-method-errors.js";
 import {
   assertExistingVerificationMethodRelationsCompatible,
+  assertVerificationMethodIsNotReferenced,
   assertVerificationMethodRelationAbsent,
   assertVerificationMethodRelationCompatible,
   assertVerificationMethodRelationPresent,
-  removePresentVerificationMethodRelations,
   verificationMethodRelationMemberships,
   VerificationMethodRelations,
 } from "../verification-method-relations.js";
@@ -221,55 +220,58 @@ describe("verification method relation operations", () => {
     ).toThrow(/cannot be used/);
   });
 
-  it("removes a method only from relations where it is present", async () => {
-    const setVerificationMethodRelation = vi.fn(async () => ({
-      public: { txId: "0x1" },
-    }));
-    const didContract = {
-      callTx: { setVerificationMethodRelation },
-    } as unknown as DeployedMidnightDIDContract;
+  it.each(["opaque", "SchnorrJubjub"] as const)(
+    "rejects a %s method referenced by all five relations with a typed, canonically ordered error",
+    (kind) => {
+      const methodId = kind === "opaque" ? "#key-1" : "#jubjub-1";
+      const state = ledgerState({
+        authentication: [methodId],
+        assertionMethod: [methodId],
+        keyAgreement: [methodId],
+        capabilityInvocation: [methodId],
+        capabilityDelegation: [methodId],
+        ...(kind === "opaque"
+          ? {
+              verificationMethods: new Map([
+                [methodId, DIDContract.CurveType.Ed25519],
+              ]),
+            }
+          : { schnorrJubjubVerificationMethods: [methodId] }),
+      });
 
-    await removePresentVerificationMethodRelations(
-      didContract,
-      {} as any,
-      [
-        {
-          relation: VerificationMethodRelationType.Authentication,
-          member: true,
-        },
-        {
-          relation: VerificationMethodRelationType.AssertionMethod,
-          member: false,
-        },
-        {
-          relation: VerificationMethodRelationType.KeyAgreement,
-          member: true,
-        },
-      ],
-      "#key-1",
-    );
+      expect(() =>
+        assertVerificationMethodIsNotReferenced(state, methodId),
+      ).toThrow(VerificationMethodReferencedError);
 
-    expect(setVerificationMethodRelation).toHaveBeenCalledTimes(2);
-    expect(setVerificationMethodRelation).toHaveBeenNthCalledWith(
-      1,
-      LedgerVerificationMethodRelationMap[
-        VerificationMethodRelationType.Authentication
-      ],
-      "#key-1",
-      DIDContract.SetMutation.Remove,
-      { announcement: { x: 1n, y: 2n }, response: 3n },
-      7n,
-    );
-    expect(setVerificationMethodRelation).toHaveBeenNthCalledWith(
-      2,
-      LedgerVerificationMethodRelationMap[
-        VerificationMethodRelationType.KeyAgreement
-      ],
-      "#key-1",
-      DIDContract.SetMutation.Remove,
-      { announcement: { x: 1n, y: 2n }, response: 3n },
-      7n,
-    );
+      try {
+        assertVerificationMethodIsNotReferenced(state, methodId);
+        throw new Error("expected relation preflight to reject");
+      } catch (error: unknown) {
+        expect(error).toMatchObject({
+          name: "VerificationMethodReferencedError",
+          code: "verification_method_referenced",
+          methodId,
+          relations: [
+            VerificationMethodRelationType.Authentication,
+            VerificationMethodRelationType.AssertionMethod,
+            VerificationMethodRelationType.KeyAgreement,
+            VerificationMethodRelationType.CapabilityInvocation,
+            VerificationMethodRelationType.CapabilityDelegation,
+          ],
+        });
+        expect(
+          Object.isFrozen(
+            (error as VerificationMethodReferencedError).relations,
+          ),
+        ).toBe(true);
+      }
+    },
+  );
+
+  it("accepts methods absent from every verification relationship", () => {
+    expect(() =>
+      assertVerificationMethodIsNotReferenced(ledgerState(), "#key-1"),
+    ).not.toThrow();
   });
 
   it("keeps undefined outside the supported relation sweep", () => {

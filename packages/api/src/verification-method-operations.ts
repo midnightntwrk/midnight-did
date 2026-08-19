@@ -30,10 +30,10 @@ import {
 } from "./types.js";
 import {
   assertExistingVerificationMethodRelationsCompatible,
+  assertVerificationMethodIsNotReferenced,
   assertVerificationMethodRelationAbsent,
   assertVerificationMethodRelationCompatible,
   assertVerificationMethodRelationPresent,
-  purgeVerificationMethodFromAllRelations,
 } from "./verification-method-relations.js";
 
 export const addVerificationMethod = async (
@@ -132,6 +132,13 @@ export const updateVerificationMethod = async (
   return result.public;
 };
 
+/**
+ * Removes one unreferenced opaque JWK verification method.
+ *
+ * This helper never removes verification relationships implicitly.
+ * @throws {VerificationMethodReferencedError} when any relationship still
+ * references the selected physical ledger id.
+ */
 export const removeVerificationMethod = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
@@ -151,11 +158,7 @@ export const removeVerificationMethod = async (
     ledgerIdentifier(didContract, canonicalMethodId),
     "opaque",
   );
-  await purgeVerificationMethodFromAllRelations(
-    didContract,
-    providers,
-    normalizedMethodId,
-  );
+  assertVerificationMethodIsNotReferenced(didState, normalizedMethodId);
 
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
@@ -168,6 +171,7 @@ export const removeVerificationMethod = async (
           normalizedMethodId,
         ),
       ),
+    didState,
   );
   const result = await didContract.callTx.removeVerificationMethod(
     normalizedMethodId,
@@ -268,6 +272,13 @@ export const updateSchnorrJubjubVerificationMethod = async (
   return result.public;
 };
 
+/**
+ * Removes one unreferenced native SchnorrJubjub verification method.
+ *
+ * This helper never removes verification relationships implicitly.
+ * @throws {VerificationMethodReferencedError} when any relationship still
+ * references the selected physical ledger id.
+ */
 export const removeSchnorrJubjubVerificationMethod = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
@@ -287,11 +298,7 @@ export const removeSchnorrJubjubVerificationMethod = async (
     ledgerIdentifier(didContract, canonicalMethodId),
     "schnorrJubjub",
   );
-  await purgeVerificationMethodFromAllRelations(
-    didContract,
-    providers,
-    normalizedMethodId,
-  );
+  assertVerificationMethodIsNotReferenced(didState, normalizedMethodId);
 
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
@@ -304,6 +311,7 @@ export const removeSchnorrJubjubVerificationMethod = async (
           normalizedMethodId,
         ),
       ),
+    didState,
   );
   const result = await didContract.callTx.removeSchnorrJubjubVerificationMethod(
     normalizedMethodId,

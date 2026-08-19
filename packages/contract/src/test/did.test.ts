@@ -608,6 +608,51 @@ describe("DID smart contract", () => {
       ).toEqual(false);
     });
 
+    it.each([
+      [VerificationMethodRelation.Authentication, "authenticationRelation"],
+      [VerificationMethodRelation.AssertionMethod, "assertionMethodRelation"],
+      [
+        VerificationMethodRelation.CapabilityInvocation,
+        "capabilityInvocationRelation"
+      ],
+      [
+        VerificationMethodRelation.CapabilityDelegation,
+        "capabilityDelegationRelation"
+      ]
+    ])(
+      "should fail to remove a SchnorrJubjub method referenced by %s",
+      (relation, ledgerRelation) => {
+        simulator.addSchnorrJubjubVerificationMethod({
+          id: "#key-schnorr-referenced",
+          publicKey: deriveJubjubPublicKeyFromSeed(keyBytes(44))
+        });
+        simulator.addVerificationMethodRelation(
+          relation,
+          "#key-schnorr-referenced"
+        );
+
+        expect(() =>
+          simulator.removeSchnorrJubjubVerificationMethod(
+            "#key-schnorr-referenced"
+          )
+        ).toThrow(new RegExp(`still referenced in ${ledgerRelation}`));
+      }
+    );
+
+    it("should reject using a SchnorrJubjub method for key agreement", () => {
+      simulator.addSchnorrJubjubVerificationMethod({
+        id: "#key-schnorr-agreement",
+        publicKey: deriveJubjubPublicKeyFromSeed(keyBytes(45))
+      });
+
+      expect(() =>
+        simulator.addVerificationMethodRelation(
+          VerificationMethodRelation.KeyAgreement,
+          "#key-schnorr-agreement"
+        )
+      ).toThrow(/KeyAgreement requires an agreement verification method/);
+    });
+
     it("should verify SchnorrJubjub signatures against the ledger method id", () => {
       const seed = new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1));
       const publicKey = deriveJubjubPublicKeyFromSeed(seed);
@@ -809,25 +854,51 @@ describe("DID smart contract", () => {
       expect(ledger.version).toEqual(2n);
     });
 
-    it("should fail to remove a verification method while relations still exist", () => {
-      simulator.addVerificationMethod({
-        id: "#key-2",
-        typ: VerificationMethodType.JsonWebKey,
-        publicKeyJwk: {
-          kty: KeyType.OKP,
-          crv: CurveType.Ed25519,
-          ...okpKey(333)
-        }
-      });
-      simulator.addVerificationMethodRelation(
+    it.each([
+      [
         VerificationMethodRelation.Authentication,
-        "#key-2"
-      );
+        CurveType.Ed25519,
+        "authenticationRelation"
+      ],
+      [
+        VerificationMethodRelation.AssertionMethod,
+        CurveType.Ed25519,
+        "assertionMethodRelation"
+      ],
+      [
+        VerificationMethodRelation.KeyAgreement,
+        CurveType.X25519,
+        "keyAgreementRelation"
+      ],
+      [
+        VerificationMethodRelation.CapabilityInvocation,
+        CurveType.Ed25519,
+        "capabilityInvocationRelation"
+      ],
+      [
+        VerificationMethodRelation.CapabilityDelegation,
+        CurveType.Ed25519,
+        "capabilityDelegationRelation"
+      ]
+    ])(
+      "should fail to remove a verification method referenced by %s",
+      (relation, curve, ledgerRelation) => {
+        simulator.addVerificationMethod({
+          id: "#key-2",
+          typ: VerificationMethodType.JsonWebKey,
+          publicKeyJwk: {
+            kty: KeyType.OKP,
+            crv: curve,
+            ...okpKey(333)
+          }
+        });
+        simulator.addVerificationMethodRelation(relation, "#key-2");
 
-      expect(() => simulator.removeVerificationMethod("#key-2")).toThrow(
-        /still referenced in authenticationRelation/
-      );
-    });
+        expect(() => simulator.removeVerificationMethod("#key-2")).toThrow(
+          new RegExp(`still referenced in ${ledgerRelation}`)
+        );
+      }
+    );
 
     it("should remove verification method and its relations", () => {
       // Add verification method

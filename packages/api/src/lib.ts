@@ -39,6 +39,10 @@ export {
   updateService,
 } from "./service-operations.js";
 export {
+  type ReferencedVerificationMethodRelation,
+  VerificationMethodReferencedError,
+} from "./verification-method-errors.js";
+export {
   addSchnorrJubjubVerificationMethod,
   addVerificationMethod,
   addVerificationMethodRelation,

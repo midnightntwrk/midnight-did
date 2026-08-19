@@ -27,7 +27,7 @@ flowchart LR
 | Create or attach to a DID contract | `deploy`, `createDID`, `joinContract` |
 | Resolve DID state | `resolve`, `getMidnightDIDLedgerState` |
 | Rotate controller key | `rotateControllerKey` |
-| Manage JWK verification methods | `addVerificationMethod`, `updateVerificationMethod`, `removeVerificationMethod` |
+| Manage JWK verification methods | `addVerificationMethod`, `updateVerificationMethod`, `removeVerificationMethod`, `VerificationMethodReferencedError` |
 | Manage SchnorrJubjub methods | `addSchnorrJubjubVerificationMethod`, `updateSchnorrJubjubVerificationMethod`, `removeSchnorrJubjubVerificationMethod` |
 | Manage verification relationships | `addVerificationMethodRelation`, `removeVerificationMethodRelation` |
 | Verify native signatures | `verifySchnorrJubjubDigestSignature` |
@@ -62,6 +62,18 @@ BLS12381G1, and BLS12381G2 JWKs.
 Use `addSchnorrJubjubVerificationMethod` for native Midnight SchnorrJubjub keys.
 The resolver merges both stores into one DID Document. See
 [Key Model](/guide/key-model) before choosing a key profile.
+
+Verification-method deletion is explicit and non-atomic with relationship
+cleanup. Remove selected relationships one transaction at a time, re-read state
+after ambiguous failures, and then remove the method. Method removal never
+purges relationships implicitly and throws `VerificationMethodReferencedError`
+(with `code`, `methodId`, and ordered `relations`) while references remain.
+Missing relationship removals continue to fail explicitly.
+
+Controller rotation and recovery retain the pending replacement secret whenever
+finalized transaction data is not returned. Reconcile `controllerPublicKey`
+from ledger state before retrying; promote the pending secret only after
+confirming the replacement key finalized.
 
 ## Generated TypeDoc
 

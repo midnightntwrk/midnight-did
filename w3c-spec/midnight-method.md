@@ -745,7 +745,7 @@ The `created` and `updated` ledger fields are populated from the `currentTimesta
 
 The `currentTimestamp` value is client-asserted metadata, not a Midnight consensus timestamp. A conforming implementation MUST NOT treat `created` or `updated` as proof that an operation occurred at a particular wall-clock time unless an application adds an independent time attestation. Resolvers and SDKs MAY sanity-check the values for obviously too-low or too-high timestamps, malformed conversions, and local monotonicity expectations, but those checks only bound implausible values; they do not make the metadata ledger-authoritative. Resolvers SHOULD surface the values as DID Document Metadata only and SHOULD document that they are controller/prover-supplied.
 
-Each update is a separate circuit call; batching multiple logical operations into a single on-chain call is not supported in this version.
+Each API update operation maps to one circuit call; this method version defines no batch circuit. This design choice is separate from a hard Midnight transaction constraint: transaction contract-call sections cannot be merged, so separately submitted contract calls cannot be combined into one atomic transaction. Application workflows that compose multiple DID operations MUST treat them as independently finalized, non-atomic state transitions and MUST own ordering, ledger re-reads, and retry reconciliation.
 
 ## 7.1. Create
 
@@ -864,8 +864,9 @@ The circuit implementations are in [`packages/contract/src/did.compact`](https:/
 Controller rotation and recovery notes:
 - `rotateControllerKey` accepts only the next `controllerPublicKey`, not the next secret; authorization is supplied as a current-version controller signature. The next controller public key MUST differ from the current controller public key and from the recovery authority public key.
 - `recoverControllerKey` accepts only the next `controllerPublicKey`, a recovery-authority signature, and the expected version. The recovery authority can rotate the active controller key but cannot mutate DID Document content, verification methods, services, aliases, deactivation state, or the recovery authority itself.
-- The API helper generates a new 32-byte secret, derives the next public key locally with the contract package's `deriveControllerPublicKey` helper, submits the rotation or recovery transaction, and stores the new secret in private state after the transaction succeeds.
-- If the transaction finalizes but private-state persistence fails, the wallet must recover the same new secret to continue updating the DID.
+- The API helper generates a new 32-byte secret, persists it in a pending private-state slot, derives the next public key locally with the contract package's `deriveControllerPublicKey` helper, and submits the rotation or recovery transaction. After finalized transaction data returns, it promotes the pending secret to active private state and clears the pending slot.
+- If submission or finality throws before returning finalized transaction data, the helper MUST retain pending state because a thrown receipt/finality stream cannot distinguish rejection from successful on-chain finalization. The application MUST re-read the on-ledger `controllerPublicKey` before retrying. If the replacement key is active, it can promote the pending state with `recoverPendingControllerPrivateState({ rotationFinalized: true })`; if the old key remains active, it can retry.
+- If the transaction finalizes but active private-state persistence fails, the wallet must recover the same pending secret to continue updating the DID.
 - Implementations that bypass the API and submit an arbitrary `newControllerPublicKey` are responsible for retaining the matching preimage. Losing the matching secret makes subsequent DID updates impossible unless the recovery authority remains available.
 
 ### 7.3.1 Add Verification Method
@@ -956,10 +957,24 @@ Deletes a verification method by its `id`.
 - Inputs: `id` — the verification method identifier.
 - Constraints:
   - Removing a non-existent method MUST fail.
-  - Removing a Jubjub method MUST use `removeSchnorrJubjubVerificationMethod`, which applies the same relation cleanup behavior as the generic API helper.
+  - Removing a method that remains in any verification relationship MUST fail. The Compact circuit checks all five relation sets for both opaque JWK and native SchnorrJubjub stores, including direct calls that bypass API preflight.
+  - Removing a Jubjub method MUST use `removeSchnorrJubjubVerificationMethod`, which follows the same single-operation semantics.
+  - The API MUST NOT remove relationships implicitly. Its state preflight throws `VerificationMethodReferencedError` with code `verification_method_referenced`, the selected physical `methodId`, and referenced relationships in canonical order before authorization/submission.
+
+Applications explicitly remove selected relationships first, then remove the
+method. Each call is an independently finalized transaction. After a partial or
+ambiguous failure, the application MUST re-read current state and submit only
+outstanding operations; no purge/delete sequence is atomic or automatically
+resumable.
 
 Example:
 ```typescript
+await removeVerificationMethodRelation(
+  didContract,
+  providers,
+  VerificationMethodRelationType.Authentication,
+  '#key-1'
+);
 await removeVerificationMethod(didContract, providers, '#key-1');
 ```
 
@@ -989,7 +1004,7 @@ Removes a verification method `methodId` from a DID Core verification relationsh
 
 - Inputs: `relation`, `methodId`.
 - Constraints:
-  - Removing an unknown pair (relation, methodId) MUST fail.
+  - Removing an unknown pair (relation, methodId) MUST fail. Explicit relation removal remains non-idempotent; applications retrying a multi-step cleanup MUST re-read state and skip pairs already removed.
 
 Example:
 ```typescript

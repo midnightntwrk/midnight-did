@@ -346,7 +346,7 @@ describe("controller operations", () => {
     expect(privateStateProvider.remove).not.toHaveBeenCalled();
   });
 
-  it("clears pending recovery state when the transaction fails before finalization", async () => {
+  it("keeps pending recovery state when transaction outcome is unknown", async () => {
     const recoverySecretKey = new Uint8Array(32).fill(9);
     mockLedgerForRecovery(recoverySecretKey);
     const recoverControllerKeyTx = vi.fn(async () => {
@@ -369,9 +369,7 @@ describe("controller operations", () => {
       ),
     ).rejects.toThrow(/recovery transaction rejected/);
 
-    expect(privateStateProvider.remove).toHaveBeenCalledWith(
-      MidnightDIDPendingControllerPrivateStateId,
-    );
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
   });
 
   it("keeps pending recovery state when active promotion fails after finalization", async () => {
@@ -451,7 +449,7 @@ describe("controller operations", () => {
     expect(privateStateProvider.remove).not.toHaveBeenCalled();
   });
 
-  it("clears pending state when the transaction fails before finalization", async () => {
+  it("keeps pending state when transaction outcome is unknown", async () => {
     const rotateControllerKeyTx = vi.fn(async () => {
       throw new Error("transaction rejected");
     });
@@ -472,9 +470,77 @@ describe("controller operations", () => {
       ),
     ).rejects.toThrow(/transaction rejected/);
 
-    expect(privateStateProvider.remove).toHaveBeenCalledWith(
-      MidnightDIDPendingControllerPrivateStateId,
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+  });
+
+  it("keeps the replacement secret when rotation finalizes but its receipt is lost", async () => {
+    const oldSecretKey = new Uint8Array(32).fill(4);
+    const newSecretKey = new Uint8Array(32).fill(23);
+    let ledgerControllerPublicKey = deriveControllerPublicKey(oldSecretKey);
+    const rotateControllerKeyTx = vi.fn(
+      async (nextControllerPublicKey: typeof ledgerControllerPublicKey) => {
+        ledgerControllerPublicKey = nextControllerPublicKey;
+        throw new Error("finality receipt stream disconnected");
+      },
     );
+    const privateStateProvider = {
+      get: vi.fn(async () => ({ secretKey: oldSecretKey })),
+      set: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+    };
+
+    await expect(
+      rotateControllerKey(
+        { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+        { privateStateProvider } as any,
+        newSecretKey,
+      ),
+    ).rejects.toThrow(/receipt stream disconnected/);
+
+    expect(ledgerControllerPublicKey).toEqual(
+      deriveControllerPublicKey(newSecretKey),
+    );
+    expect(privateStateProvider.set).toHaveBeenCalledWith(
+      MidnightDIDPendingControllerPrivateStateId,
+      { secretKey: newSecretKey },
+    );
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+  });
+
+  it("keeps the replacement secret when recovery finalizes but its receipt is lost", async () => {
+    const recoverySecretKey = new Uint8Array(32).fill(24);
+    const oldSecretKey = new Uint8Array(32).fill(25);
+    const newSecretKey = new Uint8Array(32).fill(26);
+    mockLedgerForRecovery(recoverySecretKey);
+    let ledgerControllerPublicKey = deriveControllerPublicKey(oldSecretKey);
+    const recoverControllerKeyTx = vi.fn(
+      async (nextControllerPublicKey: typeof ledgerControllerPublicKey) => {
+        ledgerControllerPublicKey = nextControllerPublicKey;
+        throw new Error("finality receipt stream disconnected");
+      },
+    );
+    const privateStateProvider = {
+      get: vi.fn(async () => ({ recoverySecretKey, secretKey: oldSecretKey })),
+      set: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+    };
+
+    await expect(
+      recoverControllerKey(
+        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        { privateStateProvider } as any,
+        newSecretKey,
+      ),
+    ).rejects.toThrow(/receipt stream disconnected/);
+
+    expect(ledgerControllerPublicKey).toEqual(
+      deriveControllerPublicKey(newSecretKey),
+    );
+    expect(privateStateProvider.set).toHaveBeenCalledWith(
+      MidnightDIDPendingControllerPrivateStateId,
+      { recoverySecretKey, secretKey: newSecretKey },
+    );
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
   });
 
   it("keeps pending state when active promotion fails after finalization", async () => {
