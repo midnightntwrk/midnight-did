@@ -635,7 +635,7 @@ describe("DID smart contract", () => {
           simulator.removeSchnorrJubjubVerificationMethod(
             "#key-schnorr-referenced"
           )
-        ).toThrow(new RegExp(`still referenced in ${ledgerRelation}`));
+        ).toThrow(`Verification method still referenced in ${ledgerRelation}`);
       }
     );
 
@@ -895,7 +895,7 @@ describe("DID smart contract", () => {
         simulator.addVerificationMethodRelation(relation, "#key-2");
 
         expect(() => simulator.removeVerificationMethod("#key-2")).toThrow(
-          new RegExp(`still referenced in ${ledgerRelation}`)
+          `Verification method still referenced in ${ledgerRelation}`
         );
       }
     );
