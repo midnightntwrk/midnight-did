@@ -308,13 +308,13 @@ export function auditFeedback(policy, input, expectedHeadSha) {
   const formal = latestBy(input.formalReviews.items, (review) =>
     lower(authorLogin(review)),
   );
-  const markers = latestBy(
-    structuredMarkers(
-      input.issueComments.items,
-      policy.audit.structuredMarker,
-    ).filter((marker) => required.has(lower(marker.author))),
-    (marker) => lower(marker.author),
-  );
+  // Structured AgentFlow findings are durable current-head evidence. Unlike a
+  // formal review's latest state, a later clean marker must not erase an
+  // earlier authorized non-clean marker without an explicit resolution path.
+  const markers = structuredMarkers(
+    input.issueComments.items,
+    policy.audit.structuredMarker,
+  ).filter((marker) => required.has(lower(marker.author)));
 
   const clean = [];
   const findings = [];

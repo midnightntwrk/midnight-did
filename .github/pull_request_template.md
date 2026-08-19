@@ -4,6 +4,15 @@
 
 Target branch: usually `develop`; release-promotion PRs target `main`.
 
+## Draft evidence lifecycle
+
+This PR starts as a draft. Keep this body to scope, acceptance criteria,
+definition of done, and non-goals while validation and review are pending. Do
+not put a review verdict, CI outcome, or copied SHA-bound evidence in the PR
+body. Validate the current head first; only then refresh exact-head evidence in
+the authoritative CI and gate records. Any new commit invalidates prior dynamic
+evidence and requires a new validation before review evidence is refreshed.
+
 ## Submission Checklist
 
 <!-- Please check all the boxes that apply to your pull request. -->
@@ -12,7 +21,7 @@ Target branch: usually `develop`; release-promotion PRs target `main`.
 - [ ] Tests are provided (if possible)
 - [ ] Mandatory local source-change gate passed with `nix develop --command pnpm run verify`
   - This includes strict light/core, integration-report, and `pnpm run coverage:all`. Explain any unavailable command in the PR body.
-- [ ] Every PR commit has an accepted GitHub-verified signature; every non-exempt human commit has a matching terminal DCO trailer
+- [ ] Every PR commit has a GitHub-verified GPG signature and matching terminal DCO trailer
 - [ ] Any history rewrite reverified every commit, tree identity, and `git range-diff` where applicable
 - [ ] Key commits have useful messages
 - [ ] All check jobs of the CI have succeeded

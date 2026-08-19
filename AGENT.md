@@ -168,12 +168,20 @@ pnpm --filter ./packages/contract test
 
 ## PR review dispatch
 
-Every PR workflow—dev-loop or standalone—must run
-`scripts/review/request-pr-reviews.mjs` after PR creation and after every push.
-The caller must supply the exact current head SHA. The helper validates that SHA
-before and after routing, records only `requested`, and never claims review
-completion. Local Claude/Agy review is advisory and runs only when explicitly
-selected with `--local-agents`; it is not approval evidence.
+Every PR starts as a draft. Its initial body records scope, acceptance criteria,
+definition of done, and non-goals only: it must not claim a review verdict,
+current-head CI state, or copied review evidence. Leave validation and review
+checklist entries unchecked until they are proved for the current head.
+
+Run local validation for the exact current head before requesting review. Only
+after that validation completes may a workflow run
+`scripts/review/request-pr-reviews.mjs` for that head. The caller must supply
+the exact current head SHA. The helper validates that SHA before and after
+routing, records only `requested`, and never claims review completion. Local
+Claude/Agy review is advisory and runs only when explicitly selected with
+`--local-agents`; it is not approval evidence. A new commit invalidates every
+prior dynamic verdict: refresh exact-head evidence only after validating the new
+head, and keep the authoritative CI and gate records outside the PR body.
 
 Before dispatch, record the retrospective under `docs/retrospectives/` and
 write its ignored completion checkpoint with:
@@ -218,7 +226,7 @@ node .pi/npm/node_modules/@input-output-hk/agent-review/dist/cli/index.js init -
     must remain outside the branch.
 11. Create PRs as drafts first and do not mark them ready until the draft gate
     and validation evidence are complete.
-12. Commit with DCO and a GitHub-verifiable GPG or SSH signature for repository-facing work.
+12. Commit with DCO and a GitHub-verifiable GPG signature for repository-facing work.
 
 Commit form:
 
@@ -227,11 +235,11 @@ git commit -S --signoff -m "<type>: <subject>"
 ```
 
 Before pushing, verify every commit in the PR range against repository policy.
-Each human-authored commit needs a valid GitHub-verifiable GPG or SSH signature
-and a terminal `Signed-off-by` trailer. Policy-listed dependency bots retain the
-signature requirement but are exempt from the human author/trailer match. After push, run the GitHub-backed
-all-commit verifier for the exact head; latest-commit-only checks are
-insufficient.
+Every commit, including automation-authored commits, needs a valid
+GitHub-verifiable GPG signature and a terminal `Signed-off-by` trailer matching
+the commit author name and email. SSH signatures and bot DCO exemptions are not
+accepted. After push, run the GitHub-backed all-commit verifier for the exact
+head; latest-commit-only checks are insufficient.
 
 ```bash
 git log --show-signature --pretty=fuller origin/<actual-base>..HEAD

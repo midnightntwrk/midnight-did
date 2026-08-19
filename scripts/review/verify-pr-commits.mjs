@@ -9,8 +9,7 @@ const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_MAX_PAGES = 10;
 const DEFAULT_POLICY_PATH = ".github/review-policy.json";
 const DEFAULT_COMMIT_INTEGRITY_POLICY = Object.freeze({
-  acceptedSignatureTypes: Object.freeze(["GpgSignature", "SshSignature"]),
-  dcoExemptBots: Object.freeze([]),
+  acceptedSignatureTypes: Object.freeze(["GpgSignature"]),
 });
 
 const COMMITS_QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$pageSize:Int!,$cursor:String){repository(owner:$owner,name:$repo){pullRequest(number:$pr){headRefOid commits(first:$pageSize,after:$cursor){totalCount nodes{commit{oid message author{name email user{login}} signature{__typename isValid state signature signer{login}}}} pageInfo{hasNextPage endCursor}}}}}`;
@@ -19,8 +18,9 @@ const HEAD_QUERY = `query($owner:String!,$repo:String!,$pr:Int!){repository(owne
 function usage() {
   return `Usage: verify-pr-commits.mjs --repo <owner/name> --pr <number> --head-sha <sha> [options]
 
-Verify the GitHub signature state and terminal DCO trailer of every commit in a
-pull request. The result is valid only for the supplied exact head SHA.
+Verify that every pull-request commit has a GitHub-valid GPG signature and a
+terminal author-matching DCO trailer. The result is valid only for the supplied
+exact head SHA.
 
 Options:
   --policy <path>       Trusted review policy (default: ${DEFAULT_POLICY_PATH})
@@ -99,51 +99,22 @@ function terminalSignoffs(message) {
 
 function normalizeCommitIntegrityPolicy(policy) {
   const acceptedSignatureTypes = policy?.acceptedSignatureTypes;
-  const dcoExemptBots = policy?.dcoExemptBots;
   if (
     !Array.isArray(acceptedSignatureTypes) ||
-    acceptedSignatureTypes.length === 0 ||
-    acceptedSignatureTypes.some(
-      (type) =>
-        typeof type !== "string" ||
-        !/^[A-Za-z][A-Za-z0-9]*Signature$/.test(type),
-    )
+    acceptedSignatureTypes.length !== 1 ||
+    acceptedSignatureTypes[0] !== "GpgSignature"
   ) {
     throw new Error(
-      "commit integrity policy must define a non-empty acceptedSignatureTypes array",
+      "commit integrity policy must accept only GpgSignature",
     );
   }
-  if (
-    !Array.isArray(dcoExemptBots) ||
-    dcoExemptBots.some(
-      (entry) =>
-        !entry ||
-        typeof entry !== "object" ||
-        typeof entry.authorLogin !== "string" ||
-        !/^[A-Za-z0-9-]+\[bot\]$/.test(entry.authorLogin) ||
-        !Array.isArray(entry.signatureSignerLogins) ||
-        entry.signatureSignerLogins.length === 0 ||
-        entry.signatureSignerLogins.some(
-          (login) =>
-            typeof login !== "string" ||
-            !/^[A-Za-z0-9-]+(?:\[bot\])?$/.test(login),
-        ),
-    )
-  ) {
+  if (Object.hasOwn(policy ?? {}, "dcoExemptBots")) {
     throw new Error(
-      "commit integrity policy must define dcoExemptBots with bot authorLogin and non-empty signatureSignerLogins",
+      "commit integrity policy must not define DCO exemptions; every commit requires a matching terminal Signed-off-by trailer",
     );
   }
   return {
-    acceptedSignatureTypes: [...new Set(acceptedSignatureTypes)],
-    dcoExemptBots: dcoExemptBots.map((entry) => ({
-      authorLogin: entry.authorLogin.toLowerCase(),
-      signatureSignerLogins: [
-        ...new Set(
-          entry.signatureSignerLogins.map((login) => login.toLowerCase()),
-        ),
-      ],
-    })),
+    acceptedSignatureTypes: ["GpgSignature"],
   };
 }
 
@@ -178,12 +149,6 @@ export function evaluateCommitIntegrity(
 ) {
   const normalizedPolicy = normalizeCommitIntegrityPolicy(policy);
   const acceptedTypes = new Set(normalizedPolicy.acceptedSignatureTypes);
-  const dcoExemptBots = new Map(
-    normalizedPolicy.dcoExemptBots.map((entry) => [
-      entry.authorLogin,
-      new Set(entry.signatureSignerLogins),
-    ]),
-  );
   return commits.map((commit) => {
     const failures = [];
     const exemptions = [];
@@ -199,50 +164,32 @@ export function evaluateCommitIntegrity(
       });
     }
 
-    const authorLogin = String(commit?.author?.user?.login ?? "")
+    const signoffs = terminalSignoffs(commit?.message);
+    const authorName = String(commit?.author?.name ?? "").trim();
+    const authorEmail = String(commit?.author?.email ?? "")
       .trim()
       .toLowerCase();
-    const signatureSignerLogin = String(commit?.signature?.signer?.login ?? "")
-      .trim()
-      .toLowerCase();
-    if (
-      authorLogin &&
-      signatureSignerLogin &&
-      dcoExemptBots.get(authorLogin)?.has(signatureSignerLogin)
-    ) {
-      exemptions.push({
+    if (signoffs.length === 0) {
+      failures.push({
         type: "dco",
-        authorLogin,
-        signatureSignerLogin,
-        reason: `DCO trailer requirement is exempt for policy-listed bot ${authorLogin} signed by ${signatureSignerLogin}`,
+        reason:
+          "terminal trailer block has no Signed-off-by: Name <email> trailer",
       });
-    } else {
-      const signoffs = terminalSignoffs(commit?.message);
-      const authorName = String(commit?.author?.name ?? "").trim();
-      const authorEmail = String(commit?.author?.email ?? "")
-        .trim()
-        .toLowerCase();
-      if (signoffs.length === 0) {
-        failures.push({
-          type: "dco",
-          reason:
-            "terminal trailer block has no Signed-off-by: Name <email> trailer",
-        });
-      } else if (
-        !authorName ||
-        !authorEmail ||
-        !signoffs.some(
-          (signoff) =>
-            signoff.name === authorName && signoff.email === authorEmail,
-        )
-      ) {
-        failures.push({
-          type: "dco",
-          reason:
-            "Signed-off-by trailer does not match commit author name and email",
-        });
-      }
+    } else if (
+      !authorName ||
+      !authorEmail ||
+      !signoffs.some(
+        (signoff) =>
+          signoff.name === authorName && signoff.email === authorEmail,
+      )
+    ) {
+      failures.push({
+        type: "dco",
+        reason:
+          "Signed-off-by trailer does not match commit author name and email",
+      });
     }
+
     return {
       sha: commit?.oid ?? null,
       ok: failures.length === 0,

@@ -40,11 +40,12 @@ test("devloops policy keeps supported explicit routing, provenance, dynamic cost
 });
 
 test("branch, runtime, local-validation, and exact-head review invariants stay documented", async () => {
-  const [agent, ignore, packageJson, policy] = await Promise.all([
+  const [agent, ignore, packageJson, policy, prTemplate] = await Promise.all([
     text("AGENT.md"),
     text(".gitignore"),
     JSON.parse(await text("package.json")),
     JSON.parse(await text(".github/review-policy.json")),
+    text(".github/pull_request_template.md"),
   ]);
   assert.match(agent, /origin\/develop.*normal feature integration base/);
   assert.match(agent, /main.*default.*release branch/);
@@ -52,8 +53,13 @@ test("branch, runtime, local-validation, and exact-head review invariants stay d
   assert.match(agent, /records only `requested`/);
   assert.match(agent, /audit-pr-feedback\.mjs/);
   assert.match(agent, /verify every commit in the PR range/);
-  assert.match(agent, /GPG or SSH signature/);
-  assert.match(agent, /Policy-listed dependency bots/);
+  assert.match(agent, /GPG signature/);
+  assert.match(agent, /Every commit, including automation-authored commits/);
+  assert.doesNotMatch(agent, /GPG or SSH signature/);
+  assert.doesNotMatch(agent, /Policy-listed dependency bots/);
+  assert.match(prTemplate, /This PR starts as a draft/);
+  assert.match(prTemplate, /Validate the current head first/);
+  assert.match(prTemplate, /not put a review verdict, CI outcome, or copied SHA-bound evidence/);
   assert.match(packageJson.scripts.verify, /coverage:all/);
   for (const runtimePath of [
     "/.pi-subagents/",
@@ -63,18 +69,6 @@ test("branch, runtime, local-validation, and exact-head review invariants stay d
     assert.match(ignore, new RegExp(runtimePath.replaceAll("/", "\\/")));
   }
   assert.deepEqual(policy.audit.requiredReviewerLogins, ["patextreme"]);
-  assert.deepEqual(policy.commitIntegrity.acceptedSignatureTypes, [
-    "GpgSignature",
-    "SshSignature",
-  ]);
-  assert.deepEqual(policy.commitIntegrity.dcoExemptBots, [
-    {
-      authorLogin: "dependabot[bot]",
-      signatureSignerLogins: ["web-flow"],
-    },
-    {
-      authorLogin: "renovate[bot]",
-      signatureSignerLogins: ["web-flow"],
-    },
-  ]);
+  assert.deepEqual(policy.commitIntegrity.acceptedSignatureTypes, ["GpgSignature"]);
+  assert.equal(Object.hasOwn(policy.commitIntegrity, "dcoExemptBots"), false);
 });

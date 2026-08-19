@@ -138,7 +138,7 @@ test("parses the complete terminal trailer block and reports missing or mismatch
   assert.match(result[1].failures[0].reason, /does not match commit author/);
 });
 
-test("accepts configured GPG and SSH signatures and reports unsupported types clearly", () => {
+test("accepts only configured GPG signatures and rejects SSH or unsupported types", () => {
   const result = evaluateCommitIntegrity([
     fixture.commits.goodFirst,
     fixture.commits.sshSigned,
@@ -148,91 +148,52 @@ test("accepts configured GPG and SSH signatures and reports unsupported types cl
 
   assert.deepEqual(
     result.map(({ ok }) => ok),
-    [true, true, false, false],
+    [true, false, false, false],
   );
+  assert.match(result[1].failures[0].reason, /SshSignature is not allowed/);
   assert.match(result[2].failures[0].reason, /SmimeSignature is not allowed/);
   assert.doesNotMatch(result[2].failures[0].reason, /not valid \(VALID\)/);
   assert.match(result[3].failures[0].reason, /not valid \(INVALID\)/);
 });
 
-test("DCO exemptions are explicit and bound to GitHub-resolved bot logins", () => {
-  const policy = {
-    acceptedSignatureTypes: ["GpgSignature", "SshSignature"],
-    dcoExemptBots: [
-      {
-        authorLogin: "dependabot[bot]",
-        signatureSignerLogins: ["web-flow"],
-      },
-      {
-        authorLogin: "renovate[bot]",
-        signatureSignerLogins: ["web-flow"],
-      },
-    ],
-  };
-  const spoofedRenovate = {
-    ...fixture.commits.renovate,
-    oid: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1",
-    author: {
-      ...fixture.commits.renovate.author,
-      user: { login: "untrusted-contributor" },
-    },
-  };
-  const untrustedSignerBot = {
-    ...fixture.commits.renovate,
-    oid: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2",
-    signature: {
-      ...fixture.commits.renovate.signature,
-      signer: { login: "untrusted-contributor" },
-    },
-  };
-  const result = evaluateCommitIntegrity(
-    [
-      fixture.commits.dependabot,
-      fixture.commits.renovate,
-      spoofedRenovate,
-      untrustedSignerBot,
-    ],
-    policy,
-  );
+test("DCO is required for every commit, including bot-authored commits", () => {
+  const result = evaluateCommitIntegrity([
+    fixture.commits.dependabot,
+    fixture.commits.renovate,
+  ]);
 
+  assert.deepEqual(result.map(({ ok }) => ok), [false, false]);
   assert.deepEqual(
-    result.map(({ ok }) => ok),
-    [true, true, false, false],
+    result.map(({ failures }) => failures.map(({ type }) => type)),
+    [["dco"], ["dco"]],
   );
-  assert.deepEqual(
-    result
-      .slice(0, 2)
-      .map(({ exemptions }) => [
-        exemptions[0].authorLogin,
-        exemptions[0].signatureSignerLogin,
-      ]),
-    [
-      ["dependabot[bot]", "web-flow"],
-      ["renovate[bot]", "web-flow"],
-    ],
+  assert.deepEqual(result.map(({ exemptions }) => exemptions), [[], []]);
+});
+
+test("policy rejects SSH signature and bot DCO-exemption broadening", () => {
+  assert.throws(
+    () =>
+      evaluateCommitIntegrity([fixture.commits.goodFirst], {
+        acceptedSignatureTypes: ["GpgSignature", "SshSignature"],
+      }),
+    /accept only GpgSignature/,
   );
-  assert.equal(result[2].failures[0].type, "dco");
-  assert.equal(result[3].failures[0].type, "dco");
+  assert.throws(
+    () =>
+      evaluateCommitIntegrity([fixture.commits.goodFirst], {
+        acceptedSignatureTypes: ["GpgSignature"],
+        dcoExemptBots: [],
+      }),
+    /must not define DCO exemptions/,
+  );
 });
 
 test("loads the repository commit-integrity policy", async () => {
   const policy = await loadCommitIntegrityPolicy(
     join(repoRoot, ".github", "review-policy.json"),
   );
-  assert.deepEqual(policy.acceptedSignatureTypes, [
-    "GpgSignature",
-    "SshSignature",
-  ]);
-  assert.deepEqual(policy.dcoExemptBots, [
-    {
-      authorLogin: "dependabot[bot]",
-      signatureSignerLogins: ["web-flow"],
-    },
-    {
-      authorLogin: "renovate[bot]",
-      signatureSignerLogins: ["web-flow"],
-    },
-  ]);
+  assert.deepEqual(policy.acceptedSignatureTypes, ["GpgSignature"]);
+  assert.equal(Object.hasOwn(policy, "dcoExemptBots"), false);
 });
 
 test("empty commit sets fail closed", async () => {
