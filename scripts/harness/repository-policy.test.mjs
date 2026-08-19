@@ -39,6 +39,22 @@ test("devloops policy keeps supported explicit routing, provenance, dynamic cost
   assert.match(config, /not Pat and not a substitute/);
 });
 
+test("code-scanning supply-chain remediations do not regress", async () => {
+  const [docsLinkWorkflow, packageJson, lockfile] = await Promise.all([
+    text(".github/workflows/docs-link-check.yml"),
+    JSON.parse(await text("package.json")),
+    text("pnpm-lock.yaml"),
+  ]);
+
+  assert.doesNotMatch(
+    docsLinkWorkflow,
+    /\bnpm\s+(?:install|i)\s+(?:--global|-g)\b/,
+  );
+  assert.equal(packageJson.pnpm?.overrides?.nanoid, "^3.3.18");
+  assert.match(lockfile, /^  nanoid@3\.3\.18:$/m);
+  assert.doesNotMatch(lockfile, /^  nanoid@3\.3\.17:$/m);
+});
+
 test("branch, runtime, local-validation, and exact-head review invariants stay documented", async () => {
   const [agent, ignore, packageJson, policy] = await Promise.all([
     text("AGENT.md"),
