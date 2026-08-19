@@ -107,6 +107,17 @@ describe("service operations", () => {
     );
   });
 
+  it("rejects an insert when a canonical or legacy service key already exists", async () => {
+    mocks.findExistingServiceLedgerId.mockReturnValue("#service");
+
+    await expect(
+      addService(didContract, providers, service as any),
+    ).rejects.toThrow(/already exists/);
+
+    expect(mocks.createControllerAuthorization).not.toHaveBeenCalled();
+    expect(didContract.callTx.setService).not.toHaveBeenCalled();
+  });
+
   it("updates a service with an update authorization", async () => {
     await expect(
       updateService(didContract, providers, service as any),
