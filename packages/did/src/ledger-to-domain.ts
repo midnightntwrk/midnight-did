@@ -7,8 +7,8 @@ import {
   DIDDocumentMetadata,
   encodeBase64Url,
   KeyType,
+  normalizeAndValidateServiceEndpoint,
   normalizeFragmentId,
-  normalizeServiceEndpoint,
   PublicKeyJwk,
   PublicKeyJwkSchema,
   resolveDIDURLReference,
@@ -244,7 +244,7 @@ export class LedgerToDomain {
   ): Service["serviceEndpoint"] {
     const normalize = (
       value: Service["serviceEndpoint"],
-    ): Service["serviceEndpoint"] => normalizeServiceEndpoint(value);
+    ): Service["serviceEndpoint"] => normalizeAndValidateServiceEndpoint(value);
 
     if (Array.isArray(endpoint)) {
       const filtered = endpoint
@@ -262,11 +262,9 @@ export class LedgerToDomain {
       if (raw === "") {
         throw new Error("Invalid serviceEndpoint: empty value");
       }
+      let parsed: unknown;
       try {
-        const parsed = JSON.parse(raw);
-        return normalize(
-          ServiceEndpointSchema.parse(parsed) as Service["serviceEndpoint"],
-        );
+        parsed = JSON.parse(raw);
       } catch {
         const direct = ServiceEndpointSchema.safeParse(raw);
         if (direct.success) {
@@ -274,6 +272,9 @@ export class LedgerToDomain {
         }
         throw new Error("Invalid serviceEndpoint: malformed JSON payload");
       }
+      return normalize(
+        ServiceEndpointSchema.parse(parsed) as Service["serviceEndpoint"],
+      );
     }
 
     const parsed = ServiceEndpointSchema.safeParse(endpoint);
@@ -284,15 +285,14 @@ export class LedgerToDomain {
   }
 
   static verificationMethodId(id: string): string {
-    // Ledger JSON uses the historical fragment-only representation. Keep it
-    // aligned with the shared normalizer; resolution itself uses
-    // absoluteDidUrlReference so path/query/fragment identity is preserved.
     const rawId = id.trim();
-    const fragment =
-      rawId.startsWith("did:") && !rawId.includes("#")
-        ? rawId.slice(rawId.lastIndexOf(":") + 1)
-        : rawId;
-    return normalizeFragmentId(fragment);
+    const legacyBareLabel =
+      !rawId.includes("#") &&
+      !rawId.startsWith("/") &&
+      !rawId.startsWith(".") &&
+      !rawId.startsWith("?") &&
+      !/^[A-Za-z][A-Za-z0-9+.-]*:/u.test(rawId);
+    return legacyBareLabel ? normalizeFragmentId(rawId) : rawId;
   }
 
   static absoluteDidUrlReference(did: string, id: string): string {
@@ -324,6 +324,7 @@ export class LedgerToDomain {
     const reference = legacyBareLabel ? `#${trimmed}` : trimmed;
     return resolveDIDURLReference(reference, did, {
       allowExternalDID: true,
+      allowExternalURL: true,
     });
   }
 

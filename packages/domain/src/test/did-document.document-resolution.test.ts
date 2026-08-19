@@ -101,24 +101,70 @@ describe("DID document construction", () => {
     expect(service.serviceEndpoint).toHaveLength(2);
   });
 
-  it("preserves duplicate service endpoints", () => {
+  it.each([
+    [
+      "identical strings",
+      ["https://example.com/didcomm", "https://example.com/didcomm"],
+    ],
+    [
+      "URI-equivalent strings",
+      ["https://EXAMPLE.com:443/didcomm", "https://example.com/didcomm"],
+    ],
+    [
+      "equivalent maps",
+      [
+        { uri: "https://example.com/didcomm", routingKeys: ["a", "b"] },
+        { routingKeys: ["a", "b"], uri: "https://example.com/didcomm" },
+      ],
+    ],
+  ])("rejects %s within one service endpoint set", (_label, endpoints) => {
+    expect(() =>
+      createDIDDocument({
+        id: exampleDid,
+        service: [
+          {
+            id: parseDIDURL(`${exampleDid}#svc-dup`),
+            type: "DIDCommV2",
+            serviceEndpoint: endpoints,
+          },
+        ],
+      }),
+    ).toThrow(/serviceEndpoint values must be unique/);
+  });
+
+  it("rejects duplicate endpoints when constructing one service", () => {
+    expect(() =>
+      createService({
+        id: `${exampleDid}#svc-duplicate-constructor`,
+        type: "DIDCommV2",
+        serviceEndpoint: [
+          "https://EXAMPLE.com:443/didcomm",
+          "https://example.com/didcomm",
+        ],
+      }),
+    ).toThrow(/serviceEndpoint values must be unique/);
+  });
+
+  it("allows the same endpoint in different services", () => {
     const doc = createDIDDocument({
       id: exampleDid,
-      service: [
-        {
-          id: parseDIDURL(`${exampleDid}#svc-dup`),
-          type: "DIDCommV2",
-          serviceEndpoint: [
-            "https://example.com/didcomm",
-            "https://example.com/didcomm",
-          ],
-        },
-      ],
+      service: ["a", "b"].map((id) => ({
+        id: parseDIDURL(`${exampleDid}#svc-${id}`),
+        type: "DIDCommV2",
+        serviceEndpoint: "https://example.com/didcomm",
+      })),
     });
-    expect(doc.service?.[0]?.serviceEndpoint).toEqual([
-      "https://example.com/didcomm",
-      "https://example.com/didcomm",
-    ]);
+    expect(doc.service).toHaveLength(2);
+  });
+
+  it("rejects an empty service endpoint set", () => {
+    expect(() =>
+      createService({
+        id: `${exampleDid}#svc-empty`,
+        type: "DIDCommV2",
+        serviceEndpoint: [],
+      }),
+    ).toThrow(/at least one value/);
   });
 
   it("rejects invalid service endpoints", () => {

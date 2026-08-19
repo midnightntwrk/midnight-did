@@ -9,6 +9,7 @@ import {
   parseMidnightDID,
   parseMidnightDIDString,
 } from "@midnight-ntwrk/midnight-did-domain";
+import { z } from "zod/v4-mini";
 
 import {
   LedgerDocumentValidationError,
@@ -99,6 +100,23 @@ class InvalidDIDDocumentError extends Error {
   }
 }
 
+class ResolverRequestError extends Error {
+  readonly resolutionCode: Extract<
+    KnownDIDResolutionErrorCode,
+    "invalidDid" | "methodNotSupported"
+  >;
+
+  constructor(
+    message: string,
+    resolutionCode: ResolverRequestError["resolutionCode"],
+    cause?: unknown,
+  ) {
+    super(message, cause === undefined ? undefined : { cause });
+    this.name = "ResolverRequestError";
+    this.resolutionCode = resolutionCode;
+  }
+}
+
 /**
  * Classify only structured errors known to be caused by malformed ledger
  * document data. Unexpected exceptions deliberately remain internalError.
@@ -117,13 +135,8 @@ const ledgerDocumentResolutionCode = (
       : "invalidDid";
   }
 
-  const issues =
-    error instanceof Error &&
-    Array.isArray((error as Error & { issues?: unknown }).issues)
-      ? (error as Error & { issues: Array<{ path?: unknown[] }> }).issues
-      : null;
-  if (error instanceof Error && error.name === "ZodError") {
-    return issues?.some((issue) =>
+  if (error instanceof z.core.$ZodError) {
+    return error.issues.some((issue) =>
       issue.path?.some((segment) => segment === "publicKeyJwk"),
     )
       ? "invalidPublicKey"
@@ -139,21 +152,11 @@ const invalidDidDocumentError = (error: unknown): InvalidDIDDocumentError =>
   );
 
 const resolutionErrorCode = (error: unknown): DIDResolutionErrorCode => {
-  if (error instanceof InvalidDIDDocumentError) return error.resolutionCode;
-
-  const message = errorMessage(error);
   if (
-    message.includes("Invalid DID") ||
-    message.includes("Invalid method-specific identifier") ||
-    message.includes("id must be a valid Midnight DID")
+    error instanceof InvalidDIDDocumentError ||
+    error instanceof ResolverRequestError
   ) {
-    return "invalidDid";
-  }
-  if (
-    message.includes("Offchain Midnight DIDs") ||
-    message.includes("Network mismatch")
-  ) {
-    return "methodNotSupported";
+    return error.resolutionCode;
   }
   return "internalError";
 };
@@ -264,18 +267,29 @@ export class MidnightDIDResolver implements MidnightDIDResolverInterface {
   }
 
   async resolveResult(did: string): Promise<MidnightResolutionResult | null> {
-    const parsed = parseMidnightDIDString(did);
+    let parsed: ReturnType<typeof parseMidnightDIDString>;
+    try {
+      parsed = parseMidnightDIDString(did);
+    } catch (error) {
+      throw new ResolverRequestError(
+        `Invalid DID: ${did}`,
+        "invalidDid",
+        error,
+      );
+    }
     const { network, id } = parseMidnightDID(parsed);
 
     if (network === MidnightNetwork.Offchain) {
-      throw new Error(
+      throw new ResolverRequestError(
         "Offchain Midnight DIDs must be resolved from their long-form encoded state, not through the ledger resolver",
+        "methodNotSupported",
       );
     }
 
     if (this.expectedNetwork !== null && network !== this.expectedNetwork) {
-      throw new Error(
+      throw new ResolverRequestError(
         `Network mismatch: DID network is ${network}, expected ${this.expectedNetwork}`,
+        "methodNotSupported",
       );
     }
 

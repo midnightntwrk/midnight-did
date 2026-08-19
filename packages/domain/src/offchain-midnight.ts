@@ -701,7 +701,7 @@ export const offchainServiceToDidDocumentService = (
       did === undefined
         ? service.id
         : resolveDIDURLReference(service.id, did, {
-            allowExternalDID: true,
+            allowExternalURL: true,
           }),
     type: service.type,
     serviceEndpoint: service.serviceEndpoint,

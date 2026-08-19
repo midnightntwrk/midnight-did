@@ -57,6 +57,8 @@ const resolveRelativeDIDURL = (did: string, reference: string): string => {
 export type DIDURLResolutionOptions = {
   /** Allow an absolute DID URL belonging to another DID subject. */
   allowExternalDID?: boolean;
+  /** Allow an absolute URL that does not use the `did` scheme. */
+  allowExternalURL?: boolean;
   /** Accept method-specific case variations in the DID subject. */
   caseInsensitiveDIDSubject?: boolean;
 };
@@ -102,6 +104,9 @@ export const resolveDIDURLReference = (
         : resolveRelativeDIDURL(canonicalSubject, suffix);
     }
 
+    if (!options.allowExternalURL) {
+      throw new Error("DID URL reference must be bound to the current DID");
+    }
     try {
       return new URL(value).href;
     } catch {

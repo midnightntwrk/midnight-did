@@ -321,18 +321,16 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     } as any);
     expect(multiTypeService.type).toEqual(["DIDCommV2", "LinkedDomains"]);
 
-    const duplicateEndpoints = LedgerToDomain.service({
-      id: "svc-dedup",
-      type: "T",
-      serviceEndpoint: JSON.stringify([
-        "https://example.com",
-        "https://EXAMPLE.com:443",
-      ]),
-    } as any);
-    expect(duplicateEndpoints.serviceEndpoint).toEqual([
-      "https://example.com",
-      "https://example.com",
-    ]);
+    expect(() =>
+      LedgerToDomain.service({
+        id: "svc-dedup",
+        type: "T",
+        serviceEndpoint: JSON.stringify([
+          "https://example.com",
+          "https://EXAMPLE.com:443",
+        ]),
+      } as any),
+    ).toThrow(/serviceEndpoint values must be unique/);
   });
 
   it("service rejects malformed serviceType and serviceEndpoint payloads", () => {
@@ -366,11 +364,16 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     }
   });
 
-  it("uses the shared fragment normalizer for ledger JSON identifiers", () => {
+  it("preserves explicit ledger JSON identifiers and normalizes legacy labels", () => {
     const did = `did:midnight:devnet:${"a".repeat(64)}`;
 
-    expect(LedgerToDomain.verificationMethodId(`${did}:key-1`)).toBe("#key-1");
-    expect(LedgerToDomain.verificationMethodId(`${did}#key-1`)).toBe("#key-1");
+    expect(LedgerToDomain.verificationMethodId("key-1")).toBe("#key-1");
+    expect(LedgerToDomain.verificationMethodId(`${did}#key-1`)).toBe(
+      `${did}#key-1`,
+    );
+    expect(LedgerToDomain.verificationMethodId(`${did}/keys/a#key-1`)).toBe(
+      `${did}/keys/a#key-1`,
+    );
   });
 
   it("toJSON flattens ledger to plain JSON with arrays", () => {

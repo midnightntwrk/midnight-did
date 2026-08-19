@@ -1,5 +1,5 @@
 import {
-  normalizeServiceEndpoint,
+  normalizeAndValidateServiceEndpoint,
   type ServiceEndpoint,
   ServiceEndpointSchema,
 } from "./did-document.js";
@@ -39,7 +39,9 @@ export const normalizeBoundDIDURL = (
   }
   let resolved: string;
   try {
+    const isServiceField = field === "service.id" || field === "serviceId";
     resolved = resolveDIDURLReference(trimmed, expectedDidSubject, {
+      allowExternalURL: isServiceField,
       caseInsensitiveDIDSubject: true,
     });
   } catch (error) {
@@ -111,7 +113,7 @@ export const serviceTypeToLedger = (serviceType: string | string[]): string => {
 
 export const serviceEndpointToLedger = (endpoint: unknown): string => {
   const parsed = ServiceEndpointSchema.parse(endpoint) as ServiceEndpoint;
-  const normalized = normalizeServiceEndpoint(parsed);
+  const normalized = normalizeAndValidateServiceEndpoint(parsed);
   return JSON.stringify(normalized);
 };
 

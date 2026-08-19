@@ -15,12 +15,12 @@
 
 These specifications use related, but not identical, identifier requirements:
 
-| Surface | DID Core 1.0 | CID 1.0 | DID Core 1.1 |
-| --- | --- | --- | --- |
-| `service.id` | URI conforming to RFC 3986 (§5.4) | Optional URL conforming to the WHATWG URL Standard (§2.1.4) | Service identifiers follow DID syntax or DID URL syntax (§5.4) |
-| Relative references | URI references are permitted by the data model | A relative value is not a safe standalone CID URL value | Relative DID URLs are explicit and may contain path, query, and fragment components (§3.2.1) |
-| Verification-method `id` | DID URL syntax (§5.2) | URL syntax (§2.2) | DID URL or relative DID URL (§5.2) |
-| Fragment resolution | DID URL semantics | Canonical document URL plus fragment (§3.4) | RFC 3986 reference resolution (§3.2.1) |
+| Surface                  | DID Core 1.0                                   | CID 1.0                                                     | DID Core 1.1                                                                                 |
+| ------------------------ | ---------------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `service.id`             | URI conforming to RFC 3986 (§5.4)              | Optional URL conforming to the WHATWG URL Standard (§2.1.4) | Service identifiers follow DID syntax or DID URL syntax (§5.4)                               |
+| Relative references      | URI references are permitted by the data model | A relative value is not a safe standalone CID URL value     | Relative DID URLs are explicit and may contain path, query, and fragment components (§3.2.1) |
+| Verification-method `id` | DID URL syntax (§5.2)                          | URL syntax (§2.2)                                           | DID URL or relative DID URL (§5.2)                                                           |
+| Fragment resolution      | DID URL semantics                              | Canonical document URL plus fragment (§3.4)                 | RFC 3986 reference resolution (§3.2.1)                                                       |
 
 A fragment-only ledger key is not a common identifier model. For example:
 
@@ -53,8 +53,8 @@ accepting relative DID URLs at input boundaries.
 2. Resolve relative DID URLs against the DID subject using RFC 3986 reference
    resolution, as required by DID Core 1.1.
 3. Preserve path, query, and fragment components during resolution.
-4. Use the resulting absolute DID URL as the canonical comparison, storage, and
-   resolver-output identity.
+4. Use the resulting absolute DID URL as the canonical comparison and
+   resolver-output identity, and as the physical ledger key for new records.
 5. Compare duplicate service and verification-method identifiers after this
    full resolution. Do not compare only fragments.
 6. Keep canonical output lossless: `/routing` resolves to
@@ -63,13 +63,13 @@ accepting relative DID URLs at input boundaries.
 For example, the following values are accepted as relative inputs and resolve
 as follows:
 
-| Input | Canonical identity |
-| --- | --- |
-| `#svc` | `did:midnight:...#svc` |
-| `/routing` | `did:midnight:.../routing` |
-| `?service=messaging` | `did:midnight:...?service=messaging` |
-| `did:midnight:.../routing` | unchanged |
-| `https://example.com/service` | unchanged, subject to method policy |
+| Input                         | Canonical identity                   |
+| ----------------------------- | ------------------------------------ |
+| `#svc`                        | `did:midnight:...#svc`               |
+| `/routing`                    | `did:midnight:.../routing`           |
+| `?service=messaging`          | `did:midnight:...?service=messaging` |
+| `did:midnight:.../routing`    | unchanged                            |
+| `https://example.com/service` | unchanged, subject to method policy  |
 
 ### Service identifiers
 
@@ -78,23 +78,47 @@ compatible with DID Core 1.1's service property profile even though CID 1.0
 allows it to be optional. Absolute URL values, including absolute DID URLs,
 are the interoperable emitted form. Relative DID URLs remain supported as
 input and storage-operation references after they can be resolved against the
-DID subject.
+DID subject. Existing current-subject fragment records remain addressable by
+their historical physical ledger key as described below.
 
-Service identifiers are not required to be fragment-only. A method-specific
-subject-binding restriction may be retained only if it is explicitly
-classified as a restriction and does not get presented as universal CID or DID
-interoperability.
+Service identifiers are not required to be fragment-only. This method accepts
+absolute non-DID service URLs but requires an absolute DID URL service id to use
+the current DID subject. This is an explicit Midnight profile restriction, not
+a universal CID or DID interoperability requirement.
 
 ### Verification methods and relationships
 
 The same resolution model applies to verification-method identifiers and
 relationship references. A relationship reference is compared with the full
 canonical absolute identifier of its target, not with a fragment-only key.
+The Midnight method profile requires verification-method and relationship
+identifiers to be bound to the current DID subject; absolute non-DID URLs and
+foreign DID URLs are rejected on these surfaces.
 
 External verification-method identifiers/controllers and key-material profiles
 remain method-policy decisions. CID 1.0 `JsonWebKey` and `Multikey` support,
 DID Core 1.1 restrictions, and the current Midnight cryptographic profile must
 be documented separately.
+
+### Legacy physical ledger keys
+
+Canonical logical identity is separate from physical ledger-key spelling. New
+records use the complete canonical URL as the physical key. Deployments created
+by earlier SDK versions can contain a `#fragment` physical key for the same
+logical `did:midnight:...#fragment` identity.
+
+State-aware SDK operations check the canonical key and this one exact legacy
+alias before update, removal, relationship, service, or Schnorr verification
+operations. They use the sole existing physical key in the contract operation
+and authorization digest. If both spellings exist, processing fails as
+ambiguous rather than selecting one. No legacy alias is derived for a path,
+query, foreign-DID, or external URL identity, so lossless URL identity is not
+collapsed. New inserts also reject an occupied legacy alias and always write
+the canonical key.
+
+This compatibility lookup is not an automatic state migration. It keeps
+existing subject-fragment records operable without changing Compact contract
+semantics or requiring redeployment.
 
 ### Contexts and processing
 
@@ -146,16 +170,21 @@ external URL service identifiers.
 
 - Ledger keys are longer than fragment-only keys.
 - API and resolver code need a real DID URL reference-resolution helper.
-- Existing fragment/path legacy entries may require migration or redeployment.
+- State-aware mutations require a ledger read to select an existing canonical
+  or legacy physical key.
+- Legacy path-like fragment spellings remain fragment identities; they are not
+  silently reinterpreted as path or query identities.
 - Full CID processor compatibility requires additional dereferencing,
   verification-material, context, and error-vector work.
 
 ## Implementation plan
 
 1. Add shared absolute DID URL/reference normalization in the domain layer.
-2. Replace fragment-only service and verification-method ledger keys with full
-   canonical identifiers.
-3. Update API add/update/remove operations to use the same canonicalization.
+2. Replace fragment-only service and verification-method keys for new writes
+   with full canonical identifiers while retaining deterministic lookup of
+   exact legacy subject-fragment keys.
+3. Update API add/update/remove/relation/signing operations to use canonical
+   identity and the sole existing physical key.
 4. Update ledger-to-domain resolution to emit canonical absolute identifiers.
 5. Add DID Core 1.0, CID 1.0, and DID Core 1.1 vectors for absolute, relative,
    path, query, fragment, external URL, and collision cases.

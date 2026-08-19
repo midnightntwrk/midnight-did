@@ -45,10 +45,15 @@ describe("resolveDIDURLReference", () => {
     ).toBe(`${did}#svc`);
   });
 
-  it("accepts absolute non-DID URLs", () => {
-    expect(resolveDIDURLReference("https://example.com/service", did)).toBe(
-      "https://example.com/service",
-    );
+  it("rejects absolute non-DID URLs unless the caller explicitly allows them", () => {
+    expect(() =>
+      resolveDIDURLReference("https://attacker.example/key#key-1", did),
+    ).toThrow(/bound to the current DID/);
+    expect(
+      resolveDIDURLReference("https://example.com/service", did, {
+        allowExternalURL: true,
+      }),
+    ).toBe("https://example.com/service");
   });
 
   it("rejects foreign DID URLs by default", () => {

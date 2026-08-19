@@ -47,13 +47,23 @@ describe("ledger-utils", () => {
     ).toThrow(/non-empty fragment/);
   });
 
-  it("rejects did url bound to a different did subject", () => {
+  it("rejects verification method references outside the current DID", () => {
+    expect(() =>
+      normalizeBoundFragmentId(
+        "https://attacker.example/key#key-1",
+        "methodId",
+        did,
+      ),
+    ).toThrow(/bound to the current DID/);
     expect(() =>
       normalizeBoundFragmentId(
         "did:midnight:testnet:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#k",
         "methodId",
         did,
       ),
+    ).toThrow(/must match the current DID/);
+    expect(() =>
+      normalizeBoundDIDURL("did:example:other#service", "service.id", did),
     ).toThrow(/must match the current DID/);
   });
 
@@ -63,12 +73,23 @@ describe("ledger-utils", () => {
     expect(serviceEndpointToLedger("https://example.com/path")).toBe(
       JSON.stringify("https://example.com/path"),
     );
+    expect(() =>
+      serviceEndpointToLedger([
+        "https://EXAMPLE.com:443/path",
+        "https://example.com/path",
+      ]),
+    ).toThrow(/serviceEndpoint values must be unique/);
     expect(
       serviceEndpointToLedger([
-        "https://example.com",
-        "https://EXAMPLE.com:443",
+        "https://example.com/primary",
+        "https://EXAMPLE.com:443/secondary",
       ]),
-    ).toBe(JSON.stringify(["https://example.com", "https://example.com"]));
+    ).toBe(
+      JSON.stringify([
+        "https://example.com/primary",
+        "https://example.com/secondary",
+      ]),
+    );
   });
 
   it("validates absolute alias uri", () => {

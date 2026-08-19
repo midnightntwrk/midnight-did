@@ -7,6 +7,7 @@ import {
   decodeOffchainMidnightDIDState,
   encodeOffchainMidnightDIDState,
   type OffchainMidnightDIDState,
+  offchainServiceToDidDocumentService,
   offchainStateToDidDocument,
   parseLongFormOffchainMidnightDIDString,
   parseOffchainStateHash,
@@ -243,6 +244,22 @@ describe("offchain Midnight DID helpers", () => {
     expect(doc).not.toHaveProperty("capabilityDelegation");
     expect(doc.service?.[0]?.id).toBe(`${did}#profile`);
     expect(parseDIDDocument(doc).id).toBe(did);
+  });
+
+  it("rejects foreign-DID service identifiers at offchain projection boundaries", () => {
+    const did = createOffchainMidnightDIDStringFromState(sampleState);
+    expect(() =>
+      offchainServiceToDidDocumentService(did, {
+        ...sampleState.service[0]!,
+        id: "did:example:other#profile",
+      } as any),
+    ).toThrow(/current DID/);
+
+    const state = structuredClone(sampleState);
+    state.service[0]!.id = "did:example:other#profile";
+    expect(() => offchainStateToDidDocument(did, state)).toThrow(
+      /relative DID URL/,
+    );
   });
 
   it("resolves relative path identifiers in the projected document", () => {

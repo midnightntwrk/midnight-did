@@ -643,6 +643,7 @@ describeApi("Midnight DID method API", () => {
     await expect(
       api.verifySchnorrJubjubDigestSignature(
         realKeyContract,
+        providers,
         jubjubMethodId,
         payloadToJubjubDigest(payload),
         jubjubSignature,

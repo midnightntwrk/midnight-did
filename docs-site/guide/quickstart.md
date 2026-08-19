@@ -155,14 +155,17 @@ const signature = signJubjubDigestFromSeed(jubjubSeed, digest);
 
 await verifySchnorrJubjubDigestSignature(
   didContract,
+  providers,
   "#jubjub-1",
   digest,
   signature,
 );
 ```
 
-The verifier reads `#jubjub-1` from ledger state. The caller does not supply a
-public key, so the proof is tied to the current DID Document state.
+The verifier resolves the canonical method identity to the sole existing
+canonical or compatible legacy ledger key before submitting the transaction.
+The caller does not supply a public key, so the proof is tied to the current DID
+Document state.
 
 ## Next Steps
 

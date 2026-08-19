@@ -162,7 +162,14 @@ const canonicalizeMidnightSubjectReference = (
   did: MidnightDIDString,
   field: string,
 ): string => {
-  const resolved = canonicalizeMidnightReference(value, did);
+  let resolved: string;
+  try {
+    resolved = canonicalizeMidnightReference(value, did);
+  } catch (error) {
+    throw new Error(`${field} '${value}' must be subject-bound`, {
+      cause: error,
+    });
+  }
   if (referenceSubject(resolved) !== did) {
     throw new Error(`${field} '${value}' must be subject-bound`);
   }
@@ -179,6 +186,7 @@ const canonicalizeMidnightServiceReference = (
   let resolved: string;
   try {
     resolved = resolveDIDURLReference(value, did, {
+      allowExternalURL: true,
       caseInsensitiveDIDSubject: true,
     });
   } catch (error) {
@@ -198,21 +206,11 @@ const normalizeMidnightDocumentReferences = (
   did: MidnightDIDString,
 ): DIDDocument => {
   const verificationMethod = doc.verificationMethod?.map((method) => {
-    let id: string;
-    try {
-      id = canonicalizeMidnightSubjectReference(
-        method.id,
-        did,
-        "verificationMethod id",
-      );
-    } catch (error) {
-      if (error instanceof Error && error.message.includes("current DID")) {
-        throw new Error(
-          `verificationMethod id '${method.id}' must be subject-bound`,
-        );
-      }
-      throw error;
-    }
+    const id = canonicalizeMidnightSubjectReference(
+      method.id,
+      did,
+      "verificationMethod id",
+    );
     const controller = MidnightDIDSchema.safeParse(method.controller);
     if (!controller.success || controller.data !== did) {
       throw new Error(

@@ -67,6 +67,27 @@ describe("ledger mappers", () => {
     ).toMatchObject({
       id: `${didSubject}?service=messaging`,
     });
+
+    expect(() =>
+      serviceToLedger(didContract, {
+        id: "did:example:other#messaging",
+        type: "DIDCommMessaging",
+        serviceEndpoint: "https://example.com/messaging",
+      }),
+    ).toThrow(/must match the current DID/);
+  });
+
+  it("rejects duplicate service endpoints before writing ledger state", () => {
+    expect(() =>
+      serviceToLedger(didContract, {
+        id: "#duplicate-endpoints",
+        type: "DIDCommMessaging",
+        serviceEndpoint: [
+          "https://EXAMPLE.com:443/messages",
+          "https://example.com/messages",
+        ],
+      }),
+    ).toThrow(/Invalid serviceEndpoint/);
   });
 
   it("normalizes OKP keys to the ledger y sentinel", () => {

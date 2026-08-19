@@ -296,7 +296,9 @@ describe("Midnight DID Document", () => {
         ],
       };
 
-      expect(() => parseMidnightDIDDocument(input)).toThrow();
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /verificationMethod id .* must be subject-bound/,
+      );
     });
 
     it("rejects verification relationships with external absolute URL ids", () => {
@@ -310,7 +312,9 @@ describe("Midnight DID Document", () => {
         authentication: ["https://attacker.example/key#key-1"],
       };
 
-      expect(() => parseMidnightDIDDocument(input)).toThrow();
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /authentication reference .* must be subject-bound/,
+      );
     });
 
     it("rejects null optional DID Document members", () => {

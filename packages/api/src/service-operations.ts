@@ -7,7 +7,13 @@ import {
   createControllerAuthorization,
 } from "./controller-authorization.js";
 import { normalizeBoundDIDURL } from "./did-subject.js";
+import {
+  findExistingServiceLedgerId,
+  ledgerIdentifier,
+  requireExistingServiceLedgerId,
+} from "./ledger-identifier-keys.js";
 import { serviceToLedger } from "./ledger-mappers.js";
+import { requireDeployedMidnightDIDLedgerState } from "./ledger-state.js";
 import {
   type DeployedMidnightDIDContract,
   type MidnightDIDProviders,
@@ -19,6 +25,18 @@ export const addService = async (
   service: Service,
 ): Promise<FinalizedTxData> => {
   const ledgerService = serviceToLedger(didContract, service);
+  const didState = await requireDeployedMidnightDIDLedgerState(
+    providers,
+    didContract,
+  );
+  if (
+    findExistingServiceLedgerId(
+      didState,
+      ledgerIdentifier(didContract, ledgerService.id),
+    ) !== null
+  ) {
+    throw new Error(`service ${ledgerService.id} already exists`);
+  }
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
@@ -31,6 +49,7 @@ export const addService = async (
           DIDContract.MapMutation.Insert,
         ),
       ),
+    didState,
   );
   const result = await didContract.callTx.setService(
     ledgerService,
@@ -46,7 +65,16 @@ export const updateService = async (
   providers: MidnightDIDProviders,
   service: Service,
 ): Promise<FinalizedTxData> => {
-  const ledgerService = serviceToLedger(didContract, service);
+  const canonicalService = serviceToLedger(didContract, service);
+  const didState = await requireDeployedMidnightDIDLedgerState(
+    providers,
+    didContract,
+  );
+  const existingServiceId = requireExistingServiceLedgerId(
+    didState,
+    ledgerIdentifier(didContract, canonicalService.id),
+  );
+  const ledgerService = { ...canonicalService, id: existingServiceId };
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
@@ -59,6 +87,7 @@ export const updateService = async (
           DIDContract.MapMutation.Update,
         ),
       ),
+    didState,
   );
   const result = await didContract.callTx.setService(
     ledgerService,
@@ -74,10 +103,18 @@ export const removeService = async (
   providers: MidnightDIDProviders,
   serviceId: string,
 ): Promise<FinalizedTxData> => {
-  const normalizedServiceId = normalizeBoundDIDURL(
+  const canonicalServiceId = normalizeBoundDIDURL(
     didContract,
     serviceId,
     "serviceId",
+  );
+  const didState = await requireDeployedMidnightDIDLedgerState(
+    providers,
+    didContract,
+  );
+  const normalizedServiceId = requireExistingServiceLedgerId(
+    didState,
+    ledgerIdentifier(didContract, canonicalServiceId),
   );
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
@@ -90,6 +127,7 @@ export const removeService = async (
           normalizedServiceId,
         ),
       ),
+    didState,
   );
   const result = await didContract.callTx.removeService(
     normalizedServiceId,
