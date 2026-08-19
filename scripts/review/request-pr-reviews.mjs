@@ -116,11 +116,17 @@ function csv(value) {
     .filter(Boolean);
 }
 
-function exactIssuePattern(repo, issue) {
-  const escapedRepo = repo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(
-    `(?:https://github\\.com/${escapedRepo}/issues/|#)${issue}(?!\\d)`,
-  );
+function hasExactIssueReference(content, repo, issue) {
+  for (const prefix of [`https://github.com/${repo}/issues/`, "#"]) {
+    const needle = `${prefix}${issue}`;
+    let offset = content.indexOf(needle);
+    while (offset !== -1) {
+      const next = content.at(offset + needle.length);
+      if (next === undefined || next < "0" || next > "9") return true;
+      offset = content.indexOf(needle, offset + needle.length);
+    }
+  }
+  return false;
 }
 
 async function requireRetrospectiveCheckpoint(repoRoot, options) {
@@ -173,7 +179,7 @@ async function requireRetrospectiveCheckpoint(repoRoot, options) {
       throw new Error(
         `retrospective checkpoint record is empty or too short: ${checkpoint.record}`,
       );
-    if (!exactIssuePattern(options.repo, options.issue).test(content)) {
+    if (!hasExactIssueReference(content, options.repo, options.issue)) {
       throw new Error(
         `retrospective checkpoint record is not bound to exact issue #${options.issue}`,
       );
@@ -280,7 +286,10 @@ async function loadPolicy(repoRoot, configuredPath) {
   return { policy, policyPath };
 }
 
-async function resolveAgentReviewInvocation(repoRoot) {
+async function resolveAgentReviewInvocation(
+  repoRoot,
+  { allowMissing = false } = {},
+) {
   const configured = process.env.AGENT_REVIEW_CLI;
   if (configured && !configured.includes("/") && !configured.includes("\\")) {
     return { command: configured, prefix: [] };
@@ -300,7 +309,7 @@ async function resolveAgentReviewInvocation(repoRoot) {
     "node_modules",
     REVIEW_PACKAGE,
   );
-  if (await fileExists(candidate))
+  if ((await fileExists(candidate)) || allowMissing)
     return { command: process.execPath, prefix: [candidate] };
   throw new Error(
     `pinned agent-review CLI is missing at ${candidate}; enter nix develop to provision .pi/settings.json`,
@@ -551,7 +560,9 @@ async function main() {
     `pr-${options.pr}`,
     `${options.headsha}.json`,
   );
-  const invocation = await resolveAgentReviewInvocation(repoRoot);
+  const invocation = await resolveAgentReviewInvocation(repoRoot, {
+    allowMissing: options.dryRun,
+  });
   const outputDir = path.join(repoRoot, "review");
   const localOutput = options.localAgents.map((agent) => ({
     agent,

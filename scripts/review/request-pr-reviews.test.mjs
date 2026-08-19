@@ -146,6 +146,19 @@ test("dry-run has no default local CLIs and records no completion claim", async 
   assert.doesNotMatch(result.stdout, /completed/i);
 });
 
+test("dry-run does not require the pinned routed CLI to be installed", async () => {
+  const harness = await makeHarness();
+  try {
+    const env = { ...harness.env };
+    delete env.AGENT_REVIEW_CLI;
+    const result = await runCli([...baseArgs, "--dry-run"], harness.root, env);
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).status, "dry-run");
+  } finally {
+    await rm(harness.root, { recursive: true, force: true });
+  }
+});
+
 test("rejects unsafe local agent names and malformed repository names", async () => {
   const unsafe = await runCli([
     ...baseArgs,

@@ -4,7 +4,7 @@ name: PR Commit Integrity
 # The workflow begins protecting PRs after this file and verifier reach the base
 # branch (the introduction PR is necessarily a bootstrap exception).
 on:
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] -- trusted base SHA only; never executes PR code
     types:
       - opened
       - reopened
@@ -37,8 +37,10 @@ jobs:
       - name: Verify every pull-request commit
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: >-
           node scripts/review/verify-pr-commits.mjs
           --repo "${GITHUB_REPOSITORY}"
-          --pr "${{ github.event.pull_request.number }}"
-          --head-sha "${{ github.event.pull_request.head.sha }}"
+          --pr "${PR_NUMBER}"
+          --head-sha "${HEAD_SHA}"

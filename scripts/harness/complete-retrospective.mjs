@@ -64,11 +64,17 @@ function resolveRecord(repoRoot, record) {
   return { normalized, recordPath };
 }
 
-function exactIssuePattern(repo, issue) {
-  const escapedRepo = repo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(
-    `(?:https://github\\.com/${escapedRepo}/issues/|#)${issue}(?!\\d)`,
-  );
+function hasExactIssueReference(content, repo, issue) {
+  for (const prefix of [`https://github.com/${repo}/issues/`, "#"]) {
+    const needle = `${prefix}${issue}`;
+    let offset = content.indexOf(needle);
+    while (offset !== -1) {
+      const next = content.at(offset + needle.length);
+      if (next === undefined || next < "0" || next > "9") return true;
+      offset = content.indexOf(needle, offset + needle.length);
+    }
+  }
+  return false;
 }
 
 async function requireTrackedRecord(repoRoot, record) {
@@ -102,7 +108,7 @@ export async function completeRetrospective({
   const content = await readFile(recordPath, "utf8");
   if (content.trim().length < 80)
     throw new Error(`retrospective record is missing or too short: ${record}`);
-  if (!exactIssuePattern(repo, issue).test(content))
+  if (!hasExactIssueReference(content, repo, issue))
     throw new Error(
       `retrospective record is not bound to exact issue #${issue}: ${record}`,
     );
