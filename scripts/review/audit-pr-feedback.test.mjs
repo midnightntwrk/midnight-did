@@ -106,6 +106,60 @@ test("an authorized structured finding cannot be hidden by a later clean marker"
   assert.equal(result.findings.length, 1);
   assert.equal(result.findings[0].verdict, "changes");
 });
+
+test("a later clean marker supersedes an earlier timeout marker", () => {
+  const input = {
+    preHeadSha: fixtureSet.headSha,
+    postHeadSha: fixtureSet.headSha,
+    formalReviews: { items: [] },
+    reviewThreads: { items: [] },
+    issueComments: {
+      items: [
+        {
+          author: { login: "patextreme" },
+          body: `<agentflow-pr-review sha="${fixtureSet.headSha}" verdict="timeout"/>`,
+          createdAt: "2026-08-19T12:00:00Z",
+        },
+        {
+          author: { login: "patextreme" },
+          body: `<agentflow-pr-review sha="${fixtureSet.headSha}" verdict="approved"/>`,
+          createdAt: "2026-08-19T13:00:00Z",
+        },
+      ],
+    },
+  };
+
+  const result = auditFeedback(policy, input, fixtureSet.headSha);
+  assert.equal(result.ok, true);
+  assert.equal(result.status, "clean");
+});
+
+test("a later clean marker supersedes an earlier malformed marker", () => {
+  const input = {
+    preHeadSha: fixtureSet.headSha,
+    postHeadSha: fixtureSet.headSha,
+    formalReviews: { items: [] },
+    reviewThreads: { items: [] },
+    issueComments: {
+      items: [
+        {
+          author: { login: "patextreme" },
+          body: `<agentflow-pr-review malformed sha="${fixtureSet.headSha}" verdict="changes"/>`,
+          createdAt: "2026-08-19T12:00:00Z",
+        },
+        {
+          author: { login: "patextreme" },
+          body: `<agentflow-pr-review sha="${fixtureSet.headSha}" verdict="approved"/>`,
+          createdAt: "2026-08-19T13:00:00Z",
+        },
+      ],
+    },
+  };
+
+  const result = auditFeedback(policy, input, fixtureSet.headSha);
+  assert.equal(result.ok, true);
+  assert.equal(result.status, "clean");
+});
 test("missing API source and empty API output fail closed distinctly", () => {
   const base = {
     preHeadSha: fixtureSet.headSha,

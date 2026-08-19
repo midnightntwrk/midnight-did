@@ -308,13 +308,31 @@ export function auditFeedback(policy, input, expectedHeadSha) {
   const formal = latestBy(input.formalReviews.items, (review) =>
     lower(authorLogin(review)),
   );
-  // Structured AgentFlow findings are durable current-head evidence. Unlike a
-  // formal review's latest state, a later clean marker must not erase an
-  // earlier authorized non-clean marker without an explicit resolution path.
-  const markers = structuredMarkers(
+  const structured = structuredMarkers(
     input.issueComments.items,
     policy.audit.structuredMarker,
   ).filter((marker) => required.has(lower(marker.author)));
+  // Findings are durable current-head evidence: a later clean marker may not
+  // erase them. Retryable timeout and malformed/unknown markers remain
+  // latest-wins so a corrected response can be evaluated without deadlocking.
+  const durableFindings = structured.filter(
+    (marker) =>
+      !marker.malformed &&
+      sameSha(marker.sha, expectedHeadSha) &&
+      findingVerdicts.has(marker.verdict),
+  );
+  const markers = [
+    ...durableFindings,
+    ...latestBy(
+      structured.filter(
+        (marker) =>
+          marker.malformed ||
+          !sameSha(marker.sha, expectedHeadSha) ||
+          !findingVerdicts.has(marker.verdict),
+      ),
+      (marker) => lower(marker.author),
+    ),
+  ];
 
   const clean = [];
   const findings = [];
