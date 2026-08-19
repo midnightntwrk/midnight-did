@@ -33,13 +33,13 @@ cross-repository docs or scripts.
 
 ## Validation
 
-Local PR validation:
+Mandatory local source-change validation:
 
 ```bash
-./run.sh --light --strict
+nix develop --command pnpm run verify
 ```
 
-`pnpm run ci` runs the same command. Use `pnpm run ci:packages` only when you need the legacy package-only lint/build/test lane.
+`pnpm run ci` aliases the same gate. It runs strict light and core lanes, the integration report, and `pnpm run coverage:all`, including protected API module thresholds. Use `pnpm run ci:packages` only for a documented focused fallback; it is not the PR gate.
 
 Focused lanes:
 

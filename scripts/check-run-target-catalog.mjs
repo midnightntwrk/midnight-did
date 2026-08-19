@@ -54,8 +54,13 @@ assert.deepEqual(
 );
 assert.equal(
   rootPackage.scripts?.ci,
-  "./run.sh --light --strict",
-  "pnpm run ci must remain the documented local PR validation contract; update README and PR template if this command changes",
+  "pnpm run verify",
+  "pnpm run ci must alias the mandatory local source-change gate",
+);
+assert.equal(
+  rootPackage.scripts?.verify,
+  "./run.sh --light --strict && ./run.sh core --strict && ./run.sh integration-report && pnpm run coverage:all",
+  "pnpm run verify must preserve local/CI parity including protected coverage thresholds",
 );
 assert.equal(
   rootPackage.scripts?.["ci:packages"],
@@ -66,8 +71,8 @@ assert.equal(
 const readme = readRepoText("README.md");
 const runSh = readRepoText("run.sh");
 assert.ok(
-  readme.includes("`./run.sh --light --strict`"),
-  "README must document ./run.sh --light --strict as the local PR validation contract",
+  readme.includes("`nix develop --command pnpm run verify`"),
+  "README must document pnpm run verify as the mandatory local PR gate",
 );
 assert.ok(
   readme.includes("`pnpm run ci`"),
@@ -76,12 +81,12 @@ assert.ok(
 
 const prTemplate = readRepoText(".github/pull_request_template.md");
 assert.ok(
-  prTemplate.includes("`./run.sh --light --strict`"),
-  "PR template must require ./run.sh --light --strict as the local PR validation contract",
+  prTemplate.includes("`nix develop --command pnpm run verify`"),
+  "PR template must require pnpm run verify as the mandatory local PR gate",
 );
 assert.ok(
-  prTemplate.includes("`pnpm run ci`"),
-  "PR template must mention pnpm run ci as the local PR validation alias",
+  prTemplate.includes("`pnpm run coverage:all`"),
+  "PR template must name the protected coverage gate",
 );
 
 for (const step of pipelineSteps) {
@@ -165,14 +170,10 @@ assert.deepEqual(
 
 rmSync(metricsDir, { recursive: true, force: true });
 
-const cleanArtifactsHelp = spawnSync(
-  "node",
-  [cleanArtifactsScript, "--help"],
-  {
-    cwd: repoRoot,
-    encoding: "utf8",
-  },
-);
+const cleanArtifactsHelp = spawnSync("node", [cleanArtifactsScript, "--help"], {
+  cwd: repoRoot,
+  encoding: "utf8",
+});
 assert.equal(
   cleanArtifactsHelp.status,
   0,
@@ -272,7 +273,9 @@ assert.equal(
   0,
   "integration-report-schema target should exit successfully",
 );
-const integrationReportSchema = JSON.parse(integrationReportSchemaResult.stdout);
+const integrationReportSchema = JSON.parse(
+  integrationReportSchemaResult.stdout,
+);
 assert.equal(
   integrationReportSchema.id,
   "midnight-did-integration-report",
@@ -326,10 +329,9 @@ try {
   mkdirSync(path.join(cleanArtifactsFixtureDir, "midnight-level-db", "probe"), {
     recursive: true,
   });
-  mkdirSync(
-    path.join(cleanArtifactsFixtureDir, "contract", "src", "managed"),
-    { recursive: true },
-  );
+  mkdirSync(path.join(cleanArtifactsFixtureDir, "contract", "src", "managed"), {
+    recursive: true,
+  });
   mkdirSync(
     path.join(cleanArtifactsFixtureDir, "domain", "node_modules", "cache"),
     { recursive: true },

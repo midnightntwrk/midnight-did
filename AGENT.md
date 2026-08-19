@@ -1,5 +1,7 @@
 # AGENT
 
+This file is the authoritative repository constitution for branch roles, worktree discipline, validation, review, commit integrity, and package boundaries. Bundled Codex/Claude skills link here and must not redefine these invariants.
+
 Engineering guide for agents and engineers working in `midnight-did`.
 
 This repository can be cloned independently.
@@ -166,36 +168,47 @@ pnpm --filter ./packages/contract test
 
 ## PR review dispatch
 
-Any PR workflow—dev-loop or standalone—must run
-`scripts/review/request-pr-reviews.mjs` after creating a PR and after every push
-that changes its head SHA. This dispatch runs the local review CLIs, bootstraps
-the `ai-review` label profile, and requests Pat Losoponkul (`patextreme`) as the
-GitHub-routed reviewer by default. It is keyed by head SHA so resume passes are
-idempotent. Review the generated artifacts and verify findings before
-continuing the PR workflow.
+Every PR workflow—dev-loop or standalone—must run
+`scripts/review/request-pr-reviews.mjs` after PR creation and after every push.
+The caller must supply the exact current head SHA. The helper validates that SHA
+before and after routing, records only `requested`, and never claims review
+completion. Local Claude/Agy review is advisory and runs only when explicitly
+selected with `--local-agents`; it is not approval evidence.
 
-The dispatch requires the user-level agent-peer-review configuration at
-`~/.agent-peer-review/config.json`; it must never create credentials or tokens.
-If the file is missing or invalid, stop and ask the user to configure it with:
+Before dispatch, record the retrospective under `docs/retrospectives/` and
+write its ignored completion checkpoint with:
 
 ```bash
-npx -y @input-output-hk/agent-review@0.5.0 init --repo midnightntwrk/midnight-did
+node scripts/harness/complete-retrospective.mjs --record docs/retrospectives/<file>.md --repo midnightntwrk/midnight-did --issue <issue> --pr <n> --head-sha <full-sha>
 ```
 
-The repository pins `@input-output-hk/agent-review-pi@0.5.0` in `.pi/settings.json`;
-the global CLI configuration remains user-owned and is not committed.
+After dispatch, run `scripts/review/audit-pr-feedback.mjs` against the same
+full head SHA. The audit combines formal GitHub reviews, unresolved inline
+threads, and structured `agentflow-pr-review` issue comments. Routed Pat
+evidence is a deterministic external precondition from
+`.github/review-policy.json`; an LLM persona must never impersonate it. Stale,
+missing, empty, timed-out, findings, mixed, truncated, or head-raced evidence
+fails closed. Green CI or dispatch success does not satisfy review acceptance.
+
+The routed CLI uses the pinned project-local package installed by `nix develop`
+and the user-owned `~/.agent-peer-review/config.json`. If configuration is
+missing, initialize it through the pinned local CLI (never ambiguous `npx`):
+
+```bash
+node .pi/npm/node_modules/@input-output-hk/agent-review/dist/cli/index.js init --repo midnightntwrk/midnight-did
+```
 
 ## Development Cycle
 
-1. Start from the repository's current default branch (`origin/main` for this repository) unless asked otherwise.
+1. Use `origin/develop` as the normal feature integration base. `main` remains GitHub's default and the release branch. Release-promotion work targets `main`; existing PR work always uses the PR's authoritative actual base.
 2. Create a focused branch, normally with `codex/` prefix, in a dedicated worktree rather than the main checkout.
 3. Change the owning package and nearby docs/tests together.
 4. Run a focused package lane.
 5. Keep public behavior, package exports, documentation, and tests in the same
    PR when they describe one change.
-6. Run the required PR gate before considering the repo stable:
-   `./run.sh --light --strict`, `./run.sh core --strict`, and
-   `./run.sh integration-report`.
+6. Run `pnpm run verify` as the mandatory local source-change gate. It runs
+   `./run.sh --light --strict`, `./run.sh core --strict`,
+   `./run.sh integration-report`, and `pnpm run coverage:all`.
 7. Run full `./run.sh --strict` for release-facing or integration-heavy changes.
 8. Use clear conventional commit and PR titles, for example
    `fix: omit empty DID relations` or `docs: clarify release artifacts`.
@@ -205,7 +218,7 @@ the global CLI configuration remains user-owned and is not committed.
     must remain outside the branch.
 11. Create PRs as drafts first and do not mark them ready until the draft gate
     and validation evidence are complete.
-12. Commit with DCO and GPG for repository-facing work.
+12. Commit with DCO and a GitHub-verifiable GPG or SSH signature for repository-facing work.
 
 Commit form:
 
@@ -213,12 +226,22 @@ Commit form:
 git commit -S --signoff -m "<type>: <subject>"
 ```
 
-Before pushing, verify the latest commit includes a good signature and
-`Signed-off-by` trailer:
+Before pushing, verify every commit in the PR range against repository policy.
+Each human-authored commit needs a valid GitHub-verifiable GPG or SSH signature
+and a terminal `Signed-off-by` trailer. Policy-listed dependency bots retain the
+signature requirement but are exempt from the human author/trailer match. After push, run the GitHub-backed
+all-commit verifier for the exact head; latest-commit-only checks are
+insufficient.
 
 ```bash
-git log -1 --show-signature --pretty=fuller
+git log --show-signature --pretty=fuller origin/<actual-base>..HEAD
+node scripts/review/verify-pr-commits.mjs --repo midnightntwrk/midnight-did --pr <n> --head-sha <full-sha>
 ```
+
+Any amend, rebase, or force-push invalidates prior commit, validation, and review
+evidence. Verify every rewritten commit, confirm old/new tree identity when the
+rewrite is meant to be content-neutral, and retain `git range-diff` evidence
+where histories are comparable.
 
 ## Dev-loop and retrospective discipline
 
@@ -226,12 +249,15 @@ The pinned dev-loop configuration is schema-validated. Run these checks before
 starting or resuming a loop and treat configuration errors as blockers:
 
 ```bash
-npx dev-loops@0.9.0 doctor
-npx dev-loops@0.9.0 gates
+node .pi/npm/node_modules/dev-loops/cli/index.mjs doctor
+node .pi/npm/node_modules/dev-loops/cli/index.mjs gates
+node scripts/harness/diagnose.mjs
 ```
 
-The repository uses `main` as its current default branch. Do not reintroduce
-`develop` as a default in skills, review commands, or local branch instructions.
+GitHub uses `main` as the release/default branch. Normal feature work integrates
+through `develop`; release-promotion PRs target `main`; existing PRs always keep
+their authoritative actual base. Pi/dev-loop sessions must start in the clean,
+authoritative worktree so project-local settings match the code being changed.
 The `.devloops` file contains only keys supported by the pinned package; command
 validation, coverage policy, docs visual checks, and CI triage remain in this
 file and the synchronized repository skills.

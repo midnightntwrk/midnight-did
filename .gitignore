@@ -101,3 +101,9 @@ docs-site/api/reference/
 docs-site/source/
 docs-site/spec/midnight-method.md
 docs-site/spec/midnight-did-traits.md
+
+# Local agent/dev-loop runtime state
+/.pi-subagents/
+/.pi/runner-coordination/
+/.pi/dev-loop-retrospective-checkpoint.json
+/tmp/phases/
