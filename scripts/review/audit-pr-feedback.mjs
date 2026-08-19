@@ -184,41 +184,56 @@ function collectionProblem(name, collection) {
   return null;
 }
 
-function markerPattern(marker) {
-  const escaped = marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(
-    `<${escaped}\\s+sha="([^"]*)"\\s+verdict="([^"]*)"\\s*\\/>`,
-    "gi",
-  );
-}
-
 function structuredMarkers(comments, marker) {
-  const pattern = markerPattern(marker);
+  const opening = `<${marker}`;
   const results = [];
   for (const comment of comments) {
     const body = String(comment?.body ?? "");
-    pattern.lastIndex = 0;
-    let match;
-    let found = false;
-    while ((match = pattern.exec(body)) !== null) {
-      found = true;
-      results.push({
+    let offset = body.indexOf(opening);
+    while (offset !== -1) {
+      const boundary = body.at(offset + opening.length);
+      if (boundary !== undefined && !/\s/u.test(boundary)) {
+        offset = body.indexOf(opening, offset + opening.length);
+        continue;
+      }
+      const end = body.indexOf("/>", offset + opening.length);
+      const base = {
         author: authorLogin(comment),
-        sha: match[1],
-        verdict: lower(match[2]),
         createdAt: comment.createdAt,
         source: "issue-comment",
-      });
-    }
-    if (!found && body.includes(`<${marker}`)) {
+      };
+      if (end === -1) {
+        results.push({ ...base, sha: null, verdict: null, malformed: true });
+        break;
+      }
+      const attributesText = body.slice(offset + opening.length, end);
+      const attributes = new Map();
+      const attributePattern = /\s+([A-Za-z][A-Za-z0-9:-]*)="([^"]*)"/gy;
+      let cursor = 0;
+      let malformed =
+        attributesText.includes("<") || attributesText.includes(">");
+      while (!malformed && cursor < attributesText.length) {
+        attributePattern.lastIndex = cursor;
+        const match = attributePattern.exec(attributesText);
+        if (!match || match.index !== cursor || attributes.has(match[1])) {
+          malformed = true;
+          break;
+        }
+        attributes.set(match[1], match[2]);
+        cursor = attributePattern.lastIndex;
+      }
+      const allowed = new Set(["sha", "verdict"]);
+      if ([...attributes.keys()].some((name) => !allowed.has(name)))
+        malformed = true;
+      const sha = attributes.get("sha") ?? null;
+      const verdict = attributes.get("verdict") ?? null;
       results.push({
-        author: authorLogin(comment),
-        sha: null,
-        verdict: null,
-        createdAt: comment.createdAt,
-        source: "issue-comment",
-        malformed: true,
+        ...base,
+        sha,
+        verdict: verdict ? lower(verdict) : null,
+        malformed: malformed || !sha || !verdict || attributes.size !== 2,
       });
+      offset = body.indexOf(opening, end + 2);
     }
   }
   return results;
@@ -346,7 +361,12 @@ export function auditFeedback(policy, input, expectedHeadSha) {
   }
 
   for (const thread of input.reviewThreads.items) {
-    if (thread?.isResolved === true || thread?.resolved === true) continue;
+    if (
+      thread?.isResolved === true ||
+      thread?.resolved === true ||
+      thread?.isOutdated === true
+    )
+      continue;
     const comments =
       thread?.comments?.items ??
       thread?.comments?.nodes ??
@@ -516,7 +536,7 @@ async function readLiveHead(options) {
 
 const QUERIES = {
   formalReviews: `query($owner:String!,$repo:String!,$pr:Int!,$pageSize:Int!,$cursor:String){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviews(first:$pageSize,after:$cursor){nodes{author{login} state submittedAt commit{oid}} pageInfo{hasNextPage endCursor}}}}}`,
-  reviewThreads: `query($owner:String!,$repo:String!,$pr:Int!,$pageSize:Int!,$cursor:String){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:$pageSize,after:$cursor){nodes{id isResolved comments(last:1){nodes{author{login} createdAt commit{oid}}}} pageInfo{hasNextPage endCursor}}}}}`,
+  reviewThreads: `query($owner:String!,$repo:String!,$pr:Int!,$pageSize:Int!,$cursor:String){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:$pageSize,after:$cursor){nodes{id isResolved isOutdated comments(last:1){nodes{author{login} createdAt commit{oid}}}} pageInfo{hasNextPage endCursor}}}}}`,
   issueComments: `query($owner:String!,$repo:String!,$pr:Int!,$pageSize:Int!,$cursor:String){repository(owner:$owner,name:$repo){pullRequest(number:$pr){comments(first:$pageSize,after:$cursor){nodes{author{login} body createdAt} pageInfo{hasNextPage endCursor}}}}}`,
 };
 

@@ -30,6 +30,53 @@ for (const fixture of fixtureSet.cases) {
   });
 }
 
+test("structured marker parsing rejects prefixes, nesting, and prefixed attributes", () => {
+  const base = {
+    preHeadSha: fixtureSet.headSha,
+    postHeadSha: fixtureSet.headSha,
+    formalReviews: { items: [] },
+    reviewThreads: { items: [] },
+  };
+  const resultFor = (body) =>
+    auditFeedback(
+      policy,
+      {
+        ...base,
+        issueComments: { items: [{ author: { login: "patextreme" }, body }] },
+      },
+      fixtureSet.headSha,
+    );
+
+  assert.equal(
+    resultFor(
+      `<agentflow-pr-reviewer sha="${fixtureSet.headSha}" verdict="approved"/>`,
+    ).status,
+    "missing",
+  );
+  for (const body of [
+    `<agentflow-pr-review malformed <x sha="${fixtureSet.headSha}" verdict="approved"/>`,
+    `<agentflow-pr-review x-sha="${fixtureSet.headSha}" verdict="approved"/>`,
+    `<agentflow-pr-review sha="${fixtureSet.headSha}" not-verdict="approved"/>`,
+  ]) {
+    assert.equal(resultFor(body).status, "empty");
+  }
+});
+
+test("outdated unresolved inline threads do not poison the current head", () => {
+  const input = {
+    preHeadSha: fixtureSet.headSha,
+    postHeadSha: fixtureSet.headSha,
+    formalReviews: { items: [] },
+    reviewThreads: {
+      items: [{ id: "old", isResolved: false, isOutdated: true, comments: [] }],
+    },
+    issueComments: { items: [] },
+  };
+  const result = auditFeedback(policy, input, fixtureSet.headSha);
+  assert.equal(result.status, "missing");
+  assert.deepEqual(result.findings, []);
+});
+
 test("missing API source and empty API output fail closed distinctly", () => {
   const base = {
     preHeadSha: fixtureSet.headSha,
