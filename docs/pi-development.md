@@ -6,7 +6,7 @@ test, publish, or review code.
 
 ## Start a session
 
-From the repository root, after installing and authenticating Pi:
+Start from the authoritative clean worktree whose code and `.pi/settings.json` belong to the active issue/PR. Never start Pi in a dirty primary checkout or an old PR worktree. After entering `nix develop` and authenticating Pi:
 
 ```sh
 pi
@@ -45,15 +45,14 @@ pi list
 ```
 
 The project-local `.pi/settings.json` installs
-`@input-output-hk/agent-review-pi@0.3.0`, which provides the native review tools
+`@input-output-hk/agent-review-pi@0.5.0`, which provides the native review tools
 and the `agent-review` skill. The repository `.npmrc` points the private scope
 to GitHub Packages and reads the token from `GITHUB_TOKEN`; the token is never
 committed. It needs `read:packages` for installation and the review workflow
 also needs the repository pull-request/issues permissions described by the
 upstream project.
 
-Use the skill for the asynchronous reviewer workflow; it never merges. Human
-approval and the repository's merge policy remain authoritative.
+Use the skill for the asynchronous reviewer workflow; it never merges. Dispatch is only a request. The repository's exact-head feedback audit must observe current formal reviews, inline threads, and structured AgentFlow comments before the human approval boundary. Local Claude/Agy reviews are explicit advisory opt-ins.
 
 ## Repository harness policy
 
@@ -62,8 +61,7 @@ policy. It requires refinement, draft-first pull requests, review of DID/API/
 package boundaries, and a human-only merge. The file must remain valid for the
 pinned `dev-loops@0.9.0` schema; command-level validation and repository rules
 remain in `AGENT.md`, the synchronized `midnight-identity` skills, the
-pull-request template, and the `./run.sh` validation targets. The current
-GitHub default branch is `main`.
+pull-request template, and the `pnpm run verify` validation target. GitHub's default/release branch is `main`; normal feature PRs target `develop`; existing PRs keep their actual base.
 
 The harness is deliberately additive. GitHub Issues, pull requests, protected
 branches, and GitHub Actions remain the source of truth for work and CI state.
@@ -122,6 +120,9 @@ schema error means the repository-specific policy was not applied and must be
 fixed before continuing:
 
 ```sh
-npx dev-loops@0.9.0 doctor
-npx dev-loops@0.9.0 gates
+node .pi/npm/node_modules/dev-loops/cli/index.mjs doctor
+node .pi/npm/node_modules/dev-loops/cli/index.mjs gates
+node scripts/harness/diagnose.mjs
 ```
+
+The repository diagnostic independently validates the pinned 0.9.0 schema because that version's CLI doctor can report a false clean result when configuration loading falls back. The diagnostic reports that known upstream gap but never turns a real schema, package, worktree, review-readiness, or runtime-path failure into success.

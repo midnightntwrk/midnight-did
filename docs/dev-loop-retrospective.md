@@ -45,11 +45,10 @@ restored API formatting, and corrected the semantic PR-title scope.
   `AGENT.md` and the synchronized repository skills. These rules are currently
   prose/CI-enforced because `dev-loops@0.9.0` does not expose corresponding
   base-branch, validation-order, or CI-watch fields in its config schema.
-- Resolve the current default branch before implementation; this repository
-  currently uses `main`.
+- Use `develop` for normal feature integration and `main` for release promotion; preserve an existing PR's actual base.
 - Use dedicated worktrees and draft PRs.
 - Treat configuration errors as blockers.
-- Verify GPG signature and DCO trailer before pushing.
+- Verify every commit against the repository signature/DCO policy before pushing.
 - Keep coverage measurement and gating independent of provider selection.
 - Require module-level coverage classification for critical orchestration code.
 - Treat new warning output as a validation failure unless it is explicitly
@@ -62,3 +61,10 @@ restored API formatting, and corrected the semantic PR-title scope.
 - Keep the bundled Codex and Claude skills synchronized.
 - Keep global review and CI skills aligned with the dev-loop lifecycle and
   repository default-branch policy.
+
+## 2026-08-19 follow-up
+
+Issue #426 supersedes the stale single-branch assumption above with explicit
+release/integration roles and hardens review, commit, diagnostic, and checkpoint
+contracts. See [`docs/retrospectives/issue-426-harness-hardening.md`](retrospectives/issue-426-harness-hardening.md)
+and [`docs/harness-upstream-follow-ups.md`](harness-upstream-follow-ups.md).

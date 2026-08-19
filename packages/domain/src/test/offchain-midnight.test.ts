@@ -7,6 +7,7 @@ import {
   decodeOffchainMidnightDIDState,
   encodeOffchainMidnightDIDState,
   type OffchainMidnightDIDState,
+  offchainServiceToDidDocumentService,
   offchainStateToDidDocument,
   parseLongFormOffchainMidnightDIDString,
   parseOffchainStateHash,
@@ -236,13 +237,44 @@ describe("offchain Midnight DID helpers", () => {
     const did = createOffchainMidnightDIDStringFromState(sampleState);
     const doc = offchainStateToDidDocument(did, sampleState);
     expect(doc.id).toBe(did);
-    expect(doc.authentication).toEqual(["#holder-key-1"]);
-    expect(doc.assertionMethod).toEqual(["#holder-key-1"]);
+    expect(doc.authentication).toEqual([`${did}#holder-key-1`]);
+    expect(doc.assertionMethod).toEqual([`${did}#holder-key-1`]);
     expect(doc).not.toHaveProperty("keyAgreement");
     expect(doc).not.toHaveProperty("capabilityInvocation");
     expect(doc).not.toHaveProperty("capabilityDelegation");
-    expect(doc.service?.[0]?.id).toBe("#profile");
+    expect(doc.service?.[0]?.id).toBe(`${did}#profile`);
     expect(parseDIDDocument(doc).id).toBe(did);
+  });
+
+  it("rejects foreign-DID service identifiers at offchain projection boundaries", () => {
+    const did = createOffchainMidnightDIDStringFromState(sampleState);
+    expect(() =>
+      offchainServiceToDidDocumentService(did, {
+        ...sampleState.service[0]!,
+        id: "did:example:other#profile",
+      } as any),
+    ).toThrow(/current DID/);
+
+    const state = structuredClone(sampleState);
+    state.service[0]!.id = "did:example:other#profile";
+    expect(() => offchainStateToDidDocument(did, state)).toThrow(
+      /relative DID URL/,
+    );
+  });
+
+  it("resolves relative path identifiers in the projected document", () => {
+    const state = structuredClone(sampleState);
+    state.verificationMethod[0]!.id = "/keys/holder#holder-key-1";
+    state.service[0]!.id = "/services/profile";
+
+    const did = createOffchainMidnightDIDStringFromState(state);
+    const doc = offchainStateToDidDocument(did, state);
+
+    expect(doc.verificationMethod?.[0]?.id).toBe(
+      `${did}/keys/holder#holder-key-1`,
+    );
+    expect(doc.authentication).toEqual([`${did}/keys/holder#holder-key-1`]);
+    expect(doc.service?.[0]?.id).toBe(`${did}/services/profile`);
   });
 
   it("round-trips Ed25519, P-256, X25519, secp256k1, and BLS12-381 verification methods", () => {

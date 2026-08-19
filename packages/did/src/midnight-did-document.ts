@@ -4,8 +4,10 @@ import {
   DIDDocumentSchema,
   DIDKeyID,
   KeyType,
+  resolveDIDURLReference,
   Service,
   URIString,
+  validateDIDDocumentConsistency,
   VerificationMethod,
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
@@ -79,9 +81,9 @@ const MidnightVerificationMethodSchema = z
       return false;
     }, "OKP keys must use Ed25519, X25519, BLS12381G1, or BLS12381G2 curve; EC keys must use Jubjub, P-256, or secp256k1 curve"),
     z.refine((vm) => {
-      // Verification methods must be referenced (contain # or be relative)
+      // Verification methods must be referenceable by a fragment.
       const id = vm.id;
-      return id.includes("#") || id.startsWith("/") || id.startsWith(".");
+      return id.includes("#") && !id.endsWith("#");
     }, "Midnight DID does not support embedded verification methods - use referenced methods with fragments"),
   );
 
@@ -143,19 +145,166 @@ export const MidnightDIDDocumentSchema = DIDDocumentSchema.check(
  *
  * Extends the generic DIDDocument with Midnight-specific constraints
  */
+const referenceSubject = (value: string): string | undefined => {
+  if (!value.startsWith("did:")) return undefined;
+  const boundary = value.search(/[/?#]/u);
+  return boundary === -1 ? value : value.slice(0, boundary);
+};
+
+const canonicalizeMidnightReference = (
+  value: string,
+  did: MidnightDIDString,
+): string =>
+  resolveDIDURLReference(value, did, { caseInsensitiveDIDSubject: true });
+
+const canonicalizeMidnightSubjectReference = (
+  value: string,
+  did: MidnightDIDString,
+  field: string,
+): string => {
+  let resolved: string;
+  try {
+    resolved = canonicalizeMidnightReference(value, did);
+  } catch (error) {
+    throw new Error(`${field} '${value}' must be subject-bound`, {
+      cause: error,
+    });
+  }
+  if (referenceSubject(resolved) !== did) {
+    throw new Error(`${field} '${value}' must be subject-bound`);
+  }
+  return resolved;
+};
+
+const canonicalizeMidnightServiceReference = (
+  value: string,
+  did: MidnightDIDString,
+): string => {
+  if (value.endsWith("#")) {
+    throw new Error(`service id '${value}' must identify a service`);
+  }
+  let resolved: string;
+  try {
+    resolved = resolveDIDURLReference(value, did, {
+      allowExternalURL: true,
+      caseInsensitiveDIDSubject: true,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("current DID")) {
+      throw new Error(`service id '${value}' must be subject-bound`);
+    }
+    throw error;
+  }
+  if (resolved === did) {
+    throw new Error(`service id '${value}' must identify a service`);
+  }
+  return resolved;
+};
+
+const normalizeMidnightDocumentReferences = (
+  doc: DIDDocument,
+  did: MidnightDIDString,
+): DIDDocument => {
+  const verificationMethod = doc.verificationMethod?.map((method) => {
+    const id = canonicalizeMidnightSubjectReference(
+      method.id,
+      did,
+      "verificationMethod id",
+    );
+    const controller = MidnightDIDSchema.safeParse(method.controller);
+    if (!controller.success || controller.data !== did) {
+      throw new Error(
+        `verificationMethod controller '${method.controller}' must equal DID subject`,
+      );
+    }
+    return { ...method, id, controller: did };
+  });
+
+  const normalizeReferences = (values: string[] | undefined, field: string) =>
+    values?.map((value) =>
+      canonicalizeMidnightSubjectReference(value, did, field),
+    );
+
+  return {
+    ...doc,
+    verificationMethod,
+    authentication: normalizeReferences(
+      doc.authentication,
+      "authentication reference",
+    ),
+    assertionMethod: normalizeReferences(
+      doc.assertionMethod,
+      "assertionMethod reference",
+    ),
+    keyAgreement: normalizeReferences(
+      doc.keyAgreement,
+      "keyAgreement reference",
+    ),
+    capabilityInvocation: normalizeReferences(
+      doc.capabilityInvocation,
+      "capabilityInvocation reference",
+    ),
+    capabilityDelegation: normalizeReferences(
+      doc.capabilityDelegation,
+      "capabilityDelegation reference",
+    ),
+    service: doc.service?.map((service) => ({
+      ...service,
+      id: canonicalizeMidnightServiceReference(service.id, did),
+    })),
+  } as unknown as DIDDocument;
+};
+
 export type MidnightDIDDocument = {
   "@context": [string, string, ...string[]]; // At least 2 entries required
   id: MidnightDIDString;
-  alsoKnownAs?: URIString[] | null;
-  controller?: MidnightDIDString | MidnightDIDString[] | null; // Must equal id if present
-  verificationMethod?: VerificationMethod[] | null;
+  alsoKnownAs?: URIString[];
+  controller?: MidnightDIDString | MidnightDIDString[]; // Must equal id if present
+  verificationMethod?: VerificationMethod[];
   authentication?: DIDKeyID[];
   assertionMethod?: DIDKeyID[];
   keyAgreement?: DIDKeyID[];
   capabilityInvocation?: DIDKeyID[];
   capabilityDelegation?: DIDKeyID[];
-  service?: Service[] | null;
+  service?: Service[];
 };
+
+const projectMidnightDIDDocument = (
+  doc: DIDDocument,
+  id: MidnightDIDString,
+): MidnightDIDDocument =>
+  ({
+    "@context": doc["@context"] as [string, string, ...string[]],
+    id,
+    ...(doc.alsoKnownAs === undefined || doc.alsoKnownAs.length === 0
+      ? {}
+      : { alsoKnownAs: doc.alsoKnownAs }),
+    ...(doc.controller === undefined ? {} : { controller: doc.controller }),
+    ...(doc.verificationMethod === undefined ||
+    doc.verificationMethod.length === 0
+      ? {}
+      : { verificationMethod: doc.verificationMethod }),
+    ...(doc.authentication === undefined || doc.authentication.length === 0
+      ? {}
+      : { authentication: doc.authentication }),
+    ...(doc.assertionMethod === undefined || doc.assertionMethod.length === 0
+      ? {}
+      : { assertionMethod: doc.assertionMethod }),
+    ...(doc.keyAgreement === undefined || doc.keyAgreement.length === 0
+      ? {}
+      : { keyAgreement: doc.keyAgreement }),
+    ...(doc.capabilityInvocation === undefined ||
+    doc.capabilityInvocation.length === 0
+      ? {}
+      : { capabilityInvocation: doc.capabilityInvocation }),
+    ...(doc.capabilityDelegation === undefined ||
+    doc.capabilityDelegation.length === 0
+      ? {}
+      : { capabilityDelegation: doc.capabilityDelegation }),
+    ...(doc.service === undefined || doc.service.length === 0
+      ? {}
+      : { service: doc.service }),
+  }) as MidnightDIDDocument;
 
 /**
  * Create a Midnight DID Document
@@ -230,34 +379,14 @@ export function createMidnightDIDDocument(params: {
     ...(params.service === undefined ? {} : { service: params.service }),
   };
 
-  const parsed = MidnightDIDDocumentSchema.parse(doc) as DIDDocument;
-  return {
-    "@context": parsed["@context"] as [string, string, ...string[]],
-    id: canonicalId,
-    ...(parsed.alsoKnownAs === undefined
-      ? {}
-      : { alsoKnownAs: parsed.alsoKnownAs }),
-    controller: canonicalId,
-    ...(parsed.verificationMethod === undefined
-      ? {}
-      : { verificationMethod: parsed.verificationMethod }),
-    ...(parsed.authentication === undefined
-      ? {}
-      : { authentication: parsed.authentication }),
-    ...(parsed.assertionMethod === undefined
-      ? {}
-      : { assertionMethod: parsed.assertionMethod }),
-    ...(parsed.keyAgreement === undefined
-      ? {}
-      : { keyAgreement: parsed.keyAgreement }),
-    ...(parsed.capabilityInvocation === undefined
-      ? {}
-      : { capabilityInvocation: parsed.capabilityInvocation }),
-    ...(parsed.capabilityDelegation === undefined
-      ? {}
-      : { capabilityDelegation: parsed.capabilityDelegation }),
-    ...(parsed.service === undefined ? {} : { service: parsed.service }),
-  } as MidnightDIDDocument;
+  const parsed = validateDIDDocumentConsistency(
+    normalizeMidnightDocumentReferences(
+      MidnightDIDDocumentSchema.parse(doc) as DIDDocument,
+      canonicalId,
+    ),
+    { normalizeServiceEndpoints: false },
+  );
+  return projectMidnightDIDDocument(parsed, canonicalId);
 }
 
 /**
@@ -273,13 +402,13 @@ export const parseMidnightDIDDocument = (
   const parsed = MidnightDIDDocumentSchema.parse(input) as DIDDocument;
   const id = parseMidnightDIDString(parsed.id);
   const controller =
-    parsed.controller == null
-      ? parsed.controller
+    parsed.controller === undefined
+      ? undefined
       : Array.isArray(parsed.controller)
         ? parsed.controller.map((value) => parseMidnightDIDString(value))
         : parseMidnightDIDString(parsed.controller);
-  return {
-    "@context": parsed["@context"] as [string, string, ...string[]],
+  const normalized = {
+    "@context": parsed["@context"],
     id,
     ...(parsed.alsoKnownAs === undefined
       ? {}
@@ -304,5 +433,10 @@ export const parseMidnightDIDDocument = (
       ? {}
       : { capabilityDelegation: parsed.capabilityDelegation }),
     ...(parsed.service === undefined ? {} : { service: parsed.service }),
-  } as MidnightDIDDocument;
+  } as unknown as DIDDocument;
+  const validated = validateDIDDocumentConsistency(
+    normalizeMidnightDocumentReferences(normalized, id),
+    { normalizeServiceEndpoints: false },
+  );
+  return projectMidnightDIDDocument(validated, id);
 };

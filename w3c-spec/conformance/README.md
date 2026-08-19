@@ -1,6 +1,6 @@
 # Midnight DID W3C Conformance Evidence
 
-**Phase status:** Phase 1 evidence audit plus the bounded Phase 2 DID syntax audit; this is not a certification claim.
+**Phase status:** Phase 1 evidence audit plus the bounded Phase 2 DID syntax audit and method-boundary consistency follow-up; this is not a certification claim.
 **Source of record:** [GitHub issue #405](https://github.com/midnightntwrk/midnight-did/issues/405), enriched from [`docs/W3C-COMPLIANCE-PLAN.md`](../../docs/W3C-COMPLIANCE-PLAN.md).
 
 This area separates three questions:
@@ -26,7 +26,7 @@ DID Core 1.0 is the primary release gate. DID Core 1.1 remains a separate compat
 ## Tested repository snapshot
 
 - Repository: `midnightntwrk/midnight-did`
-- Commit inspected: `d3b4102f9d7b0b3675d847ae09340973f3b1d6ee`
+- Commit inspected: `1bb10c7b62ff57ebc5d94fdce2e74e9be255fac4`
 - Package version: `0.5.0` (`package.json`)
 - Package manager: `pnpm@10.34.1`
 - Node requirement: `>=24`

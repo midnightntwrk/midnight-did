@@ -11,6 +11,11 @@ import {
 } from "./controller-authorization.js";
 import { normalizeBoundFragmentId } from "./did-subject.js";
 import {
+  findExistingVerificationMethodLedgerIdentifier,
+  ledgerIdentifier,
+  requireExistingVerificationMethodLedgerId,
+} from "./ledger-identifier-keys.js";
+import {
   LedgerVerificationMethodRelationMap,
   schnorrJubjubVerificationMethodToLedger,
   verificationMethodToLedger,
@@ -40,6 +45,20 @@ export const addVerificationMethod = async (
     didContract,
     verificationMethod,
   );
+  const didState = await requireDeployedMidnightDIDLedgerState(
+    providers,
+    didContract,
+  );
+  if (
+    findExistingVerificationMethodLedgerIdentifier(
+      didState,
+      ledgerIdentifier(didContract, ledgerVerificationMethod.id),
+    ) !== null
+  ) {
+    throw new Error(
+      `verification method ${ledgerVerificationMethod.id} already exists`,
+    );
+  }
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
@@ -52,6 +71,7 @@ export const addVerificationMethod = async (
           DIDContract.MapMutation.Insert,
         ),
       ),
+    didState,
   );
   const result = await didContract.callTx.setVerificationMethod(
     ledgerVerificationMethod,
@@ -67,7 +87,7 @@ export const updateVerificationMethod = async (
   providers: MidnightDIDProviders,
   verificationMethod: VerificationMethod,
 ): Promise<FinalizedTxData> => {
-  const ledgerVerificationMethod = verificationMethodToLedger(
+  const canonicalVerificationMethod = verificationMethodToLedger(
     didContract,
     verificationMethod,
   );
@@ -75,10 +95,19 @@ export const updateVerificationMethod = async (
     providers,
     didContract,
   );
+  const existingMethodId = requireExistingVerificationMethodLedgerId(
+    didState,
+    ledgerIdentifier(didContract, canonicalVerificationMethod.id),
+    "opaque",
+  );
+  const ledgerVerificationMethod = {
+    ...canonicalVerificationMethod,
+    id: existingMethodId,
+  };
   assertExistingVerificationMethodRelationsCompatible(
     didState,
     verificationMethod.publicKeyJwk.crv,
-    ledgerVerificationMethod.id,
+    existingMethodId,
   );
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
@@ -92,6 +121,7 @@ export const updateVerificationMethod = async (
           DIDContract.MapMutation.Update,
         ),
       ),
+    didState,
   );
   const result = await didContract.callTx.setVerificationMethod(
     ledgerVerificationMethod,
@@ -107,10 +137,19 @@ export const removeVerificationMethod = async (
   providers: MidnightDIDProviders,
   methodId: string,
 ): Promise<FinalizedTxData> => {
-  const normalizedMethodId = normalizeBoundFragmentId(
+  const canonicalMethodId = normalizeBoundFragmentId(
     didContract,
     methodId,
     "methodId",
+  );
+  const didState = await requireDeployedMidnightDIDLedgerState(
+    providers,
+    didContract,
+  );
+  const normalizedMethodId = requireExistingVerificationMethodLedgerId(
+    didState,
+    ledgerIdentifier(didContract, canonicalMethodId),
+    "opaque",
   );
   await purgeVerificationMethodFromAllRelations(
     didContract,
@@ -147,6 +186,20 @@ export const addSchnorrJubjubVerificationMethod = async (
     didContract,
     verificationMethod,
   );
+  const didState = await requireDeployedMidnightDIDLedgerState(
+    providers,
+    didContract,
+  );
+  if (
+    findExistingVerificationMethodLedgerIdentifier(
+      didState,
+      ledgerIdentifier(didContract, ledgerVerificationMethod.id),
+    ) !== null
+  ) {
+    throw new Error(
+      `verification method ${ledgerVerificationMethod.id} already exists`,
+    );
+  }
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
@@ -159,6 +212,7 @@ export const addSchnorrJubjubVerificationMethod = async (
           DIDContract.MapMutation.Insert,
         ),
       ),
+    didState,
   );
   const result = await didContract.callTx.setSchnorrJubjubVerificationMethod(
     ledgerVerificationMethod,
@@ -174,10 +228,23 @@ export const updateSchnorrJubjubVerificationMethod = async (
   providers: MidnightDIDProviders,
   verificationMethod: SchnorrJubjubVerificationMethod,
 ): Promise<FinalizedTxData> => {
-  const ledgerVerificationMethod = schnorrJubjubVerificationMethodToLedger(
+  const canonicalVerificationMethod = schnorrJubjubVerificationMethodToLedger(
     didContract,
     verificationMethod,
   );
+  const didState = await requireDeployedMidnightDIDLedgerState(
+    providers,
+    didContract,
+  );
+  const existingMethodId = requireExistingVerificationMethodLedgerId(
+    didState,
+    ledgerIdentifier(didContract, canonicalVerificationMethod.id),
+    "schnorrJubjub",
+  );
+  const ledgerVerificationMethod = {
+    ...canonicalVerificationMethod,
+    id: existingMethodId,
+  };
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,
@@ -190,6 +257,7 @@ export const updateSchnorrJubjubVerificationMethod = async (
           DIDContract.MapMutation.Update,
         ),
       ),
+    didState,
   );
   const result = await didContract.callTx.setSchnorrJubjubVerificationMethod(
     ledgerVerificationMethod,
@@ -205,10 +273,19 @@ export const removeSchnorrJubjubVerificationMethod = async (
   providers: MidnightDIDProviders,
   methodId: string,
 ): Promise<FinalizedTxData> => {
-  const normalizedMethodId = normalizeBoundFragmentId(
+  const canonicalMethodId = normalizeBoundFragmentId(
     didContract,
     methodId,
     "methodId",
+  );
+  const didState = await requireDeployedMidnightDIDLedgerState(
+    providers,
+    didContract,
+  );
+  const normalizedMethodId = requireExistingVerificationMethodLedgerId(
+    didState,
+    ledgerIdentifier(didContract, canonicalMethodId),
+    "schnorrJubjub",
   );
   await purgeVerificationMethodFromAllRelations(
     didContract,
@@ -243,24 +320,72 @@ export const removeSchnorrJubjubVerificationMethod = async (
  * proof is tied to the current DID ledger state while the digest and signature
  * remain private circuit inputs.
  */
-export const verifySchnorrJubjubDigestSignature = async (
-  didContract: DeployedMidnightDIDContract,
-  methodId: string,
-  digest: SchnorrJubjubDigest,
-  signature: SchnorrJubjubSignature,
-): Promise<FinalizedTxData> => {
-  const normalizedMethodId = normalizeBoundFragmentId(
-    didContract,
-    methodId,
-    "methodId",
-  );
-  const result = await didContract.callTx.verifySchnorrJubjubDigestSignature(
-    normalizedMethodId,
-    digest,
-    signature,
-  );
-  return result.public;
+type VerifySchnorrJubjubDigestSignature = {
+  (
+    didContract: DeployedMidnightDIDContract,
+    providers: MidnightDIDProviders,
+    methodId: string,
+    digest: SchnorrJubjubDigest,
+    signature: SchnorrJubjubSignature,
+  ): Promise<FinalizedTxData>;
+  /**
+   * @deprecated Pass `providers` as the second argument so canonical and legacy
+   * ledger keys can be resolved from current state. This overload preserves the
+   * historical fragment-keyed behavior for existing consumers.
+   */
+  (
+    didContract: DeployedMidnightDIDContract,
+    methodId: string,
+    digest: SchnorrJubjubDigest,
+    signature: SchnorrJubjubSignature,
+  ): Promise<FinalizedTxData>;
 };
+
+export const verifySchnorrJubjubDigestSignature: VerifySchnorrJubjubDigestSignature =
+  async (
+    didContract: DeployedMidnightDIDContract,
+    providersOrMethodId: MidnightDIDProviders | string,
+    methodIdOrDigest: string | SchnorrJubjubDigest,
+    digestOrSignature: SchnorrJubjubDigest | SchnorrJubjubSignature,
+    maybeSignature?: SchnorrJubjubSignature,
+  ): Promise<FinalizedTxData> => {
+    const stateAware = typeof providersOrMethodId !== "string";
+    const methodId = stateAware
+      ? (methodIdOrDigest as string)
+      : providersOrMethodId;
+    const digest = stateAware
+      ? (digestOrSignature as SchnorrJubjubDigest)
+      : (methodIdOrDigest as SchnorrJubjubDigest);
+    const signature = stateAware
+      ? (maybeSignature as SchnorrJubjubSignature)
+      : (digestOrSignature as SchnorrJubjubSignature);
+    const canonicalMethodId = normalizeBoundFragmentId(
+      didContract,
+      methodId,
+      "methodId",
+    );
+    const identifier = ledgerIdentifier(didContract, canonicalMethodId);
+    let normalizedMethodId: string;
+    if (stateAware) {
+      const didState = await requireDeployedMidnightDIDLedgerState(
+        providersOrMethodId,
+        didContract,
+      );
+      normalizedMethodId = requireExistingVerificationMethodLedgerId(
+        didState,
+        identifier,
+        "schnorrJubjub",
+      );
+    } else {
+      normalizedMethodId = identifier.legacy ?? identifier.canonical;
+    }
+    const result = await didContract.callTx.verifySchnorrJubjubDigestSignature(
+      normalizedMethodId,
+      digest,
+      signature,
+    );
+    return result.public;
+  };
 
 export const addVerificationMethodRelation = async (
   didContract: DeployedMidnightDIDContract,
@@ -268,7 +393,7 @@ export const addVerificationMethodRelation = async (
   relation: VerificationMethodRelationType,
   methodId: string,
 ): Promise<FinalizedTxData> => {
-  const normalizedMethodId = normalizeBoundFragmentId(
+  const canonicalMethodId = normalizeBoundFragmentId(
     didContract,
     methodId,
     "methodId",
@@ -276,6 +401,10 @@ export const addVerificationMethodRelation = async (
   const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
     didContract,
+  );
+  const normalizedMethodId = requireExistingVerificationMethodLedgerId(
+    didState,
+    ledgerIdentifier(didContract, canonicalMethodId),
   );
   assertVerificationMethodRelationAbsent(
     didState,
@@ -301,6 +430,7 @@ export const addVerificationMethodRelation = async (
           DIDContract.SetMutation.Insert,
         ),
       ),
+    didState,
   );
   const result = await didContract.callTx.setVerificationMethodRelation(
     ledgerRelation,
@@ -318,7 +448,7 @@ export const removeVerificationMethodRelation = async (
   relation: VerificationMethodRelationType,
   methodId: string,
 ): Promise<FinalizedTxData> => {
-  const normalizedMethodId = normalizeBoundFragmentId(
+  const canonicalMethodId = normalizeBoundFragmentId(
     didContract,
     methodId,
     "methodId",
@@ -326,6 +456,10 @@ export const removeVerificationMethodRelation = async (
   const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
     didContract,
+  );
+  const normalizedMethodId = requireExistingVerificationMethodLedgerId(
+    didState,
+    ledgerIdentifier(didContract, canonicalMethodId),
   );
   assertVerificationMethodRelationPresent(
     didState,
@@ -346,6 +480,7 @@ export const removeVerificationMethodRelation = async (
           DIDContract.SetMutation.Remove,
         ),
       ),
+    didState,
   );
   const result = await didContract.callTx.setVerificationMethodRelation(
     ledgerRelation,

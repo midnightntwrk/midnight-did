@@ -1,0 +1,61 @@
+name: PR Commit Integrity
+
+# Trusted-base gate: fetch and execute only the verifier at the exact base SHA.
+# The workflow begins protecting PRs after this file and verifier reach the base
+# branch (the introduction PR is necessarily a bootstrap exception).
+on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] -- read-only trusted-base verifier; never executes PR code
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+
+concurrency:
+  group: pr-commit-integrity-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  verify-pr-commits:
+    name: Verify every PR commit signature and DCO trailer
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Fetch verifier from exact trusted base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          verifier="${RUNNER_TEMP}/verify-pr-commits.mjs"
+          policy="${RUNNER_TEMP}/review-policy.json"
+          gh api \
+            -H "Accept: application/vnd.github.raw+json" \
+            "repos/${GITHUB_REPOSITORY}/contents/scripts/review/verify-pr-commits.mjs?ref=${BASE_SHA}" \
+            > "${verifier}"
+          gh api \
+            -H "Accept: application/vnd.github.raw+json" \
+            "repos/${GITHUB_REPOSITORY}/contents/.github/review-policy.json?ref=${BASE_SHA}" \
+            > "${policy}"
+          test -s "${verifier}"
+          test -s "${policy}"
+
+      - name: Verify every pull-request commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: >-
+          node "${RUNNER_TEMP}/verify-pr-commits.mjs"
+          --repo "${GITHUB_REPOSITORY}"
+          --pr "${PR_NUMBER}"
+          --head-sha "${HEAD_SHA}"
+          --policy "${RUNNER_TEMP}/review-policy.json"

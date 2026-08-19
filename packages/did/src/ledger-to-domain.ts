@@ -3,12 +3,15 @@ import {
   createService,
   createVerificationMethod,
   CurveType,
+  DIDDocumentConsistencyError,
   DIDDocumentMetadata,
   encodeBase64Url,
   KeyType,
-  normalizeServiceEndpoint,
+  normalizeAndValidateServiceEndpoint,
+  normalizeFragmentId,
   PublicKeyJwk,
   PublicKeyJwkSchema,
+  resolveDIDURLReference,
   Service,
   ServiceEndpointSchema,
   VerificationMethod,
@@ -64,6 +67,27 @@ const bigintTo32Le = (value: bigint): Uint8Array => {
   return bytes;
 };
 
+export type LedgerDocumentValidationCode =
+  | "invalidDid"
+  | "invalidPublicKey"
+  | "notAllowedLocalDuplicateKey"
+  | "notAllowedVerificationMethodType";
+
+export class LedgerDocumentValidationError extends Error {
+  readonly resolutionCode: LedgerDocumentValidationCode;
+
+  constructor(
+    error: unknown,
+    resolutionCode: LedgerDocumentValidationCode = "invalidDid",
+  ) {
+    super(error instanceof Error ? error.message : String(error), {
+      cause: error,
+    });
+    this.name = "LedgerDocumentValidationError";
+    this.resolutionCode = resolutionCode;
+  }
+}
+
 export class LedgerToDomain {
   private static readonly KeyTypeMap: Record<LedgerKeyTypeValue, KeyType> = {
     [LedgerKeyType.EC]: KeyType.EC,
@@ -95,6 +119,17 @@ export class LedgerToDomain {
   };
 
   static publicKeyJwk(publicKeyJwk: LedgerPublicKeyJwk): PublicKeyJwk {
+    try {
+      return this.parsePublicKeyJwk(publicKeyJwk);
+    } catch (error) {
+      if (error instanceof LedgerDocumentValidationError) throw error;
+      throw new LedgerDocumentValidationError(error, "invalidPublicKey");
+    }
+  }
+
+  private static parsePublicKeyJwk(
+    publicKeyJwk: LedgerPublicKeyJwk,
+  ): PublicKeyJwk {
     const kty = this.KeyTypeMap[publicKeyJwk.kty];
     const crv = this.CurveTypeMap[publicKeyJwk.crv];
     const x = this.ledgerOpaqueString(publicKeyJwk.x, "publicKeyJwk.x");
@@ -119,12 +154,17 @@ export class LedgerToDomain {
   static schnorrJubjubPublicKeyJwk(
     verificationMethod: LedgerSchnorrJubjubVerificationMethod,
   ): PublicKeyJwk {
-    return PublicKeyJwkSchema.parse({
-      kty: KeyType.EC,
-      crv: CurveType.Jubjub,
-      x: encodeBase64Url(bigintTo32Le(verificationMethod.publicKey.x)),
-      y: encodeBase64Url(bigintTo32Le(verificationMethod.publicKey.y)),
-    });
+    try {
+      return PublicKeyJwkSchema.parse({
+        kty: KeyType.EC,
+        crv: CurveType.Jubjub,
+        x: encodeBase64Url(bigintTo32Le(verificationMethod.publicKey.x)),
+        y: encodeBase64Url(bigintTo32Le(verificationMethod.publicKey.y)),
+      });
+    } catch (error) {
+      if (error instanceof LedgerDocumentValidationError) throw error;
+      throw new LedgerDocumentValidationError(error, "invalidPublicKey");
+    }
   }
 
   private static ledgerOpaqueString(value: unknown, label: string): string {
@@ -146,27 +186,29 @@ export class LedgerToDomain {
   }
 
   static service(service: LedgerService): Service {
-    const rawId = service.id.trim();
-    const needsFragmentPrefix =
-      rawId.startsWith("//") ||
-      (!rawId.startsWith("did:") &&
-        !rawId.startsWith("#") &&
-        !rawId.startsWith("/") &&
-        !rawId.startsWith(".") &&
-        !rawId.startsWith("?"));
-    const serviceId = needsFragmentPrefix ? `#${rawId}` : rawId;
+    try {
+      const serviceId = service.id.trim();
+      if (serviceId.length === 0) {
+        throw new Error("Invalid service id: empty value");
+      }
 
-    const serviceEndpoint = this.parseServiceEndpoint(service.serviceEndpoint);
-    const serviceType = this.parseServiceType(
-      (service as { typ?: string; type?: string }).typ ??
-        (service as { typ?: string; type?: string }).type ??
-        "",
-    );
-    return {
-      id: serviceId,
-      type: serviceType,
-      serviceEndpoint,
-    } as Service;
+      const serviceEndpoint = this.parseServiceEndpoint(
+        service.serviceEndpoint,
+      );
+      const serviceType = this.parseServiceType(
+        (service as { typ?: string; type?: string }).typ ??
+          (service as { typ?: string; type?: string }).type ??
+          "",
+      );
+      return {
+        id: serviceId,
+        type: serviceType,
+        serviceEndpoint,
+      } as Service;
+    } catch (error) {
+      if (error instanceof LedgerDocumentValidationError) throw error;
+      throw new LedgerDocumentValidationError(error);
+    }
   }
 
   private static parseServiceType(raw: string): Service["type"] {
@@ -202,7 +244,7 @@ export class LedgerToDomain {
   ): Service["serviceEndpoint"] {
     const normalize = (
       value: Service["serviceEndpoint"],
-    ): Service["serviceEndpoint"] => normalizeServiceEndpoint(value);
+    ): Service["serviceEndpoint"] => normalizeAndValidateServiceEndpoint(value);
 
     if (Array.isArray(endpoint)) {
       const filtered = endpoint
@@ -220,11 +262,9 @@ export class LedgerToDomain {
       if (raw === "") {
         throw new Error("Invalid serviceEndpoint: empty value");
       }
+      let parsed: unknown;
       try {
-        const parsed = JSON.parse(raw);
-        return normalize(
-          ServiceEndpointSchema.parse(parsed) as Service["serviceEndpoint"],
-        );
+        parsed = JSON.parse(raw);
       } catch {
         const direct = ServiceEndpointSchema.safeParse(raw);
         if (direct.success) {
@@ -232,6 +272,9 @@ export class LedgerToDomain {
         }
         throw new Error("Invalid serviceEndpoint: malformed JSON payload");
       }
+      return normalize(
+        ServiceEndpointSchema.parse(parsed) as Service["serviceEndpoint"],
+      );
     }
 
     const parsed = ServiceEndpointSchema.safeParse(endpoint);
@@ -243,22 +286,46 @@ export class LedgerToDomain {
 
   static verificationMethodId(id: string): string {
     const rawId = id.trim();
-    if (rawId.startsWith("did:")) {
-      if (rawId.includes("#")) return rawId;
-      return `${rawId}#${rawId.slice(rawId.lastIndexOf(":") + 1)}`;
-    }
-    const needsFragmentPrefix =
-      !rawId.startsWith("#") &&
+    const legacyBareLabel =
+      !rawId.includes("#") &&
       !rawId.startsWith("/") &&
       !rawId.startsWith(".") &&
-      !rawId.startsWith("?");
-    return needsFragmentPrefix ? `#${rawId}` : rawId;
+      !rawId.startsWith("?") &&
+      !/^[A-Za-z][A-Za-z0-9+.-]*:/u.test(rawId);
+    return legacyBareLabel ? normalizeFragmentId(rawId) : rawId;
   }
 
   static absoluteDidUrlReference(did: string, id: string): string {
-    const normalized = this.verificationMethodId(id);
-    if (normalized.startsWith("did:")) return normalized;
-    return `${did}${normalized}`;
+    id = id.trim();
+    // Ledger verification-method keys historically stored bare fragments.
+    // Preserve that method-level key convention while retaining any explicit
+    // path/query/fragment DID URL supplied by newer entries.
+    const legacyBareLabel =
+      !id.includes("#") &&
+      !id.startsWith("/") &&
+      !id.startsWith(".") &&
+      !id.startsWith("?") &&
+      !id.startsWith("did:") &&
+      !/^[A-Za-z][A-Za-z0-9+.-]*:/u.test(id);
+    const reference = legacyBareLabel ? `#${id}` : id;
+    return resolveDIDURLReference(reference, did);
+  }
+
+  static absoluteServiceUrlReference(did: string, id: string): string {
+    const trimmed = id.trim();
+    if (trimmed.startsWith("//")) return `${did}#${trimmed}`;
+    const legacyBareLabel =
+      !trimmed.includes("#") &&
+      !trimmed.startsWith("/") &&
+      !trimmed.startsWith(".") &&
+      !trimmed.startsWith("?") &&
+      !trimmed.startsWith("did:") &&
+      !/^[A-Za-z][A-Za-z0-9+.-]*:/u.test(trimmed);
+    const reference = legacyBareLabel ? `#${trimmed}` : trimmed;
+    return resolveDIDURLReference(reference, did, {
+      allowExternalDID: true,
+      allowExternalURL: true,
+    });
   }
 
   static toJSON(ledger: Ledger): object {
@@ -329,10 +396,13 @@ export class LedgerToDomain {
     const verificationMethod: VerificationMethod[] = [];
     const verificationMethodIds = new Set<string>();
     const registerVerificationMethodId = (id: string): void => {
-      const normalizedId = this.verificationMethodId(id);
+      const normalizedId = this.absoluteDidUrlReference(did, id);
       if (verificationMethodIds.has(normalizedId)) {
-        throw new Error(
-          `Duplicate verification method id '${this.absoluteDidUrlReference(did, id)}'`,
+        throw new LedgerDocumentValidationError(
+          new Error(
+            `Duplicate verification method id '${this.absoluteDidUrlReference(did, id)}'`,
+          ),
+          "notAllowedLocalDuplicateKey",
         );
       }
       verificationMethodIds.add(normalizedId);
@@ -342,8 +412,11 @@ export class LedgerToDomain {
       const verificationMethodType =
         LedgerToDomain.VerificationMethodTypeMap[method.typ];
       if (verificationMethodType !== VerificationMethodType.JsonWebKey) {
-        throw new Error(
-          `Unsupported verification method type for id '${id}': ${verificationMethodType}`,
+        throw new LedgerDocumentValidationError(
+          new Error(
+            `Unsupported verification method type for id '${id}': ${verificationMethodType}`,
+          ),
+          "notAllowedVerificationMethodType",
         );
       }
       registerVerificationMethodId(id);
@@ -375,9 +448,16 @@ export class LedgerToDomain {
     ) => {
       if (relation.isEmpty()) return;
       for (const methodId of relation) {
-        if (!verificationMethodIds.has(this.verificationMethodId(methodId))) {
-          throw new Error(
-            `${relationName} references missing verification method '${this.absoluteDidUrlReference(did, methodId)}'`,
+        if (
+          !verificationMethodIds.has(
+            this.absoluteDidUrlReference(did, methodId),
+          )
+        ) {
+          throw new LedgerDocumentValidationError(
+            new Error(
+              `${relationName} references missing verification method '${this.absoluteDidUrlReference(did, methodId)}'`,
+            ),
+            "invalidDid",
           );
         }
       }
@@ -403,7 +483,9 @@ export class LedgerToDomain {
     ): string[] | undefined =>
       relation.isEmpty()
         ? undefined
-        : Array.from(relation, (value) => this.verificationMethodId(value));
+        : Array.from(relation, (value) =>
+            this.absoluteDidUrlReference(did, value),
+          );
 
     const assertionMethod = mapRelation(ledger.assertionMethodRelation);
     const authentication = mapRelation(ledger.authenticationRelation);
@@ -419,7 +501,7 @@ export class LedgerToDomain {
       : Array.from(ledger.services, ([, s]) => {
           const parsed = this.service(s);
           return createService({
-            id: this.absoluteDidUrlReference(did, s.id),
+            id: this.absoluteServiceUrlReference(did, parsed.id),
             type: parsed.type,
             serviceEndpoint: parsed.serviceEndpoint,
           });
@@ -428,17 +510,27 @@ export class LedgerToDomain {
       ? undefined
       : Array.from(ledger.alsoKnownAs);
 
-    return createMidnightDIDDocument({
-      id: did,
-      verificationMethod,
-      authentication,
-      assertionMethod,
-      keyAgreement,
-      capabilityInvocation,
-      capabilityDelegation,
-      service,
-      alsoKnownAs,
-    });
+    try {
+      return createMidnightDIDDocument({
+        id: did,
+        verificationMethod,
+        authentication,
+        assertionMethod,
+        keyAgreement,
+        capabilityInvocation,
+        capabilityDelegation,
+        service,
+        alsoKnownAs,
+      });
+    } catch (error) {
+      if (
+        error instanceof LedgerDocumentValidationError ||
+        error instanceof DIDDocumentConsistencyError
+      ) {
+        throw error;
+      }
+      throw new LedgerDocumentValidationError(error);
+    }
   }
 
   static ledgerStateToMetadata(ledger: Ledger): DIDDocumentMetadata {

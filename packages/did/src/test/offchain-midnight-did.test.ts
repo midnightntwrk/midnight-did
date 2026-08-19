@@ -56,8 +56,12 @@ describe("offchain Midnight DID facade", () => {
     expect(resolved.didDocument.id).toBe(resolved.did);
     expect(resolved.did).toMatch(/^did:midnight:offchain:[0-9a-f]{64}:/);
     expect(resolved.didDocument.controller).toBe(resolved.did);
-    expect(resolved.didDocument.authentication).toEqual(["#issuer-key-1"]);
-    expect(resolved.didDocument.assertionMethod).toEqual(["#issuer-key-1"]);
+    expect(resolved.didDocument.authentication).toEqual([
+      `${resolved.did}#issuer-key-1`,
+    ]);
+    expect(resolved.didDocument.assertionMethod).toEqual([
+      `${resolved.did}#issuer-key-1`,
+    ]);
     expect(resolved.didDocument.verificationMethod).toHaveLength(1);
     expect(resolved.didDocument.verificationMethod?.[0]?.controller).toBe(
       resolved.did,
@@ -66,6 +70,42 @@ describe("offchain Midnight DID facade", () => {
       resolved.did,
     );
     expect(resolved.didDocumentMetadata.versionId).toBe("1");
+  });
+
+  it("rejects duplicate verification method ids in offchain state", () => {
+    const duplicateState: OffchainMidnightDIDState = {
+      ...state,
+      verificationMethod: [
+        state.verificationMethod[0],
+        state.verificationMethod[0],
+      ],
+    };
+
+    expect(() =>
+      createLongFormOffchainMidnightDIDString(duplicateState),
+    ).toThrow(/verificationMethod ids must be unique/);
+  });
+
+  it("rejects duplicate service ids in offchain state", () => {
+    const duplicateState: OffchainMidnightDIDState = {
+      ...state,
+      service: [
+        {
+          id: "#service-1",
+          type: "LinkedDomains",
+          serviceEndpoint: "https://example.com",
+        },
+        {
+          id: "#service-1",
+          type: "LinkedDomains",
+          serviceEndpoint: "https://example.org",
+        },
+      ],
+    };
+
+    expect(() =>
+      createLongFormOffchainMidnightDIDString(duplicateState),
+    ).toThrow(/service ids must be unique/);
   });
 
   it("rejects short-form offchain DIDs in the long-form resolver", () => {

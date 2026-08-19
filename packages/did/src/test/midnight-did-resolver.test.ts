@@ -115,7 +115,7 @@ describe("MidnightDIDResolver", () => {
 
     expect(result).not.toBeNull();
     expect(result?.didDocument.id).toBe(did);
-    expect(result?.didDocument.authentication).toEqual(["#key-1"]);
+    expect(result?.didDocument.authentication).toEqual([`${did}#key-1`]);
     expect(result?.didDocumentMetadata.versionId).toBe("1");
     expect(ledgerReader).toHaveBeenCalledWith("a".repeat(64));
   });
@@ -186,6 +186,195 @@ describe("MidnightDIDResolver", () => {
     expect(result.didResolutionMetadata.error).toBe("invalidDid");
   });
 
+  it("preserves distinct path services with the same fragment", async () => {
+    ledgerState.services = makeIterablePairs<string, any>([
+      [
+        "service-a",
+        {
+          id: "/routes/a#service",
+          typ: "LinkedDomains",
+          serviceEndpoint: JSON.stringify("https://a.example"),
+        },
+      ],
+      [
+        "service-b",
+        {
+          id: "/routes/b#service",
+          typ: "LinkedDomains",
+          serviceEndpoint: JSON.stringify("https://b.example"),
+        },
+      ],
+    ]);
+
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument?.service?.map((service) => service.id)).toEqual([
+      `${did}/routes/a#service`,
+      `${did}/routes/b#service`,
+    ]);
+    expect(result.didResolutionMetadata.error).toBeUndefined();
+  });
+
+  it("maps invalid ledger document state to invalidDid", async () => {
+    ledgerState.services = makeIterablePairs<string, any>([
+      [
+        "invalid-service",
+        {
+          id: "#",
+          typ: "LinkedDomains",
+          serviceEndpoint: JSON.stringify("https://example.com"),
+        },
+      ],
+    ]);
+
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument).toBeNull();
+    expect(result.didResolutionMetadata.error).toBe("invalidDid");
+  });
+
+  it.each([
+    [
+      "a foreign-DID service id",
+      {
+        id: "did:example:other#service-1",
+        typ: "LinkedDomains",
+        serviceEndpoint: JSON.stringify("https://example.com"),
+      },
+    ],
+    [
+      "an empty service endpoint set",
+      {
+        id: "#service-1",
+        typ: "LinkedDomains",
+        serviceEndpoint: JSON.stringify([]),
+      },
+    ],
+  ])("maps %s to invalidDid", async (_label, service) => {
+    ledgerState.services = makeIterablePairs<string, any>([
+      ["invalid-service", service],
+    ]);
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument).toBeNull();
+    expect(result.didResolutionMetadata.error).toBe("invalidDid");
+  });
+
+  it("maps duplicate service endpoints to invalidDid", async () => {
+    ledgerState.services = makeIterablePairs<string, any>([
+      [
+        "duplicate-endpoint-service",
+        {
+          id: "#service-1",
+          typ: "DIDCommMessaging",
+          serviceEndpoint: JSON.stringify([
+            "https://EXAMPLE.com:443/messages",
+            "https://example.com/messages",
+          ]),
+        },
+      ],
+    ]);
+
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument).toBeNull();
+    expect(result.didResolutionMetadata.error).toBe("invalidDid");
+  });
+
+  it("maps schema validation failures to invalidDid", async () => {
+    ledgerState.alsoKnownAs = makeIterable<string>(["not a URI"]);
+
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument).toBeNull();
+    expect(result.didResolutionMetadata.error).toBe("invalidDid");
+  });
+
+  it("maps invalid ledger JWK data to invalidPublicKey", async () => {
+    const [[methodId, method]] = Array.from(
+      ledgerState.verificationMethods,
+    ) as Array<[string, any]>;
+    ledgerState.verificationMethods = makeIterablePairs([
+      [
+        methodId,
+        { ...method, publicKeyJwk: { ...method.publicKeyJwk, x: "bad" } },
+      ],
+    ]);
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didResolutionMetadata.error).toBe("invalidPublicKey");
+  });
+
+  it("maps unsupported ledger verification method types to a typed error", async () => {
+    const [[methodId, method]] = Array.from(
+      ledgerState.verificationMethods,
+    ) as Array<[string, any]>;
+    ledgerState.verificationMethods = makeIterablePairs([
+      [methodId, { ...method, typ: 0 }],
+    ]);
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didResolutionMetadata.error).toBe(
+      "notAllowedVerificationMethodType",
+    );
+  });
+
+  it("maps duplicate logical ledger method keys to a typed error", async () => {
+    ledgerState.schnorrJubjubVerificationMethods = makeIterablePairs([
+      ["#key-1", { publicKey: { x: 1n, y: 2n } }],
+    ]);
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didResolutionMetadata.error).toBe(
+      "notAllowedLocalDuplicateKey",
+    );
+  });
+
+  it("does not classify runtime error text as a resolver request failure", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => {
+        throw new Error("Network mismatch: forged runtime text");
+      },
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument).toBeNull();
+    expect(result.didResolutionMetadata.error).toBe("internalError");
+  });
+
   it("throws on network mismatch", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => ledgerState,
@@ -195,6 +384,11 @@ describe("MidnightDIDResolver", () => {
     await expect(() => resolver.resolveResult(did)).rejects.toThrow(
       /Network mismatch/,
     );
+    await expect(
+      resolver.resolveDIDResolutionResult(did),
+    ).resolves.toMatchObject({
+      didResolutionMetadata: { error: "methodNotSupported" },
+    });
   });
 
   it("throws on resolve when DID is not found", async () => {

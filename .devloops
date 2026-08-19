@@ -1,21 +1,20 @@
-# Repository-specific dev-loops policy for midnight-did.
-#
-# This file must use the schema supported by the pinned dev-loops package.
-# Repository engineering rules and command-level validation live in AGENT.md and
-# the bundled midnight-identity skill.
+# Repository-specific dev-loops@0.9.0 policy for midnight-did.
+# Engineering rules and branch roles are authoritative in AGENT.md.
 version: 1
 
-# The repository's current GitHub default branch is main. Base-branch policy is
-# documented in AGENT.md because dev-loops 0.9.0 does not expose a repository
-# base-branch field in this file schema.
+strategy:
+  default: github-first
+inputSource:
+  default: tracker
 
+# `main` is GitHub's release/default branch and `develop` is the normal feature
+# integration base. dev-loops 0.9.0 has no branch-role schema; AGENT.md owns it.
 refinement:
   fanOut: 3
   mode: parallel
-  # This repository uses the configured local review fan-out; Copilot follow-up
-  # is not an automatic gate. The post-PR dispatch wrapper also requests Pat's
-  # GitHub-routed review (`patextreme`) and applies the ai-review label; see
-  # AGENT.md.
+  # Zero disables Copilot rounds only. It is never a clean/acceptance signal:
+  # `.github/review-policy.json` and the current-head feedback audit still require
+  # routed Pat evidence before the human-approval checkpoint.
   maxCopilotRounds: 0
   stopOnLowSignal: false
   lowSignalRoundThreshold: 3
@@ -28,14 +27,14 @@ refinement:
     - midnight-did-surface
     - contract-artifacts
 
-# Draft and pre-approval gates use repository-specific DID/Compact lenses in
-# addition to the standard lifecycle checks.
 gates:
   draft:
+    # Optional lenses are selected dynamically from changed paths to avoid
+    # paying for overlapping reviewers on every PR.
+    dynamicAngles: true
+    additiveAngles: false
     angles:
       - scope
-      - correctness
-      - coverage
       - ci-guard
       - contract-surface
       - contract-artifacts
@@ -43,17 +42,24 @@ gates:
       - link-check
       - config-drift
       - packaging-runtime
-      - midnight-did-surface
-      - security
-      - external-review
+      - independent-review
+    # These correctness and deterministic-spec lenses can never be removed by
+    # dynamic selection.
     mandatoryAngles:
       - pr-description
+      - correctness
+      - coverage
+      - security
+      - midnight-did-surface
+    blockCleanOnFindingSeverities:
+      - must-fix
+      - worth-fixing-now
     required: true
     requireCi: true
   preApproval:
+    dynamicAngles: true
+    additiveAngles: false
     angles:
-      - correctness
-      - coverage
       - contract-surface
       - contract-artifacts
       - ci-guard
@@ -61,16 +67,21 @@ gates:
       - link-check
       - config-drift
       - packaging-runtime
-      - security
-      - midnight-did-surface
-      - external-review
+      - independent-review
     mandatoryAngles:
       - pr-checklist-matrix
+      - correctness
+      - coverage
+      - security
+      - midnight-did-surface
+    blockCleanOnFindingSeverities:
+      - must-fix
+      - worth-fixing-now
     required: true
     requireCi: true
   requireFanoutEvidence: true
-  requireFanoutProvenance: false
-  maxFanoutReviewers: 8
+  requireFanoutProvenance: true
+  maxFanoutReviewers: 6
   postFindingsComments: true
   rejectForeignAngles: true
 
@@ -80,7 +91,8 @@ personas:
     prompt: >-
       Review for secret exposure, unsafe proof/key handling, authorization
       bypasses, dependency or supply-chain risk, and unsafe GitHub workflow
-      behavior. Report concrete findings with file and line references.
+      behavior. Classify actionable findings as must-fix, worth-fixing-now, or
+      defer and report concrete file and line references.
     defaultModel: null
 
   midnight-did-surface:
@@ -90,7 +102,8 @@ personas:
       specification, and downstream compatibility boundaries. Find drift,
       duplicated ownership, stale public behavior, or missing validation. Keep
       resolver services in midnight-did-resolver and VC behavior in the VC
-      repository. Report concrete findings with file and line references.
+      repository. Classify actionable findings as must-fix, worth-fixing-now,
+      or defer and report concrete file and line references.
     defaultModel: null
 
   contract-artifacts:
@@ -99,30 +112,28 @@ personas:
       For Compact contract changes, compare generated circuit k, rows, prover
       key, verifier key, zkir, and bzkir sizes against the base branch. Flag k
       increases, unexpected artifact growth, stale generated artifacts, and
-      missing docs updates. Report concrete findings with file and line
-      references.
+      missing docs updates. Classify findings and report file and line references.
     defaultModel: null
 
-  external-review:
+  independent-review:
     persona: review
     prompt: >-
-      Independently review the PR for correctness, security, stale docs, API
-      compatibility, tests, and regression risk as Pat's external GitHub-routed
-      review lane. For Compact changes, check authorization binding, witness
-      secrecy, managed artifact freshness, circuit k/size changes, and spec/docs
-      drift. Do not modify files. Return only actionable findings with file/line
-      references, or No findings.
+      Independently review the current diff for correctness, security, stale
+      documentation, API compatibility, test gaps, and regression risk. This is
+      a local LLM lens, not Pat and not a substitute for the deterministic
+      routed-review precondition in .github/review-policy.json. Classify
+      actionable findings as must-fix, worth-fixing-now, or defer and report
+      concrete file and line references, or report No findings.
     defaultModel: null
 
 autonomy:
-  # Allow the loop to complete draft review and feedback triage, but stop at
-  # the pre-approval human checkpoint. Merge is always human-only.
   stopAt:
     - pre-approval
     - merge
   humanMergeOnly: true
 
 workflow:
+  asyncStartMode: required
   requireDraftFirst: true
   requireRetrospective: true
   devModeDefault: false

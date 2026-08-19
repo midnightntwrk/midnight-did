@@ -6,7 +6,7 @@ Domain model and validation layer for Midnight DID documents and metadata.
 
 - DID/DID URL parsing and validation
 - DID Document schemas and normalization
-- Canonical reference handling (fragment vs absolute DID URL)
+- Lossless RFC3986 DID URL reference resolution
 - Service endpoint and key schema constraints
 
 ## Architecture
@@ -45,6 +45,22 @@ stateDiagram-v2
   Valid --> [*]
   Invalid --> [*]
 ```
+
+## Identifier/reference normalization
+
+`resolveDIDURLReference` accepts an absolute URL/DID or a relative DID URL
+reference and resolves it against the bare DID subject. Canonical identities
+are absolute and preserve path, query, and fragment components:
+
+```text
+#svc                  -> did:midnight:...#svc
+/routing              -> did:midnight:.../routing
+?service=messaging    -> did:midnight:...?service=messaging
+/a#svc                != did:midnight:.../b#svc
+```
+
+Use the resolved value for ledger keys, duplicate checks, API mutations, and
+resolver output. Do not reduce a path or query reference to its fragment.
 
 ## Resolution Metadata
 

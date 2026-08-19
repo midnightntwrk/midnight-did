@@ -1,19 +1,19 @@
-# DID Core 1.1 Compatibility Matrix (Initial Phase 1 Audit)
+# DID Core 1.1 Compatibility Matrix (Baseline Refresh)
 
-**Baseline:** [W3C DID Core 1.1 Candidate Recommendation Snapshot, 05 March 2026](https://www.w3.org/TR/2026/CR-did-1.1-20260305/). **Audited commit:** `d3b4102f9d7b0b3675d847ae09340973f3b1d6ee`.
+**Baseline:** [W3C DID Core 1.1 Candidate Recommendation Snapshot, 05 March 2026](https://www.w3.org/TR/2026/CR-did-1.1-20260305/). **Audited commit:** `1bb10c7b62ff57ebc5d94fdce2e74e9be255fac4`.
 
 DID Core 1.1 is tracked separately and is **not** substituted for the DID Core 1.0 Recommendation release gate. This initial matrix reuses the evidence rows in [the DID Core 1.0 matrix](./did-core-1.0.md), while recording where compatibility evidence is incomplete or requires a 1.1-specific review.
 
 | Requirement family | DID Core 1.0 status | DID Core 1.1 compatibility | Midnight evidence | Focused action |
 | --- | --- | --- | --- | --- |
 | DID syntax and method-specific identifier | PASS WITH RESTRICTION | PASS WITH RESTRICTION | `packages/domain/src/midnight.ts`; `midnight.test.ts` | Re-run the full syntax/normalization fixture set against the 1.1 syntax sections. |
-| DID URL syntax and parameters | UNKNOWN | UNKNOWN | `DIDStringSchema` intentionally rejects URL components; no dereference API | Decide and test supported URL parameters, paths, queries, and fragments. |
+| DID URL syntax and parameters | PASS WITH RESTRICTION | PASS WITH RESTRICTION | `resolveDIDURLReference`, DID URL/reference schemas, and resolver tests | Keep bare-DID parsing distinct from URL processing; add complete dereferencing vectors if that capability is adopted. |
 | DID Document `id`/`controller`/aliases | PASS WITH RESTRICTION | PASS WITH RESTRICTION | `midnight-did-document.ts`; `ledger-to-domain.ts` | Add null/malformed and subject-binding vectors. |
 | Context and representation rules | PASS WITH RESTRICTION | UNKNOWN | DID/JWK contexts and JSON serialization are implemented; no complete 1.1 representation diff audit | Compare 1.1 representation requirements and add JSON-LD round-trip coverage. |
 | Verification method structure | PASS WITH RESTRICTION | PASS WITH RESTRICTION | domain schemas and resolver mapping | Keep `JsonWebKey` method boundary explicit; test all supported profiles. |
 | Verification relationships | PASS | PASS | relation schemas/mappers and contract relation tests | Add complete negative vectors for missing/duplicate targets. |
-| Service data model | PASS WITH RESTRICTION | PASS WITH RESTRICTION | `ServiceSchema`, ledger service mapping | Complete duplicate and malformed endpoint vectors. |
-| Optional-member omission/null behavior | PASS | PASS | constructors omit absent members and generic/method-specific schemas reject `null` | Fixed in Phase 2 commit `d3b4102`; retain regression coverage as the 1.1 compatibility gate. |
+| Service data model | PASS WITH RESTRICTION | PASS WITH RESTRICTION | `ServiceSchema`, `resolveDIDURLReference`, ledger service mapping, path/query/fragment vectors | Complete external URL and malformed endpoint vectors; retain subject-binding as an explicit method restriction. |
+| Optional-member omission/null behavior | PASS | PASS | constructors omit absent members and generic/method-specific schemas reject `null` | Retain regression coverage as the 1.1 compatibility gate; the current baseline includes the Phase 2 behavior. |
 | DID JSON representation | PASS WITH RESTRICTION | UNKNOWN | `resolveRepresentation` and resolver tests | Verify 1.1 representation changes and semantic equivalence. |
 | DID JSON-LD representation | PASS | UNKNOWN | deterministic expansion test, no compaction round trip | Add compact/expand semantic round-trip tests under the 1.1 baseline. |
 | Create/read/update/deactivate method operations | PASS WITH RESTRICTION | PASS WITH RESTRICTION | contract/API lifecycle and resolver tests | Add deterministic lifecycle vectors and map any 1.1 clarification. |

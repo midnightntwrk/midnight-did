@@ -643,6 +643,7 @@ describeApi("Midnight DID method API", () => {
     await expect(
       api.verifySchnorrJubjubDigestSignature(
         realKeyContract,
+        providers,
         jubjubMethodId,
         payloadToJubjubDigest(payload),
         jubjubSignature,
@@ -662,8 +663,7 @@ describeApi("Midnight DID method API", () => {
     const didDoc = await resolveDocument();
     expect(
       didDoc?.authentication?.some(
-        (authenticationMethodId) =>
-          authenticationMethodId === toFragmentId(methodId),
+        (authenticationMethodId) => authenticationMethodId === methodId,
       ),
     ).toBe(true);
   });
@@ -709,7 +709,7 @@ describeApi("Midnight DID method API", () => {
     expect(insertedVerificationMethod?.type).toEqual(
       VerificationMethodType.JsonWebKey,
     );
-    const assertionId = parseDIDKeyID(toFragmentId(methodId));
+    const assertionId = parseDIDKeyID(methodId);
     expect(didDoc?.assertionMethod?.includes(assertionId)).toBe(true);
   });
 
@@ -723,7 +723,7 @@ describeApi("Midnight DID method API", () => {
     );
 
     const didDoc = await resolveDocument();
-    const assertionId = parseDIDKeyID(toFragmentId(methodId));
+    const assertionId = parseDIDKeyID(methodId);
     expect((didDoc?.assertionMethod ?? []).includes(assertionId)).toBe(false);
   });
 
@@ -748,7 +748,7 @@ describeApi("Midnight DID method API", () => {
         hasSameMethodFragment(vm.id, methodId),
       ),
     ).toBe(false);
-    const authId = parseDIDKeyID(toFragmentId(methodId));
+    const authId = parseDIDKeyID(methodId);
     expect((didDoc?.authentication ?? []).includes(authId)).toBe(false);
   });
 

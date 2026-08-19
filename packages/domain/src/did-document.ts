@@ -1,6 +1,7 @@
 import { z } from "zod/v4-mini";
 
 import { decodeBase64UrlBytes } from "./crypto-codecs.js";
+import { resolveDIDURLReference } from "./did-url.js";
 
 /** DID URL schema */
 export const DIDURLSchema = z
@@ -50,19 +51,28 @@ export const RelativeURLSchema = z
   .brand("RelativeURL");
 export type RelativeURL = z.infer<typeof RelativeURLSchema>;
 
-const extractKeyFragment = (value: string) => {
-  if (value.startsWith("#")) return value.slice(1);
-  if (value.startsWith("did:")) {
-    const fragmentIndex = value.indexOf("#");
-    if (fragmentIndex === -1) return "";
-    return value.substring(fragmentIndex + 1);
+const isUri = (value: string) => {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
   }
-  return value;
+};
+
+export const URIStringSchema = z
+  .string()
+  .check(z.refine(isUri, "Invalid URI (must conform to RFC3986)"));
+export type URIString = z.infer<typeof URIStringSchema>;
+
+const extractKeyFragment = (value: string) => {
+  const fragmentIndex = value.indexOf("#");
+  return fragmentIndex >= 0 ? value.slice(fragmentIndex + 1) : "";
 };
 
 /** DID Key ID (e.g. did:example:123#key-1 or #key-1) */
 export const DIDKeyIDSchema = z
-  .union([DIDURLSchema, RelativeURLSchema])
+  .union([DIDURLSchema, URIStringSchema, RelativeURLSchema])
   .check(
     z.refine((val) => {
       const fragment = extractKeyFragment(val);
@@ -295,20 +305,6 @@ export const assertVerificationMethodRelationCompatibleWithCurve = (
 };
 
 /** Service Endpoint */
-const isUri = (value: string) => {
-  try {
-    new URL(value);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-export const URIStringSchema = z
-  .string()
-  .check(z.refine(isUri, "Invalid URI (must conform to RFC3986)"));
-export type URIString = z.infer<typeof URIStringSchema>;
-
 export const ServiceEndpointObjectSchema = z.record(z.string(), z.unknown());
 
 export type ServiceEndpointObject = z.infer<typeof ServiceEndpointObjectSchema>;
@@ -325,7 +321,9 @@ export type ServiceEndpointArrayEntry = z.infer<
 export const ServiceEndpointSchema = z.union([
   URIStringSchema,
   ServiceEndpointObjectSchema,
-  z.array(ServiceEndpointArrayEntrySchema),
+  z
+    .array(ServiceEndpointArrayEntrySchema)
+    .check(z.minLength(1, "serviceEndpoint must contain at least one value")),
 ]);
 export type ServiceEndpoint =
   | z.infer<typeof URIStringSchema>
@@ -393,15 +391,58 @@ export function normalizeServiceEndpoint(
   return normalizeEndpointValue(endpoint) as Record<string, unknown>;
 }
 
-export const ServiceIdSchema = z.union([DIDURLSchema, RelativeURLSchema]);
+const canonicalJsonValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(canonicalJsonValue);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, entry]) => [key, canonicalJsonValue(entry)]),
+    );
+  }
+  return value;
+};
+
+const serviceEndpointIdentity = (endpoint: ServiceEndpointArrayEntry): string =>
+  JSON.stringify(canonicalJsonValue(endpoint));
+
+export const normalizeAndValidateServiceEndpoint = (
+  endpoint: ServiceEndpoint,
+): ServiceEndpoint => {
+  const normalized = normalizeServiceEndpoint(endpoint);
+  if (Array.isArray(normalized)) {
+    const identities = normalized.map(serviceEndpointIdentity);
+    if (new Set(identities).size !== identities.length) {
+      throw new Error("serviceEndpoint values must be unique");
+    }
+  }
+  return normalized;
+};
+
+export const ServiceIdSchema = z.union([
+  DIDURLSchema,
+  URIStringSchema,
+  RelativeURLSchema,
+]);
 export type ServiceId = z.infer<typeof ServiceIdSchema>;
 
 /** Service */
-export const ServiceSchema = z.object({
-  id: ServiceIdSchema,
-  type: z.union([z.string(), z.array(z.string())]),
-  serviceEndpoint: ServiceEndpointSchema,
-});
+export const ServiceSchema = z
+  .object({
+    id: ServiceIdSchema,
+    type: z.union([z.string(), z.array(z.string())]),
+    serviceEndpoint: ServiceEndpointSchema,
+  })
+  .check(
+    z.refine((service) => {
+      try {
+        normalizeAndValidateServiceEndpoint(service.serviceEndpoint);
+        return true;
+      } catch {
+        return false;
+      }
+    }, "serviceEndpoint values must be unique"),
+  );
 export type Service = z.infer<typeof ServiceSchema>;
 
 /** DID Document (W3C DID Core 1.0 compliant - generic) */
@@ -443,9 +484,41 @@ export const DIDDocumentSchema = z.looseObject({
   service: z.optional(z.array(ServiceSchema)),
 });
 
-function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
+export type DIDDocumentConsistencyIssue = {
+  code:
+    | "duplicateVerificationMethod"
+    | "duplicateRelationship"
+    | "danglingRelationship"
+    | "duplicateService"
+    | "duplicateServiceEndpoint";
+  message: string;
+  path: (string | number)[];
+};
+
+export class DIDDocumentConsistencyError extends Error {
+  readonly issues: DIDDocumentConsistencyIssue[];
+
+  constructor(issues: DIDDocumentConsistencyIssue[]) {
+    super(
+      issues
+        .map((issue) =>
+          issue.path.length > 0
+            ? `${issue.message} at ${issue.path.join(".")}`
+            : issue.message,
+        )
+        .join("; "),
+    );
+    this.name = "DIDDocumentConsistencyError";
+    this.issues = issues;
+  }
+}
+
+export function validateDIDDocumentConsistency(
+  doc: DIDDocument,
+  options: { normalizeServiceEndpoints?: boolean } = {},
+): DIDDocument {
   const normalizedDoc: DIDDocument =
-    doc.service == null
+    options.normalizeServiceEndpoints === false || doc.service == null
       ? doc
       : {
           ...doc,
@@ -455,20 +528,25 @@ function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
           })),
         };
 
-  type ValidationIssue = { message: string; path: (string | number)[] };
-  const issues: ValidationIssue[] = [];
+  const issues: DIDDocumentConsistencyIssue[] = [];
   const verificationMethods = normalizedDoc.verificationMethod ?? [];
   const seenVerificationMethodIds = new Map<string, number>();
-  const canonicalizeKeyReference = (value: string): string => {
-    if (value.startsWith("did:")) return value;
-    const fragment = value.startsWith("#") ? value : `#${value}`;
-    return `${normalizedDoc.id}${fragment}`;
-  };
+  const canonicalizeKeyReference = (value: string): string =>
+    resolveDIDURLReference(value, normalizedDoc.id, {
+      allowExternalDID: true,
+      allowExternalURL: true,
+    });
+  const canonicalizeServiceReference = (value: string): string =>
+    resolveDIDURLReference(value, normalizedDoc.id, {
+      allowExternalDID: true,
+      allowExternalURL: true,
+    });
 
   verificationMethods.forEach((vm, index) => {
     const canonicalId = canonicalizeKeyReference(vm.id);
     if (seenVerificationMethodIds.has(canonicalId)) {
       issues.push({
+        code: "duplicateVerificationMethod",
         message: "verificationMethod ids must be unique",
         path: ["verificationMethod", index, "id"],
       });
@@ -492,6 +570,7 @@ function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
       const canonicalValue = canonicalizeKeyReference(value);
       if (seen.has(canonicalValue)) {
         issues.push({
+          code: "duplicateRelationship",
           message: `${relationName} must not contain duplicate entries`,
           path: [relationName, index],
         });
@@ -500,6 +579,7 @@ function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
       seen.add(canonicalValue);
       if (!seenVerificationMethodIds.has(canonicalValue)) {
         issues.push({
+          code: "danglingRelationship",
           message: `${relationName} references a verificationMethod id that does not exist`,
           path: [relationName, index],
         });
@@ -516,13 +596,15 @@ function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
   const services = normalizedDoc.service ?? [];
   const seenServiceIds = new Set<string>();
   services.forEach((service, index) => {
-    if (seenServiceIds.has(service.id)) {
+    const canonicalServiceId = canonicalizeServiceReference(service.id);
+    if (seenServiceIds.has(canonicalServiceId)) {
       issues.push({
+        code: "duplicateService",
         message: "service ids must be unique",
         path: ["service", index, "id"],
       });
     } else {
-      seenServiceIds.add(service.id);
+      seenServiceIds.add(canonicalServiceId);
     }
 
     const endpoints = Array.isArray(service.serviceEndpoint)
@@ -530,32 +612,21 @@ function validateDIDDocumentConsistency(doc: DIDDocument): DIDDocument {
       : [service.serviceEndpoint];
     const seenEndpoints = new Set<string>();
     endpoints.forEach((endpoint, endpointIndex) => {
-      const key =
-        typeof endpoint === "string" ? endpoint : JSON.stringify(endpoint);
-      if (seenEndpoints.has(key)) {
+      const identity = serviceEndpointIdentity(endpoint);
+      if (seenEndpoints.has(identity)) {
         issues.push({
+          code: "duplicateServiceEndpoint",
           message: "serviceEndpoint values must be unique",
           path: ["service", index, "serviceEndpoint", endpointIndex],
         });
       } else {
-        seenEndpoints.add(key);
+        seenEndpoints.add(identity);
       }
     });
   });
 
   if (issues.length > 0) {
-    const message = issues
-      .map((issue) =>
-        issue.path && issue.path.length > 0
-          ? `${issue.message} at ${issue.path.join(".")}`
-          : issue.message,
-      )
-      .join("; ");
-    const error = new Error(message) as Error & {
-      issues?: ValidationIssue[];
-    };
-    error.issues = issues;
-    throw error;
+    throw new DIDDocumentConsistencyError(issues);
   }
   return normalizedDoc;
 }
@@ -679,7 +750,9 @@ export const parseService = (input: unknown) => {
   const service = ServiceSchema.parse(input);
   return {
     ...service,
-    serviceEndpoint: normalizeServiceEndpoint(service.serviceEndpoint),
+    serviceEndpoint: normalizeAndValidateServiceEndpoint(
+      service.serviceEndpoint,
+    ),
   };
 };
 export const parseDIDResolutionResult = (input: unknown) =>
@@ -707,7 +780,9 @@ export function createService(params: {
   const service = ServiceSchema.parse(params);
   return {
     ...service,
-    serviceEndpoint: normalizeServiceEndpoint(service.serviceEndpoint),
+    serviceEndpoint: normalizeAndValidateServiceEndpoint(
+      service.serviceEndpoint,
+    ),
   };
 }
 
