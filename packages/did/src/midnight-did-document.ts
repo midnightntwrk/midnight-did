@@ -157,6 +157,18 @@ const canonicalizeMidnightReference = (
 ): string =>
   resolveDIDURLReference(value, did, { caseInsensitiveDIDSubject: true });
 
+const canonicalizeMidnightSubjectReference = (
+  value: string,
+  did: MidnightDIDString,
+  field: string,
+): string => {
+  const resolved = canonicalizeMidnightReference(value, did);
+  if (referenceSubject(resolved) !== did) {
+    throw new Error(`${field} '${value}' must be subject-bound`);
+  }
+  return resolved;
+};
+
 const canonicalizeMidnightServiceReference = (
   value: string,
   did: MidnightDIDString,
@@ -188,7 +200,11 @@ const normalizeMidnightDocumentReferences = (
   const verificationMethod = doc.verificationMethod?.map((method) => {
     let id: string;
     try {
-      id = canonicalizeMidnightReference(method.id, did);
+      id = canonicalizeMidnightSubjectReference(
+        method.id,
+        did,
+        "verificationMethod id",
+      );
     } catch (error) {
       if (error instanceof Error && error.message.includes("current DID")) {
         throw new Error(
@@ -196,11 +212,6 @@ const normalizeMidnightDocumentReferences = (
         );
       }
       throw error;
-    }
-    if (id.startsWith("did:") && referenceSubject(id) !== did) {
-      throw new Error(
-        `verificationMethod id '${method.id}' must be subject-bound`,
-      );
     }
     const controller = MidnightDIDSchema.safeParse(method.controller);
     if (!controller.success || controller.data !== did) {
@@ -211,17 +222,34 @@ const normalizeMidnightDocumentReferences = (
     return { ...method, id, controller: did };
   });
 
-  const normalizeReferences = (values: string[] | undefined) =>
-    values?.map((value) => canonicalizeMidnightReference(value, did));
+  const normalizeReferences = (values: string[] | undefined, field: string) =>
+    values?.map((value) =>
+      canonicalizeMidnightSubjectReference(value, did, field),
+    );
 
   return {
     ...doc,
     verificationMethod,
-    authentication: normalizeReferences(doc.authentication),
-    assertionMethod: normalizeReferences(doc.assertionMethod),
-    keyAgreement: normalizeReferences(doc.keyAgreement),
-    capabilityInvocation: normalizeReferences(doc.capabilityInvocation),
-    capabilityDelegation: normalizeReferences(doc.capabilityDelegation),
+    authentication: normalizeReferences(
+      doc.authentication,
+      "authentication reference",
+    ),
+    assertionMethod: normalizeReferences(
+      doc.assertionMethod,
+      "assertionMethod reference",
+    ),
+    keyAgreement: normalizeReferences(
+      doc.keyAgreement,
+      "keyAgreement reference",
+    ),
+    capabilityInvocation: normalizeReferences(
+      doc.capabilityInvocation,
+      "capabilityInvocation reference",
+    ),
+    capabilityDelegation: normalizeReferences(
+      doc.capabilityDelegation,
+      "capabilityDelegation reference",
+    ),
     service: doc.service?.map((service) => ({
       ...service,
       id: canonicalizeMidnightServiceReference(service.id, did),

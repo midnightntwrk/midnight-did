@@ -281,6 +281,38 @@ describe("Midnight DID Document", () => {
       );
     });
 
+    it("rejects verification methods with external absolute URL ids", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        verificationMethod: [
+          {
+            ...exampleVerificationMethod,
+            id: "https://attacker.example/key#key-1",
+          },
+        ],
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow();
+    });
+
+    it("rejects verification relationships with external absolute URL ids", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        verificationMethod: [exampleVerificationMethod],
+        authentication: ["https://attacker.example/key#key-1"],
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow();
+    });
+
     it("rejects null optional DID Document members", () => {
       for (const member of optionalDIDDocumentMembers) {
         expect(() =>

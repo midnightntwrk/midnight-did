@@ -353,6 +353,19 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     ).toThrow(/Invalid serviceEndpoint/);
   });
 
+  it("uses one lossless policy for VM and service ledger references", () => {
+    const did = `did:midnight:devnet:${"a".repeat(64)}`;
+
+    for (const reference of ["legacy#key-1", "/keys/a#key-1"]) {
+      expect(LedgerToDomain.absoluteDidUrlReference(did, reference)).toBe(
+        `${did}/${reference.startsWith("/") ? reference.slice(1) : reference}`,
+      );
+      expect(LedgerToDomain.absoluteServiceUrlReference(did, reference)).toBe(
+        `${did}/${reference.startsWith("/") ? reference.slice(1) : reference}`,
+      );
+    }
+  });
+
   it("uses the shared fragment normalizer for ledger JSON identifiers", () => {
     const did = `did:midnight:devnet:${"a".repeat(64)}`;
 
@@ -381,6 +394,29 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       "wss://x.example",
       { uri: "https://y.example" },
     ]);
+  });
+
+  it("toJSON covers all relation and native-key projections", () => {
+    for (const field of [
+      "assertionMethodRelation",
+      "keyAgreementRelation",
+      "capabilityInvocationRelation",
+      "capabilityDelegationRelation",
+    ]) {
+      stubLedger[field] = makeIterable(["key-1"]);
+    }
+    stubLedger.schnorrJubjubVerificationMethods = makeIterablePairs([
+      ["schnorr-1", { publicKey: { x: 1n, y: 2n } }],
+    ]);
+
+    const json = LedgerToDomain.toJSON(stubLedger) as any;
+
+    expect(json.schnorrJubjubVerificationMethods).toBeUndefined();
+    expect(json.assertionMethodRelation).toEqual(["#key-1"]);
+    expect(json.keyAgreementRelation).toEqual(["#key-1"]);
+    expect(json.capabilityInvocationRelation).toEqual(["#key-1"]);
+    expect(json.capabilityDelegationRelation).toEqual(["#key-1"]);
+    expect(json.verificationMethods).toHaveLength(2);
   });
 
   it("ledgerStateToDIDDocument builds DID Document and assigns alsoKnownAs when present", () => {

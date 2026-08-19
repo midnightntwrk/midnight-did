@@ -443,6 +443,34 @@ export const DIDDocumentSchema = z.looseObject({
   service: z.optional(z.array(ServiceSchema)),
 });
 
+export type DIDDocumentConsistencyIssue = {
+  code:
+    | "duplicateVerificationMethod"
+    | "duplicateRelationship"
+    | "danglingRelationship"
+    | "duplicateService";
+  message: string;
+  path: (string | number)[];
+};
+
+export class DIDDocumentConsistencyError extends Error {
+  readonly issues: DIDDocumentConsistencyIssue[];
+
+  constructor(issues: DIDDocumentConsistencyIssue[]) {
+    super(
+      issues
+        .map((issue) =>
+          issue.path.length > 0
+            ? `${issue.message} at ${issue.path.join(".")}`
+            : issue.message,
+        )
+        .join("; "),
+    );
+    this.name = "DIDDocumentConsistencyError";
+    this.issues = issues;
+  }
+}
+
 export function validateDIDDocumentConsistency(
   doc: DIDDocument,
   options: { normalizeServiceEndpoints?: boolean } = {},
@@ -458,8 +486,7 @@ export function validateDIDDocumentConsistency(
           })),
         };
 
-  type ValidationIssue = { message: string; path: (string | number)[] };
-  const issues: ValidationIssue[] = [];
+  const issues: DIDDocumentConsistencyIssue[] = [];
   const verificationMethods = normalizedDoc.verificationMethod ?? [];
   const seenVerificationMethodIds = new Map<string, number>();
   const canonicalizeKeyReference = (value: string): string =>
@@ -475,6 +502,7 @@ export function validateDIDDocumentConsistency(
     const canonicalId = canonicalizeKeyReference(vm.id);
     if (seenVerificationMethodIds.has(canonicalId)) {
       issues.push({
+        code: "duplicateVerificationMethod",
         message: "verificationMethod ids must be unique",
         path: ["verificationMethod", index, "id"],
       });
@@ -498,6 +526,7 @@ export function validateDIDDocumentConsistency(
       const canonicalValue = canonicalizeKeyReference(value);
       if (seen.has(canonicalValue)) {
         issues.push({
+          code: "duplicateRelationship",
           message: `${relationName} must not contain duplicate entries`,
           path: [relationName, index],
         });
@@ -506,6 +535,7 @@ export function validateDIDDocumentConsistency(
       seen.add(canonicalValue);
       if (!seenVerificationMethodIds.has(canonicalValue)) {
         issues.push({
+          code: "danglingRelationship",
           message: `${relationName} references a verificationMethod id that does not exist`,
           path: [relationName, index],
         });
@@ -525,6 +555,7 @@ export function validateDIDDocumentConsistency(
     const canonicalServiceId = canonicalizeServiceReference(service.id);
     if (seenServiceIds.has(canonicalServiceId)) {
       issues.push({
+        code: "duplicateService",
         message: "service ids must be unique",
         path: ["service", index, "id"],
       });
@@ -534,18 +565,7 @@ export function validateDIDDocumentConsistency(
   });
 
   if (issues.length > 0) {
-    const message = issues
-      .map((issue) =>
-        issue.path && issue.path.length > 0
-          ? `${issue.message} at ${issue.path.join(".")}`
-          : issue.message,
-      )
-      .join("; ");
-    const error = new Error(message) as Error & {
-      issues?: ValidationIssue[];
-    };
-    error.issues = issues;
-    throw error;
+    throw new DIDDocumentConsistencyError(issues);
   }
   return normalizedDoc;
 }
