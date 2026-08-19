@@ -511,7 +511,7 @@ describe("controller operations", () => {
         new Uint8Array(32).fill(28),
       ),
     ).rejects.toMatchObject({
-      code: "pendingControllerPrivateStateExists",
+      code: "pending_controller_private_state_exists",
       name: "PendingControllerPrivateStateExistsError",
     });
 

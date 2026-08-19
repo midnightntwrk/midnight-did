@@ -24,7 +24,7 @@ type ControllerPrivateState = MidnightDIDPrivateState & {
  * key before another candidate can be persisted.
  */
 export class PendingControllerPrivateStateExistsError extends Error {
-  readonly code = "pendingControllerPrivateStateExists" as const;
+  readonly code = "pending_controller_private_state_exists" as const;
 
   constructor() {
     super(
