@@ -38,7 +38,12 @@ check, while `pnpm audit` identified the exact dependency path and revised
 patched floor. The remediation kept all action references at immutable SHAs
 and did not expand workflow permissions. A focused policy test now checks the
 workflow and dependency invariants together so future baseline synchronization
-cannot silently restore either vulnerable condition.
+cannot silently restore either vulnerable condition. Review of that harness
+found that command wrappers could hide a global npm install, so the detector now
+parses executable prefixes through `sudo`, `env`, `command`, `exec`, and `time`,
+including their options and environment assignments. Positive wrapper chains
+and negative quoted/`echo`/`printf` fixtures keep the security check sensitive
+without treating non-executed text as a command.
 
 ## Friction and failures
 
@@ -61,8 +66,21 @@ reviews, claim an unearned OpenSSF badge, dismiss positive/stale alerts, merge
 the draft, or enable auto-merge. Dashboard reconciliation remains tied to a
 fresh `main` Scorecard run after normal promotion.
 
+## Develop synchronization
+
+The current `origin/develop` baseline was merged without rewriting history. The
+resolution retains nanoid 3.3.18 and the exact js-yaml parser dependency while
+adopting pnpm 10.34.4, esbuild 0.28.2, the pino trust-policy exception, and the
+corresponding lockfile integrity data. The review also identified inline
+`await` expressions in two adjacent `Promise.all` input arrays; both now start
+all independent reads during array construction and parse JSON in promise
+continuations.
+
 ## Validation and review evidence
 
-The focused Node policy suite and `pnpm audit` passed before the draft PR was
-opened. The final full Nix verification, GitHub-backed all-commit verifier,
-exact-head routed Pat audit, and CI outcomes are recorded on PR #429.
+The focused Node policy suite, frozen pnpm install, `pnpm audit`, formatting,
+document validation/build, and full `nix develop --command pnpm run verify`
+gate passed after the develop merge. The final commit SHA, GitHub-backed
+all-commit verifier result, exact-head routed Pat audit, and hosted CI outcomes
+are recorded on issue #397 and PR #429 so that SHA-bound evidence does not become
+self-referential in this tracked document.
