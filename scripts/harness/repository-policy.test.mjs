@@ -179,9 +179,19 @@ const npmOptionsWithArguments = new Set([
   "--userconfig",
 ]);
 
+const npmExecOptionsWithArguments = new Set([
+  ...npmOptionsWithArguments,
+  "-p",
+  "-w",
+  "--package",
+  "--workspace",
+]);
+
 function staticShellWord(node) {
   if (node == null) return null;
-  if (["number", "word", "string_content"].includes(node.type)) {
+  if (
+    ["number", "string_content", "variable_name", "word"].includes(node.type)
+  ) {
     return node.text.replaceAll(/\\(.)/g, "$1");
   }
   if (node.type === "raw_string") return node.text.slice(1, -1);
@@ -251,14 +261,44 @@ function consumeWrapperArguments(args, wrapper) {
   return index;
 }
 
+function staticShellAssignment(node) {
+  const name = staticShellWord(node.childForFieldName("name"));
+  const value = staticShellWord(node.childForFieldName("value"));
+  return name == null || value == null ? null : `${name}=${value}`;
+}
+
 function assignmentEnablesGlobalInstall(assignment) {
   return /^npm_config_(?:global|location)=(?:1|global|true)$/i.test(assignment);
 }
 
-function npmCommandIndex(args) {
+function wrapperCommandString(args, wrapper, stringOptions) {
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
-    if (npmOptionsWithArguments.has(arg)) {
+    if (arg === "--") return null;
+    if (wrapper === "env" && shellAssignment.test(arg)) continue;
+    if (stringOptions.includes(arg)) return args[index + 1] ?? null;
+    for (const option of stringOptions) {
+      if (arg.startsWith(`${option}=`)) {
+        return arg.slice(option.length + 1);
+      }
+    }
+    const optionsWithArguments =
+      wrapper === "npm-exec"
+        ? npmExecOptionsWithArguments
+        : wrapperOptionsWithArguments[wrapper];
+    if (optionsWithArguments?.has(arg)) {
+      index += 1;
+      continue;
+    }
+    if (!arg.startsWith("-") || arg === "-") return null;
+  }
+  return null;
+}
+
+function npmCommandIndex(args, optionsWithArguments = npmOptionsWithArguments) {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (optionsWithArguments.has(arg)) {
       index += 1;
       continue;
     }
@@ -290,23 +330,25 @@ function commandWordsContainGlobalNpmInstall(
   initialName,
   initialArgs,
   assignments = [],
+  inheritedGlobal = false,
 ) {
   let name = initialName;
   let args = initialArgs;
-  const globalFromEnvironment = [...assignments, ...args].some(
-    assignmentEnablesGlobalInstall,
-  );
+  const globalFromEnvironment =
+    inheritedGlobal ||
+    [...assignments, ...args].some(assignmentEnablesGlobalInstall);
 
   while (commandWrappers.has(path.posix.basename(name))) {
     const wrapper = path.posix.basename(name);
-    if (wrapper === "npx") {
-      const callIndex = args.findIndex((arg) => ["-c", "--call"].includes(arg));
-      const inlineCall = args.find((arg) => arg.startsWith("--call="));
-      if (callIndex !== -1 && args[callIndex + 1] != null) {
-        return shellCommandContainsGlobalNpmInstall(args[callIndex + 1]);
-      }
-      if (inlineCall != null) {
-        return shellCommandContainsGlobalNpmInstall(inlineCall.slice(7));
+    if (["env", "npx"].includes(wrapper)) {
+      const stringOptions =
+        wrapper === "env" ? ["-S", "--split-string"] : ["-c", "--call"];
+      const commandString = wrapperCommandString(args, wrapper, stringOptions);
+      if (commandString != null) {
+        return shellCommandContainsGlobalNpmInstall(
+          commandString,
+          globalFromEnvironment,
+        );
       }
     }
     const commandIndex = consumeWrapperArguments(args, wrapper);
@@ -317,7 +359,10 @@ function commandWordsContainGlobalNpmInstall(
 
   const executable = path.posix.basename(name);
   if (executable === "eval") {
-    return shellCommandContainsGlobalNpmInstall(args.join(" "));
+    return shellCommandContainsGlobalNpmInstall(
+      args.join(" "),
+      globalFromEnvironment,
+    );
   }
   if (shellInterpreters.has(executable)) {
     const commandOptionIndex = args.findIndex(
@@ -328,7 +373,7 @@ function commandWordsContainGlobalNpmInstall(
     );
     const script = args[commandOptionIndex + 1];
     return commandOptionIndex !== -1 && script != null
-      ? shellCommandContainsGlobalNpmInstall(script)
+      ? shellCommandContainsGlobalNpmInstall(script, globalFromEnvironment)
       : false;
   }
 
@@ -340,7 +385,22 @@ function commandWordsContainGlobalNpmInstall(
     optionsEnd === -1 ? args : args.slice(0, optionsEnd),
   );
   if (["exec", "x"].includes(args[commandIndex])) {
-    const nestedOffset = npmCommandIndex(args.slice(commandIndex + 1));
+    const execArgs = args.slice(commandIndex + 1);
+    const execOptionsEnd = execArgs.indexOf("--");
+    const stringOptionArgs =
+      execOptionsEnd === -1 ? execArgs : execArgs.slice(0, execOptionsEnd);
+    const commandString = wrapperCommandString(stringOptionArgs, "npm-exec", [
+      "-c",
+      "--call",
+    ]);
+    if (commandString != null) {
+      return shellCommandContainsGlobalNpmInstall(
+        commandString,
+        globalFromEnvironment,
+      );
+    }
+
+    const nestedOffset = npmCommandIndex(execArgs, npmExecOptionsWithArguments);
     const nestedCommandIndex =
       optionsEnd === -1
         ? nestedOffset === -1
@@ -352,13 +412,14 @@ function commandWordsContainGlobalNpmInstall(
         args[nestedCommandIndex],
         args.slice(nestedCommandIndex + 1),
         assignments,
+        globalFromEnvironment,
       );
     }
   }
   return false;
 }
 
-function commandNodeContainsGlobalNpmInstall(node) {
+function commandNodeContainsGlobalNpmInstall(node, inheritedGlobal) {
   const nameNode = node.childForFieldName("name");
   const name = staticShellWord(nameNode);
   const args = node.namedChildren
@@ -369,15 +430,27 @@ function commandNodeContainsGlobalNpmInstall(node) {
     .map(staticShellWord);
   const assignments = node.namedChildren
     .filter((child) => child.type === "variable_assignment")
-    .map((child) => child.text);
+    .map(staticShellAssignment)
+    .filter((assignment) => assignment != null);
   if (name == null || args.some((arg) => arg == null)) return false;
-  return commandWordsContainGlobalNpmInstall(name, args, assignments);
+  return commandWordsContainGlobalNpmInstall(
+    name,
+    args,
+    assignments,
+    inheritedGlobal,
+  );
 }
 
-function shellCommandContainsGlobalNpmInstall(command) {
+function shellCommandContainsGlobalNpmInstall(
+  command,
+  inheritedGlobal = false,
+) {
   const tree = shellParser.parse(command.replaceAll(/\\\r?\n/g, " "));
   const visit = (node) => {
-    if (node.type === "command" && commandNodeContainsGlobalNpmInstall(node)) {
+    if (
+      node.type === "command" &&
+      commandNodeContainsGlobalNpmInstall(node, inheritedGlobal)
+    ) {
       return true;
     }
     return node.namedChildren.some(visit);
@@ -411,11 +484,18 @@ function nanoid3OverrideFloor(range) {
 }
 
 function resolvedNanoid3Versions(lockfile) {
+  const document = loadYaml(lockfile);
+  if (document == null || typeof document !== "object") return [];
+
+  const packages = document.packages;
+  if (packages == null || typeof packages !== "object") return [];
+
   return [
     ...new Set(
-      [...lockfile.matchAll(/^  nanoid@(3\.\d+\.\d+)(?:\([^\n]*\))?:$/gm)].map(
-        ([, version]) => version,
-      ),
+      Object.keys(packages).flatMap((packageKey) => {
+        const match = /^nanoid@(3\.\d+\.\d+)(?:\(.*\))?$/.exec(packageKey);
+        return match == null ? [] : [match[1]];
+      }),
     ),
   ];
 }
@@ -443,6 +523,10 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: sudo -Enu root npm install -g npm@12",
     "run: sudo -gu root npm install -g npm@12",
     "run: env -i FOO=bar npm i --global npm@12",
+    "run: env -S 'npm install -g npm@12'",
+    "run: env --split-string 'npm install -g npm@12'",
+    "run: env --split-string='npm install -g npm@12'",
+    "run: env npm_config_global='true' -S 'npm install npm@12'",
     "run: env --unset HOME -- command -p npm install --location global npm@12",
     "run: exec env FOO=bar npm --global install npm@12",
     "run: time -p sudo --preserve-env=HOME npm install -g npm@12",
@@ -462,9 +546,20 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm exec -- npm install -g npm@12",
     "run: npm exec npm install -g npm@12",
     "run: npm exec --prefix ./tmp npm install -g npm@12",
+    "run: npm exec --package npm@12 npm install -g npm@12",
+    "run: npm exec --package npm@12 -c 'npm install -g npm@12'",
+    "run: npm exec -c 'npm install -g npm@12'",
+    "run: npm x --call 'npm install -g npm@12'",
+    "run: npm exec --call='npm install -g npm@12'",
+    "run: npm_config_global='true' npm exec -c 'npm install npm@12'",
+    "run: npm_config_location='global' npm x --call='npm install npm@12'",
     "run: npm_config_global=true npm exec -- npm install npm@12",
     "run: npm_config_global=true npm install npm@12",
+    'run: npm_config_global="true" npm install npm@12',
+    "run: npm_config_global='true' npm install npm@12",
+    'run: npm_config_location="global" npm install npm@12',
     "run: env npm_config_location=global npm install npm@12",
+    "run: env npm_config_location='global' npm install npm@12",
     "run: npm --location global install npm@12",
     "run: npm add -g npm@12",
     "run: npm isntall --global npm@12",
@@ -475,6 +570,8 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: $(npm install -g npm@12)",
     'run: "`npm i -g npm@12`"',
     "run: |\n  bash -c 'npm install -g npm@12'",
+    "run: |\n  npm_config_global='true' bash -c 'npm install npm@12'",
+    "run: |\n  env npm_config_location='global' sh -c 'npm install npm@12'",
     "run: |\n  sh -c 'sudo npm install -g npm@12'",
     "run: |\n  pwsh -Command 'npm install -g npm@12'",
     "run: (npm install -g npm@12)",
@@ -484,6 +581,9 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: |-2\n  npm install -g npm@12",
     "run: >-\n  if npm install -g npm@12; then\n  echo installed; fi",
     "run: >-\n  echo ready\n    npm install -g npm@12",
+    // Intentionally fail closed on syntactically present commands, even when
+    // shell control flow makes them unreachable.
+    "run: false && npm install -g npm@12",
   ]) {
     const workflow = workflowWithRunScalar(runScalar);
     assert.equal(containsGlobalNpmInstall(workflow), true, runScalar);
@@ -494,6 +594,21 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm install",
     "run: npm install --global=false package",
     "run: npm install --location=project package",
+    'run: npm_config_global="false" npm install package',
+    "run: npm_config_global='0' npm install package",
+    'run: npm_config_location="project" npm install package',
+    "run: npm exec -c 'npm install package'",
+    "run: npm x --call 'npm install package'",
+    "run: npm exec --call='npm install package'",
+    "run: npm_config_global='false' npm exec -c 'npm install package'",
+    "run: npm exec --prefix -c 'npm install -g npm@12'",
+    "run: npm exec --package -c 'npm install -g npm@12'",
+    "run: npx --package -c 'npm install -g npm@12'",
+    "run: env -S 'npm install package'",
+    "run: env --unset -S 'npm install -g npm@12'",
+    "run: env --split-string 'pnpm install --frozen-lockfile'",
+    "run: env npm_config_location='project' -S 'npm install package'",
+    "run: npm_config_global='false' bash -c 'npm install package'",
     "run: npm run build -- -g i",
     "run: npm install -- -g npm@12",
     "run: npm install # -g npm@12",
@@ -546,9 +661,15 @@ test("extracts compatible nanoid 3.x floors and compares versions semantically",
   assert.ok(compareVersions("3.10.0", "3.3.18") > 0);
   assert.equal(compareVersions("3.3.18", "3.3.18"), 0);
   assert.deepEqual(
-    resolvedNanoid3Versions(
-      "  nanoid@3.3.18:\n  nanoid@3.3.19:\n  nanoid@5.1.6:\n  nanoid@3.3.18:\n",
-    ),
+    resolvedNanoid3Versions(`
+lockfileVersion: '9.0'
+packages:
+    "nanoid@3.3.18":
+      resolution: {integrity: first}
+    'nanoid@3.3.19(peer@1.0.0)': {resolution: {integrity: second}}
+    nanoid@5.1.6: {}
+snapshots: {nanoid@3.2.0: {}}
+`),
     ["3.3.18", "3.3.19"],
   );
 });

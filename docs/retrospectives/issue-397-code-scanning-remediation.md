@@ -46,11 +46,26 @@ process, and scheduling wrappers with their options and assignments. Fixtures
 cover nested wrapper chains (including bundled short options), shell-interpreter
 `-c` commands, `eval`, npx/npm-exec indirection, npm install aliases and
 configuration assignments, command substitutions, path-qualified and
-quote-concatenated npm names, and unspaced subshells. Negative quoted, `echo`/`printf`, heredoc, comment,
-npm-script, end-of-options, and wrapper-operand fixtures keep
+quote-concatenated npm names, and unspaced subshells. Static assignment values
+are normalized through the Bash syntax tree, including single- and
+double-quoted `npm_config_global` and `npm_config_location` values. Command
+strings passed through npm exec/x `-c`/`--call`, env `-S`/`--split-string`,
+shell interpreters, and eval are recursively parsed while retaining applicable
+npm configuration state. Negative quoted, `echo`/`printf`, heredoc, comment,
+npm-script, end-of-options, command-string, and wrapper-operand fixtures keep
 non-executed text and unrelated npm subcommands from becoming findings. The
-policy gate enumerates every YAML workflow under `.github/workflows`, rather
-than relying on the originally affected workflow path alone.
+scanner intentionally fails closed on a prohibited command that is
+syntactically present but unreachable through shell control flow. The policy
+gate enumerates every YAML workflow under `.github/workflows`, rather than
+relying on the originally affected workflow path alone.
+
+The Bash parser remains tree-sitter rather than falling back to token or line
+matching. Both exact, frozen `tree-sitter` 0.25.1 and `tree-sitter-bash` 0.25.1
+packages include N-API prebuilt binaries for Linux x64/arm64 and Darwin
+x64/arm64, covering hosted Ubuntu CI and both flake systems without relying on
+a local compiler. Frozen installation and the Nix verification lane exercise
+the dependency from the lockfile; keeping the AST parser therefore has stronger
+syntax coverage without adding an unsupported host to the repository matrix.
 
 ## Friction and failures
 
@@ -87,7 +102,8 @@ continuations.
 
 The focused Node policy suite, frozen pnpm install, `pnpm audit`, formatting,
 document validation/build, and full `nix develop --command pnpm run verify`
-gate passed after the develop merge. The final commit SHA, GitHub-backed
+gate passed after the develop merge. These checks were repeated after detector
+hardening. The final commit SHA, GitHub-backed
 all-commit verifier result, exact-head routed Pat audit, and hosted CI outcomes
 are recorded on issue #397 and PR #429 so that SHA-bound evidence does not become
 self-referential in this tracked document.
