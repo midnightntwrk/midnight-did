@@ -286,7 +286,7 @@ describe("DID private state lifecycle", () => {
     expect(privateStateProvider.remove).not.toHaveBeenCalled();
   });
 
-  it("uses the pending-candidate error when discard finds malformed pending state", async () => {
+  it("discards malformed pending state after non-finalization confirmation", async () => {
     const { providers, privateStateProvider } = makeProviders({
       storedPrivateState: { secretKey: new Uint8Array(31) },
     });
@@ -295,11 +295,12 @@ describe("DID private state lifecycle", () => {
       discardPendingControllerPrivateState(providers, {
         rotationFinalized: false,
       }),
-    ).rejects.toMatchObject({
-      code: "pending_controller_private_state_missing_or_malformed",
-      message: expect.stringMatching(/start a controller rotation or recovery/),
-      name: "PendingControllerPrivateStateUnavailableError",
-    });
-    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+    ).resolves.toBeUndefined();
+    expect(privateStateProvider.get).toHaveBeenCalledWith(
+      MidnightDIDPendingControllerPrivateStateId,
+    );
+    expect(privateStateProvider.remove).toHaveBeenCalledWith(
+      MidnightDIDPendingControllerPrivateStateId,
+    );
   });
 });

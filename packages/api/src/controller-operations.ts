@@ -72,50 +72,49 @@ interface PendingControllerOperationMessages {
   readonly promotionFailed: string;
 }
 
-const runPendingControllerOperation = async (
+const runPendingControllerOperationWithinLock = async (
   providers: MidnightDIDProviders,
   nextPrivateState: MidnightDIDPrivateState,
   prepareCall: () => Promise<
     () => Promise<{ readonly public: FinalizedTxData }>
   >,
   messages: PendingControllerOperationMessages,
-): Promise<FinalizedTxData> =>
-  withPendingControllerPrivateStateLock(providers, async () => {
-    await savePendingControllerPrivateStateWithinLock(
-      providers,
-      nextPrivateState,
-    );
+): Promise<FinalizedTxData> => {
+  await savePendingControllerPrivateStateWithinLock(
+    providers,
+    nextPrivateState,
+  );
 
-    let callAttempted = false;
-    let finalizedDataReceived = false;
+  let callAttempted = false;
+  let finalizedDataReceived = false;
+  try {
+    const callTx = await prepareCall();
+    // This records only that callTx was invoked. A synchronous throw still
+    // cannot establish whether dispatch or ledger finality occurred.
+    callAttempted = true;
+    const result = await callTx();
+    finalizedDataReceived = true;
+
+    await savePrivateState(providers, nextPrivateState);
     try {
-      const callTx = await prepareCall();
-      // This records only that callTx was invoked. A synchronous throw still
-      // cannot establish whether dispatch or ledger finality occurred.
-      callAttempted = true;
-      const result = await callTx();
-      finalizedDataReceived = true;
-
-      await savePrivateState(providers, nextPrivateState);
-      try {
-        await clearPendingControllerPrivateState(providers);
-      } catch (error: unknown) {
-        getLogger().warn({ error }, messages.cleanupFailed);
-      }
-
-      return result.public;
+      await clearPendingControllerPrivateState(providers);
     } catch (error: unknown) {
-      if (!finalizedDataReceived) {
-        getLogger().warn(
-          { callAttempted, error },
-          callAttempted ? messages.attemptedCallFailed : messages.preCallFailed,
-        );
-      } else {
-        getLogger().error({ error }, messages.promotionFailed);
-      }
-      throw error;
+      getLogger().warn({ error }, messages.cleanupFailed);
     }
-  });
+
+    return result.public;
+  } catch (error: unknown) {
+    if (!finalizedDataReceived) {
+      getLogger().warn(
+        { callAttempted, error },
+        callAttempted ? messages.attemptedCallFailed : messages.preCallFailed,
+      );
+    } else {
+      getLogger().error({ error }, messages.promotionFailed);
+    }
+    throw error;
+  }
+};
 
 /**
  * Rotates the DID controller key to a freshly derived controller public key.
@@ -130,49 +129,54 @@ export const rotateControllerKey = async (
   providers: MidnightDIDProviders,
   newSecretKey: Uint8Array = randomBytes(32),
 ): Promise<FinalizedTxData> => {
-  const currentPrivateState = await requirePrivateState(providers);
-  const nextPrivateState = privateStateFromSecret(
-    newSecretKey,
-    currentPrivateState.recoverySecretKey,
-  );
-  const nextControllerPublicKey = deriveControllerPublicKey(
-    nextPrivateState.secretKey,
-  );
+  const validatedNextPrivateState = privateStateFromSecret(newSecretKey);
 
-  return runPendingControllerOperation(
-    providers,
-    nextPrivateState,
-    async () => {
-      const [signature, expectedVersion] = await createControllerAuthorization(
-        didContract,
-        providers,
-        (ledgerState) =>
-          asSchnorrJubjubDigest(
-            DIDContract.pureCircuits.rotateControllerKeyAuthorizationDigest(
-              ledgerState.id,
-              ledgerState.version,
-              nextControllerPublicKey,
-            ),
-          ),
-      );
-      return () =>
-        didContract.callTx.rotateControllerKey(
-          nextControllerPublicKey,
-          signature,
-          expectedVersion,
-        );
-    },
-    {
-      attemptedCallFailed:
-        "Controller key rotation call was attempted but did not return finalized transaction data. Pending private state was retained because the ledger outcome is unknown; re-read controllerPublicKey before retrying.",
-      cleanupFailed:
-        "Controller key rotation finalized, but pending private state cleanup failed.",
-      preCallFailed:
-        "Controller key rotation failed before the transaction call was attempted. Pending private state was retained; discard it with discardPendingControllerPrivateState(providers, { rotationFinalized: false }) before retrying.",
-      promotionFailed:
-        "Controller key rotation finalized, but active private state promotion failed. Use recoverPendingControllerPrivateState(providers, { rotationFinalized: true }) before submitting further controller operations.",
-    },
-  );
+  return withPendingControllerPrivateStateLock(providers, async () => {
+    const currentPrivateState = await requirePrivateState(providers);
+    const nextPrivateState = privateStateFromSecret(
+      validatedNextPrivateState.secretKey,
+      currentPrivateState.recoverySecretKey,
+    );
+    const nextControllerPublicKey = deriveControllerPublicKey(
+      nextPrivateState.secretKey,
+    );
+
+    return runPendingControllerOperationWithinLock(
+      providers,
+      nextPrivateState,
+      async () => {
+        const [signature, expectedVersion] =
+          await createControllerAuthorization(
+            didContract,
+            providers,
+            (ledgerState) =>
+              asSchnorrJubjubDigest(
+                DIDContract.pureCircuits.rotateControllerKeyAuthorizationDigest(
+                  ledgerState.id,
+                  ledgerState.version,
+                  nextControllerPublicKey,
+                ),
+              ),
+          );
+        return () =>
+          didContract.callTx.rotateControllerKey(
+            nextControllerPublicKey,
+            signature,
+            expectedVersion,
+          );
+      },
+      {
+        attemptedCallFailed:
+          "Controller key rotation call was attempted but did not return finalized transaction data. Pending private state was retained because the ledger outcome is unknown; re-read controllerPublicKey before retrying.",
+        cleanupFailed:
+          "Controller key rotation finalized, but pending private state cleanup failed.",
+        preCallFailed:
+          "Controller key rotation failed before the transaction call was attempted. Pending private state was retained; discard it with discardPendingControllerPrivateState(providers, { rotationFinalized: false }) before retrying.",
+        promotionFailed:
+          "Controller key rotation finalized, but active private state promotion failed. Use recoverPendingControllerPrivateState(providers, { rotationFinalized: true }) before submitting further controller operations.",
+      },
+    );
+  });
 };
 
 /**
@@ -188,6 +192,7 @@ export const recoverControllerKey = async (
   newSecretKey: Uint8Array = randomBytes(32),
   recoverySecretKey?: Uint8Array,
 ): Promise<FinalizedTxData> => {
+  const validatedNextPrivateState = privateStateFromSecret(newSecretKey);
   if (
     recoverySecretKey !== undefined &&
     (!(recoverySecretKey instanceof Uint8Array) ||
@@ -195,78 +200,83 @@ export const recoverControllerKey = async (
   ) {
     throw new Error("DID recovery secret key must be 32 bytes");
   }
-  const activeRecoverySecretKey =
-    recoverySecretKey ?? (await requireRecoverySecretKey(providers));
-  const ledgerState = await requireDeployedMidnightDIDLedgerState(
-    providers,
-    didContract,
-  );
-  if (!isJubjubPoint(ledgerState.recoveryAuthorityPublicKey)) {
-    throw new Error(
-      "DID contract does not expose a recovery authority; deploy or join a recovery-enabled contract",
-    );
-  }
-  const recoveryAuthorityPublicKey = ledgerState.recoveryAuthorityPublicKey;
-  const activeRecoveryPublicKey = deriveControllerPublicKey(
-    activeRecoverySecretKey,
-  );
-  if (!jubjubPointEquals(activeRecoveryPublicKey, recoveryAuthorityPublicKey)) {
-    throw new Error(
-      "DID recovery secret key does not match the on-ledger recovery authority",
-    );
-  }
 
-  const storedRecoverySecretKey =
-    recoverySecretKey === undefined
-      ? activeRecoverySecretKey
-      : await restoreRecoverySecretKey(providers);
-  const persistedRecoverySecretKey =
-    storedRecoverySecretKey != null &&
-    jubjubPointEquals(
-      deriveControllerPublicKey(storedRecoverySecretKey),
-      recoveryAuthorityPublicKey,
-    )
-      ? storedRecoverySecretKey
-      : undefined;
-  const nextPrivateState = privateStateFromSecret(
-    newSecretKey,
-    persistedRecoverySecretKey,
-  );
-  const nextControllerPublicKey = deriveControllerPublicKey(
-    nextPrivateState.secretKey,
-  );
+  return withPendingControllerPrivateStateLock(providers, async () => {
+    const activeRecoverySecretKey =
+      recoverySecretKey ?? (await requireRecoverySecretKey(providers));
+    const ledgerState = await requireDeployedMidnightDIDLedgerState(
+      providers,
+      didContract,
+    );
+    if (!isJubjubPoint(ledgerState.recoveryAuthorityPublicKey)) {
+      throw new Error(
+        "DID contract does not expose a recovery authority; deploy or join a recovery-enabled contract",
+      );
+    }
+    const recoveryAuthorityPublicKey = ledgerState.recoveryAuthorityPublicKey;
+    const activeRecoveryPublicKey = deriveControllerPublicKey(
+      activeRecoverySecretKey,
+    );
+    if (
+      !jubjubPointEquals(activeRecoveryPublicKey, recoveryAuthorityPublicKey)
+    ) {
+      throw new Error(
+        "DID recovery secret key does not match the on-ledger recovery authority",
+      );
+    }
 
-  return runPendingControllerOperation(
-    providers,
-    nextPrivateState,
-    async () => {
-      const digest = asSchnorrJubjubDigest(
-        DIDContract.pureCircuits.recoverControllerKeyAuthorizationDigest(
-          ledgerState.id,
-          ledgerState.version,
-          nextControllerPublicKey,
-        ),
-      );
-      const signature = signControllerAuthorization(
-        activeRecoverySecretKey,
-        digest,
-      );
-      return () =>
-        didContract.callTx.recoverControllerKey(
-          nextControllerPublicKey,
-          signature,
-          ledgerState.version,
+    const storedRecoverySecretKey =
+      recoverySecretKey === undefined
+        ? activeRecoverySecretKey
+        : await restoreRecoverySecretKey(providers);
+    const persistedRecoverySecretKey =
+      storedRecoverySecretKey != null &&
+      jubjubPointEquals(
+        deriveControllerPublicKey(storedRecoverySecretKey),
+        recoveryAuthorityPublicKey,
+      )
+        ? storedRecoverySecretKey
+        : undefined;
+    const nextPrivateState = privateStateFromSecret(
+      validatedNextPrivateState.secretKey,
+      persistedRecoverySecretKey,
+    );
+    const nextControllerPublicKey = deriveControllerPublicKey(
+      nextPrivateState.secretKey,
+    );
+
+    return runPendingControllerOperationWithinLock(
+      providers,
+      nextPrivateState,
+      async () => {
+        const digest = asSchnorrJubjubDigest(
+          DIDContract.pureCircuits.recoverControllerKeyAuthorizationDigest(
+            ledgerState.id,
+            ledgerState.version,
+            nextControllerPublicKey,
+          ),
         );
-    },
-    {
-      attemptedCallFailed:
-        "Controller recovery call was attempted but did not return finalized transaction data. Pending private state was retained because the ledger outcome is unknown; re-read controllerPublicKey before retrying.",
-      cleanupFailed:
-        "Controller recovery finalized, but pending private state cleanup failed.",
-      preCallFailed:
-        "Controller recovery failed before the transaction call was attempted. Pending private state was retained; discard it with discardPendingControllerPrivateState(providers, { rotationFinalized: false }) before retrying.",
-      promotionFailed:
-        "Controller recovery finalized, but active private state promotion failed. Use recoverPendingControllerPrivateState(providers, { rotationFinalized: true }) before submitting further controller operations.",
-    },
-  );
+        const signature = signControllerAuthorization(
+          activeRecoverySecretKey,
+          digest,
+        );
+        return () =>
+          didContract.callTx.recoverControllerKey(
+            nextControllerPublicKey,
+            signature,
+            ledgerState.version,
+          );
+      },
+      {
+        attemptedCallFailed:
+          "Controller recovery call was attempted but did not return finalized transaction data. Pending private state was retained because the ledger outcome is unknown; re-read controllerPublicKey before retrying.",
+        cleanupFailed:
+          "Controller recovery finalized, but pending private state cleanup failed.",
+        preCallFailed:
+          "Controller recovery failed before the transaction call was attempted. Pending private state was retained; discard it with discardPendingControllerPrivateState(providers, { rotationFinalized: false }) before retrying.",
+        promotionFailed:
+          "Controller recovery finalized, but active private state promotion failed. Use recoverPendingControllerPrivateState(providers, { rotationFinalized: true }) before submitting further controller operations.",
+      },
+    );
+  });
 };

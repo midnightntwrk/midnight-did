@@ -16,13 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `VerificationMethodReferencedError` while references remain.
 - Preserve pending controller private state whenever controller rotation or
   recovery does not return finalized transaction data. One process-local,
-  per-bound-contract critical section now covers persistence, authorization,
+  per-bound-contract critical section now begins before provider-dependent
+  private-state and ledger preflight and covers persistence, authorization,
   transaction-call attempt, promotion, and cleanup across provider wrappers.
   Typed exists, busy, and unavailable errors prevent overlapping reconciliation
-  from overwriting, promoting, or removing another operation's candidate;
-  applications still explicitly promote or discard after ledger reconciliation.
-  Separate processes and independently unbound wrappers require an external
-  per-DID lock because the provider API offers no cross-process CAS.
+  from overwriting, promoting, or removing another operation's candidate.
+  Confirmed non-finalization permits discard of any non-null pending record,
+  including malformed state; promotion still requires valid pending state, and
+  cleanup failure after successful promotion warns and retains the candidate for
+  idempotent retry. Separate processes and independently unbound wrappers require
+  an external per-DID lock because the provider API offers no cross-process CAS.
 - Preserve complete canonical DID URL identity for verification methods,
   relationships, and services while keeping existing current-subject
   fragment-keyed ledger records operable through fail-closed state-aware key

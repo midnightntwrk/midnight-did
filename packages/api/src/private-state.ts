@@ -60,7 +60,7 @@ export class PendingControllerPrivateStateExistsError extends MidnightDidApiErro
   }
 }
 
-/** Raised when no valid pending rotation/recovery candidate can be loaded. */
+/** Raised when required pending controller state is absent or invalid. */
 export class PendingControllerPrivateStateUnavailableError extends MidnightDidApiError<
   Extract<
     PendingControllerPrivateStateErrorCode,
@@ -70,7 +70,7 @@ export class PendingControllerPrivateStateUnavailableError extends MidnightDidAp
   constructor() {
     super(
       "pending_controller_private_state_missing_or_malformed",
-      "Pending controller private state is missing or malformed; start a controller rotation or recovery when no candidate exists, or reconcile and repair retained pending state before recovering or discarding it",
+      "Pending controller private state is missing or malformed; start a controller rotation or recovery when no candidate exists, recover only a valid retained candidate after confirmed finalization, or discard any retained record only after confirmed non-finalization",
     );
     this.name = "PendingControllerPrivateStateUnavailableError";
   }
@@ -353,7 +353,22 @@ export async function discardPendingControllerPrivateState(
     );
   }
   await withPendingControllerPrivateStateLock(providers, async () => {
-    await requirePendingControllerPrivateState(providers);
+    let pendingPrivateState: unknown = null;
+    try {
+      pendingPrivateState = await providers.privateStateProvider.get(
+        MidnightDIDPendingControllerPrivateStateId,
+      );
+    } catch (error: unknown) {
+      if (!isContractAddressUnsetError(error)) {
+        throw error;
+      }
+      getLogger().info(
+        "Pending private state restore skipped (contract address not set yet).",
+      );
+    }
+    if (pendingPrivateState == null) {
+      throw new PendingControllerPrivateStateUnavailableError();
+    }
     await clearPendingControllerPrivateState(providers);
   });
 }
@@ -371,7 +386,14 @@ export async function recoverPendingControllerPrivateState(
     const pendingPrivateState =
       await requirePendingControllerPrivateState(providers);
     await savePrivateState(providers, pendingPrivateState);
-    await clearPendingControllerPrivateState(providers);
+    try {
+      await clearPendingControllerPrivateState(providers);
+    } catch (error: unknown) {
+      getLogger().warn(
+        { error },
+        "Pending controller private state was promoted, but pending private state cleanup failed.",
+      );
+    }
     return pendingPrivateState;
   });
 }

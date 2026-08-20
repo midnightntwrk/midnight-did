@@ -99,15 +99,21 @@ A later attempt that finds a retained candidate fails with
 `PendingControllerPrivateStateExistsError`. A rotation, recovery, promotion, or
 discard racing an in-flight lifecycle fails with
 `PendingControllerPrivateStateBusyError`, without writing active state or
-removing the candidate. A missing or malformed candidate produces
-<code>PendingControllerPrivateState<wbr>UnavailableError</code>, whose guidance
-is to start or reconcile rotation/recovery rather than import the active
-controller secret.
+removing the candidate. Promotion requires a valid candidate; missing or
+malformed state produces
+<code>PendingControllerPrivateState<wbr>UnavailableError</code> without mutation.
+Discard with `{ rotationFinalized: false }` removes any non-null pending record,
+including malformed state, because the caller has independently confirmed
+non-finalization; only an absent record produces the unavailable error. If
+promotion writes active state but pending cleanup fails, it warns and returns the
+promoted state while retaining the candidate for an idempotent reconciliation
+retry.
 
 `bindPrivateStateProvider` keys the process-local critical section by canonical
 contract address, so different wrappers bound through the API to the same DID
-are serialized across candidate persistence, authorization, transaction-call
-attempt, promotion, and cleanup. While the provider's current key or requested
+are serialized from before active/recovery state and ledger preflight across
+candidate persistence, authorization, transaction-call attempt, promotion, and
+cleanup. While the provider's current key or requested
 DID key is reserved, `bindPrivateStateProvider` (and therefore `joinContract`)
 fails closed with `PendingControllerPrivateStateBusyError` before changing the
 provider address; same-address rebinding is also rejected during the lifecycle.

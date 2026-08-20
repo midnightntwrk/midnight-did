@@ -109,20 +109,27 @@ with
 `recoverPendingControllerPrivateState(providers, { rotationFinalized: true })`.
 If the old public key is still active, discard that candidate explicitly with
 `discardPendingControllerPrivateState(providers, { rotationFinalized: false })`
-before starting another attempt. A new attempt made after a candidate is
-persisted fails with `PendingControllerPrivateStateExistsError`. A rotation,
-recovery, promotion, or discard racing an in-flight pending-state lifecycle fails
-with `PendingControllerPrivateStateBusyError`; neither error can replace, promote,
-or remove that operation's candidate. If promotion/discard finds no valid
-candidate, `PendingControllerPrivateStateUnavailableError` directs the caller to
-start or reconcile a rotation/recovery rather than import the active controller
-secret.
+before starting another attempt. That explicit assertion also permits removal of
+a malformed non-null pending record, avoiding a persistent lockout; an absent
+record still throws `PendingControllerPrivateStateUnavailableError`. Promotion
+requires a valid pending controller state, so a missing or malformed record
+throws the same stable typed error without writing active state or removing the
+record. If promotion succeeds but pending cleanup fails, the helper warns,
+returns the promoted state, and retains the candidate for a safe idempotent
+reconciliation retry.
+
+A new attempt made after any non-null candidate is persisted fails with
+`PendingControllerPrivateStateExistsError`. A rotation, recovery, promotion, or
+discard racing an in-flight pending-state lifecycle fails with
+`PendingControllerPrivateStateBusyError`; neither error can replace, promote, or
+remove that operation's candidate.
 
 `bindPrivateStateProvider` records the canonical contract address as the
 process-local lock identity. Calls through different provider wrappers bound by
 this API to the same DID therefore share one pending-controller critical section
-from candidate persistence through authorization, transaction-call attempt,
-active promotion, and pending cleanup. While either the provider's current lock
+from before active/recovery private-state and ledger preflight through candidate
+persistence, authorization, transaction-call attempt, active promotion, and
+pending cleanup. While either the provider's current lock
 identity or the requested DID identity is reserved, `bindPrivateStateProvider`
 (and therefore `joinContract`) fails closed with
 `PendingControllerPrivateStateBusyError` before changing the provider address;

@@ -29,14 +29,20 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   overlapping attempts from replacing that candidate; callers reconcile the
   on-ledger controller public key, then explicitly promote or discard the slot.
 - The provider interface has no compare-and-set primitive. A process-local
-  critical section spans the full pending-controller lifecycle and uses the
-  canonical contract address recorded by `bindPrivateStateProvider`, so bound
-  wrappers for one DID exclude one another. Binding and join fail closed before
-  mutating either a provider whose current key is reserved or a provider into a
-  reserved target key. Direct `setContractAddress` calls bypass this coordination
-  and are prohibited during the lifecycle. Explicitly unbound wrappers fall back
-  to provider identity; separate processes and independently unbound wrappers
-  must lock externally per DID private-state store.
+  critical section spans the full pending-controller lifecycle, beginning before
+  active/recovery-state and ledger preflight, and uses the canonical contract
+  address recorded by `bindPrivateStateProvider`, so bound wrappers for one DID
+  exclude one another. Binding and join fail closed before mutating either a
+  provider whose current key is reserved or a provider into a reserved target
+  key. Direct `setContractAddress` calls bypass this coordination and are
+  prohibited during the lifecycle. Explicitly unbound wrappers fall back to
+  provider identity; separate processes and independently unbound wrappers must
+  lock externally per DID private-state store.
+- Explicit non-finalization confirmation permits discard of any non-null pending
+  record, including malformed state, so corrupt storage cannot permanently block
+  a replacement candidate. Promotion continues to require valid pending state.
+  Once manual promotion writes active state, cleanup failure is warning-only and
+  retains the candidate for an idempotent reconciliation retry.
 - The specification distinguishes the method's no-batch-circuit design from
   Midnight's inability to merge multiple non-empty contract-call sections.
 
@@ -58,7 +64,15 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   deterministic deferred-call regression now attempts same-wrapper A-to-B,
   same-address, and distinct-wrapper target-key binds; each returns the typed
   busy error without changing either DID namespace, and the ambiguous operation
-  retains candidate A under DID A.
+  retains candidate A under DID A. Fresh deferred active-state and ledger
+  preflight regressions then exposed and closed an earlier gap: the address
+  reservation is now held before either provider-dependent preflight, and every
+  failure path releases it.
+- Malformed/absent reconciliation regressions distinguish presence from validity:
+  confirmed discard removes malformed records, absent discard and missing or
+  malformed promotion remain typed and non-mutating, and cleanup failure after a
+  successful active write returns the promoted state with exact warning and
+  idempotent-retry coverage.
 - `pnpm run verify`, managed-artifact checks, package-surface checks, and the
   complete docs build/visual lane passed from the Nix development shell.
 
@@ -78,11 +92,16 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   relationship deletion and controller rotation.
 - The process-local lock deliberately rejects overlap with a typed busy error
   rather than queueing a reconciliation whose ledger evidence may be stale. The
-  reviewer-discovered rebind edge showed that lock-key immutability is part of
-  that exclusion: source and target reservations are now checked synchronously
-  before `setContractAddress` or the wrapper-to-key mapping changes. It remains
-  an in-process API exclusion mechanism, not protection against direct provider
+  reviewer-discovered rebind edges showed that both lock-key immutability and
+  acquisition before provider-dependent preflight are part of that exclusion:
+  source and target reservations are checked synchronously before
+  `setContractAddress` or the wrapper-to-key mapping changes. It remains an
+  in-process API exclusion mechanism, not protection against direct provider
   mutation and not a cross-process compare-and-set claim.
+- A malformed non-null candidate is unsafe to promote but safe to remove only
+  after the caller explicitly asserts non-finalization. Treating presence and
+  recoverability as separate predicates avoids persistent lockout without
+  weakening the finalized-candidate safeguard.
 
 ## Follow-up actions
 
