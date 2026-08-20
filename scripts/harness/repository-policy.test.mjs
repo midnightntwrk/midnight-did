@@ -5,6 +5,8 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { load as loadYaml } from "js-yaml";
+import Parser from "tree-sitter";
+import Bash from "tree-sitter-bash";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -13,19 +15,6 @@ const root = path.resolve(
 
 async function text(relative) {
   return readFile(path.join(root, relative), "utf8");
-}
-
-function shellTokens(command) {
-  return [
-    ...command.matchAll(
-      /\r?\n|&&|\|\||[;&|(){}]|"(?:\\.|[^"\\])*"|'[^']*'|[^\s;&|(){}]+/g,
-    ),
-  ].map(([token]) =>
-    (token.startsWith('"') && token.endsWith('"')) ||
-    (token.startsWith("'") && token.endsWith("'"))
-      ? token.slice(1, -1)
-      : token,
-  );
 }
 
 function githubActionsRunCommands(workflow) {
@@ -53,18 +42,8 @@ function githubActionsRunCommands(workflow) {
   return commands;
 }
 
-const shellControlPrefixes = new Set([
-  "!",
-  "(",
-  "{",
-  "do",
-  "elif",
-  "else",
-  "if",
-  "then",
-  "until",
-  "while",
-]);
+const shellParser = new Parser();
+shellParser.setLanguage(Bash);
 
 const shellAssignment = /^[A-Za-z_][A-Za-z0-9_]*=.*/;
 
@@ -139,12 +118,33 @@ const wrapperOptionsWithArguments = {
   ]),
 };
 
-function consumeWrapperOptions(tokens, start, wrapper) {
-  let index = start + 1;
+const npmOptionsWithArguments = new Set([
+  "-C",
+  "--cache",
+  "--prefix",
+  "--registry",
+  "--userconfig",
+]);
+
+function staticShellWord(node) {
+  if (node == null) return null;
+  if (["number", "word", "string_content"].includes(node.type)) {
+    return node.text.replaceAll(/\\(.)/g, "$1");
+  }
+  if (node.type === "raw_string") return node.text.slice(1, -1);
+  if (["command_name", "concatenation", "string"].includes(node.type)) {
+    const parts = node.namedChildren.map(staticShellWord);
+    return parts.every((part) => part != null) ? parts.join("") : null;
+  }
+  return null;
+}
+
+function consumeWrapperArguments(args, wrapper) {
+  let index = 0;
   let optionsEnded = false;
 
-  while (index < tokens.length) {
-    const token = tokens[index];
+  while (index < args.length) {
+    const token = args[index];
     if (!optionsEnded && token === "--") {
       optionsEnded = true;
       index += 1;
@@ -155,11 +155,9 @@ function consumeWrapperOptions(tokens, start, wrapper) {
       continue;
     }
     if (optionsEnded || !token.startsWith("-") || token === "-") break;
-
     if (wrapper === "command" && ["-V", "-v"].includes(token)) return null;
-
     if (wrapperOptionsWithArguments[wrapper]?.has(token)) {
-      if (index + 1 >= tokens.length) return null;
+      if (index + 1 >= args.length) return null;
       index += 2;
       continue;
     }
@@ -167,7 +165,7 @@ function consumeWrapperOptions(tokens, start, wrapper) {
   }
 
   if (wrapper === "timeout") {
-    const duration = tokens[index];
+    const duration = args[index];
     if (
       duration == null ||
       !/^(?:\d+(?:\.\d+)?[smhd]?|\$[A-Za-z_][A-Za-z0-9_]*|\$\{[^}]+\})$/.test(
@@ -182,66 +180,64 @@ function consumeWrapperOptions(tokens, start, wrapper) {
   return index;
 }
 
-function commandPrefixInvokesNpm(prefix) {
-  let index = 0;
-  while (
-    index < prefix.length &&
-    (shellControlPrefixes.has(prefix[index]) ||
-      shellAssignment.test(prefix[index]))
-  ) {
-    index += 1;
+function npmInvocationIsGlobalInstall(args) {
+  let command = null;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (npmOptionsWithArguments.has(arg)) {
+      index += 1;
+      continue;
+    }
+    if (!arg.startsWith("-")) {
+      command = arg;
+      break;
+    }
+  }
+  if (command !== "install" && command !== "i") return false;
+
+  return args.some(
+    (arg, index) =>
+      arg === "-g" ||
+      arg === "--global" ||
+      /^--global=(?:true|1)$/i.test(arg) ||
+      /^--location=global$/i.test(arg) ||
+      (arg === "--location" && args[index + 1]?.toLowerCase() === "global"),
+  );
+}
+
+function commandNodeContainsGlobalNpmInstall(node) {
+  const nameNode = node.childForFieldName("name");
+  let name = staticShellWord(nameNode);
+  let args = node.namedChildren
+    .filter(
+      (child) =>
+        child.type !== "command_name" && child.type !== "variable_assignment",
+    )
+    .map(staticShellWord);
+  if (name == null || args.some((arg) => arg == null)) return false;
+
+  while (commandWrappers.has(path.posix.basename(name))) {
+    const wrapper = path.posix.basename(name);
+    const commandIndex = consumeWrapperArguments(args, wrapper);
+    if (commandIndex == null || commandIndex >= args.length) return false;
+    name = args[commandIndex];
+    args = args.slice(commandIndex + 1);
   }
 
-  while (index < prefix.length) {
-    const wrapper = path.posix.basename(prefix[index]);
-    if (!commandWrappers.has(wrapper)) return false;
-    const next = consumeWrapperOptions(prefix, index, wrapper);
-    if (next == null) return false;
-    index = next;
-  }
-  return true;
+  return (
+    path.posix.basename(name) === "npm" && npmInvocationIsGlobalInstall(args)
+  );
 }
 
 function shellCommandContainsGlobalNpmInstall(command) {
-  const tokens = shellTokens(command.replaceAll(/\\\r?\n/g, " "));
-  const separators = new Set(["\n", "&&", "||", ";", "&", "|", ")", "}"]);
-
-  for (let index = 0; index < tokens.length; index += 1) {
-    if (tokens[index] !== "npm") continue;
-    let start = index - 1;
-    while (start >= 0 && !separators.has(tokens[start])) start -= 1;
-    if (!commandPrefixInvokesNpm(tokens.slice(start + 1, index))) continue;
-
-    const relativeEnd = tokens
-      .slice(index + 1)
-      .findIndex((token) => separators.has(token));
-    const end = relativeEnd === -1 ? tokens.length : index + 1 + relativeEnd;
-    const args = tokens.slice(index + 1, end);
-    if (!args.some((arg) => arg === "install" || arg === "i")) continue;
-
-    if (
-      args.some(
-        (arg) =>
-          arg === "-g" ||
-          arg === "--global" ||
-          /^--global=(?:true|1)$/i.test(arg) ||
-          /^--location=global$/i.test(arg),
-      )
-    ) {
+  const tree = shellParser.parse(command.replaceAll(/\\\r?\n/g, " "));
+  const visit = (node) => {
+    if (node.type === "command" && commandNodeContainsGlobalNpmInstall(node)) {
       return true;
     }
-    if (
-      args.some(
-        (arg, argIndex) =>
-          arg === "--location" &&
-          args[argIndex + 1]?.toLowerCase() === "global",
-      )
-    ) {
-      return true;
-    }
-  }
-
-  return false;
+    return node.namedChildren.some(visit);
+  };
+  return visit(tree.rootNode);
 }
 
 function containsGlobalNpmInstall(workflow) {
@@ -313,6 +309,10 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: stdbuf -o L npm install -g npm@12",
     "run: ionice -c 2 -n 7 npm install -g npm@12",
     "run: nohup nice timeout 30 env FOO=bar npm install -g npm@12",
+    "run: /usr/bin/npm install -g npm@12",
+    'run: n"pm" install -g npm@12',
+    "run: $(npm install -g npm@12)",
+    'run: "`npm i -g npm@12`"',
     "run: (npm install -g npm@12)",
     "run: |\n  { npm install -g npm@12; }",
     "run: |\n  echo ready\n  npm install -g npm@12",
@@ -330,6 +330,8 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm install",
     "run: npm install --global=false package",
     "run: npm install --location=project package",
+    "run: npm run build -- -g i",
+    "run: npm install # -g npm@12",
     'run: "echo npm install -g" # trailing comment',
     "run: 'printf npm install -g'",
     "run: echo sudo env npm install -g npm@12",
@@ -344,6 +346,7 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: ionice -p npm install -g npm@12",
     "run: grep npm install -g commands.txt",
     "run: false && echo npm install -g npm@12",
+    "run: |\n  cat <<'EOF'\n  npm install -g npm@12\n  EOF",
     "run: |2-\n  echo 'npm install -g npm@12'\n  pnpm install",
     "run: >-\n  echo ready\n    printf 'npm install -g npm@12'",
   ]) {

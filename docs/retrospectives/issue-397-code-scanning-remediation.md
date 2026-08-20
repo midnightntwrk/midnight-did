@@ -40,13 +40,13 @@ and did not expand workflow permissions. A focused policy test now checks the
 workflow and dependency invariants together so future baseline synchronization
 cannot silently restore either vulnerable condition. Review of that harness
 found that command wrappers could hide a global npm install, so the detector now
-parses executable prefixes through common privilege, environment, process, and
-scheduling wrappers, including their options and environment assignments.
-Fixtures cover nested `sudo`/`env`/`command`/`exec`/`time` chains plus `nice`,
-`timeout`, `nohup`, `xargs`, `setsid`, `stdbuf`, and `ionice`. Shell-control
-tokenization also segments unspaced subshells such as `(npm ...)`, while
-negative quoted/`echo`/`printf` and wrapper-operand fixtures keep non-executed
-text from becoming a finding.
+parses Bash into a tree-sitter syntax tree and inspects only executable command
+nodes. The command-prefix model then handles common privilege, environment,
+process, and scheduling wrappers with their options and assignments. Fixtures
+cover nested wrapper chains, command substitutions, path-qualified and
+quote-concatenated npm names, and unspaced subshells. Negative quoted,
+`echo`/`printf`, heredoc, comment, npm-script, and wrapper-operand fixtures keep
+non-executed text and unrelated npm subcommands from becoming findings.
 
 ## Friction and failures
 
