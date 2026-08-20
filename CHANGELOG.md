@@ -22,9 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Typed exists, busy, and unavailable errors prevent overlapping reconciliation
   from overwriting, promoting, or removing another operation's candidate.
   Confirmed non-finalization permits discard of any non-null pending record,
-  including malformed state; promotion still requires valid pending state, and
-  cleanup failure after successful promotion warns and retains the candidate for
-  idempotent retry. Separate processes and independently unbound wrappers require
+  including malformed state; promotion still requires valid pending state.
+  Cleanup rejection after successful promotion warns that the pending record may
+  remain or may already have been removed; later reconciliation processes
+  retained state or returns the typed unavailable error if deletion committed.
+  Controller operations reject known provider/DID binding mismatches before any
+  provider or ledger access, and deployment holds a source/target address lease
+  through active-state persistence. Separate processes and independently unbound wrappers require
   an external per-DID lock because the provider API offers no cross-process CAS.
 - Preserve complete canonical DID URL identity for verification methods,
   relationships, and services while keeping existing current-subject

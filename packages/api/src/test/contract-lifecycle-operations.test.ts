@@ -5,6 +5,11 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { deploy, joinContract } from "../contract-lifecycle-operations.js";
+import {
+  bindPrivateStateProvider,
+  PendingControllerPrivateStateBusyError,
+  withPendingControllerPrivateStateLock,
+} from "../private-state.js";
 import { MidnightDIDPrivateStateId } from "../types.js";
 
 vi.mock("@midnight-ntwrk/midnight-js-contracts", () => ({
@@ -100,7 +105,40 @@ describe("contract lifecycle operations", () => {
     expect(findDeployedContract).not.toHaveBeenCalled();
   });
 
-  it("binds and persists private state after deployment", async () => {
+  it("rejects a busy provider before deploying", async () => {
+    const privateState = { secretKey: new Uint8Array(32).fill(8) };
+    const privateStateProvider = {
+      setContractAddress: vi.fn(),
+      set: vi.fn(),
+    };
+    const providers = { privateStateProvider } as any;
+    let releaseLease!: () => void;
+    const leaseGate = new Promise<void>((resolve) => {
+      releaseLease = resolve;
+    });
+    let leaseStarted!: () => void;
+    const leaseStart = new Promise<void>((resolve) => {
+      leaseStarted = resolve;
+    });
+    const heldLease = withPendingControllerPrivateStateLock(
+      providers,
+      async () => {
+        leaseStarted();
+        await leaseGate;
+      },
+    );
+    await leaseStart;
+
+    await expect(deploy(providers, privateState)).rejects.toBeInstanceOf(
+      PendingControllerPrivateStateBusyError,
+    );
+    expect(deployContract).not.toHaveBeenCalled();
+
+    releaseLease();
+    await heldLease;
+  });
+
+  it("binds and persists private state after deployment without nested reservation failure", async () => {
     const privateState = {
       recoverySecretKey: new Uint8Array(32).fill(9),
       secretKey: new Uint8Array(32).fill(8),
@@ -125,5 +163,54 @@ describe("contract lifecycle operations", () => {
       MidnightDIDPrivateStateId,
       privateState,
     );
+  });
+
+  it("holds the deployed target address reservation through private-state persistence", async () => {
+    const privateState = { secretKey: new Uint8Array(32).fill(8) };
+    let saveStarted!: () => void;
+    const saveStart = new Promise<void>((resolve) => {
+      saveStarted = resolve;
+    });
+    let releaseSave!: () => void;
+    const saveGate = new Promise<void>((resolve) => {
+      releaseSave = resolve;
+    });
+    const deployingProvider = {
+      setContractAddress: vi.fn(),
+      set: vi.fn(async () => {
+        saveStarted();
+        await saveGate;
+      }),
+    };
+    const otherProvider = {
+      setContractAddress: vi.fn(),
+    };
+    const deployedContract = {
+      deployTxData: { public: { contractAddress: deployedContractAddress } },
+    };
+    vi.mocked(deployContract).mockResolvedValue(deployedContract as any);
+
+    const deployment = deploy(
+      { privateStateProvider: deployingProvider } as any,
+      privateState,
+    );
+    await saveStart;
+
+    expect(() =>
+      bindPrivateStateProvider(
+        { privateStateProvider: otherProvider } as any,
+        deployedContractAddress,
+      ),
+    ).toThrow(PendingControllerPrivateStateBusyError);
+    expect(otherProvider.setContractAddress).not.toHaveBeenCalled();
+
+    releaseSave();
+    await expect(deployment).resolves.toBe(deployedContract);
+    expect(() =>
+      bindPrivateStateProvider(
+        { privateStateProvider: otherProvider } as any,
+        deployedContractAddress,
+      ),
+    ).not.toThrow();
   });
 });

@@ -21,12 +21,16 @@ export {
 export { getMidnightDIDLedgerState } from "./ledger-state.js";
 export {
   discardPendingControllerPrivateState,
+  type DiscardPendingControllerPrivateStateOptions,
   initPrivateState,
   PendingControllerPrivateStateBusyError,
   type PendingControllerPrivateStateErrorCode,
   PendingControllerPrivateStateExistsError,
   PendingControllerPrivateStateUnavailableError,
+  PrivateStateProviderContractMismatchError,
+  type PrivateStateProviderContractMismatchErrorCode,
   recoverPendingControllerPrivateState,
+  type RecoverPendingControllerPrivateStateOptions,
   requirePrivateState,
   restorePrivateState,
 } from "./private-state.js";

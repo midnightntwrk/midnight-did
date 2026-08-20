@@ -82,6 +82,7 @@ finalized, promote it explicitly:
 
 ```ts
 await recoverPendingControllerPrivateState(providers, {
+  contractAddress,
   rotationFinalized: true,
 });
 ```
@@ -91,6 +92,7 @@ before retrying:
 
 ```ts
 await discardPendingControllerPrivateState(providers, {
+  contractAddress,
   rotationFinalized: false,
 });
 ```
@@ -105,9 +107,10 @@ malformed state produces
 Discard with `{ rotationFinalized: false }` removes any non-null pending record,
 including malformed state, because the caller has independently confirmed
 non-finalization; only an absent record produces the unavailable error. If
-promotion writes active state but pending cleanup fails, it warns and returns the
-promoted state while retaining the candidate for an idempotent reconciliation
-retry.
+promotion writes active state but pending cleanup rejects, it warns and returns
+the promoted state, but cannot confirm whether the pending record remains or was
+already removed. A later reconciliation either processes retained state or
+returns `PendingControllerPrivateStateUnavailableError` if deletion committed.
 
 `bindPrivateStateProvider` keys the process-local critical section by canonical
 contract address, so different wrappers bound through the API to the same DID
@@ -117,6 +120,10 @@ cleanup. While the provider's current key or requested
 DID key is reserved, `bindPrivateStateProvider` (and therefore `joinContract`)
 fails closed with `PendingControllerPrivateStateBusyError` before changing the
 provider address; same-address rebinding is also rejected during the lifecycle.
+Rotation, recovery, and reconciliation synchronously bind an untracked provider
+to the operation's canonical DID address. A known different API-tracked binding
+fails before provider, ledger, authorization, or transaction access with
+`PrivateStateProviderContractMismatchError`.
 Calling `privateStateProvider.setContractAddress` directly bypasses this API
 coordination and MUST NOT occur during rotation, recovery, promotion/discard
 reconciliation, or cleanup. Explicitly unbound custom/test wrappers fall back to

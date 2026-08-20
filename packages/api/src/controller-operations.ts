@@ -13,6 +13,7 @@ import {
 import { requireDeployedMidnightDIDLedgerState } from "./ledger-state.js";
 import { randomBytes } from "./lightweight.js";
 import {
+  bindOrAssertPrivateStateProvider,
   clearPendingControllerPrivateState,
   requirePrivateState,
   requireRecoverySecretKey,
@@ -129,6 +130,10 @@ export const rotateControllerKey = async (
   providers: MidnightDIDProviders,
   newSecretKey: Uint8Array = randomBytes(32),
 ): Promise<FinalizedTxData> => {
+  bindOrAssertPrivateStateProvider(
+    providers,
+    didContract.deployTxData.public.contractAddress,
+  );
   const validatedNextPrivateState = privateStateFromSecret(newSecretKey);
 
   return withPendingControllerPrivateStateLock(providers, async () => {
@@ -169,11 +174,11 @@ export const rotateControllerKey = async (
         attemptedCallFailed:
           "Controller key rotation call was attempted but did not return finalized transaction data. Pending private state was retained because the ledger outcome is unknown; re-read controllerPublicKey before retrying.",
         cleanupFailed:
-          "Controller key rotation finalized, but pending private state cleanup failed.",
+          "Controller key rotation finalized and active private state was promoted, but cleanup disposition could not be confirmed; the pending record may remain or may already have been removed.",
         preCallFailed:
-          "Controller key rotation failed before the transaction call was attempted. Pending private state was retained; discard it with discardPendingControllerPrivateState(providers, { rotationFinalized: false }) before retrying.",
+          "Controller key rotation failed before the transaction call was attempted. Pending private state was retained; discard it with discardPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: false }) before retrying.",
         promotionFailed:
-          "Controller key rotation finalized, but active private state promotion failed. Use recoverPendingControllerPrivateState(providers, { rotationFinalized: true }) before submitting further controller operations.",
+          "Controller key rotation finalized, but active private state promotion failed. Use recoverPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: true }) before submitting further controller operations.",
       },
     );
   });
@@ -192,6 +197,10 @@ export const recoverControllerKey = async (
   newSecretKey: Uint8Array = randomBytes(32),
   recoverySecretKey?: Uint8Array,
 ): Promise<FinalizedTxData> => {
+  bindOrAssertPrivateStateProvider(
+    providers,
+    didContract.deployTxData.public.contractAddress,
+  );
   const validatedNextPrivateState = privateStateFromSecret(newSecretKey);
   if (
     recoverySecretKey !== undefined &&
@@ -271,11 +280,11 @@ export const recoverControllerKey = async (
         attemptedCallFailed:
           "Controller recovery call was attempted but did not return finalized transaction data. Pending private state was retained because the ledger outcome is unknown; re-read controllerPublicKey before retrying.",
         cleanupFailed:
-          "Controller recovery finalized, but pending private state cleanup failed.",
+          "Controller recovery finalized and active private state was promoted, but cleanup disposition could not be confirmed; the pending record may remain or may already have been removed.",
         preCallFailed:
-          "Controller recovery failed before the transaction call was attempted. Pending private state was retained; discard it with discardPendingControllerPrivateState(providers, { rotationFinalized: false }) before retrying.",
+          "Controller recovery failed before the transaction call was attempted. Pending private state was retained; discard it with discardPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: false }) before retrying.",
         promotionFailed:
-          "Controller recovery finalized, but active private state promotion failed. Use recoverPendingControllerPrivateState(providers, { rotationFinalized: true }) before submitting further controller operations.",
+          "Controller recovery finalized, but active private state promotion failed. Use recoverPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: true }) before submitting further controller operations.",
       },
     );
   });

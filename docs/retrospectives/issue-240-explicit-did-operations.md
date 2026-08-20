@@ -41,8 +41,10 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
 - Explicit non-finalization confirmation permits discard of any non-null pending
   record, including malformed state, so corrupt storage cannot permanently block
   a replacement candidate. Promotion continues to require valid pending state.
-  Once manual promotion writes active state, cleanup failure is warning-only and
-  retains the candidate for an idempotent reconciliation retry.
+  Once manual promotion writes active state, cleanup rejection is warning-only,
+  but its disposition is uncertain: the candidate may remain or may already have
+  been removed. Later reconciliation processes retained state or returns the
+  typed unavailable error if deletion committed.
 - The specification distinguishes the method's no-batch-circuit design from
   Midnight's inability to merge multiple non-empty contract-call sections.
 
@@ -70,9 +72,9 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   failure path releases it.
 - Malformed/absent reconciliation regressions distinguish presence from validity:
   confirmed discard removes malformed records, absent discard and missing or
-  malformed promotion remain typed and non-mutating, and cleanup failure after a
-  successful active write returns the promoted state with exact warning and
-  idempotent-retry coverage.
+  malformed promotion remain typed and non-mutating. Cleanup rejection after a
+  successful active write returns the promoted state with truthful warning and
+  coverage for both retained and already-deleted outcomes.
 - `pnpm run verify`, managed-artifact checks, package-surface checks, and the
   complete docs build/visual lane passed from the Nix development shell.
 
@@ -110,3 +112,5 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
 - Reviewers should verify the shared coded-error base, each stable domain code,
   and the controller pending-state recovery guidance against the exact PR head.
 - CI must complete the Docker-backed integration lane before approval.
+- Extend provider/DID identity assertions to ordinary non-rotation document
+  operations in a follow-up rather than widening this explicit-deletion change.

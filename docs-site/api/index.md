@@ -76,9 +76,12 @@ with the typed pending-controller-state error instead of overwriting it.
 Reconcile `controllerPublicKey` from ledger state, then explicitly promote the
 candidate after confirmed finalization or discard any retained record (including
 malformed state) after confirmed non-finalization. An absent discard and a
-missing or malformed promotion fail with the stable typed unavailable error. A
-successful promotion whose cleanup fails returns the promoted state and retains
-the candidate for idempotent retry. Calls sharing one bound DID are serialized
+missing or malformed promotion fail with the stable typed unavailable error.
+Reconciliation requires the canonical contract address. A successful promotion
+whose cleanup rejects returns the promoted state, but the pending record may
+remain or may already have been removed; a later reconciliation either processes
+retained state or returns the typed unavailable error if deletion committed.
+Calls sharing one bound DID are serialized
 from before private-state and ledger preflight; multi-process writers must
 provide an external per-DID private-state lock because the provider interface has
 no compare-and-set operation.

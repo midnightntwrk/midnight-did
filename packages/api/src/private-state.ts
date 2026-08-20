@@ -18,6 +18,23 @@ type ControllerPrivateState = MidnightDIDPrivateState & {
   readonly secretKey: Uint8Array;
 };
 
+export type PrivateStateProviderContractMismatchErrorCode =
+  "private_state_provider_contract_mismatch";
+
+/** Raised when a provider tracked by the API is bound to another DID. */
+export class PrivateStateProviderContractMismatchError extends MidnightDidApiError<PrivateStateProviderContractMismatchErrorCode> {
+  constructor(
+    readonly expectedContractAddress: string,
+    readonly actualContractAddress: string,
+  ) {
+    super(
+      "private_state_provider_contract_mismatch",
+      `Private-state provider contract mismatch: expected ${expectedContractAddress}, but the provider is bound to ${actualContractAddress}`,
+    );
+    this.name = "PrivateStateProviderContractMismatchError";
+  }
+}
+
 export type PendingControllerPrivateStateErrorCode =
   | "pending_controller_private_state_busy"
   | "pending_controller_private_state_exists"
@@ -80,29 +97,59 @@ export class PendingControllerPrivateStateUnavailableError extends MidnightDidAp
 // wrappers bound to one DID share a process-local lock. Explicitly unbound
 // providers fall back to wrapper identity. The provider API has no CAS, so this
 // cannot coordinate separate processes or independently unbound wrappers.
+const privateStateProviderContractAddresses = new WeakMap<object, string>();
 const pendingControllerContractLockKeys = new WeakMap<object, string>();
-const pendingControllerStateReservations = new Set<object | string>();
+const privateStateProviderReservations = new Map<object | string, object>();
 
 const pendingControllerLockKey = (providers: MidnightDIDProviders) => {
   const provider = providers.privateStateProvider;
   return pendingControllerContractLockKeys.get(provider) ?? provider;
 };
 
+export interface PrivateStateProviderLease {
+  readonly owner: object;
+  readonly keys: Set<object | string>;
+}
+
+const reservePrivateStateProviderKey = (
+  lease: PrivateStateProviderLease,
+  key: object | string,
+): void => {
+  const currentOwner = privateStateProviderReservations.get(key);
+  if (currentOwner !== undefined && currentOwner !== lease.owner) {
+    throw new PendingControllerPrivateStateBusyError();
+  }
+  if (currentOwner === undefined) {
+    privateStateProviderReservations.set(key, lease.owner);
+    lease.keys.add(key);
+  }
+};
+
+export async function withPrivateStateProviderLease<Result>(
+  providers: MidnightDIDProviders,
+  operation: (lease: PrivateStateProviderLease) => Promise<Result>,
+): Promise<Result> {
+  const lease: PrivateStateProviderLease = {
+    owner: {},
+    keys: new Set<object | string>(),
+  };
+  reservePrivateStateProviderKey(lease, pendingControllerLockKey(providers));
+  try {
+    return await operation(lease);
+  } finally {
+    for (const key of lease.keys) {
+      if (privateStateProviderReservations.get(key) === lease.owner) {
+        privateStateProviderReservations.delete(key);
+      }
+    }
+  }
+}
+
 export async function withPendingControllerPrivateStateLock<Result>(
   providers: MidnightDIDProviders,
   operation: () => Promise<Result>,
 ): Promise<Result> {
-  const lockKey = pendingControllerLockKey(providers);
-  if (pendingControllerStateReservations.has(lockKey)) {
-    throw new PendingControllerPrivateStateBusyError();
-  }
-
-  pendingControllerStateReservations.add(lockKey);
-  try {
-    return await operation();
-  } finally {
-    pendingControllerStateReservations.delete(lockKey);
-  }
+  return withPrivateStateProviderLease(providers, operation);
 }
 
 export const isRestorableDIDPrivateState = (
@@ -132,25 +179,81 @@ export const isAttachableDIDPrivateState = (
   isRestorableDIDPrivateState(privateState) ||
   isRecoverableDIDPrivateState(privateState);
 
+const canonicalContractLockKey = (contractAddress: string): string =>
+  `contract:${contractAddress}`;
+
+const recordPrivateStateProviderBinding = (
+  providers: MidnightDIDProviders,
+  canonicalContractAddress: string,
+): void => {
+  const provider = providers.privateStateProvider;
+  privateStateProviderContractAddresses.set(provider, canonicalContractAddress);
+  pendingControllerContractLockKeys.set(
+    provider,
+    canonicalContractLockKey(canonicalContractAddress),
+  );
+};
+
 export const bindPrivateStateProvider = (
   providers: MidnightDIDProviders,
   contractAddress: string,
 ): void => {
   const canonicalContractAddress = parseContractAddress(contractAddress);
   const currentLockKey = pendingControllerLockKey(providers);
-  const requestedLockKey = `contract:${canonicalContractAddress}`;
+  const requestedLockKey = canonicalContractLockKey(canonicalContractAddress);
   if (
-    pendingControllerStateReservations.has(currentLockKey) ||
-    pendingControllerStateReservations.has(requestedLockKey)
+    privateStateProviderReservations.has(currentLockKey) ||
+    privateStateProviderReservations.has(requestedLockKey)
   ) {
     throw new PendingControllerPrivateStateBusyError();
   }
 
   providers.privateStateProvider.setContractAddress(canonicalContractAddress);
-  pendingControllerContractLockKeys.set(
-    providers.privateStateProvider,
-    requestedLockKey,
+  recordPrivateStateProviderBinding(providers, canonicalContractAddress);
+};
+
+export const bindPrivateStateProviderWithinLease = (
+  providers: MidnightDIDProviders,
+  contractAddress: string,
+  lease: PrivateStateProviderLease,
+): void => {
+  const canonicalContractAddress = parseContractAddress(contractAddress);
+  const currentLockKey = pendingControllerLockKey(providers);
+  if (privateStateProviderReservations.get(currentLockKey) !== lease.owner) {
+    throw new PendingControllerPrivateStateBusyError();
+  }
+  reservePrivateStateProviderKey(
+    lease,
+    canonicalContractLockKey(canonicalContractAddress),
   );
+  providers.privateStateProvider.setContractAddress(canonicalContractAddress);
+  recordPrivateStateProviderBinding(providers, canonicalContractAddress);
+};
+
+/**
+ * Synchronously binds an API-untracked provider to the expected DID, or rejects
+ * a known binding mismatch without touching provider storage.
+ */
+export const bindOrAssertPrivateStateProvider = (
+  providers: MidnightDIDProviders,
+  contractAddress: string,
+): void => {
+  const expectedContractAddress = parseContractAddress(contractAddress);
+  const actualContractAddress = privateStateProviderContractAddresses.get(
+    providers.privateStateProvider,
+  );
+  if (
+    actualContractAddress !== undefined &&
+    actualContractAddress !== expectedContractAddress
+  ) {
+    throw new PrivateStateProviderContractMismatchError(
+      expectedContractAddress,
+      actualContractAddress,
+    );
+  }
+  if (actualContractAddress === undefined) {
+    bindPrivateStateProvider(providers, expectedContractAddress);
+  }
 };
 
 export async function restorePrivateState(
@@ -255,10 +358,12 @@ export async function requireAttachablePrivateState(
 }
 
 export interface RecoverPendingControllerPrivateStateOptions {
+  readonly contractAddress: string;
   readonly rotationFinalized: true;
 }
 
 export interface DiscardPendingControllerPrivateStateOptions {
+  readonly contractAddress: string;
   readonly rotationFinalized: false;
 }
 
@@ -345,13 +450,14 @@ export async function requirePendingControllerPrivateState(
 
 export async function discardPendingControllerPrivateState(
   providers: MidnightDIDProviders,
-  options?: DiscardPendingControllerPrivateStateOptions,
+  options: DiscardPendingControllerPrivateStateOptions,
 ): Promise<void> {
   if (options?.rotationFinalized !== false) {
     throw new Error(
       "Pending controller private state can only be discarded after confirming the key-rotation transaction did not finalize",
     );
   }
+  bindOrAssertPrivateStateProvider(providers, options.contractAddress);
   await withPendingControllerPrivateStateLock(providers, async () => {
     let pendingPrivateState: unknown = null;
     try {
@@ -375,13 +481,14 @@ export async function discardPendingControllerPrivateState(
 
 export async function recoverPendingControllerPrivateState(
   providers: MidnightDIDProviders,
-  options?: RecoverPendingControllerPrivateStateOptions,
+  options: RecoverPendingControllerPrivateStateOptions,
 ): Promise<MidnightDIDPrivateState> {
   if (options?.rotationFinalized !== true) {
     throw new Error(
       "Pending controller private state can only be recovered after confirming the key-rotation transaction finalized",
     );
   }
+  bindOrAssertPrivateStateProvider(providers, options.contractAddress);
   return withPendingControllerPrivateStateLock(providers, async () => {
     const pendingPrivateState =
       await requirePendingControllerPrivateState(providers);
@@ -391,7 +498,7 @@ export async function recoverPendingControllerPrivateState(
     } catch (error: unknown) {
       getLogger().warn(
         { error },
-        "Pending controller private state was promoted, but pending private state cleanup failed.",
+        "Pending controller private state was promoted, but cleanup disposition could not be confirmed; the pending record may remain or may already have been removed.",
       );
     }
     return pendingPrivateState;

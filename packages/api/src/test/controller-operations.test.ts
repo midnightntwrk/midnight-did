@@ -62,6 +62,7 @@ const makeLogger = () =>
   }) as any;
 
 describe("controller operations", () => {
+  const contractAddress = "A".repeat(64);
   beforeEach(() => {
     vi.clearAllMocks();
     setLogger(makeLogger());
@@ -75,6 +76,7 @@ describe("controller operations", () => {
     }));
     const recoverySecretKey = new Uint8Array(32).fill(99);
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({
         recoverySecretKey,
         secretKey: new Uint8Array(32).fill(98),
@@ -84,7 +86,10 @@ describe("controller operations", () => {
     };
 
     const result = await rotateControllerKey(
-      { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+      {
+        deployTxData: { public: { contractAddress } },
+        callTx: { rotateControllerKey: rotateControllerKeyTx },
+      } as any,
       { privateStateProvider } as any,
       newSecretKey,
     );
@@ -122,6 +127,7 @@ describe("controller operations", () => {
       public: { txId: "0x234" },
     }));
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({ secretKey: new Uint8Array(32).fill(4) }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -129,7 +135,10 @@ describe("controller operations", () => {
 
     await expect(
       rotateControllerKey(
-        { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { rotateControllerKey: rotateControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         newSecretKey,
       ),
@@ -150,6 +159,7 @@ describe("controller operations", () => {
       public: { txId: "0x456" },
     }));
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({
         recoverySecretKey,
         secretKey: new Uint8Array(32).fill(8),
@@ -159,7 +169,10 @@ describe("controller operations", () => {
     };
 
     const result = await recoverControllerKey(
-      { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+      {
+        deployTxData: { public: { contractAddress } },
+        callTx: { recoverControllerKey: recoverControllerKeyTx },
+      } as any,
       { privateStateProvider } as any,
       newSecretKey,
     );
@@ -192,6 +205,7 @@ describe("controller operations", () => {
       public: { txId: "0xabc" },
     }));
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({ recoverySecretKey }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -199,7 +213,10 @@ describe("controller operations", () => {
 
     await expect(
       recoverControllerKey(
-        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { recoverControllerKey: recoverControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         newSecretKey,
       ),
@@ -220,6 +237,7 @@ describe("controller operations", () => {
       public: { txId: "0xdef" },
     }));
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState(null),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -227,7 +245,10 @@ describe("controller operations", () => {
 
     await expect(
       recoverControllerKey(
-        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { recoverControllerKey: recoverControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         newSecretKey,
         recoverySecretKey,
@@ -258,6 +279,7 @@ describe("controller operations", () => {
       public: { txId: "0xfed" },
     }));
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({ recoverySecretKey: storedRecoverySecretKey }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -265,7 +287,10 @@ describe("controller operations", () => {
 
     await expect(
       recoverControllerKey(
-        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { recoverControllerKey: recoverControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         newSecretKey,
         explicitRecoverySecretKey,
@@ -282,6 +307,7 @@ describe("controller operations", () => {
   it("rejects invalid explicit recovery secrets before querying ledger state", async () => {
     const recoverControllerKeyTx = vi.fn();
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: vi.fn(),
       set: vi.fn(),
       remove: vi.fn(),
@@ -289,7 +315,10 @@ describe("controller operations", () => {
 
     await expect(
       recoverControllerKey(
-        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { recoverControllerKey: recoverControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         new Uint8Array(32).fill(22),
         new Uint8Array(31),
@@ -308,6 +337,7 @@ describe("controller operations", () => {
     } as any);
     const recoverControllerKeyTx = vi.fn();
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({
         recoverySecretKey: new Uint8Array(32).fill(20),
       }),
@@ -317,7 +347,10 @@ describe("controller operations", () => {
 
     await expect(
       recoverControllerKey(
-        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { recoverControllerKey: recoverControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         new Uint8Array(32).fill(22),
       ),
@@ -333,6 +366,7 @@ describe("controller operations", () => {
     mockLedgerForRecovery(ledgerRecoverySecretKey);
     const recoverControllerKeyTx = vi.fn();
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({ recoverySecretKey: storedRecoverySecretKey }),
       set: vi.fn(),
       remove: vi.fn(),
@@ -340,7 +374,10 @@ describe("controller operations", () => {
 
     await expect(
       recoverControllerKey(
-        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { recoverControllerKey: recoverControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         new Uint8Array(32).fill(22),
       ),
@@ -355,6 +392,7 @@ describe("controller operations", () => {
     mockLedgerForRecovery(recoverySecretKey);
     const recoverControllerKeyTx = vi.fn();
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({
         recoverySecretKey,
         secretKey: new Uint8Array(32).fill(8),
@@ -367,7 +405,10 @@ describe("controller operations", () => {
 
     await expect(
       recoverControllerKey(
-        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { recoverControllerKey: recoverControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         new Uint8Array(32).fill(11),
       ),
@@ -383,6 +424,7 @@ describe("controller operations", () => {
     mockLedgerForRecovery(recoverySecretKey);
     const recoverControllerKeyTx = vi.fn();
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState(
         {
           recoverySecretKey,
@@ -396,7 +438,10 @@ describe("controller operations", () => {
 
     await expect(
       recoverControllerKey(
-        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { recoverControllerKey: recoverControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         new Uint8Array(32).fill(12),
       ),
@@ -414,6 +459,7 @@ describe("controller operations", () => {
       throw new Error("recovery transaction rejected");
     });
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({
         recoverySecretKey,
         secretKey: new Uint8Array(32).fill(8),
@@ -424,7 +470,10 @@ describe("controller operations", () => {
 
     await expect(
       recoverControllerKey(
-        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { recoverControllerKey: recoverControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         new Uint8Array(32).fill(12),
       ),
@@ -440,6 +489,7 @@ describe("controller operations", () => {
       public: { txId: "0x789" },
     }));
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({
         recoverySecretKey,
         secretKey: new Uint8Array(32).fill(8),
@@ -453,7 +503,10 @@ describe("controller operations", () => {
 
     await expect(
       recoverControllerKey(
-        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { recoverControllerKey: recoverControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         new Uint8Array(32).fill(13),
       ),
@@ -467,9 +520,13 @@ describe("controller operations", () => {
 
     await expect(
       rotateControllerKey(
-        { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { rotateControllerKey: rotateControllerKeyTx },
+        } as any,
         {
           privateStateProvider: {
+            setContractAddress: vi.fn(),
             get: getPrivateState({
               recoverySecretKey: new Uint8Array(32).fill(5),
               secretKey: new Uint8Array(32).fill(4),
@@ -485,9 +542,59 @@ describe("controller operations", () => {
     expect(rotateControllerKeyTx).not.toHaveBeenCalled();
   });
 
+  it.each(["rotation", "recovery"] as const)(
+    "rejects %s for a known provider contract mismatch before reads or calls",
+    async (operation) => {
+      const boundContractAddress = "B".repeat(64);
+      const privateStateProvider = {
+        setContractAddress: vi.fn(),
+        get: vi.fn(),
+        set: vi.fn(),
+        remove: vi.fn(),
+      };
+      const providers = { privateStateProvider } as any;
+      bindPrivateStateProvider(providers, boundContractAddress);
+      vi.clearAllMocks();
+      const rotateControllerKeyTx = vi.fn();
+      const recoverControllerKeyTx = vi.fn();
+      const didContract = {
+        deployTxData: { public: { contractAddress } },
+        callTx: {
+          recoverControllerKey: recoverControllerKeyTx,
+          rotateControllerKey: rotateControllerKeyTx,
+        },
+      } as any;
+
+      const result =
+        operation === "rotation"
+          ? rotateControllerKey(didContract, providers, new Uint8Array(32))
+          : recoverControllerKey(
+              didContract,
+              providers,
+              new Uint8Array(32),
+              new Uint8Array(32),
+            );
+
+      await expect(result).rejects.toMatchObject({
+        code: "private_state_provider_contract_mismatch",
+        expectedContractAddress: contractAddress.toLowerCase(),
+        actualContractAddress: boundContractAddress.toLowerCase(),
+      });
+      expect(privateStateProvider.setContractAddress).not.toHaveBeenCalled();
+      expect(privateStateProvider.get).not.toHaveBeenCalled();
+      expect(privateStateProvider.set).not.toHaveBeenCalled();
+      expect(privateStateProvider.remove).not.toHaveBeenCalled();
+      expect(requireDeployedMidnightDIDLedgerState).not.toHaveBeenCalled();
+      expect(createControllerAuthorization).not.toHaveBeenCalled();
+      expect(rotateControllerKeyTx).not.toHaveBeenCalled();
+      expect(recoverControllerKeyTx).not.toHaveBeenCalled();
+    },
+  );
+
   it("rejects before submitting a transaction if pending state cannot be saved", async () => {
     const rotateControllerKeyTx = vi.fn();
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({
         recoverySecretKey: new Uint8Array(32).fill(5),
         secretKey: new Uint8Array(32).fill(4),
@@ -500,7 +607,10 @@ describe("controller operations", () => {
 
     await expect(
       rotateControllerKey(
-        { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { rotateControllerKey: rotateControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         new Uint8Array(32).fill(1),
       ),
@@ -515,6 +625,7 @@ describe("controller operations", () => {
     const pendingSecretKey = new Uint8Array(32).fill(27);
     const rotateControllerKeyTx = vi.fn();
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState(
         { secretKey: activeSecretKey },
         { secretKey: pendingSecretKey },
@@ -525,7 +636,10 @@ describe("controller operations", () => {
 
     await expect(
       rotateControllerKey(
-        { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { rotateControllerKey: rotateControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         new Uint8Array(32).fill(28),
       ),
@@ -555,6 +669,7 @@ describe("controller operations", () => {
     });
     let pendingReads = 0;
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: vi.fn(async (privateStateId: string) => {
         if (privateStateId !== MidnightDIDPendingControllerPrivateStateId) {
           return { secretKey: activeSecretKey };
@@ -579,6 +694,7 @@ describe("controller operations", () => {
       throw new Error("candidate A outcome unknown");
     });
     const didContract = {
+      deployTxData: { public: { contractAddress } },
       callTx: { rotateControllerKey: rotateControllerKeyTx },
     } as any;
     const providers = { privateStateProvider } as any;
@@ -605,6 +721,7 @@ describe("controller operations", () => {
       throw new Error("transaction rejected");
     });
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({
         recoverySecretKey: new Uint8Array(32).fill(5),
         secretKey: new Uint8Array(32).fill(4),
@@ -615,7 +732,10 @@ describe("controller operations", () => {
 
     await expect(
       rotateControllerKey(
-        { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { rotateControllerKey: rotateControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         new Uint8Array(32).fill(2),
       ),
@@ -635,6 +755,7 @@ describe("controller operations", () => {
       },
     );
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({ secretKey: oldSecretKey }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -642,7 +763,10 @@ describe("controller operations", () => {
 
     await expect(
       rotateControllerKey(
-        { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { rotateControllerKey: rotateControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         newSecretKey,
       ),
@@ -671,6 +795,7 @@ describe("controller operations", () => {
       },
     );
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({ recoverySecretKey, secretKey: oldSecretKey }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -678,7 +803,10 @@ describe("controller operations", () => {
 
     await expect(
       recoverControllerKey(
-        { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { recoverControllerKey: recoverControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         newSecretKey,
       ),
@@ -699,6 +827,7 @@ describe("controller operations", () => {
       public: { txId: "0x123" },
     }));
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({
         recoverySecretKey: new Uint8Array(32).fill(5),
         secretKey: new Uint8Array(32).fill(4),
@@ -712,7 +841,10 @@ describe("controller operations", () => {
 
     await expect(
       rotateControllerKey(
-        { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { rotateControllerKey: rotateControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         new Uint8Array(32).fill(3),
       ),
@@ -724,6 +856,7 @@ describe("controller operations", () => {
   it("discards a malformed pending record after explicit non-finalization confirmation", async () => {
     const malformedPendingPrivateState = { secretKey: new Uint8Array(31) };
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState(null, malformedPendingPrivateState),
       set: vi.fn(),
       remove: vi.fn(async () => undefined),
@@ -731,6 +864,7 @@ describe("controller operations", () => {
 
     await expect(
       discardPendingControllerPrivateState({ privateStateProvider } as any, {
+        contractAddress,
         rotationFinalized: false,
       }),
     ).resolves.toBeUndefined();
@@ -748,6 +882,7 @@ describe("controller operations", () => {
 
   it("rejects absent pending discard with the typed unavailable error without mutation", async () => {
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState(null),
       set: vi.fn(),
       remove: vi.fn(),
@@ -755,6 +890,7 @@ describe("controller operations", () => {
 
     await expect(
       discardPendingControllerPrivateState({ privateStateProvider } as any, {
+        contractAddress,
         rotationFinalized: false,
       }),
     ).rejects.toBeInstanceOf(PendingControllerPrivateStateUnavailableError);
@@ -771,6 +907,7 @@ describe("controller operations", () => {
     "rejects %s pending recovery with the typed unavailable error without mutation",
     async (_description, pendingPrivateState) => {
       const privateStateProvider = {
+        setContractAddress: vi.fn(),
         get: getPrivateState(null, pendingPrivateState),
         set: vi.fn(),
         remove: vi.fn(),
@@ -778,6 +915,7 @@ describe("controller operations", () => {
 
       await expect(
         recoverPendingControllerPrivateState({ privateStateProvider } as any, {
+          contractAddress,
           rotationFinalized: true,
         }),
       ).rejects.toBeInstanceOf(PendingControllerPrivateStateUnavailableError);
@@ -788,7 +926,7 @@ describe("controller operations", () => {
     },
   );
 
-  it("returns promoted pending state and retains it for retry when cleanup fails", async () => {
+  it("returns promoted pending state when failed cleanup retains it", async () => {
     const logger = makeLogger();
     setLogger(logger);
     const pendingPrivateState = {
@@ -800,6 +938,7 @@ describe("controller operations", () => {
     let retainedPendingPrivateState: unknown = pendingPrivateState;
     let removeAttempts = 0;
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: vi.fn(async (privateStateId: string) =>
         privateStateId === MidnightDIDPendingControllerPrivateStateId
           ? retainedPendingPrivateState
@@ -820,6 +959,7 @@ describe("controller operations", () => {
 
     await expect(
       recoverPendingControllerPrivateState(providers, {
+        contractAddress,
         rotationFinalized: true,
       }),
     ).resolves.toBe(pendingPrivateState);
@@ -836,13 +976,14 @@ describe("controller operations", () => {
     expect(logger.warn).toHaveBeenCalledTimes(1);
     expect(logger.warn).toHaveBeenCalledWith(
       { error: cleanupError },
-      "Pending controller private state was promoted, but pending private state cleanup failed.",
+      "Pending controller private state was promoted, but cleanup disposition could not be confirmed; the pending record may remain or may already have been removed.",
     );
     expect(activePrivateState).toBe(pendingPrivateState);
     expect(retainedPendingPrivateState).toBe(pendingPrivateState);
 
     await expect(
       recoverPendingControllerPrivateState(providers, {
+        contractAddress,
         rotationFinalized: true,
       }),
     ).resolves.toBe(pendingPrivateState);
@@ -859,6 +1000,128 @@ describe("controller operations", () => {
     expect(retainedPendingPrivateState).toBeNull();
   });
 
+  it("returns promoted state when failed manual cleanup deleted the pending record", async () => {
+    const logger = makeLogger();
+    setLogger(logger);
+    const pendingPrivateState = {
+      recoverySecretKey: new Uint8Array(32).fill(60),
+      secretKey: new Uint8Array(32).fill(61),
+    };
+    let activePrivateState: unknown = null;
+    let pending: unknown = pendingPrivateState;
+    const cleanupError = new Error(
+      "delete committed before acknowledgement failed",
+    );
+    const privateStateProvider = {
+      setContractAddress: vi.fn(),
+      get: vi.fn(async (privateStateId: string) =>
+        privateStateId === MidnightDIDPendingControllerPrivateStateId
+          ? pending
+          : activePrivateState,
+      ),
+      set: vi.fn(async (privateStateId: string, privateState: unknown) => {
+        if (privateStateId === MidnightDIDPrivateStateId) {
+          activePrivateState = privateState;
+        }
+      }),
+      remove: vi.fn(async () => {
+        pending = null;
+        throw cleanupError;
+      }),
+    };
+    const providers = { privateStateProvider } as any;
+
+    await expect(
+      recoverPendingControllerPrivateState(providers, {
+        contractAddress,
+        rotationFinalized: true,
+      }),
+    ).resolves.toBe(pendingPrivateState);
+
+    expect(activePrivateState).toBe(pendingPrivateState);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { error: cleanupError },
+      expect.stringMatching(/may remain or may already have been removed/),
+    );
+    await expect(
+      recoverPendingControllerPrivateState(providers, {
+        contractAddress,
+        rotationFinalized: true,
+      }),
+    ).rejects.toBeInstanceOf(PendingControllerPrivateStateUnavailableError);
+  });
+
+  it.each([
+    ["retained", false],
+    ["deleted", true],
+  ] as const)(
+    "succeeds after finalized rotation when failed cleanup leaves state %s",
+    async (_outcome, deleteBeforeReject) => {
+      const logger = makeLogger();
+      setLogger(logger);
+      const oldPrivateState = { secretKey: new Uint8Array(32).fill(62) };
+      const nextSecretKey = new Uint8Array(32).fill(63);
+      let activePrivateState: unknown = oldPrivateState;
+      let pendingPrivateState: unknown = null;
+      let removeAttempts = 0;
+      const cleanupError = new Error("cleanup acknowledgement unavailable");
+      const privateStateProvider = {
+        setContractAddress: vi.fn(),
+        get: vi.fn(async (privateStateId: string) =>
+          privateStateId === MidnightDIDPendingControllerPrivateStateId
+            ? pendingPrivateState
+            : activePrivateState,
+        ),
+        set: vi.fn(async (privateStateId: string, privateState: unknown) => {
+          if (privateStateId === MidnightDIDPendingControllerPrivateStateId) {
+            pendingPrivateState = privateState;
+          } else {
+            activePrivateState = privateState;
+          }
+        }),
+        remove: vi.fn(async () => {
+          removeAttempts += 1;
+          if (removeAttempts === 1) {
+            if (deleteBeforeReject) pendingPrivateState = null;
+            throw cleanupError;
+          }
+          pendingPrivateState = null;
+        }),
+      };
+      const providers = { privateStateProvider } as any;
+      const rotateControllerKeyTx = vi.fn(async () => ({
+        public: { txId: "cleanup-uncertain" },
+      }));
+      const didContract = {
+        deployTxData: { public: { contractAddress } },
+        callTx: { rotateControllerKey: rotateControllerKeyTx },
+      } as any;
+
+      await expect(
+        rotateControllerKey(didContract, providers, nextSecretKey),
+      ).resolves.toEqual({ txId: "cleanup-uncertain" });
+
+      expect(activePrivateState).toEqual({ secretKey: nextSecretKey });
+      expect(logger.warn).toHaveBeenCalledWith(
+        { error: cleanupError },
+        expect.stringMatching(/may remain or may already have been removed/),
+      );
+      const reconciliation = recoverPendingControllerPrivateState(providers, {
+        contractAddress,
+        rotationFinalized: true,
+      });
+      if (deleteBeforeReject) {
+        await expect(reconciliation).rejects.toBeInstanceOf(
+          PendingControllerPrivateStateUnavailableError,
+        );
+      } else {
+        await expect(reconciliation).resolves.toEqual({
+          secretKey: nextSecretKey,
+        });
+      }
+    },
+  );
+
   it("categorizes authorization failure as pre-call and retains the candidate", async () => {
     const logger = makeLogger();
     setLogger(logger);
@@ -868,6 +1131,7 @@ describe("controller operations", () => {
     );
     const rotateControllerKeyTx = vi.fn();
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({ secretKey: new Uint8Array(32).fill(4) }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -875,7 +1139,10 @@ describe("controller operations", () => {
 
     await expect(
       rotateControllerKey(
-        { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { rotateControllerKey: rotateControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         new Uint8Array(32).fill(40),
       ),
@@ -898,6 +1165,7 @@ describe("controller operations", () => {
       throw callError;
     });
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: getPrivateState({ secretKey: new Uint8Array(32).fill(4) }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -905,7 +1173,10 @@ describe("controller operations", () => {
 
     await expect(
       rotateControllerKey(
-        { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+        {
+          deployTxData: { public: { contractAddress } },
+          callTx: { rotateControllerKey: rotateControllerKeyTx },
+        } as any,
         { privateStateProvider } as any,
         new Uint8Array(32).fill(41),
       ),
@@ -933,6 +1204,7 @@ describe("controller operations", () => {
       releaseCall = resolve;
     });
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: vi.fn(async (privateStateId: string) =>
         privateStateId === MidnightDIDPendingControllerPrivateStateId
           ? pending
@@ -957,7 +1229,10 @@ describe("controller operations", () => {
     const providers = { privateStateProvider } as any;
 
     const rotation = rotateControllerKey(
-      { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+      {
+        deployTxData: { public: { contractAddress } },
+        callTx: { rotateControllerKey: rotateControllerKeyTx },
+      } as any,
       providers,
       candidateA,
     );
@@ -965,6 +1240,7 @@ describe("controller operations", () => {
 
     await expect(
       discardPendingControllerPrivateState(providers, {
+        contractAddress,
         rotationFinalized: false,
       }),
     ).rejects.toMatchObject({
@@ -1003,6 +1279,7 @@ describe("controller operations", () => {
       releaseCall = resolve;
     });
     const privateStateProvider = {
+      setContractAddress: vi.fn(),
       get: vi.fn(async (privateStateId: string) =>
         privateStateId === MidnightDIDPendingControllerPrivateStateId
           ? pending
@@ -1027,7 +1304,10 @@ describe("controller operations", () => {
     const providers = { privateStateProvider } as any;
 
     const recovery = recoverControllerKey(
-      { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+      {
+        deployTxData: { public: { contractAddress } },
+        callTx: { recoverControllerKey: recoverControllerKeyTx },
+      } as any,
       providers,
       candidateA,
     );
@@ -1035,6 +1315,7 @@ describe("controller operations", () => {
 
     await expect(
       recoverPendingControllerPrivateState(providers, {
+        contractAddress,
         rotationFinalized: true,
       }),
     ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
@@ -1093,7 +1374,10 @@ describe("controller operations", () => {
     const rotateControllerKeyTx = vi.fn();
 
     const rotation = rotateControllerKey(
-      { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+      {
+        deployTxData: { public: { contractAddress: contractAddressA } },
+        callTx: { rotateControllerKey: rotateControllerKeyTx },
+      } as any,
       providersA,
       new Uint8Array(32).fill(56),
     );
@@ -1174,7 +1458,10 @@ describe("controller operations", () => {
     const recoverControllerKeyTx = vi.fn();
 
     const recovery = recoverControllerKey(
-      { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+      {
+        deployTxData: { public: { contractAddress: contractAddressA } },
+        callTx: { recoverControllerKey: recoverControllerKeyTx },
+      } as any,
       providersA,
       new Uint8Array(32).fill(58),
     );
@@ -1280,7 +1567,10 @@ describe("controller operations", () => {
       throw new Error("DID A rotation outcome unknown");
     });
     const rotation = rotateControllerKey(
-      { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+      {
+        deployTxData: { public: { contractAddress: contractAddressA } },
+        callTx: { rotateControllerKey: rotateControllerKeyTx },
+      } as any,
       providersA,
       candidateA,
     );
@@ -1304,6 +1594,7 @@ describe("controller operations", () => {
     expect(wrapperB.contractAddress).toBe(contractAddressB);
     await expect(
       discardPendingControllerPrivateState(providersA, {
+        contractAddress: contractAddressA,
         rotationFinalized: false,
       }),
     ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
@@ -1378,6 +1669,7 @@ describe("controller operations", () => {
       throw new Error("wrapper A outcome unknown");
     });
     const didContract = {
+      deployTxData: { public: { contractAddress } },
       callTx: { rotateControllerKey: rotateControllerKeyTx },
     } as any;
 

@@ -6,6 +6,7 @@ import {
   PendingControllerPrivateStateBusyError,
   PendingControllerPrivateStateExistsError,
   PendingControllerPrivateStateUnavailableError,
+  PrivateStateProviderContractMismatchError,
 } from "../private-state.js";
 import { VerificationMethodReferencedError } from "../verification-method-errors.js";
 import { MidnightDidZkArtifactError } from "../zk-artifacts.js";
@@ -39,6 +40,14 @@ describe("typed API errors", () => {
       PendingControllerPrivateStateUnavailableError,
       "pending_controller_private_state_missing_or_malformed",
     ],
+    [
+      new PrivateStateProviderContractMismatchError(
+        "a".repeat(64),
+        "b".repeat(64),
+      ),
+      PrivateStateProviderContractMismatchError,
+      "private_state_provider_contract_mismatch",
+    ],
   ])(
     "uses the common constructor-owned code shape",
     (error, ErrorClass, code) => {
@@ -48,6 +57,16 @@ describe("typed API errors", () => {
       expect(error).toMatchObject({ code });
     },
   );
+
+  it("preserves canonical provider contract mismatch details", () => {
+    const error = new PrivateStateProviderContractMismatchError(
+      "a".repeat(64),
+      "b".repeat(64),
+    );
+
+    expect(error.expectedContractAddress).toBe("a".repeat(64));
+    expect(error.actualContractAddress).toBe("b".repeat(64));
+  });
 
   it("preserves verification-method error details", () => {
     const error = new VerificationMethodReferencedError("#key-1", [

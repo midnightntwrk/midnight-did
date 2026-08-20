@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getLogger, setLogger } from "../api-logger.js";
 import {
+  bindOrAssertPrivateStateProvider,
   bindPrivateStateProvider,
   discardPendingControllerPrivateState,
   initPrivateState,
   isRestorableDIDPrivateState,
+  PrivateStateProviderContractMismatchError,
   recoverPendingControllerPrivateState,
   requirePrivateState,
   restorePrivateState,
@@ -54,6 +56,7 @@ const makeProviders = ({
 };
 
 describe("DID private state lifecycle", () => {
+  const contractAddress = "A".repeat(64);
   let previousLogger: unknown;
 
   beforeEach(() => {
@@ -193,6 +196,57 @@ describe("DID private state lifecycle", () => {
     );
   });
 
+  it("auto-binds an untracked provider and accepts canonical-equivalent addresses", () => {
+    const { providers, privateStateProvider } = makeProviders();
+    const mixedCaseAddress = `${"A".repeat(32)}${"c".repeat(32)}`;
+
+    bindOrAssertPrivateStateProvider(providers, mixedCaseAddress);
+    bindOrAssertPrivateStateProvider(providers, mixedCaseAddress.toLowerCase());
+
+    expect(privateStateProvider.setContractAddress).toHaveBeenCalledTimes(1);
+    expect(privateStateProvider.setContractAddress).toHaveBeenCalledWith(
+      mixedCaseAddress.toLowerCase(),
+    );
+  });
+
+  it.each([
+    ["promotion", true],
+    ["discard", false],
+  ] as const)(
+    "rejects wrong-DID pending %s before provider access",
+    async (_description, rotationFinalized) => {
+      const { providers, privateStateProvider } = makeProviders({
+        storedPrivateState: { secretKey: new Uint8Array(32).fill(9) },
+      });
+      bindPrivateStateProvider(providers, contractAddress);
+      vi.clearAllMocks();
+      const otherContractAddress = "B".repeat(64);
+
+      const reconciliation = rotationFinalized
+        ? recoverPendingControllerPrivateState(providers, {
+            contractAddress: otherContractAddress,
+            rotationFinalized,
+          })
+        : discardPendingControllerPrivateState(providers, {
+            contractAddress: otherContractAddress,
+            rotationFinalized,
+          });
+
+      await expect(reconciliation).rejects.toBeInstanceOf(
+        PrivateStateProviderContractMismatchError,
+      );
+      await expect(reconciliation).rejects.toMatchObject({
+        code: "private_state_provider_contract_mismatch",
+        expectedContractAddress: otherContractAddress.toLowerCase(),
+        actualContractAddress: contractAddress.toLowerCase(),
+      });
+      expect(privateStateProvider.setContractAddress).not.toHaveBeenCalled();
+      expect(privateStateProvider.get).not.toHaveBeenCalled();
+      expect(privateStateProvider.set).not.toHaveBeenCalled();
+      expect(privateStateProvider.remove).not.toHaveBeenCalled();
+    },
+  );
+
   it("promotes pending controller private state for recovery", async () => {
     const pendingPrivateState = {
       recoverySecretKey: new Uint8Array(32).fill(10),
@@ -204,6 +258,7 @@ describe("DID private state lifecycle", () => {
 
     await expect(
       recoverPendingControllerPrivateState(providers, {
+        contractAddress,
         rotationFinalized: true,
       }),
     ).resolves.toBe(pendingPrivateState);
@@ -229,6 +284,7 @@ describe("DID private state lifecycle", () => {
 
     await expect(
       discardPendingControllerPrivateState(providers, {
+        contractAddress,
         rotationFinalized: false,
       }),
     ).resolves.toBeUndefined();
@@ -240,13 +296,59 @@ describe("DID private state lifecycle", () => {
     );
   });
 
+  it.each([
+    ["retained", false],
+    ["deleted", true],
+  ] as const)(
+    "propagates failed discard cleanup when the pending record was %s",
+    async (_outcome, deleteBeforeReject) => {
+      const pendingPrivateState = { secretKey: new Uint8Array(32).fill(9) };
+      let pending: unknown = pendingPrivateState;
+      let removeAttempts = 0;
+      const removeError = new Error("remove acknowledgement unavailable");
+      const privateStateProvider = {
+        setContractAddress: vi.fn(),
+        get: vi.fn(async () => pending),
+        set: vi.fn(),
+        remove: vi.fn(async () => {
+          removeAttempts += 1;
+          if (removeAttempts === 1) {
+            if (deleteBeforeReject) pending = null;
+            throw removeError;
+          }
+          pending = null;
+        }),
+      };
+      const providers = { privateStateProvider } as any;
+
+      await expect(
+        discardPendingControllerPrivateState(providers, {
+          contractAddress,
+          rotationFinalized: false,
+        }),
+      ).rejects.toBe(removeError);
+
+      const laterObservation = discardPendingControllerPrivateState(providers, {
+        contractAddress,
+        rotationFinalized: false,
+      });
+      if (deleteBeforeReject) {
+        await expect(laterObservation).rejects.toMatchObject({
+          code: "pending_controller_private_state_missing_or_malformed",
+        });
+      } else {
+        await expect(laterObservation).resolves.toBeUndefined();
+      }
+    },
+  );
+
   it("refuses to discard pending state without non-finalization confirmation", async () => {
     const { providers, privateStateProvider } = makeProviders({
       storedPrivateState: { secretKey: new Uint8Array(32).fill(9) },
     });
 
     await expect(
-      discardPendingControllerPrivateState(providers),
+      discardPendingControllerPrivateState(providers, undefined as any),
     ).rejects.toThrow(/only be discarded after confirming/);
     expect(privateStateProvider.get).not.toHaveBeenCalled();
     expect(privateStateProvider.remove).not.toHaveBeenCalled();
@@ -261,7 +363,7 @@ describe("DID private state lifecycle", () => {
     });
 
     await expect(
-      recoverPendingControllerPrivateState(providers),
+      recoverPendingControllerPrivateState(providers, undefined as any),
     ).rejects.toThrow(/only be recovered after confirming/);
     expect(privateStateProvider.get).not.toHaveBeenCalled();
     expect(privateStateProvider.set).not.toHaveBeenCalled();
@@ -273,6 +375,7 @@ describe("DID private state lifecycle", () => {
 
     await expect(
       recoverPendingControllerPrivateState(providers, {
+        contractAddress,
         rotationFinalized: true,
       }),
     ).rejects.toMatchObject({
@@ -293,6 +396,7 @@ describe("DID private state lifecycle", () => {
 
     await expect(
       discardPendingControllerPrivateState(providers, {
+        contractAddress,
         rotationFinalized: false,
       }),
     ).resolves.toBeUndefined();

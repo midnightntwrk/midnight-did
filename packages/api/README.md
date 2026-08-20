@@ -106,23 +106,28 @@ API retains the pending replacement secret because receipt loss cannot prove tha
 the on-chain operation failed. Re-read the on-ledger `controllerPublicKey` before
 retrying. If the replacement public key is active, promote the retained secret
 with
-`recoverPendingControllerPrivateState(providers, { rotationFinalized: true })`.
+`recoverPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: true })`.
 If the old public key is still active, discard that candidate explicitly with
-`discardPendingControllerPrivateState(providers, { rotationFinalized: false })`
+`discardPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: false })`
 before starting another attempt. That explicit assertion also permits removal of
 a malformed non-null pending record, avoiding a persistent lockout; an absent
 record still throws `PendingControllerPrivateStateUnavailableError`. Promotion
 requires a valid pending controller state, so a missing or malformed record
 throws the same stable typed error without writing active state or removing the
-record. If promotion succeeds but pending cleanup fails, the helper warns,
-returns the promoted state, and retains the candidate for a safe idempotent
-reconciliation retry.
+record. If promotion succeeds but pending cleanup rejects, the helper warns and
+returns the promoted state, but cannot confirm the cleanup disposition: the
+pending record may remain or may already have been removed. A later
+reconciliation either processes retained state or throws
+`PendingControllerPrivateStateUnavailableError` if deletion committed.
 
 A new attempt made after any non-null candidate is persisted fails with
 `PendingControllerPrivateStateExistsError`. A rotation, recovery, promotion, or
 discard racing an in-flight pending-state lifecycle fails with
 `PendingControllerPrivateStateBusyError`; neither error can replace, promote, or
-remove that operation's candidate.
+remove that operation's candidate. Rotation, recovery, and reconciliation bind
+an untracked provider to the operation's canonical DID address and reject a
+known different API-tracked binding with
+`PrivateStateProviderContractMismatchError` before provider or ledger access.
 
 `bindPrivateStateProvider` records the canonical contract address as the
 process-local lock identity. Calls through different provider wrappers bound by

@@ -10,11 +10,15 @@ export {
 } from "./document-operations.js";
 export {
   discardPendingControllerPrivateState,
+  type DiscardPendingControllerPrivateStateOptions,
   PendingControllerPrivateStateBusyError,
   type PendingControllerPrivateStateErrorCode,
   PendingControllerPrivateStateExistsError,
   PendingControllerPrivateStateUnavailableError,
+  PrivateStateProviderContractMismatchError,
+  type PrivateStateProviderContractMismatchErrorCode,
   recoverPendingControllerPrivateState,
+  type RecoverPendingControllerPrivateStateOptions,
 } from "./private-state.js";
 export {
   resolve,

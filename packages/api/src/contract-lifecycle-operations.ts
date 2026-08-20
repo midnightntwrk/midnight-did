@@ -8,8 +8,10 @@ import { getLogger } from "./api-logger.js";
 import { midnightDIDCompiledContract } from "./contract-instance.js";
 import {
   bindPrivateStateProvider,
+  bindPrivateStateProviderWithinLease,
   requireAttachablePrivateState,
   savePrivateState,
+  withPrivateStateProviderLease,
 } from "./private-state.js";
 import {
   type DeployedMidnightDIDContract,
@@ -41,21 +43,29 @@ export const deploy = async (
   providers: MidnightDIDProviders,
   privateState: MidnightDIDPrivateState,
 ): Promise<DeployedMidnightDIDContract> => {
-  getLogger().info("Deploying Midnight DID contract...");
-  const didContract = await deployContract(providers, {
-    compiledContract: midnightDIDCompiledContract,
-    privateStateId: MidnightDIDPrivateStateId,
-    initialPrivateState: privateState,
+  return withPrivateStateProviderLease(providers, async (lease) => {
+    getLogger().info("Deploying Midnight DID contract...");
+    const didContract = await deployContract(providers, {
+      compiledContract: midnightDIDCompiledContract,
+      privateStateId: MidnightDIDPrivateStateId,
+      initialPrivateState: privateState,
+    });
+    const canonicalContractAddress = parseContractAddress(
+      didContract.deployTxData.public.contractAddress,
+    );
+    bindPrivateStateProviderWithinLease(
+      providers,
+      canonicalContractAddress,
+      lease,
+    );
+    // `deployContract` receives the initial state for proving; this explicit
+    // post-bind save makes the controller key durable for subsequent sessions.
+    await savePrivateState(providers, privateState);
+    getLogger().info(
+      `Deployed contract at address: ${canonicalContractAddress}`,
+    );
+    return didContract;
   });
-  const canonicalContractAddress = parseContractAddress(
-    didContract.deployTxData.public.contractAddress,
-  );
-  bindPrivateStateProvider(providers, canonicalContractAddress);
-  // `deployContract` receives the initial state for proving; this explicit
-  // post-bind save makes the controller key durable for subsequent sessions.
-  await savePrivateState(providers, privateState);
-  getLogger().info(`Deployed contract at address: ${canonicalContractAddress}`);
-  return didContract;
 };
 
 export const createDID = async (
