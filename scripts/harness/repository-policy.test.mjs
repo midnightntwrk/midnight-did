@@ -54,6 +54,7 @@ const commandWrappers = new Set([
   "ionice",
   "nice",
   "nohup",
+  "npx",
   "setsid",
   "stdbuf",
   "sudo",
@@ -88,6 +89,7 @@ const wrapperOptionsWithArguments = {
     "--uid",
   ]),
   nice: new Set(["-n", "--adjustment"]),
+  npx: new Set(["-c", "-p", "--call", "--package"]),
   stdbuf: new Set(["-e", "-i", "-o"]),
   sudo: new Set([
     "-C",
@@ -133,6 +135,7 @@ const wrapperShortOptionsWithArguments = {
   exec: new Set(["a"]),
   ionice: new Set(["c", "n", "p", "P", "u"]),
   nice: new Set(["n"]),
+  npx: new Set(["c", "p"]),
   stdbuf: new Set(["e", "i", "o"]),
   sudo: new Set(["C", "D", "g", "h", "p", "R", "T", "u"]),
   time: new Set(["f", "o"]),
@@ -143,6 +146,7 @@ const wrapperShortOptionsWithArguments = {
 const npmOptionsWithArguments = new Set([
   "-C",
   "--cache",
+  "--location",
   "--prefix",
   "--registry",
   "--userconfig",
@@ -214,22 +218,29 @@ function consumeWrapperArguments(args, wrapper) {
   return index;
 }
 
-function npmInvocationIsGlobalInstall(args) {
-  const optionsEnd = args.indexOf("--");
-  const effectiveArgs = optionsEnd === -1 ? args : args.slice(0, optionsEnd);
-  let command = null;
-  for (let index = 0; index < effectiveArgs.length; index += 1) {
-    const arg = effectiveArgs[index];
+function assignmentEnablesGlobalInstall(assignment) {
+  return /^npm_config_(?:global|location)=(?:1|global|true)$/i.test(assignment);
+}
+
+function npmCommandIndex(args) {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
     if (npmOptionsWithArguments.has(arg)) {
       index += 1;
       continue;
     }
-    if (!arg.startsWith("-")) {
-      command = arg;
-      break;
-    }
+    if (!arg.startsWith("-")) return index;
   }
+  return -1;
+}
+
+function npmInvocationIsGlobalInstall(args, globalFromEnvironment) {
+  const optionsEnd = args.indexOf("--");
+  const effectiveArgs = optionsEnd === -1 ? args : args.slice(0, optionsEnd);
+  const commandIndex = npmCommandIndex(effectiveArgs);
+  const command = effectiveArgs[commandIndex];
   if (command !== "install" && command !== "i") return false;
+  if (globalFromEnvironment) return true;
 
   return effectiveArgs.some(
     (arg, index) =>
@@ -242,19 +253,29 @@ function npmInvocationIsGlobalInstall(args) {
   );
 }
 
-function commandNodeContainsGlobalNpmInstall(node) {
-  const nameNode = node.childForFieldName("name");
-  let name = staticShellWord(nameNode);
-  let args = node.namedChildren
-    .filter(
-      (child) =>
-        child.type !== "command_name" && child.type !== "variable_assignment",
-    )
-    .map(staticShellWord);
-  if (name == null || args.some((arg) => arg == null)) return false;
+function commandWordsContainGlobalNpmInstall(
+  initialName,
+  initialArgs,
+  assignments = [],
+) {
+  let name = initialName;
+  let args = initialArgs;
+  const globalFromEnvironment = [...assignments, ...args].some(
+    assignmentEnablesGlobalInstall,
+  );
 
   while (commandWrappers.has(path.posix.basename(name))) {
     const wrapper = path.posix.basename(name);
+    if (wrapper === "npx") {
+      const callIndex = args.findIndex((arg) => ["-c", "--call"].includes(arg));
+      const inlineCall = args.find((arg) => arg.startsWith("--call="));
+      if (callIndex !== -1 && args[callIndex + 1] != null) {
+        return shellCommandContainsGlobalNpmInstall(args[callIndex + 1]);
+      }
+      if (inlineCall != null) {
+        return shellCommandContainsGlobalNpmInstall(inlineCall.slice(7));
+      }
+    }
     const commandIndex = consumeWrapperArguments(args, wrapper);
     if (commandIndex == null || commandIndex >= args.length) return false;
     name = args[commandIndex];
@@ -275,7 +296,40 @@ function commandNodeContainsGlobalNpmInstall(node) {
       : false;
   }
 
-  return executable === "npm" && npmInvocationIsGlobalInstall(args);
+  if (executable !== "npm") return false;
+  if (npmInvocationIsGlobalInstall(args, globalFromEnvironment)) return true;
+
+  const optionsEnd = args.indexOf("--");
+  const commandIndex = npmCommandIndex(
+    optionsEnd === -1 ? args : args.slice(0, optionsEnd),
+  );
+  if (
+    ["exec", "x"].includes(args[commandIndex]) &&
+    optionsEnd !== -1 &&
+    optionsEnd + 1 < args.length
+  ) {
+    return commandWordsContainGlobalNpmInstall(
+      args[optionsEnd + 1],
+      args.slice(optionsEnd + 2),
+    );
+  }
+  return false;
+}
+
+function commandNodeContainsGlobalNpmInstall(node) {
+  const nameNode = node.childForFieldName("name");
+  const name = staticShellWord(nameNode);
+  const args = node.namedChildren
+    .filter(
+      (child) =>
+        child.type !== "command_name" && child.type !== "variable_assignment",
+    )
+    .map(staticShellWord);
+  const assignments = node.namedChildren
+    .filter((child) => child.type === "variable_assignment")
+    .map((child) => child.text);
+  if (name == null || args.some((arg) => arg == null)) return false;
+  return commandWordsContainGlobalNpmInstall(name, args, assignments);
 }
 
 function shellCommandContainsGlobalNpmInstall(command) {
@@ -360,6 +414,12 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: ionice -c 2 -n 7 npm install -g npm@12",
     "run: nohup nice timeout 30 env FOO=bar npm install -g npm@12",
     "run: /usr/bin/npm install -g npm@12",
+    "run: npx npm install -g npm@12",
+    "run: |\n  npx -c 'npm install -g npm@12'",
+    "run: npm exec -- npm install -g npm@12",
+    "run: npm_config_global=true npm install npm@12",
+    "run: env npm_config_location=global npm install npm@12",
+    "run: npm --location global install npm@12",
     'run: n"pm" install -g npm@12',
     "run: $(npm install -g npm@12)",
     'run: "`npm i -g npm@12`"',

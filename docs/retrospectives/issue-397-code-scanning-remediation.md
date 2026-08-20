@@ -44,9 +44,10 @@ parses Bash into a tree-sitter syntax tree and inspects only executable command
 nodes. The command-prefix model then handles common privilege, environment,
 process, and scheduling wrappers with their options and assignments. Fixtures
 cover nested wrapper chains (including bundled short options), shell-interpreter
-`-c` commands, command substitutions, path-qualified and quote-concatenated npm
-names, and unspaced subshells. Negative quoted, `echo`/`printf`, heredoc,
-comment, npm-script, end-of-options, and wrapper-operand fixtures keep
+`-c` commands, npx/npm-exec indirection, npm configuration assignments,
+command substitutions, path-qualified and quote-concatenated npm names, and
+unspaced subshells. Negative quoted, `echo`/`printf`, heredoc, comment,
+npm-script, end-of-options, and wrapper-operand fixtures keep
 non-executed text and unrelated npm subcommands from becoming findings.
 
 ## Friction and failures
