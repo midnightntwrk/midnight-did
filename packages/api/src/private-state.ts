@@ -1,5 +1,6 @@
 import { parseContractAddress } from "@midnight-ntwrk/midnight-did/midnight";
 
+import { MidnightDidApiError } from "./api-errors.js";
 import { getLogger } from "./api-logger.js";
 import { randomBytes } from "./lightweight.js";
 import {
@@ -17,27 +18,92 @@ type ControllerPrivateState = MidnightDIDPrivateState & {
   readonly secretKey: Uint8Array;
 };
 
+export type PendingControllerPrivateStateErrorCode =
+  | "pending_controller_private_state_busy"
+  | "pending_controller_private_state_exists"
+  | "pending_controller_private_state_missing_or_malformed";
+
+/** Raised when another pending-controller lifecycle holds the process-local lock. */
+export class PendingControllerPrivateStateBusyError extends MidnightDidApiError<
+  Extract<
+    PendingControllerPrivateStateErrorCode,
+    "pending_controller_private_state_busy"
+  >
+> {
+  constructor() {
+    super(
+      "pending_controller_private_state_busy",
+      "Pending controller private state is busy with another rotation, recovery, or reconciliation; wait for that operation to finish before retrying",
+    );
+    this.name = "PendingControllerPrivateStateBusyError";
+  }
+}
+
 /**
  * Raised when a controller rotation/recovery candidate is already pending.
  *
  * The existing candidate must be reconciled against the on-ledger controller
  * key before another candidate can be persisted.
  */
-export class PendingControllerPrivateStateExistsError extends Error {
-  readonly code = "pending_controller_private_state_exists" as const;
-
+export class PendingControllerPrivateStateExistsError extends MidnightDidApiError<
+  Extract<
+    PendingControllerPrivateStateErrorCode,
+    "pending_controller_private_state_exists"
+  >
+> {
   constructor() {
     super(
+      "pending_controller_private_state_exists",
       "Pending controller private state already exists; reconcile it against the on-ledger controllerPublicKey before starting another rotation or recovery",
     );
     this.name = "PendingControllerPrivateStateExistsError";
   }
 }
 
-// The provider API has no compare-and-set operation. This reservation closes
-// the in-process read-then-write race for callers sharing one provider object;
-// the persistent pending slot closes blind retries and process restarts.
-const pendingControllerStateReservations = new WeakSet<object>();
+/** Raised when no valid pending rotation/recovery candidate can be loaded. */
+export class PendingControllerPrivateStateUnavailableError extends MidnightDidApiError<
+  Extract<
+    PendingControllerPrivateStateErrorCode,
+    "pending_controller_private_state_missing_or_malformed"
+  >
+> {
+  constructor() {
+    super(
+      "pending_controller_private_state_missing_or_malformed",
+      "Pending controller private state is missing or malformed; start a controller rotation or recovery when no candidate exists, or reconcile and repair retained pending state before recovering or discarding it",
+    );
+    this.name = "PendingControllerPrivateStateUnavailableError";
+  }
+}
+
+// bindPrivateStateProvider records canonical per-contract keys so separate
+// wrappers bound to one DID share a process-local lock. Explicitly unbound
+// providers fall back to wrapper identity. The provider API has no CAS, so this
+// cannot coordinate separate processes or independently unbound wrappers.
+const pendingControllerContractLockKeys = new WeakMap<object, string>();
+const pendingControllerStateReservations = new Set<object | string>();
+
+const pendingControllerLockKey = (providers: MidnightDIDProviders) => {
+  const provider = providers.privateStateProvider;
+  return pendingControllerContractLockKeys.get(provider) ?? provider;
+};
+
+export async function withPendingControllerPrivateStateLock<Result>(
+  providers: MidnightDIDProviders,
+  operation: () => Promise<Result>,
+): Promise<Result> {
+  const lockKey = pendingControllerLockKey(providers);
+  if (pendingControllerStateReservations.has(lockKey)) {
+    throw new PendingControllerPrivateStateBusyError();
+  }
+
+  pendingControllerStateReservations.add(lockKey);
+  try {
+    return await operation();
+  } finally {
+    pendingControllerStateReservations.delete(lockKey);
+  }
+}
 
 export const isRestorableDIDPrivateState = (
   privateState: MidnightDIDPrivateState | null | undefined,
@@ -70,8 +136,11 @@ export const bindPrivateStateProvider = (
   providers: MidnightDIDProviders,
   contractAddress: string,
 ): void => {
-  providers.privateStateProvider.setContractAddress(
-    parseContractAddress(contractAddress),
+  const canonicalContractAddress = parseContractAddress(contractAddress);
+  providers.privateStateProvider.setContractAddress(canonicalContractAddress);
+  pendingControllerContractLockKeys.set(
+    providers.privateStateProvider,
+    `contract:${canonicalContractAddress}`,
   );
 };
 
@@ -221,30 +290,27 @@ export async function initPrivateState(
   return privateState;
 }
 
-export async function savePendingControllerPrivateState(
+export async function savePendingControllerPrivateStateWithinLock(
   providers: MidnightDIDProviders,
   privateState: MidnightDIDPrivateState,
 ): Promise<void> {
   const provider = providers.privateStateProvider;
-  if (pendingControllerStateReservations.has(provider)) {
+  const existing = await provider.get(
+    MidnightDIDPendingControllerPrivateStateId,
+  );
+  if (existing != null) {
     throw new PendingControllerPrivateStateExistsError();
   }
+  await provider.set(MidnightDIDPendingControllerPrivateStateId, privateState);
+}
 
-  pendingControllerStateReservations.add(provider);
-  try {
-    const existing = await provider.get(
-      MidnightDIDPendingControllerPrivateStateId,
-    );
-    if (existing != null) {
-      throw new PendingControllerPrivateStateExistsError();
-    }
-    await provider.set(
-      MidnightDIDPendingControllerPrivateStateId,
-      privateState,
-    );
-  } finally {
-    pendingControllerStateReservations.delete(provider);
-  }
+export async function savePendingControllerPrivateState(
+  providers: MidnightDIDProviders,
+  privateState: MidnightDIDPrivateState,
+): Promise<void> {
+  await withPendingControllerPrivateStateLock(providers, () =>
+    savePendingControllerPrivateStateWithinLock(providers, privateState),
+  );
 }
 
 export async function clearPendingControllerPrivateState(
@@ -253,6 +319,19 @@ export async function clearPendingControllerPrivateState(
   await providers.privateStateProvider.remove(
     MidnightDIDPendingControllerPrivateStateId,
   );
+}
+
+export async function requirePendingControllerPrivateState(
+  providers: MidnightDIDProviders,
+): Promise<ControllerPrivateState> {
+  const privateState = await restorePrivateState(
+    providers,
+    MidnightDIDPendingControllerPrivateStateId,
+  );
+  if (!isRestorableDIDPrivateState(privateState)) {
+    throw new PendingControllerPrivateStateUnavailableError();
+  }
+  return privateState;
 }
 
 export async function discardPendingControllerPrivateState(
@@ -264,11 +343,10 @@ export async function discardPendingControllerPrivateState(
       "Pending controller private state can only be discarded after confirming the key-rotation transaction did not finalize",
     );
   }
-  await requirePrivateState(
-    providers,
-    MidnightDIDPendingControllerPrivateStateId,
-  );
-  await clearPendingControllerPrivateState(providers);
+  await withPendingControllerPrivateStateLock(providers, async () => {
+    await requirePendingControllerPrivateState(providers);
+    await clearPendingControllerPrivateState(providers);
+  });
 }
 
 export async function recoverPendingControllerPrivateState(
@@ -280,11 +358,11 @@ export async function recoverPendingControllerPrivateState(
       "Pending controller private state can only be recovered after confirming the key-rotation transaction finalized",
     );
   }
-  const pendingPrivateState = await requirePrivateState(
-    providers,
-    MidnightDIDPendingControllerPrivateStateId,
-  );
-  await savePrivateState(providers, pendingPrivateState);
-  await clearPendingControllerPrivateState(providers);
-  return pendingPrivateState;
+  return withPendingControllerPrivateStateLock(providers, async () => {
+    const pendingPrivateState =
+      await requirePendingControllerPrivateState(providers);
+    await savePrivateState(providers, pendingPrivateState);
+    await clearPendingControllerPrivateState(providers);
+    return pendingPrivateState;
+  });
 }

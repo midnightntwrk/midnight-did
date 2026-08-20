@@ -13,13 +13,20 @@ vi.mock("../ledger-state.js", () => ({
   requireDeployedMidnightDIDLedgerState: vi.fn(),
 }));
 
+import { setLogger } from "../api-logger.js";
 import { createControllerAuthorization } from "../controller-authorization.js";
 import {
   recoverControllerKey,
   rotateControllerKey,
 } from "../controller-operations.js";
 import { requireDeployedMidnightDIDLedgerState } from "../ledger-state.js";
-import { PendingControllerPrivateStateExistsError } from "../private-state.js";
+import {
+  bindPrivateStateProvider,
+  discardPendingControllerPrivateState,
+  PendingControllerPrivateStateBusyError,
+  PendingControllerPrivateStateExistsError,
+  recoverPendingControllerPrivateState,
+} from "../private-state.js";
 import {
   MidnightDIDPendingControllerPrivateStateId,
   MidnightDIDPrivateStateId,
@@ -43,9 +50,20 @@ const getPrivateState = (
       : activePrivateState,
   );
 
+const makeLogger = () =>
+  ({
+    debug: vi.fn(),
+    error: vi.fn(),
+    fatal: vi.fn(),
+    info: vi.fn(),
+    trace: vi.fn(),
+    warn: vi.fn(),
+  }) as any;
+
 describe("controller operations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setLogger(makeLogger());
   });
   it("rotates to a locally derived controller public key and stores the new secret", async () => {
     const newSecretKey = new Uint8Array(
@@ -569,7 +587,7 @@ describe("controller operations", () => {
     const operationB = rotateControllerKey(didContract, providers, candidateB);
 
     await expect(operationB).rejects.toBeInstanceOf(
-      PendingControllerPrivateStateExistsError,
+      PendingControllerPrivateStateBusyError,
     );
     releasePendingRead();
     await expect(operationA).rejects.toThrow(/candidate A outcome unknown/);
@@ -700,5 +718,260 @@ describe("controller operations", () => {
     ).rejects.toThrow(/active write failed/);
 
     expect(privateStateProvider.remove).not.toHaveBeenCalled();
+  });
+
+  it("categorizes authorization failure as pre-call and retains the candidate", async () => {
+    const logger = makeLogger();
+    setLogger(logger);
+    const authorizationError = new Error("authorization unavailable");
+    vi.mocked(createControllerAuthorization).mockRejectedValueOnce(
+      authorizationError,
+    );
+    const rotateControllerKeyTx = vi.fn();
+    const privateStateProvider = {
+      get: getPrivateState({ secretKey: new Uint8Array(32).fill(4) }),
+      set: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+    };
+
+    await expect(
+      rotateControllerKey(
+        { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+        { privateStateProvider } as any,
+        new Uint8Array(32).fill(40),
+      ),
+    ).rejects.toBe(authorizationError);
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { callAttempted: false, error: authorizationError },
+      expect.stringMatching(/before the transaction call was attempted/),
+    );
+    expect(rotateControllerKeyTx).not.toHaveBeenCalled();
+    expect(privateStateProvider.set).toHaveBeenCalledTimes(1);
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+  });
+
+  it("categorizes a synchronous callTx throw as an attempted call and retains the candidate", async () => {
+    const logger = makeLogger();
+    setLogger(logger);
+    const callError = new Error("synchronous call failure");
+    const rotateControllerKeyTx = vi.fn(() => {
+      throw callError;
+    });
+    const privateStateProvider = {
+      get: getPrivateState({ secretKey: new Uint8Array(32).fill(4) }),
+      set: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+    };
+
+    await expect(
+      rotateControllerKey(
+        { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+        { privateStateProvider } as any,
+        new Uint8Array(32).fill(41),
+      ),
+    ).rejects.toBe(callError);
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { callAttempted: true, error: callError },
+      expect.stringMatching(/call was attempted/),
+    );
+    expect(privateStateProvider.set).toHaveBeenCalledTimes(1);
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+  });
+
+  it("rejects concurrent discard while rotation is in flight without changing candidate A", async () => {
+    const activePrivateState = { secretKey: new Uint8Array(32).fill(42) };
+    const candidateA = new Uint8Array(32).fill(43);
+    let active: unknown = activePrivateState;
+    let pending: unknown = null;
+    let callStarted!: () => void;
+    const callStart = new Promise<void>((resolve) => {
+      callStarted = resolve;
+    });
+    let releaseCall!: () => void;
+    const callGate = new Promise<void>((resolve) => {
+      releaseCall = resolve;
+    });
+    const privateStateProvider = {
+      get: vi.fn(async (privateStateId: string) =>
+        privateStateId === MidnightDIDPendingControllerPrivateStateId
+          ? pending
+          : active,
+      ),
+      set: vi.fn(async (privateStateId: string, privateState: unknown) => {
+        if (privateStateId === MidnightDIDPendingControllerPrivateStateId) {
+          pending = privateState;
+        } else {
+          active = privateState;
+        }
+      }),
+      remove: vi.fn(async () => {
+        pending = null;
+      }),
+    };
+    const rotateControllerKeyTx = vi.fn(async () => {
+      callStarted();
+      await callGate;
+      throw new Error("rotation outcome unknown");
+    });
+    const providers = { privateStateProvider } as any;
+
+    const rotation = rotateControllerKey(
+      { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+      providers,
+      candidateA,
+    );
+    await callStart;
+
+    await expect(
+      discardPendingControllerPrivateState(providers, {
+        rotationFinalized: false,
+      }),
+    ).rejects.toMatchObject({
+      code: "pending_controller_private_state_busy",
+      name: "PendingControllerPrivateStateBusyError",
+    });
+    expect(pending).toEqual({ secretKey: candidateA });
+    expect(active).toBe(activePrivateState);
+    expect(privateStateProvider.set).toHaveBeenCalledTimes(1);
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+
+    releaseCall();
+    await expect(rotation).rejects.toThrow(/rotation outcome unknown/);
+    expect(pending).toEqual({ secretKey: candidateA });
+    expect(active).toBe(activePrivateState);
+    expect(privateStateProvider.set).toHaveBeenCalledTimes(1);
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+  });
+
+  it("rejects concurrent pending recovery while controller recovery is in flight without promoting candidate A", async () => {
+    const recoverySecretKey = new Uint8Array(32).fill(44);
+    const activePrivateState = {
+      recoverySecretKey,
+      secretKey: new Uint8Array(32).fill(45),
+    };
+    const candidateA = new Uint8Array(32).fill(46);
+    mockLedgerForRecovery(recoverySecretKey);
+    let active: unknown = activePrivateState;
+    let pending: unknown = null;
+    let callStarted!: () => void;
+    const callStart = new Promise<void>((resolve) => {
+      callStarted = resolve;
+    });
+    let releaseCall!: () => void;
+    const callGate = new Promise<void>((resolve) => {
+      releaseCall = resolve;
+    });
+    const privateStateProvider = {
+      get: vi.fn(async (privateStateId: string) =>
+        privateStateId === MidnightDIDPendingControllerPrivateStateId
+          ? pending
+          : active,
+      ),
+      set: vi.fn(async (privateStateId: string, privateState: unknown) => {
+        if (privateStateId === MidnightDIDPendingControllerPrivateStateId) {
+          pending = privateState;
+        } else {
+          active = privateState;
+        }
+      }),
+      remove: vi.fn(async () => {
+        pending = null;
+      }),
+    };
+    const recoverControllerKeyTx = vi.fn(async () => {
+      callStarted();
+      await callGate;
+      throw new Error("recovery outcome unknown");
+    });
+    const providers = { privateStateProvider } as any;
+
+    const recovery = recoverControllerKey(
+      { callTx: { recoverControllerKey: recoverControllerKeyTx } } as any,
+      providers,
+      candidateA,
+    );
+    await callStart;
+
+    await expect(
+      recoverPendingControllerPrivateState(providers, {
+        rotationFinalized: true,
+      }),
+    ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
+    expect(pending).toEqual({ recoverySecretKey, secretKey: candidateA });
+    expect(active).toBe(activePrivateState);
+    expect(privateStateProvider.set).toHaveBeenCalledTimes(1);
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+
+    releaseCall();
+    await expect(recovery).rejects.toThrow(/recovery outcome unknown/);
+    expect(pending).toEqual({ recoverySecretKey, secretKey: candidateA });
+    expect(active).toBe(activePrivateState);
+    expect(privateStateProvider.set).toHaveBeenCalledTimes(1);
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+  });
+
+  it("uses one process-local lock for two wrappers bound to the same contract", async () => {
+    const activePrivateState = { secretKey: new Uint8Array(32).fill(47) };
+    const candidateA = new Uint8Array(32).fill(48);
+    const candidateB = new Uint8Array(32).fill(49);
+    let active: unknown = activePrivateState;
+    let pending: unknown = null;
+    const makeWrapper = () => ({
+      get: vi.fn(async (privateStateId: string) =>
+        privateStateId === MidnightDIDPendingControllerPrivateStateId
+          ? pending
+          : active,
+      ),
+      remove: vi.fn(async () => {
+        pending = null;
+      }),
+      set: vi.fn(async (privateStateId: string, privateState: unknown) => {
+        if (privateStateId === MidnightDIDPendingControllerPrivateStateId) {
+          pending = privateState;
+        } else {
+          active = privateState;
+        }
+      }),
+      setContractAddress: vi.fn(),
+    });
+    const wrapperA = makeWrapper();
+    const wrapperB = makeWrapper();
+    const providersA = { privateStateProvider: wrapperA } as any;
+    const providersB = { privateStateProvider: wrapperB } as any;
+    const contractAddress = "a".repeat(64);
+    bindPrivateStateProvider(providersA, contractAddress);
+    bindPrivateStateProvider(providersB, contractAddress);
+    let callStarted!: () => void;
+    const callStart = new Promise<void>((resolve) => {
+      callStarted = resolve;
+    });
+    let releaseCall!: () => void;
+    const callGate = new Promise<void>((resolve) => {
+      releaseCall = resolve;
+    });
+    const rotateControllerKeyTx = vi.fn(async () => {
+      callStarted();
+      await callGate;
+      throw new Error("wrapper A outcome unknown");
+    });
+    const didContract = {
+      callTx: { rotateControllerKey: rotateControllerKeyTx },
+    } as any;
+
+    const operationA = rotateControllerKey(didContract, providersA, candidateA);
+    await callStart;
+
+    await expect(
+      rotateControllerKey(didContract, providersB, candidateB),
+    ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
+    expect(pending).toEqual({ secretKey: candidateA });
+    expect(active).toBe(activePrivateState);
+    expect(wrapperB.set).not.toHaveBeenCalled();
+    expect(wrapperB.remove).not.toHaveBeenCalled();
+
+    releaseCall();
+    await expect(operationA).rejects.toThrow(/wrapper A outcome unknown/);
   });
 });

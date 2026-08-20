@@ -109,15 +109,24 @@ with
 `recoverPendingControllerPrivateState(providers, { rotationFinalized: true })`.
 If the old public key is still active, discard that candidate explicitly with
 `discardPendingControllerPrivateState(providers, { rotationFinalized: false })`
-before starting another attempt. A blind or overlapping rotation/recovery fails
-with `PendingControllerPrivateStateExistsError` and cannot replace the retained
-candidate.
+before starting another attempt. A new attempt made after a candidate is
+persisted fails with `PendingControllerPrivateStateExistsError`. A rotation,
+recovery, promotion, or discard racing an in-flight pending-state lifecycle fails
+with `PendingControllerPrivateStateBusyError`; neither error can replace, promote,
+or remove that operation's candidate. If promotion/discard finds no valid
+candidate, `PendingControllerPrivateStateUnavailableError` directs the caller to
+start or reconcile a rotation/recovery rather than import the active controller
+secret.
 
-Pending-slot reservation is serialized for calls sharing one provider object,
-and the persisted slot protects retries and process restarts. The provider API
-has no cross-process compare-and-set primitive, so applications using multiple
-processes or provider instances against one DID private-state store MUST enforce
-an external single-writer lock around controller rotation/recovery.
+`bindPrivateStateProvider` records the canonical contract address as the
+process-local lock identity. Calls through different provider wrappers bound by
+this API to the same DID therefore share one pending-controller critical section
+from candidate persistence through authorization, transaction-call attempt,
+active promotion, and pending cleanup. Explicitly unbound custom/test wrappers
+fall back to provider object identity. The provider API exposes no
+cross-process compare-and-set primitive: separate processes and independently
+unbound wrappers writing one DID private-state store MUST use an external
+per-DID single-writer lock. The API does not claim cross-process CAS.
 
 Applications should back up controller and recovery private state alongside
 their wallet backup material, protect it with custody controls appropriate for

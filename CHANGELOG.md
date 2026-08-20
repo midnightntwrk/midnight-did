@@ -15,10 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   selected relationships explicitly and now receive the typed
   `VerificationMethodReferencedError` while references remain.
 - Preserve pending controller private state whenever controller rotation or
-  recovery does not return finalized transaction data, and reject blind or
-  overlapping attempts with `PendingControllerPrivateStateExistsError` so the
-  retained replacement secret cannot be overwritten. Applications explicitly
-  promote or discard the candidate after reconciling the ledger outcome.
+  recovery does not return finalized transaction data. One process-local,
+  per-bound-contract critical section now covers persistence, authorization,
+  transaction-call attempt, promotion, and cleanup across provider wrappers.
+  Typed exists, busy, and unavailable errors prevent overlapping reconciliation
+  from overwriting, promoting, or removing another operation's candidate;
+  applications still explicitly promote or discard after ledger reconciliation.
+  Separate processes and independently unbound wrappers require an external
+  per-DID lock because the provider API offers no cross-process CAS.
 - Preserve complete canonical DID URL identity for verification methods,
   relationships, and services while keeping existing current-subject
   fragment-keyed ledger records operable through fail-closed state-aware key
@@ -35,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `nix/packages/compact-toolchain.nix` derivation. Relax the
   `jubjub-schnorr.compact` language-version pragma from an exact `0.22` pin to
   `>= 0.22`.
+- Expose `MidnightDidApiError<Code>` as the common constructor-owned coded-error
+  base used by ZK artifact, referenced-verification-method, and pending-controller
+  errors while preserving their specific classes and stable domain codes.
 
 ### Removed
 

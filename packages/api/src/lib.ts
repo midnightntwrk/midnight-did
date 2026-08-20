@@ -1,5 +1,6 @@
 import "./polyfills.js";
 
+export { MidnightDidApiError } from "./api-errors.js";
 export { setLogger } from "./api-logger.js";
 export { midnightDIDContractInstance } from "./contract-instance.js";
 export {
@@ -21,7 +22,10 @@ export { getMidnightDIDLedgerState } from "./ledger-state.js";
 export {
   discardPendingControllerPrivateState,
   initPrivateState,
+  PendingControllerPrivateStateBusyError,
+  type PendingControllerPrivateStateErrorCode,
   PendingControllerPrivateStateExistsError,
+  PendingControllerPrivateStateUnavailableError,
   recoverPendingControllerPrivateState,
   requirePrivateState,
   restorePrivateState,
@@ -42,6 +46,7 @@ export {
 } from "./service-operations.js";
 export {
   type ReferencedVerificationMethodRelation,
+  type VerificationMethodErrorCode,
   VerificationMethodReferencedError,
 } from "./verification-method-errors.js";
 export {

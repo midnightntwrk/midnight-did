@@ -28,10 +28,12 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   finalized transaction data was not returned. A typed error prevents blind or
   overlapping attempts from replacing that candidate; callers reconcile the
   on-ledger controller public key, then explicitly promote or discard the slot.
-- The provider interface has no compare-and-set primitive. A provider-scoped
-  process-local reservation closes the in-process read/write race, while
-  deployments with multiple writer processes must lock externally per DID
-  private-state store.
+- The provider interface has no compare-and-set primitive. A process-local
+  critical section spans the full pending-controller lifecycle and uses the
+  canonical contract address recorded by `bindPrivateStateProvider`, so bound
+  wrappers for one DID exclude one another. Explicitly unbound wrappers fall
+  back to provider identity; separate processes and independently unbound
+  wrappers must lock externally per DID private-state store.
 - The specification distinguishes the method's no-batch-circuit design from
   Midnight's inability to merge multiple non-empty contract-call sections.
 
@@ -45,8 +47,9 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   relationship mutations.
 - Receipt-loss tests simulate the ledger key changing immediately before the
   client call throws, which exercises the exact destructive window from #240.
-  Additional persistent-state and overlapping-call regressions prove candidate
-  A remains stored and candidate B never authorizes or submits.
+  Additional persistent-state, deferred reconciliation-race, and two-wrapper
+  regressions prove candidate A remains stored, active state is not promoted,
+  and no competing call removes or replaces it.
 - `pnpm run verify`, managed-artifact checks, package-surface checks, and the
   complete docs build/visual lane passed from the Nix development shell.
 
@@ -58,16 +61,20 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
 - One full-run harness attempt hit the existing one-second review-test timing
   boundary while the machine was loaded; the focused 32-test suite passed on
   immediate rerun.
-- The local API integration attempt used the available
+- The initial local API integration attempt used the available
   `midnightntwrk/proof-server:8.0.3` image after the preferred bootstrapped image
   was unavailable, but the proof server did not expose `/version` within the
-  180-second health timeout. Unit, Compact simulator, and CI-parity validation
-  passed; current-head CI remains the authoritative integration environment.
+  180-second health timeout. During exact-head review follow-up, the same
+  Docker-backed integration lane completed all 27 tests, including explicit
+  relationship deletion and controller rotation.
+- The process-local lock deliberately rejects overlap with a typed busy error
+  rather than queueing a reconciliation whose ledger evidence may be stale. It
+  remains an exclusion mechanism, not a cross-process compare-and-set claim.
 
 ## Follow-up actions
 
 - Integrators relying on implicit purge behavior must migrate to explicit
   relationship removals and state-aware retry.
-- Reviewers should verify the typed error's stable public shape and the
-  controller pending-state recovery guidance against the exact PR head.
+- Reviewers should verify the shared coded-error base, each stable domain code,
+  and the controller pending-state recovery guidance against the exact PR head.
 - CI must complete the Docker-backed integration lane before approval.

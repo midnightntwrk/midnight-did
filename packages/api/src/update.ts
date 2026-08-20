@@ -1,5 +1,6 @@
 import "./polyfills.js";
 
+export { MidnightDidApiError } from "./api-errors.js";
 export { rotateControllerKey } from "./controller-operations.js";
 export { getMidnightNetwork } from "./did-subject.js";
 export {
@@ -9,7 +10,10 @@ export {
 } from "./document-operations.js";
 export {
   discardPendingControllerPrivateState,
+  PendingControllerPrivateStateBusyError,
+  type PendingControllerPrivateStateErrorCode,
   PendingControllerPrivateStateExistsError,
+  PendingControllerPrivateStateUnavailableError,
   recoverPendingControllerPrivateState,
 } from "./private-state.js";
 export {
@@ -24,6 +28,7 @@ export {
 } from "./service-operations.js";
 export {
   type ReferencedVerificationMethodRelation,
+  type VerificationMethodErrorCode,
   VerificationMethodReferencedError,
 } from "./verification-method-errors.js";
 export {

@@ -95,11 +95,23 @@ await discardPendingControllerPrivateState(providers, {
 });
 ```
 
-Blind or overlapping attempts fail with
-`PendingControllerPrivateStateExistsError` rather than overwriting the candidate.
-Calls sharing one provider object are serialized, but the storage provider has no
-cross-process compare-and-set primitive; deployments with multiple writers MUST
-lock rotation/recovery externally per DID private-state store.
+A later attempt that finds a retained candidate fails with
+`PendingControllerPrivateStateExistsError`. A rotation, recovery, promotion, or
+discard racing an in-flight lifecycle fails with
+`PendingControllerPrivateStateBusyError`, without writing active state or
+removing the candidate. A missing or malformed candidate produces
+<code>PendingControllerPrivateState<wbr>UnavailableError</code>, whose guidance
+is to start or reconcile rotation/recovery rather than import the active
+controller secret.
+
+`bindPrivateStateProvider` keys the process-local critical section by canonical
+contract address, so different wrappers bound through the API to the same DID
+are serialized across candidate persistence, authorization, transaction-call
+attempt, promotion, and cleanup. Explicitly unbound custom/test wrappers fall
+back to wrapper identity. The provider has no cross-process compare-and-set
+primitive: separate processes and independently unbound wrappers writing one
+DID store MUST use an external per-DID lock. This is not a cross-process CAS
+guarantee.
 
 ## Controller Recovery and Backup Posture
 
