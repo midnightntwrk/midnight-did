@@ -7,7 +7,7 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/midnightntwrk/midnight-did/badge)](https://scorecard.dev/viewer/?uri=github.com/midnightntwrk/midnight-did)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13956/badge)](https://www.bestpractices.dev/projects/13956)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/midnightntwrk/midnight-did/blob/main/LICENSE)
-[![Latest Release](https://img.shields.io/badge/release-v0.6.0-blue)](https://github.com/midnightntwrk/midnight-did/releases/latest)
+[![Latest Release](https://img.shields.io/badge/release-v0.5.0-blue)](https://github.com/midnightntwrk/midnight-did/releases/latest)
 
 Midnight DID is the reference implementation of the `did:midnight` method.
 This repository owns the core DID contract, domain model, ledger mapping, and TypeScript API orchestration.
