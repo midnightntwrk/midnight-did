@@ -122,11 +122,19 @@ secret.
 process-local lock identity. Calls through different provider wrappers bound by
 this API to the same DID therefore share one pending-controller critical section
 from candidate persistence through authorization, transaction-call attempt,
-active promotion, and pending cleanup. Explicitly unbound custom/test wrappers
-fall back to provider object identity. The provider API exposes no
-cross-process compare-and-set primitive: separate processes and independently
-unbound wrappers writing one DID private-state store MUST use an external
-per-DID single-writer lock. The API does not claim cross-process CAS.
+active promotion, and pending cleanup. While either the provider's current lock
+identity or the requested DID identity is reserved, `bindPrivateStateProvider`
+(and therefore `joinContract`) fails closed with
+`PendingControllerPrivateStateBusyError` before changing the provider address;
+this also rejects same-address rebinding during the lifecycle. Calling
+`privateStateProvider.setContractAddress` directly bypasses this API coordination
+and MUST NOT occur during rotation, recovery, promotion/discard reconciliation,
+or pending cleanup. Explicitly unbound custom/test wrappers fall back to provider
+object identity. The provider API exposes no cross-process compare-and-set
+primitive: separate processes and independently unbound wrappers writing one DID
+private-state store MUST use an external per-DID single-writer lock. The API does
+not claim cross-process CAS, and its reservations cannot protect direct provider
+mutation or operations in another process.
 
 Applications should back up controller and recovery private state alongside
 their wallet backup material, protect it with custody controls appropriate for

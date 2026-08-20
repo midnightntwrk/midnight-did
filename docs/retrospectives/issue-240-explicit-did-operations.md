@@ -31,9 +31,12 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
 - The provider interface has no compare-and-set primitive. A process-local
   critical section spans the full pending-controller lifecycle and uses the
   canonical contract address recorded by `bindPrivateStateProvider`, so bound
-  wrappers for one DID exclude one another. Explicitly unbound wrappers fall
-  back to provider identity; separate processes and independently unbound
-  wrappers must lock externally per DID private-state store.
+  wrappers for one DID exclude one another. Binding and join fail closed before
+  mutating either a provider whose current key is reserved or a provider into a
+  reserved target key. Direct `setContractAddress` calls bypass this coordination
+  and are prohibited during the lifecycle. Explicitly unbound wrappers fall back
+  to provider identity; separate processes and independently unbound wrappers
+  must lock externally per DID private-state store.
 - The specification distinguishes the method's no-batch-circuit design from
   Midnight's inability to merge multiple non-empty contract-call sections.
 
@@ -49,7 +52,13 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   client call throws, which exercises the exact destructive window from #240.
   Additional persistent-state, deferred reconciliation-race, and two-wrapper
   regressions prove candidate A remains stored, active state is not promoted,
-  and no competing call removes or replaces it.
+  and no competing call removes or replaces it. A reviewer then found that a
+  mutable address-scoped wrapper could be rebound from DID A to DID B while A's
+  lock was held, redirecting promotion and cleanup despite that coverage. A
+  deterministic deferred-call regression now attempts same-wrapper A-to-B,
+  same-address, and distinct-wrapper target-key binds; each returns the typed
+  busy error without changing either DID namespace, and the ambiguous operation
+  retains candidate A under DID A.
 - `pnpm run verify`, managed-artifact checks, package-surface checks, and the
   complete docs build/visual lane passed from the Nix development shell.
 
@@ -68,8 +77,12 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   Docker-backed integration lane completed all 27 tests, including explicit
   relationship deletion and controller rotation.
 - The process-local lock deliberately rejects overlap with a typed busy error
-  rather than queueing a reconciliation whose ledger evidence may be stale. It
-  remains an exclusion mechanism, not a cross-process compare-and-set claim.
+  rather than queueing a reconciliation whose ledger evidence may be stale. The
+  reviewer-discovered rebind edge showed that lock-key immutability is part of
+  that exclusion: source and target reservations are now checked synchronously
+  before `setContractAddress` or the wrapper-to-key mapping changes. It remains
+  an in-process API exclusion mechanism, not protection against direct provider
+  mutation and not a cross-process compare-and-set claim.
 
 ## Follow-up actions
 

@@ -912,6 +912,132 @@ describe("controller operations", () => {
     expect(privateStateProvider.remove).not.toHaveBeenCalled();
   });
 
+  it("rejects provider rebinding while an ambiguous rotation owns either address lock", async () => {
+    const contractAddressA = "a".repeat(64);
+    const contractAddressB = "b".repeat(64);
+    const activeA = { secretKey: new Uint8Array(32).fill(50) };
+    const activeB = { secretKey: new Uint8Array(32).fill(51) };
+    const pendingB = { secretKey: new Uint8Array(32).fill(52) };
+    const candidateA = new Uint8Array(32).fill(53);
+    const stateByAddress = new Map([
+      [
+        contractAddressA,
+        { active: activeA as unknown, pending: null as unknown },
+      ],
+      [
+        contractAddressB,
+        { active: activeB as unknown, pending: pendingB as unknown },
+      ],
+    ]);
+
+    const makeAddressScopedWrapper = (initialAddress?: string) => {
+      let contractAddress = initialAddress;
+      const setContractAddress = vi.fn((nextContractAddress: string) => {
+        contractAddress = nextContractAddress;
+      });
+      return {
+        get contractAddress() {
+          return contractAddress;
+        },
+        get: vi.fn(async (privateStateId: string) => {
+          const state = stateByAddress.get(contractAddress ?? "");
+          if (state === undefined) throw new Error("Contract address not set");
+          return privateStateId === MidnightDIDPendingControllerPrivateStateId
+            ? state.pending
+            : state.active;
+        }),
+        remove: vi.fn(async () => {
+          const state = stateByAddress.get(contractAddress ?? "");
+          if (state === undefined) throw new Error("Contract address not set");
+          state.pending = null;
+        }),
+        set: vi.fn(async (privateStateId: string, privateState: unknown) => {
+          const state = stateByAddress.get(contractAddress ?? "");
+          if (state === undefined) throw new Error("Contract address not set");
+          if (privateStateId === MidnightDIDPendingControllerPrivateStateId) {
+            state.pending = privateState;
+          } else {
+            state.active = privateState;
+          }
+        }),
+        setContractAddress,
+      };
+    };
+
+    const wrapperA = makeAddressScopedWrapper();
+    const wrapperB = makeAddressScopedWrapper(contractAddressB);
+    const providersA = { privateStateProvider: wrapperA } as any;
+    const providersB = { privateStateProvider: wrapperB } as any;
+    bindPrivateStateProvider(providersA, contractAddressA);
+    bindPrivateStateProvider(providersB, contractAddressB);
+
+    let callStarted!: () => void;
+    const callStart = new Promise<void>((resolve) => {
+      callStarted = resolve;
+    });
+    let releaseCall!: () => void;
+    const callGate = new Promise<void>((resolve) => {
+      releaseCall = resolve;
+    });
+    const rotateControllerKeyTx = vi.fn(async () => {
+      callStarted();
+      await callGate;
+      throw new Error("DID A rotation outcome unknown");
+    });
+    const rotation = rotateControllerKey(
+      { callTx: { rotateControllerKey: rotateControllerKeyTx } } as any,
+      providersA,
+      candidateA,
+    );
+    await callStart;
+
+    expect(() =>
+      bindPrivateStateProvider(providersA, contractAddressB),
+    ).toThrow(PendingControllerPrivateStateBusyError);
+    expect(() =>
+      bindPrivateStateProvider(providersA, contractAddressA),
+    ).toThrow(PendingControllerPrivateStateBusyError);
+    expect(() =>
+      bindPrivateStateProvider(providersB, contractAddressA),
+    ).toThrow(PendingControllerPrivateStateBusyError);
+    expect(wrapperA.setContractAddress).toHaveBeenCalledTimes(1);
+    expect(wrapperA.setContractAddress).not.toHaveBeenCalledWith(
+      contractAddressB,
+    );
+    expect(wrapperB.setContractAddress).toHaveBeenCalledTimes(1);
+    expect(wrapperA.contractAddress).toBe(contractAddressA);
+    expect(wrapperB.contractAddress).toBe(contractAddressB);
+    await expect(
+      discardPendingControllerPrivateState(providersA, {
+        rotationFinalized: false,
+      }),
+    ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
+    expect(stateByAddress.get(contractAddressA)).toEqual({
+      active: activeA,
+      pending: { secretKey: candidateA },
+    });
+    expect(stateByAddress.get(contractAddressB)).toEqual({
+      active: activeB,
+      pending: pendingB,
+    });
+    expect(wrapperA.set).toHaveBeenCalledTimes(1);
+    expect(wrapperA.remove).not.toHaveBeenCalled();
+
+    releaseCall();
+    await expect(rotation).rejects.toThrow(/DID A rotation outcome unknown/);
+    expect(wrapperA.contractAddress).toBe(contractAddressA);
+    expect(stateByAddress.get(contractAddressA)).toEqual({
+      active: activeA,
+      pending: { secretKey: candidateA },
+    });
+    expect(stateByAddress.get(contractAddressB)).toEqual({
+      active: activeB,
+      pending: pendingB,
+    });
+    expect(wrapperA.set).toHaveBeenCalledTimes(1);
+    expect(wrapperA.remove).not.toHaveBeenCalled();
+  });
+
   it("uses one process-local lock for two wrappers bound to the same contract", async () => {
     const activePrivateState = { secretKey: new Uint8Array(32).fill(47) };
     const candidateA = new Uint8Array(32).fill(48);

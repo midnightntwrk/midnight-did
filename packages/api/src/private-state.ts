@@ -137,10 +137,19 @@ export const bindPrivateStateProvider = (
   contractAddress: string,
 ): void => {
   const canonicalContractAddress = parseContractAddress(contractAddress);
+  const currentLockKey = pendingControllerLockKey(providers);
+  const requestedLockKey = `contract:${canonicalContractAddress}`;
+  if (
+    pendingControllerStateReservations.has(currentLockKey) ||
+    pendingControllerStateReservations.has(requestedLockKey)
+  ) {
+    throw new PendingControllerPrivateStateBusyError();
+  }
+
   providers.privateStateProvider.setContractAddress(canonicalContractAddress);
   pendingControllerContractLockKeys.set(
     providers.privateStateProvider,
-    `contract:${canonicalContractAddress}`,
+    requestedLockKey,
   );
 };
 

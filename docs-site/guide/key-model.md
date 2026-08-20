@@ -107,11 +107,17 @@ controller secret.
 `bindPrivateStateProvider` keys the process-local critical section by canonical
 contract address, so different wrappers bound through the API to the same DID
 are serialized across candidate persistence, authorization, transaction-call
-attempt, promotion, and cleanup. Explicitly unbound custom/test wrappers fall
-back to wrapper identity. The provider has no cross-process compare-and-set
-primitive: separate processes and independently unbound wrappers writing one
-DID store MUST use an external per-DID lock. This is not a cross-process CAS
-guarantee.
+attempt, promotion, and cleanup. While the provider's current key or requested
+DID key is reserved, `bindPrivateStateProvider` (and therefore `joinContract`)
+fails closed with `PendingControllerPrivateStateBusyError` before changing the
+provider address; same-address rebinding is also rejected during the lifecycle.
+Calling `privateStateProvider.setContractAddress` directly bypasses this API
+coordination and MUST NOT occur during rotation, recovery, promotion/discard
+reconciliation, or cleanup. Explicitly unbound custom/test wrappers fall back to
+wrapper identity. The provider has no cross-process compare-and-set primitive:
+separate processes and independently unbound wrappers writing one DID store MUST
+use an external per-DID lock. This is not a cross-process CAS guarantee, and the
+process-local reservation cannot protect direct provider mutation.
 
 ## Controller Recovery and Backup Posture
 
