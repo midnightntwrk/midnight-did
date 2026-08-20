@@ -117,9 +117,12 @@ public promotion/discard reconciliation requires `contractAddress`. API-bound
 wrappers for one DID share a process-local critical section through preflight,
 transaction settlement, promotion, and cleanup. Acquisition is fail-fast, so a
 competitor immediately receives `PendingControllerPrivateStateBusyError`, even
-if the owner hangs. The reservation remains until the owner settles. A timeout
-must first cancel the underlying provider/transaction work, then reconcile
-ledger and private state; elapsed time alone cannot permit another mutation.
+if the owner hangs. An unresolved owner remains busy until underlying work is
+cancelled and its operation settles, the operation otherwise terminates or
+settles, or the process exits. There is deliberately no lease expiry: stale
+provider or transaction work could later overwrite, promote, or remove another
+operation's state. After cancellation or termination, reconcile ledger and
+private state before another mutation.
 
 Provider-object fallback is only for internal/deep unbound use. Direct provider
 mutation, independently unbound wrappers, and separate processes are outside the

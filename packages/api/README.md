@@ -160,10 +160,12 @@ API-bound wrappers for one DID share a process-local critical section from
 preflight through pending persistence, transaction settlement, promotion, and
 cleanup. Reservation acquisition is fail-fast: competing rotation, recovery, or
 reconciliation immediately throws `PendingControllerPrivateStateBusyError`, even
-if the owner hangs. The owner reservation is released only when its operation
-settles; an elapsed timeout must not release it while provider or transaction
-work may continue. Operational timeouts must cancel the underlying work and then
-reconcile ledger and private state before another mutation.
+if the owner hangs. The owner remains busy until underlying work is cancelled
+and its operation settles, the operation otherwise terminates or settles, or the
+process exits. There is deliberately no lease expiry: stale provider or
+transaction work could complete later and overwrite, promote, or remove state
+owned by another operation. After cancellation or termination, reconcile ledger
+and private state before another mutation.
 
 Provider-object fallback is only for internal/deep unbound use. Direct
 `setContractAddress` or storage mutation, independently unbound wrappers, and

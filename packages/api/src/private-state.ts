@@ -444,15 +444,6 @@ export async function savePendingControllerPrivateStateWithinLock(
   await provider.set(MidnightDIDPendingControllerPrivateStateId, privateState);
 }
 
-export async function savePendingControllerPrivateState(
-  providers: MidnightDIDProviders,
-  privateState: MidnightDIDPrivateState,
-): Promise<void> {
-  await withPendingControllerPrivateStateLock(providers, () =>
-    savePendingControllerPrivateStateWithinLock(providers, privateState),
-  );
-}
-
 export async function clearPendingControllerPrivateState(
   providers: MidnightDIDProviders,
 ): Promise<void> {

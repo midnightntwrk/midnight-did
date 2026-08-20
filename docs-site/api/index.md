@@ -93,8 +93,11 @@ missing or malformed promotion fail with the stable typed unavailable error.
 Public rotation/recovery auto-bind or assert the canonical contract address;
 public reconciliation requires `contractAddress`. API-bound calls for one DID
 are serialized from preflight until the owner settles. Acquisition is fail-fast,
-including when the owner hangs; elapsed time alone never releases its lease.
-Timeout handling must cancel underlying work and then reconcile ledger/private
+including when the owner hangs. An unresolved owner remains busy until its work
+is cancelled and the operation settles, the operation otherwise terminates or
+settles, or the process exits. Lease expiry is deliberately unsafe: stale
+provider or transaction work could later overwrite, promote, or remove another
+operation's state. After cancellation or termination, reconcile ledger/private
 state. Provider-object fallback is internal/deep-unbound only. Direct provider
 mutation, independently unbound wrappers, and cross-process writers remain
 outside the guarantee and require external per-DID coordination.

@@ -5,7 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - Unreleased
+
+All breaking changes below are assigned to the upcoming 0.6.0 release; the
+published 0.5.0 packages retain their existing API and behavior.
 
 ### Changed
 
@@ -29,8 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Controller operations reject known provider/DID binding mismatches before any
   provider or ledger access, and deployment holds a source/target address lease
   through active-state persistence. Reservation is fail-fast and remains owned
-  until operation settlement. Separate processes, direct provider mutation, and
-  independently unbound wrappers require external per-DID coordination.
+  until the operation is cancelled and settles, otherwise terminates or settles,
+  or the process exits. There is deliberately no lease expiry: releasing a
+  reservation while stale provider or transaction work can still complete could
+  let an old owner overwrite, promote, or remove another operation's state.
+  Separate processes, direct provider mutation, and independently unbound
+  wrappers require external per-DID coordination.
 - Report post-finalization deployment provider-binding or private-state
   persistence failures as
   `DIDContractDeploymentFinalizedPrivateStateIncompleteError`. The typed error
@@ -57,6 +64,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expose `MidnightDidApiError<Code>` as the common constructor-owned coded-error
   base used by ZK artifact, referenced-verification-method, and pending-controller
   errors while preserving their specific classes and stable domain codes.
+
+### Migration from 0.5.0
+
+Downstream consumers pinned to the exact published 0.5.0 packages should update
+all coordinated `@midnight-ntwrk/midnight-did-*` dependencies together to a
+0.6.0 snapshot for pre-release validation, or to 0.6.0 once available. Do not
+point an exact 0.5.0 dependency at this breaking source revision.
+
+Before removing a verification method, remove each selected verification
+relationship explicitly with `removeVerificationMethodRelation`, wait for and
+confirm each transaction in order, and only then call
+`removeVerificationMethod` or `removeSchnorrJubjubVerificationMethod`. Handle
+`VerificationMethodReferencedError` by inspecting its ordered `relations`,
+re-reading ledger state after ambiguous or partial failures, and submitting only
+the still-required relationship removals. Pending controller-state
+reconciliation must identify the DID explicitly: pass `contractAddress` to
+`recoverPendingControllerPrivateState` or
+`discardPendingControllerPrivateState` together with the applicable confirmed
+finalization outcome.
 
 ### Removed
 
