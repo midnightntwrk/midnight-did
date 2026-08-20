@@ -90,14 +90,14 @@ Reconcile `controllerPublicKey` from ledger state, then explicitly promote the
 candidate after confirmed finalization or discard any retained record (including
 malformed state) after confirmed non-finalization. An absent discard and a
 missing or malformed promotion fail with the stable typed unavailable error.
-Reconciliation requires the canonical contract address. A successful promotion
-whose cleanup rejects returns the promoted state, but the pending record may
-remain or may already have been removed; a later reconciliation either processes
-retained state or returns the typed unavailable error if deletion committed.
-Calls sharing one bound DID are serialized
-from before private-state and ledger preflight; multi-process writers must
-provide an external per-DID private-state lock because the provider interface has
-no compare-and-set operation.
+Public rotation/recovery auto-bind or assert the canonical contract address;
+public reconciliation requires `contractAddress`. API-bound calls for one DID
+are serialized from preflight until the owner settles. Acquisition is fail-fast,
+including when the owner hangs; elapsed time alone never releases its lease.
+Timeout handling must cancel underlying work and then reconcile ledger/private
+state. Provider-object fallback is internal/deep-unbound only. Direct provider
+mutation, independently unbound wrappers, and cross-process writers remain
+outside the guarantee and require external per-DID coordination.
 
 ## Generated TypeDoc
 

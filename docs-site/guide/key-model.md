@@ -112,25 +112,21 @@ the promoted state, but cannot confirm whether the pending record remains or was
 already removed. A later reconciliation either processes retained state or
 returns `PendingControllerPrivateStateUnavailableError` if deletion committed.
 
-`bindPrivateStateProvider` keys the process-local critical section by canonical
-contract address, so different wrappers bound through the API to the same DID
-are serialized from before active/recovery state and ledger preflight across
-candidate persistence, authorization, transaction-call attempt, promotion, and
-cleanup. While the provider's current key or requested
-DID key is reserved, `bindPrivateStateProvider` (and therefore `joinContract`)
-fails closed with `PendingControllerPrivateStateBusyError` before changing the
-provider address; same-address rebinding is also rejected during the lifecycle.
-Rotation, recovery, and reconciliation synchronously bind an untracked provider
-to the operation's canonical DID address. A known different API-tracked binding
-fails before provider, ledger, authorization, or transaction access with
-`PrivateStateProviderContractMismatchError`.
-Calling `privateStateProvider.setContractAddress` directly bypasses this API
-coordination and MUST NOT occur during rotation, recovery, promotion/discard
-reconciliation, or cleanup. Explicitly unbound custom/test wrappers fall back to
-wrapper identity. The provider has no cross-process compare-and-set primitive:
-separate processes and independently unbound wrappers writing one DID store MUST
-use an external per-DID lock. This is not a cross-process CAS guarantee, and the
-process-local reservation cannot protect direct provider mutation.
+Public rotation and recovery auto-bind or assert the canonical contract address;
+public promotion/discard reconciliation requires `contractAddress`. API-bound
+wrappers for one DID share a process-local critical section through preflight,
+transaction settlement, promotion, and cleanup. Acquisition is fail-fast, so a
+competitor immediately receives `PendingControllerPrivateStateBusyError`, even
+if the owner hangs. The reservation remains until the owner settles. A timeout
+must first cancel the underlying provider/transaction work, then reconcile
+ledger and private state; elapsed time alone cannot permit another mutation.
+
+Provider-object fallback is only for internal/deep unbound use. Direct provider
+mutation, independently unbound wrappers, and separate processes are outside the
+guarantee and require external per-DID coordination. API binding and join fail
+before changing a reserved source or target address, and known different
+bindings fail with `PrivateStateProviderContractMismatchError`. The provider has
+no cross-process atomic conditional write.
 
 ## Controller Recovery and Backup Posture
 

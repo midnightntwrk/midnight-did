@@ -28,8 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   retained state or returns the typed unavailable error if deletion committed.
   Controller operations reject known provider/DID binding mismatches before any
   provider or ledger access, and deployment holds a source/target address lease
-  through active-state persistence. Separate processes and independently unbound wrappers require
-  an external per-DID lock because the provider API offers no cross-process CAS.
+  through active-state persistence. Reservation is fail-fast and remains owned
+  until operation settlement. Separate processes, direct provider mutation, and
+  independently unbound wrappers require external per-DID coordination.
 - Report post-finalization deployment provider-binding or private-state
   persistence failures as
   `DIDContractDeploymentFinalizedPrivateStateIncompleteError`. The typed error

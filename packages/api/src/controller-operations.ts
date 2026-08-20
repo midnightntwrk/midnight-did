@@ -43,28 +43,36 @@ const jubjubPointEquals = (
   right: { readonly x: bigint; readonly y: bigint },
 ): boolean => left.x === right.x && left.y === right.y;
 
-const privateStateFromSecret = (
+const validateAndCopyControllerSecretKey = (
   secretKey: Uint8Array,
-  recoverySecretKey?: Uint8Array,
-): MidnightDIDPrivateState & { readonly secretKey: Uint8Array } => {
+): Uint8Array => {
   if (!(secretKey instanceof Uint8Array) || secretKey.length !== 32) {
     throw new Error("DID controller secret key must be 32 bytes");
   }
+  return new Uint8Array(secretKey);
+};
+
+const validateAndCopyRecoverySecretKey = (
+  recoverySecretKey: Uint8Array,
+): Uint8Array => {
   if (
-    recoverySecretKey !== undefined &&
-    (!(recoverySecretKey instanceof Uint8Array) ||
-      recoverySecretKey.length !== 32)
+    !(recoverySecretKey instanceof Uint8Array) ||
+    recoverySecretKey.length !== 32
   ) {
     throw new Error("DID recovery secret key must be 32 bytes");
   }
-
-  return {
-    ...(recoverySecretKey === undefined
-      ? {}
-      : { recoverySecretKey: new Uint8Array(recoverySecretKey) }),
-    secretKey: new Uint8Array(secretKey),
-  };
+  return new Uint8Array(recoverySecretKey);
 };
+
+const privateStateFromValidatedControllerSecret = (
+  secretKey: Uint8Array,
+  trustedRecoverySecretKey?: Uint8Array,
+): MidnightDIDPrivateState & { readonly secretKey: Uint8Array } => ({
+  ...(trustedRecoverySecretKey === undefined
+    ? {}
+    : { recoverySecretKey: new Uint8Array(trustedRecoverySecretKey) }),
+  secretKey,
+});
 
 interface PendingControllerOperationMessages {
   readonly attemptedCallFailed: string;
@@ -134,12 +142,13 @@ export const rotateControllerKey = async (
     providers,
     didContract.deployTxData.public.contractAddress,
   );
-  const validatedNextPrivateState = privateStateFromSecret(newSecretKey);
+  const validatedNewSecretKey =
+    validateAndCopyControllerSecretKey(newSecretKey);
 
   return withPendingControllerPrivateStateLock(providers, async () => {
     const currentPrivateState = await requirePrivateState(providers);
-    const nextPrivateState = privateStateFromSecret(
-      validatedNextPrivateState.secretKey,
+    const nextPrivateState = privateStateFromValidatedControllerSecret(
+      validatedNewSecretKey,
       currentPrivateState.recoverySecretKey,
     );
     const nextControllerPublicKey = deriveControllerPublicKey(
@@ -201,22 +210,27 @@ export const recoverControllerKey = async (
     providers,
     didContract.deployTxData.public.contractAddress,
   );
-  const validatedNextPrivateState = privateStateFromSecret(newSecretKey);
-  if (
-    recoverySecretKey !== undefined &&
-    (!(recoverySecretKey instanceof Uint8Array) ||
-      recoverySecretKey.length !== 32)
-  ) {
-    throw new Error("DID recovery secret key must be 32 bytes");
-  }
+  const validatedNewSecretKey =
+    validateAndCopyControllerSecretKey(newSecretKey);
+  const validatedRecoverySecretKey =
+    recoverySecretKey === undefined
+      ? undefined
+      : validateAndCopyRecoverySecretKey(recoverySecretKey);
 
   return withPendingControllerPrivateStateLock(providers, async () => {
+    const [storedRecoverySecretKey, ledgerState] = await Promise.all([
+      validatedRecoverySecretKey === undefined
+        ? requireRecoverySecretKey(providers)
+        : restoreRecoverySecretKey(providers),
+      requireDeployedMidnightDIDLedgerState(providers, didContract),
+    ]);
     const activeRecoverySecretKey =
-      recoverySecretKey ?? (await requireRecoverySecretKey(providers));
-    const ledgerState = await requireDeployedMidnightDIDLedgerState(
-      providers,
-      didContract,
-    );
+      validatedRecoverySecretKey ?? storedRecoverySecretKey;
+    if (activeRecoverySecretKey == null) {
+      throw new Error(
+        "DID recovery private state is missing or malformed; import the recovery secret before using recovery",
+      );
+    }
     if (!isJubjubPoint(ledgerState.recoveryAuthorityPublicKey)) {
       throw new Error(
         "DID contract does not expose a recovery authority; deploy or join a recovery-enabled contract",
@@ -234,10 +248,6 @@ export const recoverControllerKey = async (
       );
     }
 
-    const storedRecoverySecretKey =
-      recoverySecretKey === undefined
-        ? activeRecoverySecretKey
-        : await restoreRecoverySecretKey(providers);
     const persistedRecoverySecretKey =
       storedRecoverySecretKey != null &&
       jubjubPointEquals(
@@ -246,8 +256,8 @@ export const recoverControllerKey = async (
       )
         ? storedRecoverySecretKey
         : undefined;
-    const nextPrivateState = privateStateFromSecret(
-      validatedNextPrivateState.secretKey,
+    const nextPrivateState = privateStateFromValidatedControllerSecret(
+      validatedNewSecretKey,
       persistedRecoverySecretKey,
     );
     const nextControllerPublicKey = deriveControllerPublicKey(

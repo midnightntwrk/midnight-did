@@ -28,16 +28,16 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   finalized transaction data was not returned. A typed error prevents blind or
   overlapping attempts from replacing that candidate; callers reconcile the
   on-ledger controller public key, then explicitly promote or discard the slot.
-- The provider interface has no compare-and-set primitive. A process-local
-  critical section spans the full pending-controller lifecycle, beginning before
-  active/recovery-state and ledger preflight, and uses the canonical contract
-  address recorded by `bindPrivateStateProvider`, so bound wrappers for one DID
-  exclude one another. Binding and join fail closed before mutating either a
-  provider whose current key is reserved or a provider into a reserved target
-  key. Direct `setContractAddress` calls bypass this coordination and are
-  prohibited during the lifecycle. Explicitly unbound wrappers fall back to
-  provider identity; separate processes and independently unbound wrappers must
-  lock externally per DID private-state store.
+- Public rotation/recovery auto-bind or assert the canonical contract address,
+  and public reconciliation requires it. API-bound wrappers for one DID share a
+  process-local critical section across the full lifecycle. Acquisition is
+  fail-fast and the owner retains its reservation until settlement; elapsed time
+  cannot release a lease while provider or transaction work may continue.
+  Operational timeout handling must cancel that work and then reconcile ledger
+  and private state. Provider-object fallback is only for internal/deep unbound
+  use. Direct provider mutation, independently unbound wrappers, and separate
+  processes require external per-DID coordination because storage has no atomic
+  conditional write across processes.
 - Explicit non-finalization confirmation permits discard of any non-null pending
   record, including malformed state, so corrupt storage cannot permanently block
   a replacement candidate. Promotion continues to require valid pending state.
@@ -102,14 +102,14 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   180-second health timeout. During exact-head review follow-up, the same
   Docker-backed integration lane completed all 27 tests, including explicit
   relationship deletion and controller rotation.
-- The process-local lock deliberately rejects overlap with a typed busy error
-  rather than queueing a reconciliation whose ledger evidence may be stale. The
-  reviewer-discovered rebind edges showed that both lock-key immutability and
-  acquisition before provider-dependent preflight are part of that exclusion:
-  source and target reservations are checked synchronously before
-  `setContractAddress` or the wrapper-to-key mapping changes. It remains an
-  in-process API exclusion mechanism, not protection against direct provider
-  mutation and not a cross-process compare-and-set claim.
+- The process-local lock rejects overlap immediately rather than queueing a
+  reconciliation whose ledger evidence may be stale. Tests hold an owner
+  unresolved while competing rotation, recovery, and discard all receive the
+  typed busy error, then prove access resumes only after owner settlement. The
+  reviewer-discovered rebind edges also showed that source and target
+  reservations must be checked before provider address or lock-key mutation.
+  Direct provider mutation and cross-process writers remain outside this API
+  exclusion mechanism.
 - A malformed non-null candidate is unsafe to promote but safe to remove only
   after the caller explicitly asserts non-finalization. Treating presence and
   recoverability as separate predicates avoids persistent lockout without

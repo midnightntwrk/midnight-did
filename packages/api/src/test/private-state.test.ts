@@ -342,33 +342,33 @@ describe("DID private state lifecycle", () => {
     },
   );
 
-  it("refuses to discard pending state without non-finalization confirmation", async () => {
-    const { providers, privateStateProvider } = makeProviders({
-      storedPrivateState: { secretKey: new Uint8Array(32).fill(9) },
-    });
+  it.each([
+    [
+      "discard",
+      "Pending controller private state can only be discarded after confirming the key-rotation transaction did not finalize",
+    ],
+    [
+      "recover",
+      "Pending controller private state can only be recovered after confirming the key-rotation transaction finalized",
+    ],
+  ] as const)(
+    "uses the shared confirmation guard for pending-state %s",
+    async (operation, expectedMessage) => {
+      const { providers, privateStateProvider } = makeProviders({
+        storedPrivateState: { secretKey: new Uint8Array(32).fill(9) },
+      });
 
-    await expect(
-      discardPendingControllerPrivateState(providers, undefined as any),
-    ).rejects.toThrow(/only be discarded after confirming/);
-    expect(privateStateProvider.get).not.toHaveBeenCalled();
-    expect(privateStateProvider.remove).not.toHaveBeenCalled();
-  });
+      const reconciliation =
+        operation === "discard"
+          ? discardPendingControllerPrivateState(providers, undefined as any)
+          : recoverPendingControllerPrivateState(providers, undefined as any);
 
-  it("refuses to recover pending controller private state without finalization confirmation", async () => {
-    const { providers, privateStateProvider } = makeProviders({
-      storedPrivateState: {
-        recoverySecretKey: new Uint8Array(32).fill(10),
-        secretKey: new Uint8Array(32).fill(9),
-      },
-    });
-
-    await expect(
-      recoverPendingControllerPrivateState(providers, undefined as any),
-    ).rejects.toThrow(/only be recovered after confirming/);
-    expect(privateStateProvider.get).not.toHaveBeenCalled();
-    expect(privateStateProvider.set).not.toHaveBeenCalled();
-    expect(privateStateProvider.remove).not.toHaveBeenCalled();
-  });
+      await expect(reconciliation).rejects.toThrow(expectedMessage);
+      expect(privateStateProvider.get).not.toHaveBeenCalled();
+      expect(privateStateProvider.set).not.toHaveBeenCalled();
+      expect(privateStateProvider.remove).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects pending controller recovery when no pending state exists", async () => {
     const { providers, privateStateProvider } = makeProviders();

@@ -270,6 +270,84 @@ describe("controller operations", () => {
     );
   });
 
+  it("snapshots inputs once and runs independent recovery preflight reads in parallel under the lease", async () => {
+    const recoverySecretKey = new Uint8Array(32).fill(64);
+    const expectedRecoverySecretKey = new Uint8Array(recoverySecretKey);
+    const newSecretKey = new Uint8Array(32).fill(65);
+    const expectedNewSecretKey = new Uint8Array(newSecretKey);
+    let releasePrivateStateRead!: (privateState: unknown) => void;
+    const privateStateReadGate = new Promise<unknown>((resolve) => {
+      releasePrivateStateRead = resolve;
+    });
+    let privateStateReadStarted = false;
+    let releaseLedgerRead!: (ledgerState: unknown) => void;
+    const ledgerReadGate = new Promise<unknown>((resolve) => {
+      releaseLedgerRead = resolve;
+    });
+    let ledgerReadStarted = false;
+    vi.mocked(requireDeployedMidnightDIDLedgerState).mockImplementationOnce(
+      async () => {
+        ledgerReadStarted = true;
+        return (await ledgerReadGate) as any;
+      },
+    );
+    const recoverControllerKeyTx = vi.fn(async () => ({
+      public: { txId: "parallel-preflight" },
+    }));
+    const privateStateProvider = {
+      setContractAddress: vi.fn(),
+      get: vi.fn(async (privateStateId: string) => {
+        if (privateStateId === MidnightDIDPrivateStateId) {
+          privateStateReadStarted = true;
+          return privateStateReadGate;
+        }
+        return null;
+      }),
+      set: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+    };
+    const providers = { privateStateProvider } as any;
+    const didContract = {
+      deployTxData: { public: { contractAddress } },
+      callTx: { recoverControllerKey: recoverControllerKeyTx },
+    } as any;
+
+    const recovery = recoverControllerKey(
+      didContract,
+      providers,
+      newSecretKey,
+      recoverySecretKey,
+    );
+
+    await vi.waitFor(() => {
+      expect(privateStateReadStarted).toBe(true);
+      expect(ledgerReadStarted).toBe(true);
+    });
+    await expect(
+      discardPendingControllerPrivateState(providers, {
+        contractAddress,
+        rotationFinalized: false,
+      }),
+    ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
+
+    newSecretKey.fill(1);
+    recoverySecretKey.fill(2);
+    releasePrivateStateRead(null);
+    releaseLedgerRead({
+      id: { bytes: new Uint8Array(32).fill(1) },
+      recoveryAuthorityPublicKey: deriveControllerPublicKey(
+        expectedRecoverySecretKey,
+      ),
+      version: 7n,
+    });
+    await expect(recovery).resolves.toEqual({ txId: "parallel-preflight" });
+    expect(privateStateProvider.set).toHaveBeenNthCalledWith(
+      1,
+      MidnightDIDPendingControllerPrivateStateId,
+      { secretKey: expectedNewSecretKey },
+    );
+  });
+
   it("preserves an already stored recovery secret when one is explicitly supplied", async () => {
     const storedRecoverySecretKey = new Uint8Array(32).fill(17);
     const explicitRecoverySecretKey = storedRecoverySecretKey;
@@ -1188,6 +1266,107 @@ describe("controller operations", () => {
     );
     expect(privateStateProvider.set).toHaveBeenCalledTimes(1);
     expect(privateStateProvider.remove).not.toHaveBeenCalled();
+  });
+
+  it("rejects competing rotate, recover, and discard immediately while the owner remains unresolved", async () => {
+    const recoverySecretKey = new Uint8Array(32).fill(66);
+    const activePrivateState = {
+      recoverySecretKey,
+      secretKey: new Uint8Array(32).fill(67),
+    };
+    const ownerCandidate = new Uint8Array(32).fill(68);
+    let pending: unknown = null;
+    let ownerCallStarted!: () => void;
+    const ownerCallStart = new Promise<void>((resolve) => {
+      ownerCallStarted = resolve;
+    });
+    let releaseOwnerCall!: () => void;
+    const ownerCallGate = new Promise<void>((resolve) => {
+      releaseOwnerCall = resolve;
+    });
+    let ownerSettled = false;
+    const privateStateProvider = {
+      setContractAddress: vi.fn(),
+      get: vi.fn(async (privateStateId: string) =>
+        privateStateId === MidnightDIDPendingControllerPrivateStateId
+          ? pending
+          : activePrivateState,
+      ),
+      set: vi.fn(async (privateStateId: string, privateState: unknown) => {
+        if (privateStateId === MidnightDIDPendingControllerPrivateStateId) {
+          pending = privateState;
+        }
+      }),
+      remove: vi.fn(async () => {
+        pending = null;
+      }),
+    };
+    const rotateControllerKeyTx = vi.fn(async () => {
+      ownerCallStarted();
+      await ownerCallGate;
+      throw new Error("owner outcome unknown");
+    });
+    const didContract = {
+      deployTxData: { public: { contractAddress } },
+      callTx: {
+        recoverControllerKey: vi.fn(),
+        rotateControllerKey: rotateControllerKeyTx,
+      },
+    } as any;
+    const providers = { privateStateProvider } as any;
+    const owner = rotateControllerKey(
+      didContract,
+      providers,
+      ownerCandidate,
+    ).finally(() => {
+      ownerSettled = true;
+    });
+    await ownerCallStart;
+    const readsBeforeCompetition = privateStateProvider.get.mock.calls.length;
+    const writesBeforeCompetition = privateStateProvider.set.mock.calls.length;
+
+    const competitors = [
+      rotateControllerKey(didContract, providers, new Uint8Array(32).fill(69)),
+      recoverControllerKey(
+        didContract,
+        providers,
+        new Uint8Array(32).fill(70),
+        recoverySecretKey,
+      ),
+      discardPendingControllerPrivateState(providers, {
+        contractAddress,
+        rotationFinalized: false,
+      }),
+    ];
+    await Promise.all(
+      competitors.map((competitor) =>
+        expect(competitor).rejects.toBeInstanceOf(
+          PendingControllerPrivateStateBusyError,
+        ),
+      ),
+    );
+
+    expect(ownerSettled).toBe(false);
+    expect(privateStateProvider.get).toHaveBeenCalledTimes(
+      readsBeforeCompetition,
+    );
+    expect(privateStateProvider.set).toHaveBeenCalledTimes(
+      writesBeforeCompetition,
+    );
+    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+    expect(pending).toEqual({
+      recoverySecretKey,
+      secretKey: ownerCandidate,
+    });
+
+    releaseOwnerCall();
+    await expect(owner).rejects.toThrow("owner outcome unknown");
+    await expect(
+      discardPendingControllerPrivateState(providers, {
+        contractAddress,
+        rotationFinalized: false,
+      }),
+    ).resolves.toBeUndefined();
   });
 
   it("rejects concurrent discard while rotation is in flight without changing candidate A", async () => {

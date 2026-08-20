@@ -94,9 +94,10 @@ export class PendingControllerPrivateStateUnavailableError extends MidnightDidAp
 }
 
 // bindPrivateStateProvider records canonical per-contract keys so separate
-// wrappers bound to one DID share a process-local lock. Explicitly unbound
-// providers fall back to wrapper identity. The provider API has no CAS, so this
-// cannot coordinate separate processes or independently unbound wrappers.
+// wrappers bound to one DID share a process-local lock. Wrapper-identity fallback
+// is only for internal/deep unbound use. The provider has no atomic conditional
+// write, so external per-DID coordination is required across processes, direct
+// provider mutation, or independently unbound wrappers.
 const privateStateProviderContractAddresses = new WeakMap<object, string>();
 const pendingControllerContractLockKeys = new WeakMap<object, string>();
 const privateStateProviderReservations = new Map<object | string, object>();
@@ -125,6 +126,12 @@ const reservePrivateStateProviderKey = (
   }
 };
 
+/**
+ * Acquires synchronously or fails busy; it never queues behind an owner. The
+ * reservation is released only after the operation settles, because releasing
+ * it while provider or transaction work continues would permit concurrent
+ * private-state mutation.
+ */
 export async function withPrivateStateProviderLease<Result>(
   providers: MidnightDIDProviders,
   operation: (lease: PrivateStateProviderLease) => Promise<Result>,
@@ -367,6 +374,25 @@ export interface DiscardPendingControllerPrivateStateOptions {
   readonly rotationFinalized: false;
 }
 
+type PendingControllerConfirmationOperation = "discard" | "recover";
+
+const assertPendingControllerConfirmation = (
+  options:
+    | DiscardPendingControllerPrivateStateOptions
+    | RecoverPendingControllerPrivateStateOptions
+    | undefined,
+  operation: PendingControllerConfirmationOperation,
+): void => {
+  const rotationFinalized = operation === "recover";
+  if (options?.rotationFinalized !== rotationFinalized) {
+    const action = operation === "recover" ? "recovered" : "discarded";
+    const outcome = rotationFinalized ? "finalized" : "did not finalize";
+    throw new Error(
+      `Pending controller private state can only be ${action} after confirming the key-rotation transaction ${outcome}`,
+    );
+  }
+};
+
 export async function savePrivateState(
   providers: MidnightDIDProviders,
   privateState: MidnightDIDPrivateState,
@@ -452,11 +478,7 @@ export async function discardPendingControllerPrivateState(
   providers: MidnightDIDProviders,
   options: DiscardPendingControllerPrivateStateOptions,
 ): Promise<void> {
-  if (options?.rotationFinalized !== false) {
-    throw new Error(
-      "Pending controller private state can only be discarded after confirming the key-rotation transaction did not finalize",
-    );
-  }
+  assertPendingControllerConfirmation(options, "discard");
   bindOrAssertPrivateStateProvider(providers, options.contractAddress);
   await withPendingControllerPrivateStateLock(providers, async () => {
     let pendingPrivateState: unknown = null;
@@ -483,11 +505,7 @@ export async function recoverPendingControllerPrivateState(
   providers: MidnightDIDProviders,
   options: RecoverPendingControllerPrivateStateOptions,
 ): Promise<MidnightDIDPrivateState> {
-  if (options?.rotationFinalized !== true) {
-    throw new Error(
-      "Pending controller private state can only be recovered after confirming the key-rotation transaction finalized",
-    );
-  }
+  assertPendingControllerConfirmation(options, "recover");
   bindOrAssertPrivateStateProvider(providers, options.contractAddress);
   return withPendingControllerPrivateStateLock(providers, async () => {
     const pendingPrivateState =

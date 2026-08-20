@@ -154,24 +154,23 @@ an untracked provider to the operation's canonical DID address and reject a
 known different API-tracked binding with
 `PrivateStateProviderContractMismatchError` before provider or ledger access.
 
-`bindPrivateStateProvider` records the canonical contract address as the
-process-local lock identity. Calls through different provider wrappers bound by
-this API to the same DID therefore share one pending-controller critical section
-from before active/recovery private-state and ledger preflight through candidate
-persistence, authorization, transaction-call attempt, active promotion, and
-pending cleanup. While either the provider's current lock
-identity or the requested DID identity is reserved, `bindPrivateStateProvider`
-(and therefore `joinContract`) fails closed with
-`PendingControllerPrivateStateBusyError` before changing the provider address;
-this also rejects same-address rebinding during the lifecycle. Calling
-`privateStateProvider.setContractAddress` directly bypasses this API coordination
-and MUST NOT occur during rotation, recovery, promotion/discard reconciliation,
-or pending cleanup. Explicitly unbound custom/test wrappers fall back to provider
-object identity. The provider API exposes no cross-process compare-and-set
-primitive: separate processes and independently unbound wrappers writing one DID
-private-state store MUST use an external per-DID single-writer lock. The API does
-not claim cross-process CAS, and its reservations cannot protect direct provider
-mutation or operations in another process.
+Public rotation and recovery auto-bind or assert the canonical contract address;
+public promotion/discard reconciliation requires `contractAddress`. Calls through
+API-bound wrappers for one DID share a process-local critical section from
+preflight through pending persistence, transaction settlement, promotion, and
+cleanup. Reservation acquisition is fail-fast: competing rotation, recovery, or
+reconciliation immediately throws `PendingControllerPrivateStateBusyError`, even
+if the owner hangs. The owner reservation is released only when its operation
+settles; an elapsed timeout must not release it while provider or transaction
+work may continue. Operational timeouts must cancel the underlying work and then
+reconcile ledger and private state before another mutation.
+
+Provider-object fallback is only for internal/deep unbound use. Direct
+`setContractAddress` or storage mutation, independently unbound wrappers, and
+separate processes are outside this guarantee and require external per-DID
+coordination. While a source or target DID is reserved, API binding and join fail
+before changing provider address. The provider exposes no atomic conditional
+write across processes.
 
 Applications should back up controller and recovery private state alongside
 their wallet backup material, protect it with custody controls appropriate for
