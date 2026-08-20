@@ -6,6 +6,7 @@ import {
 
 import { getLogger } from "./api-logger.js";
 import { midnightDIDCompiledContract } from "./contract-instance.js";
+import { registerContractProviders } from "./contract-provider-registry.js";
 import {
   bindPrivateStateProvider,
   requireAttachablePrivateState,
@@ -33,6 +34,7 @@ export const joinContract = async (
     privateStateId: MidnightDIDPrivateStateId,
     initialPrivateState: initialPrivateState,
   });
+  registerContractProviders(didContract, providers);
   getLogger().info(`Joined contract at address: ${canonicalContractAddress}`);
   return didContract;
 };
@@ -54,6 +56,7 @@ export const deploy = async (
   // `deployContract` receives the initial state for proving; this explicit
   // post-bind save makes the controller key durable for subsequent sessions.
   await savePrivateState(providers, privateState);
+  registerContractProviders(didContract, providers);
   getLogger().info(`Deployed contract at address: ${canonicalContractAddress}`);
   return didContract;
 };

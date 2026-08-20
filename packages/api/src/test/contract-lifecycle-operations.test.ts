@@ -5,6 +5,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { deploy, joinContract } from "../contract-lifecycle-operations.js";
+import { registeredContractProviders } from "../contract-provider-registry.js";
 import { MidnightDIDPrivateStateId } from "../types.js";
 
 vi.mock("@midnight-ntwrk/midnight-js-contracts", () => ({
@@ -36,11 +37,13 @@ describe("contract lifecycle operations", () => {
     const joinedContract = {
       deployTxData: { public: { contractAddress } },
     };
+    const providers = { privateStateProvider } as any;
     vi.mocked(findDeployedContract).mockResolvedValue(joinedContract as any);
 
-    await expect(
-      joinContract({ privateStateProvider } as any, contractAddress),
-    ).resolves.toBe(joinedContract);
+    await expect(joinContract(providers, contractAddress)).resolves.toBe(
+      joinedContract,
+    );
+    expect(registeredContractProviders(joinedContract as any)).toBe(providers);
 
     expect(privateStateProvider.setContractAddress).toHaveBeenCalledWith(
       contractAddress.toLowerCase(),
@@ -55,7 +58,7 @@ describe("contract lifecycle operations", () => {
       MidnightDIDPrivateStateId,
     );
     expect(findDeployedContract).toHaveBeenCalledWith(
-      { privateStateProvider },
+      providers,
       expect.objectContaining({
         contractAddress: contractAddress.toLowerCase(),
         privateStateId: MidnightDIDPrivateStateId,
