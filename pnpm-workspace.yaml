@@ -19,3 +19,8 @@ trustPolicyExclude:
   # tinyexec@1.2.2. pnpm flags the package's attestation-only publication as a
   # trust-policy downgrade from earlier trusted-publisher evidence.
   - tinyexec@1.2.2
+  # pino@9.14.0 is already locked at the registry's signed sha512 integrity and
+  # matches the GitHub v9.14.0 tag at its verified, maintainer-authored commit.
+  # Unlike pino@9.13.1, its registry metadata lacks a provenance attestation,
+  # so pnpm rejects it when unrelated lockfile entries are refreshed.
+  - pino@9.14.0
