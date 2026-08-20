@@ -143,6 +143,21 @@ const wrapperShortOptionsWithArguments = {
   xargs: new Set(["a", "d", "E", "I", "L", "n", "P", "s"]),
 };
 
+const npmInstallCommands = new Set([
+  "add",
+  "i",
+  "in",
+  "ins",
+  "inst",
+  "insta",
+  "instal",
+  "install",
+  "isnt",
+  "isnta",
+  "isntal",
+  "isntall",
+]);
+
 const npmOptionsWithArguments = new Set([
   "-C",
   "--cache",
@@ -190,10 +205,16 @@ function consumeWrapperArguments(args, wrapper) {
     if (/^-[^-]/.test(token)) {
       const argumentOptions = wrapperShortOptionsWithArguments[wrapper];
       const optionBody = token.slice(1);
-      const argumentIndex = [...optionBody].findIndex((option) =>
+      const optionCharacters = [...optionBody];
+      const argumentIndex = optionCharacters.findIndex((option) =>
         argumentOptions?.has(option),
       );
-      if (argumentIndex !== -1 && argumentIndex === optionBody.length - 1) {
+      const trailingOptions = optionCharacters.slice(argumentIndex + 1);
+      const consumesSeparateArgument =
+        argumentIndex !== -1 &&
+        (trailingOptions.length === 0 ||
+          trailingOptions.every((option) => argumentOptions?.has(option)));
+      if (consumesSeparateArgument) {
         if (index + 1 >= args.length) return null;
         index += 2;
         continue;
@@ -239,7 +260,7 @@ function npmInvocationIsGlobalInstall(args, globalFromEnvironment) {
   const effectiveArgs = optionsEnd === -1 ? args : args.slice(0, optionsEnd);
   const commandIndex = npmCommandIndex(effectiveArgs);
   const command = effectiveArgs[commandIndex];
-  if (command !== "install" && command !== "i") return false;
+  if (!npmInstallCommands.has(command)) return false;
   if (globalFromEnvironment) return true;
 
   return effectiveArgs.some(
@@ -260,6 +281,9 @@ function commandWordsContainGlobalNpmInstall(
 ) {
   let name = initialName;
   let args = initialArgs;
+  if (path.posix.basename(name) === "eval") {
+    return shellCommandContainsGlobalNpmInstall(args.join(" "));
+  }
   const globalFromEnvironment = [...assignments, ...args].some(
     assignmentEnablesGlobalInstall,
   );
@@ -399,6 +423,7 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: sudo npm install -g npm@12",
     "run: sudo -n -u root env NODE_ENV=production npm install -g npm@12",
     "run: sudo -Enu root npm install -g npm@12",
+    "run: sudo -gu root npm install -g npm@12",
     "run: env -i FOO=bar npm i --global npm@12",
     "run: env --unset HOME -- command -p npm install --location global npm@12",
     "run: exec env FOO=bar npm --global install npm@12",
@@ -420,6 +445,9 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm_config_global=true npm install npm@12",
     "run: env npm_config_location=global npm install npm@12",
     "run: npm --location global install npm@12",
+    "run: npm add -g npm@12",
+    "run: npm isntall --global npm@12",
+    'run: |\n  eval "npm install -g npm@12"',
     'run: n"pm" install -g npm@12',
     "run: $(npm install -g npm@12)",
     'run: "`npm i -g npm@12`"',
