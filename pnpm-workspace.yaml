@@ -21,3 +21,9 @@ trustPolicyExclude:
   # tinyexec@1.2.2. pnpm flags the package's attestation-only publication as a
   # trust-policy downgrade from earlier trusted-publisher evidence.
   - tinyexec@1.2.2
+  # pino@9.14.0 is the already-locked, registry-signed artifact whose SHA-512
+  # integrity matches npm (8OEwKp5juEvb/MjpIc4hjqfgCNysrS94RIOMXYvpYCdm/jglrKEiAYmiumbmGhCvs+IcInsphYDFwqrjr7398w==).
+  # Its npm gitHead matches signed upstream tag commit 339f1d6c899fa584324e15c587fbd811664dd07c
+  # by maintainer Matteo Collina. Exclude only this manual release because it lacks
+  # the trusted-publisher provenance used by pino@9.13.1.
+  - pino@9.14.0

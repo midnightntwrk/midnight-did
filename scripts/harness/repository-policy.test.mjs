@@ -39,6 +39,24 @@ test("devloops policy keeps supported explicit routing, provenance, dynamic cost
   assert.match(config, /not Pat and not a substitute/);
 });
 
+test("pnpm supply-chain policy stays strict with only reviewed exact-version exclusions", async () => {
+  const workspace = await text("pnpm-workspace.yaml");
+  assert.match(workspace, /^trustPolicy: no-downgrade$/m);
+
+  const exclusions = workspace.match(
+    /^trustPolicyExclude:\n((?: {2}.*(?:\n|$))*)/m,
+  );
+  assert.ok(exclusions, "trustPolicyExclude must remain explicit");
+  assert.deepEqual(
+    [...exclusions[1].matchAll(/^  - (\S+)$/gm)].map((match) => match[1]),
+    ["tinyexec@1.2.2", "pino@9.14.0"],
+  );
+  assert.match(
+    exclusions[1],
+    /pino@9\.14\.0[\s\S]*already-locked[\s\S]*integrity matches npm[\s\S]*signed upstream tag commit 339f1d6c899fa584324e15c587fbd811664dd07c[\s\S]*lacks[\s\S]*trusted-publisher provenance used by pino@9\.13\.1/,
+  );
+});
+
 test("branch, runtime, local-validation, and exact-head review invariants stay documented", async () => {
   const [agent, ignore, packageJson, policy] = await Promise.all([
     text("AGENT.md"),
