@@ -340,8 +340,13 @@ function commandWordsContainGlobalNpmInstall(
     optionsEnd === -1 ? args : args.slice(0, optionsEnd),
   );
   if (["exec", "x"].includes(args[commandIndex])) {
+    const nestedOffset = npmCommandIndex(args.slice(commandIndex + 1));
     const nestedCommandIndex =
-      optionsEnd === -1 ? commandIndex + 1 : optionsEnd + 1;
+      optionsEnd === -1
+        ? nestedOffset === -1
+          ? args.length
+          : commandIndex + 1 + nestedOffset
+        : optionsEnd + 1;
     if (nestedCommandIndex < args.length) {
       return commandWordsContainGlobalNpmInstall(
         args[nestedCommandIndex],
@@ -456,6 +461,7 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: |\n  npx -c 'npm install -g npm@12'",
     "run: npm exec -- npm install -g npm@12",
     "run: npm exec npm install -g npm@12",
+    "run: npm exec --prefix ./tmp npm install -g npm@12",
     "run: npm_config_global=true npm exec -- npm install npm@12",
     "run: npm_config_global=true npm install npm@12",
     "run: env npm_config_location=global npm install npm@12",
