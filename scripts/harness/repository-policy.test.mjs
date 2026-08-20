@@ -53,34 +53,103 @@ function githubActionsRunCommands(workflow) {
   return commands;
 }
 
+const shellControlPrefixes = new Set([
+  "!",
+  "(",
+  "{",
+  "do",
+  "elif",
+  "else",
+  "if",
+  "then",
+  "until",
+  "while",
+]);
+
+const shellAssignment = /^[A-Za-z_][A-Za-z0-9_]*=.*/;
+
+function consumeWrapperOptions(tokens, start, wrapper) {
+  let index = start + 1;
+  let optionsEnded = false;
+
+  while (index < tokens.length) {
+    const token = tokens[index];
+    if (!optionsEnded && token === "--") {
+      optionsEnded = true;
+      index += 1;
+      continue;
+    }
+    if (wrapper === "env" && shellAssignment.test(token)) {
+      index += 1;
+      continue;
+    }
+    if (optionsEnded || !token.startsWith("-") || token === "-") break;
+
+    if (wrapper === "command" && ["-V", "-v"].includes(token)) return null;
+
+    const separateArgumentOptions = {
+      env: new Set(["-C", "-S", "-u", "--chdir", "--split-string", "--unset"]),
+      exec: new Set(["-a"]),
+      sudo: new Set([
+        "-C",
+        "-D",
+        "-g",
+        "-h",
+        "-p",
+        "-R",
+        "-T",
+        "-u",
+        "--chdir",
+        "--chroot",
+        "--command-timeout",
+        "--group",
+        "--host",
+        "--prompt",
+        "--user",
+      ]),
+      time: new Set(["-f", "-o", "--format", "--output"]),
+    };
+    if (separateArgumentOptions[wrapper]?.has(token)) {
+      if (index + 1 >= tokens.length) return null;
+      index += 2;
+      continue;
+    }
+    index += 1;
+  }
+
+  return index;
+}
+
+function commandPrefixInvokesNpm(prefix) {
+  let index = 0;
+  while (
+    index < prefix.length &&
+    (shellControlPrefixes.has(prefix[index]) ||
+      shellAssignment.test(prefix[index]))
+  ) {
+    index += 1;
+  }
+
+  const wrappers = new Set(["command", "env", "exec", "sudo", "time"]);
+  while (index < prefix.length) {
+    const wrapper = path.posix.basename(prefix[index]);
+    if (!wrappers.has(wrapper)) return false;
+    const next = consumeWrapperOptions(prefix, index, wrapper);
+    if (next == null) return false;
+    index = next;
+  }
+  return true;
+}
+
 function shellCommandContainsGlobalNpmInstall(command) {
   const tokens = shellTokens(command.replaceAll(/\\\r?\n/g, " "));
   const separators = new Set(["\n", "&&", "||", ";", "&", "|"]);
-  const controlPrefixes = new Set([
-    "!",
-    "(",
-    "{",
-    "do",
-    "elif",
-    "else",
-    "if",
-    "then",
-    "until",
-    "while",
-  ]);
 
   for (let index = 0; index < tokens.length; index += 1) {
     if (tokens[index] !== "npm") continue;
     let start = index - 1;
     while (start >= 0 && !separators.has(tokens[start])) start -= 1;
-    const prefix = tokens.slice(start + 1, index);
-    const commandPrefix = prefix.filter(
-      (token) =>
-        token !== "-" &&
-        !controlPrefixes.has(token) &&
-        !/^[A-Za-z_][A-Za-z0-9_]*=.*/.test(token),
-    );
-    if (commandPrefix.length > 0) continue;
+    if (!commandPrefixInvokesNpm(tokens.slice(start + 1, index))) continue;
 
     const relativeEnd = tokens
       .slice(index + 1)
@@ -167,6 +236,14 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm install --location=global npm@12",
     "run: npm i --location global npm@12",
     "run: echo ready && npm --silent i --location=GLOBAL npm@12",
+    "run: sudo npm install -g npm@12",
+    "run: sudo -n -u root env NODE_ENV=production npm install -g npm@12",
+    "run: env -i FOO=bar npm i --global npm@12",
+    "run: env --unset HOME -- command -p npm install --location global npm@12",
+    "run: exec env FOO=bar npm --global install npm@12",
+    "run: time -p sudo --preserve-env=HOME npm install -g npm@12",
+    "run: /usr/bin/time -f '%E' /usr/bin/env -u HOME npm install -g npm@12",
+    "run: if ! sudo env FOO=bar command exec npm install -g npm@12; then exit 1; fi",
     "run: |\n  echo ready\n  npm install -g npm@12",
     "run: |2-\n  npm install -g npm@12",
     "run: |-2\n  npm install -g npm@12",
@@ -184,6 +261,13 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm install --location=project package",
     'run: "echo npm install -g" # trailing comment',
     "run: 'printf npm install -g'",
+    "run: echo sudo env npm install -g npm@12",
+    "run: printf '%s' 'sudo npm install -g npm@12'",
+    "run: command -v npm install -g npm@12",
+    "run: sudo -u npm install -g npm@12",
+    "run: env -u npm install -g npm@12",
+    "run: time echo npm install -g npm@12",
+    "run: false && echo npm install -g npm@12",
     "run: |2-\n  echo 'npm install -g npm@12'\n  pnpm install",
     "run: >-\n  echo ready\n    printf 'npm install -g npm@12'",
   ]) {
@@ -254,7 +338,7 @@ test("devloops policy keeps supported explicit routing, provenance, dynamic cost
 test("code-scanning supply-chain remediations do not regress", async () => {
   const [docsLinkWorkflow, packageJson, lockfile] = await Promise.all([
     text(".github/workflows/docs-link-check.yml"),
-    JSON.parse(await text("package.json")),
+    text("package.json").then((contents) => JSON.parse(contents)),
     text("pnpm-lock.yaml"),
   ]);
 
@@ -284,12 +368,30 @@ test("code-scanning supply-chain remediations do not regress", async () => {
   }
 });
 
+test("pnpm supply-chain policy stays strict with only reviewed exact-version exclusions", async () => {
+  const workspace = await text("pnpm-workspace.yaml");
+  assert.match(workspace, /^trustPolicy: no-downgrade$/m);
+
+  const exclusions = workspace.match(
+    /^trustPolicyExclude:\n((?: {2}.*(?:\n|$))*)/m,
+  );
+  assert.ok(exclusions, "trustPolicyExclude must remain explicit");
+  assert.deepEqual(
+    [...exclusions[1].matchAll(/^  - (\S+)$/gm)].map((match) => match[1]),
+    ["tinyexec@1.2.2", "pino@9.14.0"],
+  );
+  assert.match(
+    exclusions[1],
+    /pino@9\.14\.0[\s\S]*already-locked[\s\S]*integrity matches npm[\s\S]*signed upstream tag commit 339f1d6c899fa584324e15c587fbd811664dd07c[\s\S]*lacks[\s\S]*trusted-publisher provenance used by pino@9\.13\.1/,
+  );
+});
+
 test("branch, runtime, local-validation, and exact-head review invariants stay documented", async () => {
   const [agent, ignore, packageJson, policy] = await Promise.all([
     text("AGENT.md"),
     text(".gitignore"),
-    JSON.parse(await text("package.json")),
-    JSON.parse(await text(".github/review-policy.json")),
+    text("package.json").then((contents) => JSON.parse(contents)),
+    text(".github/review-policy.json").then((contents) => JSON.parse(contents)),
   ]);
   assert.match(agent, /origin\/develop.*normal feature integration base/);
   assert.match(agent, /main.*default.*release branch/);
