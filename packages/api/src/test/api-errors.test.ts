@@ -2,6 +2,7 @@ import { VerificationMethodRelationType } from "@midnight-ntwrk/midnight-did-dom
 import { describe, expect, it } from "vitest";
 
 import { MidnightDidApiError } from "../api-errors.js";
+import { DIDContractDeploymentFinalizedPrivateStateIncompleteError } from "../contract-lifecycle-operations.js";
 import {
   PendingControllerPrivateStateBusyError,
   PendingControllerPrivateStateExistsError,
@@ -24,6 +25,17 @@ describe("typed API errors", () => {
       ]),
       VerificationMethodReferencedError,
       "verification_method_referenced",
+    ],
+    [
+      new DIDContractDeploymentFinalizedPrivateStateIncompleteError(
+        "a".repeat(64),
+        {
+          deployTxData: { public: { contractAddress: "a".repeat(64) } },
+        } as any,
+        new Error("provider binding failed"),
+      ),
+      DIDContractDeploymentFinalizedPrivateStateIncompleteError,
+      "did_contract_deployment_finalized_private_state_incomplete",
     ],
     [
       new PendingControllerPrivateStateBusyError(),
@@ -57,6 +69,24 @@ describe("typed API errors", () => {
       expect(error).toMatchObject({ code });
     },
   );
+
+  it("preserves finalized deployment recovery evidence without private state", () => {
+    const deployedContract = {
+      deployTxData: { public: { contractAddress: "a".repeat(64) } },
+    } as any;
+    const cause = new Error("provider binding failed");
+    const error = new DIDContractDeploymentFinalizedPrivateStateIncompleteError(
+      "a".repeat(64),
+      deployedContract,
+      cause,
+    );
+
+    expect(error.contractAddress).toBe("a".repeat(64));
+    expect(error.deployedContract).toBe(deployedContract);
+    expect(error.cause).toBe(cause);
+    expect(error).not.toHaveProperty("privateState");
+    expect(JSON.stringify(error)).not.toContain("privateState");
+  });
 
   it("preserves canonical provider contract mismatch details", () => {
     const error = new PrivateStateProviderContractMismatchError(

@@ -70,6 +70,19 @@ purges relationships implicitly and throws `VerificationMethodReferencedError`
 (with `code`, `methodId`, and ordered `relations`) while references remain.
 Missing relationship removals continue to fail explicitly.
 
+A contract can finalize before its address-scoped private-state provider is
+bound or saved. `deploy` and `createDID` report that partial success as
+`DIDContractDeploymentFinalizedPrivateStateIncompleteError`, with a stable code,
+canonical `contractAddress`, returned `deployedContract`, and `cause`, but no
+secret private state. Do not redeploy blindly. Preserve the deployment input
+separately, confirm the finalized address from the error, and resolve the binding
+owner. After a competing lifecycle finishes, re-read its provider/ledger state
+rather than overwriting its namespace because it may have rotated the
+controller. Reconcile with that owner or join the finalized address using state
+that matches the current ledger controller. If no competing or later lifecycle
+exists, bind the provider, verify/persist the retained state, and join the
+already-finalized address; verify storage before retrying an uncertain save.
+
 Controller rotation and recovery retain the pending replacement secret whenever
 finalized transaction data is not returned. A later or overlapping attempt fails
 with the typed pending-controller-state error instead of overwriting it.

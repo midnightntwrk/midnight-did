@@ -6,6 +6,8 @@ export { midnightDIDContractInstance } from "./contract-instance.js";
 export {
   createDID,
   deploy,
+  DIDContractDeploymentFinalizedPrivateStateIncompleteError,
+  type DIDContractDeploymentFinalizedPrivateStateIncompleteErrorCode,
   joinContract,
 } from "./contract-lifecycle-operations.js";
 export {

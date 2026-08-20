@@ -4,6 +4,7 @@ import {
   findDeployedContract,
 } from "@midnight-ntwrk/midnight-js-contracts";
 
+import { MidnightDidApiError } from "./api-errors.js";
 import { getLogger } from "./api-logger.js";
 import { midnightDIDCompiledContract } from "./contract-instance.js";
 import {
@@ -19,6 +20,25 @@ import {
   MidnightDIDPrivateStateId,
   type MidnightDIDProviders,
 } from "./types.js";
+
+export type DIDContractDeploymentFinalizedPrivateStateIncompleteErrorCode =
+  "did_contract_deployment_finalized_private_state_incomplete";
+
+/** Raised when deployment finalized but its local private state was not set up. */
+export class DIDContractDeploymentFinalizedPrivateStateIncompleteError extends MidnightDidApiError<DIDContractDeploymentFinalizedPrivateStateIncompleteErrorCode> {
+  constructor(
+    readonly contractAddress: string,
+    readonly deployedContract: DeployedMidnightDIDContract,
+    cause: unknown,
+  ) {
+    super(
+      "did_contract_deployment_finalized_private_state_incomplete",
+      `DID contract deployment finalized at ${contractAddress}, but local private-state setup is incomplete. Do not redeploy blindly; after resolving the private-state provider binding or persistence conflict, reconcile or join the finalized contract address.`,
+      { cause },
+    );
+    this.name = "DIDContractDeploymentFinalizedPrivateStateIncompleteError";
+  }
+}
 
 export const joinContract = async (
   providers: MidnightDIDProviders,
@@ -53,14 +73,22 @@ export const deploy = async (
     const canonicalContractAddress = parseContractAddress(
       didContract.deployTxData.public.contractAddress,
     );
-    bindPrivateStateProviderWithinLease(
-      providers,
-      canonicalContractAddress,
-      lease,
-    );
-    // `deployContract` receives the initial state for proving; this explicit
-    // post-bind save makes the controller key durable for subsequent sessions.
-    await savePrivateState(providers, privateState);
+    try {
+      bindPrivateStateProviderWithinLease(
+        providers,
+        canonicalContractAddress,
+        lease,
+      );
+      // `deployContract` receives the initial state for proving; this explicit
+      // post-bind save makes the controller key durable for subsequent sessions.
+      await savePrivateState(providers, privateState);
+    } catch (cause: unknown) {
+      throw new DIDContractDeploymentFinalizedPrivateStateIncompleteError(
+        canonicalContractAddress,
+        didContract,
+        cause,
+      );
+    }
     getLogger().info(
       `Deployed contract at address: ${canonicalContractAddress}`,
     );

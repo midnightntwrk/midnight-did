@@ -90,6 +90,31 @@ idempotent no-op. The Compact removal circuits independently reject referenced
 methods, so API preflight is useful typed feedback but not the authority for
 direct callers or concurrent updates.
 
+## Finalized Deployment With Incomplete Private-State Setup
+
+After `deployContract` returns, the ledger deployment is final even if binding
+or saving the address-scoped private-state provider fails. In that case
+`deploy`/`createDID` throws
+`DIDContractDeploymentFinalizedPrivateStateIncompleteError` with stable code
+`did_contract_deployment_finalized_private_state_incomplete`, the canonical
+`contractAddress`, the returned `deployedContract` handle (including its public
+deployment data), and the original failure as `cause`. The error never carries
+the controller or recovery private state.
+
+Do not retry deployment blindly. Retain the original private state separately,
+use the error's address and deployment handle to confirm the finalized contract,
+and resolve the provider-binding owner/conflict. If another lifecycle owned that
+address, wait for it to finish and then re-read its binding and ledger state; do
+not overwrite the target namespace with the deployment input because that
+lifecycle may have rotated the controller. Reconcile with that owner or join the
+finalized address using the private state that matches its current ledger
+controller. Only when the finalized deployment is confirmed to have no competing
+owner or later controller transition should the operator bind an address-scoped
+provider, persist the retained deployment private state under
+`MidnightDIDPrivateStateId`, and join the finalized address. A persistence
+failure can have an uncertain write disposition, so verify storage before
+retrying the write.
+
 ## Controller Secret Recovery Posture
 
 The API package can initialize, persist, rotate, recover, and restore private

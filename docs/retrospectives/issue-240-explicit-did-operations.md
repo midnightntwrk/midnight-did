@@ -45,6 +45,11 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   but its disposition is uncertain: the candidate may remain or may already have
   been removed. Later reconciliation processes retained state or returns the
   typed unavailable error if deletion committed.
+- A deployment that has returned finalized public data is not treated as an
+  ordinary failed deployment when target-address binding or active-state
+  persistence fails. The API returns typed finalized-partial-success evidence
+  with the canonical address, deployment handle, and cause, but never the secret
+  deployment private state.
 - The specification distinguishes the method's no-batch-circuit design from
   Midnight's inability to merge multiple non-empty contract-call sections.
 
@@ -75,6 +80,11 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   malformed promotion remain typed and non-mutating. Cleanup rejection after a
   successful active write returns the promoted state with truthful warning and
   coverage for both retained and already-deleted outcomes.
+- A deferred deployment regression lets another wrapper reserve the exact
+  returned target before deployment resolution. It proves one finalized
+  deployment produces recoverable typed evidence without rebinding either
+  provider or writing active state, while deterministic binding/save failures
+  prove all post-finality setup failures retain their causes.
 - `pnpm run verify`, managed-artifact checks, package-surface checks, and the
   complete docs build/visual lane passed from the Nix development shell.
 
@@ -104,6 +114,13 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   after the caller explicitly asserts non-finalization. Treating presence and
   recoverability as separate predicates avoids persistent lockout without
   weakening the finalized-candidate safeguard.
+- Waiting for a target-address lifecycle is not sufficient permission to save
+  the deployment input: that lifecycle may have rotated the target controller.
+  Recovery must re-read provider and ledger state, reconcile with the current
+  owner, and join the already-finalized address; only a confirmed unchanged,
+  unowned deployment namespace may receive the separately retained input state.
+  An uncertain save must be verified before retry because its write may have
+  committed even though it rejected.
 
 ## Follow-up actions
 
@@ -114,3 +131,7 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
 - CI must complete the Docker-backed integration lane before approval.
 - Extend provider/DID identity assertions to ordinary non-rotation document
   operations in a follow-up rather than widening this explicit-deletion change.
+- Integrators must catch finalized-deployment private-state setup errors, retain
+  deployment private state outside the error, resolve target ownership, re-read
+  ledger/storage state, and reconcile or join the reported address rather than
+  issuing another deployment.

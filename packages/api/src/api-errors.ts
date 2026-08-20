@@ -5,8 +5,9 @@ export class MidnightDidApiError<Code extends string> extends Error {
   constructor(
     readonly code: Code,
     message: string,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
     this.name = "MidnightDidApiError";
   }
 }

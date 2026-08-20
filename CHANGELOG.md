@@ -30,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   provider or ledger access, and deployment holds a source/target address lease
   through active-state persistence. Separate processes and independently unbound wrappers require
   an external per-DID lock because the provider API offers no cross-process CAS.
+- Report post-finalization deployment provider-binding or private-state
+  persistence failures as
+  `DIDContractDeploymentFinalizedPrivateStateIncompleteError`. The typed error
+  carries the canonical finalized address, returned deployed-contract handle,
+  and original cause, but no secret private state, so callers can reconcile or
+  join the finalized deployment instead of redeploying blindly or overwriting a
+  target namespace changed by another lifecycle.
 - Preserve complete canonical DID URL identity for verification methods,
   relationships, and services while keeping existing current-subject
   fragment-keyed ledger records operable through fail-closed state-aware key
