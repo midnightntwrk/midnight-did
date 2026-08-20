@@ -46,7 +46,7 @@ const blsG1Key =
   "BgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYG";
 
 describe("ledger mappers", () => {
-  it("preserves complete service URL identity when mapping to ledger", () => {
+  it("preserves bound service URLs and rejects new foreign-DID writes", () => {
     expect(
       serviceToLedger(didContract, {
         id: "/routing#messaging",

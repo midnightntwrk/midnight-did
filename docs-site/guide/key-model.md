@@ -41,10 +41,24 @@ extension or integration-layer adaptation.
 
 ## Identifier Rules
 
-- Verification method ids may be relative fragments such as `#key-1`.
-- The SDK normalizes ids before submitting ledger updates.
-- Resolvers emit absolute DID URL ids in the DID Document.
-- Relation sets may reference methods from either key map.
+- New verification method writes use subject-bound identifiers with non-empty
+  fragments, such as `#key-1` or `/keys/a#key-1`.
+- Historical documents and ledger state may contain root-path or dot-relative
+  method ids without fragments, such as `/keys/key-1` or `./keys/key-1`. Readers
+  retain these ids and render them as canonical absolute DID URLs.
+- This read compatibility does not admit bare labels, query-only ids,
+  `//` network-path references, foreign-DID method ids, or external URLs.
+- Current mutation helpers do not update or remove path-only physical keys. Such
+  records remain readable; migration requires deploying replacement DID state
+  with fragment-bearing ids (or purpose-built ledger migration tooling that
+  targets the exact historical key). Passing the path-only id to current
+  mutation helpers is not a migration because those helpers require a fragment.
+- Resolvers emit absolute DID URL ids in the DID Document, and relation sets may
+  reference methods from either key map.
+
+Legacy ledger service ids have a separate, read-only exception: a resolver
+preserves an existing foreign-DID service id. `addService` and `updateService`
+remain subject-bound and reject new foreign-DID service writes.
 
 ## Verification Relationship Compatibility
 
