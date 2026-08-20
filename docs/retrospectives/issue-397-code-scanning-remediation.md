@@ -40,10 +40,13 @@ and did not expand workflow permissions. A focused policy test now checks the
 workflow and dependency invariants together so future baseline synchronization
 cannot silently restore either vulnerable condition. Review of that harness
 found that command wrappers could hide a global npm install, so the detector now
-parses executable prefixes through `sudo`, `env`, `command`, `exec`, and `time`,
-including their options and environment assignments. Positive wrapper chains
-and negative quoted/`echo`/`printf` fixtures keep the security check sensitive
-without treating non-executed text as a command.
+parses executable prefixes through common privilege, environment, process, and
+scheduling wrappers, including their options and environment assignments.
+Fixtures cover nested `sudo`/`env`/`command`/`exec`/`time` chains plus `nice`,
+`timeout`, `nohup`, `xargs`, `setsid`, `stdbuf`, and `ionice`. Shell-control
+tokenization also segments unspaced subshells such as `(npm ...)`, while
+negative quoted/`echo`/`printf` and wrapper-operand fixtures keep non-executed
+text from becoming a finding.
 
 ## Friction and failures
 

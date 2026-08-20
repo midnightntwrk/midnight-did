@@ -18,7 +18,7 @@ async function text(relative) {
 function shellTokens(command) {
   return [
     ...command.matchAll(
-      /\r?\n|&&|\|\||[;&|]|"(?:\\.|[^"\\])*"|'[^']*'|[^\s;&|]+/g,
+      /\r?\n|&&|\|\||[;&|(){}]|"(?:\\.|[^"\\])*"|'[^']*'|[^\s;&|(){}]+/g,
     ),
   ].map(([token]) =>
     (token.startsWith('"') && token.endsWith('"')) ||
@@ -68,6 +68,77 @@ const shellControlPrefixes = new Set([
 
 const shellAssignment = /^[A-Za-z_][A-Za-z0-9_]*=.*/;
 
+const commandWrappers = new Set([
+  "command",
+  "env",
+  "exec",
+  "ionice",
+  "nice",
+  "nohup",
+  "setsid",
+  "stdbuf",
+  "sudo",
+  "time",
+  "timeout",
+  "xargs",
+]);
+
+const wrapperOptionsWithArguments = {
+  env: new Set(["-C", "-S", "-u", "--chdir", "--split-string", "--unset"]),
+  exec: new Set(["-a"]),
+  ionice: new Set([
+    "-c",
+    "-n",
+    "-p",
+    "-P",
+    "-u",
+    "--class",
+    "--classdata",
+    "--pid",
+    "--pgid",
+    "--uid",
+  ]),
+  nice: new Set(["-n", "--adjustment"]),
+  stdbuf: new Set(["-e", "-i", "-o"]),
+  sudo: new Set([
+    "-C",
+    "-D",
+    "-g",
+    "-h",
+    "-p",
+    "-R",
+    "-T",
+    "-u",
+    "--chdir",
+    "--chroot",
+    "--command-timeout",
+    "--group",
+    "--host",
+    "--prompt",
+    "--user",
+  ]),
+  time: new Set(["-f", "-o", "--format", "--output"]),
+  timeout: new Set(["-k", "-s", "--kill-after", "--signal"]),
+  xargs: new Set([
+    "-a",
+    "-d",
+    "-E",
+    "-I",
+    "-L",
+    "-n",
+    "-P",
+    "-s",
+    "--arg-file",
+    "--delimiter",
+    "--eof",
+    "--max-args",
+    "--max-chars",
+    "--max-lines",
+    "--max-procs",
+    "--replace",
+  ]),
+};
+
 function consumeWrapperOptions(tokens, start, wrapper) {
   let index = start + 1;
   let optionsEnded = false;
@@ -87,32 +158,23 @@ function consumeWrapperOptions(tokens, start, wrapper) {
 
     if (wrapper === "command" && ["-V", "-v"].includes(token)) return null;
 
-    const separateArgumentOptions = {
-      env: new Set(["-C", "-S", "-u", "--chdir", "--split-string", "--unset"]),
-      exec: new Set(["-a"]),
-      sudo: new Set([
-        "-C",
-        "-D",
-        "-g",
-        "-h",
-        "-p",
-        "-R",
-        "-T",
-        "-u",
-        "--chdir",
-        "--chroot",
-        "--command-timeout",
-        "--group",
-        "--host",
-        "--prompt",
-        "--user",
-      ]),
-      time: new Set(["-f", "-o", "--format", "--output"]),
-    };
-    if (separateArgumentOptions[wrapper]?.has(token)) {
+    if (wrapperOptionsWithArguments[wrapper]?.has(token)) {
       if (index + 1 >= tokens.length) return null;
       index += 2;
       continue;
+    }
+    index += 1;
+  }
+
+  if (wrapper === "timeout") {
+    const duration = tokens[index];
+    if (
+      duration == null ||
+      !/^(?:\d+(?:\.\d+)?[smhd]?|\$[A-Za-z_][A-Za-z0-9_]*|\$\{[^}]+\})$/.test(
+        duration,
+      )
+    ) {
+      return null;
     }
     index += 1;
   }
@@ -130,10 +192,9 @@ function commandPrefixInvokesNpm(prefix) {
     index += 1;
   }
 
-  const wrappers = new Set(["command", "env", "exec", "sudo", "time"]);
   while (index < prefix.length) {
     const wrapper = path.posix.basename(prefix[index]);
-    if (!wrappers.has(wrapper)) return false;
+    if (!commandWrappers.has(wrapper)) return false;
     const next = consumeWrapperOptions(prefix, index, wrapper);
     if (next == null) return false;
     index = next;
@@ -143,7 +204,7 @@ function commandPrefixInvokesNpm(prefix) {
 
 function shellCommandContainsGlobalNpmInstall(command) {
   const tokens = shellTokens(command.replaceAll(/\\\r?\n/g, " "));
-  const separators = new Set(["\n", "&&", "||", ";", "&", "|"]);
+  const separators = new Set(["\n", "&&", "||", ";", "&", "|", ")", "}"]);
 
   for (let index = 0; index < tokens.length; index += 1) {
     if (tokens[index] !== "npm") continue;
@@ -244,6 +305,16 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: time -p sudo --preserve-env=HOME npm install -g npm@12",
     "run: /usr/bin/time -f '%E' /usr/bin/env -u HOME npm install -g npm@12",
     "run: if ! sudo env FOO=bar command exec npm install -g npm@12; then exit 1; fi",
+    "run: nice -n 5 npm install -g npm@12",
+    "run: timeout --signal TERM 30s npm install -g npm@12",
+    "run: nohup npm install -g npm@12",
+    "run: xargs -I {} npm install -g npm@12",
+    "run: setsid --wait npm install -g npm@12",
+    "run: stdbuf -o L npm install -g npm@12",
+    "run: ionice -c 2 -n 7 npm install -g npm@12",
+    "run: nohup nice timeout 30 env FOO=bar npm install -g npm@12",
+    "run: (npm install -g npm@12)",
+    "run: |\n  { npm install -g npm@12; }",
     "run: |\n  echo ready\n  npm install -g npm@12",
     "run: |2-\n  npm install -g npm@12",
     "run: |-2\n  npm install -g npm@12",
@@ -267,6 +338,11 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: sudo -u npm install -g npm@12",
     "run: env -u npm install -g npm@12",
     "run: time echo npm install -g npm@12",
+    "run: timeout echo npm install -g npm@12",
+    "run: timeout 30 echo npm install -g npm@12",
+    "run: xargs -I npm install -g npm@12",
+    "run: ionice -p npm install -g npm@12",
+    "run: grep npm install -g commands.txt",
     "run: false && echo npm install -g npm@12",
     "run: |2-\n  echo 'npm install -g npm@12'\n  pnpm install",
     "run: >-\n  echo ready\n    printf 'npm install -g npm@12'",
