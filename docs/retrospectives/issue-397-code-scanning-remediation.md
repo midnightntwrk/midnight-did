@@ -48,7 +48,9 @@ cover nested wrapper chains (including bundled short options), shell-interpreter
 configuration assignments, command substitutions, path-qualified and
 quote-concatenated npm names, and unspaced subshells. Negative quoted, `echo`/`printf`, heredoc, comment,
 npm-script, end-of-options, and wrapper-operand fixtures keep
-non-executed text and unrelated npm subcommands from becoming findings.
+non-executed text and unrelated npm subcommands from becoming findings. The
+policy gate enumerates every YAML workflow under `.github/workflows`, rather
+than relying on the originally affected workflow path alone.
 
 ## Friction and failures
 

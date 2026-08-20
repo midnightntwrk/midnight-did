@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -15,6 +15,18 @@ const root = path.resolve(
 
 async function text(relative) {
   return readFile(path.join(root, relative), "utf8");
+}
+
+async function workflowTexts() {
+  const directory = ".github/workflows";
+  const entries = await readdir(path.join(root, directory), {
+    withFileTypes: true,
+  });
+  return Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && /\.(?:yaml|yml)$/.test(entry.name))
+      .map((entry) => text(path.join(directory, entry.name))),
+  );
 }
 
 function githubActionsRunCommands(workflow) {
@@ -281,9 +293,6 @@ function commandWordsContainGlobalNpmInstall(
 ) {
   let name = initialName;
   let args = initialArgs;
-  if (path.posix.basename(name) === "eval") {
-    return shellCommandContainsGlobalNpmInstall(args.join(" "));
-  }
   const globalFromEnvironment = [...assignments, ...args].some(
     assignmentEnablesGlobalInstall,
   );
@@ -307,6 +316,9 @@ function commandWordsContainGlobalNpmInstall(
   }
 
   const executable = path.posix.basename(name);
+  if (executable === "eval") {
+    return shellCommandContainsGlobalNpmInstall(args.join(" "));
+  }
   if (shellInterpreters.has(executable)) {
     const commandOptionIndex = args.findIndex(
       (arg) =>
@@ -327,15 +339,16 @@ function commandWordsContainGlobalNpmInstall(
   const commandIndex = npmCommandIndex(
     optionsEnd === -1 ? args : args.slice(0, optionsEnd),
   );
-  if (
-    ["exec", "x"].includes(args[commandIndex]) &&
-    optionsEnd !== -1 &&
-    optionsEnd + 1 < args.length
-  ) {
-    return commandWordsContainGlobalNpmInstall(
-      args[optionsEnd + 1],
-      args.slice(optionsEnd + 2),
-    );
+  if (["exec", "x"].includes(args[commandIndex])) {
+    const nestedCommandIndex =
+      optionsEnd === -1 ? commandIndex + 1 : optionsEnd + 1;
+    if (nestedCommandIndex < args.length) {
+      return commandWordsContainGlobalNpmInstall(
+        args[nestedCommandIndex],
+        args.slice(nestedCommandIndex + 1),
+        assignments,
+      );
+    }
   }
   return false;
 }
@@ -442,12 +455,16 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npx npm install -g npm@12",
     "run: |\n  npx -c 'npm install -g npm@12'",
     "run: npm exec -- npm install -g npm@12",
+    "run: npm exec npm install -g npm@12",
+    "run: npm_config_global=true npm exec -- npm install npm@12",
     "run: npm_config_global=true npm install npm@12",
     "run: env npm_config_location=global npm install npm@12",
     "run: npm --location global install npm@12",
     "run: npm add -g npm@12",
     "run: npm isntall --global npm@12",
     'run: |\n  eval "npm install -g npm@12"',
+    'run: |\n  sudo eval "npm install -g npm@12"',
+    'run: |\n  env FOO=bar eval "npm install -g npm@12"',
     'run: n"pm" install -g npm@12',
     "run: $(npm install -g npm@12)",
     'run: "`npm i -g npm@12`"',
@@ -557,17 +574,19 @@ test("devloops policy keeps supported explicit routing, provenance, dynamic cost
 });
 
 test("code-scanning supply-chain remediations do not regress", async () => {
-  const [docsLinkWorkflow, packageJson, lockfile] = await Promise.all([
-    text(".github/workflows/docs-link-check.yml"),
+  const [workflows, packageJson, lockfile] = await Promise.all([
+    workflowTexts(),
     text("package.json").then((contents) => JSON.parse(contents)),
     text("pnpm-lock.yaml"),
   ]);
 
-  assert.equal(
-    containsGlobalNpmInstall(docsLinkWorkflow),
-    false,
-    "published-docs workflow must not install npm packages globally",
-  );
+  for (const workflow of workflows) {
+    assert.equal(
+      containsGlobalNpmInstall(workflow),
+      false,
+      "repository workflows must not install npm packages globally",
+    );
+  }
 
   const safeNanoid3Floor = "3.3.18";
   const overrideFloor = nanoid3OverrideFloor(
