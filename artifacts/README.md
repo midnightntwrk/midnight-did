@@ -14,7 +14,7 @@ Commands:
 pnpm run artifacts:pack
 ./upgrade-libs.sh --destination /path/to/downstream-repo
 node scripts/clean-artifacts.mjs --dry-run --json
-pnpm run zk-artifacts:bundle -- --version 0.5.0-snapshot.local
+pnpm run zk-artifacts:bundle -- --version 0.6.0-snapshot.local
 ```
 
 Notes:
