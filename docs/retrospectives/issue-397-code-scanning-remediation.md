@@ -68,8 +68,10 @@ and global-option evidence; option operands, repeated interpreter command
 flags, bundled wrapper options with multiple operands, and multi-pair npm config
 updates have dedicated fixtures. Shell here-strings are parsed for direct and
 wrapped interpreters, workspace/package option operands are skipped, split
-assignment/export state is tracked, and static `.npmrc` writes through `tee`
-pipelines are blocked. The policy gate enumerates every YAML workflow and local
+assignment/export state is tracked, and static `.npmrc` or `$GITHUB_ENV`
+writes through redirects and `tee` pipelines are blocked. Statically evaluable
+`echo`/`printf` command substitutions used as executable names retain npm
+identity. The policy gate enumerates every YAML workflow and local
 composite action, rather than relying on the originally affected workflow path
 alone.
 
