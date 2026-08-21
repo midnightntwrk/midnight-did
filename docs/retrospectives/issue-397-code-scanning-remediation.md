@@ -60,9 +60,15 @@ syntactically present but unreachable through shell control flow. Global npm
 npm configuration, `npm config set`/`npm set`, and static `.npmrc` writes are
 blocked as global-enabling state even when the later npm mutation occurs in a
 separate workflow step. Shell-interpreter heredoc bodies are recursively parsed,
-while data heredocs passed to commands such as `cat` remain non-executable. The
-policy gate enumerates every YAML workflow under `.github/workflows`, rather
-than relying on the originally affected workflow path alone.
+while data heredocs passed to commands such as `cat` remain non-executable.
+Workflow-, job-, and step-level GitHub `env` state is merged with child
+overrides, and composite-action run steps under `.github/actions` are scanned
+alongside workflow steps. Partially dynamic npm arguments retain static command
+and global-option evidence; option operands, repeated interpreter command
+flags, bundled wrapper options with multiple operands, and multi-pair npm config
+updates have dedicated fixtures. The policy gate enumerates every YAML workflow
+and local composite action, rather than relying on the originally affected
+workflow path alone.
 
 The Bash parser remains tree-sitter rather than falling back to token or line
 matching. Both exact, frozen `tree-sitter` 0.25.1 and `tree-sitter-bash` 0.25.1

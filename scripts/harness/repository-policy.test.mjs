@@ -17,15 +17,36 @@ async function text(relative) {
   return readFile(path.join(root, relative), "utf8");
 }
 
-async function workflowTexts() {
-  const directory = ".github/workflows";
+async function filesBelow(directory, include) {
   const entries = await readdir(path.join(root, directory), {
     withFileTypes: true,
   });
-  return Promise.all(
-    entries
-      .filter((entry) => entry.isFile() && /\.(?:yaml|yml)$/.test(entry.name))
-      .map((entry) => text(path.join(directory, entry.name))),
+  const files = await Promise.all(
+    entries.map((entry) => {
+      const relative = path.join(directory, entry.name);
+      if (entry.isDirectory()) return filesBelow(relative, include);
+      return entry.isFile() && include(entry.name) ? [relative] : [];
+    }),
+  );
+  return files.flat();
+}
+
+async function automationYamlTexts() {
+  const [workflows, actions] = await Promise.all([
+    filesBelow(".github/workflows", (name) => /\.(?:yaml|yml)$/.test(name)),
+    filesBelow(".github/actions", (name) =>
+      /^action\.(?:yaml|yml)$/.test(name),
+    ),
+  ]);
+  return Promise.all([...workflows, ...actions].map(text));
+}
+
+function mergedEnv(...environments) {
+  return Object.assign(
+    {},
+    ...environments.filter(
+      (environment) => environment != null && typeof environment === "object",
+    ),
   );
 }
 
@@ -33,23 +54,36 @@ function githubActionsRunCommands(workflow) {
   const document = loadYaml(workflow);
   if (document == null || typeof document !== "object") return [];
 
-  const jobs = document.jobs;
-  if (jobs == null || typeof jobs !== "object") return [];
-
   const commands = [];
-  for (const job of Object.values(jobs)) {
-    if (job == null || typeof job !== "object" || !Array.isArray(job.steps)) {
-      continue;
-    }
-    for (const step of job.steps) {
+  const collectSteps = (steps, ...environments) => {
+    if (!Array.isArray(steps)) return;
+    for (const step of steps) {
       if (
         step != null &&
         typeof step === "object" &&
         typeof step.run === "string"
       ) {
-        commands.push(step.run);
+        commands.push({
+          run: step.run,
+          env: mergedEnv(...environments, step.env),
+        });
       }
     }
+  };
+
+  if (document.jobs != null && typeof document.jobs === "object") {
+    for (const job of Object.values(document.jobs)) {
+      if (job != null && typeof job === "object") {
+        collectSteps(job.steps, document.env, job.env);
+      }
+    }
+  }
+  if (
+    document.runs != null &&
+    typeof document.runs === "object" &&
+    document.runs.using === "composite"
+  ) {
+    collectSteps(document.runs.steps, document.env);
   }
   return commands;
 }
@@ -236,13 +270,16 @@ function consumeWrapperArguments(args, wrapper) {
         argumentOptions?.has(option),
       );
       const trailingOptions = optionCharacters.slice(argumentIndex + 1);
-      const consumesSeparateArgument =
+      const consumesSeparateArguments =
         argumentIndex !== -1 &&
         (trailingOptions.length === 0 ||
           trailingOptions.every((option) => argumentOptions?.has(option)));
-      if (consumesSeparateArgument) {
-        if (index + 1 >= args.length) return null;
-        index += 2;
+      if (consumesSeparateArguments) {
+        const argumentCount = optionCharacters.filter((option) =>
+          argumentOptions?.has(option),
+        ).length;
+        if (index + argumentCount >= args.length) return null;
+        index += 1 + argumentCount;
         continue;
       }
     }
@@ -311,22 +348,54 @@ function npmCommandIndex(args, optionsWithArguments = npmOptionsWithArguments) {
   return -1;
 }
 
+function npmArgsEnableGlobal(args) {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--location") {
+      if (args[index + 1]?.toLowerCase() === "global") return true;
+      index += 1;
+      continue;
+    }
+    if (npmOptionsWithArguments.has(arg)) {
+      index += 1;
+      continue;
+    }
+    if (
+      arg === "-g" ||
+      arg === "--global" ||
+      /^--global=(?:true|1)$/i.test(arg) ||
+      /^--location=global$/i.test(arg)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function npmInvocationIsGlobalInstall(args, globalFromEnvironment) {
   const optionsEnd = args.indexOf("--");
   const effectiveArgs = optionsEnd === -1 ? args : args.slice(0, optionsEnd);
   const commandIndex = npmCommandIndex(effectiveArgs);
   const command = effectiveArgs[commandIndex];
   if (!npmInstallCommands.has(command)) return false;
-  if (globalFromEnvironment) return true;
+  return globalFromEnvironment || npmArgsEnableGlobal(effectiveArgs);
+}
 
-  return effectiveArgs.some(
-    (arg, index) =>
-      arg === "-g" ||
-      arg === "--global" ||
-      /^--global=(?:true|1)$/i.test(arg) ||
-      /^--location=global$/i.test(arg) ||
-      (arg === "--location" &&
-        effectiveArgs[index + 1]?.toLowerCase() === "global"),
+function partialNpmInvocationIsGlobalInstall(node, globalFromEnvironment) {
+  const name = staticShellWord(node.childForFieldName("name"));
+  if (name == null || path.posix.basename(name) !== "npm") return false;
+
+  const args = node.namedChildren
+    .filter(
+      (child) =>
+        child.type !== "command_name" && child.type !== "variable_assignment",
+    )
+    .map(staticShellWord);
+  const optionsEnd = args.indexOf("--");
+  const effectiveArgs = optionsEnd === -1 ? args : args.slice(0, optionsEnd);
+  return (
+    effectiveArgs.some((arg) => npmInstallCommands.has(arg)) &&
+    (globalFromEnvironment || npmArgsEnableGlobal(effectiveArgs))
   );
 }
 
@@ -347,11 +416,11 @@ function npmCommandSetsPersistentGlobal(node) {
   const words = staticCommandWords(node);
   if (words == null || path.posix.basename(words.name) !== "npm") return false;
 
-  const optionsEnd = words.args.indexOf("--");
-  const args = optionsEnd === -1 ? words.args : words.args.slice(0, optionsEnd);
-  const commandIndex = npmCommandIndex(args);
-  const command = args[commandIndex];
-  const configArgs = args.slice(commandIndex + 1);
+  const commandIndex = npmCommandIndex(words.args);
+  const command = words.args[commandIndex];
+  const configArgs = words.args
+    .slice(commandIndex + 1)
+    .filter((arg) => arg !== "--");
   const setArgs = ["c", "config"].includes(command)
     ? configArgs[0] === "set"
       ? configArgs.slice(1)
@@ -359,12 +428,17 @@ function npmCommandSetsPersistentGlobal(node) {
     : command === "set"
       ? configArgs
       : [];
-  if (setArgs.length === 0) return false;
 
-  const inline = /^([^=]+)=(.*)$/.exec(setArgs[0]);
-  const key = inline?.[1] ?? setArgs[0];
-  const value = inline?.[2] ?? setArgs[1];
-  return assignmentEnablesGlobalInstall(`npm_config_${key}=${value}`);
+  for (let index = 0; index < setArgs.length; index += 1) {
+    const inline = /^([^=]+)=(.*)$/.exec(setArgs[index]);
+    const key = inline?.[1] ?? setArgs[index];
+    const value = inline?.[2] ?? setArgs[index + 1];
+    if (assignmentEnablesGlobalInstall(`npm_config_${key}=${value}`)) {
+      return true;
+    }
+    if (inline == null) index += 1;
+  }
+  return false;
 }
 
 function redirectedStatementEnablesGlobalNpm(node) {
@@ -468,16 +542,24 @@ function commandWordsContainGlobalNpmInstall(
     );
   }
   if (shellInterpreters.has(executable)) {
-    const commandOptionIndex = args.findIndex(
-      (arg) =>
+    for (let index = 0; index < args.length; index += 1) {
+      const arg = args[index];
+      const isCommandOption =
         arg === "-c" ||
         ["-command", "--command"].includes(arg.toLowerCase()) ||
-        (/^-[^-]+$/.test(arg) && arg.includes("c")),
-    );
-    const script = args[commandOptionIndex + 1];
-    return commandOptionIndex !== -1 && script != null
-      ? shellCommandContainsGlobalNpmInstall(script, globalFromEnvironment)
-      : false;
+        (/^-[^-]+$/.test(arg) && arg.includes("c"));
+      if (
+        isCommandOption &&
+        args[index + 1] != null &&
+        shellCommandContainsGlobalNpmInstall(
+          args[index + 1],
+          globalFromEnvironment,
+        )
+      ) {
+        return true;
+      }
+    }
+    return false;
   }
 
   if (executable !== "npm") return false;
@@ -528,7 +610,11 @@ function commandNodeContainsGlobalNpmInstall(node, inheritedGlobal) {
     .filter((child) => child.type === "variable_assignment")
     .map(staticShellAssignment)
     .filter((assignment) => assignment != null);
-  if (words == null) return false;
+  const globalFromEnvironment =
+    inheritedGlobal || assignments.some(assignmentEnablesGlobalInstall);
+  if (words == null) {
+    return partialNpmInvocationIsGlobalInstall(node, globalFromEnvironment);
+  }
   return commandWordsContainGlobalNpmInstall(
     words.name,
     words.args,
@@ -584,9 +670,18 @@ function shellCommandContainsGlobalNpmInstall(
   return visit(tree.rootNode);
 }
 
+function githubEnvEnablesGlobalInstall(environment) {
+  return Object.entries(environment).some(([name, value]) =>
+    assignmentEnablesGlobalInstall(`${name}=${String(value)}`),
+  );
+}
+
 function containsGlobalNpmInstall(workflow) {
-  return githubActionsRunCommands(workflow).some(
-    shellCommandContainsGlobalNpmInstall,
+  return githubActionsRunCommands(workflow).some(({ run, env }) =>
+    shellCommandContainsGlobalNpmInstall(
+      run,
+      githubEnvEnablesGlobalInstall(env),
+    ),
   );
 }
 
@@ -642,12 +737,15 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm --global install npm@12",
     "run: npm install --global=true npm@12",
     "run: npm install --location=global npm@12",
+    "run: npm install $PACKAGE npm@12 -g",
     "run: npm i --location global npm@12",
     "run: echo ready && npm --silent i --location=GLOBAL npm@12",
     "run: sudo npm install -g npm@12",
     "run: sudo -n -u root env NODE_ENV=production npm install -g npm@12",
     "run: sudo -Enu root npm install -g npm@12",
-    "run: sudo -gu root npm install -g npm@12",
+    "run: sudo -gu group root npm install -g npm@12",
+    "run: sudo -up root prompt npm install -g npm@12",
+    "run: sudo -uh root host npm install -g npm@12",
     "run: env -i FOO=bar npm i --global npm@12",
     "run: env -S 'npm install -g npm@12'",
     "run: env --split-string 'npm install -g npm@12'",
@@ -706,6 +804,8 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm config set global true",
     "run: npm set location=global",
     "run: |\n  npm config set global true\n  npm install npm@12",
+    "run: npm config set foo=bar global=true",
+    "run: npm config -- set foo bar location global",
     "run: |\n  npm set location=global\n  npm update npm@12",
     "run: echo 'global=true' >> .npmrc",
     "run: |\n  printf 'global=true\\n' >> ~/.npmrc\n  npm install npm@12",
@@ -714,6 +814,8 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: |\n  env bash <<'SCRIPT'\n  npm install -g npm@12\n  SCRIPT",
     "run: |\n  sh <<'SCRIPT'\n  npm_config_global='true' npm install npm@12\n  SCRIPT",
     "run: |\n  sh -c 'sudo npm install -g npm@12'",
+    "run: |\n  sh -c 'echo safe' -c 'npm install -g npm@12'",
+    "run: |\n  pwsh -Command 'Write-Output safe' -Command 'npm install -g npm@12'",
     "run: |\n  pwsh -Command 'npm install -g npm@12'",
     "run: (npm install -g npm@12)",
     "run: |\n  { npm install -g npm@12; }",
@@ -735,6 +837,7 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm install",
     "run: npm install --global=false package",
     "run: npm install --location=project package",
+    "run: npm install --registry -g package",
     "run: npm update package",
     "run: npm up --global=false package",
     'run: npm_config_global="false" npm install package',
@@ -754,6 +857,8 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm_config_global='false' bash -c 'npm install package'",
     "run: |\n  export npm_config_global='false'\n  npm install package",
     "run: |\n  export npm_config_location=project\n  npm install package",
+    "run: npm config set foo=bar global=false",
+    "run: npm config -- set foo bar location project",
     "run: |\n  npm config set global false\n  npm install package",
     "run: |\n  npm set location=project\n  npm install package",
     "run: |\n  printf 'global=false\\n' >> ~/.npmrc\n  npm install package",
@@ -786,7 +891,56 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
   }
 });
 
-test("scans only jobs.*.steps[].run string values", () => {
+test("scans workflow and composite-action run steps with inherited env", () => {
+  const workflow = `
+env:
+  npm_config_global: "true"
+jobs:
+  workflow-env:
+    steps:
+      - run: npm install package
+  job-env:
+    env:
+      npm_config_global: "false"
+      npm_config_location: global
+    steps:
+      - run: npm install package
+  step-env:
+    env:
+      npm_config_global: "false"
+    steps:
+      - run: npm install package
+        env:
+          npm_config_global: "true"
+`;
+  assert.equal(containsGlobalNpmInstall(workflow), true);
+
+  const overriddenWorkflow = `
+env:
+  npm_config_global: "true"
+jobs:
+  safe:
+    env:
+      npm_config_global: "false"
+    steps:
+      - run: npm install package
+`;
+  assert.equal(containsGlobalNpmInstall(overriddenWorkflow), false);
+
+  const composite = `
+name: Composite
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: npm install package
+      env:
+        npm_config_location: global
+`;
+  assert.equal(containsGlobalNpmInstall(composite), true);
+});
+
+test("scans only supported workflow and composite-action run steps", () => {
   const workflow = `
 run: npm install -g npm@12
 jobs:
@@ -799,6 +953,14 @@ jobs:
     uses: owner/repo/.github/workflows/reusable.yml@immutable
 `;
   assert.equal(containsGlobalNpmInstall(workflow), false);
+
+  const nonCompositeAction = `
+name: JavaScript action
+runs:
+  using: node24
+  main: npm install -g npm@12
+`;
+  assert.equal(containsGlobalNpmInstall(nonCompositeAction), false);
 });
 
 test("extracts compatible nanoid 3.x floors and compares versions semantically", () => {
@@ -853,7 +1015,7 @@ test("devloops policy keeps supported explicit routing, provenance, dynamic cost
 
 test("code-scanning supply-chain remediations do not regress", async () => {
   const [workflows, packageJson, lockfile] = await Promise.all([
-    workflowTexts(),
+    automationYamlTexts(),
     text("package.json").then((contents) => JSON.parse(contents)),
     text("pnpm-lock.yaml"),
   ]);
