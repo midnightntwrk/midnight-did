@@ -34,6 +34,7 @@ jobs:
           sparse-checkout: |
             .linkinatorrc.json
             .nvmrc
+            package.json
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -42,9 +43,6 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Update NPM
-        run: npm install -g npm@12.0.2
-
       - name: Wait for Pages deployment
         if: github.event_name == 'push'
         run: sleep 90s
@@ -52,7 +50,7 @@ jobs:
       - name: Check published links
         run: |
           set +e
-          npx --yes "linkinator@${LINKINATOR_VERSION}" "${DOCS_SITE_URL}" \
+          corepack pnpm dlx "linkinator@${LINKINATOR_VERSION}" "${DOCS_SITE_URL}" \
             --config .linkinatorrc.json \
             --status-code "429:warn" \
             --format json > link-check-results.json
