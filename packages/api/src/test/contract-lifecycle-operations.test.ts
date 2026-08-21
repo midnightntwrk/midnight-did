@@ -11,7 +11,9 @@ import {
 } from "../contract-lifecycle-operations.js";
 import {
   bindPrivateStateProvider,
+  discardPendingControllerPrivateState,
   PendingControllerPrivateStateBusyError,
+  recoverPendingControllerPrivateState,
   withPendingControllerPrivateStateLock,
 } from "../private-state.js";
 import { MidnightDIDPrivateStateId } from "../types.js";
@@ -107,6 +109,185 @@ describe("contract lifecycle operations", () => {
     ).rejects.toThrow(/private state is missing or malformed/);
 
     expect(findDeployedContract).not.toHaveBeenCalled();
+  });
+
+  it("fails join before target binding when another lifecycle owns the target and releases the source", async () => {
+    const sourceAddress = "C".repeat(64);
+    const joiningProvider = {
+      setContractAddress: vi.fn(),
+      get: vi.fn(async () => ({ secretKey: new Uint8Array(32).fill(7) })),
+    };
+    const targetOwnerProvider = { setContractAddress: vi.fn() };
+    const joiningProviders = { privateStateProvider: joiningProvider } as any;
+    const targetOwnerProviders = {
+      privateStateProvider: targetOwnerProvider,
+    } as any;
+    bindPrivateStateProvider(joiningProviders, sourceAddress);
+    bindPrivateStateProvider(targetOwnerProviders, contractAddress);
+
+    let releaseTarget!: () => void;
+    const targetGate = new Promise<void>((resolve) => {
+      releaseTarget = resolve;
+    });
+    let targetStarted!: () => void;
+    const targetStart = new Promise<void>((resolve) => {
+      targetStarted = resolve;
+    });
+    const targetOwner = withPendingControllerPrivateStateLock(
+      targetOwnerProviders,
+      async () => {
+        targetStarted();
+        await targetGate;
+      },
+    );
+    await targetStart;
+
+    await expect(
+      joinContract(joiningProviders, contractAddress),
+    ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
+    expect(joiningProvider.setContractAddress).toHaveBeenCalledTimes(1);
+    expect(joiningProvider.setContractAddress).toHaveBeenCalledWith(
+      sourceAddress.toLowerCase(),
+    );
+    expect(joiningProvider.get).not.toHaveBeenCalled();
+    expect(findDeployedContract).not.toHaveBeenCalled();
+
+    const sourceCompetitor = { setContractAddress: vi.fn() };
+    expect(() =>
+      bindPrivateStateProvider(
+        { privateStateProvider: sourceCompetitor } as any,
+        sourceAddress,
+      ),
+    ).not.toThrow();
+
+    releaseTarget();
+    await targetOwner;
+  });
+
+  it("holds join source and target leases through deferred contract lookup", async () => {
+    const sourceAddress = "E".repeat(64);
+    const privateState = { secretKey: new Uint8Array(32).fill(7) };
+    const joiningProvider = {
+      setContractAddress: vi.fn(),
+      get: vi.fn(async () => privateState),
+    };
+    const sourceProvider = {
+      setContractAddress: vi.fn(),
+      get: vi.fn(),
+      set: vi.fn(),
+      remove: vi.fn(),
+    };
+    const targetProvider = {
+      setContractAddress: vi.fn(),
+      get: vi.fn(),
+      set: vi.fn(),
+      remove: vi.fn(),
+    };
+    const joiningProviders = { privateStateProvider: joiningProvider } as any;
+    const sourceProviders = { privateStateProvider: sourceProvider } as any;
+    const targetProviders = { privateStateProvider: targetProvider } as any;
+    bindPrivateStateProvider(joiningProviders, sourceAddress);
+    bindPrivateStateProvider(sourceProviders, sourceAddress);
+    bindPrivateStateProvider(targetProviders, contractAddress);
+
+    let lookupStarted!: () => void;
+    const lookupStart = new Promise<void>((resolve) => {
+      lookupStarted = resolve;
+    });
+    let finishLookup!: (value: any) => void;
+    const lookupGate = new Promise<any>((resolve) => {
+      finishLookup = resolve;
+    });
+    vi.mocked(findDeployedContract).mockImplementationOnce(async () => {
+      lookupStarted();
+      return lookupGate;
+    });
+
+    const joining = joinContract(joiningProviders, contractAddress);
+    await lookupStart;
+
+    await expect(
+      withPendingControllerPrivateStateLock(sourceProviders, async () => {}),
+    ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
+    await expect(
+      withPendingControllerPrivateStateLock(targetProviders, async () => {}),
+    ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
+    await expect(
+      discardPendingControllerPrivateState(sourceProviders, {
+        contractAddress: sourceAddress,
+        rotationFinalized: false,
+      }),
+    ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
+    await expect(
+      recoverPendingControllerPrivateState(targetProviders, {
+        contractAddress,
+        rotationFinalized: true,
+      }),
+    ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
+    expect(() =>
+      bindPrivateStateProvider(sourceProviders, contractAddress),
+    ).toThrow(PendingControllerPrivateStateBusyError);
+    await expect(
+      discardPendingControllerPrivateState(joiningProviders, {
+        contractAddress: sourceAddress,
+        rotationFinalized: false,
+      }),
+    ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
+
+    expect(joiningProvider.get).toHaveBeenCalledTimes(1);
+    expect(sourceProvider.get).not.toHaveBeenCalled();
+    expect(sourceProvider.set).not.toHaveBeenCalled();
+    expect(sourceProvider.remove).not.toHaveBeenCalled();
+    expect(targetProvider.get).not.toHaveBeenCalled();
+    expect(targetProvider.set).not.toHaveBeenCalled();
+    expect(targetProvider.remove).not.toHaveBeenCalled();
+    expect(sourceProvider.setContractAddress).toHaveBeenCalledTimes(1);
+    expect(targetProvider.setContractAddress).toHaveBeenCalledTimes(1);
+
+    const joinedContract = {
+      deployTxData: { public: { contractAddress } },
+    };
+    finishLookup(joinedContract);
+    await expect(joining).resolves.toBe(joinedContract);
+  });
+
+  it("releases join source and target leases after deferred lookup failure", async () => {
+    const sourceAddress = "F".repeat(64);
+    const lookupFailure = new Error("lookup failed");
+    const joiningProvider = {
+      setContractAddress: vi.fn(),
+      get: vi.fn(async () => ({ secretKey: new Uint8Array(32).fill(7) })),
+    };
+    const joiningProviders = { privateStateProvider: joiningProvider } as any;
+    bindPrivateStateProvider(joiningProviders, sourceAddress);
+
+    let rejectLookup!: (reason: unknown) => void;
+    const lookupGate = new Promise<any>((_resolve, reject) => {
+      rejectLookup = reject;
+    });
+    vi.mocked(findDeployedContract).mockReturnValueOnce(lookupGate);
+
+    const joining = joinContract(joiningProviders, contractAddress);
+    await vi.waitFor(() =>
+      expect(findDeployedContract).toHaveBeenCalledTimes(1),
+    );
+    rejectLookup(lookupFailure);
+    await expect(joining).rejects.toBe(lookupFailure);
+
+    const sourceProvider = { setContractAddress: vi.fn() };
+    const targetProvider = { setContractAddress: vi.fn() };
+    expect(() =>
+      bindPrivateStateProvider(
+        { privateStateProvider: sourceProvider } as any,
+        sourceAddress,
+      ),
+    ).not.toThrow();
+    expect(() =>
+      bindPrivateStateProvider(
+        { privateStateProvider: targetProvider } as any,
+        contractAddress,
+      ),
+    ).not.toThrow();
   });
 
   it("rejects a busy provider before deploying", async () => {

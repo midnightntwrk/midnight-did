@@ -268,6 +268,30 @@ describe("verification method relation operations", () => {
     },
   );
 
+  it("reports only the mixed subset of relationships that reference a method", () => {
+    const methodId = "#mixed";
+    const state = ledgerState({
+      authentication: [methodId],
+      keyAgreement: [methodId],
+      capabilityDelegation: ["#other"],
+    });
+
+    try {
+      assertVerificationMethodIsNotReferenced(state, methodId);
+      throw new Error("expected mixed relation preflight to reject");
+    } catch (error: unknown) {
+      expect(error).toMatchObject({
+        name: "VerificationMethodReferencedError",
+        code: "verification_method_referenced",
+        methodId,
+        relations: [
+          VerificationMethodRelationType.Authentication,
+          VerificationMethodRelationType.KeyAgreement,
+        ],
+      });
+    }
+  });
+
   it("accepts methods absent from every verification relationship", () => {
     expect(() =>
       assertVerificationMethodIsNotReferenced(ledgerState(), "#key-1"),

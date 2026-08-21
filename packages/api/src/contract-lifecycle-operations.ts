@@ -8,7 +8,6 @@ import { MidnightDidApiError } from "./api-errors.js";
 import { getLogger } from "./api-logger.js";
 import { midnightDIDCompiledContract } from "./contract-instance.js";
 import {
-  bindPrivateStateProvider,
   bindPrivateStateProviderWithinLease,
   requireAttachablePrivateState,
   savePrivateState,
@@ -45,18 +44,25 @@ export const joinContract = async (
   contractAddress: string,
 ): Promise<DeployedMidnightDIDContract> => {
   const canonicalContractAddress = parseContractAddress(contractAddress);
-  // Private state is scoped by contract address; bind before reading so join
-  // cannot create or load controller state from the wrong DID namespace.
-  bindPrivateStateProvider(providers, canonicalContractAddress);
-  const initialPrivateState = await requireAttachablePrivateState(providers);
-  const didContract = await findDeployedContract(providers, {
-    contractAddress: canonicalContractAddress,
-    compiledContract: midnightDIDCompiledContract,
-    privateStateId: MidnightDIDPrivateStateId,
-    initialPrivateState: initialPrivateState,
+  return withPrivateStateProviderLease(providers, async (lease) => {
+    // Private state is scoped by contract address. Reserve the provider's
+    // current source binding and target DID before rebinding, then retain both
+    // reservations through the private-state read and contract lookup.
+    bindPrivateStateProviderWithinLease(
+      providers,
+      canonicalContractAddress,
+      lease,
+    );
+    const initialPrivateState = await requireAttachablePrivateState(providers);
+    const didContract = await findDeployedContract(providers, {
+      contractAddress: canonicalContractAddress,
+      compiledContract: midnightDIDCompiledContract,
+      privateStateId: MidnightDIDPrivateStateId,
+      initialPrivateState: initialPrivateState,
+    });
+    getLogger().info(`Joined contract at address: ${canonicalContractAddress}`);
+    return didContract;
   });
-  getLogger().info(`Joined contract at address: ${canonicalContractAddress}`);
-  return didContract;
 };
 
 export const deploy = async (

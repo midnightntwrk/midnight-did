@@ -17,9 +17,13 @@ published 0.5.0 packages retain their existing API and behavior.
   longer purge DID verification relationships implicitly; callers must remove
   selected relationships explicitly and now receive the typed
   `VerificationMethodReferencedError` while references remain.
-- Preserve pending controller private state whenever controller rotation or
-  recovery does not return finalized transaction data. One process-local,
-  per-bound-contract critical section now begins before provider-dependent
+- Preserve pending controller private state whenever a controller rotation or
+  recovery transaction call is attempted but does not return finalized data.
+  Failures definitely before `callTx` invocation attempt to remove the newly
+  persisted candidate inside the held lease; a rejected cleanup warns that the
+  record may remain or may already have been removed and retains explicit
+  discard guidance. One process-local, per-bound-contract critical section now
+  begins before provider-dependent
   private-state and ledger preflight and covers persistence, authorization,
   transaction-call attempt, promotion, and cleanup across provider wrappers.
   Typed exists, busy, and unavailable errors prevent overlapping reconciliation
@@ -30,14 +34,18 @@ published 0.5.0 packages retain their existing API and behavior.
   remain or may already have been removed; later reconciliation processes
   retained state or returns the typed unavailable error if deletion committed.
   Controller operations reject known provider/DID binding mismatches before any
-  provider or ledger access, and deployment holds a source/target address lease
-  through active-state persistence. Reservation is fail-fast and remains owned
+  provider or ledger access. Deployment holds a source/target address lease
+  through active-state persistence, and join now holds the same owner-token
+  lease across source/target binding, private-state read, and deployed-contract
+  lookup. Reservation is fail-fast and remains owned
   until the operation is cancelled and settles, otherwise terminates or settles,
   or the process exits. There is deliberately no lease expiry: releasing a
   reservation while stale provider or transaction work can still complete could
   let an old owner overwrite, promote, or remove another operation's state.
   Separate processes, direct provider mutation, and independently unbound
-  wrappers require external per-DID coordination.
+  wrappers require external per-DID coordination. The provider's unbound-state
+  exception is recognized only by its exact upstream message; decorated I/O or
+  other provider failures propagate.
 - Report post-finalization deployment provider-binding or private-state
   persistence failures as
   `DIDContractDeploymentFinalizedPrivateStateIncompleteError`. The typed error

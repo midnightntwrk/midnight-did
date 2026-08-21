@@ -114,6 +114,21 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   after the caller explicitly asserts non-finalization. Treating presence and
   recoverability as separate predicates avoids persistent lockout without
   weakening the finalized-candidate safeguard.
+- Join must use the same owner-token lease as deployment and pending-controller
+  work. Acquiring before binding and holding both source and target reservations
+  through private-state loading and contract lookup avoids a window where join
+  rebinding can race rotation, recovery, reconciliation, or another rebind.
+  Acquisition remains immediate and fail-fast; unresolved provider/transaction
+  work is uncancellable, so elapsed-time expiry would reopen the mutation race.
+  Safe stale-owner recovery is operation/process cancellation followed by state
+  reconciliation, never releasing a lease while its owner may still execute.
+- The level private-state provider's unbound error has a precise full message.
+  Substring classification accidentally swallowed decorated storage/I/O errors;
+  exact matching preserves only the intended pre-binding initialization path.
+- A candidate created before authorization preflight is safe to delete only when
+  `callTx` was definitely never invoked. Cleanup stays inside the held lease; a
+  rejected remove has uncertain retain/delete disposition and therefore needs a
+  truthful warning plus explicit discard guidance rather than a success claim.
 - Waiting for a target-address lifecycle is not sufficient permission to save
   the deployment input: that lifecycle may have rotated the target controller.
   Recovery must re-read provider and ledger state, reconcile with the current

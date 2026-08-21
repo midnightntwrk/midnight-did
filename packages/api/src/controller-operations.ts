@@ -77,6 +77,7 @@ const privateStateFromValidatedControllerSecret = (
 interface PendingControllerOperationMessages {
   readonly attemptedCallFailed: string;
   readonly cleanupFailed: string;
+  readonly preCallCleanupFailed: string;
   readonly preCallFailed: string;
   readonly promotionFailed: string;
 }
@@ -113,13 +114,28 @@ const runPendingControllerOperationWithinLock = async (
 
     return result.public;
   } catch (error: unknown) {
-    if (!finalizedDataReceived) {
-      getLogger().warn(
-        { callAttempted, error },
-        callAttempted ? messages.attemptedCallFailed : messages.preCallFailed,
-      );
+    if (callAttempted) {
+      if (!finalizedDataReceived) {
+        getLogger().warn(
+          { callAttempted, error },
+          messages.attemptedCallFailed,
+        );
+      } else {
+        getLogger().error({ error }, messages.promotionFailed);
+      }
     } else {
-      getLogger().error({ error }, messages.promotionFailed);
+      try {
+        // No transaction call was invoked, so this candidate cannot have
+        // reached the ledger. Remove it while the same lease still owns the
+        // DID instead of forcing unnecessary ledger reconciliation.
+        await clearPendingControllerPrivateState(providers);
+        getLogger().warn({ callAttempted, error }, messages.preCallFailed);
+      } catch (cleanupError: unknown) {
+        getLogger().warn(
+          { callAttempted, cleanupError, error },
+          messages.preCallCleanupFailed,
+        );
+      }
     }
     throw error;
   }
@@ -171,6 +187,8 @@ export const rotateControllerKey = async (
                   nextControllerPublicKey,
                 ),
               ),
+            undefined,
+            currentPrivateState,
           );
         return () =>
           didContract.callTx.rotateControllerKey(
@@ -184,8 +202,10 @@ export const rotateControllerKey = async (
           "Controller key rotation call was attempted but did not return finalized transaction data. Pending private state was retained because the ledger outcome is unknown; re-read controllerPublicKey before retrying.",
         cleanupFailed:
           "Controller key rotation finalized and active private state was promoted, but cleanup disposition could not be confirmed; the pending record may remain or may already have been removed.",
+        preCallCleanupFailed:
+          "Controller key rotation failed before the transaction call was attempted, but pending-state cleanup disposition could not be confirmed; the candidate may remain or may already have been removed. If it remains, discard it with discardPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: false }) before retrying.",
         preCallFailed:
-          "Controller key rotation failed before the transaction call was attempted. Pending private state was retained; discard it with discardPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: false }) before retrying.",
+          "Controller key rotation failed before the transaction call was attempted. The unsubmitted pending candidate was removed.",
         promotionFailed:
           "Controller key rotation finalized, but active private state promotion failed. Use recoverPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: true }) before submitting further controller operations.",
       },
@@ -291,8 +311,10 @@ export const recoverControllerKey = async (
           "Controller recovery call was attempted but did not return finalized transaction data. Pending private state was retained because the ledger outcome is unknown; re-read controllerPublicKey before retrying.",
         cleanupFailed:
           "Controller recovery finalized and active private state was promoted, but cleanup disposition could not be confirmed; the pending record may remain or may already have been removed.",
+        preCallCleanupFailed:
+          "Controller recovery failed before the transaction call was attempted, but pending-state cleanup disposition could not be confirmed; the candidate may remain or may already have been removed. If it remains, discard it with discardPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: false }) before retrying.",
         preCallFailed:
-          "Controller recovery failed before the transaction call was attempted. Pending private state was retained; discard it with discardPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: false }) before retrying.",
+          "Controller recovery failed before the transaction call was attempted. The unsubmitted pending candidate was removed.",
         promotionFailed:
           "Controller recovery finalized, but active private state promotion failed. Use recoverPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: true }) before submitting further controller operations.",
       },

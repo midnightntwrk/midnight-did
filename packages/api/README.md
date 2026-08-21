@@ -126,10 +126,15 @@ that recovery call and are not newly persisted into active private state, though
 an already stored recovery secret that matches the on-ledger recovery authority
 is preserved when the new controller secret is promoted.
 
-If rotation or recovery submission throws without finalized transaction data, the
-API retains the pending replacement secret because receipt loss cannot prove that
-the on-chain operation failed. Re-read the on-ledger `controllerPublicKey` before
-retrying. If the replacement public key is active, promote the retained secret
+If rotation or recovery throws after `callTx` is invoked without returning
+finalized transaction data, the API retains the pending replacement secret
+because receipt loss cannot prove that the on-chain operation failed. Re-read
+the on-ledger `controllerPublicKey` before retrying. A failure definitely before
+`callTx` invocation instead attempts to remove the newly created candidate while
+the same lease is held. If that cleanup rejects, its disposition is unknown; the
+warning says the record may remain or may already have been removed and keeps
+explicit discard guidance for a retained record. If the replacement public key
+is active, promote the retained secret
 with
 `recoverPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: true })`.
 If the old public key is still active, discard that candidate explicitly with
@@ -170,9 +175,13 @@ and private state before another mutation.
 Provider-object fallback is only for internal/deep unbound use. Direct
 `setContractAddress` or storage mutation, independently unbound wrappers, and
 separate processes are outside this guarantee and require external per-DID
-coordination. While a source or target DID is reserved, API binding and join fail
-before changing provider address. The provider exposes no atomic conditional
-write across processes.
+coordination. `joinContract` acquires the same fail-fast owner-token lease before
+binding and holds both its source and target reservations through private-state
+loading and `findDeployedContract`; competing source/target controller lifecycle
+or binding calls fail busy before mutation. Join failure releases only its owned
+keys. The provider exposes no atomic conditional write across processes. Its
+unbound-state exception is ignored only when it exactly matches the upstream
+message; decorated I/O and other provider failures propagate.
 
 Applications should back up controller and recovery private state alongside
 their wallet backup material, protect it with custody controls appropriate for

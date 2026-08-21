@@ -99,6 +99,12 @@ describe("controller operations", () => {
       { announcement: { x: 1n, y: 2n }, response: 3n },
       7n,
     );
+    expect(vi.mocked(createControllerAuthorization).mock.calls[0]?.[4]).toEqual(
+      {
+        recoverySecretKey,
+        secretKey: new Uint8Array(32).fill(98),
+      },
+    );
     expect(privateStateProvider.set).toHaveBeenNthCalledWith(
       1,
       MidnightDIDPendingControllerPrivateStateId,
@@ -1200,7 +1206,7 @@ describe("controller operations", () => {
     },
   );
 
-  it("categorizes authorization failure as pre-call and retains the candidate", async () => {
+  it("categorizes authorization failure as pre-call and removes the unsubmitted candidate", async () => {
     const logger = makeLogger();
     setLogger(logger);
     const authorizationError = new Error("authorization unavailable");
@@ -1232,8 +1238,71 @@ describe("controller operations", () => {
     );
     expect(rotateControllerKeyTx).not.toHaveBeenCalled();
     expect(privateStateProvider.set).toHaveBeenCalledTimes(1);
-    expect(privateStateProvider.remove).not.toHaveBeenCalled();
+    expect(privateStateProvider.remove).toHaveBeenCalledWith(
+      MidnightDIDPendingControllerPrivateStateId,
+    );
   });
+
+  it.each([
+    ["retained", false],
+    ["deleted", true],
+  ] as const)(
+    "keeps truthful pre-call cleanup guidance when the candidate was %s before remove rejected",
+    async (_outcome, deleteBeforeReject) => {
+      const logger = makeLogger();
+      setLogger(logger);
+      const authorizationError = new Error("authorization unavailable");
+      const cleanupError = new Error("remove acknowledgement unavailable");
+      const candidate = new Uint8Array(32).fill(42);
+      let pending: unknown = null;
+      vi.mocked(createControllerAuthorization).mockRejectedValueOnce(
+        authorizationError,
+      );
+      const rotateControllerKeyTx = vi.fn();
+      const privateStateProvider = {
+        setContractAddress: vi.fn(),
+        get: vi.fn(async (privateStateId: string) =>
+          privateStateId === MidnightDIDPendingControllerPrivateStateId
+            ? pending
+            : { secretKey: new Uint8Array(32).fill(4) },
+        ),
+        set: vi.fn(async (privateStateId: string, privateState: unknown) => {
+          if (privateStateId === MidnightDIDPendingControllerPrivateStateId) {
+            pending = privateState;
+          }
+        }),
+        remove: vi.fn(async () => {
+          if (deleteBeforeReject) pending = null;
+          throw cleanupError;
+        }),
+      };
+
+      await expect(
+        rotateControllerKey(
+          {
+            deployTxData: { public: { contractAddress } },
+            callTx: { rotateControllerKey: rotateControllerKeyTx },
+          } as any,
+          { privateStateProvider } as any,
+          candidate,
+        ),
+      ).rejects.toBe(authorizationError);
+
+      expect(rotateControllerKeyTx).not.toHaveBeenCalled();
+      expect(privateStateProvider.remove).toHaveBeenCalledWith(
+        MidnightDIDPendingControllerPrivateStateId,
+      );
+      expect(pending).toEqual(
+        deleteBeforeReject ? null : { secretKey: candidate },
+      );
+      expect(logger.warn).toHaveBeenCalledWith(
+        { callAttempted: false, cleanupError, error: authorizationError },
+        expect.stringMatching(
+          /cleanup disposition could not be confirmed.*discard it with discardPendingControllerPrivateState/,
+        ),
+      );
+    },
+  );
 
   it("categorizes a synchronous callTx throw as an attempted call and retains the candidate", async () => {
     const logger = makeLogger();

@@ -7,10 +7,13 @@ import {
   discardPendingControllerPrivateState,
   initPrivateState,
   isRestorableDIDPrivateState,
+  PendingControllerPrivateStateUnavailableError,
   PrivateStateProviderContractMismatchError,
   recoverPendingControllerPrivateState,
+  requireAttachablePrivateState,
   requirePrivateState,
   restorePrivateState,
+  restoreRecoverySecretKey,
 } from "../private-state.js";
 import {
   MidnightDIDPendingControllerPrivateStateId,
@@ -57,6 +60,8 @@ const makeProviders = ({
 
 describe("DID private state lifecycle", () => {
   const contractAddress = "A".repeat(64);
+  const contractAddressUnsetErrorMessage =
+    "Contract address not set. Call setContractAddress() before accessing private state.";
   let previousLogger: unknown;
 
   beforeEach(() => {
@@ -145,8 +150,8 @@ describe("DID private state lifecycle", () => {
 
   it("allows restore and save before a contract address is bound", async () => {
     const { providers, privateStateProvider } = makeProviders({
-      getError: new Error("Contract address not set"),
-      setError: new Error("Contract address not set"),
+      getError: new Error(contractAddressUnsetErrorMessage),
+      setError: new Error(contractAddressUnsetErrorMessage),
     });
 
     const privateState = await initPrivateState(providers);
@@ -163,7 +168,7 @@ describe("DID private state lifecycle", () => {
 
   it("restorePrivateState returns null when the provider has no contract address", async () => {
     const { providers, privateStateProvider } = makeProviders({
-      getError: new Error("Contract address not set"),
+      getError: new Error(contractAddressUnsetErrorMessage),
     });
 
     await expect(restorePrivateState(providers)).resolves.toBeNull();
@@ -171,6 +176,32 @@ describe("DID private state lifecycle", () => {
       MidnightDIDPrivateStateId,
     );
     expect(privateStateProvider.set).not.toHaveBeenCalled();
+  });
+
+  it("uses the exact upstream unbound error for recovery, attach, and discard reads", async () => {
+    const recoveryProviders = makeProviders({
+      getError: new Error(contractAddressUnsetErrorMessage),
+    }).providers;
+    await expect(
+      restoreRecoverySecretKey(recoveryProviders),
+    ).resolves.toBeNull();
+
+    const attachProviders = makeProviders({
+      getError: new Error(contractAddressUnsetErrorMessage),
+    }).providers;
+    await expect(
+      requireAttachablePrivateState(attachProviders),
+    ).rejects.toThrow(/private state is missing or malformed/);
+
+    const { providers: discardProviders } = makeProviders({
+      getError: new Error(contractAddressUnsetErrorMessage),
+    });
+    await expect(
+      discardPendingControllerPrivateState(discardProviders, {
+        contractAddress,
+        rotationFinalized: false,
+      }),
+    ).rejects.toBeInstanceOf(PendingControllerPrivateStateUnavailableError);
   });
 
   it("propagates private-state provider failures unrelated to contract binding", async () => {
@@ -183,6 +214,40 @@ describe("DID private state lifecycle", () => {
     await expect(
       initPrivateState(makeProviders({ setError: saveFailure }).providers),
     ).rejects.toBe(saveFailure);
+  });
+
+  it("propagates the upstream unbound text when extra I/O context is present", async () => {
+    const decoratedError = new Error(
+      `${contractAddressUnsetErrorMessage} storage offline`,
+    );
+
+    await expect(
+      restorePrivateState(
+        makeProviders({ getError: decoratedError }).providers,
+      ),
+    ).rejects.toBe(decoratedError);
+    await expect(
+      restoreRecoverySecretKey(
+        makeProviders({ getError: decoratedError }).providers,
+      ),
+    ).rejects.toBe(decoratedError);
+    await expect(
+      requireAttachablePrivateState(
+        makeProviders({ getError: decoratedError }).providers,
+      ),
+    ).rejects.toBe(decoratedError);
+    await expect(
+      initPrivateState(makeProviders({ getError: decoratedError }).providers),
+    ).rejects.toBe(decoratedError);
+    await expect(
+      initPrivateState(makeProviders({ setError: decoratedError }).providers),
+    ).rejects.toBe(decoratedError);
+    await expect(
+      discardPendingControllerPrivateState(
+        makeProviders({ getError: decoratedError }).providers,
+        { contractAddress, rotationFinalized: false },
+      ),
+    ).rejects.toBe(decoratedError);
   });
 
   it("binds the private-state provider to a contract address", () => {

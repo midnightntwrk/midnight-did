@@ -11,8 +11,15 @@ import {
   type MidnightDIDProviders,
 } from "./types.js";
 
+// Exact upstream level-private-state-provider error contract for get/set/remove
+// before setContractAddress(). Do not classify decorated storage/I/O failures as
+// an unbound provider merely because they repeat part of this message.
+const CONTRACT_ADDRESS_UNSET_ERROR_MESSAGE =
+  "Contract address not set. Call setContractAddress() before accessing private state.";
+
 const isContractAddressUnsetError = (error: unknown): boolean =>
-  error instanceof Error && error.message.includes("Contract address not set");
+  error instanceof Error &&
+  error.message === CONTRACT_ADDRESS_UNSET_ERROR_MESSAGE;
 
 type ControllerPrivateState = MidnightDIDPrivateState & {
   readonly secretKey: Uint8Array;
@@ -249,6 +256,14 @@ export const bindOrAssertPrivateStateProvider = (
   const actualContractAddress = privateStateProviderContractAddresses.get(
     providers.privateStateProvider,
   );
+  // A lifecycle may temporarily own both the provider's source binding and a
+  // new target binding. Report that ownership before a transient mismatch so a
+  // competing source/target operation fails busy without provider mutation.
+  if (
+    privateStateProviderReservations.has(pendingControllerLockKey(providers))
+  ) {
+    throw new PendingControllerPrivateStateBusyError();
+  }
   if (
     actualContractAddress !== undefined &&
     actualContractAddress !== expectedContractAddress

@@ -75,10 +75,14 @@ arguments.
 
 `rotateControllerKey` accepts only the next derived `controllerPublicKey`; the
 replacement secret remains wallet-local in a pending slot and is promoted after
-finalized transaction data returns. If submission/finality throws, the pending
-secret is retained because receipt loss cannot determine ledger outcome. Re-read
-`controllerPublicKey` before retrying. After confirming the replacement key
-finalized, promote it explicitly:
+finalized transaction data returns. If `callTx` was invoked and submission or
+finality throws, the pending secret is retained because receipt loss cannot
+determine ledger outcome. A failure definitely before `callTx` invocation
+instead attempts to remove the candidate under the same lease; if cleanup
+rejects, the warning truthfully leaves its disposition unknown and keeps discard
+guidance for a retained record. Re-read `controllerPublicKey` before retrying an
+attempted call. After confirming the replacement key finalized, promote it
+explicitly:
 
 ```ts
 await recoverPendingControllerPrivateState(providers, {
@@ -126,10 +130,13 @@ private state before another mutation.
 
 Provider-object fallback is only for internal/deep unbound use. Direct provider
 mutation, independently unbound wrappers, and separate processes are outside the
-guarantee and require external per-DID coordination. API binding and join fail
-before changing a reserved source or target address, and known different
-bindings fail with `PrivateStateProviderContractMismatchError`. The provider has
-no cross-process atomic conditional write.
+guarantee and require external per-DID coordination. Join acquires the same
+fail-fast lease before binding, reserves both source and target addresses, and
+holds them through its private-state read and deployed-contract lookup. Competing
+source/target lifecycle and binding calls therefore fail busy before mutation;
+join failure releases its owned keys. Known different idle bindings fail with
+`PrivateStateProviderContractMismatchError`. The provider has no cross-process
+atomic conditional write.
 
 ## Controller Recovery and Backup Posture
 
