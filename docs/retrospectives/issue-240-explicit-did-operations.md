@@ -45,11 +45,15 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   but its disposition is uncertain: the candidate may remain or may already have
   been removed. Later reconciliation processes retained state or returns the
   typed unavailable error if deletion committed.
-- A deployment that has returned finalized public data is not treated as an
-  ordinary failed deployment when target-address binding or active-state
-  persistence fails. The API returns typed finalized-partial-success evidence
-  with the canonical address, deployment handle, and cause, but never the secret
-  deployment private state.
+- `midnight-js-contracts` 4.0.2 binds the target and awaits active-state and
+  signing-key persistence after ledger success but before `deployContract`
+  returns. A deployment-scoped provider interceptor reserves the canonical
+  target before that first mutation, records the observed finalized target, and
+  keeps the source/target lease through the dependency's settlement. Rejections
+  after target observation become typed finalized-partial-success evidence with
+  the canonical address, cause, and sanitized public upstream evidence when
+  available, but never secret deployment state. Pre-target failures remain
+  unchanged.
 - The specification distinguishes the method's no-batch-circuit design from
   Midnight's inability to merge multiple non-empty contract-call sections.
 
@@ -80,11 +84,12 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   malformed promotion remain typed and non-mutating. Cleanup rejection after a
   successful active write returns the promoted state with truthful warning and
   coverage for both retained and already-deleted outcomes.
-- A deferred deployment regression lets another wrapper reserve the exact
-  returned target before deployment resolution. It proves one finalized
-  deployment produces recoverable typed evidence without rebinding either
-  provider or writing active state, while deterministic binding/save failures
-  prove all post-finality setup failures retain their causes.
+- Realistic 4.0.2 deployment mocks call target binding, active-state persistence,
+  and signing-key persistence in upstream order. Regressions cover a target
+  owner present before interception, a competitor arriving after reservation,
+  active-state and signing-key rejection, single-write success that preserves a
+  concurrently rotated controller key, source/target binding tracking, safe
+  public error evidence, and unchanged pre-target `DeployTxFailedError` behavior.
 - `pnpm run verify`, managed-artifact checks, package-surface checks, and the
   complete docs build/visual lane passed from the Nix development shell.
 
@@ -131,11 +136,14 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   truthful warning plus explicit discard guidance rather than a success claim.
 - Waiting for a target-address lifecycle is not sufficient permission to save
   the deployment input: that lifecycle may have rotated the target controller.
-  Recovery must re-read provider and ledger state, reconcile with the current
-  owner, and join the already-finalized address; only a confirmed unchanged,
-  unowned deployment namespace may receive the separately retained input state.
-  An uncertain save must be verified before retry because its write may have
-  committed even though it rejected.
+  The 4.0.2 dependency already performs the active-state write before its
+  signing-key write and return, so a second post-return save can overwrite such
+  a rotation and is unsafe. Recovery must re-read provider and ledger state,
+  reconcile with the current owner, and join the already-finalized address. An
+  uncertain upstream save must be verified before retry because its write may
+  have committed even though it rejected. The source/target reservation remains
+  operation-scoped with no elapsed expiry; releasing while dependency work can
+  still settle would reopen the same stale-writer race.
 
 ## Follow-up actions
 

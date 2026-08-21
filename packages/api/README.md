@@ -92,28 +92,46 @@ direct callers or concurrent updates.
 
 ## Finalized Deployment With Incomplete Private-State Setup
 
-After `deployContract` returns, the ledger deployment is final even if binding
-or saving the address-scoped private-state provider fails. In that case
-`deploy`/`createDID` throws
+`@midnight-ntwrk/midnight-js-contracts` 4.0.2 performs more work after the
+ledger reports deployment success but before `deployContract` returns:
+`submitDeployTx` synchronously calls `setContractAddress(target)`, then awaits
+`set(initialPrivateState)` and `setSigningKey(target, signingKey)`. A wrapper
+around only the returned promise cannot distinguish rejection of those
+post-finality writes from a pre-success deployment failure, and reserving the
+target after return is too late.
+
+`deploy` therefore passes a deployment-scoped private-state-provider interceptor
+to `deployContract`. On the dependency's synchronous target-binding call it
+canonicalizes and reserves the target under the already-held source lease before
+delegating the provider mutation. All other provider methods retain their
+original receiver. The source and target reservations remain held until the
+entire dependency call settles; there is no elapsed-time lease expiry, because
+stale dependency work could otherwise mutate state after a competitor takes the
+same target. The captured interceptor is deactivated when that call settles and
+cannot spend the released lease later.
+
+If target reservation, active-state persistence, or signing-key persistence then
+fails, `deploy`/`createDID` throws
 `DIDContractDeploymentFinalizedPrivateStateIncompleteError` with stable code
-`did_contract_deployment_finalized_private_state_incomplete`, the canonical
-`contractAddress`, the returned `deployedContract` handle (including its public
-deployment data), and the original failure as `cause`. The error never carries
-the controller or recovery private state.
+`did_contract_deployment_finalized_private_state_incomplete`, canonical
+`contractAddress`, the original `cause`, and sanitized public
+`deployedContract`/`finalizedTxData` evidence when the upstream rejection exposes
+it. The error never carries controller, recovery, initial-private-state, or
+signing-key secrets. A rejection before the target is observed, including a
+genuine `DeployTxFailedError`, is preserved unchanged. On success the dependency
+has already bound the provider and persisted both values, so the API performs no
+second bind or active-state write that could overwrite a concurrently rotated
+controller key.
 
 Do not retry deployment blindly. Retain the original private state separately,
-use the error's address and deployment handle to confirm the finalized contract,
-and resolve the provider-binding owner/conflict. If another lifecycle owned that
-address, wait for it to finish and then re-read its binding and ledger state; do
-not overwrite the target namespace with the deployment input because that
-lifecycle may have rotated the controller. Reconcile with that owner or join the
-finalized address using the private state that matches its current ledger
-controller. Only when the finalized deployment is confirmed to have no competing
-owner or later controller transition should the operator bind an address-scoped
-provider, persist the retained deployment private state under
-`MidnightDIDPrivateStateId`, and join the finalized address. A persistence
-failure can have an uncertain write disposition, so verify storage before
-retrying the write.
+use the error's address and available public evidence to confirm the finalized
+contract, and resolve the provider-binding owner/conflict. If another lifecycle
+owned that address, wait for it to finish and then re-read its binding and ledger
+state; do not overwrite the target namespace with the deployment input because
+that lifecycle may have rotated the controller. Reconcile with that owner or
+join the finalized address using the private state that matches its current
+ledger controller. A persistence failure can have an uncertain write
+disposition, so verify storage before retrying the write.
 
 ## Controller Secret Recovery Posture
 

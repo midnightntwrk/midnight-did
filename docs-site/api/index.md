@@ -70,18 +70,26 @@ purges relationships implicitly and throws `VerificationMethodReferencedError`
 (with `code`, `methodId`, and ordered `relations`) while references remain.
 Missing relationship removals continue to fail explicitly.
 
-A contract can finalize before its address-scoped private-state provider is
-bound or saved. `deploy` and `createDID` report that partial success as
+`@midnight-ntwrk/midnight-js-contracts` 4.0.2 calls
+`setContractAddress(target)`, then awaits the initial-state and signing-key
+writes after ledger deployment success but before `deployContract` returns.
+`deploy` intercepts that synchronous bind to canonicalize and reserve the target
+under its already-owned source lease before the dependency mutates the provider.
+The lease covers the dependency's complete return or rejection and has no unsafe
+elapsed-time expiry; the interceptor is deactivated on settlement and cannot
+reuse the released lease. The dependency already performs the bind and both
+writes, so the API does not duplicate them or overwrite a concurrently rotated
+controller key.
+
+A target reservation or either post-finality persistence failure becomes
 `DIDContractDeploymentFinalizedPrivateStateIncompleteError`, with a stable code,
-canonical `contractAddress`, returned `deployedContract`, and `cause`, but no
-secret private state. Do not redeploy blindly. Preserve the deployment input
-separately, confirm the finalized address from the error, and resolve the binding
-owner. After a competing lifecycle finishes, re-read its provider/ledger state
-rather than overwriting its namespace because it may have rotated the
-controller. Reconcile with that owner or join the finalized address using state
-that matches the current ledger controller. If no competing or later lifecycle
-exists, bind the provider, verify/persist the retained state, and join the
-already-finalized address; verify storage before retrying an uncertain save.
+canonical `contractAddress`, `cause`, and sanitized public deployed/finalized
+evidence when exposed by the rejection, but no secret state. Pre-target failures,
+including `DeployTxFailedError`, remain unchanged. Do not redeploy blindly.
+Preserve the deployment input separately, confirm the finalized address from the
+error, resolve the binding owner, and re-read provider/ledger state rather than
+overwriting a namespace whose controller may have rotated. Verify storage before
+retrying an uncertain save.
 
 Controller rotation and recovery retain the pending replacement secret whenever
 finalized transaction data is not returned. A later or overlapping attempt fails

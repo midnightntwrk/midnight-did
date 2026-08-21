@@ -29,10 +29,12 @@ describe("typed API errors", () => {
     [
       new DIDContractDeploymentFinalizedPrivateStateIncompleteError(
         "a".repeat(64),
-        {
-          deployTxData: { public: { contractAddress: "a".repeat(64) } },
-        } as any,
         new Error("provider binding failed"),
+        {
+          deployedContract: {
+            deployTxData: { public: { contractAddress: "a".repeat(64) } },
+          },
+        },
       ),
       DIDContractDeploymentFinalizedPrivateStateIncompleteError,
       "did_contract_deployment_finalized_private_state_incomplete",
@@ -70,19 +72,21 @@ describe("typed API errors", () => {
     },
   );
 
-  it("preserves finalized deployment recovery evidence without private state", () => {
-    const deployedContract = {
+  it("preserves public finalized deployment evidence without private state", () => {
+    const publicDeployment = {
       deployTxData: { public: { contractAddress: "a".repeat(64) } },
-    } as any;
+    };
+    const finalizedTxData = { status: "SucceedEntirely" };
     const cause = new Error("provider binding failed");
     const error = new DIDContractDeploymentFinalizedPrivateStateIncompleteError(
       "a".repeat(64),
-      deployedContract,
       cause,
+      { deployedContract: publicDeployment, finalizedTxData },
     );
 
     expect(error.contractAddress).toBe("a".repeat(64));
-    expect(error.deployedContract).toBe(deployedContract);
+    expect(error.deployedContract).toBe(publicDeployment);
+    expect(error.finalizedTxData).toBe(finalizedTxData);
     expect(error.cause).toBe(cause);
     expect(error).not.toHaveProperty("privateState");
     expect(JSON.stringify(error)).not.toContain("privateState");

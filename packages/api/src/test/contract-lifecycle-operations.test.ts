@@ -1,5 +1,6 @@
 import {
   deployContract,
+  DeployTxFailedError,
   findDeployedContract,
 } from "@midnight-ntwrk/midnight-js-contracts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,15 +11,20 @@ import {
   joinContract,
 } from "../contract-lifecycle-operations.js";
 import {
+  bindOrAssertPrivateStateProvider,
   bindPrivateStateProvider,
   discardPendingControllerPrivateState,
   PendingControllerPrivateStateBusyError,
+  PrivateStateProviderContractMismatchError,
   recoverPendingControllerPrivateState,
   withPendingControllerPrivateStateLock,
 } from "../private-state.js";
 import { MidnightDIDPrivateStateId } from "../types.js";
 
-vi.mock("@midnight-ntwrk/midnight-js-contracts", () => ({
+vi.mock("@midnight-ntwrk/midnight-js-contracts", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@midnight-ntwrk/midnight-js-contracts")
+  >()),
   deployContract: vi.fn(),
   findDeployedContract: vi.fn(),
 }));
@@ -323,84 +329,272 @@ describe("contract lifecycle operations", () => {
     await heldLease;
   });
 
-  it("binds and persists private state after deployment without nested reservation failure", async () => {
+  it("intercepts midnight-js-contracts 4.0.2 setup and persists each value once", async () => {
+    const sourceAddress = "B".repeat(64);
     const privateState = {
       recoverySecretKey: new Uint8Array(32).fill(9),
       secretKey: new Uint8Array(32).fill(8),
     };
-    const privateStateProvider = {
-      setContractAddress: vi.fn(),
-      set: vi.fn(async () => undefined),
+    const rotatedState = {
+      recoverySecretKey: privateState.recoverySecretKey,
+      secretKey: new Uint8Array(32).fill(6),
     };
+    const signingKey = new Uint8Array(32).fill(5);
+    let storedState: unknown;
+    let privateStateProvider: any;
+    const setContractAddress = vi.fn(function (this: unknown) {
+      expect(this).toBe(privateStateProvider);
+    });
+    const set = vi.fn(function (this: unknown, _id: string, state: unknown) {
+      expect(this).toBe(privateStateProvider);
+      storedState = state;
+      return Promise.resolve();
+    });
+    const setSigningKey = vi.fn(function (this: unknown) {
+      expect(this).toBe(privateStateProvider);
+      // A concurrent controller lifecycle can rotate after the upstream active
+      // write. deploy() must not repeat that write after the dependency returns.
+      storedState = rotatedState;
+      return Promise.resolve();
+    });
+    privateStateProvider = { setContractAddress, set, setSigningKey };
+    const providers = { privateStateProvider } as any;
+    bindPrivateStateProvider(providers, sourceAddress);
     const deployedContract = {
       deployTxData: { public: { contractAddress: deployedContractAddress } },
     };
-    vi.mocked(deployContract).mockResolvedValue(deployedContract as any);
+    let capturedDeploymentProvider: any;
+    vi.mocked(deployContract).mockImplementationOnce(
+      async (deploymentProviders: any, options: any) => {
+        capturedDeploymentProvider = deploymentProviders.privateStateProvider;
+        deploymentProviders.privateStateProvider.setContractAddress(
+          deployedContractAddress,
+        );
+        await deploymentProviders.privateStateProvider.set(
+          options.privateStateId,
+          options.initialPrivateState,
+        );
+        await deploymentProviders.privateStateProvider.setSigningKey(
+          deployedContractAddress,
+          signingKey,
+        );
+        return deployedContract as any;
+      },
+    );
 
-    await expect(
-      deploy({ privateStateProvider } as any, privateState),
-    ).resolves.toBe(deployedContract);
+    await expect(deploy(providers, privateState)).resolves.toBe(
+      deployedContract,
+    );
 
-    expect(privateStateProvider.setContractAddress).toHaveBeenCalledWith(
+    expect(setContractAddress).toHaveBeenCalledTimes(2);
+    expect(setContractAddress).toHaveBeenLastCalledWith(
       deployedContractAddress.toLowerCase(),
     );
-    expect(privateStateProvider.set).toHaveBeenCalledWith(
-      MidnightDIDPrivateStateId,
-      privateState,
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(set).toHaveBeenCalledWith(MidnightDIDPrivateStateId, privateState);
+    expect(setSigningKey).toHaveBeenCalledTimes(1);
+    expect(setSigningKey).toHaveBeenCalledWith(
+      deployedContractAddress,
+      signingKey,
     );
+    expect(storedState).toBe(rotatedState);
+    bindOrAssertPrivateStateProvider(providers, deployedContractAddress);
+    expect(setContractAddress).toHaveBeenCalledTimes(2);
+    expect(() =>
+      capturedDeploymentProvider.setContractAddress(deployedContractAddress),
+    ).not.toThrow();
+    expect(setContractAddress).toHaveBeenCalledTimes(3);
   });
 
-  it("reports finalized deployment when another lifecycle already owns the target address", async () => {
+  it("reports a finalized target competitor present before interception without mutating the source binding", async () => {
+    const sourceAddress = "C".repeat(64);
     const privateState = { secretKey: new Uint8Array(32).fill(8) };
     const deployingProvider = {
       setContractAddress: vi.fn(),
       set: vi.fn(),
+      setSigningKey: vi.fn(),
     };
-    let targetContractAddress: string | undefined;
-    const targetOwnerProvider = {
-      setContractAddress: vi.fn((nextContractAddress: string) => {
-        targetContractAddress = nextContractAddress;
-      }),
-    };
-    const deployedContract = {
-      deployTxData: { public: { contractAddress: deployedContractAddress } },
-    };
-    let resolveDeployment!: (value: any) => void;
-    const deploymentGate = new Promise<any>((resolve) => {
-      resolveDeployment = resolve;
-    });
-    vi.mocked(deployContract).mockReturnValue(deploymentGate);
+    const deployingProviders = {
+      privateStateProvider: deployingProvider,
+    } as any;
+    bindPrivateStateProvider(deployingProviders, sourceAddress);
 
-    const deployment = deploy(
-      { privateStateProvider: deployingProvider } as any,
-      privateState,
-    );
-    await vi.waitFor(() => expect(deployContract).toHaveBeenCalledTimes(1));
-
+    const targetOwnerProvider = { setContractAddress: vi.fn() };
     const targetOwnerProviders = {
       privateStateProvider: targetOwnerProvider,
     } as any;
     bindPrivateStateProvider(targetOwnerProviders, deployedContractAddress);
-    let releaseTargetLease!: () => void;
-    const targetLeaseGate = new Promise<void>((resolve) => {
-      releaseTargetLease = resolve;
+    let releaseTarget!: () => void;
+    const targetGate = new Promise<void>((resolve) => {
+      releaseTarget = resolve;
     });
-    let targetLeaseStarted!: () => void;
-    const targetLeaseStart = new Promise<void>((resolve) => {
-      targetLeaseStarted = resolve;
+    let targetStarted!: () => void;
+    const targetStart = new Promise<void>((resolve) => {
+      targetStarted = resolve;
     });
-    const heldTargetLease = withPendingControllerPrivateStateLock(
+    const targetOwner = withPendingControllerPrivateStateLock(
       targetOwnerProviders,
       async () => {
-        targetLeaseStarted();
-        await targetLeaseGate;
+        targetStarted();
+        await targetGate;
       },
     );
-    await targetLeaseStart;
+    await targetStart;
 
-    resolveDeployment(deployedContract);
-    const error = await deployment.catch((cause: unknown) => cause);
+    vi.mocked(deployContract).mockImplementationOnce(
+      async (deploymentProviders: any) => {
+        deploymentProviders.privateStateProvider.setContractAddress(
+          deployedContractAddress,
+        );
+        throw new Error("unreachable after target reservation failure");
+      },
+    );
 
+    const error = await deploy(deployingProviders, privateState).catch(
+      (cause: unknown) => cause,
+    );
+    expect(error).toMatchObject({
+      name: "DIDContractDeploymentFinalizedPrivateStateIncompleteError",
+      code: "did_contract_deployment_finalized_private_state_incomplete",
+      contractAddress: deployedContractAddress.toLowerCase(),
+      cause: expect.any(PendingControllerPrivateStateBusyError),
+    });
+    expect(error).not.toHaveProperty("privateState");
+    expect(JSON.stringify(error)).not.toContain("secretKey");
+    expect(deployingProvider.setContractAddress).toHaveBeenCalledTimes(1);
+    expect(deployingProvider.set).not.toHaveBeenCalled();
+    expect(deployingProvider.setSigningKey).not.toHaveBeenCalled();
+    bindOrAssertPrivateStateProvider(deployingProviders, sourceAddress);
+    expect(deployingProvider.setContractAddress).toHaveBeenCalledTimes(1);
+
+    releaseTarget();
+    await targetOwner;
+  });
+
+  it("reserves source and observed target until all upstream setup and return work settles", async () => {
+    const sourceAddress = "E".repeat(64);
+    const privateState = { secretKey: new Uint8Array(32).fill(8) };
+    const signingKey = new Uint8Array(32).fill(5);
+    let setupObserved!: () => void;
+    const setupStart = new Promise<void>((resolve) => {
+      setupObserved = resolve;
+    });
+    let continueSetup!: () => void;
+    const setupGate = new Promise<void>((resolve) => {
+      continueSetup = resolve;
+    });
+    const deployingProvider = {
+      setContractAddress: vi.fn(),
+      set: vi.fn(async () => undefined),
+      setSigningKey: vi.fn(async () => undefined),
+    };
+    const deployingProviders = {
+      privateStateProvider: deployingProvider,
+    } as any;
+    bindPrivateStateProvider(deployingProviders, sourceAddress);
+    const sourceCompetitor = { setContractAddress: vi.fn() };
+    const sourceCompetitorProviders = {
+      privateStateProvider: sourceCompetitor,
+    } as any;
+    bindPrivateStateProvider(sourceCompetitorProviders, sourceAddress);
+    const deployedContract = {
+      deployTxData: { public: { contractAddress: deployedContractAddress } },
+    };
+    vi.mocked(deployContract).mockImplementationOnce(
+      async (deploymentProviders: any, options: any) => {
+        deploymentProviders.privateStateProvider.setContractAddress(
+          deployedContractAddress,
+        );
+        setupObserved();
+        await setupGate;
+        await deploymentProviders.privateStateProvider.set(
+          options.privateStateId,
+          options.initialPrivateState,
+        );
+        await deploymentProviders.privateStateProvider.setSigningKey(
+          deployedContractAddress,
+          signingKey,
+        );
+        return deployedContract as any;
+      },
+    );
+
+    const deployment = deploy(deployingProviders, privateState);
+    await setupStart;
+
+    const targetCompetitor = { setContractAddress: vi.fn() };
+    await expect(
+      withPendingControllerPrivateStateLock(
+        sourceCompetitorProviders,
+        async () => undefined,
+      ),
+    ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
+    expect(() =>
+      bindPrivateStateProvider(
+        { privateStateProvider: targetCompetitor } as any,
+        deployedContractAddress,
+      ),
+    ).toThrow(PendingControllerPrivateStateBusyError);
+    expect(targetCompetitor.setContractAddress).not.toHaveBeenCalled();
+    await expect(
+      withPendingControllerPrivateStateLock(deployingProviders, async () => {}),
+    ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
+
+    continueSetup();
+    await expect(deployment).resolves.toBe(deployedContract);
+    bindOrAssertPrivateStateProvider(
+      deployingProviders,
+      deployedContractAddress,
+    );
+    expect(() =>
+      bindOrAssertPrivateStateProvider(deployingProviders, sourceAddress),
+    ).toThrow(PrivateStateProviderContractMismatchError);
+    expect(() =>
+      bindPrivateStateProvider(
+        { privateStateProvider: targetCompetitor } as any,
+        deployedContractAddress,
+      ),
+    ).not.toThrow();
+  });
+
+  it("wraps an upstream active-state rejection after binding and exposes safe finalized evidence", async () => {
+    const sourceAddress = "F".repeat(64);
+    const privateState = { secretKey: new Uint8Array(32).fill(8) };
+    const finalizedTxData = { status: "SucceedEntirely", blockHeight: 42 };
+    const saveFailure = Object.assign(new Error("save failed"), {
+      finalizedTxData,
+      deployedContract: {
+        deployTxData: {
+          private: { initialPrivateState: privateState },
+          public: { contractAddress: deployedContractAddress },
+        },
+      },
+    });
+    const privateStateProvider = {
+      setContractAddress: vi.fn(),
+      set: vi.fn(async () => {
+        throw saveFailure;
+      }),
+      setSigningKey: vi.fn(),
+    };
+    const providers = { privateStateProvider } as any;
+    bindPrivateStateProvider(providers, sourceAddress);
+    vi.mocked(deployContract).mockImplementationOnce(
+      async (deploymentProviders: any, options: any) => {
+        deploymentProviders.privateStateProvider.setContractAddress(
+          deployedContractAddress,
+        );
+        await deploymentProviders.privateStateProvider.set(
+          options.privateStateId,
+          options.initialPrivateState,
+        );
+        throw new Error("unreachable after active-state failure");
+      },
+    );
+
+    const error = await deploy(providers, privateState).catch(
+      (cause: unknown) => cause,
+    );
     if (
       !(
         error instanceof
@@ -413,137 +607,84 @@ describe("contract lifecycle operations", () => {
       name: "DIDContractDeploymentFinalizedPrivateStateIncompleteError",
       code: "did_contract_deployment_finalized_private_state_incomplete",
       contractAddress: deployedContractAddress.toLowerCase(),
-      deployedContract,
-      cause: expect.any(PendingControllerPrivateStateBusyError),
+      cause: saveFailure,
+      finalizedTxData,
+      deployedContract: {
+        deployTxData: {
+          public: { contractAddress: deployedContractAddress },
+        },
+      },
     });
-    expect(error.message).toMatch(/Do not redeploy blindly/);
-    expect(error.message).toMatch(/reconcile or join the finalized/);
+    expect(error.deployedContract).not.toHaveProperty("deployTxData.private");
     expect(JSON.stringify(error)).not.toContain("secretKey");
-    expect(deployContract).toHaveBeenCalledTimes(1);
-    expect(deployingProvider.setContractAddress).not.toHaveBeenCalled();
-    expect(deployingProvider.set).not.toHaveBeenCalled();
-    expect(targetOwnerProvider.setContractAddress).toHaveBeenCalledTimes(1);
-    expect(targetContractAddress).toBe(deployedContractAddress.toLowerCase());
-
-    const competingProvider = { setContractAddress: vi.fn() };
+    expect(privateStateProvider.set).toHaveBeenCalledTimes(1);
+    expect(privateStateProvider.setSigningKey).not.toHaveBeenCalled();
+    bindOrAssertPrivateStateProvider(providers, deployedContractAddress);
     expect(() =>
-      bindPrivateStateProvider(
-        { privateStateProvider: competingProvider } as any,
-        deployedContractAddress,
-      ),
-    ).toThrow(PendingControllerPrivateStateBusyError);
-    expect(competingProvider.setContractAddress).not.toHaveBeenCalled();
-
-    releaseTargetLease();
-    await heldTargetLease;
-    expect(targetContractAddress).toBe(deployedContractAddress.toLowerCase());
+      bindOrAssertPrivateStateProvider(providers, sourceAddress),
+    ).toThrow(PrivateStateProviderContractMismatchError);
   });
 
-  it("wraps a post-finality provider binding failure", async () => {
+  it("wraps an upstream signing-key rejection after active state is persisted once", async () => {
+    const sourceAddress = "9".repeat(64);
     const privateState = { secretKey: new Uint8Array(32).fill(8) };
-    const bindingFailure = new Error("binding failed");
-    const privateStateProvider = {
-      setContractAddress: vi.fn(() => {
-        throw bindingFailure;
-      }),
-      set: vi.fn(),
-    };
-    const deployedContract = {
-      deployTxData: { public: { contractAddress: deployedContractAddress } },
-    };
-    vi.mocked(deployContract).mockResolvedValue(deployedContract as any);
-
-    await expect(
-      deploy({ privateStateProvider } as any, privateState),
-    ).rejects.toMatchObject({
-      code: "did_contract_deployment_finalized_private_state_incomplete",
-      contractAddress: deployedContractAddress.toLowerCase(),
-      deployedContract,
-      cause: bindingFailure,
-    });
-    expect(privateStateProvider.set).not.toHaveBeenCalled();
-    expect(deployContract).toHaveBeenCalledTimes(1);
-  });
-
-  it("wraps a post-finality active private-state save failure", async () => {
-    const privateState = { secretKey: new Uint8Array(32).fill(8) };
-    const saveFailure = new Error("save failed");
+    const signingKey = new Uint8Array(32).fill(5);
+    const signingKeyFailure = new Error("signing key failed");
     const privateStateProvider = {
       setContractAddress: vi.fn(),
-      set: vi.fn(async () => {
-        throw saveFailure;
+      set: vi.fn(async () => undefined),
+      setSigningKey: vi.fn(async () => {
+        throw signingKeyFailure;
       }),
     };
-    const deployedContract = {
-      deployTxData: { public: { contractAddress: deployedContractAddress } },
-    };
-    vi.mocked(deployContract).mockResolvedValue(deployedContract as any);
+    const providers = { privateStateProvider } as any;
+    bindPrivateStateProvider(providers, sourceAddress);
+    vi.mocked(deployContract).mockImplementationOnce(
+      async (deploymentProviders: any, options: any) => {
+        deploymentProviders.privateStateProvider.setContractAddress(
+          deployedContractAddress,
+        );
+        await deploymentProviders.privateStateProvider.set(
+          options.privateStateId,
+          options.initialPrivateState,
+        );
+        await deploymentProviders.privateStateProvider.setSigningKey(
+          deployedContractAddress,
+          signingKey,
+        );
+        throw new Error("unreachable after signing-key failure");
+      },
+    );
 
-    await expect(
-      deploy({ privateStateProvider } as any, privateState),
-    ).rejects.toMatchObject({
+    await expect(deploy(providers, privateState)).rejects.toMatchObject({
       name: "DIDContractDeploymentFinalizedPrivateStateIncompleteError",
       code: "did_contract_deployment_finalized_private_state_incomplete",
       contractAddress: deployedContractAddress.toLowerCase(),
-      deployedContract,
-      cause: saveFailure,
+      cause: signingKeyFailure,
     });
-    expect(privateStateProvider.setContractAddress).toHaveBeenCalledWith(
-      deployedContractAddress.toLowerCase(),
-    );
-    expect(privateStateProvider.set).toHaveBeenCalledWith(
-      MidnightDIDPrivateStateId,
-      privateState,
-    );
-    expect(deployContract).toHaveBeenCalledTimes(1);
+    expect(privateStateProvider.set).toHaveBeenCalledTimes(1);
+    expect(privateStateProvider.setSigningKey).toHaveBeenCalledTimes(1);
+    bindOrAssertPrivateStateProvider(providers, deployedContractAddress);
+    expect(() =>
+      bindOrAssertPrivateStateProvider(providers, sourceAddress),
+    ).toThrow(PrivateStateProviderContractMismatchError);
   });
 
-  it("holds the deployed target address reservation through private-state persistence", async () => {
+  it("preserves a genuine DeployTxFailedError when no finalized target was observed", async () => {
     const privateState = { secretKey: new Uint8Array(32).fill(8) };
-    let saveStarted!: () => void;
-    const saveStart = new Promise<void>((resolve) => {
-      saveStarted = resolve;
-    });
-    let releaseSave!: () => void;
-    const saveGate = new Promise<void>((resolve) => {
-      releaseSave = resolve;
-    });
-    const deployingProvider = {
+    const privateStateProvider = {
       setContractAddress: vi.fn(),
-      set: vi.fn(async () => {
-        saveStarted();
-        await saveGate;
-      }),
+      set: vi.fn(),
+      setSigningKey: vi.fn(),
     };
-    const otherProvider = {
-      setContractAddress: vi.fn(),
-    };
-    const deployedContract = {
-      deployTxData: { public: { contractAddress: deployedContractAddress } },
-    };
-    vi.mocked(deployContract).mockResolvedValue(deployedContract as any);
+    const deployFailure = new DeployTxFailedError({ status: "Fail" } as any);
+    vi.mocked(deployContract).mockRejectedValueOnce(deployFailure);
 
-    const deployment = deploy(
-      { privateStateProvider: deployingProvider } as any,
-      privateState,
-    );
-    await saveStart;
-
-    expect(() =>
-      bindPrivateStateProvider(
-        { privateStateProvider: otherProvider } as any,
-        deployedContractAddress,
-      ),
-    ).toThrow(PendingControllerPrivateStateBusyError);
-    expect(otherProvider.setContractAddress).not.toHaveBeenCalled();
-
-    releaseSave();
-    await expect(deployment).resolves.toBe(deployedContract);
-    expect(() =>
-      bindPrivateStateProvider(
-        { privateStateProvider: otherProvider } as any,
-        deployedContractAddress,
-      ),
-    ).not.toThrow();
+    await expect(
+      deploy({ privateStateProvider } as any, privateState),
+    ).rejects.toBe(deployFailure);
+    expect(privateStateProvider.setContractAddress).not.toHaveBeenCalled();
+    expect(privateStateProvider.set).not.toHaveBeenCalled();
+    expect(privateStateProvider.setSigningKey).not.toHaveBeenCalled();
   });
 });

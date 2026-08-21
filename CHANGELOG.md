@@ -46,13 +46,15 @@ published 0.5.0 packages retain their existing API and behavior.
   wrappers require external per-DID coordination. The provider's unbound-state
   exception is recognized only by its exact upstream message; decorated I/O or
   other provider failures propagate.
-- Report post-finalization deployment provider-binding or private-state
-  persistence failures as
-  `DIDContractDeploymentFinalizedPrivateStateIncompleteError`. The typed error
-  carries the canonical finalized address, returned deployed-contract handle,
-  and original cause, but no secret private state, so callers can reconcile or
-  join the finalized deployment instead of redeploying blindly or overwriting a
-  target namespace changed by another lifecycle.
+- Intercept the post-ledger-success provider setup performed inside
+  `@midnight-ntwrk/midnight-js-contracts` 4.0.2 `deployContract`: synchronously
+  reserve and bind the canonical target under the deployment's source lease,
+  then let the dependency persist active state and its signing key exactly once.
+  Target-reservation or either persistence failure is reported as
+  `DIDContractDeploymentFinalizedPrivateStateIncompleteError` with canonical
+  address, cause, and sanitized public upstream evidence when available, but no
+  secret state. Pre-target failures remain unchanged, and the operation-scoped
+  lease has no unsafe elapsed expiry or post-settlement proxy reuse.
 - Preserve complete canonical DID URL identity for verification methods,
   relationships, and services while keeping existing current-subject
   fragment-keyed ledger records operable through fail-closed state-aware key
