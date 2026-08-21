@@ -110,28 +110,34 @@ stale dependency work could otherwise mutate state after a competitor takes the
 same target. The captured interceptor is deactivated when that call settles and
 cannot spend the released lease later.
 
-If target reservation, active-state persistence, or signing-key persistence then
-fails, `deploy`/`createDID` throws
-`DIDContractDeploymentFinalizedPrivateStateIncompleteError` with stable code
-`did_contract_deployment_finalized_private_state_incomplete`, canonical
-`contractAddress`, the original `cause`, and sanitized public
-`deployedContract`/`finalizedTxData` evidence when the upstream rejection exposes
-it. The error never carries controller, recovery, initial-private-state, or
-signing-key secrets. A rejection before the target is observed, including a
-genuine `DeployTxFailedError`, is preserved unchanged. On success the dependency
-has already bound the provider and persisted both values, so the API performs no
-second bind or active-state write that could overwrite a concurrently rotated
-controller key.
+If target reservation, active-state persistence, signing-key persistence, or
+returned-handle construction then fails, `deploy`/`createDID` throws
+`DIDContractDeploymentFinalizedPrivateStateIncompleteError` with only a stable
+`code`/`name`, canonical `contractAddress`, and interceptor-controlled
+`setupStage`: `target_reservation`, `private_state_persistence`,
+`signing_key_persistence`, or `contract_handle_construction`. The address is
+evidence that the dependency reported ledger success by calling
+`setContractAddress`; the stage identifies the local step that did not complete.
+The handle-construction stage begins after both writes complete and includes the
+second address bind performed while `deployContract` builds `callTx`; that repeat
+bind never resets the stage to reservation or persistence. The error deliberately
+discards the source error,
+deployed-contract handle, transaction/finality data, and all public or private
+deployment data. It never uses `cause`, copies provider fields, or includes an
+arbitrary provider name/message. A rejection before the target is observed,
+including a genuine `DeployTxFailedError`, is preserved unchanged. On success
+the dependency has already bound the provider and persisted both values, so the
+API performs no second bind or active-state write that could overwrite a
+concurrently rotated controller key.
 
-Do not retry deployment blindly. Retain the original private state separately,
-use the error's address and available public evidence to confirm the finalized
-contract, and resolve the provider-binding owner/conflict. If another lifecycle
-owned that address, wait for it to finish and then re-read its binding and ledger
-state; do not overwrite the target namespace with the deployment input because
-that lifecycle may have rotated the controller. Reconcile with that owner or
-join the finalized address using the private state that matches its current
-ledger controller. A persistence failure can have an uncertain write
-disposition, so verify storage before retrying the write.
+Do not retry deployment blindly. Retain the original private state separately
+and reconcile provider and ledger state by the error's canonical address. Use
+the stage to determine which local setup step needs verification; any write that
+rejected can have an uncertain disposition. Resolve a competing binding owner
+and join the finalized address using state that matches the current ledger
+controller rather than overwriting its namespace. Inspect restricted external
+provider logs separately when diagnostics are needed. Never log the source error
+through this typed error or attach it to the typed error before propagating it.
 
 ## Controller Secret Recovery Posture
 
@@ -305,7 +311,9 @@ import {
   createMidnightDidZkArtifactLocations,
 } from "@midnight-ntwrk/midnight-did-api";
 
-const locations = createMidnightDidZkArtifactLocations(MIDNIGHT_DID_API_VERSION);
+const locations = createMidnightDidZkArtifactLocations(
+  MIDNIGHT_DID_API_VERSION,
+);
 ```
 
 Use `locations.ghcr.reference` to pull the matching GHCR OCI artifact in Node or

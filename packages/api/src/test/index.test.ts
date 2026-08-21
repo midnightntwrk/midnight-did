@@ -1,6 +1,9 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
-import type { RuntimeToDomainNetworkMap } from "../index.js";
+import type {
+  DIDContractDeploymentSetupStage,
+  RuntimeToDomainNetworkMap,
+} from "../index.js";
 import type { RuntimeToDomainNetworkMap as InternalRuntimeToDomainNetworkMap } from "../network-mapping.js";
 
 vi.mock("@midnight-ntwrk/midnight-js-http-client-proof-provider", () => {
@@ -28,6 +31,12 @@ describe("api package barrel", () => {
     expect(api.DomainToRuntime).toBeDefined();
     expect(api.RuntimeToDomain).toBeDefined();
     expectTypeOf<RuntimeToDomainNetworkMap>().toEqualTypeOf<InternalRuntimeToDomainNetworkMap>();
+    expectTypeOf<DIDContractDeploymentSetupStage>().toEqualTypeOf<
+      | "target_reservation"
+      | "private_state_persistence"
+      | "signing_key_persistence"
+      | "contract_handle_construction"
+    >();
   });
 
   it("keeps public lib runtime exports available through the package barrel", async () => {

@@ -20,19 +20,19 @@ flowchart LR
 
 ## Primary APIs
 
-| Task | API |
-| --- | --- |
-| Build standalone providers | `StandaloneConfig`, `buildFreshWallet`, `configureProviders` |
-| Initialize controller state | `initPrivateState`, `restorePrivateState`, `requirePrivateState` |
-| Create or attach to a DID contract | `deploy`, `createDID`, `joinContract` |
-| Resolve DID state | `resolve`, `getMidnightDIDLedgerState` |
-| Rotate controller key | `rotateControllerKey` |
-| Manage JWK verification methods | `addVerificationMethod`, `updateVerificationMethod`, `removeVerificationMethod`, `VerificationMethodReferencedError` |
-| Manage SchnorrJubjub methods | `addSchnorrJubjubVerificationMethod`, `updateSchnorrJubjubVerificationMethod`, `removeSchnorrJubjubVerificationMethod` |
-| Manage verification relationships | `addVerificationMethodRelation`, `removeVerificationMethodRelation` |
-| Verify native signatures | `verifySchnorrJubjubDigestSignature` |
-| Manage services and aliases | `addService`, `updateService`, `removeService`, `addAlsoKnownAs`, `removeAlsoKnownAs` |
-| Deactivate a DID | `deactivate` |
+| Task                               | API                                                                                                                    |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Build standalone providers         | `StandaloneConfig`, `buildFreshWallet`, `configureProviders`                                                           |
+| Initialize controller state        | `initPrivateState`, `restorePrivateState`, `requirePrivateState`                                                       |
+| Create or attach to a DID contract | `deploy`, `createDID`, `joinContract`                                                                                  |
+| Resolve DID state                  | `resolve`, `getMidnightDIDLedgerState`                                                                                 |
+| Rotate controller key              | `rotateControllerKey`                                                                                                  |
+| Manage JWK verification methods    | `addVerificationMethod`, `updateVerificationMethod`, `removeVerificationMethod`, `VerificationMethodReferencedError`   |
+| Manage SchnorrJubjub methods       | `addSchnorrJubjubVerificationMethod`, `updateSchnorrJubjubVerificationMethod`, `removeSchnorrJubjubVerificationMethod` |
+| Manage verification relationships  | `addVerificationMethodRelation`, `removeVerificationMethodRelation`                                                    |
+| Verify native signatures           | `verifySchnorrJubjubDigestSignature`                                                                                   |
+| Manage services and aliases        | `addService`, `updateService`, `removeService`, `addAlsoKnownAs`, `removeAlsoKnownAs`                                  |
+| Deactivate a DID                   | `deactivate`                                                                                                           |
 
 ## Runnable Example
 
@@ -81,15 +81,28 @@ reuse the released lease. The dependency already performs the bind and both
 writes, so the API does not duplicate them or overwrite a concurrently rotated
 controller key.
 
-A target reservation or either post-finality persistence failure becomes
-`DIDContractDeploymentFinalizedPrivateStateIncompleteError`, with a stable code,
-canonical `contractAddress`, `cause`, and sanitized public deployed/finalized
-evidence when exposed by the rejection, but no secret state. Pre-target failures,
-including `DeployTxFailedError`, remain unchanged. Do not redeploy blindly.
-Preserve the deployment input separately, confirm the finalized address from the
-error, resolve the binding owner, and re-read provider/ledger state rather than
-overwriting a namespace whose controller may have rotated. Verify storage before
-retrying an uncertain save.
+A target reservation, either post-finality persistence failure, or returned
+contract-handle construction failure becomes
+`DIDContractDeploymentFinalizedPrivateStateIncompleteError`. Its strict shape is
+a stable `code`/`name`, canonical `contractAddress`, and controlled `setupStage`
+(`target_reservation`, `private_state_persistence`,
+`signing_key_persistence`, or `contract_handle_construction`). The observed
+address tells callers that the dependency reported ledger success; the stage
+identifies incomplete local setup. Handle construction begins after both writes
+complete and includes `deployContract`'s second address bind, which cannot reset
+the stage to reservation or persistence. The error discards the source error,
+contract handle, deployment and
+transaction/finality objects, provider name/message, and all public/private
+evidence. It has no `cause`. Pre-target failures, including
+`DeployTxFailedError`, remain unchanged.
+
+Do not redeploy blindly. Preserve private state separately, reconcile storage
+and ledger state by the canonical address, and verify the stage's write before
+retrying because a rejected write can have committed. Resolve binding ownership
+and join using state that matches the current ledger controller rather than
+overwriting a namespace that may have rotated. Inspect access-controlled
+external provider logs separately for source diagnostics; never log or expose
+the source error through this typed object.
 
 Controller rotation and recovery retain the pending replacement secret whenever
 finalized transaction data is not returned. A later or overlapping attempt fails

@@ -50,11 +50,16 @@ published 0.5.0 packages retain their existing API and behavior.
   `@midnight-ntwrk/midnight-js-contracts` 4.0.2 `deployContract`: synchronously
   reserve and bind the canonical target under the deployment's source lease,
   then let the dependency persist active state and its signing key exactly once.
-  Target-reservation or either persistence failure is reported as
-  `DIDContractDeploymentFinalizedPrivateStateIncompleteError` with canonical
-  address, cause, and sanitized public upstream evidence when available, but no
-  secret state. Pre-target failures remain unchanged, and the operation-scoped
-  lease has no unsafe elapsed expiry or post-settlement proxy reuse.
+  Target-reservation, either persistence, or returned-handle construction
+  failure is reported as
+  `DIDContractDeploymentFinalizedPrivateStateIncompleteError` with only stable
+  code/name, canonical address, and a controlled target-reservation,
+  private-state-persistence, signing-key-persistence, or
+  contract-handle-construction stage. Source errors,
+  contract handles, deployment/transaction/finality objects, and arbitrary
+  provider text are discarded rather than attached or shallow-copied. Pre-target
+  failures remain unchanged, and the operation-scoped lease has no unsafe
+  elapsed expiry or post-settlement proxy reuse.
 - Preserve complete canonical DID URL identity for verification methods,
   relationships, and services while keeping existing current-subject
   fragment-keyed ledger records operable through fail-closed state-aware key
@@ -108,7 +113,6 @@ finalization outcome.
   of accepting or emitting null-valued fields.
   Consumers persisting documents from versions up to 0.5.0 must omit legacy
   null-valued optional members before parsing them with this release.
-
 
 ## [0.5.0] - 2026-08-03
 

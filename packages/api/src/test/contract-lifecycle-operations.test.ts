@@ -33,6 +33,47 @@ vi.mock("../contract-instance.js", () => ({
   midnightDIDCompiledContract: { name: "compiled-midnight-did" },
 }));
 
+const inspectOwnPropertyGraph = (root: unknown) => {
+  const reachable = new Set<object>();
+  const text: string[] = [];
+
+  const visit = (value: unknown): void => {
+    if (typeof value === "string") {
+      text.push(value);
+      return;
+    }
+    if (typeof value === "symbol") {
+      text.push(value.description ?? "");
+      return;
+    }
+    if (
+      value === null ||
+      (typeof value !== "object" && typeof value !== "function") ||
+      reachable.has(value)
+    ) {
+      return;
+    }
+
+    reachable.add(value);
+    for (const property of Reflect.ownKeys(value)) {
+      visit(property);
+      const descriptor = Object.getOwnPropertyDescriptor(value, property);
+      if (descriptor === undefined) {
+        continue;
+      }
+      if ("value" in descriptor) {
+        visit(descriptor.value);
+      } else {
+        visit(descriptor.get);
+        visit(descriptor.set);
+      }
+    }
+  };
+
+  visit(root);
+  return { reachable, text: text.join("\n") };
+};
+
 describe("contract lifecycle operations", () => {
   const contractAddress = "A".repeat(64);
   const deployedContractAddress = "D".repeat(64);
@@ -360,9 +401,7 @@ describe("contract lifecycle operations", () => {
     privateStateProvider = { setContractAddress, set, setSigningKey };
     const providers = { privateStateProvider } as any;
     bindPrivateStateProvider(providers, sourceAddress);
-    const deployedContract = {
-      deployTxData: { public: { contractAddress: deployedContractAddress } },
-    };
+    let constructedContract: any;
     let capturedDeploymentProvider: any;
     vi.mocked(deployContract).mockImplementationOnce(
       async (deploymentProviders: any, options: any) => {
@@ -378,16 +417,31 @@ describe("contract lifecycle operations", () => {
           deployedContractAddress,
           signingKey,
         );
-        return deployedContract as any;
+        // deployContract 4.0.2 constructs callTx after submitDeployTx returns;
+        // createCircuitCallTxInterface binds the finalized address again.
+        deploymentProviders.privateStateProvider.setContractAddress(
+          deployedContractAddress,
+        );
+        constructedContract = {
+          deployTxData: {
+            public: { contractAddress: deployedContractAddress },
+          },
+          callTx: { update: vi.fn() },
+        };
+        return constructedContract;
       },
     );
 
-    await expect(deploy(providers, privateState)).resolves.toBe(
-      deployedContract,
-    );
+    const deployment = await deploy(providers, privateState);
+    expect(deployment).toBe(constructedContract);
 
-    expect(setContractAddress).toHaveBeenCalledTimes(2);
-    expect(setContractAddress).toHaveBeenLastCalledWith(
+    expect(setContractAddress).toHaveBeenCalledTimes(3);
+    expect(setContractAddress).toHaveBeenNthCalledWith(
+      2,
+      deployedContractAddress.toLowerCase(),
+    );
+    expect(setContractAddress).toHaveBeenNthCalledWith(
+      3,
       deployedContractAddress.toLowerCase(),
     );
     expect(set).toHaveBeenCalledTimes(1);
@@ -399,11 +453,24 @@ describe("contract lifecycle operations", () => {
     );
     expect(storedState).toBe(rotatedState);
     bindOrAssertPrivateStateProvider(providers, deployedContractAddress);
-    expect(setContractAddress).toHaveBeenCalledTimes(2);
+    expect(setContractAddress).toHaveBeenCalledTimes(3);
     expect(() =>
       capturedDeploymentProvider.setContractAddress(deployedContractAddress),
     ).not.toThrow();
-    expect(setContractAddress).toHaveBeenCalledTimes(3);
+    expect(setContractAddress).toHaveBeenCalledTimes(4);
+
+    const postSettlementState = {
+      recoverySecretKey: privateState.recoverySecretKey,
+      secretKey: new Uint8Array(32).fill(4),
+    };
+    const postSettlementWrite = capturedDeploymentProvider.set(
+      MidnightDIDPrivateStateId,
+      postSettlementState,
+    );
+    expect(postSettlementWrite).toBe(set.mock.results[1]?.value);
+    await expect(postSettlementWrite).resolves.toBeUndefined();
+    expect(set).toHaveBeenCalledTimes(2);
+    expect(storedState).toBe(postSettlementState);
   });
 
   it("reports a finalized target competitor present before interception without mutating the source binding", async () => {
@@ -457,8 +524,9 @@ describe("contract lifecycle operations", () => {
       name: "DIDContractDeploymentFinalizedPrivateStateIncompleteError",
       code: "did_contract_deployment_finalized_private_state_incomplete",
       contractAddress: deployedContractAddress.toLowerCase(),
-      cause: expect.any(PendingControllerPrivateStateBusyError),
+      setupStage: "target_reservation",
     });
+    expect(error).not.toHaveProperty("cause");
     expect(error).not.toHaveProperty("privateState");
     expect(JSON.stringify(error)).not.toContain("secretKey");
     expect(deployingProvider.setContractAddress).toHaveBeenCalledTimes(1);
@@ -515,6 +583,9 @@ describe("contract lifecycle operations", () => {
           deployedContractAddress,
           signingKey,
         );
+        deploymentProviders.privateStateProvider.setContractAddress(
+          deployedContractAddress,
+        );
         return deployedContract as any;
       },
     );
@@ -557,18 +628,63 @@ describe("contract lifecycle operations", () => {
     ).not.toThrow();
   });
 
-  it("wraps an upstream active-state rejection after binding and exposes safe finalized evidence", async () => {
+  it("discards adversarial upstream evidence after active-state rejection", async () => {
     const sourceAddress = "F".repeat(64);
-    const privateState = { secretKey: new Uint8Array(32).fill(8) };
-    const finalizedTxData = { status: "SucceedEntirely", blockHeight: 42 };
-    const saveFailure = Object.assign(new Error("save failed"), {
-      finalizedTxData,
-      deployedContract: {
-        deployTxData: {
-          private: { initialPrivateState: privateState },
-          public: { contractAddress: deployedContractAddress },
-        },
+    const initialSecret = "initial-secret-do-not-expose";
+    const recoverySecret = "recovery-secret-do-not-expose";
+    const signingSecret = "signing-secret-do-not-expose";
+    const privateState = {
+      recoverySecretKey: new Uint8Array(32).fill(9),
+      secretKey: new Uint8Array(32).fill(8),
+    };
+    const signingKey = new Uint8Array(32).fill(5);
+    const secretBundle = { initialSecret, recoverySecret, signingSecret };
+    const publicDeployTxData = {
+      contractAddress: deployedContractAddress,
+      ...secretBundle,
+    };
+    const privateDeployTxData = { ...secretBundle, privateState };
+    const deployTxData = {
+      public: publicDeployTxData,
+      private: privateDeployTxData,
+    };
+    const transaction = { ...secretBundle, signingKey };
+    const finalizedTxData = {
+      status: "SucceedEntirely",
+      ...secretBundle,
+      transaction,
+    };
+    const deployedContract = { deployTxData, transaction };
+    const saveFailure = Object.assign(
+      new Error(
+        `provider message: ${initialSecret}:${recoverySecret}:${signingSecret}`,
+      ),
+      {
+        deployedContract,
+        finalizedTxData,
+        transaction,
       },
+    );
+    saveFailure.name = `Provider${initialSecret}:${recoverySecret}:${signingSecret}`;
+    const secretSymbol = Symbol(
+      `provider-symbol-${initialSecret}:${recoverySecret}:${signingSecret}`,
+    );
+    Object.defineProperty(saveFailure, "hiddenProviderEvidence", {
+      value: { initialSecret, recoverySecret, signingSecret },
+      enumerable: false,
+    });
+    const sourceToJSON = vi.fn(() => ({
+      initialSecret,
+      recoverySecret,
+      signingSecret,
+    }));
+    Object.defineProperty(saveFailure, "toJSON", {
+      value: sourceToJSON,
+      enumerable: false,
+    });
+    Object.defineProperty(saveFailure, secretSymbol, {
+      value: { initialSecret, recoverySecret, signingSecret },
+      enumerable: false,
     });
     const privateStateProvider = {
       setContractAddress: vi.fn(),
@@ -607,16 +723,36 @@ describe("contract lifecycle operations", () => {
       name: "DIDContractDeploymentFinalizedPrivateStateIncompleteError",
       code: "did_contract_deployment_finalized_private_state_incomplete",
       contractAddress: deployedContractAddress.toLowerCase(),
-      cause: saveFailure,
-      finalizedTxData,
-      deployedContract: {
-        deployTxData: {
-          public: { contractAddress: deployedContractAddress },
-        },
-      },
+      setupStage: "private_state_persistence",
     });
-    expect(error.deployedContract).not.toHaveProperty("deployTxData.private");
-    expect(JSON.stringify(error)).not.toContain("secretKey");
+    expect(error).not.toHaveProperty("cause");
+    expect(error).not.toHaveProperty("deployedContract");
+    expect(error).not.toHaveProperty("deployTxData");
+    expect(error).not.toHaveProperty("finalizedTxData");
+    expect(error).not.toHaveProperty("transaction");
+
+    const inspected = inspectOwnPropertyGraph(error);
+    for (const sourceValue of [
+      saveFailure,
+      deployedContract,
+      deployTxData,
+      publicDeployTxData,
+      privateDeployTxData,
+      finalizedTxData,
+      transaction,
+      privateState,
+      secretBundle,
+      privateState.recoverySecretKey,
+      privateState.secretKey,
+      signingKey,
+    ]) {
+      expect(inspected.reachable).not.toContain(sourceValue);
+    }
+    for (const secret of [initialSecret, recoverySecret, signingSecret]) {
+      expect(inspected.text).not.toContain(secret);
+      expect(JSON.stringify(error)).not.toContain(secret);
+    }
+    expect(sourceToJSON).not.toHaveBeenCalled();
     expect(privateStateProvider.set).toHaveBeenCalledTimes(1);
     expect(privateStateProvider.setSigningKey).not.toHaveBeenCalled();
     bindOrAssertPrivateStateProvider(providers, deployedContractAddress);
@@ -656,12 +792,19 @@ describe("contract lifecycle operations", () => {
       },
     );
 
-    await expect(deploy(providers, privateState)).rejects.toMatchObject({
+    const error = await deploy(providers, privateState).catch(
+      (cause: unknown) => cause,
+    );
+    expect(error).toMatchObject({
       name: "DIDContractDeploymentFinalizedPrivateStateIncompleteError",
       code: "did_contract_deployment_finalized_private_state_incomplete",
       contractAddress: deployedContractAddress.toLowerCase(),
-      cause: signingKeyFailure,
+      setupStage: "signing_key_persistence",
     });
+    expect(error).not.toHaveProperty("cause");
+    expect(inspectOwnPropertyGraph(error).reachable).not.toContain(
+      signingKeyFailure,
+    );
     expect(privateStateProvider.set).toHaveBeenCalledTimes(1);
     expect(privateStateProvider.setSigningKey).toHaveBeenCalledTimes(1);
     bindOrAssertPrivateStateProvider(providers, deployedContractAddress);
@@ -669,6 +812,89 @@ describe("contract lifecycle operations", () => {
       bindOrAssertPrivateStateProvider(providers, sourceAddress),
     ).toThrow(PrivateStateProviderContractMismatchError);
   });
+
+  it.each(["second binding", "later handle setup"] as const)(
+    "reports contract handle construction when %s fails after persistence",
+    async (failurePoint) => {
+      const sourceAddress = "8".repeat(64);
+      const privateState = { secretKey: new Uint8Array(32).fill(8) };
+      const signingKey = new Uint8Array(32).fill(5);
+      const retainedHandle = {
+        secret: "contract-handle-secret-do-not-expose",
+      };
+      const handleFailure = Object.assign(
+        new Error("source handle construction message"),
+        { handle: retainedHandle, deployTxData: retainedHandle },
+      );
+      handleFailure.name = "SourceHandleConstructionError";
+      let finalizedAddressBindings = 0;
+      const privateStateProvider = {
+        setContractAddress: vi.fn((address: string) => {
+          if (address.toLowerCase() === deployedContractAddress.toLowerCase()) {
+            finalizedAddressBindings += 1;
+            if (
+              failurePoint === "second binding" &&
+              finalizedAddressBindings === 2
+            ) {
+              throw handleFailure;
+            }
+          }
+        }),
+        set: vi.fn(async () => undefined),
+        setSigningKey: vi.fn(async () => undefined),
+      };
+      const providers = { privateStateProvider } as any;
+      bindPrivateStateProvider(providers, sourceAddress);
+      vi.mocked(deployContract).mockImplementationOnce(
+        async (deploymentProviders: any, options: any) => {
+          // This mirrors submitDeployTx success followed by deployContract's
+          // createCircuitCallTxInterface construction in 4.0.2.
+          deploymentProviders.privateStateProvider.setContractAddress(
+            deployedContractAddress,
+          );
+          await deploymentProviders.privateStateProvider.set(
+            options.privateStateId,
+            options.initialPrivateState,
+          );
+          await deploymentProviders.privateStateProvider.setSigningKey(
+            deployedContractAddress,
+            signingKey,
+          );
+          deploymentProviders.privateStateProvider.setContractAddress(
+            deployedContractAddress,
+          );
+          throw handleFailure;
+        },
+      );
+
+      const error = await deploy(providers, privateState).catch(
+        (cause: unknown) => cause,
+      );
+      expect(error).toMatchObject({
+        name: "DIDContractDeploymentFinalizedPrivateStateIncompleteError",
+        code: "did_contract_deployment_finalized_private_state_incomplete",
+        contractAddress: deployedContractAddress.toLowerCase(),
+        setupStage: "contract_handle_construction",
+      });
+      expect(privateStateProvider.set).toHaveBeenCalledTimes(1);
+      expect(privateStateProvider.setSigningKey).toHaveBeenCalledTimes(1);
+      expect(finalizedAddressBindings).toBe(2);
+
+      const inspected = inspectOwnPropertyGraph(error);
+      expect(error).not.toHaveProperty("cause");
+      expect(error).not.toHaveProperty("handle");
+      expect(inspected.reachable).not.toContain(handleFailure);
+      expect(inspected.reachable).not.toContain(retainedHandle);
+      for (const sourceText of [
+        handleFailure.name,
+        handleFailure.message,
+        retainedHandle.secret,
+      ]) {
+        expect(inspected.text).not.toContain(sourceText);
+        expect(JSON.stringify(error)).not.toContain(sourceText);
+      }
+    },
+  );
 
   it("preserves a genuine DeployTxFailedError when no finalized target was observed", async () => {
     const privateState = { secretKey: new Uint8Array(32).fill(8) };

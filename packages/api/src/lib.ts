@@ -8,7 +8,7 @@ export {
   deploy,
   DIDContractDeploymentFinalizedPrivateStateIncompleteError,
   type DIDContractDeploymentFinalizedPrivateStateIncompleteErrorCode,
-  type DIDContractDeploymentPublicEvidence,
+  type DIDContractDeploymentSetupStage,
   joinContract,
 } from "./contract-lifecycle-operations.js";
 export {

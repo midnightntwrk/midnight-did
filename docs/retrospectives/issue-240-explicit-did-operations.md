@@ -49,10 +49,15 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   signing-key persistence after ledger success but before `deployContract`
   returns. A deployment-scoped provider interceptor reserves the canonical
   target before that first mutation, records the observed finalized target, and
-  keeps the source/target lease through the dependency's settlement. Rejections
-  after target observation become typed finalized-partial-success evidence with
-  the canonical address, cause, and sanitized public upstream evidence when
-  available, but never secret deployment state. Pre-target failures remain
+  keeps the source/target lease through the dependency's settlement. After the
+  active-state and signing-key writes, the interceptor advances to handle
+  construction before the dependency's second address bind, without resetting
+  on that repeat bind. Rejections after target observation become a strict typed
+  shape containing only the canonical address and an interceptor-controlled
+  local setup stage alongside stable error identity. Source errors, contract
+  handles, provider text, and all
+  deployment/transaction/finality evidence are discarded because even nominally
+  public or diagnostic objects can retain secrets. Pre-target failures remain
   unchanged.
 - The specification distinguishes the method's no-batch-circuit design from
   Midnight's inability to merge multiple non-empty contract-call sections.
@@ -87,9 +92,11 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
 - Realistic 4.0.2 deployment mocks call target binding, active-state persistence,
   and signing-key persistence in upstream order. Regressions cover a target
   owner present before interception, a competitor arriving after reservation,
-  active-state and signing-key rejection, single-write success that preserves a
-  concurrently rotated controller key, source/target binding tracking, safe
-  public error evidence, and unchanged pre-target `DeployTxFailedError` behavior.
+  active-state and signing-key rejection, second-bind and later handle
+  construction rejection after completed persistence, single-write success that
+  preserves a concurrently rotated controller key, source/target binding
+  tracking, recursive adversarial secret-unreachability, and unchanged pre-target
+  `DeployTxFailedError` behavior.
 - `pnpm run verify`, managed-artifact checks, package-surface checks, and the
   complete docs build/visual lane passed from the Nix development shell.
 
@@ -155,6 +162,8 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
 - Extend provider/DID identity assertions to ordinary non-rotation document
   operations in a follow-up rather than widening this explicit-deletion change.
 - Integrators must catch finalized-deployment private-state setup errors, retain
-  deployment private state outside the error, resolve target ownership, re-read
-  ledger/storage state, and reconcile or join the reported address rather than
-  issuing another deployment.
+  deployment private state outside the error, use its canonical address and
+  controlled stage to resolve target ownership, re-read ledger/storage state,
+  and reconcile or join rather than issuing another deployment. Source/provider
+  diagnostics belong in separately access-controlled external logs and must
+  never be attached to or logged through the typed error.
