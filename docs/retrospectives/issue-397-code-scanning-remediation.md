@@ -66,9 +66,12 @@ overrides, and composite-action run steps under `.github/actions` are scanned
 alongside workflow steps. Partially dynamic npm arguments retain static command
 and global-option evidence; option operands, repeated interpreter command
 flags, bundled wrapper options with multiple operands, and multi-pair npm config
-updates have dedicated fixtures. The policy gate enumerates every YAML workflow
-and local composite action, rather than relying on the originally affected
-workflow path alone.
+updates have dedicated fixtures. Shell here-strings are parsed for direct and
+wrapped interpreters, workspace/package option operands are skipped, split
+assignment/export state is tracked, and static `.npmrc` writes through `tee`
+pipelines are blocked. The policy gate enumerates every YAML workflow and local
+composite action, rather than relying on the originally affected workflow path
+alone.
 
 The Bash parser remains tree-sitter rather than falling back to token or line
 matching. Both exact, frozen `tree-sitter` 0.25.1 and `tree-sitter-bash` 0.25.1

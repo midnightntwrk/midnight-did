@@ -210,11 +210,15 @@ const npmInstallCommands = new Set([
 
 const npmOptionsWithArguments = new Set([
   "-C",
+  "-p",
+  "-w",
   "--cache",
   "--location",
+  "--package",
   "--prefix",
   "--registry",
   "--userconfig",
+  "--workspace",
 ]);
 
 const npmExecOptionsWithArguments = new Set([
@@ -404,7 +408,9 @@ function staticCommandWords(node) {
   const args = node.namedChildren
     .filter(
       (child) =>
-        child.type !== "command_name" && child.type !== "variable_assignment",
+        child.type !== "command_name" &&
+        child.type !== "variable_assignment" &&
+        !child.type.endsWith("_redirect"),
     )
     .map(staticShellWord);
   return name == null || args.some((arg) => arg == null)
@@ -441,6 +447,12 @@ function npmCommandSetsPersistentGlobal(node) {
   return false;
 }
 
+function textEnablesGlobalNpm(content) {
+  return /(?:^|\s)(?:global\s*=\s*(?:1|true)|location\s*=\s*global)(?:\s|$)/i.test(
+    content.replaceAll(/\\n/g, "\n"),
+  );
+}
+
 function redirectedStatementEnablesGlobalNpm(node) {
   const redirectsToNpmrc = node.namedChildren.some(
     (child) =>
@@ -460,12 +472,49 @@ function redirectedStatementEnablesGlobalNpm(node) {
           : [],
     )
     .join("\n");
-  return /(?:^|\s)(?:global\s*=\s*(?:1|true)|location\s*=\s*global)(?:\s|$)/i.test(
-    content.replaceAll(/\\n/g, "\n"),
+  return textEnablesGlobalNpm(content);
+}
+
+function pipelineEnablesGlobalNpm(node) {
+  const commands = node.namedChildren
+    .filter((child) => child.type === "command")
+    .map(staticCommandWords)
+    .filter((words) => words != null);
+  const writesNpmrc = commands.some(
+    (words) =>
+      effectiveWrappedExecutable(words) === "tee" &&
+      words.args.some((arg) => /(?:^|\/)\.npmrc$/.test(arg)),
+  );
+  return (
+    writesNpmrc &&
+    textEnablesGlobalNpm(commands.flatMap((words) => words.args).join("\n"))
   );
 }
 
 function syntaxTreeEnablesPersistentGlobalNpm(rootNode) {
+  const enablingAssignments = new Set();
+  const exportedNames = new Set();
+  const collectState = (node) => {
+    if (node.type === "variable_assignment") {
+      const assignment = staticShellAssignment(node);
+      if (assignmentEnablesGlobalInstall(assignment)) {
+        enablingAssignments.add(assignment.slice(0, assignment.indexOf("=")));
+      }
+    }
+    if (node.type === "declaration_command" && /^export\b/.test(node.text)) {
+      for (const child of node.namedChildren.filter(
+        (part) => part.type === "variable_name",
+      )) {
+        exportedNames.add(child.text);
+      }
+    }
+    node.namedChildren.forEach(collectState);
+  };
+  collectState(rootNode);
+  if ([...enablingAssignments].some((name) => exportedNames.has(name))) {
+    return true;
+  }
+
   const visit = (node) => {
     if (
       node.type === "declaration_command" &&
@@ -483,6 +532,9 @@ function syntaxTreeEnablesPersistentGlobalNpm(rootNode) {
       node.type === "redirected_statement" &&
       redirectedStatementEnablesGlobalNpm(node)
     ) {
+      return true;
+    }
+    if (node.type === "pipeline" && pipelineEnablesGlobalNpm(node)) {
       return true;
     }
     return node.namedChildren.some(visit);
@@ -640,6 +692,25 @@ function shellCommandContainsGlobalNpmInstall(
     ) {
       return true;
     }
+    if (node.type === "command") {
+      const words = staticCommandWords(node);
+      if (
+        words != null &&
+        shellInterpreters.has(effectiveWrappedExecutable(words))
+      ) {
+        for (const redirect of node.namedChildren.filter(
+          (child) => child.type === "herestring_redirect",
+        )) {
+          const script = staticShellWord(redirect.namedChild(0));
+          if (
+            script != null &&
+            shellCommandContainsGlobalNpmInstall(script, persistentGlobal)
+          ) {
+            return true;
+          }
+        }
+      }
+    }
     if (node.type === "redirected_statement") {
       const commandNode = node.namedChildren.find(
         (child) => child.type === "command",
@@ -735,6 +806,9 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm install --silent -g npm@12",
     "run: npm i --global npm@12",
     "run: npm --global install npm@12",
+    "run: npm --workspace tools install -g npm@12",
+    "run: npm -w tools install --global npm@12",
+    "run: npm --package npm@12 install -g npm@12",
     "run: npm install --global=true npm@12",
     "run: npm install --location=global npm@12",
     "run: npm install $PACKAGE npm@12 -g",
@@ -800,6 +874,7 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: |\n  npm_config_global='true' bash -c 'npm install npm@12'",
     "run: |\n  env npm_config_location='global' sh -c 'npm install npm@12'",
     "run: |\n  export npm_config_global='true'\n  npm install npm@12",
+    "run: |\n  npm_config_global=true\n  export npm_config_global\n  npm install npm@12",
     "run: |\n  export npm_config_location=global\n  bash -c 'npm install npm@12'",
     "run: npm config set global true",
     "run: npm set location=global",
@@ -808,8 +883,12 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm config -- set foo bar location global",
     "run: |\n  npm set location=global\n  npm update npm@12",
     "run: echo 'global=true' >> .npmrc",
+    "run: echo 'global=true' | tee -a ~/.npmrc",
+    "run: printf 'location=global\\n' | sudo tee ~/.npmrc",
     "run: |\n  printf 'global=true\\n' >> ~/.npmrc\n  npm install npm@12",
     "run: |\n  cat >> ~/.npmrc <<'NPMRC'\n  location=global\n  NPMRC\n  npm install npm@12",
+    "run: bash <<<'npm install -g npm@12'",
+    "run: env bash <<<'npm install -g npm@12'",
     "run: |\n  bash <<'SCRIPT'\n  npm install -g npm@12\n  SCRIPT",
     "run: |\n  env bash <<'SCRIPT'\n  npm install -g npm@12\n  SCRIPT",
     "run: |\n  sh <<'SCRIPT'\n  npm_config_global='true' npm install npm@12\n  SCRIPT",
@@ -838,6 +917,8 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm install --global=false package",
     "run: npm install --location=project package",
     "run: npm install --registry -g package",
+    "run: npm --workspace tools install package",
+    "run: npm --package npm@12 install package",
     "run: npm update package",
     "run: npm up --global=false package",
     'run: npm_config_global="false" npm install package',
@@ -856,14 +937,19 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: env npm_config_location='project' -S 'npm install package'",
     "run: npm_config_global='false' bash -c 'npm install package'",
     "run: |\n  export npm_config_global='false'\n  npm install package",
+    "run: |\n  npm_config_global=false\n  export npm_config_global\n  npm install package",
     "run: |\n  export npm_config_location=project\n  npm install package",
     "run: npm config set foo=bar global=false",
     "run: npm config -- set foo bar location project",
     "run: |\n  npm config set global false\n  npm install package",
     "run: |\n  npm set location=project\n  npm install package",
+    "run: echo 'global=false' | tee -a ~/.npmrc",
+    "run: printf 'location=project\\n' | sudo tee ~/.npmrc",
     "run: |\n  printf 'global=false\\n' >> ~/.npmrc\n  npm install package",
     "run: |\n  cat >> ~/.npmrc <<'NPMRC'\n  location=project\n  NPMRC\n  npm install package",
     "run: |\n  cat <<'SCRIPT'\n  npm install -g npm@12\n  SCRIPT",
+    "run: bash <<<'npm install package'",
+    "run: cat <<<'npm install -g npm@12'",
     "run: |\n  bash <<'SCRIPT'\n  npm install package\n  SCRIPT",
     "run: npm run build -- -g i",
     "run: npm install -- -g npm@12",
