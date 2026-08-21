@@ -41,21 +41,12 @@ async function automationYamlTexts() {
   return Promise.all([...workflows, ...actions].map(text));
 }
 
-function mergedEnv(...environments) {
-  return Object.assign(
-    {},
-    ...environments.filter(
-      (environment) => environment != null && typeof environment === "object",
-    ),
-  );
-}
-
 function githubActionsRunCommands(workflow) {
   const document = loadYaml(workflow);
   if (document == null || typeof document !== "object") return [];
 
   const commands = [];
-  const collectSteps = (steps, ...environments) => {
+  const collectSteps = (steps) => {
     if (!Array.isArray(steps)) return;
     for (const step of steps) {
       if (
@@ -63,19 +54,14 @@ function githubActionsRunCommands(workflow) {
         typeof step === "object" &&
         typeof step.run === "string"
       ) {
-        commands.push({
-          run: step.run,
-          env: mergedEnv(...environments, step.env),
-        });
+        commands.push(step.run);
       }
     }
   };
 
   if (document.jobs != null && typeof document.jobs === "object") {
     for (const job of Object.values(document.jobs)) {
-      if (job != null && typeof job === "object") {
-        collectSteps(job.steps, document.env, job.env);
-      }
+      if (job != null && typeof job === "object") collectSteps(job.steps);
     }
   }
   if (
@@ -83,7 +69,7 @@ function githubActionsRunCommands(workflow) {
     typeof document.runs === "object" &&
     document.runs.using === "composite"
   ) {
-    collectSteps(document.runs.steps, document.env);
+    collectSteps(document.runs.steps);
   }
   return commands;
 }
@@ -91,221 +77,8 @@ function githubActionsRunCommands(workflow) {
 const shellParser = new Parser();
 shellParser.setLanguage(Bash);
 
-const shellAssignment = /^[A-Za-z_][A-Za-z0-9_]*=.*/;
-
-const commandWrappers = new Set([
-  "command",
-  "corepack",
-  "env",
-  "exec",
-  "ionice",
-  "nice",
-  "nohup",
-  "npx",
-  "setsid",
-  "stdbuf",
-  "sudo",
-  "time",
-  "timeout",
-  "xargs",
-]);
-
-const shellInterpreters = new Set([
-  "bash",
-  "dash",
-  "ksh",
-  "powershell",
-  "pwsh",
-  "sh",
-  "zsh",
-]);
-
-const wrapperOptionsWithArguments = {
-  env: new Set(["-C", "-S", "-u", "--chdir", "--split-string", "--unset"]),
-  exec: new Set(["-a"]),
-  ionice: new Set([
-    "-c",
-    "-n",
-    "-p",
-    "-P",
-    "-u",
-    "--class",
-    "--classdata",
-    "--pid",
-    "--pgid",
-    "--uid",
-  ]),
-  nice: new Set(["-n", "--adjustment"]),
-  npx: new Set(["-c", "-p", "--call", "--package"]),
-  stdbuf: new Set(["-e", "-i", "-o"]),
-  sudo: new Set([
-    "-C",
-    "-D",
-    "-g",
-    "-h",
-    "-p",
-    "-R",
-    "-T",
-    "-u",
-    "--chdir",
-    "--chroot",
-    "--command-timeout",
-    "--group",
-    "--host",
-    "--prompt",
-    "--user",
-  ]),
-  time: new Set(["-f", "-o", "--format", "--output"]),
-  timeout: new Set(["-k", "-s", "--kill-after", "--signal"]),
-  xargs: new Set([
-    "-a",
-    "-d",
-    "-E",
-    "-I",
-    "-L",
-    "-n",
-    "-P",
-    "-s",
-    "--arg-file",
-    "--delimiter",
-    "--eof",
-    "--max-args",
-    "--max-chars",
-    "--max-lines",
-    "--max-procs",
-    "--replace",
-  ]),
-};
-
-const wrapperShortOptionsWithoutArguments = {
-  sudo: new Set([
-    "A",
-    "b",
-    "E",
-    "e",
-    "H",
-    "K",
-    "k",
-    "N",
-    "n",
-    "P",
-    "S",
-    "V",
-    "v",
-  ]),
-};
-
-const wrapperShortOptionsWithArguments = {
-  env: new Set(["C", "S", "u"]),
-  exec: new Set(["a"]),
-  ionice: new Set(["c", "n", "p", "P", "u"]),
-  nice: new Set(["n"]),
-  npx: new Set(["c", "p"]),
-  stdbuf: new Set(["e", "i", "o"]),
-  sudo: new Set(["C", "D", "g", "h", "p", "R", "T", "u"]),
-  time: new Set(["f", "o"]),
-  timeout: new Set(["k", "s"]),
-  xargs: new Set(["a", "d", "E", "I", "L", "n", "P", "s"]),
-};
-
-const npmInstallCommands = new Set([
-  "add",
-  "i",
-  "in",
-  "ins",
-  "inst",
-  "insta",
-  "instal",
-  "install",
-  "isnt",
-  "isnta",
-  "isntal",
-  "isntall",
-  "up",
-  "update",
-  "udpate",
-  "upgrade",
-]);
-
-const npmOptionsWithArguments = new Set([
-  "-C",
-  "-p",
-  "-w",
-  "--access",
-  "--audit-level",
-  "--auth-type",
-  "--before",
-  "--cache",
-  "--cafile",
-  "--cert",
-  "--depth",
-  "--editor",
-  "--fetch-retries",
-  "--fetch-retry-factor",
-  "--fetch-retry-maxtimeout",
-  "--fetch-retry-mintimeout",
-  "--fetch-timeout",
-  "--git",
-  "--heading",
-  "--https-proxy",
-  "--include",
-  "--init-author-email",
-  "--init-author-name",
-  "--init-author-url",
-  "--init-license",
-  "--init-module",
-  "--init-version",
-  "--install-strategy",
-  "--key",
-  "--libc",
-  "--local-address",
-  "--location",
-  "--lockfile-version",
-  "--loglevel",
-  "--logs-dir",
-  "--logs-max",
-  "--maxsockets",
-  "--message",
-  "--node-options",
-  "--noproxy",
-  "--omit",
-  "--otp",
-  "--pack-destination",
-  "--package",
-  "--prefix",
-  "--preid",
-  "--proxy",
-  "--registry",
-  "--replace-registry-host",
-  "--save-prefix",
-  "--scope",
-  "--script-shell",
-  "--searchexclude",
-  "--searchlimit",
-  "--searchopts",
-  "--searchstaleness",
-  "--shell",
-  "--tag",
-  "--tag-version-prefix",
-  "--umask",
-  "--user-agent",
-  "--userconfig",
-  "--viewer",
-  "--which",
-  "--workspace",
-]);
-
-const npmExecOptionsWithArguments = new Set([
-  ...npmOptionsWithArguments,
-  "-p",
-  "-w",
-  "--package",
-  "--workspace",
-]);
-
 function decodeAnsiCString(source) {
   if (!source.startsWith("$'") || !source.endsWith("'")) return null;
-
   const body = source.slice(2, -1);
   let decoded = "";
   for (let index = 0; index < body.length; index += 1) {
@@ -314,10 +87,9 @@ function decodeAnsiCString(source) {
       decoded += character;
       continue;
     }
-
     const escape = body[++index];
     if (escape == null) return null;
-    const simpleEscapes = {
+    const simple = {
       "'": "'",
       '"': '"',
       "?": "?",
@@ -332,11 +104,10 @@ function decodeAnsiCString(source) {
       t: "\t",
       v: "\v",
     };
-    if (Object.hasOwn(simpleEscapes, escape)) {
-      decoded += simpleEscapes[escape];
+    if (Object.hasOwn(simple, escape)) {
+      decoded += simple[escape];
       continue;
     }
-
     if (/[0-7]/.test(escape)) {
       const digits = body.slice(index).match(/^[0-7]{1,3}/)?.[0];
       const value = Number.parseInt(digits, 8) & 0xff;
@@ -345,36 +116,18 @@ function decodeAnsiCString(source) {
       index += digits.length - 1;
       continue;
     }
-
     if (["x", "u", "U"].includes(escape)) {
-      const maximumDigits = escape === "x" ? 2 : escape === "u" ? 4 : 8;
+      const maximum = escape === "x" ? 2 : escape === "u" ? 4 : 8;
       const digits = body
         .slice(index + 1)
-        .match(new RegExp(`^[0-9A-Fa-f]{1,${maximumDigits}}`))?.[0];
+        .match(new RegExp(`^[0-9A-Fa-f]{1,${maximum}}`))?.[0];
       if (digits == null) return null;
       const value = Number.parseInt(digits, 16);
-      if (
-        value === 0 ||
-        value > 0x10ffff ||
-        (value >= 0xd800 && value <= 0xdfff)
-      ) {
-        return null;
-      }
+      if (value === 0 || value > 0x10ffff) return null;
       decoded += String.fromCodePoint(value);
       index += digits.length;
       continue;
     }
-
-    if (escape === "c") {
-      const control = body[++index];
-      if (control == null) return null;
-      const value =
-        control === "?" ? 0x7f : control.toUpperCase().charCodeAt(0) & 0x1f;
-      if (value === 0) return null;
-      decoded += String.fromCodePoint(value);
-      continue;
-    }
-
     return null;
   }
   return decoded;
@@ -385,7 +138,7 @@ function staticShellWord(node) {
   if (
     ["number", "string_content", "variable_name", "word"].includes(node.type)
   ) {
-    return node.text.replaceAll(/\\(.)/g, "$1");
+    return node.text.replaceAll(/\\(.)/gs, "$1");
   }
   if (node.type === "raw_string") return node.text.slice(1, -1);
   if (node.type === "ansi_c_string") return decodeAnsiCString(node.text);
@@ -395,16 +148,12 @@ function staticShellWord(node) {
     );
     const words = command == null ? null : staticCommandWords(command);
     if (words == null) return null;
-    const executable = path.posix.basename(words.name);
-    if (
-      executable === "echo" &&
-      words.args.every((arg) => !arg.startsWith("-"))
-    ) {
+    const executable = executableName(words.name);
+    if (executable === "echo" && words.args.every((arg) => arg != null)) {
       return words.args.join(" ");
     }
-    if (executable === "printf" && words.args.length === 1) {
+    if (executable === "printf" && words.args.length === 1)
       return words.args[0];
-    }
     return null;
   }
   if (["command_name", "concatenation", "string"].includes(node.type)) {
@@ -414,580 +163,270 @@ function staticShellWord(node) {
   return null;
 }
 
-function consumeWrapperArguments(args, wrapper) {
-  let index = 0;
-  let optionsEnded = false;
-
-  while (index < args.length) {
-    const token = args[index];
-    if (!optionsEnded && token === "--") {
-      optionsEnded = true;
-      index += 1;
-      continue;
-    }
-    if (wrapper === "env" && shellAssignment.test(token)) {
-      index += 1;
-      continue;
-    }
-    if (optionsEnded || !token.startsWith("-") || token === "-") break;
-    if (wrapper === "command" && ["-V", "-v"].includes(token)) return null;
-    if (wrapperOptionsWithArguments[wrapper]?.has(token)) {
-      if (index + 1 >= args.length) return null;
-      index += 2;
-      continue;
-    }
-    if (/^-[^-]/.test(token)) {
-      const argumentOptions = wrapperShortOptionsWithArguments[wrapper];
-      const optionBody = token.slice(1);
-      const optionCharacters = [...optionBody];
-      const argumentIndex = optionCharacters.findIndex((option) =>
-        argumentOptions?.has(option),
-      );
-      const booleanOptions = wrapperShortOptionsWithoutArguments[wrapper];
-      const consumesSeparateArguments =
-        argumentIndex !== -1 &&
-        optionCharacters.every(
-          (option) =>
-            argumentOptions?.has(option) || booleanOptions?.has(option),
-        );
-      if (consumesSeparateArguments) {
-        const argumentCount = optionCharacters.filter((option) =>
-          argumentOptions?.has(option),
-        ).length;
-        if (index + argumentCount >= args.length) return null;
-        index += 1 + argumentCount;
-        continue;
-      }
-    }
-    index += 1;
-  }
-
-  if (wrapper === "timeout") {
-    const duration = args[index];
-    if (
-      duration == null ||
-      !/^(?:\d+(?:\.\d+)?[smhd]?|\$[A-Za-z_][A-Za-z0-9_]*|\$\{[^}]+\})$/.test(
-        duration,
-      )
-    ) {
-      return null;
-    }
-    index += 1;
-  }
-
-  return index;
-}
-
-function staticShellAssignment(node) {
-  const name = staticShellWord(node.childForFieldName("name"));
-  const value = staticShellWord(node.childForFieldName("value"));
-  return name == null || value == null ? null : `${name}=${value}`;
-}
-
-function assignmentEnablesGlobalInstall(assignment) {
-  return /^npm_config_(?:global|location)=(?:1|global|true)$/i.test(assignment);
-}
-
-function wrapperCommandString(args, wrapper, stringOptions) {
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === "--") return null;
-    if (wrapper === "env" && shellAssignment.test(arg)) continue;
-    if (stringOptions.includes(arg)) return args[index + 1] ?? null;
-    for (const option of stringOptions) {
-      if (arg.startsWith(`${option}=`)) {
-        return arg.slice(option.length + 1);
-      }
-    }
-    const optionsWithArguments =
-      wrapper === "npm-exec"
-        ? npmExecOptionsWithArguments
-        : wrapperOptionsWithArguments[wrapper];
-    if (optionsWithArguments?.has(arg)) {
-      index += 1;
-      continue;
-    }
-    if (!arg.startsWith("-") || arg === "-") return null;
-  }
-  return null;
-}
-
-function npmCommandIndex(args, optionsWithArguments = npmOptionsWithArguments) {
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (optionsWithArguments.has(arg)) {
-      index += 1;
-      continue;
-    }
-    if (!arg.startsWith("-")) return index;
-  }
-  return -1;
-}
-
-function npmArgsEnableGlobal(args) {
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === "--location") {
-      if (args[index + 1]?.toLowerCase() === "global") return true;
-      index += 1;
-      continue;
-    }
-    if (npmOptionsWithArguments.has(arg)) {
-      index += 1;
-      continue;
-    }
-    if (
-      arg === "-g" ||
-      arg === "--global" ||
-      /^--global=(?:true|1)$/i.test(arg) ||
-      /^--location=global$/i.test(arg)
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function npmInvocationIsGlobalInstall(args, globalFromEnvironment) {
-  const commandIndex = npmCommandIndex(args);
-  const optionsEnd = args.indexOf("--", commandIndex + 1);
-  const effectiveArgs = optionsEnd === -1 ? args : args.slice(0, optionsEnd);
-  const command = args[commandIndex];
-  if (!npmInstallCommands.has(command)) return false;
-  return globalFromEnvironment || npmArgsEnableGlobal(effectiveArgs);
-}
-
-function partialNpmInvocationIsGlobalInstall(node, globalFromEnvironment) {
-  const name = staticShellWord(node.childForFieldName("name"));
-  if (name == null || path.posix.basename(name) !== "npm") return false;
-
-  const args = node.namedChildren
-    .filter(
-      (child) =>
-        child.type !== "command_name" && child.type !== "variable_assignment",
-    )
-    .map(staticShellWord);
-  const optionsEnd = args.indexOf("--");
-  const effectiveArgs = optionsEnd === -1 ? args : args.slice(0, optionsEnd);
-
-  let resolvedCommand = null;
-  for (let index = 0; index < effectiveArgs.length; index += 1) {
-    const arg = effectiveArgs[index];
-    if (arg == null) break;
-    if (npmOptionsWithArguments.has(arg)) {
-      index += 1;
-      continue;
-    }
-    if (!arg.startsWith("-")) {
-      resolvedCommand = arg;
-      break;
-    }
-  }
-  if (resolvedCommand != null && !npmInstallCommands.has(resolvedCommand)) {
-    return false;
-  }
-
-  return (
-    effectiveArgs.some((arg) => npmInstallCommands.has(arg)) &&
-    (globalFromEnvironment || npmArgsEnableGlobal(effectiveArgs))
-  );
-}
-
-function trailingRedirectWords(redirect) {
-  const destination = redirect.childForFieldName("destination");
-  const destinationIndex = redirect.namedChildren.indexOf(destination);
-  return destinationIndex === -1
-    ? []
-    : redirect.namedChildren.slice(destinationIndex + 1).map(staticShellWord);
-}
-
-function staticCommandWords(node) {
+function commandParts(node) {
   const name = staticShellWord(node.childForFieldName("name"));
   const args = node.namedChildren
     .filter(
       (child) =>
         child.type !== "command_name" &&
         child.type !== "variable_assignment" &&
-        (!child.type.endsWith("_redirect") || child.type === "file_redirect"),
+        !child.type.endsWith("_redirect"),
     )
-    .flatMap((child) =>
-      child.type === "file_redirect"
-        ? trailingRedirectWords(child)
-        : [staticShellWord(child)],
-    );
-  return name == null || args.some((arg) => arg == null)
+    .map((child) => ({ value: staticShellWord(child), source: child.text }));
+  return { name, args };
+}
+
+function staticCommandWords(node) {
+  const { name, args } = commandParts(node);
+  return name == null || args.some(({ value }) => value == null)
     ? null
-    : { name, args };
+    : { name, args: args.map(({ value }) => value) };
 }
 
-function npmCommandSetsPersistentGlobal(node) {
-  const words = staticCommandWords(node);
-  if (words == null || path.posix.basename(words.name) !== "npm") return false;
+function executableName(name) {
+  return path.posix.basename(name).toLowerCase();
+}
 
-  const commandIndex = npmCommandIndex(words.args);
-  const command = words.args[commandIndex];
-  const configArgs = words.args
-    .slice(commandIndex + 1)
-    .filter((arg) => arg !== "--");
-  const setArgs = ["c", "config"].includes(command)
-    ? configArgs[0] === "set"
-      ? configArgs.slice(1)
-      : []
-    : command === "set"
-      ? configArgs
-      : [];
+function isForbiddenExecutable(name) {
+  return /^(?:npm|npx)(?:\.cmd|\.exe)?$/i.test(executableName(name));
+}
 
-  for (let index = 0; index < setArgs.length; index += 1) {
-    const inline = /^([^=]+)=(.*)$/.exec(setArgs[index]);
-    const key = inline?.[1] ?? setArgs[index];
-    const value = inline?.[2] ?? setArgs[index + 1];
-    if (assignmentEnablesGlobalInstall(`npm_config_${key}=${value}`)) {
-      return true;
+const genericWrappers = new Set([
+  "command",
+  "env",
+  "exec",
+  "ionice",
+  "nice",
+  "nohup",
+  "setsid",
+  "stdbuf",
+  "sudo",
+  "time",
+  "timeout",
+  "xargs",
+]);
+
+const wrapperOperandOptions = new Map([
+  ["env", new Set(["-C", "-u", "--chdir", "--unset"])],
+  ["exec", new Set(["-a"])],
+  [
+    "ionice",
+    new Set([
+      "-c",
+      "-n",
+      "-p",
+      "-P",
+      "-u",
+      "--class",
+      "--classdata",
+      "--pid",
+      "--pgid",
+      "--uid",
+    ]),
+  ],
+  ["nice", new Set(["-n", "--adjustment"])],
+  ["stdbuf", new Set(["-e", "-i", "-o"])],
+  [
+    "sudo",
+    new Set([
+      "-C",
+      "-D",
+      "-g",
+      "-h",
+      "-p",
+      "-R",
+      "-T",
+      "-u",
+      "--chdir",
+      "--group",
+      "--host",
+      "--prompt",
+      "--user",
+    ]),
+  ],
+  ["time", new Set(["-f", "-o", "--format", "--output"])],
+  ["timeout", new Set(["-k", "-s", "--kill-after", "--signal"])],
+  ["xargs", new Set(["-a", "-d", "-E", "-I", "-L", "-n", "-P", "-s"])],
+]);
+
+function staticCommandString(args, index) {
+  const command = args[index];
+  return command?.value == null ? null : command.value;
+}
+
+function wrappedCommandIndex(args, wrapper) {
+  let index = 0;
+  while (index < args.length) {
+    const token = args[index];
+    if (wrapper === "env" && /^[A-Za-z_][A-Za-z0-9_]*=/.test(token.source)) {
+      index += 1;
+      continue;
     }
-    if (inline == null) index += 1;
-  }
-  return false;
-}
-
-function textEnablesGlobalNpm(content) {
-  return content
-    .replaceAll(/\\n/g, "\n")
-    .split("\n")
-    .some((line) =>
-      /^(?:(?:npm_config_)?global\s*=\s*(?:1|true)|(?:npm_config_)?location\s*=\s*global)\s*(?:#.*)?$/i.test(
-        line.trim(),
-      ),
-    );
-}
-
-function redirectedStatementEnablesGlobalNpm(node) {
-  const redirectsToPersistentConfig = node.namedChildren.some(
-    (child) =>
-      child.type === "file_redirect" &&
-      (/(?:^|[\s/])\.?npmrc["']?\s*$/.test(child.text) ||
-        /\bGITHUB_ENV\b/.test(child.text)),
-  );
-  if (!redirectsToPersistentConfig) return false;
-
-  const content = node.namedChildren
-    .flatMap((child) =>
-      child.type === "command"
-        ? (staticCommandWords(child)?.args ?? [])
-        : child.type === "heredoc_redirect"
-          ? child.namedChildren
-              .filter((part) => part.type === "heredoc_body")
-              .map((part) => part.text)
-          : [],
-    )
-    .join("\n");
-  return textEnablesGlobalNpm(content);
-}
-
-function pipelineEnablesGlobalNpm(node) {
-  const commandNodes = node.namedChildren.filter(
-    (child) => child.type === "command",
-  );
-  const writesPersistentConfig = commandNodes.some(
-    (command) =>
-      /(?:^|\s)tee(?:\s|$)/.test(command.text) &&
-      /(?:\/?\.?npmrc|GITHUB_ENV)/.test(command.text),
-  );
-  const commands = commandNodes
-    .map(staticCommandWords)
-    .filter((words) => words != null);
-  return (
-    writesPersistentConfig &&
-    textEnablesGlobalNpm(commands.flatMap((words) => words.args).join("\n"))
-  );
-}
-
-function syntaxTreeEnablesPersistentGlobalNpm(rootNode) {
-  const enablingAssignments = new Set();
-  const exportedNames = new Set();
-  const collectState = (node) => {
-    if (node.type === "variable_assignment") {
-      const assignment = staticShellAssignment(node);
-      if (assignmentEnablesGlobalInstall(assignment)) {
-        enablingAssignments.add(assignment.slice(0, assignment.indexOf("=")));
-      }
+    if (token.value == null) return null;
+    if (token.value === "--") return index + 1;
+    if (!token.value.startsWith("-") || token.value === "-") break;
+    if (wrapper === "command" && ["-v", "-V"].includes(token.value)) {
+      return args.length;
     }
-    if (node.type === "declaration_command" && /^export\b/.test(node.text)) {
-      for (const child of node.namedChildren.filter(
-        (part) => part.type === "variable_name",
-      )) {
-        exportedNames.add(child.text);
-      }
-    }
-    node.namedChildren.forEach(collectState);
-  };
-  collectState(rootNode);
-  const enablesAllexport = rootNode.namedChildren.some(
-    (node) =>
-      node.type === "command" &&
-      ["set -a", "set -o allexport"].includes(node.text.trim()),
-  );
-  if (
-    (enablesAllexport && enablingAssignments.size > 0) ||
-    [...enablingAssignments].some((name) => exportedNames.has(name))
-  ) {
-    return true;
-  }
-
-  const visit = (node) => {
+    const [option] = token.value.split("=", 1);
     if (
-      node.type === "declaration_command" &&
-      node.namedChildren
-        .filter((child) => child.type === "variable_assignment")
-        .map(staticShellAssignment)
-        .some(assignmentEnablesGlobalInstall)
+      wrapperOperandOptions.get(wrapper)?.has(option) &&
+      !token.value.includes("=")
     ) {
-      return true;
+      if (args[index + 1]?.value == null) return null;
+      index += 2;
+    } else {
+      index += 1;
     }
-    if (node.type === "command" && npmCommandSetsPersistentGlobal(node)) {
-      return true;
-    }
-    if (
-      node.type === "redirected_statement" &&
-      redirectedStatementEnablesGlobalNpm(node)
-    ) {
-      return true;
-    }
-    if (node.type === "pipeline" && pipelineEnablesGlobalNpm(node)) {
-      return true;
-    }
-    return node.namedChildren.some(visit);
-  };
-  return visit(rootNode);
+  }
+  if (wrapper === "timeout") {
+    if (args[index]?.value == null) return null;
+    index += 1;
+  }
+  return index;
 }
 
-function effectiveWrappedExecutable(words) {
-  let name = words.name;
-  let args = words.args;
-  while (commandWrappers.has(path.posix.basename(name))) {
-    const wrapper = path.posix.basename(name);
-    const commandIndex = consumeWrapperArguments(args, wrapper);
-    if (commandIndex == null || commandIndex >= args.length) return null;
-    name = args[commandIndex];
-    args = args.slice(commandIndex + 1);
-  }
-  return path.posix.basename(name);
-}
+function commandPartsAreForbidden(name, args) {
+  if (name == null) return true;
+  const executable = executableName(name);
+  if (isForbiddenExecutable(executable)) return true;
 
-function commandWordsContainGlobalNpmInstall(
-  initialName,
-  initialArgs,
-  assignments = [],
-  inheritedGlobal = false,
-) {
-  let name = initialName;
-  let args = initialArgs;
-  const globalFromEnvironment =
-    inheritedGlobal ||
-    [...assignments, ...args].some(assignmentEnablesGlobalInstall);
-
-  const initialExecutable = path.posix.basename(name);
-  if (initialExecutable === "pnpm") {
-    const execIndex = args.findIndex((arg) => ["exec", "x"].includes(arg));
-    if (execIndex !== -1 && args[execIndex + 1] != null) {
-      return commandWordsContainGlobalNpmInstall(
-        args[execIndex + 1],
-        args.slice(execIndex + 2),
-        assignments,
-        globalFromEnvironment,
-      );
-    }
-  }
-  if (initialExecutable === "direnv" && args[0] === "exec" && args[2] != null) {
-    return commandWordsContainGlobalNpmInstall(
-      args[2],
-      args.slice(3),
-      assignments,
-      globalFromEnvironment,
-    );
-  }
-
-  while (commandWrappers.has(path.posix.basename(name))) {
-    const wrapper = path.posix.basename(name);
-    if (["env", "npx"].includes(wrapper)) {
-      const stringOptions =
-        wrapper === "env" ? ["-S", "--split-string"] : ["-c", "--call"];
-      const commandString = wrapperCommandString(args, wrapper, stringOptions);
-      if (commandString != null) {
-        return shellCommandContainsGlobalNpmInstall(
-          commandString,
-          globalFromEnvironment,
-        );
-      }
-    }
-    const commandIndex = consumeWrapperArguments(args, wrapper);
-    if (commandIndex == null || commandIndex >= args.length) return false;
-    name = args[commandIndex];
-    args = args.slice(commandIndex + 1);
-  }
-
-  const executable = path.posix.basename(name);
   if (executable === "eval") {
-    return shellCommandContainsGlobalNpmInstall(
-      args.join(" "),
-      globalFromEnvironment,
-    );
+    if (args.length === 0 || args.some(({ value }) => value == null))
+      return true;
+    return shellCommandIsForbidden(args.map(({ value }) => value).join(" "));
   }
-  if (shellInterpreters.has(executable)) {
+
+  if (["bash", "dash", "ksh", "sh", "zsh"].includes(executable)) {
     for (let index = 0; index < args.length; index += 1) {
-      const arg = args[index];
-      const isPowerShellCommandOption =
-        ["powershell", "pwsh"].includes(executable) &&
-        /^-c(?:o(?:m(?:m(?:a(?:n(?:d)?)?)?)?)?)?$/i.test(arg);
-      const isCommandOption =
-        arg === "-c" ||
-        isPowerShellCommandOption ||
-        (/^-[^-]+$/.test(arg) && arg.includes("c"));
-      if (
-        isCommandOption &&
-        args[index + 1] != null &&
-        shellCommandContainsGlobalNpmInstall(
-          args[index + 1],
-          globalFromEnvironment,
-        )
-      ) {
-        return true;
+      const option = args[index].value;
+      if (option != null && /^-[^-]*c[^-]*$/.test(option)) {
+        const command = staticCommandString(args, index + 1);
+        return command == null || shellCommandIsForbidden(command);
       }
     }
     return false;
   }
 
-  if (executable !== "npm") return false;
-  if (npmInvocationIsGlobalInstall(args, globalFromEnvironment)) return true;
+  if (
+    ["powershell", "powershell.exe", "pwsh", "pwsh.exe"].includes(executable)
+  ) {
+    for (let index = 0; index < args.length; index += 1) {
+      const option = args[index].value;
+      if (
+        option != null &&
+        /^-(?:c|co|com|comm|comma|comman|command)$/i.test(option)
+      ) {
+        const command = staticCommandString(args, index + 1);
+        return command == null || shellCommandIsForbidden(command);
+      }
+    }
+    return false;
+  }
 
-  const commandIndex = npmCommandIndex(args);
-  const optionsEnd = args.indexOf("--", commandIndex + 1);
-  if (["exec", "x"].includes(args[commandIndex])) {
-    const execArgs = args.slice(commandIndex + 1);
-    const execOptionsEnd = execArgs.indexOf("--");
-    const stringOptionArgs =
-      execOptionsEnd === -1 ? execArgs : execArgs.slice(0, execOptionsEnd);
-    const commandString = wrapperCommandString(stringOptionArgs, "npm-exec", [
-      "-c",
-      "--call",
-    ]);
-    if (commandString != null) {
-      return shellCommandContainsGlobalNpmInstall(
-        commandString,
-        globalFromEnvironment,
+  if (executable === "env") {
+    for (let index = 0; index < args.length; index += 1) {
+      const token = args[index];
+      if (["-S", "--split-string"].includes(token.value)) {
+        const command = staticCommandString(args, index + 1);
+        return command == null || shellCommandIsForbidden(command);
+      }
+      if (token.value?.startsWith("--split-string=")) {
+        return shellCommandIsForbidden(
+          token.value.slice("--split-string=".length),
+        );
+      }
+    }
+  }
+
+  if (executable === "corepack") {
+    const index = wrappedCommandIndex(args, executable);
+    if (index == null || args[index]?.value == null) return true;
+    const manager = args[index].value;
+    return (
+      isForbiddenExecutable(manager) ||
+      (executableName(manager) === "pnpm" &&
+        commandPartsAreForbidden(manager, args.slice(index + 1)))
+    );
+  }
+
+  if (executable === "pnpm") {
+    const execIndex = args.findIndex(({ value }) =>
+      ["exec", "x"].includes(value),
+    );
+    if (execIndex !== -1) {
+      let nestedIndex = execIndex + 1;
+      if (args[nestedIndex]?.value === "--") nestedIndex += 1;
+      const nested = args[nestedIndex]?.value;
+      return (
+        nested == null ||
+        commandPartsAreForbidden(nested, args.slice(nestedIndex + 1))
       );
     }
+    return false;
+  }
 
-    const nestedOffset = npmCommandIndex(execArgs, npmExecOptionsWithArguments);
-    const nestedCommandIndex =
-      optionsEnd === -1
-        ? nestedOffset === -1
-          ? args.length
-          : commandIndex + 1 + nestedOffset
-        : optionsEnd + 1;
-    if (nestedCommandIndex < args.length) {
-      return commandWordsContainGlobalNpmInstall(
-        args[nestedCommandIndex],
-        args.slice(nestedCommandIndex + 1),
-        assignments,
-        globalFromEnvironment,
+  if (executable === "direnv" && args[0]?.value === "exec") {
+    const nested = args[2]?.value;
+    return nested == null || commandPartsAreForbidden(nested, args.slice(3));
+  }
+
+  if (genericWrappers.has(executable)) {
+    if (executable === "command" && ["-v", "-V"].includes(args[0]?.value)) {
+      return false;
+    }
+    const index = wrappedCommandIndex(args, executable);
+    if (index == null || index >= args.length || args[index].value == null)
+      return true;
+    return commandPartsAreForbidden(args[index].value, args.slice(index + 1));
+  }
+
+  // Once the executable is statically safe, its arguments may remain dynamic.
+  return false;
+}
+
+function isCatalogArgumentDispatcher(node) {
+  if (node.text !== '"$@"') return false;
+  for (let parent = node.parent; parent != null; parent = parent.parent) {
+    if (parent.type === "function_definition") {
+      return (
+        staticShellWord(parent.childForFieldName("name")) ===
+        "run_common_run_step"
       );
     }
   }
   return false;
 }
 
-function commandNodeContainsGlobalNpmInstall(node, inheritedGlobal) {
-  const words = staticCommandWords(node);
-  const assignments = node.namedChildren
-    .filter((child) => child.type === "variable_assignment")
-    .map(staticShellAssignment)
-    .filter((assignment) => assignment != null);
-  const globalFromEnvironment =
-    inheritedGlobal || assignments.some(assignmentEnablesGlobalInstall);
-  if (words == null) {
-    return partialNpmInvocationIsGlobalInstall(node, globalFromEnvironment);
-  }
-  return commandWordsContainGlobalNpmInstall(
-    words.name,
-    words.args,
-    assignments,
-    inheritedGlobal,
-  );
-}
-
-function shellCommandContainsGlobalNpmInstall(
-  command,
-  inheritedGlobal = false,
-) {
-  const tree = shellParser.parse(command.replaceAll(/\\\r?\n/g, " "));
-  const enablesPersistentGlobal = syntaxTreeEnablesPersistentGlobalNpm(
-    tree.rootNode,
-  );
-  if (enablesPersistentGlobal) return true;
-  const persistentGlobal = inheritedGlobal;
+function shellCommandIsForbidden(command) {
+  const normalized = command.replaceAll(/\\\r?\n/g, "");
+  const tree = shellParser.parse(normalized);
+  if (tree.rootNode.hasError) return true;
   const visit = (node) => {
-    if (
-      node.type === "command" &&
-      commandNodeContainsGlobalNpmInstall(node, persistentGlobal)
-    ) {
-      return true;
-    }
     if (node.type === "command") {
-      const words = staticCommandWords(node);
+      const { name, args } = commandParts(node);
       if (
-        words != null &&
-        shellInterpreters.has(effectiveWrappedExecutable(words))
-      ) {
-        for (const redirect of node.namedChildren.filter(
-          (child) => child.type === "herestring_redirect",
-        )) {
-          const script = staticShellWord(redirect.namedChild(0));
-          if (
-            script != null &&
-            shellCommandContainsGlobalNpmInstall(script, persistentGlobal)
-          ) {
-            return true;
-          }
-        }
-      }
-    }
-    if (node.type === "redirected_statement") {
-      const commandNode = node.namedChildren.find(
-        (child) => child.type === "command",
-      );
-      const words =
-        commandNode == null ? null : staticCommandWords(commandNode);
-      const redirectedArgs = node.namedChildren
-        .filter((child) => child.type === "file_redirect")
-        .flatMap(trailingRedirectWords);
-      if (
-        words != null &&
-        redirectedArgs.length > 0 &&
-        redirectedArgs.every((arg) => arg != null) &&
-        commandWordsContainGlobalNpmInstall(
-          words.name,
-          [...words.args, ...redirectedArgs],
-          [],
-          persistentGlobal,
-        )
+        !isCatalogArgumentDispatcher(node) &&
+        commandPartsAreForbidden(name, args)
       ) {
         return true;
       }
-      if (
-        words != null &&
-        shellInterpreters.has(effectiveWrappedExecutable(words))
-      ) {
-        for (const redirect of node.namedChildren.filter(
-          (child) => child.type === "heredoc_redirect",
-        )) {
-          for (const body of redirect.namedChildren.filter(
-            (child) => child.type === "heredoc_body",
+    }
+    if (node.type === "redirected_statement") {
+      const command = node.namedChildren.find(
+        (child) => child.type === "command",
+      );
+      if (command != null) {
+        const { name, args } = commandParts(command);
+        const executable = name == null ? null : executableName(name);
+        if (["bash", "dash", "ksh", "sh", "zsh"].includes(executable)) {
+          for (const redirect of node.namedChildren.filter((child) =>
+            ["heredoc_redirect", "herestring_redirect"].includes(child.type),
           )) {
-            if (
-              shellCommandContainsGlobalNpmInstall(body.text, persistentGlobal)
-            ) {
-              return true;
-            }
+            const body = redirect.namedChildren.at(-1);
+            const script =
+              body == null ? null : (staticShellWord(body) ?? body.text);
+            if (script == null || shellCommandIsForbidden(script)) return true;
           }
         }
       }
@@ -997,93 +436,203 @@ function shellCommandContainsGlobalNpmInstall(
   return visit(tree.rootNode);
 }
 
-function githubEnvEnablesGlobalInstall(environment) {
-  return Object.entries(environment).some(([name, value]) =>
-    assignmentEnablesGlobalInstall(`${name}=${String(value)}`),
-  );
+function repositoryPath(value) {
+  return /^\.\/[A-Za-z0-9_./-]+$/.test(value ?? "") ? value.slice(2) : null;
 }
 
-function containsGlobalNpmInstall(workflow) {
-  return githubActionsRunCommands(workflow).some(({ run, env }) =>
-    shellCommandContainsGlobalNpmInstall(
-      run,
-      githubEnvEnablesGlobalInstall(env),
-    ),
-  );
-}
+function runnerReferences(source, kind) {
+  if (kind === "catalog") {
+    return [
+      ...new Set(
+        [
+          ...source.matchAll(
+            /\bcommand\s*:\s*["'](\.\/[A-Za-z0-9_./-]+\.sh)["']/g,
+          ),
+        ].map(([, candidate]) => repositoryPath(candidate)),
+      ),
+    ];
+  }
 
-function delegatedRepositoryScriptPaths(command) {
-  const tree = shellParser.parse(command.replaceAll(/\\\r?\n/g, " "));
-  const scripts = new Set();
-  const addScript = (candidate) => {
-    if (/^\.\/[A-Za-z0-9_./-]+\.(?:mjs|sh)$/.test(candidate)) {
-      scripts.add(candidate.slice(2));
-    }
-  };
+  const tree = shellParser.parse(source.replaceAll(/\\\r?\n/g, ""));
+  const references = [];
   const visit = (node) => {
     if (node.type === "command") {
-      const words = staticCommandWords(node);
-      if (words != null) {
-        addScript(words.name);
-        const executable = path.posix.basename(words.name);
-        if (
-          shellInterpreters.has(executable) ||
-          [".", "node", "source"].includes(executable)
-        ) {
-          words.args.forEach(addScript);
-        }
+      const { name, args } = commandParts(node);
+      const executable = name == null ? null : executableName(name);
+      if ([".", "source"].includes(executable)) {
+        const sourced = repositoryPath(args[0]?.value);
+        if (sourced?.endsWith(".sh"))
+          references.push({ path: sourced, kind: "shell" });
+      }
+      if (executable === "node") {
+        const catalog = args
+          .map(({ value }) => repositoryPath(value))
+          .find((candidate) => candidate === "scripts/run-target-catalog.mjs");
+        if (catalog != null)
+          references.push({ path: catalog, kind: "catalog" });
       }
     }
     node.namedChildren.forEach(visit);
   };
   visit(tree.rootNode);
-  return [...scripts];
+  return references;
 }
 
-function catalogShellScriptPaths(source) {
-  return [
-    ...new Set(
-      [...source.matchAll(/["']\.\/([A-Za-z0-9_./-]+\.sh)["']/g)].map(
-        ([, relative]) => relative,
-      ),
-    ),
-  ];
+function workflowRunnerSeeds(command) {
+  const tree = shellParser.parse(command.replaceAll(/\\\r?\n/g, ""));
+  const seeds = [];
+  const visit = (node) => {
+    if (node.type === "command") {
+      const { name, args } = commandParts(node);
+      const candidates = [name, ...args.map(({ value }) => value)];
+      if (
+        candidates.some((candidate) => repositoryPath(candidate) === "run.sh")
+      ) {
+        seeds.push({ path: "run.sh", kind: "shell" });
+      }
+    }
+    node.namedChildren.forEach(visit);
+  };
+  visit(tree.rootNode);
+  return seeds;
 }
 
-async function automationDocumentContainsGlobalNpmInstall(document) {
+async function automationDocumentIsForbidden(document, readRunner = text) {
   const commands = githubActionsRunCommands(document);
-  const queue = commands.map(({ run, env }) => ({
-    script: run,
-    inheritedGlobal: githubEnvEnablesGlobalInstall(env),
-    kind: "sh",
-  }));
+  if (commands.some(shellCommandIsForbidden)) return true;
+
+  const queue = commands.flatMap(workflowRunnerSeeds);
   const visited = new Set();
   while (queue.length > 0) {
-    const { script, inheritedGlobal, kind } = queue.shift();
-    if (
-      kind === "sh" &&
-      shellCommandContainsGlobalNpmInstall(script, inheritedGlobal)
-    ) {
+    const surface = queue.shift();
+    if (visited.has(surface.path)) continue;
+    visited.add(surface.path);
+    const source = await readRunner(surface.path);
+    if (surface.kind === "shell" && shellCommandIsForbidden(source))
       return true;
-    }
-    const delegatedPaths =
-      kind === "sh"
-        ? delegatedRepositoryScriptPaths(script)
-        : catalogShellScriptPaths(script);
-    for (const relative of delegatedPaths) {
-      const key = `${relative}:${inheritedGlobal}`;
-      if (visited.has(key)) continue;
-      visited.add(key);
-      const delegated = await text(relative);
-      queue.push({
-        script: delegated,
-        inheritedGlobal,
-        kind: relative.endsWith(".mjs") ? "mjs" : "sh",
-      });
+    const references = runnerReferences(source, surface.kind);
+    if (surface.kind === "catalog") {
+      queue.push(
+        ...references.map((runner) => ({ path: runner, kind: "shell" })),
+      );
+    } else {
+      queue.push(...references);
     }
   }
   return false;
 }
+
+function workflowWithCommand(command) {
+  return `jobs:\n  check:\n    steps:\n      - run: ${JSON.stringify(command)}\n`;
+}
+
+const forbiddenCommandCorpus = [
+  "npm install package",
+  "npx tool",
+  "sudo env FOO=bar npm test",
+  "sudo -n -u root npm test",
+  "ionice -c 2 npm test",
+  "direnv exec . npm test",
+  "corepack npm install",
+  "corepack pnpm exec npm test",
+  "pnpm exec npm test",
+  "pnpm exec -- npm test",
+  "pnpm x npx tool",
+  "eval 'npm test'",
+  "bash -lc 'npm test'",
+  "pwsh -Command 'npx tool'",
+  "powershell -Command 'npm test'",
+  "env -S 'npm test'",
+  "env --split-string=$'n\\x70m tool'",
+  "n\\pm test",
+  "n\\" + "\n" + "pm test",
+  "$'n\\x70m' test",
+  "$(printf npm) test",
+  '"$PACKAGE_MANAGER" test',
+  'eval "$COMMAND"',
+  'bash -c "$COMMAND"',
+  'sudo "$COMMAND" test',
+  "false && npm test",
+];
+
+const allowedCommandCorpus = [
+  "pnpm install --frozen-lockfile",
+  "pnpm run build",
+  'echo "npm and npx are not used"',
+  "printf '%s\\n' 'npm install package'",
+  "# npm install package",
+  "cat <<'TEXT'\nnpm install package\nTEXT",
+  'node ./scripts/tool.mjs "$DYNAMIC_ARGUMENT"',
+  'env TOKEN="$DYNAMIC_TOKEN" pnpm run test',
+  'pnpm run "$DYNAMIC_SCRIPT"',
+  "command -v npm",
+  "grep npm docs/package-manager.md",
+];
+
+test("enforces the pnpm-only workflow command corpus", async () => {
+  for (const command of forbiddenCommandCorpus) {
+    assert.equal(
+      await automationDocumentIsForbidden(workflowWithCommand(command)),
+      true,
+      command,
+    );
+  }
+  for (const command of allowedCommandCorpus) {
+    assert.equal(
+      await automationDocumentIsForbidden(workflowWithCommand(command)),
+      false,
+      command,
+    );
+  }
+});
+
+test("follows run.sh, sourced helpers, and data-driven target catalogs", async () => {
+  const surfaces = new Map([
+    ["run.sh", "source ./scripts/run-common.sh"],
+    [
+      "scripts/run-common.sh",
+      "node ./scripts/run-target-catalog.mjs --step-commands",
+    ],
+    [
+      "scripts/run-target-catalog.mjs",
+      'export const lanes = [{ command: "./run-core.sh" }];',
+    ],
+    ["run-core.sh", "env npm test"],
+  ]);
+  const readRunner = async (relative) => {
+    assert.ok(surfaces.has(relative), `unexpected runner surface: ${relative}`);
+    return surfaces.get(relative);
+  };
+  assert.equal(
+    await automationDocumentIsForbidden(
+      workflowWithCommand("./run.sh core"),
+      readRunner,
+    ),
+    true,
+  );
+
+  surfaces.set("run-core.sh", "pnpm run test");
+  assert.equal(
+    await automationDocumentIsForbidden(
+      workflowWithCommand("./run.sh core"),
+      readRunner,
+    ),
+    false,
+  );
+});
+
+test("keeps direct reviewed release scripts outside recursive runner scanning", async () => {
+  const publishScript = await text("scripts/publish-npm-packages.sh");
+  assert.match(publishScript, /\bnpm\s+(?:access|dist-tag|view)\b/);
+  assert.equal(
+    await automationDocumentIsForbidden(
+      workflowWithCommand("./scripts/publish-npm-packages.sh"),
+      async () =>
+        assert.fail("direct release scripts are the explicit audit boundary"),
+    ),
+    false,
+  );
+});
 
 function compareVersions(left, right) {
   const leftParts = left.split(".").map(Number);
@@ -1120,333 +669,6 @@ function resolvedNanoid3Versions(lockfile) {
     ),
   ];
 }
-
-function workflowWithRunScalar(runScalar) {
-  return `jobs:\n  check:\n    steps:\n      - name: Check\n        ${runScalar.replaceAll("\n", "\n        ")}\n`;
-}
-
-test("detects global npm installs in parsed GitHub Actions run scalars", () => {
-  for (const runScalar of [
-    "run: npm install -g npm@12",
-    'run: "npm install -g npm@12"',
-    'run: "npm install -g npm@12" # trailing comment',
-    "run: 'npm install -g npm@12'",
-    "run: if npm install -g npm@12; then echo installed; fi",
-    "run: npm install --silent -g npm@12",
-    "run: npm i --global npm@12",
-    "run: npm --global install npm@12",
-    "run: npm --workspace tools install -g npm@12",
-    "run: npm --loglevel info install -g npm@12",
-    "run: npm --fetch-timeout 1000 install -g npm@12",
-    "run: npm --script-shell /bin/bash install -g npm@12",
-    "run: npm -w tools install --global npm@12",
-    "run: npm --package npm@12 install -g npm@12",
-    "run: npm install --global=true npm@12",
-    "run: npm install --location=global npm@12",
-    "run: npm install --location > out.txt global npm@12",
-    "run: npm install $PACKAGE npm@12 -g",
-    'run: npm i "$PACKAGE" --global npm@12',
-    'run: npm add "$PACKAGE" --location global npm@12',
-    "run: npm i --location global npm@12",
-    "run: echo ready && npm --silent i --location=GLOBAL npm@12",
-    "run: sudo npm install -g npm@12",
-    "run: sudo -n -u root env NODE_ENV=production npm install -g npm@12",
-    "run: sudo -Enu root npm install -g npm@12",
-    "run: sudo -un root npm install -g npm@12",
-    "run: sudo -nu root npm install -g npm@12",
-    "run: sudo -gu group root npm install -g npm@12",
-    "run: sudo -up root prompt npm install -g npm@12",
-    "run: sudo -uh root host npm install -g npm@12",
-    "run: corepack npm install --global npm@12",
-    "run: pnpm exec npm install --global npm@12",
-    "run: direnv exec . npm install --global npm@12",
-    "run: env -i FOO=bar npm i --global npm@12",
-    "run: env -S 'npm install -g npm@12'",
-    "run: env --split-string 'npm install -g npm@12'",
-    "run: env --split-string='npm install -g npm@12'",
-    "run: env npm_config_global='true' -S 'npm install npm@12'",
-    "run: env --unset HOME -- command -p npm install --location global npm@12",
-    "run: exec env FOO=bar npm --global install npm@12",
-    "run: time -p sudo --preserve-env=HOME npm install -g npm@12",
-    "run: /usr/bin/time -f '%E' /usr/bin/env -u HOME npm install -g npm@12",
-    "run: if ! sudo env FOO=bar command exec npm install -g npm@12; then exit 1; fi",
-    "run: nice -n 5 npm install -g npm@12",
-    "run: timeout --signal TERM 30s npm install -g npm@12",
-    "run: nohup npm install -g npm@12",
-    "run: xargs -I {} npm install -g npm@12",
-    "run: setsid --wait npm install -g npm@12",
-    "run: stdbuf -o L npm install -g npm@12",
-    "run: ionice -c 2 -n 7 npm install -g npm@12",
-    "run: nohup nice timeout 30 env FOO=bar npm install -g npm@12",
-    "run: /usr/bin/npm install -g npm@12",
-    "run: npx npm install -g npm@12",
-    "run: |\n  npx -c 'npm install -g npm@12'",
-    "run: npm exec -- npm install -g npm@12",
-    "run: npm -- exec npm install -g npm@12",
-    "run: npm exec npm install -g npm@12",
-    "run: npm exec --prefix ./tmp npm install -g npm@12",
-    "run: npm exec --package npm@12 npm install -g npm@12",
-    "run: npm exec --package npm@12 -c 'npm install -g npm@12'",
-    "run: npm exec -c 'npm install -g npm@12'",
-    "run: npm x --call 'npm install -g npm@12'",
-    "run: npm exec --call='npm install -g npm@12'",
-    "run: npm_config_global='true' npm exec -c 'npm install npm@12'",
-    "run: npm_config_location='global' npm x --call='npm install npm@12'",
-    "run: npm_config_global=true npm exec -- npm install npm@12",
-    "run: npm_config_global=true npm install npm@12",
-    'run: npm_config_global="true" npm install npm@12',
-    "run: npm_config_global='true' npm install npm@12",
-    "run: npm_config_global=$'true' npm install npm@12",
-    "run: npm_config_global=$'tr\\165e' npm install npm@12",
-    'run: npm_config_location="global" npm install npm@12',
-    "run: env npm_config_location=global npm install npm@12",
-    "run: env npm_config_location='global' npm install npm@12",
-    "run: |\n  export npm_config_location=$'global'\n  npm install npm@12",
-    "run: |\n  export npm_config_location=$'\\x67lobal'\n  npm install npm@12",
-    "run: npm --location global install npm@12",
-    "run: npm add -g npm@12",
-    "run: npm update -g npm@12",
-    "run: npm up --global npm@12",
-    "run: npm upgrade --location=global npm@12",
-    "run: npm isntall --global npm@12",
-    'run: |\n  eval "npm install -g npm@12"',
-    "run: eval $'npm install -g npm@12'",
-    "run: eval $'npm install \\x2dg npm@12'",
-    'run: |\n  sudo eval "npm install -g npm@12"',
-    'run: |\n  env FOO=bar eval "npm install -g npm@12"',
-    'run: n"pm" install -g npm@12',
-    "run: $(echo npm) install -g npm@12",
-    "run: $(printf npm) install --global npm@12",
-    "run: $(npm install -g npm@12)",
-    'run: "`npm i -g npm@12`"',
-    "run: |\n  bash -c 'npm install -g npm@12'",
-    "run: bash -c $'npm install --glob\\x61l npm@12'",
-    "run: env -S $'npm install -g npm@12'",
-    "run: |\n  npm_config_global='true' bash -c 'npm install npm@12'",
-    "run: |\n  env npm_config_location='global' sh -c 'npm install npm@12'",
-    "run: |\n  export npm_config_global='true'\n  npm install npm@12",
-    "run: |\n  npm_config_global=true\n  export npm_config_global\n  npm install npm@12",
-    "run: |\n  set -a\n  npm_config_global=true\n  npm install npm@12",
-    "run: |\n  set -o allexport\n  npm_config_location=global\n  npm install npm@12",
-    "run: |\n  export npm_config_location=global\n  bash -c 'npm install npm@12'",
-    "run: npm config set global true",
-    "run: npm set location=global",
-    "run: |\n  npm config set global true\n  npm install npm@12",
-    "run: npm config set foo=bar global=true",
-    "run: npm config -- set foo bar location global",
-    "run: |\n  npm set location=global\n  npm update npm@12",
-    "run: echo 'global=true' >> .npmrc",
-    'run: echo "npm_config_global=true" >> "$GITHUB_ENV"',
-    "run: printf 'npm_config_location=global\\n' | tee -a \"$GITHUB_ENV\"",
-    "run: echo 'global=true' | tee -a ~/.npmrc",
-    "run: printf 'location=global\\n' | sudo tee ~/.npmrc",
-    "run: echo 'global=true' >> /usr/local/etc/npmrc",
-    "run: printf 'location=global\\n' | tee -a /usr/local/etc/npmrc",
-    "run: |\n  printf 'global=true\\n' >> ~/.npmrc\n  npm install npm@12",
-    "run: |\n  cat >> ~/.npmrc <<'NPMRC'\n  location=global\n  NPMRC\n  npm install npm@12",
-    "run: bash <<<'npm install -g npm@12'",
-    "run: env bash <<<'npm install -g npm@12'",
-    "run: |\n  bash <<'SCRIPT'\n  npm install -g npm@12\n  SCRIPT",
-    "run: |\n  env bash <<'SCRIPT'\n  npm install -g npm@12\n  SCRIPT",
-    "run: |\n  sh <<'SCRIPT'\n  npm_config_global='true' npm install npm@12\n  SCRIPT",
-    "run: |\n  sh -c 'sudo npm install -g npm@12'",
-    "run: |\n  sh -c 'echo safe' -c 'npm install -g npm@12'",
-    "run: |\n  pwsh -Command 'Write-Output safe' -Command 'npm install -g npm@12'",
-    "run: pwsh -Com 'npm install -g npm@12'",
-    "run: powershell -Comm 'npm install -g npm@12'",
-    "run: |\n  pwsh -Command 'npm install -g npm@12'",
-    "run: (npm install -g npm@12)",
-    "run: |\n  { npm install -g npm@12; }",
-    "run: |\n  echo ready\n  npm install -g npm@12",
-    "run: |2-\n  npm install -g npm@12",
-    "run: |-2\n  npm install -g npm@12",
-    "run: >-\n  if npm install -g npm@12; then\n  echo installed; fi",
-    "run: >-\n  echo ready\n    npm install -g npm@12",
-    // Intentionally fail closed on syntactically present commands, even when
-    // shell control flow makes them unreachable.
-    "run: false && npm install -g npm@12",
-  ]) {
-    const workflow = workflowWithRunScalar(runScalar);
-    assert.equal(containsGlobalNpmInstall(workflow), true, runScalar);
-  }
-
-  for (const runScalar of [
-    "run: pnpm install --frozen-lockfile",
-    "run: npm install",
-    "run: npm install --global=false package",
-    "run: npm install --location=project package",
-    "run: npm install --registry -g package",
-    "run: npm install npm@12 2> -g",
-    "run: npm install --loglevel -g package",
-    "run: npm --workspace tools install package",
-    "run: npm --package npm@12 install package",
-    "run: npm update package",
-    "run: npm up --global=false package",
-    'run: npm_config_global="false" npm install package',
-    "run: npm_config_global='0' npm install package",
-    "run: npm_config_global=$'false' npm install package",
-    "run: npm_config_global=$'tr'\"$SUFFIX\" npm install package",
-    'run: npm_config_location="project" npm install package',
-    "run: npm_config_location=$'project' npm install package",
-    "run: npm exec -c 'npm install package'",
-    "run: eval $'npm install package'",
-    "run: eval $'npm install \\x-g npm@12'",
-    "run: eval $'npm install '\"$FLAGS\"' npm@12'",
-    "run: bash -c $'npm install package'",
-    "run: npm x --call 'npm install package'",
-    "run: npm exec --call='npm install package'",
-    "run: npm_config_global='false' npm exec -c 'npm install package'",
-    "run: npm exec --prefix -c 'npm install -g npm@12'",
-    "run: npm exec --package -c 'npm install -g npm@12'",
-    "run: npx --package -c 'npm install -g npm@12'",
-    "run: env -S 'npm install package'",
-    "run: env --unset -S 'npm install -g npm@12'",
-    "run: env --split-string 'pnpm install --frozen-lockfile'",
-    "run: env npm_config_location='project' -S 'npm install package'",
-    "run: npm_config_global='false' bash -c 'npm install package'",
-    "run: |\n  export npm_config_global='false'\n  npm install package",
-    "run: |\n  npm_config_global=false\n  export npm_config_global\n  npm install package",
-    "run: |\n  set +a\n  npm_config_global=true\n  npm install package",
-    "run: |\n  set -a\n  npm_config_global=false\n  npm install package",
-    "run: |\n  export npm_config_location=project\n  npm install package",
-    "run: npm config set foo=bar global=false",
-    "run: npm config -- set foo bar location project",
-    "run: |\n  npm config set global false\n  npm install package",
-    "run: |\n  npm set location=project\n  npm install package",
-    'run: echo "npm_config_global=false" >> "$GITHUB_ENV"',
-    "run: printf 'npm_config_location=project\\n' | tee -a \"$GITHUB_ENV\"",
-    "run: echo 'example global=true' >> ~/.npmrc",
-    "run: echo '# global=true' | tee -a ~/.npmrc",
-    "run: echo 'global=false' | tee -a ~/.npmrc",
-    "run: printf 'location=project\\n' | sudo tee ~/.npmrc",
-    "run: echo 'global=false' >> /usr/local/etc/npmrc",
-    "run: |\n  printf 'global=false\\n' >> ~/.npmrc\n  npm install package",
-    "run: |\n  cat >> ~/.npmrc <<'NPMRC'\n  location=project\n  NPMRC\n  npm install package",
-    "run: |\n  cat <<'SCRIPT'\n  npm install -g npm@12\n  SCRIPT",
-    "run: bash <<<'npm install package'",
-    "run: cat <<<'npm install -g npm@12'",
-    "run: |\n  bash <<'SCRIPT'\n  npm install package\n  SCRIPT",
-    "run: npm run build -- -g i",
-    'run: npm run "$SCRIPT" install -g npm@12',
-    'run: npm test "$ARG" install --global npm@12',
-    "run: npm install -- -g npm@12",
-    "run: npm install # -g npm@12",
-    'run: "echo npm install -g" # trailing comment',
-    "run: $(echo pnpm) install -g npm@12",
-    "run: $(printf not-npm) install -g npm@12",
-    "run: 'printf npm install -g'",
-    "run: echo sudo env npm install -g npm@12",
-    "run: printf '%s' 'sudo npm install -g npm@12'",
-    "run: command -v npm install -g npm@12",
-    "run: sudo -u npm install -g npm@12",
-    "run: env -u npm install -g npm@12",
-    "run: time echo npm install -g npm@12",
-    "run: timeout echo npm install -g npm@12",
-    "run: timeout 30 echo npm install -g npm@12",
-    "run: xargs -I npm install -g npm@12",
-    "run: ionice -p npm install -g npm@12",
-    "run: grep npm install -g commands.txt",
-    "run: false && echo npm install -g npm@12",
-    "run: |\n  cat <<'EOF'\n  npm install -g npm@12\n  EOF",
-    "run: |2-\n  echo 'npm install -g npm@12'\n  pnpm install",
-    "run: >-\n  echo ready\n    printf 'npm install -g npm@12'",
-  ]) {
-    const workflow = workflowWithRunScalar(runScalar);
-    assert.equal(containsGlobalNpmInstall(workflow), false, runScalar);
-  }
-});
-
-test("scans workflow and composite-action run steps with inherited env", () => {
-  const workflow = `
-env:
-  npm_config_global: "true"
-jobs:
-  workflow-env:
-    steps:
-      - run: npm install package
-  job-env:
-    env:
-      npm_config_global: "false"
-      npm_config_location: global
-    steps:
-      - run: npm install package
-  step-env:
-    env:
-      npm_config_global: "false"
-    steps:
-      - run: npm install package
-        env:
-          npm_config_global: "true"
-`;
-  assert.equal(containsGlobalNpmInstall(workflow), true);
-
-  const overriddenWorkflow = `
-env:
-  npm_config_global: "true"
-jobs:
-  safe:
-    env:
-      npm_config_global: "false"
-    steps:
-      - run: npm install package
-`;
-  assert.equal(containsGlobalNpmInstall(overriddenWorkflow), false);
-
-  const composite = `
-name: Composite
-runs:
-  using: composite
-  steps:
-    - shell: bash
-      run: npm install package
-      env:
-        npm_config_location: global
-`;
-  assert.equal(containsGlobalNpmInstall(composite), true);
-});
-
-test("scans only supported workflow and composite-action run steps", () => {
-  const workflow = `
-run: npm install -g npm@12
-jobs:
-  ignored:
-    run: npm install -g npm@12
-    steps:
-      - uses: actions/checkout@immutable
-      - run: pnpm install --frozen-lockfile
-  reusable:
-    uses: owner/repo/.github/workflows/reusable.yml@immutable
-`;
-  assert.equal(containsGlobalNpmInstall(workflow), false);
-
-  const nonCompositeAction = `
-name: JavaScript action
-runs:
-  using: node24
-  main: npm install -g npm@12
-`;
-  assert.equal(containsGlobalNpmInstall(nonCompositeAction), false);
-});
-
-test("discovers repository-relative delegated runner scripts", () => {
-  assert.deepEqual(
-    delegatedRepositoryScriptPaths(
-      "./scripts/first.sh && bash ./scripts/second.sh && source ./scripts/common.sh && node ./scripts/catalog.mjs && echo ./ignored.sh",
-    ),
-    [
-      "scripts/first.sh",
-      "scripts/second.sh",
-      "scripts/common.sh",
-      "scripts/catalog.mjs",
-    ],
-  );
-  assert.deepEqual(
-    catalogShellScriptPaths(
-      `const command = "./run-core.sh"; const ignored = "script.sh";`,
-    ),
-    ["run-core.sh"],
-  );
-});
 
 test("extracts compatible nanoid 3.x floors and compares versions semantically", () => {
   assert.equal(nanoid3OverrideFloor("^3.3.18"), "3.3.18");
@@ -1507,9 +729,9 @@ test("code-scanning supply-chain remediations do not regress", async () => {
 
   for (const workflow of workflows) {
     assert.equal(
-      await automationDocumentContainsGlobalNpmInstall(workflow),
+      await automationDocumentIsForbidden(workflow),
       false,
-      "repository workflows must not install npm packages globally",
+      `workflow ${loadYaml(workflow)?.name ?? "document"} and delegated runner lanes must not invoke npm or npx`,
     );
   }
 

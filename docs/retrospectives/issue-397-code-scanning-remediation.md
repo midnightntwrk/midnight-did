@@ -36,70 +36,46 @@ reintroduced the workflow step and the advisory was revised after that fix.
 The current public Scorecard API supplied commit-bound evidence for every
 check, while `pnpm audit` identified the exact dependency path and revised
 patched floor. The remediation kept all action references at immutable SHAs
-and did not expand workflow permissions. A focused policy test now checks the
-workflow and dependency invariants together so future baseline synchronization
-cannot silently restore either vulnerable condition. Review of that harness
-found that command wrappers could hide a global npm install, so the detector now
-parses Bash into a tree-sitter syntax tree and inspects only executable command
-nodes. The command-prefix model then handles common privilege, environment,
-process, and scheduling wrappers with their options and assignments. Fixtures
-cover nested wrapper chains (including bundled short options), shell-interpreter
-`-c` commands, `eval`, npx/npm-exec indirection, npm install aliases and
-configuration assignments, command substitutions, path-qualified and
-quote-concatenated npm names, and unspaced subshells. Static assignment values
-are normalized through the Bash syntax tree, including single-quoted,
-double-quoted, and ANSI-C-quoted `npm_config_global` and
-`npm_config_location` values. The ANSI-C normalization handles supported Bash
-escapes for statically evaluable assignment values and command strings while
-leaving malformed escapes and concatenated dynamic expansions non-static.
-Command strings passed through npm exec/x `-c`/`--call`, env
-`-S`/`--split-string`, shell interpreters, and eval are recursively parsed while
-retaining applicable npm configuration state. Negative quoted, `echo`/`printf`,
-heredoc, comment, npm-script, end-of-options, command-string, and
-wrapper-operand fixtures keep non-executed text and unrelated npm subcommands
-from becoming findings. For a partially dynamic npm invocation, a statically
-resolved non-install subcommand such as `run` or `test` stops install detection;
-later static script arguments are not reinterpreted as npm subcommands. Dynamic
-package operands after a statically resolved `install`, `i`, or `add` command
-remain detectable. The
-scanner intentionally fails closed on a prohibited command that is
-syntactically present but unreachable through shell control flow. Global npm
-`update` aliases are treated as mutations alongside installs. Exported global
-npm configuration, `npm config set`/`npm set`, and static `.npmrc` writes are
-blocked as global-enabling state even when the later npm mutation occurs in a
-separate workflow step. Shell-interpreter heredoc bodies are recursively parsed,
-while data heredocs passed to commands such as `cat` remain non-executable.
-Workflow-, job-, and step-level GitHub `env` state is merged with child
-overrides, and composite-action run steps under `.github/actions` are scanned
-alongside workflow steps. Partially dynamic npm arguments retain static command
-and global-option evidence; option operands, repeated interpreter command
-flags, bundled wrapper options with multiple operands, and multi-pair npm config
-updates have dedicated fixtures. Shell here-strings are parsed for direct and
-wrapped interpreters, workspace/package option operands are skipped, split
-assignment/export state is tracked, and static `.npmrc` or `$GITHUB_ENV`
-writes through redirects and `tee` pipelines are blocked. Statically evaluable
-`echo`/`printf` command substitutions used as executable names retain npm
-identity. Bundled wrapper parsing recognizes boolean flags on either side of
-argument-taking flags, and npm command indexing covers the documented
-value-taking configuration options rather than a small command-specific subset.
-Persistent-config contents are matched as complete assignment lines so examples
-and comments do not enable state accidentally. Redirect trailing words,
-dotless global `npmrc` paths, shell allexport state, Corepack/pnpm/direnv
-indirection, and abbreviated PowerShell command flags are covered. Statically
-referenced repository shell scripts are followed recursively from workflow and
-composite run steps; sourced runner helpers and the JavaScript target catalog
-extend that traversal into the lane scripts they dispatch. The policy gate
-enumerates every YAML workflow and local
-composite action, rather than relying on the originally affected workflow path
-alone.
+and did not expand workflow permissions. The docs link workflow now invokes
+Linkinator through `corepack pnpm dlx`, so no workflow run block needs npm or
+npx.
+
+Review of the first regression harness showed that emulating npm's global
+installation semantics produced a large, fragile rules engine while protecting
+a weaker invariant than this pnpm repository needs. The replacement policy is
+both stronger and simpler: a workflow or recursively reached build/test runner
+surface must not execute npm or npx at all. YAML run scalars are loaded with
+`js-yaml`, and executable commands are identified from the tree-sitter Bash
+AST rather than by matching text. The scanner normalizes static quoting,
+ANSI-C escapes, ordinary shell escapes, and continued lines. It resolves known
+generic wrappers, eval and shell/PowerShell command strings, env split strings,
+Corepack package-manager delegation, and pnpm exec delegation. Literal data in
+comments, echo, printf, and non-executable heredocs stays allowed. An
+unresolvable executable or dynamic eval/interpreter command string fails
+closed, while dynamic arguments to a statically safe executable remain valid.
+This removes the obsolete npm config, allexport, install-option, and subcommand
+truth tables and replaces their fixtures with a concise forbidden/allowed
+corpus.
+
+Recursive inspection deliberately follows only repository build/test runner
+surfaces reached through `run.sh`: sourced shell helpers and the data-driven
+target catalog that delegates to the core, API, and docs lane scripts. The
+catalog's `run_common_run_step` argument dispatcher is accepted only because
+its executable values are enumerated and scanned from that catalog. Direct
+release and publication scripts are a separate, explicitly reviewed audit
+boundary. Workflows may invoke those scripts, and those scripts may
+legitimately use npm for npm-registry queries, access, tags, or publication;
+the workflow policy does not recursively reinterpret them as build/test
+runners. Dedicated delegation and publication-boundary tests preserve that
+scope.
 
 The Bash parser remains tree-sitter rather than falling back to token or line
 matching. Both exact, frozen `tree-sitter` 0.25.1 and `tree-sitter-bash` 0.25.1
 packages include N-API prebuilt binaries for Linux x64/arm64 and Darwin
 x64/arm64, covering hosted Ubuntu CI and both flake systems without relying on
 a local compiler. Frozen installation and the Nix verification lane exercise
-the dependency from the lockfile; keeping the AST parser therefore has stronger
-syntax coverage without adding an unsupported host to the repository matrix.
+the dependency from the lockfile. `js-yaml` parsing and the nanoid 3.x lockfile
+floor check remain unchanged.
 
 ## Friction and failures
 
@@ -142,12 +118,9 @@ continuations.
 
 The focused Node policy suite, frozen pnpm install, `pnpm audit`, formatting,
 document validation/build, and full `nix develop --command pnpm run verify`
-gate passed after the develop merge. These checks were repeated after detector
-hardening. After Pat formally approved exact head `3c85c3ba`, an independent
-adversarial review found the ANSI-C static-value gap and the partially dynamic
-non-install false positive described above. Fixing those real defects changed
-the post-approval head, so the approval is not treated as transferable and an
-exact-head Pat review is required again. The final commit SHA, GitHub-backed
+gate are the required local evidence. The final commit SHA, GitHub-backed
 all-commit verifier result, exact-head routed Pat audit, and hosted CI outcomes
-are recorded on issue #397 and PR #429 so that SHA-bound evidence does not become
-self-referential in this tracked document.
+are recorded on issue #397 and PR #429 so that SHA-bound evidence does not
+become self-referential in this tracked document. Any earlier exact-head review
+is not treated as transferable after this policy simplification changes the
+head.
