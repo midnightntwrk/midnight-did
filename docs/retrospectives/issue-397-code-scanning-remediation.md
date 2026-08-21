@@ -55,9 +55,14 @@ npm configuration state. Negative quoted, `echo`/`printf`, heredoc, comment,
 npm-script, end-of-options, command-string, and wrapper-operand fixtures keep
 non-executed text and unrelated npm subcommands from becoming findings. The
 scanner intentionally fails closed on a prohibited command that is
-syntactically present but unreachable through shell control flow. The policy
-gate enumerates every YAML workflow under `.github/workflows`, rather than
-relying on the originally affected workflow path alone.
+syntactically present but unreachable through shell control flow. Global npm
+`update` aliases are treated as mutations alongside installs. Exported global
+npm configuration, `npm config set`/`npm set`, and static `.npmrc` writes are
+blocked as global-enabling state even when the later npm mutation occurs in a
+separate workflow step. Shell-interpreter heredoc bodies are recursively parsed,
+while data heredocs passed to commands such as `cat` remain non-executable. The
+policy gate enumerates every YAML workflow under `.github/workflows`, rather
+than relying on the originally affected workflow path alone.
 
 The Bash parser remains tree-sitter rather than falling back to token or line
 matching. Both exact, frozen `tree-sitter` 0.25.1 and `tree-sitter-bash` 0.25.1

@@ -168,6 +168,10 @@ const npmInstallCommands = new Set([
   "isnta",
   "isntal",
   "isntall",
+  "up",
+  "update",
+  "udpate",
+  "upgrade",
 ]);
 
 const npmOptionsWithArguments = new Set([
@@ -326,6 +330,105 @@ function npmInvocationIsGlobalInstall(args, globalFromEnvironment) {
   );
 }
 
+function staticCommandWords(node) {
+  const name = staticShellWord(node.childForFieldName("name"));
+  const args = node.namedChildren
+    .filter(
+      (child) =>
+        child.type !== "command_name" && child.type !== "variable_assignment",
+    )
+    .map(staticShellWord);
+  return name == null || args.some((arg) => arg == null)
+    ? null
+    : { name, args };
+}
+
+function npmCommandSetsPersistentGlobal(node) {
+  const words = staticCommandWords(node);
+  if (words == null || path.posix.basename(words.name) !== "npm") return false;
+
+  const optionsEnd = words.args.indexOf("--");
+  const args = optionsEnd === -1 ? words.args : words.args.slice(0, optionsEnd);
+  const commandIndex = npmCommandIndex(args);
+  const command = args[commandIndex];
+  const configArgs = args.slice(commandIndex + 1);
+  const setArgs = ["c", "config"].includes(command)
+    ? configArgs[0] === "set"
+      ? configArgs.slice(1)
+      : []
+    : command === "set"
+      ? configArgs
+      : [];
+  if (setArgs.length === 0) return false;
+
+  const inline = /^([^=]+)=(.*)$/.exec(setArgs[0]);
+  const key = inline?.[1] ?? setArgs[0];
+  const value = inline?.[2] ?? setArgs[1];
+  return assignmentEnablesGlobalInstall(`npm_config_${key}=${value}`);
+}
+
+function redirectedStatementEnablesGlobalNpm(node) {
+  const redirectsToNpmrc = node.namedChildren.some(
+    (child) =>
+      child.type === "file_redirect" &&
+      /(?:^|[\s/])\.npmrc["']?\s*$/.test(child.text),
+  );
+  if (!redirectsToNpmrc) return false;
+
+  const content = node.namedChildren
+    .flatMap((child) =>
+      child.type === "command"
+        ? (staticCommandWords(child)?.args ?? [])
+        : child.type === "heredoc_redirect"
+          ? child.namedChildren
+              .filter((part) => part.type === "heredoc_body")
+              .map((part) => part.text)
+          : [],
+    )
+    .join("\n");
+  return /(?:^|\s)(?:global\s*=\s*(?:1|true)|location\s*=\s*global)(?:\s|$)/i.test(
+    content.replaceAll(/\\n/g, "\n"),
+  );
+}
+
+function syntaxTreeEnablesPersistentGlobalNpm(rootNode) {
+  const visit = (node) => {
+    if (
+      node.type === "declaration_command" &&
+      node.namedChildren
+        .filter((child) => child.type === "variable_assignment")
+        .map(staticShellAssignment)
+        .some(assignmentEnablesGlobalInstall)
+    ) {
+      return true;
+    }
+    if (node.type === "command" && npmCommandSetsPersistentGlobal(node)) {
+      return true;
+    }
+    if (
+      node.type === "redirected_statement" &&
+      redirectedStatementEnablesGlobalNpm(node)
+    ) {
+      return true;
+    }
+    return node.namedChildren.some(visit);
+  };
+  return visit(rootNode);
+}
+
+function effectiveWrappedExecutable(words) {
+  let name = words.name;
+  let args = words.args;
+  while (commandWrappers.has(path.posix.basename(name))) {
+    const wrapper = path.posix.basename(name);
+    const commandIndex = consumeWrapperArguments(args, wrapper);
+    if (commandIndex == null || commandIndex >= args.length) return null;
+    name = args[commandIndex];
+    args = args.slice(commandIndex + 1);
+  }
+  return path.posix.basename(name);
+}
+
 function commandWordsContainGlobalNpmInstall(
   initialName,
   initialArgs,
@@ -420,22 +523,15 @@ function commandWordsContainGlobalNpmInstall(
 }
 
 function commandNodeContainsGlobalNpmInstall(node, inheritedGlobal) {
-  const nameNode = node.childForFieldName("name");
-  const name = staticShellWord(nameNode);
-  const args = node.namedChildren
-    .filter(
-      (child) =>
-        child.type !== "command_name" && child.type !== "variable_assignment",
-    )
-    .map(staticShellWord);
+  const words = staticCommandWords(node);
   const assignments = node.namedChildren
     .filter((child) => child.type === "variable_assignment")
     .map(staticShellAssignment)
     .filter((assignment) => assignment != null);
-  if (name == null || args.some((arg) => arg == null)) return false;
+  if (words == null) return false;
   return commandWordsContainGlobalNpmInstall(
-    name,
-    args,
+    words.name,
+    words.args,
     assignments,
     inheritedGlobal,
   );
@@ -446,12 +542,42 @@ function shellCommandContainsGlobalNpmInstall(
   inheritedGlobal = false,
 ) {
   const tree = shellParser.parse(command.replaceAll(/\\\r?\n/g, " "));
+  const enablesPersistentGlobal = syntaxTreeEnablesPersistentGlobalNpm(
+    tree.rootNode,
+  );
+  if (enablesPersistentGlobal) return true;
+  const persistentGlobal = inheritedGlobal;
   const visit = (node) => {
     if (
       node.type === "command" &&
-      commandNodeContainsGlobalNpmInstall(node, inheritedGlobal)
+      commandNodeContainsGlobalNpmInstall(node, persistentGlobal)
     ) {
       return true;
+    }
+    if (node.type === "redirected_statement") {
+      const commandNode = node.namedChildren.find(
+        (child) => child.type === "command",
+      );
+      const words =
+        commandNode == null ? null : staticCommandWords(commandNode);
+      if (
+        words != null &&
+        shellInterpreters.has(effectiveWrappedExecutable(words))
+      ) {
+        for (const redirect of node.namedChildren.filter(
+          (child) => child.type === "heredoc_redirect",
+        )) {
+          for (const body of redirect.namedChildren.filter(
+            (child) => child.type === "heredoc_body",
+          )) {
+            if (
+              shellCommandContainsGlobalNpmInstall(body.text, persistentGlobal)
+            ) {
+              return true;
+            }
+          }
+        }
+      }
     }
     return node.namedChildren.some(visit);
   };
@@ -562,6 +688,9 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: env npm_config_location='global' npm install npm@12",
     "run: npm --location global install npm@12",
     "run: npm add -g npm@12",
+    "run: npm update -g npm@12",
+    "run: npm up --global npm@12",
+    "run: npm upgrade --location=global npm@12",
     "run: npm isntall --global npm@12",
     'run: |\n  eval "npm install -g npm@12"',
     'run: |\n  sudo eval "npm install -g npm@12"',
@@ -572,6 +701,18 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: |\n  bash -c 'npm install -g npm@12'",
     "run: |\n  npm_config_global='true' bash -c 'npm install npm@12'",
     "run: |\n  env npm_config_location='global' sh -c 'npm install npm@12'",
+    "run: |\n  export npm_config_global='true'\n  npm install npm@12",
+    "run: |\n  export npm_config_location=global\n  bash -c 'npm install npm@12'",
+    "run: npm config set global true",
+    "run: npm set location=global",
+    "run: |\n  npm config set global true\n  npm install npm@12",
+    "run: |\n  npm set location=global\n  npm update npm@12",
+    "run: echo 'global=true' >> .npmrc",
+    "run: |\n  printf 'global=true\\n' >> ~/.npmrc\n  npm install npm@12",
+    "run: |\n  cat >> ~/.npmrc <<'NPMRC'\n  location=global\n  NPMRC\n  npm install npm@12",
+    "run: |\n  bash <<'SCRIPT'\n  npm install -g npm@12\n  SCRIPT",
+    "run: |\n  env bash <<'SCRIPT'\n  npm install -g npm@12\n  SCRIPT",
+    "run: |\n  sh <<'SCRIPT'\n  npm_config_global='true' npm install npm@12\n  SCRIPT",
     "run: |\n  sh -c 'sudo npm install -g npm@12'",
     "run: |\n  pwsh -Command 'npm install -g npm@12'",
     "run: (npm install -g npm@12)",
@@ -594,6 +735,8 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm install",
     "run: npm install --global=false package",
     "run: npm install --location=project package",
+    "run: npm update package",
+    "run: npm up --global=false package",
     'run: npm_config_global="false" npm install package',
     "run: npm_config_global='0' npm install package",
     'run: npm_config_location="project" npm install package',
@@ -609,6 +752,14 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: env --split-string 'pnpm install --frozen-lockfile'",
     "run: env npm_config_location='project' -S 'npm install package'",
     "run: npm_config_global='false' bash -c 'npm install package'",
+    "run: |\n  export npm_config_global='false'\n  npm install package",
+    "run: |\n  export npm_config_location=project\n  npm install package",
+    "run: |\n  npm config set global false\n  npm install package",
+    "run: |\n  npm set location=project\n  npm install package",
+    "run: |\n  printf 'global=false\\n' >> ~/.npmrc\n  npm install package",
+    "run: |\n  cat >> ~/.npmrc <<'NPMRC'\n  location=project\n  NPMRC\n  npm install package",
+    "run: |\n  cat <<'SCRIPT'\n  npm install -g npm@12\n  SCRIPT",
+    "run: |\n  bash <<'SCRIPT'\n  npm install package\n  SCRIPT",
     "run: npm run build -- -g i",
     "run: npm install -- -g npm@12",
     "run: npm install # -g npm@12",
