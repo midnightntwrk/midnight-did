@@ -303,6 +303,83 @@ const npmExecOptionsWithArguments = new Set([
   "--workspace",
 ]);
 
+function decodeAnsiCString(source) {
+  if (!source.startsWith("$'") || !source.endsWith("'")) return null;
+
+  const body = source.slice(2, -1);
+  let decoded = "";
+  for (let index = 0; index < body.length; index += 1) {
+    const character = body[index];
+    if (character !== "\\") {
+      decoded += character;
+      continue;
+    }
+
+    const escape = body[++index];
+    if (escape == null) return null;
+    const simpleEscapes = {
+      "'": "'",
+      '"': '"',
+      "?": "?",
+      "\\": "\\",
+      a: "\u0007",
+      b: "\b",
+      e: "\u001b",
+      E: "\u001b",
+      f: "\f",
+      n: "\n",
+      r: "\r",
+      t: "\t",
+      v: "\v",
+    };
+    if (Object.hasOwn(simpleEscapes, escape)) {
+      decoded += simpleEscapes[escape];
+      continue;
+    }
+
+    if (/[0-7]/.test(escape)) {
+      const digits = body.slice(index).match(/^[0-7]{1,3}/)?.[0];
+      const value = Number.parseInt(digits, 8) & 0xff;
+      if (value === 0) return null;
+      decoded += String.fromCodePoint(value);
+      index += digits.length - 1;
+      continue;
+    }
+
+    if (["x", "u", "U"].includes(escape)) {
+      const maximumDigits = escape === "x" ? 2 : escape === "u" ? 4 : 8;
+      const digits = body
+        .slice(index + 1)
+        .match(new RegExp(`^[0-9A-Fa-f]{1,${maximumDigits}}`))?.[0];
+      if (digits == null) return null;
+      const value = Number.parseInt(digits, 16);
+      if (
+        value === 0 ||
+        value > 0x10ffff ||
+        (value >= 0xd800 && value <= 0xdfff)
+      ) {
+        return null;
+      }
+      decoded += String.fromCodePoint(value);
+      index += digits.length;
+      continue;
+    }
+
+    if (escape === "c") {
+      const control = body[++index];
+      if (control == null) return null;
+      const value =
+        control === "?" ? 0x7f : control.toUpperCase().charCodeAt(0) & 0x1f;
+      if (value === 0) return null;
+      decoded += String.fromCodePoint(value);
+      continue;
+    }
+
+    return null;
+  }
+  return decoded;
+}
+
 function staticShellWord(node) {
   if (node == null) return null;
   if (
@@ -311,6 +388,7 @@ function staticShellWord(node) {
     return node.text.replaceAll(/\\(.)/g, "$1");
   }
   if (node.type === "raw_string") return node.text.slice(1, -1);
+  if (node.type === "ansi_c_string") return decodeAnsiCString(node.text);
   if (node.type === "command_substitution") {
     const command = node.namedChildren.find(
       (child) => child.type === "command",
@@ -491,6 +569,24 @@ function partialNpmInvocationIsGlobalInstall(node, globalFromEnvironment) {
     .map(staticShellWord);
   const optionsEnd = args.indexOf("--");
   const effectiveArgs = optionsEnd === -1 ? args : args.slice(0, optionsEnd);
+
+  let resolvedCommand = null;
+  for (let index = 0; index < effectiveArgs.length; index += 1) {
+    const arg = effectiveArgs[index];
+    if (arg == null) break;
+    if (npmOptionsWithArguments.has(arg)) {
+      index += 1;
+      continue;
+    }
+    if (!arg.startsWith("-")) {
+      resolvedCommand = arg;
+      break;
+    }
+  }
+  if (resolvedCommand != null && !npmInstallCommands.has(resolvedCommand)) {
+    return false;
+  }
+
   return (
     effectiveArgs.some((arg) => npmInstallCommands.has(arg)) &&
     (globalFromEnvironment || npmArgsEnableGlobal(effectiveArgs))
@@ -1049,6 +1145,8 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm install --location=global npm@12",
     "run: npm install --location > out.txt global npm@12",
     "run: npm install $PACKAGE npm@12 -g",
+    'run: npm i "$PACKAGE" --global npm@12',
+    'run: npm add "$PACKAGE" --location global npm@12',
     "run: npm i --location global npm@12",
     "run: echo ready && npm --silent i --location=GLOBAL npm@12",
     "run: sudo npm install -g npm@12",
@@ -1098,9 +1196,13 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm_config_global=true npm install npm@12",
     'run: npm_config_global="true" npm install npm@12',
     "run: npm_config_global='true' npm install npm@12",
+    "run: npm_config_global=$'true' npm install npm@12",
+    "run: npm_config_global=$'tr\\165e' npm install npm@12",
     'run: npm_config_location="global" npm install npm@12',
     "run: env npm_config_location=global npm install npm@12",
     "run: env npm_config_location='global' npm install npm@12",
+    "run: |\n  export npm_config_location=$'global'\n  npm install npm@12",
+    "run: |\n  export npm_config_location=$'\\x67lobal'\n  npm install npm@12",
     "run: npm --location global install npm@12",
     "run: npm add -g npm@12",
     "run: npm update -g npm@12",
@@ -1108,6 +1210,8 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm upgrade --location=global npm@12",
     "run: npm isntall --global npm@12",
     'run: |\n  eval "npm install -g npm@12"',
+    "run: eval $'npm install -g npm@12'",
+    "run: eval $'npm install \\x2dg npm@12'",
     'run: |\n  sudo eval "npm install -g npm@12"',
     'run: |\n  env FOO=bar eval "npm install -g npm@12"',
     'run: n"pm" install -g npm@12',
@@ -1116,6 +1220,8 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: $(npm install -g npm@12)",
     'run: "`npm i -g npm@12`"',
     "run: |\n  bash -c 'npm install -g npm@12'",
+    "run: bash -c $'npm install --glob\\x61l npm@12'",
+    "run: env -S $'npm install -g npm@12'",
     "run: |\n  npm_config_global='true' bash -c 'npm install npm@12'",
     "run: |\n  env npm_config_location='global' sh -c 'npm install npm@12'",
     "run: |\n  export npm_config_global='true'\n  npm install npm@12",
@@ -1178,8 +1284,15 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm up --global=false package",
     'run: npm_config_global="false" npm install package',
     "run: npm_config_global='0' npm install package",
+    "run: npm_config_global=$'false' npm install package",
+    "run: npm_config_global=$'tr'\"$SUFFIX\" npm install package",
     'run: npm_config_location="project" npm install package',
+    "run: npm_config_location=$'project' npm install package",
     "run: npm exec -c 'npm install package'",
+    "run: eval $'npm install package'",
+    "run: eval $'npm install \\x-g npm@12'",
+    "run: eval $'npm install '\"$FLAGS\"' npm@12'",
+    "run: bash -c $'npm install package'",
     "run: npm x --call 'npm install package'",
     "run: npm exec --call='npm install package'",
     "run: npm_config_global='false' npm exec -c 'npm install package'",
@@ -1214,6 +1327,8 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: cat <<<'npm install -g npm@12'",
     "run: |\n  bash <<'SCRIPT'\n  npm install package\n  SCRIPT",
     "run: npm run build -- -g i",
+    'run: npm run "$SCRIPT" install -g npm@12',
+    'run: npm test "$ARG" install --global npm@12',
     "run: npm install -- -g npm@12",
     "run: npm install # -g npm@12",
     'run: "echo npm install -g" # trailing comment',

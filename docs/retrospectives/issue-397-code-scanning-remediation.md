@@ -47,13 +47,21 @@ cover nested wrapper chains (including bundled short options), shell-interpreter
 `-c` commands, `eval`, npx/npm-exec indirection, npm install aliases and
 configuration assignments, command substitutions, path-qualified and
 quote-concatenated npm names, and unspaced subshells. Static assignment values
-are normalized through the Bash syntax tree, including single- and
-double-quoted `npm_config_global` and `npm_config_location` values. Command
-strings passed through npm exec/x `-c`/`--call`, env `-S`/`--split-string`,
-shell interpreters, and eval are recursively parsed while retaining applicable
-npm configuration state. Negative quoted, `echo`/`printf`, heredoc, comment,
-npm-script, end-of-options, command-string, and wrapper-operand fixtures keep
-non-executed text and unrelated npm subcommands from becoming findings. The
+are normalized through the Bash syntax tree, including single-quoted,
+double-quoted, and ANSI-C-quoted `npm_config_global` and
+`npm_config_location` values. The ANSI-C normalization handles supported Bash
+escapes for statically evaluable assignment values and command strings while
+leaving malformed escapes and concatenated dynamic expansions non-static.
+Command strings passed through npm exec/x `-c`/`--call`, env
+`-S`/`--split-string`, shell interpreters, and eval are recursively parsed while
+retaining applicable npm configuration state. Negative quoted, `echo`/`printf`,
+heredoc, comment, npm-script, end-of-options, command-string, and
+wrapper-operand fixtures keep non-executed text and unrelated npm subcommands
+from becoming findings. For a partially dynamic npm invocation, a statically
+resolved non-install subcommand such as `run` or `test` stops install detection;
+later static script arguments are not reinterpreted as npm subcommands. Dynamic
+package operands after a statically resolved `install`, `i`, or `add` command
+remain detectable. The
 scanner intentionally fails closed on a prohibited command that is
 syntactically present but unreachable through shell control flow. Global npm
 `update` aliases are treated as mutations alongside installs. Exported global
@@ -135,7 +143,11 @@ continuations.
 The focused Node policy suite, frozen pnpm install, `pnpm audit`, formatting,
 document validation/build, and full `nix develop --command pnpm run verify`
 gate passed after the develop merge. These checks were repeated after detector
-hardening. The final commit SHA, GitHub-backed
+hardening. After Pat formally approved exact head `3c85c3ba`, an independent
+adversarial review found the ANSI-C static-value gap and the partially dynamic
+non-install false positive described above. Fixing those real defects changed
+the post-approval head, so the approval is not treated as transferable and an
+exact-head Pat review is required again. The final commit SHA, GitHub-backed
 all-commit verifier result, exact-head routed Pat audit, and hosted CI outcomes
 are recorded on issue #397 and PR #429 so that SHA-bound evidence does not become
 self-referential in this tracked document.
