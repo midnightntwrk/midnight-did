@@ -71,9 +71,13 @@ wrapped interpreters, workspace/package option operands are skipped, split
 assignment/export state is tracked, and static `.npmrc` or `$GITHUB_ENV`
 writes through redirects and `tee` pipelines are blocked. Statically evaluable
 `echo`/`printf` command substitutions used as executable names retain npm
-identity. The policy gate enumerates every YAML workflow and local
-composite action, rather than relying on the originally affected workflow path
-alone.
+identity. Bundled wrapper parsing recognizes boolean flags on either side of
+argument-taking flags, and npm command indexing covers the documented
+value-taking configuration options rather than a small command-specific subset.
+Persistent-config contents are matched as complete assignment lines so examples
+and comments do not enable state accidentally. The policy gate enumerates every
+YAML workflow and local composite action, rather than relying on the originally
+affected workflow path alone.
 
 The Bash parser remains tree-sitter rather than falling back to token or line
 matching. Both exact, frozen `tree-sitter` 0.25.1 and `tree-sitter-bash` 0.25.1

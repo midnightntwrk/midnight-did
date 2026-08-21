@@ -176,6 +176,24 @@ const wrapperOptionsWithArguments = {
   ]),
 };
 
+const wrapperShortOptionsWithoutArguments = {
+  sudo: new Set([
+    "A",
+    "b",
+    "E",
+    "e",
+    "H",
+    "K",
+    "k",
+    "N",
+    "n",
+    "P",
+    "S",
+    "V",
+    "v",
+  ]),
+};
+
 const wrapperShortOptionsWithArguments = {
   env: new Set(["C", "S", "u"]),
   exec: new Set(["a"]),
@@ -212,12 +230,67 @@ const npmOptionsWithArguments = new Set([
   "-C",
   "-p",
   "-w",
+  "--access",
+  "--audit-level",
+  "--auth-type",
+  "--before",
   "--cache",
+  "--cafile",
+  "--cert",
+  "--depth",
+  "--editor",
+  "--fetch-retries",
+  "--fetch-retry-factor",
+  "--fetch-retry-maxtimeout",
+  "--fetch-retry-mintimeout",
+  "--fetch-timeout",
+  "--git",
+  "--heading",
+  "--https-proxy",
+  "--include",
+  "--init-author-email",
+  "--init-author-name",
+  "--init-author-url",
+  "--init-license",
+  "--init-module",
+  "--init-version",
+  "--install-strategy",
+  "--key",
+  "--libc",
+  "--local-address",
   "--location",
+  "--lockfile-version",
+  "--loglevel",
+  "--logs-dir",
+  "--logs-max",
+  "--maxsockets",
+  "--message",
+  "--node-options",
+  "--noproxy",
+  "--omit",
+  "--otp",
+  "--pack-destination",
   "--package",
   "--prefix",
+  "--preid",
+  "--proxy",
   "--registry",
+  "--replace-registry-host",
+  "--save-prefix",
+  "--scope",
+  "--script-shell",
+  "--searchexclude",
+  "--searchlimit",
+  "--searchopts",
+  "--searchstaleness",
+  "--shell",
+  "--tag",
+  "--tag-version-prefix",
+  "--umask",
+  "--user-agent",
   "--userconfig",
+  "--viewer",
+  "--which",
   "--workspace",
 ]);
 
@@ -291,11 +364,13 @@ function consumeWrapperArguments(args, wrapper) {
       const argumentIndex = optionCharacters.findIndex((option) =>
         argumentOptions?.has(option),
       );
-      const trailingOptions = optionCharacters.slice(argumentIndex + 1);
+      const booleanOptions = wrapperShortOptionsWithoutArguments[wrapper];
       const consumesSeparateArguments =
         argumentIndex !== -1 &&
-        (trailingOptions.length === 0 ||
-          trailingOptions.every((option) => argumentOptions?.has(option)));
+        optionCharacters.every(
+          (option) =>
+            argumentOptions?.has(option) || booleanOptions?.has(option),
+        );
       if (consumesSeparateArguments) {
         const argumentCount = optionCharacters.filter((option) =>
           argumentOptions?.has(option),
@@ -466,9 +541,14 @@ function npmCommandSetsPersistentGlobal(node) {
 }
 
 function textEnablesGlobalNpm(content) {
-  return /(?:^|\s)(?:(?:npm_config_)?global\s*=\s*(?:1|true)|(?:npm_config_)?location\s*=\s*global)(?:\s|$)/i.test(
-    content.replaceAll(/\\n/g, "\n"),
-  );
+  return content
+    .replaceAll(/\\n/g, "\n")
+    .split("\n")
+    .some((line) =>
+      /^(?:(?:npm_config_)?global\s*=\s*(?:1|true)|(?:npm_config_)?location\s*=\s*global)\s*(?:#.*)?$/i.test(
+        line.trim(),
+      ),
+    );
 }
 
 function redirectedStatementEnablesGlobalNpm(node) {
@@ -828,6 +908,9 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm i --global npm@12",
     "run: npm --global install npm@12",
     "run: npm --workspace tools install -g npm@12",
+    "run: npm --loglevel info install -g npm@12",
+    "run: npm --fetch-timeout 1000 install -g npm@12",
+    "run: npm --script-shell /bin/bash install -g npm@12",
     "run: npm -w tools install --global npm@12",
     "run: npm --package npm@12 install -g npm@12",
     "run: npm install --global=true npm@12",
@@ -838,6 +921,8 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: sudo npm install -g npm@12",
     "run: sudo -n -u root env NODE_ENV=production npm install -g npm@12",
     "run: sudo -Enu root npm install -g npm@12",
+    "run: sudo -un root npm install -g npm@12",
+    "run: sudo -nu root npm install -g npm@12",
     "run: sudo -gu group root npm install -g npm@12",
     "run: sudo -up root prompt npm install -g npm@12",
     "run: sudo -uh root host npm install -g npm@12",
@@ -942,6 +1027,7 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm install --global=false package",
     "run: npm install --location=project package",
     "run: npm install --registry -g package",
+    "run: npm install --loglevel -g package",
     "run: npm --workspace tools install package",
     "run: npm --package npm@12 install package",
     "run: npm update package",
@@ -970,6 +1056,8 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: |\n  npm set location=project\n  npm install package",
     'run: echo "npm_config_global=false" >> "$GITHUB_ENV"',
     "run: printf 'npm_config_location=project\\n' | tee -a \"$GITHUB_ENV\"",
+    "run: echo 'example global=true' >> ~/.npmrc",
+    "run: echo '# global=true' | tee -a ~/.npmrc",
     "run: echo 'global=false' | tee -a ~/.npmrc",
     "run: printf 'location=project\\n' | sudo tee ~/.npmrc",
     "run: |\n  printf 'global=false\\n' >> ~/.npmrc\n  npm install package",
