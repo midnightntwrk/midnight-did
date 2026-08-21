@@ -116,11 +116,12 @@ continuations.
 
 ## Validation and review evidence
 
-The focused Node policy suite, frozen pnpm install, `pnpm audit`, formatting,
-document validation/build, and full `nix develop --command pnpm run verify`
-gate are the required local evidence. The final commit SHA, GitHub-backed
-all-commit verifier result, exact-head routed Pat audit, and hosted CI outcomes
-are recorded on issue #397 and PR #429 so that SHA-bound evidence does not
-become self-referential in this tracked document. Any earlier exact-head review
-is not treated as transferable after this policy simplification changes the
-head.
+The focused and full Node harness suites, frozen pnpm install, `pnpm audit`,
+formatting, Nix document validation/build, and the full
+`nix develop --command pnpm run verify` gate passed. The full gate was rerun
+after a transient generated-output ordering failure and then passed without
+source changes. The final commit SHA, GitHub-backed all-commit verifier result,
+exact-head routed Pat audit, and hosted CI outcomes are recorded on issue #397
+and PR #429 so that SHA-bound evidence does not become self-referential in this
+tracked document. Any earlier exact-head review is not treated as transferable
+after this policy simplification changes the head.
