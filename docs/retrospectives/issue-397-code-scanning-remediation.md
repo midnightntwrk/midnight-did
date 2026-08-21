@@ -75,9 +75,13 @@ identity. Bundled wrapper parsing recognizes boolean flags on either side of
 argument-taking flags, and npm command indexing covers the documented
 value-taking configuration options rather than a small command-specific subset.
 Persistent-config contents are matched as complete assignment lines so examples
-and comments do not enable state accidentally. The policy gate enumerates every
-YAML workflow and local composite action, rather than relying on the originally
-affected workflow path alone.
+and comments do not enable state accidentally. Redirect trailing words,
+dotless global `npmrc` paths, shell allexport state, Corepack/pnpm/direnv
+indirection, and abbreviated PowerShell command flags are covered. Statically
+referenced repository shell scripts are followed recursively from workflow and
+composite run steps. The policy gate enumerates every YAML workflow and local
+composite action, rather than relying on the originally affected workflow path
+alone.
 
 The Bash parser remains tree-sitter rather than falling back to token or line
 matching. Both exact, frozen `tree-sitter` 0.25.1 and `tree-sitter-bash` 0.25.1
