@@ -471,10 +471,10 @@ function npmArgsEnableGlobal(args) {
 }
 
 function npmInvocationIsGlobalInstall(args, globalFromEnvironment) {
-  const optionsEnd = args.indexOf("--");
+  const commandIndex = npmCommandIndex(args);
+  const optionsEnd = args.indexOf("--", commandIndex + 1);
   const effectiveArgs = optionsEnd === -1 ? args : args.slice(0, optionsEnd);
-  const commandIndex = npmCommandIndex(effectiveArgs);
-  const command = effectiveArgs[commandIndex];
+  const command = args[commandIndex];
   if (!npmInstallCommands.has(command)) return false;
   return globalFromEnvironment || npmArgsEnableGlobal(effectiveArgs);
 }
@@ -497,6 +497,14 @@ function partialNpmInvocationIsGlobalInstall(node, globalFromEnvironment) {
   );
 }
 
+function trailingRedirectWords(redirect) {
+  const destination = redirect.childForFieldName("destination");
+  const destinationIndex = redirect.namedChildren.indexOf(destination);
+  return destinationIndex === -1
+    ? []
+    : redirect.namedChildren.slice(destinationIndex + 1).map(staticShellWord);
+}
+
 function staticCommandWords(node) {
   const name = staticShellWord(node.childForFieldName("name"));
   const args = node.namedChildren
@@ -508,7 +516,7 @@ function staticCommandWords(node) {
     )
     .flatMap((child) =>
       child.type === "file_redirect"
-        ? child.namedChildren.slice(1).map(staticShellWord)
+        ? trailingRedirectWords(child)
         : [staticShellWord(child)],
     );
   return name == null || args.some((arg) => arg == null)
@@ -755,10 +763,8 @@ function commandWordsContainGlobalNpmInstall(
   if (executable !== "npm") return false;
   if (npmInvocationIsGlobalInstall(args, globalFromEnvironment)) return true;
 
-  const optionsEnd = args.indexOf("--");
-  const commandIndex = npmCommandIndex(
-    optionsEnd === -1 ? args : args.slice(0, optionsEnd),
-  );
+  const commandIndex = npmCommandIndex(args);
+  const optionsEnd = args.indexOf("--", commandIndex + 1);
   if (["exec", "x"].includes(args[commandIndex])) {
     const execArgs = args.slice(commandIndex + 1);
     const execOptionsEnd = execArgs.indexOf("--");
@@ -857,9 +863,7 @@ function shellCommandContainsGlobalNpmInstall(
         commandNode == null ? null : staticCommandWords(commandNode);
       const redirectedArgs = node.namedChildren
         .filter((child) => child.type === "file_redirect")
-        .flatMap((redirect) =>
-          redirect.namedChildren.slice(1).map(staticShellWord),
-        );
+        .flatMap(trailingRedirectWords);
       if (
         words != null &&
         redirectedArgs.length > 0 &&
@@ -912,21 +916,25 @@ function containsGlobalNpmInstall(workflow) {
   );
 }
 
-function delegatedShellScriptPaths(command) {
+function delegatedRepositoryScriptPaths(command) {
   const tree = shellParser.parse(command.replaceAll(/\\\r?\n/g, " "));
   const scripts = new Set();
+  const addScript = (candidate) => {
+    if (/^\.\/[A-Za-z0-9_./-]+\.(?:mjs|sh)$/.test(candidate)) {
+      scripts.add(candidate.slice(2));
+    }
+  };
   const visit = (node) => {
     if (node.type === "command") {
       const words = staticCommandWords(node);
       if (words != null) {
-        if (/^\.\/[A-Za-z0-9_./-]+\.sh$/.test(words.name)) {
-          scripts.add(words.name.slice(2));
-        }
-        if (shellInterpreters.has(path.posix.basename(words.name))) {
-          const script = words.args.find((arg) =>
-            /^\.\/[A-Za-z0-9_./-]+\.sh$/.test(arg),
-          );
-          if (script != null) scripts.add(script.slice(2));
+        addScript(words.name);
+        const executable = path.posix.basename(words.name);
+        if (
+          shellInterpreters.has(executable) ||
+          [".", "node", "source"].includes(executable)
+        ) {
+          words.args.forEach(addScript);
         }
       }
     }
@@ -936,24 +944,46 @@ function delegatedShellScriptPaths(command) {
   return [...scripts];
 }
 
+function catalogShellScriptPaths(source) {
+  return [
+    ...new Set(
+      [...source.matchAll(/["']\.\/([A-Za-z0-9_./-]+\.sh)["']/g)].map(
+        ([, relative]) => relative,
+      ),
+    ),
+  ];
+}
+
 async function automationDocumentContainsGlobalNpmInstall(document) {
   const commands = githubActionsRunCommands(document);
   const queue = commands.map(({ run, env }) => ({
     script: run,
     inheritedGlobal: githubEnvEnablesGlobalInstall(env),
+    kind: "sh",
   }));
   const visited = new Set();
   while (queue.length > 0) {
-    const { script, inheritedGlobal } = queue.shift();
-    if (shellCommandContainsGlobalNpmInstall(script, inheritedGlobal)) {
+    const { script, inheritedGlobal, kind } = queue.shift();
+    if (
+      kind === "sh" &&
+      shellCommandContainsGlobalNpmInstall(script, inheritedGlobal)
+    ) {
       return true;
     }
-    for (const relative of delegatedShellScriptPaths(script)) {
+    const delegatedPaths =
+      kind === "sh"
+        ? delegatedRepositoryScriptPaths(script)
+        : catalogShellScriptPaths(script);
+    for (const relative of delegatedPaths) {
       const key = `${relative}:${inheritedGlobal}`;
       if (visited.has(key)) continue;
       visited.add(key);
       const delegated = await text(relative);
-      queue.push({ script: delegated, inheritedGlobal });
+      queue.push({
+        script: delegated,
+        inheritedGlobal,
+        kind: relative.endsWith(".mjs") ? "mjs" : "sh",
+      });
     }
   }
   return false;
@@ -1054,6 +1084,7 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npx npm install -g npm@12",
     "run: |\n  npx -c 'npm install -g npm@12'",
     "run: npm exec -- npm install -g npm@12",
+    "run: npm -- exec npm install -g npm@12",
     "run: npm exec npm install -g npm@12",
     "run: npm exec --prefix ./tmp npm install -g npm@12",
     "run: npm exec --package npm@12 npm install -g npm@12",
@@ -1139,6 +1170,7 @@ test("detects global npm installs in parsed GitHub Actions run scalars", () => {
     "run: npm install --global=false package",
     "run: npm install --location=project package",
     "run: npm install --registry -g package",
+    "run: npm install npm@12 2> -g",
     "run: npm install --loglevel -g package",
     "run: npm --workspace tools install package",
     "run: npm --package npm@12 install package",
@@ -1281,12 +1313,23 @@ runs:
   assert.equal(containsGlobalNpmInstall(nonCompositeAction), false);
 });
 
-test("discovers repository-relative delegated shell scripts", () => {
+test("discovers repository-relative delegated runner scripts", () => {
   assert.deepEqual(
-    delegatedShellScriptPaths(
-      "./scripts/first.sh && bash ./scripts/second.sh && echo ./ignored.sh",
+    delegatedRepositoryScriptPaths(
+      "./scripts/first.sh && bash ./scripts/second.sh && source ./scripts/common.sh && node ./scripts/catalog.mjs && echo ./ignored.sh",
     ),
-    ["scripts/first.sh", "scripts/second.sh"],
+    [
+      "scripts/first.sh",
+      "scripts/second.sh",
+      "scripts/common.sh",
+      "scripts/catalog.mjs",
+    ],
+  );
+  assert.deepEqual(
+    catalogShellScriptPaths(
+      `const command = "./run-core.sh"; const ignored = "script.sh";`,
+    ),
+    ["run-core.sh"],
   );
 });
 

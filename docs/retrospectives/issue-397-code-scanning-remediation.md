@@ -79,7 +79,9 @@ and comments do not enable state accidentally. Redirect trailing words,
 dotless global `npmrc` paths, shell allexport state, Corepack/pnpm/direnv
 indirection, and abbreviated PowerShell command flags are covered. Statically
 referenced repository shell scripts are followed recursively from workflow and
-composite run steps. The policy gate enumerates every YAML workflow and local
+composite run steps; sourced runner helpers and the JavaScript target catalog
+extend that traversal into the lane scripts they dispatch. The policy gate
+enumerates every YAML workflow and local
 composite action, rather than relying on the originally affected workflow path
 alone.
 
@@ -107,10 +109,16 @@ validation; the repository Scan CI remains the authoritative workflow scanner.
 ## Decisions and non-goals
 
 This PR changes only the two actionable repository conditions and their
-regression test. It does not alter branch protection, manufacture historical
-reviews, claim an unearned OpenSSF badge, dismiss positive/stale alerts, merge
-the draft, or enable auto-merge. Dashboard reconciliation remains tied to a
-fresh `main` Scorecard run after normal promotion.
+regression test. The removed global `npm@12.0.2` installation is not replaced:
+npm is not the repository package manager or a workflow toolchain dependency,
+while the actual package manager remains exactly declared as pnpm 10.34.4 and
+Node remains pinned by `.nvmrc`/the Nix shell. Installing a standalone npm solely
+to preserve its version would recreate the Scorecard finding without protecting
+a command the workflows use. The PR does not alter branch protection,
+manufacture historical reviews, claim an unearned OpenSSF badge, dismiss
+positive/stale alerts, merge the draft, or enable auto-merge. Dashboard
+reconciliation remains tied to a fresh `main` Scorecard run after normal
+promotion.
 
 ## Develop synchronization
 
