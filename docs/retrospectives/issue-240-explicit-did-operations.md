@@ -29,15 +29,21 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   overlapping attempts from replacing that candidate; callers reconcile the
   on-ledger controller public key, then explicitly promote or discard the slot.
 - Public rotation/recovery auto-bind or assert the canonical contract address,
-  and public reconciliation requires it. API-bound wrappers for one DID share a
-  process-local critical section across the full lifecycle. Acquisition is
-  fail-fast and the owner retains its reservation until settlement; elapsed time
-  cannot release a lease while provider or transaction work may continue.
-  Operational timeout handling must cancel that work and then reconcile ledger
-  and private state. Provider-object fallback is only for internal/deep unbound
-  use. Direct provider mutation, independently unbound wrappers, and separate
-  processes require external per-DID coordination because storage has no atomic
-  conditional write across processes.
+  and public reconciliation requires it. The supported baseline assumes one
+  application writer process per DID. API-bound wrappers for one DID share a
+  process-local critical section across the controller/private-state lifecycle.
+  Acquisition is fail-fast and the owner retains its reservation until
+  settlement; elapsed time cannot release a lease while provider or transaction
+  work may continue. After an ambiguous call, the application waits for
+  connectivity and provider-specific authoritative finalized evidence before
+  asserting promotion or discard; the helpers do not verify the caller's
+  `rotationFinalized` value. Operational timeout handling must cancel the work
+  and then reconcile ledger and private state. Provider-object fallback is only
+  for internal/deep unbound use. Direct provider mutation and independently
+  unbound wrappers remain outside the guarantee. Multiple writer processes are
+  outside the supported baseline and require a distributed lock or equivalent
+  fencing mechanism because storage has no cross-process atomic conditional
+  write.
 - Explicit non-finalization confirmation permits discard of any non-null pending
   record, including malformed state, so corrupt storage cannot permanently block
   a replacement candidate. Promotion continues to require valid pending state.
@@ -120,8 +126,10 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
   typed busy error, then prove access resumes only after owner settlement. The
   reviewer-discovered rebind edges also showed that source and target
   reservations must be checked before provider address or lock-key mutation.
-  Direct provider mutation and cross-process writers remain outside this API
-  exclusion mechanism.
+  Direct provider mutation remains outside this API exclusion mechanism. The
+  supported baseline has one application writer process per DID; an intentional
+  multi-writer deployment must add a distributed lock or equivalent fencing
+  mechanism.
 - A malformed non-null candidate is unsafe to promote but safe to remove only
   after the caller explicitly asserts non-finalization. Treating presence and
   recoverability as separate predicates avoids persistent lockout without
@@ -159,6 +167,10 @@ receipt/finality-stream failure can happen after the ledger transition succeeds.
 - Reviewers should verify the shared coded-error base, each stable domain code,
   and the controller pending-state recovery guidance against the exact PR head.
 - CI must complete the Docker-backed integration lane before approval.
+- Architecture discussion
+  [#440](https://github.com/midnightntwrk/midnight-did/discussions/440)
+  records the approved single-writer baseline and remains the public venue for
+  any future multi-writer coordination proposal.
 - Extend provider/DID identity assertions to ordinary non-rotation document
   operations in a follow-up rather than widening this explicit-deletion change.
 - Integrators must catch finalized-deployment private-state setup errors, retain
