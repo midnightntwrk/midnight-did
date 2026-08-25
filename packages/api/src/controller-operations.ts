@@ -199,7 +199,7 @@ export const rotateControllerKey = async (
       },
       {
         attemptedCallFailed:
-          "Controller key rotation call was attempted but did not return finalized transaction data. Pending private state was retained because the ledger outcome is unknown; re-read controllerPublicKey before retrying.",
+          "Controller key rotation call was attempted but did not return finalized transaction data. Pending private state was retained because the ledger outcome is unknown; after connectivity returns, obtain authoritative finalized ledger evidence and reconcile controllerPublicKey before retrying. Do not discard solely because an available read still shows the old key.",
         cleanupFailed:
           "Controller key rotation finalized and active private state was promoted, but cleanup disposition could not be confirmed; the pending record may remain or may already have been removed.",
         preCallCleanupFailed:
@@ -308,7 +308,7 @@ export const recoverControllerKey = async (
       },
       {
         attemptedCallFailed:
-          "Controller recovery call was attempted but did not return finalized transaction data. Pending private state was retained because the ledger outcome is unknown; re-read controllerPublicKey before retrying.",
+          "Controller recovery call was attempted but did not return finalized transaction data. Pending private state was retained because the ledger outcome is unknown; after connectivity returns, obtain authoritative finalized ledger evidence and reconcile controllerPublicKey before retrying. Do not discard solely because an available read still shows the old key.",
         cleanupFailed:
           "Controller recovery finalized and active private state was promoted, but cleanup disposition could not be confirmed; the pending record may remain or may already have been removed.",
         preCallCleanupFailed:

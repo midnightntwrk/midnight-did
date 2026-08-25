@@ -152,18 +152,27 @@ is preserved when the new controller secret is promoted.
 
 If rotation or recovery throws after `callTx` is invoked without returning
 finalized transaction data, the API retains the pending replacement secret
-because receipt loss cannot prove that the on-chain operation failed. Re-read
-the on-ledger `controllerPublicKey` before retrying. A failure definitely before
-`callTx` invocation instead attempts to remove the newly created candidate while
-the same lease is held. If that cleanup rejects, its disposition is unknown; the
-warning says the record may remain or may already have been removed and keeps
-explicit discard guidance for a retained record. If the replacement public key
-is active, promote the retained secret
-with
+because receipt loss cannot prove that the on-chain operation failed. After
+connectivity is restored, obtain a trusted finalized read of the on-ledger
+`controllerPublicKey` before retrying; reconnection or the first available read
+alone is not proof of non-finalization. A failure definitely before `callTx`
+invocation instead attempts to remove the newly created candidate while the same
+lease is held. If that cleanup rejects, its disposition is unknown; the warning
+says the record may remain or may already have been removed and keeps explicit
+discard guidance for a retained record. If the replacement public key is the
+finalized current key, verify that the retained secret derives that key and
+promote it with
 `recoverPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: true })`.
-If the old public key is still active, discard that candidate explicitly with
+The `rotationFinalized` option is an explicit caller assertion; these helpers do
+not query ledger state or verify finality. `getMidnightDIDLedgerState` returns the
+state supplied by the configured public data provider without adding a finality
+or freshness guarantee, so the application must obtain provider-specific
+authoritative evidence before making that assertion. If authoritative
+reconciliation confirms that the operation did not finalize, discard the
+candidate explicitly with
 `discardPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: false })`
-before starting another attempt. That explicit assertion also permits removal of
+before starting another attempt. Until then, retain it even if an available read
+still shows the old public key. That explicit assertion also permits removal of
 a malformed non-null pending record, avoiding a persistent lockout; an absent
 record still throws `PendingControllerPrivateStateUnavailableError`. Promotion
 requires a valid pending controller state, so a missing or malformed record
@@ -184,28 +193,34 @@ known different API-tracked binding with
 `PrivateStateProviderContractMismatchError` before provider or ledger access.
 
 Public rotation and recovery auto-bind or assert the canonical contract address;
-public promotion/discard reconciliation requires `contractAddress`. Calls through
-API-bound wrappers for one DID share a process-local critical section from
-preflight through pending persistence, transaction settlement, promotion, and
-cleanup. Reservation acquisition is fail-fast: competing rotation, recovery, or
-reconciliation immediately throws `PendingControllerPrivateStateBusyError`, even
-if the owner hangs. The owner remains busy until underlying work is cancelled
-and its operation settles, the operation otherwise terminates or settles, or the
-process exits. There is deliberately no lease expiry: stale provider or
-transaction work could complete later and overwrite, promote, or remove state
-owned by another operation. After cancellation or termination, reconcile ledger
-and private state before another mutation.
+public promotion/discard reconciliation requires `contractAddress`. The supported
+baseline assumes that one application process is the writer for a given DID.
+Calls through API-bound wrappers in that process share a process-local critical
+section from preflight through pending persistence, transaction settlement,
+promotion, and cleanup. Reservation acquisition is fail-fast: competing
+rotation, recovery, or reconciliation immediately throws
+`PendingControllerPrivateStateBusyError`, even if the owner hangs. The owner
+remains busy until underlying work is cancelled and its operation settles, the
+operation otherwise terminates or settles, or the process exits. There is
+deliberately no lease expiry: stale provider or transaction work could complete
+later and overwrite, promote, or remove state owned by another operation. After
+cancellation, termination, or process restart, reconcile trusted finalized
+ledger state and private state before another mutation.
 
 Provider-object fallback is only for internal/deep unbound use. Direct
-`setContractAddress` or storage mutation, independently unbound wrappers, and
-separate processes are outside this guarantee and require external per-DID
-coordination. `joinContract` acquires the same fail-fast owner-token lease before
-binding and holds both its source and target reservations through private-state
-loading and `findDeployedContract`; competing source/target controller lifecycle
-or binding calls fail busy before mutation. Join failure releases only its owned
-keys. The provider exposes no atomic conditional write across processes. Its
-unbound-state exception is ignored only when it exactly matches the upstream
-message; decorated I/O and other provider failures propagate.
+`setContractAddress` or storage mutation and independently unbound wrappers are
+outside this guarantee. Multiple application processes intentionally writing the
+same DID are outside the supported baseline and must use a distributed lock or
+equivalent fencing mechanism; the API does not provide one. `joinContract`
+acquires the same fail-fast owner-token lease before binding and holds both its
+source and target reservations through private-state loading and
+`findDeployedContract`; competing source/target controller lifecycle or binding
+calls fail busy before mutation. Join failure releases only its owned keys. The
+provider exposes no atomic conditional write across processes. Its unbound-state
+exception is ignored only when it exactly matches the upstream message;
+decorated I/O and other provider failures propagate. See
+[discussion #440](https://github.com/midnightntwrk/midnight-did/discussions/440)
+for the architecture decision and future multi-writer considerations.
 
 Applications should back up controller and recovery private state alongside
 their wallet backup material, protect it with custody controls appropriate for

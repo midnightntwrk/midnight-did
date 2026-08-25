@@ -33,19 +33,23 @@ published 0.5.0 packages retain their existing API and behavior.
   Cleanup rejection after successful promotion warns that the pending record may
   remain or may already have been removed; later reconciliation processes
   retained state or returns the typed unavailable error if deletion committed.
+  After an ambiguous call, applications wait for connectivity and trusted
+  finalized ledger state, promote when the retained secret derives the finalized
+  current controller key, and discard only after authoritative non-finalization.
   Controller operations reject known provider/DID binding mismatches before any
   provider or ledger access. Deployment holds a source/target address lease
   through active-state persistence, and join now holds the same owner-token
   lease across source/target binding, private-state read, and deployed-contract
-  lookup. Reservation is fail-fast and remains owned
-  until the operation is cancelled and settles, otherwise terminates or settles,
-  or the process exits. There is deliberately no lease expiry: releasing a
-  reservation while stale provider or transaction work can still complete could
-  let an old owner overwrite, promote, or remove another operation's state.
-  Separate processes, direct provider mutation, and independently unbound
-  wrappers require external per-DID coordination. The provider's unbound-state
-  exception is recognized only by its exact upstream message; decorated I/O or
-  other provider failures propagate.
+  lookup. Reservation is fail-fast and remains owned until the operation is
+  cancelled and settles, otherwise terminates or settles, or the process exits.
+  There is deliberately no lease expiry: releasing a reservation while stale
+  provider or transaction work can still complete could let an old owner
+  overwrite, promote, or remove another operation's state. The supported
+  baseline assumes one application writer process per DID. Multiple writer
+  processes require a distributed lock or equivalent fencing mechanism; direct
+  provider mutation and independently unbound wrappers remain outside the API
+  guarantee. The provider's unbound-state exception is recognized only by its
+  exact upstream message; decorated I/O or other provider failures propagate.
 - Intercept the post-ledger-success provider setup performed inside
   `@midnight-ntwrk/midnight-js-contracts` 4.0.2 `deployContract`: synchronously
   reserve and bind the canonical target under the deployment's source lease,
