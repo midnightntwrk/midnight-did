@@ -1,0 +1,243 @@
+{
+  "headSha": "abcdef1234567890",
+  "cases": [
+    {
+      "name": "clean routed current-head formal approval",
+      "expectedStatus": "clean",
+      "input": {
+        "preHeadSha": "abcdef1234567890",
+        "postHeadSha": "abcdef1234567890",
+        "formalReviews": {
+          "items": [
+            {
+              "author": { "login": "patextreme" },
+              "state": "APPROVED",
+              "commit": { "oid": "abcdef1234567890" },
+              "submittedAt": "2026-08-19T12:00:00Z"
+            }
+          ]
+        },
+        "reviewThreads": { "items": [] },
+        "issueComments": { "items": [] }
+      }
+    },
+    {
+      "name": "stale routed approval",
+      "expectedStatus": "stale",
+      "input": {
+        "preHeadSha": "abcdef1234567890",
+        "postHeadSha": "abcdef1234567890",
+        "formalReviews": {
+          "items": [
+            {
+              "author": { "login": "patextreme" },
+              "state": "APPROVED",
+              "commit": { "oid": "1111111111111111" },
+              "submittedAt": "2026-08-19T12:00:00Z"
+            }
+          ]
+        },
+        "reviewThreads": { "items": [] },
+        "issueComments": { "items": [] }
+      }
+    },
+    {
+      "name": "missing required evidence despite dispatch success",
+      "expectedStatus": "missing",
+      "input": {
+        "preHeadSha": "abcdef1234567890",
+        "postHeadSha": "abcdef1234567890",
+        "dispatch": { "ok": true, "status": "requested" },
+        "formalReviews": { "items": [] },
+        "reviewThreads": { "items": [] },
+        "issueComments": {
+          "items": [
+            {
+              "author": { "login": "patextreme" },
+              "body": "Review requested successfully.",
+              "createdAt": "2026-08-19T12:00:00Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "empty formal outcome",
+      "expectedStatus": "empty",
+      "input": {
+        "preHeadSha": "abcdef1234567890",
+        "postHeadSha": "abcdef1234567890",
+        "formalReviews": {
+          "items": [
+            {
+              "author": { "login": "patextreme" },
+              "state": "COMMENTED",
+              "commit": { "oid": "abcdef1234567890" },
+              "body": "",
+              "submittedAt": "2026-08-19T12:00:00Z"
+            }
+          ]
+        },
+        "reviewThreads": { "items": [] },
+        "issueComments": { "items": [] }
+      }
+    },
+    {
+      "name": "timed out feedback source",
+      "expectedStatus": "timeout",
+      "input": {
+        "preHeadSha": "abcdef1234567890",
+        "postHeadSha": "abcdef1234567890",
+        "formalReviews": { "items": [] },
+        "reviewThreads": { "items": [] },
+        "issueComments": { "items": [], "timedOut": true }
+      }
+    },
+    {
+      "name": "structured issue-comment findings",
+      "expectedStatus": "findings",
+      "input": {
+        "preHeadSha": "abcdef1234567890",
+        "postHeadSha": "abcdef1234567890",
+        "formalReviews": { "items": [] },
+        "reviewThreads": { "items": [] },
+        "issueComments": {
+          "items": [
+            {
+              "author": { "login": "patextreme" },
+              "body": "<agentflow-pr-review sha=\"abcdef1234567890\" verdict=\"changes\"/>",
+              "createdAt": "2026-08-19T12:00:00Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "unresolved inline review thread",
+      "expectedStatus": "findings",
+      "input": {
+        "preHeadSha": "abcdef1234567890",
+        "postHeadSha": "abcdef1234567890",
+        "formalReviews": { "items": [] },
+        "reviewThreads": {
+          "items": [
+            {
+              "id": "PRRT_1",
+              "isResolved": false,
+              "comments": [
+                {
+                  "author": { "login": "reviewer" },
+                  "commit": { "oid": "abcdef1234567890" }
+                }
+              ]
+            }
+          ]
+        },
+        "issueComments": { "items": [] }
+      }
+    },
+    {
+      "name": "formal changes requested",
+      "expectedStatus": "findings",
+      "input": {
+        "preHeadSha": "abcdef1234567890",
+        "postHeadSha": "abcdef1234567890",
+        "formalReviews": {
+          "items": [
+            {
+              "author": { "login": "patextreme" },
+              "state": "CHANGES_REQUESTED",
+              "commit": { "oid": "abcdef1234567890" },
+              "submittedAt": "2026-08-19T12:00:00Z"
+            }
+          ]
+        },
+        "reviewThreads": { "items": [] },
+        "issueComments": { "items": [] }
+      }
+    },
+    {
+      "name": "mixed current-head approval and findings",
+      "expectedStatus": "mixed",
+      "input": {
+        "preHeadSha": "abcdef1234567890",
+        "postHeadSha": "abcdef1234567890",
+        "formalReviews": {
+          "items": [
+            {
+              "author": { "login": "patextreme" },
+              "state": "APPROVED",
+              "commit": { "oid": "abcdef1234567890" },
+              "submittedAt": "2026-08-19T12:00:00Z"
+            }
+          ]
+        },
+        "reviewThreads": {
+          "items": [
+            {
+              "id": "PRRT_2",
+              "isResolved": false,
+              "comments": [
+                {
+                  "author": { "login": "reviewer" },
+                  "commit": { "oid": "abcdef1234567890" }
+                }
+              ]
+            }
+          ]
+        },
+        "issueComments": { "items": [] }
+      }
+    },
+    {
+      "name": "truncated formal-review pagination",
+      "expectedStatus": "truncated",
+      "input": {
+        "preHeadSha": "abcdef1234567890",
+        "postHeadSha": "abcdef1234567890",
+        "formalReviews": { "items": [], "truncated": true },
+        "reviewThreads": { "items": [] },
+        "issueComments": { "items": [] }
+      }
+    },
+    {
+      "name": "head changes during audit",
+      "expectedStatus": "head-race",
+      "input": {
+        "preHeadSha": "abcdef1234567890",
+        "postHeadSha": "2222222222222222",
+        "formalReviews": {
+          "items": [
+            {
+              "author": { "login": "patextreme" },
+              "state": "APPROVED",
+              "commit": { "oid": "abcdef1234567890" },
+              "submittedAt": "2026-08-19T12:00:00Z"
+            }
+          ]
+        },
+        "reviewThreads": { "items": [] },
+        "issueComments": { "items": [] }
+      }
+    },
+    {
+      "name": "clean structured current-head issue comment",
+      "expectedStatus": "clean",
+      "input": {
+        "preHeadSha": "abcdef1234567890",
+        "postHeadSha": "abcdef1234567890",
+        "formalReviews": { "items": [] },
+        "reviewThreads": { "items": [] },
+        "issueComments": {
+          "items": [
+            {
+              "author": { "login": "patextreme" },
+              "body": "<agentflow-pr-review sha=\"abcdef1234567890\" verdict=\"approved\"/>",
+              "createdAt": "2026-08-19T12:00:00Z"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

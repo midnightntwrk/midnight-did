@@ -1,5 +1,6 @@
 export * from "./crypto-codecs.js";
 export * from "./did-document.js";
+export * from "./did-url.js";
 export * from "./ledger-utils.js";
 export * from "./midnight.js";
 export * from "./offchain-midnight.js";

@@ -12,7 +12,10 @@ import {
 import { afterAll, describe, expect, it } from "vitest";
 
 import { getDidSubject } from "../did-subject.js";
-import { verificationMethodToLedger } from "../ledger-mappers.js";
+import {
+  serviceToLedger,
+  verificationMethodToLedger,
+} from "../ledger-mappers.js";
 import { type DeployedMidnightDIDContract } from "../types.js";
 
 let previousNetworkId: string | undefined;
@@ -43,6 +46,50 @@ const blsG1Key =
   "BgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYG";
 
 describe("ledger mappers", () => {
+  it("preserves complete service URL identity when mapping to ledger", () => {
+    expect(
+      serviceToLedger(didContract, {
+        id: "/routing#messaging",
+        type: "DIDCommMessaging",
+        serviceEndpoint: "https://example.com/messaging",
+      }),
+    ).toMatchObject({
+      id: `${didSubject}/routing#messaging`,
+      typ: "DIDCommMessaging",
+    });
+
+    expect(
+      serviceToLedger(didContract, {
+        id: "?service=messaging",
+        type: "DIDCommMessaging",
+        serviceEndpoint: "https://example.com/messaging",
+      }),
+    ).toMatchObject({
+      id: `${didSubject}?service=messaging`,
+    });
+
+    expect(() =>
+      serviceToLedger(didContract, {
+        id: "did:example:other#messaging",
+        type: "DIDCommMessaging",
+        serviceEndpoint: "https://example.com/messaging",
+      }),
+    ).toThrow(/must match the current DID/);
+  });
+
+  it("rejects duplicate service endpoints before writing ledger state", () => {
+    expect(() =>
+      serviceToLedger(didContract, {
+        id: "#duplicate-endpoints",
+        type: "DIDCommMessaging",
+        serviceEndpoint: [
+          "https://EXAMPLE.com:443/messages",
+          "https://example.com/messages",
+        ],
+      }),
+    ).toThrow(/Invalid serviceEndpoint/);
+  });
+
   it("normalizes OKP keys to the ledger y sentinel", () => {
     expect(
       verificationMethodToLedger(

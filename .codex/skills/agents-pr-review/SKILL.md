@@ -36,7 +36,7 @@ the user-owned `~/.agent-peer-review/config.json`; if that file is missing or
 invalid, stop and ask the user to run:
 
 ```bash
-npx -y @input-output-hk/agent-review@0.5.0 init --repo midnightntwrk/midnight-did
+node .pi/npm/node_modules/@input-output-hk/agent-review/dist/cli/index.js init --repo midnightntwrk/midnight-did
 ```
 
 Never create or copy the user's GitHub credentials into the repository.

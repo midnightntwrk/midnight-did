@@ -379,12 +379,23 @@ verificationMethod.controller
 verificationMethod.publicKeyJwk
 ```
 
-Ensure IDs resolve consistently against the DID subject.
+Ensure IDs resolve consistently against the DID subject. The common profile is
+specified by [ADR-0001](./adr/0001-did-core-cid-identifier-profile.md): accept
+relative DID URL references at input boundaries, resolve them with RFC3986,
+and use the resulting absolute URL as the identity.
 
-Test both:
+Path, query, and fragment components MUST remain distinct. For example:
 
-- relative fragment IDs;
-- fully resolved DID URLs, if the implementation emits them.
+```text
+#svc               -> did:midnight:...#svc
+/routing           -> did:midnight:.../routing
+?service=messaging -> did:midnight:...?service=messaging
+/a#svc             != did:midnight:.../b#svc
+```
+
+Test absolute DID URLs, absolute non-DID service URLs, relative fragments,
+relative paths, relative queries, equivalent absolute/relative references,
+and same-fragment path collision cases.
 
 ## Verification relationship requirements
 

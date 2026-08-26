@@ -162,21 +162,21 @@ describe("DID parsing utilities", () => {
     expect(doc.authentication).toEqual(["#key-1"]);
   });
 
-  it("accepts bare relation references when verificationMethod ids are absolute DID URLs", () => {
+  it("rejects bare path relation references without a key fragment", () => {
     const vmId = `${exampleDid}#key-1`;
-    const doc = parseDIDDocument({
-      "@context": "https://www.w3.org/ns/did/v1",
-      id: exampleDid,
-      verificationMethod: [
-        {
-          ...exampleVerificationMethodInput,
-          id: vmId,
-        },
-      ],
-      authentication: ["key-1"],
-    });
-    expect(doc.verificationMethod?.[0].id).toBe(vmId);
-    expect(doc.authentication).toEqual(["key-1"]);
+    expect(() =>
+      parseDIDDocument({
+        "@context": "https://www.w3.org/ns/did/v1",
+        id: exampleDid,
+        verificationMethod: [
+          {
+            ...exampleVerificationMethodInput,
+            id: vmId,
+          },
+        ],
+        authentication: ["key-1"],
+      }),
+    ).toThrow();
   });
 
   it("rejects duplicate verificationMethod ids after canonicalization", () => {
@@ -187,15 +187,34 @@ describe("DID parsing utilities", () => {
         verificationMethod: [
           {
             ...exampleVerificationMethodInput,
-            id: "key-1",
+            id: "#key-1",
           },
           {
             ...exampleVerificationMethodInput,
-            id: "#key-1",
+            id: `${exampleDid}#key-1`,
           },
         ],
       }),
     ).toThrow(/verificationMethod ids must be unique/);
+  });
+
+  it("rejects duplicate service ids after canonicalization", () => {
+    expect(() =>
+      parseDIDDocument({
+        "@context": "https://www.w3.org/ns/did/v1",
+        id: exampleDid,
+        service: [
+          {
+            ...exampleServiceInput,
+            id: "#service-1",
+          },
+          {
+            ...exampleServiceInput,
+            id: `${exampleDid}#service-1`,
+          },
+        ],
+      }),
+    ).toThrow(/service ids must be unique/);
   });
 
   it("accepts URI aliases in alsoKnownAs", () => {

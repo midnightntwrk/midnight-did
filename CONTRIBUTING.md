@@ -24,16 +24,16 @@ Please do not report suspected security vulnerabilities in public issues. Follow
 
 ## Code Contribution Process
 
-- **Fork and branch:** Create a focused branch from `develop` unless a maintainer asks for a release or hotfix branch.
+- **Fork and branch:** Create a focused branch from `develop` unless a maintainer asks for a release or hotfix branch. When updating an existing PR, preserve its actual base.
 - **Keep changes scoped:** Update the owning package and nearby docs/tests together.
 - **Follow existing style:** Use the repository's TypeScript, Compact, linting, and formatting conventions.
 - **Write tests:** Include unit tests, integration tests, or documented validation evidence appropriate to the change.
 - **Use clear commits:** Prefer Conventional Commit style messages, for example `fix(api): handle invalid DID resolution`.
-- **Sign off commits:** Include a DCO sign-off (`Signed-off-by: Name <email>`). GPG-signed commits are required for repository-facing maintainer work and encouraged for external contributors.
+- **Sign and sign off every commit:** Every human-authored PR commit must have a GitHub-verified GPG or SSH signature and a terminal DCO trailer matching the commit author (`Signed-off-by: Name <email>`). Repository-policy-listed dependency bots must still have a valid accepted signature, but are exempt from the human DCO author/trailer match because their GitHub-generated trailers do not consistently use the bot account email.
 - **Open a PR to the right branch:** Most PRs target `develop`; release-promotion PRs target `main`.
 - **Respond to review:** Maintainers may request changes, additional tests, documentation updates, or downstream-impact notes.
 
-Avoid force-pushing after review unless a maintainer asks for a rebase or history rewrite; force-pushes make incremental review harder.
+Avoid force-pushing after review unless a maintainer asks for a rebase or history rewrite. A rewrite invalidates prior validation, signature, and review evidence: verify every rewritten commit, prove old/new tree identity for content-neutral rewrites, retain `git range-diff` output where applicable, rerun local/CI validation, and request fresh exact-head review.
 
 ## DID Surface Change Discipline
 
@@ -54,11 +54,14 @@ For these changes, update tests and documentation in the same PR. The PR templat
 
 ## Validation
 
-For most PRs, run:
+For every source-changing PR, run the mandatory local gate:
 
 ```bash
-nix develop --command ./run.sh --light --strict
+nix develop --command pnpm run verify
 ```
+
+This runs strict light and core lanes, the integration report, and
+`pnpm run coverage:all`, including protected API module thresholds.
 
 For release-facing, contract/API, or integration-sensitive changes, run a broader gate such as:
 

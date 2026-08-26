@@ -40,6 +40,8 @@ jobs:
 
       - name: Set up Node.js and pnpm
         uses: ./.github/actions/setup-node-pnpm
+        with:
+          github-token: ${{ github.token }}
 
       - name: Run domain parser fuzz suite
         env:

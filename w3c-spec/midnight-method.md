@@ -135,7 +135,7 @@ The chunk payloads are the Compact runtime value emitted by the following descri
 `OffchainVerificationMethod` is encoded as:
 
 1. `present`: `Boolean`.
-2. `id`: `Opaque<"string">`, a fragment identifier such as `#key-1`.
+2. `id`: `Opaque<"string">`, a relative DID URL reference such as `#key-1`, `/keys/a#key-1`, or `?version=1#key-1`. The projected DID Document resolves this value to an absolute DID URL.
 3. `keyKind`: `Uint<8>` using the table below.
 4. `x`: `Opaque<"string">`, the canonical JWK `x` value.
 5. `y`: `Opaque<"string">`, the canonical JWK `y` value, or the empty-string sentinel for OKP keys.
@@ -144,7 +144,7 @@ The chunk payloads are the Compact runtime value emitted by the following descri
 `OffchainService` is encoded as:
 
 1. `present`: `Boolean`.
-2. `id`: `Opaque<"string">`, a fragment identifier.
+2. `id`: `Opaque<"string">`, a relative DID URL service reference. The projected DID Document resolves this value to an absolute URL.
 3. `type`: `Opaque<"string">`.
 4. `serviceEndpoint`: `Opaque<"string">`.
 
@@ -164,7 +164,7 @@ Empty verification-method slots have `present = false`, empty strings for `id`, 
 
 The `relationshipsMask` bits are: `authentication = 1`, `assertionMethod = 2`, `keyAgreement = 4`, `capabilityInvocation = 8`, and `capabilityDelegation = 16`.
 
-The maximum v1 state contains four `alsoKnownAs` entries, four verification methods, and four services. A state MUST contain at least one verification method. A decoder MUST reject unsupported `keyKind` values, invalid JWK material, non-fragment method or service identifiers, invalid base64url payloads, non-canonical base64url payloads, and any decoded state that does not satisfy the domain schema.
+The maximum v1 state contains four `alsoKnownAs` entries, four verification methods, and four services. A state MUST contain at least one verification method. A decoder MUST reject unsupported `keyKind` values, invalid JWK material, empty or malformed method/service references, invalid base64url payloads, non-canonical base64url payloads, and any decoded state that does not satisfy the domain schema.
 
 ### 2.1.2. Offchain state test vector
 
@@ -317,8 +317,7 @@ Every public key object linked to the `verificationMethod` property **MUST** inc
 
 ### 3.4.1. id
 
-Each linked public key has its own identifier specified using the field `id`. The value of `verificationMethod` **MUST NOT** contain multiple entries with the same `id`. The identifier **MUST** be either a DID URL for the subject with a fragment (for example, `did:midnight:<network>:<addr>#key-1`) or a relative reference that resolves against the DID (for example, `#key-1`).
-Midnight normalizes identifiers to fragment form (`#...`) at the SDK/contract boundary for on-ledger storage and relation management. During DID Document resolution, Midnight emits canonical absolute DID URLs for `verificationMethod.id`.
+Each linked public key has its own identifier specified using the field `id`. The value of `verificationMethod` **MUST NOT** contain multiple entries with the same canonical `id`. The identifier **MUST** be a subject-bound DID URL with a non-empty fragment, or a relative reference that resolves to one (for example, `#key-1` or `/keys/a#key-1`). Midnight resolves relative references against the DID subject and preserves path, query, and fragment components. Canonical storage, relation comparison, and resolved Document output use the resulting absolute DID URL.
 
 ### 3.4.2. type
 
@@ -514,7 +513,7 @@ The `service` property is OPTIONAL. If present, the associated value MUST be a s
 
 #### 3.6.1.1. Id
 
-The value of the `id` property MUST be either a DID URL for the Midnight DID subject (for example, `did:midnight:<network>:<addr>#service-1`) or a relative URL resolved against that DID (for example, `#service-1`, `/routing`, or `?service=messaging`). Midnight DID deployments normalize service IDs to fragment identifiers (`#fragment`) when serializing services in ledger transactions. During DID Document resolution, service IDs are emitted as canonical absolute DID URLs. A conforming producer MUST NOT emit multiple service entries with the same `id`, and a conforming consumer MUST produce an error if duplicate `id` values are detected.
+The value of the `id` property MUST be a valid absolute URL or a relative DID URL that resolves against the DID subject. For example, valid values include `did:midnight:<network>:<addr>#service-1`, `#service-1`, `/routing`, `?service=messaging`, and an absolute non-DID URL such as `https://example.com/service`. An absolute DID URL MUST use the current Midnight DID subject; foreign-DID service identifiers are not supported by this method profile. Midnight resolves relative values using RFC3986 reference-resolution cases and preserves path, query, and fragment components. Canonical storage, duplicate comparison, API mutation, and DID Document resolution use the resulting full absolute URL; `/a#service` and `/b#service` are distinct identifiers. A conforming producer MUST NOT emit multiple service entries with the same canonical `id`, and a conforming consumer MUST produce an error if duplicate `id` values are detected.
 
 #### 3.6.1.2. Type
 
@@ -530,9 +529,9 @@ The value of the `serviceEndpoint` property MUST comply with the [DID-CORE-SERVI
 
 - a string that is a valid URI conforming to [RFC3986];
 - an object (map) whose members describe transport data (for example, DIDComm service metadata as profiled in [CID-1.0]); or
-- an array composed of strings and/or objects of the above forms.
+- a set represented as a non-empty array of unique strings and/or objects of the above forms.
 
-When persisted on-ledger, Midnight serialises the `serviceEndpoint` value as a JSON string so that all conforming representations can be recovered when reconstructing the DID Document.
+When persisted on-ledger, Midnight serialises the `serviceEndpoint` value as a JSON string so that all conforming representations can be recovered when reconstructing the DID Document. Endpoint values in each service are normalized and MUST be unique; URI-equivalent strings and structurally equivalent maps count as the same set member. The same endpoint MAY appear in different services.
 
 Example of the `service` property:
 
@@ -701,21 +700,27 @@ The following table summarizes the on-chain ledger state exported by the contrac
 | deactivated                    | `Boolean`                                    | Whether the DID has been deactivated. When `true`, the resolver surfaces `deactivated: true` in metadata and reuses the `updated` timestamp as the deactivation time. |
 | active                         | `Boolean`                                    | Whether the DID is active (`true`) or deactivated (`false`). If `active` is false, the resolver MUST set `deactivated: true` in DID Document metadata. |
 | operationCount                 | `Counter`                                    | Total number of DID update operations applied to this DID. Used for internal statistics. |
-| verificationMethods            | `Map<Opaque<"string">, VerificationMethod>`    | Non-Jubjub verification methods keyed by canonical fragment id. Values store opaque canonical JWK material. Resolver output expands ids to absolute DID URLs. |
+| verificationMethods            | `Map<Opaque<"string">, VerificationMethod>`    | Non-Jubjub verification methods. New records are keyed by full canonical absolute DID URL; compatible legacy records can use the exact current-subject `#fragment` key described in Section 6.1. Values store opaque canonical JWK material. Resolver output retains the complete identifier. |
 | verificationMethods[*].publicKeyJwk.x | `Opaque<"string">` | Canonical unpadded base64url JWK `x`. Byte lengths: Ed25519, X25519, P-256, and secp256k1 use 32; BLS12381G1 uses 48; BLS12381G2 uses 96. |
 | verificationMethods[*].publicKeyJwk.y | `Opaque<"string">` | EC `y` coordinate. OKP entries store an empty string sentinel; resolver output omits `y`. |
-| schnorrJubjubVerificationMethods | `Map<Opaque<"string">, SchnorrJubjubVerificationMethod>` | SchnorrJubjub methods keyed by canonical fragment id. Resolver output merges them into `verificationMethod` as `JsonWebKey` entries with `crv: "Jubjub"`. |
+| schnorrJubjubVerificationMethods | `Map<Opaque<"string">, SchnorrJubjubVerificationMethod>` | SchnorrJubjub methods. New records use full canonical absolute DID URL keys; exact legacy current-subject fragment keys remain operable. Resolver output merges them into `verificationMethod` as `JsonWebKey` entries with `crv: "Jubjub"`. |
 | schnorrJubjubVerificationMethods[*].publicKey | `JubjubPoint` | Native Jubjub public key point (`Field` `x`, `Field` `y`). Canonical on-ledger representation for Jubjub methods. |
-| authenticationRelation         | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored in canonical fragment form, for example `#key-1`) authorized for `authentication`. The DIDDocument's `authentication` property is reconstructed from this state. |
-| assertionMethodRelation        | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored in canonical fragment form, for example `#key-1`) authorized for `assertionMethod`. The DIDDocument's `assertionMethod` property is reconstructed from this state. |
-| keyAgreementRelation           | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored in canonical fragment form, for example `#key-1`) authorized for `keyAgreement`. The DIDDocument's `keyAgreement` property is reconstructed from this state. |
-| capabilityInvocationRelation   | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored in canonical fragment form, for example `#key-1`) authorized for `capabilityInvocation`. The DIDDocument's `capabilityInvocation` property is reconstructed from this state. |
-| capabilityDelegationRelation   | `Set<Opaque<"string">>`                        | Set of verification method identifiers (stored in canonical fragment form, for example `#key-1`) authorized for `capabilityDelegation`. The DIDDocument's `capabilityDelegation` property is reconstructed from this state. |
-| services                       | `Map<Opaque<"string">, Service>`               | Map from service identifiers (canonicalized to fragment form for storage) to service definitions. The `serviceEndpoint` value is stored as a JSON string so that any DID Core-compliant representation (string, object, or array) can be rehydrated when reconstructing the DID Document. Resolver output emits canonical absolute DID URLs for service `id` values. |
+| authenticationRelation         | `Set<Opaque<"string">>`                        | Set of physical verification-method keys authorized for `authentication`. New entries use full canonical identifiers; compatible legacy entries retain the target method's exact fragment key. The DIDDocument's `authentication` property is reconstructed as a canonical URL. |
+| assertionMethodRelation        | `Set<Opaque<"string">>`                        | Set of physical verification-method keys authorized for `assertionMethod`, with the same canonical/legacy compatibility rule. |
+| keyAgreementRelation           | `Set<Opaque<"string">>`                        | Set of physical verification-method keys authorized for `keyAgreement`, with the same canonical/legacy compatibility rule. |
+| capabilityInvocationRelation   | `Set<Opaque<"string">>`                        | Set of physical verification-method keys authorized for `capabilityInvocation`, with the same canonical/legacy compatibility rule. |
+| capabilityDelegationRelation   | `Set<Opaque<"string">>`                        | Set of physical verification-method keys authorized for `capabilityDelegation`, with the same canonical/legacy compatibility rule. |
+| services                       | `Map<Opaque<"string">, Service>`               | Service definitions. New records use full canonical absolute URL keys; exact legacy current-subject fragment keys remain operable. The `serviceEndpoint` value is stored as a JSON string so that any DID Core-compliant representation can be rehydrated. Resolver output retains canonical absolute service URLs. |
 
-The `verificationMethods` and `schnorrJubjubVerificationMethods` maps share one verification method identifier namespace. Resolvers MUST reject duplicate identifiers across the two maps after canonical fragment normalization, and relation sets MAY target entries from either map. The two maps are not duplicate storage for the same key material: each verification method is stored in exactly one canonical representation. This avoids consistency hazards while preserving both W3C `publicKeyJwk` interoperability for non-Jubjub keys and native `JubjubPoint` storage for SchnorrJubjub keys.
+### 6.1. Canonical identity and legacy physical keys
 
-Because Compact treats `Opaque<"string">` identifiers as opaque values, canonical DID URL subject binding and fragment normalization are SDK/resolver responsibilities. The TypeScript API normalizes identifiers before submission; resolvers reject states that would produce duplicate normalized verification method IDs.
+Canonical logical identity is always the complete resolved URL. New verification-method, verification-relationship, and service records use that canonical value as the physical ledger key. Earlier deployments can contain a `#fragment` physical key for the same `did:midnight:...#fragment` logical identity.
+
+Before an update, removal, relationship operation, service operation, or ledger-bound Schnorr verification, the SDK checks both the canonical physical key and this one exact legacy alias. It MUST use the sole existing physical key in the circuit input and authorization digest. If both forms exist, it MUST fail as ambiguous rather than selecting one. New inserts MUST reject an occupied legacy alias and MUST write the canonical key. A legacy alias MUST NOT be derived for path, query, foreign-DID, or external URL identities; for example, `did:midnight:.../routing` is not an alias for the historical fragment identity `did:midnight:...#/routing`.
+
+This lookup preserves existing subject-fragment deployments without automatic state migration or redeployment. The `verificationMethods` and `schnorrJubjubVerificationMethods` maps share one logical identifier namespace. Resolvers MUST reject duplicate identifiers across the two maps after full absolute-DID-URL normalization, and relation sets MAY target entries from either map. The two maps are not duplicate storage for the same key material: each verification method is stored in exactly one representation.
+
+Because Compact treats `Opaque<"string">` identifiers as opaque values, DID URL reference resolution and subject binding are SDK/resolver responsibilities. The TypeScript API resolves references before submission; resolvers reject states that would produce duplicate full canonical identifiers.
 
 Example DID Document metadata emitted by the resolver layer:
 
@@ -812,9 +817,12 @@ Failure responses MUST set `didResolutionMetadata.error` to a DID Core error
 keyword. Midnight resolvers SHOULD use `invalidDid`, `notFound`, and
 `representationNotSupported` for those DID Core-defined cases, and SHOULD use
 registered DID resolution keywords such as `methodNotSupported` and
-`internalError` for broader resolver failures. Resolver-specific extension
-values MAY be used when they are registered or documented as a single ASCII
-keyword that starts with a letter.
+`internalError` for broader resolver failures. This implementation documents
+`invalidDid` for a ledger state that cannot be projected into a valid Midnight
+DID Document, and `notAllowedLocalDuplicateKey` for duplicate
+verification-method keys in the normalized ledger state. Resolver-specific extension values MAY be used when
+they are registered or documented as a single ASCII keyword that starts with a
+letter.
 
 The method document profile requires `@context` in resolved Midnight DID
 Documents. Producers of `application/did+ld+json` MUST include it. Producers of
@@ -828,6 +836,8 @@ Midnight DID Document and its JSON-LD representation.
 Updating the Midnight DID implies that the DID Controller calls one of the smart contract's individual circuits for each type of modification.
 
 Each update circuit requires a controller Schnorr signature over the DID contract id, current version, operation name, and operation arguments, verified against the on-chain `controllerPublicKey`. The `currentTimestamp` witness is used to populate the `updated` ledger field after each successful operation. The value is not constrained by ledger time and therefore remains informational metadata that can only be sanity-checked by resolvers and SDKs for obviously implausible values.
+
+For an operation targeting an existing verification method or service, the SDK resolves canonical identity to the sole existing canonical or compatible legacy physical key according to Section 6.1. The selected physical key is used consistently for state preflight, authorization, and circuit submission. Canonical and legacy records for the same identity are an error, not a precedence rule.
 
 Conformance note: due to Compact language limitations for rich URI/data-model validation, normative checks for DID URL subject binding and DID Core structure conformance (for example `serviceEndpoint` shape), JWK/base64url canonicality, opaque JWK shape (for example OKP omits `y` while EC includes `y`), and non-native key parsing are enforced at the SDK/resolver layers (`domain`, `api`, `did`). The smart contract enforces authorization, exact ledger identifier existence/uniqueness, supported opaque JWK key/curve profiles, native SchnorrJubjub point storage, and state-transition invariants.
 
@@ -864,7 +874,7 @@ Adds a new verification method entry and (optionally, in a subsequent operation)
 
 - Inputs: `verificationMethod` object with `id`, `type`, `controller`, and `publicKeyJwk` fields.
 - Constraints:
-  - `id` MUST be either a DID URL bound to this DID (for example, `did:midnight:<network>:<addr>#key-1`) or a relative identifier that resolves against the DID (for example, `#key-1`). On-ledger, Midnight canonicalizes to fragment form (`#key-1`) for storage. Resolver output emits the absolute DID URL form.
+  - `id` MUST be either a DID URL bound to this DID (for example, `did:midnight:<network>:<addr>#key-1`) or a relative identifier that resolves against the DID (for example, `#key-1`). The SDK resolves references before ledger submission and preserves the complete absolute DID URL for storage and resolver output.
   - `controller` MUST equal the DID subject.
   - `type` MUST be `JsonWebKey`.
   - `publicKeyJwk` MUST follow the opaque JWK profiles defined in [section 3.4.4](#344-publickeyjwk) for Ed25519, X25519, P-256, secp256k1, BLS12381G1, or BLS12381G2. Jubjub keys MUST use the SchnorrJubjub verification method API because their canonical ledger representation is a native `JubjubPoint`.
@@ -908,6 +918,7 @@ Example (ledger-bound SchnorrJubjub verification):
 ```typescript
 await verifySchnorrJubjubDigestSignature(
   didContract,
+  providers,
   '#key-jubjub-1',
   digestVector4,
   signature
@@ -958,7 +969,7 @@ Associate an existing verification method `methodId` with a DID Core verificatio
 
 - Inputs: `relation` ∈ { `Authentication`, `AssertionMethod`, `KeyAgreement`, `CapabilityInvocation`, `CapabilityDelegation` }, `methodId`.
 - Constraints:
-  - `methodId` MUST refer to an existing verification method and MUST be expressed as a DID URL for the subject or a relative identifier (e.g., `#key-1`).
+  - `methodId` MUST refer to an existing verification method and MUST be expressed as a subject-bound DID URL or a relative reference resolving to its complete identifier (e.g., `#key-1` or `/keys/a#key-1`). Path, query, and fragment components are preserved for equality.
   - Adding the same relation twice MUST fail.
   - The verification method curve MUST be compatible with the requested relationship.
     `X25519` methods are key-agreement methods and MUST only be added to
@@ -991,7 +1002,7 @@ Adds a service entry identified by a unique `id` with a `type` and `serviceEndpo
 
 - Inputs: `service` with fields `id`, `type`, `serviceEndpoint`.
 - Constraints:
-  - `id` MUST be unique across services and MUST be either a DID URL for the DID subject or a relative identifier (for example, `#service-1`). Midnight canonicalizes service IDs to fragment form for storage and emits absolute DID URL form in resolved documents.
+  - `id` MUST be unique across services and MUST be a valid absolute URL or a relative DID URL reference (for example, `#service-1`, `/routing`, or `?service=messaging`). Relative values are resolved against the DID and the complete absolute URL is used for storage, comparison, and resolved output.
   - `type` MUST be either a string or an array of unique strings.
   - `serviceEndpoint` MUST be encodable as JSON and MUST conform to the [DID-CORE-SERVICES] data model (string, object, or array of strings/objects). The value is persisted as a JSON string on-ledger.
 

@@ -67,6 +67,28 @@ describe("controller authorization", () => {
     );
   });
 
+  it("signs against a known preflight state without querying a newer version", async () => {
+    const { signControllerAuthorization } =
+      await import("@midnight-ntwrk/midnight-did-contract");
+    const privateState = { secretKey: new Uint8Array([7, 8, 9]) };
+    const ledgerState = { id: "did-id", version: 12n };
+    const digest = [1n, 2n, 3n, 4n] as const;
+    vi.mocked(requirePrivateState).mockResolvedValue(privateState as any);
+
+    await createControllerAuthorization(
+      {} as any,
+      {} as any,
+      () => digest as any,
+      ledgerState as any,
+    );
+
+    expect(requireDeployedMidnightDIDLedgerState).not.toHaveBeenCalled();
+    expect(signControllerAuthorization).toHaveBeenCalledWith(
+      privateState.secretKey,
+      digest,
+    );
+  });
+
   it("propagates missing private state without signing", async () => {
     const failure = new Error("controller secret unavailable");
     vi.mocked(requirePrivateState).mockRejectedValue(failure);

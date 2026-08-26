@@ -122,7 +122,7 @@ Local validation:
 
 Runner notes:
 
-- Local PR validation contract: `./run.sh --light --strict` or `pnpm run ci`.
+- Mandatory local source-change validation is `nix develop --command pnpm run verify` (or `pnpm run ci` inside Nix). It includes strict light/core lanes, the integration report, and `coverage:all`.
 - `pnpm run ci:packages` keeps the legacy package-only lint/build/test lane.
 - `./run.sh` and `./run.sh full` validate DID core and API lanes.
 - `./run.sh docs` validates the documentation site. The Nix shell provides the
@@ -328,7 +328,7 @@ CLI when consuming the matching GHCR OCI artifact instead.
 ## Developer Entry Points
 
 1. `./start-docs.sh`
-2. `./run.sh --light --strict` or `pnpm run ci`
+2. `nix develop --command pnpm run verify` for the mandatory PR gate
 3. `./run.sh core --strict` or `./run.sh api --light --strict` for focused work
 4. Use the split repositories for resolver/manager/secret-storage or VC work
 

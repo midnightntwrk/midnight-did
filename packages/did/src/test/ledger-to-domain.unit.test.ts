@@ -272,7 +272,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       type: "T",
       serviceEndpoint: JSON.stringify("https://a.example"),
     } as any);
-    expect(svc.id).toBe("#svc-x");
+    expect(svc.id).toBe("svc-x");
     expect(typeof svc.serviceEndpoint).toBe("string");
     expect(svc.serviceEndpoint).toBe("https://a.example");
 
@@ -293,12 +293,19 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     } as any);
     expect(relativeService.id).toBe("/routes/messaging");
 
+    const queryService = LedgerToDomain.service({
+      id: "?service=messaging",
+      type: "T",
+      serviceEndpoint: JSON.stringify("https://query.example"),
+    } as any);
+    expect(queryService.id).toBe("?service=messaging");
+
     const networkPathService = LedgerToDomain.service({
       id: "//peer",
       type: "T",
       serviceEndpoint: JSON.stringify({ uri: "https://d.example" }),
     } as any);
-    expect(networkPathService.id).toBe("#//peer");
+    expect(networkPathService.id).toBe("//peer");
 
     const legacyService = LedgerToDomain.service({
       id: "legacy",
@@ -313,6 +320,17 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       serviceEndpoint: JSON.stringify("https://multi.example"),
     } as any);
     expect(multiTypeService.type).toEqual(["DIDCommV2", "LinkedDomains"]);
+
+    expect(() =>
+      LedgerToDomain.service({
+        id: "svc-dedup",
+        type: "T",
+        serviceEndpoint: JSON.stringify([
+          "https://example.com",
+          "https://EXAMPLE.com:443",
+        ]),
+      } as any),
+    ).toThrow(/serviceEndpoint values must be unique/);
   });
 
   it("service rejects malformed serviceType and serviceEndpoint payloads", () => {
@@ -331,6 +349,31 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
         serviceEndpoint: "not-json",
       } as any),
     ).toThrow(/Invalid serviceEndpoint/);
+  });
+
+  it("uses one lossless policy for VM and service ledger references", () => {
+    const did = `did:midnight:devnet:${"a".repeat(64)}`;
+
+    for (const reference of ["legacy#key-1", "/keys/a#key-1"]) {
+      expect(LedgerToDomain.absoluteDidUrlReference(did, reference)).toBe(
+        `${did}/${reference.startsWith("/") ? reference.slice(1) : reference}`,
+      );
+      expect(LedgerToDomain.absoluteServiceUrlReference(did, reference)).toBe(
+        `${did}/${reference.startsWith("/") ? reference.slice(1) : reference}`,
+      );
+    }
+  });
+
+  it("preserves explicit ledger JSON identifiers and normalizes legacy labels", () => {
+    const did = `did:midnight:devnet:${"a".repeat(64)}`;
+
+    expect(LedgerToDomain.verificationMethodId("key-1")).toBe("#key-1");
+    expect(LedgerToDomain.verificationMethodId(`${did}#key-1`)).toBe(
+      `${did}#key-1`,
+    );
+    expect(LedgerToDomain.verificationMethodId(`${did}/keys/a#key-1`)).toBe(
+      `${did}/keys/a#key-1`,
+    );
   });
 
   it("toJSON flattens ledger to plain JSON with arrays", () => {
@@ -356,14 +399,37 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     ]);
   });
 
+  it("toJSON covers all relation and native-key projections", () => {
+    for (const field of [
+      "assertionMethodRelation",
+      "keyAgreementRelation",
+      "capabilityInvocationRelation",
+      "capabilityDelegationRelation",
+    ]) {
+      stubLedger[field] = makeIterable(["key-1"]);
+    }
+    stubLedger.schnorrJubjubVerificationMethods = makeIterablePairs([
+      ["schnorr-1", { publicKey: { x: 1n, y: 2n } }],
+    ]);
+
+    const json = LedgerToDomain.toJSON(stubLedger) as any;
+
+    expect(json.schnorrJubjubVerificationMethods).toBeUndefined();
+    expect(json.assertionMethodRelation).toEqual(["#key-1"]);
+    expect(json.keyAgreementRelation).toEqual(["#key-1"]);
+    expect(json.capabilityInvocationRelation).toEqual(["#key-1"]);
+    expect(json.capabilityDelegationRelation).toEqual(["#key-1"]);
+    expect(json.verificationMethods).toHaveLength(2);
+  });
+
   it("ledgerStateToDIDDocument builds DID Document and assigns alsoKnownAs when present", () => {
     const addr = parseContractAddress("0".repeat(64));
     const didSubject = `did:midnight:devnet:${"0".repeat(64)}`;
     const normalizedServices = Array.from(stubLedger.services, ([, service]) =>
       LedgerToDomain.service(service),
     );
-    expect(normalizedServices[0].id).toBe("#svc-1");
-    expect(normalizedServices[1].id).toBe("#svc-2");
+    expect(normalizedServices[0].id).toBe("svc-1");
+    expect(normalizedServices[1].id).toBe("svc-2");
     let doc;
     try {
       doc = LedgerToDomain.ledgerStateToDIDDocument(
@@ -384,7 +450,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(doc.verificationMethod?.length).toBe(1);
     expect(doc.authentication?.length).toBe(1);
     expect(doc.verificationMethod?.[0].id).toBe(`${didSubject}#key-1`);
-    expect(doc.authentication?.[0]).toBe("#key-1");
+    expect(doc.authentication?.[0]).toBe(`${didSubject}#key-1`);
     expect(doc).not.toHaveProperty("assertionMethod");
     expect(doc).not.toHaveProperty("keyAgreement");
     expect(doc).not.toHaveProperty("capabilityInvocation");
@@ -401,6 +467,49 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect("y" in (doc.verificationMethod?.[0]?.publicKeyJwk ?? {})).toBe(
       false,
     );
+  });
+
+  it("ledgerStateToDIDDocument uses normalized ledger service identifiers", () => {
+    const addr = parseContractAddress("0".repeat(64));
+    const didSubject = `did:midnight:devnet:${"0".repeat(64)}`;
+    stubLedger.services = makeIterablePairs<string, any>([
+      [
+        "legacy-path",
+        {
+          id: "/routes/messaging#service-1",
+          typ: "DIDCommMessaging",
+          serviceEndpoint: JSON.stringify("https://messaging.example"),
+        },
+      ],
+    ]);
+
+    const doc = LedgerToDomain.ledgerStateToDIDDocument(
+      stubLedger,
+      MidnightNetwork.DevNet,
+      addr,
+    );
+
+    expect(doc.service?.[0]?.id).toBe(
+      `${didSubject}/routes/messaging#service-1`,
+    );
+  });
+
+  it("ledgerStateToDIDDocument omits empty verification methods", () => {
+    const addr = parseContractAddress("0".repeat(64));
+    stubLedger.verificationMethods = makeIterablePairs<string, any>([]);
+    stubLedger.alsoKnownAs = makeIterable<string>([]);
+    stubLedger.services = makeIterablePairs<string, any>([]);
+    stubLedger.authenticationRelation = makeIterable<string>([]);
+
+    const doc = LedgerToDomain.ledgerStateToDIDDocument(
+      stubLedger,
+      MidnightNetwork.DevNet,
+      addr,
+    );
+
+    expect(doc).not.toHaveProperty("verificationMethod");
+    expect(doc).not.toHaveProperty("service");
+    expect(doc).not.toHaveProperty("alsoKnownAs");
   });
 
   it("ledgerStateToDIDDocument merges native SchnorrJubjub methods", () => {
@@ -439,7 +548,7 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
       x: fieldString(1n),
       y: fieldString(256n),
     });
-    expect(doc.assertionMethod).toEqual(["#key-schnorr-jubjub"]);
+    expect(doc.assertionMethod).toEqual([`${didSubject}#key-schnorr-jubjub`]);
   });
 
   it("ledgerStateToDIDDocument rejects duplicate normalized verification method ids", () => {

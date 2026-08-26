@@ -19,10 +19,12 @@ import {
   KeyType,
   type PublicKeyJwk,
   PublicKeyJwkSchema,
+  RelativeURLSchema,
   type Service,
   type VerificationMethod,
   VerificationMethodType,
 } from "./did-document.js";
+import { resolveDIDURLReference } from "./did-url.js";
 import {
   createMidnightDIDString,
   type MidnightDIDString,
@@ -40,6 +42,10 @@ const CHUNK_LENGTH_BYTES = 4;
 const BASE64URL_TEXT = /^[A-Za-z0-9_-]+$/u;
 const uint8 = new CompactTypeUnsignedInteger(255n, 1);
 const uint16 = new CompactTypeUnsignedInteger(65535n, 2);
+const OFFCHAIN_REFERENCE_DID = "did:midnight:offchain:" + "0".repeat(64);
+
+const canonicalOffchainReference = (value: string): string =>
+  resolveDIDURLReference(value, OFFCHAIN_REFERENCE_DID);
 
 export const OFFCHAIN_STATE_ENCODING =
   "midnight-offchain-did-state-v1.base64url" as const;
@@ -63,10 +69,14 @@ export type OffchainVerificationRelationships = z.infer<
 export const OffchainVerificationMethodSchema = z.object({
   id: z.string().check(
     z.minLength(1),
-    z.refine(
-      (value) => value.startsWith("#"),
-      "Verification method id must be a fragment reference",
-    ),
+    z.refine((value) => {
+      const fragmentIndex = value.indexOf("#");
+      return (
+        RelativeURLSchema.safeParse(value).success &&
+        fragmentIndex >= 0 &&
+        fragmentIndex < value.length - 1
+      );
+    }, "Verification method id must be a relative DID URL with a fragment"),
   ),
   publicKeyJwk: PublicKeyJwkSchema,
   relationships: OffchainVerificationRelationshipsSchema,
@@ -80,8 +90,8 @@ export const OffchainServiceSchema = z.object({
   id: z.string().check(
     z.minLength(1),
     z.refine(
-      (value) => value.startsWith("#"),
-      "Service id must be a fragment reference",
+      (value) => RelativeURLSchema.safeParse(value).success && value !== "#",
+      "Service id must be a non-empty relative DID URL",
     ),
   ),
   type: z.string().check(z.minLength(1)),
@@ -109,15 +119,31 @@ export const OffchainMidnightDIDStateSchema = z.object({
       (value) => value.length <= MAX_VERIFICATION_METHODS,
       `verificationMethod must contain at most ${MAX_VERIFICATION_METHODS} entries`,
     ),
+    z.refine((value) => {
+      if (value.some(({ id }) => !RelativeURLSchema.safeParse(id).success)) {
+        return true;
+      }
+      return (
+        new Set(value.map(({ id }) => canonicalOffchainReference(id))).size ===
+        value.length
+      );
+    }, "verificationMethod ids must be unique"),
   ),
-  service: z
-    .array(OffchainServiceSchema)
-    .check(
-      z.refine(
-        (value) => value.length <= MAX_SERVICES,
-        `service must contain at most ${MAX_SERVICES} entries`,
-      ),
+  service: z.array(OffchainServiceSchema).check(
+    z.refine(
+      (value) => value.length <= MAX_SERVICES,
+      `service must contain at most ${MAX_SERVICES} entries`,
     ),
+    z.refine((value) => {
+      if (value.some(({ id }) => !RelativeURLSchema.safeParse(id).success)) {
+        return true;
+      }
+      return (
+        new Set(value.map(({ id }) => canonicalOffchainReference(id))).size ===
+        value.length
+      );
+    }, "service ids must be unique"),
+  ),
 });
 
 export type OffchainMidnightDIDState = z.infer<
@@ -653,20 +679,34 @@ export const offchainVerificationMethodToDidDocumentMethod = (
   method: OffchainVerificationMethod,
 ): VerificationMethod =>
   createVerificationMethod({
-    id: method.id,
+    id: resolveDIDURLReference(method.id, did),
     type: VerificationMethodType.JsonWebKey,
     controller: parseMidnightDIDString(did),
     publicKeyJwk: method.publicKeyJwk,
   });
 
 export const offchainServiceToDidDocumentService = (
-  service: OffchainService,
-): Service =>
-  createService({
-    id: service.id,
+  ...args:
+    | [service: OffchainService]
+    | [did: MidnightDIDString, service: OffchainService]
+): Service => {
+  const [didOrService, maybeService] = args;
+  const did = typeof didOrService === "string" ? didOrService : undefined;
+  if (did !== undefined && maybeService === undefined) {
+    throw new Error("Offchain service mapping requires a service value");
+  }
+  const service = maybeService ?? (didOrService as OffchainService);
+  return createService({
+    id:
+      did === undefined
+        ? service.id
+        : resolveDIDURLReference(service.id, did, {
+            allowExternalURL: true,
+          }),
     type: service.type,
     serviceEndpoint: service.serviceEndpoint,
   });
+};
 
 export const offchainStateToDidDocument = (
   did: MidnightDIDString,
@@ -674,21 +714,17 @@ export const offchainStateToDidDocument = (
 ) => {
   const canonicalDid = parseMidnightDIDString(did);
   const parsed = OffchainMidnightDIDStateSchema.parse(state);
-  const authentication = parsed.verificationMethod
-    .filter((method) => method.relationships.authentication)
-    .map((method) => method.id);
-  const assertionMethod = parsed.verificationMethod
-    .filter((method) => method.relationships.assertionMethod)
-    .map((method) => method.id);
-  const keyAgreement = parsed.verificationMethod
-    .filter((method) => method.relationships.keyAgreement)
-    .map((method) => method.id);
-  const capabilityInvocation = parsed.verificationMethod
-    .filter((method) => method.relationships.capabilityInvocation)
-    .map((method) => method.id);
-  const capabilityDelegation = parsed.verificationMethod
-    .filter((method) => method.relationships.capabilityDelegation)
-    .map((method) => method.id);
+  const relationshipIds = (
+    relationship: keyof OffchainVerificationRelationships,
+  ) =>
+    parsed.verificationMethod
+      .filter((method) => method.relationships[relationship])
+      .map((method) => resolveDIDURLReference(method.id, canonicalDid));
+  const authentication = relationshipIds("authentication");
+  const assertionMethod = relationshipIds("assertionMethod");
+  const keyAgreement = relationshipIds("keyAgreement");
+  const capabilityInvocation = relationshipIds("capabilityInvocation");
+  const capabilityDelegation = relationshipIds("capabilityDelegation");
 
   return {
     "@context": [
@@ -709,7 +745,11 @@ export const offchainStateToDidDocument = (
     ...(capabilityInvocation.length > 0 ? { capabilityInvocation } : {}),
     ...(capabilityDelegation.length > 0 ? { capabilityDelegation } : {}),
     ...(parsed.service.length > 0
-      ? { service: parsed.service.map(offchainServiceToDidDocumentService) }
+      ? {
+          service: parsed.service.map((service) =>
+            offchainServiceToDidDocumentService(canonicalDid, service),
+          ),
+        }
       : {}),
   };
 };

@@ -4,7 +4,11 @@ const mocks = vi.hoisted(() => ({
   createControllerAuthorization: vi.fn(),
   asSchnorrJubjubDigest: vi.fn((digest) => digest),
   serviceToLedger: vi.fn(),
-  normalizeBoundFragmentId: vi.fn(),
+  normalizeBoundDIDURL: vi.fn(),
+  findExistingServiceLedgerId: vi.fn(),
+  ledgerIdentifier: vi.fn((_, canonical) => ({ canonical })),
+  requireExistingServiceLedgerId: vi.fn(),
+  requireDeployedMidnightDIDLedgerState: vi.fn(),
   setServiceAuthorizationDigest: vi.fn(() => [1n, 2n, 3n, 4n]),
   removeServiceAuthorizationDigest: vi.fn(() => [5n, 6n, 7n, 8n]),
 }));
@@ -25,11 +29,22 @@ vi.mock("../controller-authorization.js", () => ({
 }));
 
 vi.mock("../did-subject.js", () => ({
-  normalizeBoundFragmentId: mocks.normalizeBoundFragmentId,
+  normalizeBoundDIDURL: mocks.normalizeBoundDIDURL,
+}));
+
+vi.mock("../ledger-identifier-keys.js", () => ({
+  findExistingServiceLedgerId: mocks.findExistingServiceLedgerId,
+  ledgerIdentifier: mocks.ledgerIdentifier,
+  requireExistingServiceLedgerId: mocks.requireExistingServiceLedgerId,
 }));
 
 vi.mock("../ledger-mappers.js", () => ({
   serviceToLedger: mocks.serviceToLedger,
+}));
+
+vi.mock("../ledger-state.js", () => ({
+  requireDeployedMidnightDIDLedgerState:
+    mocks.requireDeployedMidnightDIDLedgerState,
 }));
 
 import {
@@ -46,17 +61,22 @@ const didContract = {
   },
 } as any;
 const providers = { privateStateProvider: {} } as any;
+const didState = {};
 const service = { id: "#service", serviceEndpoint: "https://example.test" };
 const ledgerService = {
-  id: "#service",
+  id: "did:midnight:example#service",
   serviceEndpoint: "https://example.test",
 };
+const legacyLedgerService = { ...ledgerService, id: "#service" };
 
 describe("service operations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.serviceToLedger.mockReturnValue(ledgerService);
-    mocks.normalizeBoundFragmentId.mockReturnValue("#service");
+    mocks.normalizeBoundDIDURL.mockReturnValue("did:midnight:example#service");
+    mocks.findExistingServiceLedgerId.mockReturnValue(null);
+    mocks.requireExistingServiceLedgerId.mockReturnValue("#service");
+    mocks.requireDeployedMidnightDIDLedgerState.mockResolvedValue(didState);
     mocks.createControllerAuthorization.mockImplementation(
       async (_didContract, _providers, digestFactory) => {
         digestFactory({ id: "did-id", version: 4n });
@@ -87,6 +107,17 @@ describe("service operations", () => {
     );
   });
 
+  it("rejects an insert when a canonical or legacy service key already exists", async () => {
+    mocks.findExistingServiceLedgerId.mockReturnValue("#service");
+
+    await expect(
+      addService(didContract, providers, service as any),
+    ).rejects.toThrow(/already exists/);
+
+    expect(mocks.createControllerAuthorization).not.toHaveBeenCalled();
+    expect(didContract.callTx.setService).not.toHaveBeenCalled();
+  });
+
   it("updates a service with an update authorization", async () => {
     await expect(
       updateService(didContract, providers, service as any),
@@ -95,14 +126,20 @@ describe("service operations", () => {
     expect(mocks.setServiceAuthorizationDigest).toHaveBeenCalledWith(
       "did-id",
       4n,
-      ledgerService,
+      legacyLedgerService,
       "update",
     );
     expect(didContract.callTx.setService).toHaveBeenCalledWith(
-      ledgerService,
+      legacyLedgerService,
       "update",
       signature,
       9n,
+    );
+    expect(mocks.createControllerAuthorization).toHaveBeenCalledWith(
+      didContract,
+      providers,
+      expect.any(Function),
+      didState,
     );
   });
 
@@ -111,7 +148,7 @@ describe("service operations", () => {
       removeService(didContract, providers, "did:midnight:example#service"),
     ).resolves.toEqual({ txId: "remove" });
 
-    expect(mocks.normalizeBoundFragmentId).toHaveBeenCalledWith(
+    expect(mocks.normalizeBoundDIDURL).toHaveBeenCalledWith(
       didContract,
       "did:midnight:example#service",
       "serviceId",

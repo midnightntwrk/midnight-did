@@ -1,8 +1,9 @@
 import {
-  normalizeServiceEndpoint,
+  normalizeAndValidateServiceEndpoint,
   type ServiceEndpoint,
   ServiceEndpointSchema,
 } from "./did-document.js";
+import { resolveDIDURLReference } from "./did-url.js";
 
 export type BoundIdField =
   | "verificationMethod.id"
@@ -11,17 +12,20 @@ export type BoundIdField =
   | "methodId"
   | "serviceId";
 
-const hasUriScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
-
 export const normalizeFragmentId = (value: string): string => {
   const trimmed = value.trim();
   if (trimmed.startsWith("#")) return trimmed;
-  const hashIndex = trimmed.indexOf("#");
+  const hashIndex = trimmed.lastIndexOf("#");
   if (hashIndex >= 0) return `#${trimmed.slice(hashIndex + 1)}`;
   return `#${trimmed}`;
 };
 
-export const normalizeBoundFragmentId = (
+/**
+ * Resolve an identifier against the current DID without dropping path, query,
+ * or fragment components. The historical name is retained for API callers;
+ * its value is now the complete canonical absolute URL.
+ */
+export const normalizeBoundDIDURL = (
   value: string,
   field: BoundIdField,
   expectedDidSubject: string,
@@ -30,39 +34,60 @@ export const normalizeBoundFragmentId = (
   if (trimmed.length === 0) {
     throw new Error(`${field} must not be empty`);
   }
-  if (trimmed.startsWith("//")) {
-    throw new Error(`${field} must be a DID URL or relative reference`);
+  if (trimmed.endsWith("#")) {
+    throw new Error(`${field} must include a non-empty fragment identifier`);
   }
-  if (trimmed.startsWith("#")) return trimmed;
-
-  const hashIndex = trimmed.indexOf("#");
-  if (trimmed.startsWith("did:")) {
-    if (hashIndex <= 0 || hashIndex === trimmed.length - 1) {
-      throw new Error(
-        `${field} DID URL must include a non-empty fragment identifier`,
-      );
+  let resolved: string;
+  try {
+    const isServiceField = field === "service.id" || field === "serviceId";
+    resolved = resolveDIDURLReference(trimmed, expectedDidSubject, {
+      allowExternalURL: isServiceField,
+      caseInsensitiveDIDSubject: true,
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`${field} ${error.message}`);
     }
-    const didSubject = trimmed.slice(0, hashIndex);
-    if (didSubject !== expectedDidSubject) {
-      throw new Error(
-        `${field} DID URL subject must match the current DID (${expectedDidSubject})`,
-      );
-    }
-    return `#${trimmed.slice(hashIndex + 1)}`;
+    throw error;
   }
-
   if (
-    trimmed.startsWith("/") ||
-    trimmed.startsWith(".") ||
-    trimmed.startsWith("?")
+    (field === "service.id" || field === "serviceId") &&
+    resolved === expectedDidSubject
   ) {
-    return `#${trimmed}`;
+    throw new Error(`${field} must identify a service`);
   }
+  return resolved;
+};
 
-  if (hasUriScheme.test(trimmed)) {
-    throw new Error(`${field} must be a DID URL or relative reference`);
+/** @deprecated Use normalizeBoundDIDURL; this name is retained for compatibility. */
+export const normalizeBoundFragmentId = (
+  value: string,
+  field: BoundIdField,
+  expectedDidSubject: string,
+): string => {
+  const trimmed = value.trim();
+  const isBareLabel =
+    !trimmed.includes("#") &&
+    !trimmed.startsWith("/") &&
+    !trimmed.startsWith(".") &&
+    !trimmed.startsWith("?") &&
+    !/^[A-Za-z][A-Za-z0-9+.-]*:/u.test(trimmed);
+  const resolved = normalizeBoundDIDURL(
+    isBareLabel ? `#${trimmed}` : trimmed,
+    field,
+    expectedDidSubject,
+  );
+  if (!resolved.includes("#")) {
+    throw new Error(`${field} must include a non-empty fragment identifier`);
   }
-  return normalizeFragmentId(trimmed);
+  if (
+    !resolved.startsWith(`${expectedDidSubject}#`) &&
+    !resolved.startsWith(`${expectedDidSubject}/`) &&
+    !resolved.startsWith(`${expectedDidSubject}?`)
+  ) {
+    throw new Error(`${field} must be bound to the current DID`);
+  }
+  return resolved;
 };
 
 export const serviceTypeToLedger = (serviceType: string | string[]): string => {
@@ -88,7 +113,7 @@ export const serviceTypeToLedger = (serviceType: string | string[]): string => {
 
 export const serviceEndpointToLedger = (endpoint: unknown): string => {
   const parsed = ServiceEndpointSchema.parse(endpoint) as ServiceEndpoint;
-  const normalized = normalizeServiceEndpoint(parsed);
+  const normalized = normalizeAndValidateServiceEndpoint(parsed);
   return JSON.stringify(normalized);
 };
 

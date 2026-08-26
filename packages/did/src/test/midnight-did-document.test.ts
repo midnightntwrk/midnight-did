@@ -3,6 +3,7 @@ import {
   createVerificationMethod,
   CurveType,
   KeyType,
+  Service,
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
 import { describe, expect, it } from "vitest";
@@ -68,7 +69,7 @@ describe("Midnight DID Document", () => {
       ]);
       expect(doc.controller).toBe(exampleMidnightDid);
       expect(doc.verificationMethod).toHaveLength(1);
-      expect(doc.authentication).toEqual(["#key-1"]);
+      expect(doc.authentication).toEqual([`${exampleMidnightDid}#key-1`]);
       expect(doc).not.toHaveProperty("assertionMethod");
       expect(doc).not.toHaveProperty("keyAgreement");
       expect(doc).not.toHaveProperty("capabilityInvocation");
@@ -102,6 +103,19 @@ describe("Midnight DID Document", () => {
         if (member === "controller") continue;
         expect(doc).not.toHaveProperty(member);
       }
+    });
+
+    it("omits empty optional arrays", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+        alsoKnownAs: [],
+        verificationMethod: [],
+        service: [],
+      });
+
+      expect(doc).not.toHaveProperty("alsoKnownAs");
+      expect(doc).not.toHaveProperty("verificationMethod");
+      expect(doc).not.toHaveProperty("service");
     });
 
     it("accepts Ed25519 (OKP) verification methods", () => {
@@ -159,7 +173,7 @@ describe("Midnight DID Document", () => {
       });
 
       expect(doc.service).toHaveLength(1);
-      expect(doc.service?.[0].id).toBe("#service-1");
+      expect(doc.service?.[0].id).toBe(`${exampleMidnightDid}#service-1`);
     });
   });
 
@@ -198,6 +212,111 @@ describe("Midnight DID Document", () => {
       expect(doc.controller).toBe(exampleMidnightDid);
     });
 
+    it("canonicalizes absolute method references with mixed-case DIDs", () => {
+      const mixedCaseDid = exampleMidnightDid.replace("c569", "C569");
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: mixedCaseDid,
+        controller: mixedCaseDid,
+        verificationMethod: [
+          {
+            ...exampleVerificationMethod,
+            id: `${mixedCaseDid}#key-1`,
+            controller: mixedCaseDid,
+          },
+        ],
+        authentication: ["#key-1"],
+      };
+
+      const doc = parseMidnightDIDDocument(input);
+      expect(doc.id).toBe(exampleMidnightDid);
+      expect(doc.verificationMethod?.[0]?.id).toBe(
+        `${exampleMidnightDid}#key-1`,
+      );
+      expect(doc.verificationMethod?.[0]?.controller).toBe(exampleMidnightDid);
+    });
+
+    it("resolves path and query DID URL references losslessly", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        verificationMethod: [
+          {
+            ...exampleVerificationMethod,
+            id: `${exampleMidnightDid}/keys?versionId=1#key-1`,
+          },
+        ],
+        authentication: [`${exampleMidnightDid}/keys?versionId=1#key-1`],
+      };
+
+      const doc = parseMidnightDIDDocument(input);
+      expect(doc.verificationMethod?.[0]?.id).toBe(
+        `${exampleMidnightDid}/keys?versionId=1#key-1`,
+      );
+    });
+
+    it("rejects verification methods from another DID subject", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        verificationMethod: [
+          {
+            ...exampleVerificationMethod,
+            id: `did:midnight:testnet:${"f".repeat(64)}#key-1`,
+          },
+        ],
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /verificationMethod id .* must be subject-bound/,
+      );
+    });
+
+    it("rejects verification methods with external absolute URL ids", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        verificationMethod: [
+          {
+            ...exampleVerificationMethod,
+            id: "https://attacker.example/key#key-1",
+          },
+        ],
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /verificationMethod id .* must be subject-bound/,
+      );
+    });
+
+    it("rejects verification relationships with external absolute URL ids", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        verificationMethod: [exampleVerificationMethod],
+        authentication: ["https://attacker.example/key#key-1"],
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /authentication reference .* must be subject-bound/,
+      );
+    });
+
     it("rejects null optional DID Document members", () => {
       for (const member of optionalDIDDocumentMembers) {
         expect(() =>
@@ -225,6 +344,23 @@ describe("Midnight DID Document", () => {
       for (const member of optionalDIDDocumentMembers) {
         expect(doc).not.toHaveProperty(member);
       }
+    });
+
+    it("omits empty optional arrays when parsing", () => {
+      const doc = parseMidnightDIDDocument({
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        alsoKnownAs: [],
+        verificationMethod: [],
+        service: [],
+      });
+
+      expect(doc).not.toHaveProperty("alsoKnownAs");
+      expect(doc).not.toHaveProperty("verificationMethod");
+      expect(doc).not.toHaveProperty("service");
     });
 
     it("rejects document with string @context", () => {
@@ -387,6 +523,175 @@ describe("Midnight DID Document", () => {
       expect(() => parseMidnightDIDDocument(input)).toThrow();
     });
 
+    it("preserves service endpoint spelling while validating consistency", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+        service: [
+          {
+            id: "#service-1",
+            type: "LinkedDomains",
+            serviceEndpoint: "https://Example.com:443/",
+          } as Service,
+        ],
+      });
+
+      expect(doc.service?.[0]?.serviceEndpoint).toBe(
+        "https://Example.com:443/",
+      );
+    });
+
+    it("rejects duplicate verification method ids", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        verificationMethod: [
+          exampleVerificationMethod,
+          exampleVerificationMethod,
+        ],
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /verificationMethod ids must be unique/,
+      );
+    });
+
+    it("rejects dangling verification relationships", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        authentication: ["#missing-key"],
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /authentication references a verificationMethod id that does not exist/,
+      );
+    });
+
+    it("rejects duplicate service ids", () => {
+      const service = createService({
+        id: "#service-1",
+        type: "LinkedDomains",
+        serviceEndpoint: "https://example.com",
+      });
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        service: [
+          service,
+          { ...service, id: `${exampleMidnightDid}#service-1` },
+        ],
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /service ids must be unique/,
+      );
+    });
+
+    it("resolves subject-bound absolute service path and query references", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+        service: [
+          {
+            id: `${exampleMidnightDid}/services/profile`,
+            type: "LinkedDomains",
+            serviceEndpoint: "https://example.com/profile",
+          } as Service,
+          {
+            id: `${exampleMidnightDid}?service=messaging`,
+            type: "DIDCommMessaging",
+            serviceEndpoint: "https://example.com/messaging",
+          } as Service,
+        ],
+      });
+
+      expect(doc.service?.map((service) => service.id)).toEqual([
+        `${exampleMidnightDid}/services/profile`,
+        `${exampleMidnightDid}?service=messaging`,
+      ]);
+    });
+
+    it("accepts absolute non-DID service URLs", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+        service: [
+          {
+            id: "https://service.example/routing",
+            type: "LinkedDomains",
+            serviceEndpoint: "https://service.example/endpoint",
+          } as Service,
+        ],
+      });
+
+      expect(doc.service?.[0]?.id).toBe("https://service.example/routing");
+    });
+
+    it("rejects services from another DID subject", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        service: [
+          {
+            id: "did:example:other#service-1",
+            type: "LinkedDomains",
+            serviceEndpoint: "https://example.com",
+          },
+        ],
+      };
+
+      expect(() => parseMidnightDIDDocument(input)).toThrow(
+        /service id .* must be subject-bound/,
+      );
+    });
+
+    it("resolves path-form relative service identifiers", () => {
+      const doc = createMidnightDIDDocument({
+        id: exampleMidnightDid,
+        service: [
+          {
+            id: "/services/a#service-1",
+            type: "LinkedDomains",
+            serviceEndpoint: "https://example.com",
+          } as Service,
+        ],
+      });
+
+      expect(doc.service?.[0]?.id).toBe(
+        `${exampleMidnightDid}/services/a#service-1`,
+      );
+    });
+
+    it("rejects relative service identifiers that normalize to duplicates", () => {
+      expect(() =>
+        createMidnightDIDDocument({
+          id: exampleMidnightDid,
+          service: [
+            {
+              id: "/service-1",
+              type: "LinkedDomains",
+              serviceEndpoint: "https://example.com",
+            } as Service,
+            {
+              id: `${exampleMidnightDid}/service-1`,
+              type: "LinkedDomains",
+              serviceEndpoint: "https://example.org",
+            } as Service,
+          ],
+        }),
+      ).toThrow(/service ids must be unique/);
+    });
+
     it("accepts verification method with DID URL containing fragment", () => {
       const input = {
         "@context": [
@@ -410,6 +715,44 @@ describe("Midnight DID Document", () => {
       );
     });
 
+    it("normalizes relative verification method references consistently", () => {
+      const input = {
+        "@context": [
+          "https://www.w3.org/ns/did/v1",
+          "https://w3id.org/security/jwk/v1",
+        ],
+        id: exampleMidnightDid,
+        controller: exampleMidnightDid,
+        verificationMethod: [
+          { ...exampleVerificationMethod, id: "/keys/holder#key-1" },
+        ],
+        authentication: ["/keys/holder#key-1"],
+      };
+
+      const doc = parseMidnightDIDDocument(input);
+      expect(doc.authentication).toEqual([
+        `${exampleMidnightDid}/keys/holder#key-1`,
+      ]);
+      expect(doc.verificationMethod?.[0].id).toBe(
+        `${exampleMidnightDid}/keys/holder#key-1`,
+      );
+    });
+
+    it("rejects empty service references", () => {
+      expect(() =>
+        createMidnightDIDDocument({
+          id: exampleMidnightDid,
+          service: [
+            {
+              id: "#",
+              type: "LinkedDomains",
+              serviceEndpoint: "https://example.com",
+            } as Service,
+          ],
+        }),
+      ).toThrow(/service id .* must identify a service/);
+    });
+
     it("accepts verification method with relative fragment identifier", () => {
       const input = {
         "@context": [
@@ -423,7 +766,10 @@ describe("Midnight DID Document", () => {
       };
 
       const doc = parseMidnightDIDDocument(input);
-      expect(doc.verificationMethod?.[0].id).toBe("#key-1");
+      expect(doc.authentication).toEqual([`${exampleMidnightDid}#key-1`]);
+      expect(doc.verificationMethod?.[0].id).toBe(
+        `${exampleMidnightDid}#key-1`,
+      );
     });
   });
 });
