@@ -12,6 +12,15 @@ published 0.5.0 packages retain their existing API and behavior.
 
 ### Changed
 
+- Refresh the DID Core 1.0, DID Core 1.1, and DID Resolution evidence matrices
+  for the post-#434 0.6 baseline and add `pnpm test:conformance` for the focused
+  repository-owned reproduction lane. Add semantic DID JSON/JSON-LD
+  representation evidence, resolver-level deactivation metadata coverage, and
+  stricter `Accept` quality-value handling. Document that `contractVersion` is
+  a schema/compatibility discriminator rather than an upgrade guarantee, that
+  CMA signing keys require separate export and custody, that 0.6 has no generic
+  in-place migration system, and that configured indexer reads are trusted
+  without light-client, independent state-proof, or finality verification.
 - BREAKING: Make verification-method deletion a single explicit operation.
   `removeVerificationMethod` and `removeSchnorrJubjubVerificationMethod` no
   longer purge DID verification relationships implicitly; callers must remove

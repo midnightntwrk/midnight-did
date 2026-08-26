@@ -175,6 +175,24 @@ describe("MidnightDIDResolver", () => {
     expect(result.didResolutionMetadata.error).toBe("notFound");
   });
 
+  it("returns deactivation metadata with the still-readable DID Document", async () => {
+    ledgerState.active = false;
+    ledgerState.deactivated = true;
+    ledgerState.updated = 10_000n;
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument?.id).toBe(did);
+    expect(result.didDocumentMetadata).toMatchObject({
+      deactivated: true,
+      updated: "1970-01-01T00:00:10Z",
+    });
+    expect(result.didResolutionMetadata).toEqual({});
+  });
+
   it("returns invalidDid in the DID Core resolution envelope", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => ledgerState,
@@ -514,23 +532,29 @@ describe("MidnightDIDResolver", () => {
     });
   });
 
-  it("selects DID Core JSON when requested", async () => {
+  it("preserves the abstract DID data model through DID JSON serialization", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => ledgerState,
       expectedNetwork: MidnightNetwork.DevNet,
     });
 
-    const result = await resolver.resolveRepresentation(did, {
+    const abstractResult = await resolver.resolveDIDResolutionResult(did);
+    const representationResult = await resolver.resolveRepresentation(did, {
       accept: "application/did+json",
     });
 
-    expect(result.didDocumentStream).not.toBeNull();
-    const didDocument = JSON.parse(
-      new TextDecoder().decode(result.didDocumentStream!),
+    expect(representationResult.didDocumentStream).not.toBeNull();
+    const didJsonDocument = JSON.parse(
+      new TextDecoder().decode(representationResult.didDocumentStream!),
     );
-    expect(didDocument).toEqual(expect.objectContaining({ id: did }));
-    expect(didDocument).not.toHaveProperty("@context");
-    expect(result.didResolutionMetadata.contentType).toBe(
+    const { "@context": _context, ...expectedDataModel } =
+      abstractResult.didDocument!;
+    expect(didJsonDocument).toEqual(expectedDataModel);
+    expect(didJsonDocument).not.toHaveProperty("@context");
+    expect(representationResult.didDocumentMetadata).toEqual(
+      abstractResult.didDocumentMetadata,
+    );
+    expect(representationResult.didResolutionMetadata.contentType).toBe(
       "application/did+json",
     );
   });
@@ -564,6 +588,49 @@ describe("MidnightDIDResolver", () => {
       "application/did+json",
     );
   });
+
+  it.each([
+    [
+      "application/did+json;q=0.8, application/did+ld+json;q=0.8",
+      "application/did+json",
+    ],
+    [
+      "application/did+ld+json;q=0.8, application/did+json;q=0.8",
+      "application/did+ld+json",
+    ],
+  ] as const)(
+    "uses request order to break equal-quality Accept ties for %s",
+    async (accept, expectedContentType) => {
+      const resolver = new MidnightDIDResolver({
+        ledgerReader: async () => ledgerState,
+      });
+
+      const result = await resolver.resolveRepresentation(did, { accept });
+
+      expect(result.didResolutionMetadata.contentType).toBe(
+        expectedContentType,
+      );
+    },
+  );
+
+  it.each(["not-a-number", "1.1"])(
+    "rejects an invalid Accept quality value %s without reading the ledger",
+    async (quality) => {
+      const ledgerReader = vi.fn();
+      const resolver = new MidnightDIDResolver({ ledgerReader });
+
+      const result = await resolver.resolveRepresentation(did, {
+        accept: `application/did+json;q=${quality}`,
+      });
+
+      expect(result).toEqual({
+        didDocumentStream: null,
+        didDocumentMetadata: {},
+        didResolutionMetadata: { error: "representationNotSupported" },
+      });
+      expect(ledgerReader).not.toHaveBeenCalled();
+    },
+  );
 
   it("returns representationNotSupported without reading the ledger", async () => {
     const ledgerReader = vi.fn();

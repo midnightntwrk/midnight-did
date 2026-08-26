@@ -183,7 +183,13 @@ const requestedMediaTypes = (
         quality: qualityValue === undefined ? 1 : Number(qualityValue),
       };
     })
-    .filter(({ mediaType, quality }) => mediaType !== "" && quality > 0)
+    .filter(
+      ({ mediaType, quality }) =>
+        mediaType !== "" &&
+        Number.isFinite(quality) &&
+        quality > 0 &&
+        quality <= 1,
+    )
     .sort((left, right) => right.quality - left.quality)
     .map(({ mediaType }) => mediaType);
 };

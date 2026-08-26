@@ -113,6 +113,21 @@ const documentLoader = async (url: string): Promise<TestRemoteDocument> => {
   throw new Error(`Unexpected remote JSON-LD context requested: ${url}`);
 };
 
+const compactMidnightDocument = async (
+  document: JsonLdDocument,
+): Promise<JsonLdDocument> => {
+  const compact = jsonld.compact as (
+    input: JsonLdDocument,
+    context: JsonLdDocument,
+    options: unknown,
+  ) => Promise<JsonLdDocument>;
+  return compact(
+    document,
+    { "@context": [DID_CONTEXT_URL, JWK_CONTEXT_URL] },
+    { documentLoader },
+  );
+};
+
 const expandMidnightDocument = async (document: JsonLdDocument) => {
   const expand = jsonld.expand as (
     input: JsonLdDocument,
@@ -256,6 +271,42 @@ describe("Midnight DID Document JSON-LD conformance", () => {
         },
       },
     ]);
+  });
+
+  it("preserves JSON-LD semantics through expansion and compaction", async () => {
+    const document = createMidnightDIDDocument({
+      id: exampleMidnightDid,
+      verificationMethod: [
+        createVerificationMethod({
+          id: "#key-ed25519",
+          type: VerificationMethodType.JsonWebKey,
+          controller: exampleMidnightDid,
+          publicKeyJwk: {
+            kty: KeyType.OKP,
+            crv: CurveType.Ed25519,
+            x: encodeZeros(32),
+          },
+        }),
+        createVerificationMethod({
+          id: "#key-x25519",
+          type: VerificationMethodType.JsonWebKey,
+          controller: exampleMidnightDid,
+          publicKeyJwk: {
+            kty: KeyType.OKP,
+            crv: CurveType.X25519,
+            x: encodeZeros(32),
+          },
+        }),
+      ],
+      authentication: [`${exampleMidnightDid}#key-ed25519`],
+      keyAgreement: [`${exampleMidnightDid}#key-x25519`],
+    });
+
+    const before = await expandMidnightDocument(document);
+    const compacted = await compactMidnightDocument(document);
+    const after = await expandMidnightDocument(compacted);
+
+    expect(after).toEqual(before);
   });
 
   it("documents that JsonWebKey2020 is not the Midnight JSON-LD verification method type", async () => {

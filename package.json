@@ -13,6 +13,7 @@
     "build:all": "pnpm --filter ./packages/jubjub-schnorr build && pnpm run build:api-prereqs",
     "typecheck:all": "turbo run typecheck --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --filter=./packages/api --continue",
     "test:all": "turbo run test:ci --concurrency=1 --filter=./packages/jubjub-schnorr --filter=./packages/contract --filter=./packages/domain --filter=./packages/did --filter=./packages/api --continue",
+    "test:conformance": "pnpm --filter ./packages/contract build:prepared && pnpm --filter ./packages/domain test:ci src/test/midnight-did-syntax.conformance.test.ts && pnpm --filter ./packages/did test:ci src/test/midnight-did-jsonld-conformance.test.ts src/test/midnight-did-resolver.test.ts",
     "coverage": "pnpm --filter ./packages/contract coverage",
     "coverage:all": "pnpm --filter ./packages/domain coverage && pnpm --filter ./packages/did coverage && pnpm --filter ./packages/contract coverage && pnpm --filter ./packages/jubjub-schnorr coverage && pnpm --filter ./packages/api coverage && pnpm run check:api-module-coverage",
     "ci": "pnpm run verify",

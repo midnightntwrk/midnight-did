@@ -689,7 +689,7 @@ The following table summarizes the on-chain ledger state exported by the contrac
 
 | Field                          | Type                                         | Description |
 |--------------------------------|----------------------------------------------|-------------|
-| contractVersion                | `Uint<32>`                                   | Contract schema/version number to support upgrades and compatibility checks. |
+| contractVersion                | `Uint<32>`                                   | Contract schema/compatibility discriminator. It identifies the ledger/circuit shape a consumer expects; it is not a promise that the deployed contract can be upgraded in place. |
 | controllerPublicKey            | `JubjubPoint`                                | Active controller public key used to verify wallet-local controller authorization signatures. |
 | recoveryAuthorityPublicKey      | `JubjubPoint`                                | Dedicated recovery authority public key used only by `recoverControllerKey` to rotate `controllerPublicKey`. It is not emitted as a DID Document verification method. |
 | id                             | `ContractAddress`                            | Smart‑contract address (32‑byte / 64‑hex) that uniquely identifies the DID on Midnight. |
@@ -721,6 +721,16 @@ Before an update, removal, relationship operation, service operation, or ledger-
 This lookup preserves existing subject-fragment deployments without automatic state migration or redeployment. The `verificationMethods` and `schnorrJubjubVerificationMethods` maps share one logical identifier namespace. Resolvers MUST reject duplicate identifiers across the two maps after full absolute-DID-URL normalization, and relation sets MAY target entries from either map. The two maps are not duplicate storage for the same key material: each verification method is stored in exactly one representation.
 
 Because Compact treats `Opaque<"string">` identifiers as opaque values, DID URL reference resolution and subject binding are SDK/resolver responsibilities. The TypeScript API resolves references before submission; resolvers reject states that would produce duplicate full canonical identifiers.
+
+### 6.2. Contract version, maintenance authority, and migration
+
+`contractVersion` is a schema and compatibility discriminator. The 0.6 contract constructor writes `2`; consumers can use that value when deciding whether the ledger shape and circuit surface are compatible with the software they are running. The field does not dispatch an upgrade, promise forward compatibility, or authorize a state transition merely because a higher version exists.
+
+A deployed Compact contract also has a Contract Maintenance Authority (CMA), which is separate from the DID controller and recovery authority. The upstream `deployContract` interface accepts an optional signing key; when it is omitted, the runtime generates a fresh signing key, installs its public authority as the CMA, and stores the signing key through `PrivateStateProvider.setSigningKey` under the deployed contract address. CMA possession authorizes contract-maintenance operations exposed by the Midnight runtime. It does not authorize controller-gated DID Document mutations, and controller or recovery secrets do not substitute for a lost CMA signing key.
+
+Implementations MUST treat the CMA signing key as separate high-value custody material. The upstream private-state provider interface deliberately separates `exportPrivateStates()` from `exportSigningKeys()`: private-state export does not include signing keys. The reference level provider supplies encrypted signing-key export/import, so an operational backup that needs future maintenance capability MUST preserve the signing-key export and its password in addition to DID controller/recovery private state. Loss of the CMA key (or of the only usable export/password) removes the ability to authorize future maintenance with that authority; it does not by itself deactivate the DID or prevent ordinary controller-authorized updates. Loss of controller/recovery material has the distinct consequences described in [section 8.1](#81-controller-custody-key-loss-and-deactivation).
+
+Version 0.6 provides no generic in-place contract migration or upgrade system. Runtime maintenance interfaces and CMA custody do not automatically transform DID ledger schema, rewrite stored identifiers, or migrate a deployment to a newer DID contract. The compatibility reads in [section 6.1](#61-canonical-identity-and-legacy-physical-keys) preserve narrowly defined historical records without migration. Any future schema transition requires an explicitly designed, version-specific migration or replacement-deployment procedure with its own authorization, state mapping, and validation; applications MUST NOT infer such a procedure from `contractVersion` alone.
 
 Example DID Document metadata emitted by the resolver layer:
 
@@ -775,6 +785,8 @@ The Midnight JS library is used to attach to the smart-contract ledger state, an
 ### 7.2.2 Midnight GraphQL API in the Midnight Indexer
 The smart-contract ledger state can be fetched by `id`.
 The ledger state is deserialized to reconstruct the corresponding DIDDocument.
+
+The configured indexer/public-data provider is a trusted input to this resolution profile. A `null` result can be interpreted as `notFound` only under that provider trust assumption. An unavailable provider, an exception, a stale or unfinalized response, or a response from an untrusted endpoint does not prove that the DID is absent, deactivated, or final. The 0.6 resolver does not run a light client and does not independently verify an indexer state proof or consensus finality. Block-height or block-hash selection, where an upstream provider exposes it, identifies the requested read point but does not by itself add independent proof verification.
 
 Example of the implementation: Midnight DID Resolver in Rust
 
@@ -1170,9 +1182,9 @@ Applications that delegate proving still trust the proof server and its transpor
 
 ## 8.3. Resolver, indexer, and finality trust
 
-Resolution reads are indexer-backed in the reference implementation. A resolver that trusts a compromised, rogue, stale, or unfinalized indexer response can return a forged or stale DID Document. Indexer and resolver operators SHOULD use trusted indexer deployments, protect endpoint transport, monitor freshness, and prefer finalized or pinned reads when provider APIs expose block-height or block-hash constraints.
+Resolution reads are indexer-backed in the reference implementation, and the configured indexer/public-data provider is trusted. A compromised, rogue, stale, or unfinalized response can produce a forged or stale DID Document or an incorrect `notFound` result. Indexer and resolver operators SHOULD protect endpoint transport, monitor freshness, and use finalized or explicitly pinned reads when their trusted provider exposes block-height or block-hash constraints.
 
-Resolvers and consumers MUST treat indexer or resolver failures as availability failures, not as proof that a DID does not exist or has been deactivated. If an application requires a finality latency bound or independent state integrity check, it MUST define that policy above this specification version or use a resolver profile that exposes the required proof or block pin.
+Resolvers and consumers MUST treat unavailable, failed, stale, or untrusted reads as inconclusive. They do not prove that a DID is absent or deactivated, and they do not prove transaction finality. A provider-returned `null` maps to `notFound` only inside the configured provider's trust boundary. Version 0.6 supplies no light client, independent indexer state-proof verification, or independent consensus/finality check. Applications requiring those assurances MUST define and implement them above this resolver profile; selecting a block height or hash alone is not proof verification.
 
 ## 8.4. Client-asserted metadata
 
