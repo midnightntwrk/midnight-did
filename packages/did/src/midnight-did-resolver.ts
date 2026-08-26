@@ -271,16 +271,11 @@ const parseAcceptMediaRange = (
       }
       quality = Number(parameterValue);
       qualitySeen = true;
-    } else if (!qualitySeen) {
+    } else {
       if (parameterValue === null || !validParameterValue(parameterValue)) {
         return null;
       }
       mediaParameterCount += 1;
-    } else if (
-      parameterValue !== null &&
-      !validParameterValue(parameterValue)
-    ) {
-      return null;
     }
   }
 

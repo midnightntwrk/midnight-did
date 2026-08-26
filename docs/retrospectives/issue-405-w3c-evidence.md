@@ -65,8 +65,9 @@ coordinated breaking API migration into 0.6.
   assertions are negative compatibility evidence for DID Core 1.1.
 - Accept negotiation computes each offered representation's quality from its
   most specific matching range. Exact ranges override type/global wildcards,
-  including exact `q=0` exclusions; RFC qvalue syntax and media/extension
-  parameter placement are parsed without introducing a general HTTP library.
+  including exact `q=0` exclusions; RFC qvalue syntax is enforced, and every
+  non-`q` parameter is treated as a required media-range parameter without
+  introducing a general HTTP library.
   The parser can be reused, but tests against the old offered media types and
   split `resolveRepresentation` helper do not establish 2026 Resolution CR
   compatibility.
