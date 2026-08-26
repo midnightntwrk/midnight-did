@@ -10,6 +10,9 @@ const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
 const stableSemverPattern = "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)";
 
+// Update only after the corresponding GitHub and npm release is published.
+export const latestPublishedReleaseVersion = "0.5.0";
+
 export const releaseTrainVersionFromPackageVersion = (version) => {
   const match = new RegExp(`${stableSemverPattern}(?:-.+)?$`, "u").exec(
     version ?? "",
@@ -22,15 +25,22 @@ export const releaseTrainVersionFromPackageVersion = (version) => {
   return `${match[1]}.${match[2]}.${match[3]}`;
 };
 
-export const releaseDocExamplesForVersion = (packageVersion) => {
+export const releaseDocExamplesForVersion = (
+  packageVersion,
+  publishedReleaseVersion = latestPublishedReleaseVersion,
+) => {
   const releaseTrain = releaseTrainVersionFromPackageVersion(packageVersion);
+  const publishedReleaseTrain = releaseTrainVersionFromPackageVersion(
+    publishedReleaseVersion,
+  );
   const snapshotLocalVersion = `${releaseTrain}-snapshot.local`;
   const snapshotWorkflowVersion = `${releaseTrain}-snapshot.<run>.<sha>`;
   const rcVersion = `${releaseTrain}-rc1`;
 
   return {
     releaseTrain,
-    latestReleaseBadge: `release-v${releaseTrain}-blue`,
+    publishedReleaseTrain,
+    latestReleaseBadge: `release-v${publishedReleaseTrain}-blue`,
     snapshotLocalVersion,
     snapshotWorkflowVersion,
     snapshotLocalArchive: `artifacts/zk/midnight-did-zk-artifacts-${snapshotLocalVersion}.tar.gz`,
@@ -49,7 +59,10 @@ export const readRootPackageVersion = (root = repoRoot) => {
 };
 
 export const releaseDocExamplesFromRoot = (root = repoRoot) =>
-  releaseDocExamplesForVersion(readRootPackageVersion(root));
+  releaseDocExamplesForVersion(
+    readRootPackageVersion(root),
+    latestPublishedReleaseVersion,
+  );
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   console.log(JSON.stringify(releaseDocExamplesFromRoot(), null, 2));

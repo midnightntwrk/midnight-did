@@ -5,10 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - Unreleased
+
+All breaking changes below are assigned to the upcoming 0.6.0 release; the
+published 0.5.0 packages retain their existing API and behavior.
 
 ### Changed
 
+- BREAKING: Make verification-method deletion a single explicit operation.
+  `removeVerificationMethod` and `removeSchnorrJubjubVerificationMethod` no
+  longer purge DID verification relationships implicitly; callers must remove
+  selected relationships explicitly and now receive the typed
+  `VerificationMethodReferencedError` while references remain.
+- Preserve pending controller private state whenever a controller rotation or
+  recovery transaction call is attempted but does not return finalized data.
+  Failures definitely before `callTx` invocation attempt to remove the newly
+  persisted candidate inside the held lease; a rejected cleanup warns that the
+  record may remain or may already have been removed and retains explicit
+  discard guidance. One process-local, per-bound-contract critical section now
+  begins before provider-dependent
+  private-state and ledger preflight and covers persistence, authorization,
+  transaction-call attempt, promotion, and cleanup across provider wrappers.
+  Typed exists, busy, and unavailable errors prevent overlapping reconciliation
+  from overwriting, promoting, or removing another operation's candidate.
+  Confirmed non-finalization permits discard of any non-null pending record,
+  including malformed state; promotion still requires valid pending state.
+  Cleanup rejection after successful promotion warns that the pending record may
+  remain or may already have been removed; later reconciliation processes
+  retained state or returns the typed unavailable error if deletion committed.
+  After an ambiguous call, applications wait for connectivity and trusted
+  finalized ledger state, promote when the retained secret derives the finalized
+  current controller key, and discard only after authoritative non-finalization.
+  Controller operations reject known provider/DID binding mismatches before any
+  provider or ledger access. Deployment holds a source/target address lease
+  through active-state persistence, and join now holds the same owner-token
+  lease across source/target binding, private-state read, and deployed-contract
+  lookup. Reservation is fail-fast and remains owned until the operation is
+  cancelled and settles, otherwise terminates or settles, or the process exits.
+  There is deliberately no lease expiry: releasing a reservation while stale
+  provider or transaction work can still complete could let an old owner
+  overwrite, promote, or remove another operation's state. The supported
+  baseline assumes one application writer process per DID. Multiple writer
+  processes require a distributed lock or equivalent fencing mechanism; direct
+  provider mutation and independently unbound wrappers remain outside the API
+  guarantee. The provider's unbound-state exception is recognized only by its
+  exact upstream message; decorated I/O or other provider failures propagate.
+- Intercept the post-ledger-success provider setup performed inside
+  `@midnight-ntwrk/midnight-js-contracts` 4.0.2 `deployContract`: synchronously
+  reserve and bind the canonical target under the deployment's source lease,
+  then let the dependency persist active state and its signing key exactly once.
+  Target-reservation, either persistence, or returned-handle construction
+  failure is reported as
+  `DIDContractDeploymentFinalizedPrivateStateIncompleteError` with only stable
+  code/name, canonical address, and a controlled target-reservation,
+  private-state-persistence, signing-key-persistence, or
+  contract-handle-construction stage. Source errors,
+  contract handles, deployment/transaction/finality objects, and arbitrary
+  provider text are discarded rather than attached or shallow-copied. Pre-target
+  failures remain unchanged, and the operation-scoped lease has no unsafe
+  elapsed expiry or post-settlement proxy reuse.
 - Preserve complete canonical DID URL identity for verification methods,
   relationships, and services while keeping existing current-subject
   fragment-keyed ledger records operable through fail-closed state-aware key
@@ -25,6 +80,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `nix/packages/compact-toolchain.nix` derivation. Relax the
   `jubjub-schnorr.compact` language-version pragma from an exact `0.22` pin to
   `>= 0.22`.
+- Expose `MidnightDidApiError<Code>` as the common constructor-owned coded-error
+  base used by ZK artifact, referenced-verification-method, and pending-controller
+  errors while preserving their specific classes and stable domain codes.
+
+### Migration from 0.5.0
+
+Downstream consumers pinned to the exact published 0.5.0 packages should update
+all coordinated `@midnight-ntwrk/midnight-did-*` dependencies together to a
+0.6.0 snapshot for pre-release validation, or to 0.6.0 once available. Do not
+point an exact 0.5.0 dependency at this breaking source revision.
+
+Before removing a verification method, remove each selected verification
+relationship explicitly with `removeVerificationMethodRelation`, wait for and
+confirm each transaction in order, and only then call
+`removeVerificationMethod` or `removeSchnorrJubjubVerificationMethod`. Handle
+`VerificationMethodReferencedError` by inspecting its ordered `relations`,
+re-reading ledger state after ambiguous or partial failures, and submitting only
+the still-required relationship removals. Pending controller-state
+reconciliation must identify the DID explicitly: pass `contractAddress` to
+`recoverPendingControllerPrivateState` or
+`discardPendingControllerPrivateState` together with the applicable confirmed
+finalization outcome.
 
 ### Removed
 
@@ -40,7 +117,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of accepting or emitting null-valued fields.
   Consumers persisting documents from versions up to 0.5.0 must omit legacy
   null-valued optional members before parsing them with this release.
-
 
 ## [0.5.0] - 2026-08-03
 

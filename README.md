@@ -248,7 +248,7 @@ The concrete release-train examples below are validated against the root
 ZK keys are distributed separately as a validated archive:
 
 ```bash
-export VERSION="0.5.0-snapshot.local"
+export VERSION="0.6.0-snapshot.local"
 export ZK_ARCHIVE="artifacts/zk/midnight-did-zk-artifacts-${VERSION}.tar.gz"
 
 pnpm run zk-artifacts:bundle -- --version "${VERSION}"
@@ -270,7 +270,7 @@ matching GitHub Release ZK archive, unpacks those keys for
 updated DID document:
 
 ```bash
-export VERSION="0.5.0-rc1"
+export VERSION="0.6.0-rc1"
 export GH_TOKEN="<github-token-with-repo-read>"
 
 pnpm run published-standalone:smoke -- \
@@ -312,7 +312,7 @@ Published consumers can also use the Node helper exported by the API package:
 import { downloadMidnightDidGithubReleaseZkArtifacts } from "@midnight-ntwrk/midnight-did-api";
 
 const bundle = await downloadMidnightDidGithubReleaseZkArtifacts({
-  version: "0.5.0-rc1",
+  version: "0.6.0-rc1",
   outputDir: ".midnight-did-zk",
 });
 ```
