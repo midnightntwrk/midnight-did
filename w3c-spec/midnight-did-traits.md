@@ -52,7 +52,7 @@ This document summarizes how the Midnight DID method aligns with the [DID Method
 
 | Trait | Status | Notes |
 | --- | --- | --- |
-| Batch operations | ✖ | One circuit call per operation (no batching). |
+| Batch operations | ✖ | This method version defines no batch circuit: each API mutation submits one circuit call. Multi-step application workflows finalize independently, and Midnight transactions cannot merge multiple non-empty contract-call sections into one atomic transaction. |
 | Network portability | ✔ | Works on undeployed/devnet/testnet/mainnet/preview/preprod. |
 | Privacy guidance | ✔ | Spec discourages PII on-chain; ZK witness protects updates. |
 | Service discovery | ✔ | Indexers/resolvers dependent on Midnight network ([Midnight DID Method §10](./midnight-method.md#10-discoverability)). |

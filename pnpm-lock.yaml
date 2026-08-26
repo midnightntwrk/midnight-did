@@ -8,7 +8,7 @@ overrides:
   vitepress>vite: ^6.4.2
   dompurify: ^3.4.13
   js-yaml: ^4.3.1
-  nanoid: ^3.3.17
+  nanoid: ^3.3.18
   postcss: ^8.5.23
   esbuild@>=0.27.3 <0.28.1: 0.28.2
   undici: ^7.29.0
@@ -115,12 +115,21 @@ importers:
       eslint-plugin-simple-import-sort:
         specifier: 12.1.1
         version: 12.1.1(eslint@9.39.5)
+      js-yaml:
+        specifier: ^4.3.1
+        version: 4.3.1
       prettier:
         specifier: 3.9.6
         version: 3.9.6
       testcontainers:
         specifier: 12.0.4
         version: 12.0.4
+      tree-sitter:
+        specifier: 0.25.1
+        version: 0.25.1
+      tree-sitter-bash:
+        specifier: 0.25.1
+        version: 0.25.1(tree-sitter@0.25.1)
       ts-node:
         specifier: 10.9.2
         version: 10.9.2(@types/node@24.13.3)(typescript@5.9.3)
@@ -3479,8 +3488,8 @@ packages:
   nan@2.27.0:
     resolution: {integrity: sha512-hC+0LidcL3XE4rp1C4H54KujgXKzbfyTngZTwBByQxsOxCEKZT0MPQ4hOKUH2jU1OYstqdDH4onyHPDzcV0XdQ==}
 
-  nanoid@3.3.17:
-    resolution: {integrity: sha512-xQLf0A3HOMlgHq0n247/LRuAOYmB7dXJ/DvAxGvsSBij45XtBSmQycu+F8ODbHwns/XyFZagyL1+J0Offw1E0g==}
+  nanoid@3.3.18:
+    resolution: {integrity: sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
@@ -3498,6 +3507,10 @@ packages:
   nock@13.5.6:
     resolution: {integrity: sha512-o2zOYiCpzRqSzPj0Zt/dQ/DqZeYoaQ7TUonc/xUPjCGl9WeHpNbxgVvOquXYAaJzI0M9BXV3HTzG0p8IUAbBTQ==}
     engines: {node: '>= 10.13'}
+
+  node-addon-api@8.9.2:
+    resolution: {integrity: sha512-VijLXbi3UACN69I0JVXJsX4tjACjNoQDgv2gTF6sx2wWEi8tkSg2eX8p5gSIFi8z2+DL3oHmY6OyKce38SDolg==}
+    engines: {node: ^18 || ^20 || >= 21}
 
   node-domexception@1.0.0:
     resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}
@@ -4091,6 +4104,17 @@ packages:
 
   tr46@0.0.3:
     resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
+
+  tree-sitter-bash@0.25.1:
+    resolution: {integrity: sha512-7hMytuYIMoXOq24yRulgIxthE9YmggZIOHCyPTTuJcu6EU54tYD+4G39cUb28kxC6jMf/AbPfWGLQtgPTdh3xw==}
+    peerDependencies:
+      tree-sitter: ^0.25.0
+    peerDependenciesMeta:
+      tree-sitter:
+        optional: true
+
+  tree-sitter@0.25.1:
+    resolution: {integrity: sha512-mrcEdkYtHfrK1A6fs3O6FxkBo0Qig5XUXqHhxUOQu0bmPo00QF4XaSx4edpazdHwxnSCjlGKGgIqWdaN4dvTLA==}
 
   trim-lines@3.0.1:
     resolution: {integrity: sha512-kRj8B+YHZCc9kQYdWfJB2/oUl9rA99qbowYYBtr4ui4mZyAQ2JpvVBd/6U2YloATfqBhBTSMhTpgBHtU0Mf3Rg==}
@@ -8070,7 +8094,7 @@ snapshots:
   nan@2.27.0:
     optional: true
 
-  nanoid@3.3.17: {}
+  nanoid@3.3.18: {}
 
   napi-macros@2.2.2: {}
 
@@ -8085,6 +8109,8 @@ snapshots:
       propagate: 2.0.1
     transitivePeerDependencies:
       - supports-color
+
+  node-addon-api@8.9.2: {}
 
   node-domexception@1.0.0: {}
 
@@ -8288,7 +8314,7 @@ snapshots:
 
   postcss@8.5.24:
     dependencies:
-      nanoid: 3.3.17
+      nanoid: 3.3.18
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
@@ -8825,6 +8851,18 @@ snapshots:
   tmp@0.2.7: {}
 
   tr46@0.0.3: {}
+
+  tree-sitter-bash@0.25.1(tree-sitter@0.25.1):
+    dependencies:
+      node-addon-api: 8.9.2
+      node-gyp-build: 4.8.4
+    optionalDependencies:
+      tree-sitter: 0.25.1
+
+  tree-sitter@0.25.1:
+    dependencies:
+      node-addon-api: 8.9.2
+      node-gyp-build: 4.8.4
 
   trim-lines@3.0.1: {}
 

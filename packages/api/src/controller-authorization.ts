@@ -37,9 +37,10 @@ export const createControllerAuthorization = async (
   providers: MidnightDIDProviders,
   digestFactory: ControllerAuthorizationDigestFactory,
   knownLedgerState?: DIDContract.Ledger,
+  knownPrivateState?: { readonly secretKey: Uint8Array },
 ): Promise<ControllerAuthorization> => {
   const [privateState, ledgerState] = await Promise.all([
-    requirePrivateState(providers),
+    knownPrivateState ?? requirePrivateState(providers),
     knownLedgerState ??
       requireDeployedMidnightDIDLedgerState(providers, didContract),
   ]);

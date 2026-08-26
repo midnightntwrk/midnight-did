@@ -743,21 +743,24 @@ describe("Midnight DID Document", () => {
       },
     );
 
-    it("does not extend path compatibility to query-only method ids", () => {
-      expect(() =>
-        parseMidnightDIDDocument({
-          "@context": [
-            "https://www.w3.org/ns/did/v1",
-            "https://w3id.org/security/jwk/v1",
-          ],
-          id: exampleMidnightDid,
-          controller: exampleMidnightDid,
-          verificationMethod: [
-            { ...exampleVerificationMethod, id: "?key=holder" },
-          ],
-        }),
-      ).toThrow(/expected a fragment or path reference/);
-    });
+    it.each(["?key=holder", "//keys/holder"])(
+      "does not extend path compatibility to malformed method id %s",
+      (methodId) => {
+        expect(() =>
+          parseMidnightDIDDocument({
+            "@context": [
+              "https://www.w3.org/ns/did/v1",
+              "https://w3id.org/security/jwk/v1",
+            ],
+            id: exampleMidnightDid,
+            controller: exampleMidnightDid,
+            verificationMethod: [
+              { ...exampleVerificationMethod, id: methodId },
+            ],
+          }),
+        ).toThrow();
+      },
+    );
 
     it("normalizes relative verification method references consistently", () => {
       const input = {

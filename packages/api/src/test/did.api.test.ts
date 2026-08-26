@@ -748,8 +748,23 @@ describeApi("Midnight DID method API", () => {
     ).rejects.toThrow(/does not contain verification method/);
   });
 
-  it("should remove the verification method and its relations", async () => {
+  it("should require explicit relation removal before removing a verification method", async () => {
     const methodId = `${didString}#key-1`;
+
+    await expect(
+      api.removeVerificationMethod(contract, providers, methodId),
+    ).rejects.toMatchObject({
+      name: "VerificationMethodReferencedError",
+      code: "verification_method_referenced",
+      relations: [VerificationMethodRelationType.Authentication],
+    });
+
+    await api.removeVerificationMethodRelation(
+      contract,
+      providers,
+      VerificationMethodRelationType.Authentication,
+      methodId,
+    );
     await api.removeVerificationMethod(contract, providers, methodId);
     const didDoc = await resolveDocument();
     expect(

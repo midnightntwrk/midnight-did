@@ -3,6 +3,7 @@ import {
   DIDDocument,
   DIDDocumentSchema,
   DIDKeyID,
+  DIDKeyIDSchema,
   KeyType,
   resolveDIDURLReference,
   Service,
@@ -40,7 +41,8 @@ const REQUIRED_CONTEXTS = [
 ] as const;
 
 const isCompatibleVerificationMethodId = (id: string): boolean => {
-  if (id.includes("#")) return !id.endsWith("#");
+  if (!DIDKeyIDSchema.safeParse(id).success) return false;
+  if (id.includes("#")) return true;
   if (id.startsWith("/") || id.startsWith(".")) return true;
   if (!id.startsWith("did:")) return false;
   const didSubjectBoundary = id.search(/[/?#]/u);

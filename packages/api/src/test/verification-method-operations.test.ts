@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
     7n,
   ]),
   registeredContractProviders: vi.fn(),
-  purgeVerificationMethodFromAllRelations: vi.fn(),
+  assertVerificationMethodIsNotReferenced: vi.fn(),
   assertExistingVerificationMethodRelationsCompatible: vi.fn(),
   assertVerificationMethodRelationAbsent: vi.fn(),
   assertVerificationMethodRelationCompatible: vi.fn(),
@@ -67,8 +67,8 @@ vi.mock("../verification-method-relations.js", () => ({
     mocks.assertVerificationMethodRelationCompatible,
   assertVerificationMethodRelationPresent:
     mocks.assertVerificationMethodRelationPresent,
-  purgeVerificationMethodFromAllRelations:
-    mocks.purgeVerificationMethodFromAllRelations,
+  assertVerificationMethodIsNotReferenced:
+    mocks.assertVerificationMethodIsNotReferenced,
 }));
 
 import { getDidSubject } from "../did-subject.js";
@@ -244,29 +244,29 @@ describe("verification method operations", () => {
         `${didSubject}#jubjub-1`,
       ),
     ).resolves.toEqual({ txId: "remove-schnorr" });
-    expect(mocks.purgeVerificationMethodFromAllRelations).toHaveBeenCalledWith(
-      didContract,
-      providers,
+    expect(mocks.assertVerificationMethodIsNotReferenced).toHaveBeenCalledWith(
+      didState,
       "#jubjub-1",
     );
     expect(
       didContract.callTx.removeSchnorrJubjubVerificationMethod,
     ).toHaveBeenCalledWith("#jubjub-1", expect.anything(), 7n);
+    expect(
+      didContract.callTx.setVerificationMethodRelation,
+    ).not.toHaveBeenCalled();
   });
 
-  it("removes and purges relations by the existing legacy ledger key", async () => {
+  it("removes an unreferenced method by the existing legacy ledger key without relation submissions", async () => {
     const didSubject = getDidSubject(didContract);
-    mocks.requireDeployedMidnightDIDLedgerState.mockResolvedValue(
-      stateWithMethod("#key-1", "opaque"),
-    );
+    const didState = stateWithMethod("#key-1", "opaque");
+    mocks.requireDeployedMidnightDIDLedgerState.mockResolvedValue(didState);
 
     await expect(
       removeVerificationMethod(didContract, providers, `${didSubject}#key-1`),
     ).resolves.toEqual({ txId: "remove" });
 
-    expect(mocks.purgeVerificationMethodFromAllRelations).toHaveBeenCalledWith(
-      didContract,
-      providers,
+    expect(mocks.assertVerificationMethodIsNotReferenced).toHaveBeenCalledWith(
+      didState,
       "#key-1",
     );
     expect(didContract.callTx.removeVerificationMethod).toHaveBeenCalledWith(
@@ -274,7 +274,71 @@ describe("verification method operations", () => {
       expect.anything(),
       7n,
     );
+    expect(
+      didContract.callTx.setVerificationMethodRelation,
+    ).not.toHaveBeenCalled();
+    expect(mocks.createControllerAuthorization).toHaveBeenCalledWith(
+      didContract,
+      providers,
+      expect.any(Function),
+      didState,
+    );
   });
+
+  it("preflights and removes by the canonical physical ledger id", async () => {
+    const didSubject = getDidSubject(didContract);
+    const canonicalMethodId = `${didSubject}#key-1`;
+    const didState = stateWithMethod(canonicalMethodId, "opaque");
+    mocks.requireDeployedMidnightDIDLedgerState.mockResolvedValue(didState);
+
+    await expect(
+      removeVerificationMethod(didContract, providers, canonicalMethodId),
+    ).resolves.toEqual({ txId: "remove" });
+
+    expect(mocks.assertVerificationMethodIsNotReferenced).toHaveBeenCalledWith(
+      didState,
+      canonicalMethodId,
+    );
+    expect(didContract.callTx.removeVerificationMethod).toHaveBeenCalledWith(
+      canonicalMethodId,
+      expect.anything(),
+      7n,
+    );
+  });
+
+  it.each([
+    ["opaque", removeVerificationMethod],
+    ["SchnorrJubjub", removeSchnorrJubjubVerificationMethod],
+  ])(
+    "does not authorize or submit %s removal when relation preflight rejects",
+    async (kind, remove) => {
+      const didSubject = getDidSubject(didContract);
+      const methodId = kind === "opaque" ? "#key-1" : "#jubjub-1";
+      mocks.requireDeployedMidnightDIDLedgerState.mockResolvedValue(
+        stateWithMethod(
+          methodId,
+          kind === "opaque" ? "opaque" : "schnorrJubjub",
+        ),
+      );
+      mocks.assertVerificationMethodIsNotReferenced.mockImplementationOnce(
+        () => {
+          throw new Error("verification method is still referenced");
+        },
+      );
+
+      await expect(
+        remove(didContract, providers, `${didSubject}${methodId}`),
+      ).rejects.toThrow(/still referenced/);
+
+      expect(mocks.createControllerAuthorization).not.toHaveBeenCalled();
+      expect(
+        didContract.callTx.removeVerificationMethod,
+      ).not.toHaveBeenCalled();
+      expect(
+        didContract.callTx.removeSchnorrJubjubVerificationMethod,
+      ).not.toHaveBeenCalled();
+    },
+  );
 
   it("adds a relation using the existing legacy verification-method key", async () => {
     const didSubject = getDidSubject(didContract);

@@ -88,7 +88,69 @@ operation-bound signatures cannot be reused for a different mutation or changed
 arguments.
 
 `rotateControllerKey` accepts only the next derived `controllerPublicKey`; the
-replacement secret remains wallet-local and is promoted after finalization.
+replacement secret remains wallet-local in a pending slot and is promoted after
+finalized transaction data returns. If `callTx` was invoked and submission or
+finality throws, the pending secret is retained because receipt loss cannot
+determine ledger outcome. A failure definitely before `callTx` invocation
+instead attempts to remove the candidate under the same lease; if cleanup
+rejects, the warning truthfully leaves its disposition unknown and keeps discard
+guidance for a retained record. Re-read `controllerPublicKey` before retrying an
+attempted call. After confirming the replacement key finalized, promote it
+explicitly:
+
+```ts
+await recoverPendingControllerPrivateState(providers, {
+  contractAddress,
+  rotationFinalized: true,
+});
+```
+
+After confirming the old key remains active, discard the candidate explicitly
+before retrying:
+
+```ts
+await discardPendingControllerPrivateState(providers, {
+  contractAddress,
+  rotationFinalized: false,
+});
+```
+
+A later attempt that finds a retained candidate fails with
+`PendingControllerPrivateStateExistsError`. A rotation, recovery, promotion, or
+discard racing an in-flight lifecycle fails with
+`PendingControllerPrivateStateBusyError`, without writing active state or
+removing the candidate. Promotion requires a valid candidate; missing or
+malformed state produces
+<code>PendingControllerPrivateState<wbr>UnavailableError</code> without mutation.
+Discard with `{ rotationFinalized: false }` removes any non-null pending record,
+including malformed state, because the caller has independently confirmed
+non-finalization; only an absent record produces the unavailable error. If
+promotion writes active state but pending cleanup rejects, it warns and returns
+the promoted state, but cannot confirm whether the pending record remains or was
+already removed. A later reconciliation either processes retained state or
+returns `PendingControllerPrivateStateUnavailableError` if deletion committed.
+
+Public rotation and recovery auto-bind or assert the canonical contract address;
+public promotion/discard reconciliation requires `contractAddress`. API-bound
+wrappers for one DID share a process-local critical section through preflight,
+transaction settlement, promotion, and cleanup. Acquisition is fail-fast, so a
+competitor immediately receives `PendingControllerPrivateStateBusyError`, even
+if the owner hangs. An unresolved owner remains busy until underlying work is
+cancelled and its operation settles, the operation otherwise terminates or
+settles, or the process exits. There is deliberately no lease expiry: stale
+provider or transaction work could later overwrite, promote, or remove another
+operation's state. After cancellation or termination, reconcile ledger and
+private state before another mutation.
+
+Provider-object fallback is only for internal/deep unbound use. Direct provider
+mutation, independently unbound wrappers, and separate processes are outside the
+guarantee and require external per-DID coordination. Join acquires the same
+fail-fast lease before binding, reserves both source and target addresses, and
+holds them through its private-state read and deployed-contract lookup. Competing
+source/target lifecycle and binding calls therefore fail busy before mutation;
+join failure releases its owned keys. Known different idle bindings fail with
+`PrivateStateProviderContractMismatchError`. The provider has no cross-process
+atomic conditional write.
 
 ## Controller Recovery and Backup Posture
 

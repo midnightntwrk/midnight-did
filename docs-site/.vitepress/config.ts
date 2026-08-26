@@ -56,6 +56,7 @@ export default defineConfig({
             { text: "Quickstart", link: "/guide/quickstart" },
             { text: "Network Endpoints", link: "/guide/network-endpoints" },
             { text: "Key Model", link: "/guide/key-model" },
+            { text: "Migrate to 0.6", link: "/guide/migrating-to-0.6" },
           ],
         },
       ],
