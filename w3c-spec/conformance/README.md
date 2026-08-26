@@ -3,7 +3,9 @@
 **Release lane:** focused 0.6 evidence refresh from the post-[#434](https://github.com/midnightntwrk/midnight-did/pull/434) baseline.
 **Source of record:** [issue #405](https://github.com/midnightntwrk/midnight-did/issues/405), coordinated with the [0.6 release tracker #443](https://github.com/midnightntwrk/midnight-did/issues/443).
 
-These matrices are implementation evidence, not formal W3C certification. W3C does not certify individual DID methods, and this repository does not claim full DID Core, DID Resolution, resolver-service, or ecosystem compatibility.
+The 0.6 conformance claim is bounded to the DID Core 1.0 Recommendation. The DID Core 1.1 and 2026 DID Resolution Candidate Recommendation snapshots are audited forward-compatibility targets with disclosed failures; they are not 0.6 passing claims. The coordinated breaking representation and resolution migration is tracked by [#447](https://github.com/midnightntwrk/midnight-did/issues/447).
+
+These matrices are implementation evidence, not formal W3C certification. W3C does not certify individual DID methods, and this repository does not claim full DID Core 1.1, DID Resolution, resolver-service, or ecosystem compatibility.
 
 ## Pinned standards baselines
 
@@ -13,7 +15,7 @@ These matrices are implementation evidence, not formal W3C certification. W3C do
 | DID Core 1.1      | W3C Candidate Recommendation Snapshot, 2026-03-05 | [`CR-did-1.1-20260305`](https://www.w3.org/TR/2026/CR-did-1.1-20260305/)                       | `4a48022defe07d37d2decc3ec9027a932dc883b2ad164a5aeaf9256e530bd979` |
 | DID Resolution v1 | W3C Candidate Recommendation Snapshot, 2026-08-06 | [`CR-did-resolution-1.0-20260806`](https://www.w3.org/TR/2026/CR-did-resolution-1.0-20260806/) | `a4632a09600e0136022969114520dc3f8ee9af99ad80963e3ba1a368bea9af1a` |
 
-DID Core 1.0 is the primary evidence baseline. DID Core 1.1 and DID Resolution remain separately identified compatibility targets because both are Candidate Recommendation snapshots and can evolve independently.
+DID Core 1.0 is the normative conformance baseline for 0.6. DID Core 1.1 and DID Resolution remain separately identified audited compatibility targets because both are Candidate Recommendation snapshots and can evolve independently. Their matrices intentionally show the incompatible 0.6 context, media types, resolver signature, split helpers, keyword errors, and deactivation result as failures or absent capabilities rather than converting DID Core 1.0 tests into positive CR evidence. [#447](https://github.com/midnightntwrk/midnight-did/issues/447) owns the coordinated breaking migration after 0.6.
 
 ## Integration base and implementation under test
 
@@ -35,7 +37,7 @@ From `nix develop`, after `pnpm install --frozen-lockfile`:
 pnpm test:conformance
 ```
 
-The command first refuses a tracked-dirty worktree, then prints a compact evidence banner containing the exact clean Git HEAD, root package version, contract package version, actual Node and pnpm versions, and the three pinned standards URLs/digests. It then builds the existing contract prerequisite and runs these exact files through existing package test surfaces:
+The command first refuses a tracked-dirty worktree, then prints a compact evidence banner containing the exact clean Git HEAD, root package version, contract package version, actual Node and pnpm versions, and the three pinned standards URLs/digests. Pinning and running tests against a target does not imply a passing result. In particular, the representation tests below prove the 0.6 DID Core 1.0-era profile and expose its 1.1/Resolution incompatibilities; they are not positive 1.1 representation evidence. The command builds the existing contract prerequisite and runs these exact files through existing package test surfaces:
 
 - `packages/domain/src/test/midnight-did-syntax.conformance.test.ts`
 - `packages/did/src/test/midnight-did-jsonld-conformance.test.ts`
@@ -73,6 +75,7 @@ The evidence retains all compatibility rules landed by #434:
 
 ## Explicit residual limitations
 
+- Version 0.6 does not satisfy the pinned DID Core 1.1 and DID Resolution CR representation/resolution contracts. It uses `https://www.w3.org/ns/did/v1`, `application/did+json`/`application/did+ld+json`, split resolution helpers, keyword-string errors, and a readable document after deactivation. The coordinated breaking migration to `https://www.w3.org/ns/did/v1.1`, `application/did`, the standard resolver signature, structured URL-typed errors, and aligned deactivation results is tracked by [#447](https://github.com/midnightntwrk/midnight-did/issues/447).
 - DID URL dereferencing (fragment/resource/path/query dereferencing) is not exposed by `packages/did` or `packages/api`. Bare-DID resolution and DID URL reference normalization do not substitute for dereferencing; implementation is tracked by [#445](https://github.com/midnightntwrk/midnight-did/issues/445).
 - No external W3C DID/DID Resolution test suite or immutable hosted evidence is integrated. `pnpm test:conformance` is repository-owned evidence only; external-suite/CI evidence and registry posture are tracked by [#446](https://github.com/midnightntwrk/midnight-did/issues/446).
 - `publicKeyMultibase`/`Multikey` is not a current ledger profile. Jubjub is Midnight-private, and the BLS JWK curve names remain a constrained profile.
@@ -81,6 +84,6 @@ The evidence retains all compatibility rules landed by #434:
 
 ## Matrices
 
-- [DID Core 1.0](./did-core-1.0.md)
-- [DID Core 1.1 compatibility](./did-core-1.1.md)
-- [DID Resolution](./did-resolution.md)
+- [DID Core 1.0 — 0.6 conformance baseline](./did-core-1.0.md)
+- [DID Core 1.1 — audited compatibility target, overall FAIL](./did-core-1.1.md)
+- [DID Resolution — audited 2026 CR target, overall FAIL](./did-resolution.md)

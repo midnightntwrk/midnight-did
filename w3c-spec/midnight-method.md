@@ -794,6 +794,21 @@ Example of the implementation: Midnight DID Resolver in Rust
 
 ### 7.2.3. Resolution response composition and media types
 
+**Version 0.6 profile note:** This section documents the shipped DID Core 1.0-era
+API profile; it is not a claim of compatibility with the pinned 2026 DID Core
+1.1 or DID Resolution Candidate Recommendation snapshots. Version 0.6 exposes a
+bare-document `resolve(did)` plus separate resolution-result and representation
+helpers, negotiates `application/did+json` and `application/did+ld+json`, emits
+`https://www.w3.org/ns/did/v1`, returns keyword-string errors, and keeps a
+deactivated DID Document readable while marking its metadata. The 2026 CRs
+instead require `application/did` and the v1.1 context, the unaltered
+`resolve(did, resolutionOptions)` contract, structured errors with W3C
+URL-valued `type` fields, and a null DID Document after deactivation. These
+breaking changes are deliberately not backported to 0.6;
+[#447](https://github.com/midnightntwrk/midnight-did/issues/447) owns the
+coordinated migration. The rules below remain the explicit 0.6 compatibility
+behavior and must not be interpreted as the pinned CR behavior.
+
 DID Core distinguishes between `resolve` and `resolveRepresentation`; see
 [DID Core Section 7.1](https://www.w3.org/TR/did-core/#did-resolution).
 Midnight resolvers MUST preserve that distinction when composing responses:

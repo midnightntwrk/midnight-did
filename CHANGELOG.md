@@ -14,11 +14,16 @@ published 0.5.0 packages retain their existing API and behavior.
 
 - Refresh the DID Core 1.0, DID Core 1.1, and DID Resolution evidence matrices
   for the post-#434 0.6 baseline and add `pnpm test:conformance` for the focused
-  repository-owned reproduction lane. Add semantic DID JSON/JSON-LD
-  representation evidence, resolver-level deactivation metadata coverage, and
-  stricter `Accept` quality-value handling. Document that `contractVersion` is
-  a schema/compatibility discriminator rather than an upgrade guarantee, that
-  CMA signing keys require separate export and custody, that 0.6 has no generic
+  repository-owned reproduction lane. The 0.6 conformance claim is bounded to
+  DID Core 1.0; the DID Core 1.1 and 2026 DID Resolution CR audits now disclose
+  the incompatible context/media types, resolver signature and split helpers,
+  keyword errors, and readable deactivated documents as failures rather than
+  passing representation evidence. The coordinated breaking migration remains
+  outside 0.6 under #447. Add semantic DID JSON/JSON-LD evidence for the 1.0-era
+  profile, resolver-level deactivation metadata coverage, and stricter `Accept`
+  quality-value handling. Document that `contractVersion` is a
+  schema/compatibility discriminator rather than an upgrade guarantee, that CMA
+  signing keys require separate export and custody, that 0.6 has no generic
   in-place migration system, and that configured indexer reads are trusted
   without light-client, independent state-proof, or finality verification.
 - BREAKING: Make verification-method deletion a single explicit operation.
