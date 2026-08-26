@@ -19,13 +19,13 @@ DID Core 1.0 is the primary evidence baseline. DID Core 1.1 and DID Resolution r
 
 - Repository: `midnightntwrk/midnight-did`
 - 0.6 integration base: `55dde88ce1e451587303b5f4fc388eef4bdb32f5`
-- Runtime implementation under test: the current `git rev-parse HEAD` printed by `pnpm test:conformance`; it is intentionally not hardcoded in this document or script.
+- Runtime implementation under test: the exact clean `git rev-parse HEAD` printed by `pnpm test:conformance`; it is intentionally not hardcoded in this document or script.
 - Package version: `0.6.0` (unreleased)
 - Package manager pin: `pnpm@10.34.4`
 - Node requirement: `>=24`
 - Inspected surfaces: `w3c-spec/midnight-method.md`, `packages/domain`, `packages/did`, `packages/api`, `packages/contract`, and their tests.
 
-The integration base identifies where this release-phase work began; it is not the revision tested at runtime. Exact release evidence is bound to the banner and results retained by CI for the implementation-under-test commit and to the immutable release tag that names that commit. A mutable Markdown branch view alone is not exact release evidence.
+The integration base identifies where this release-phase work began; it is not the revision tested at runtime. Exact revision evidence comes from clean-tree command output and is recorded in PR or release evidence. The command fails when tracked staged or unstaged files are dirty (untracked files are ignored). This repository does not currently run this focused lane in CI or retain its output; external-suite integration, immutable hosted/CI evidence, and registry posture remain tracked by [#446](https://github.com/midnightntwrk/midnight-did/issues/446). A mutable Markdown branch view alone is not exact release evidence.
 
 ## Reproduce the focused lane
 
@@ -35,7 +35,7 @@ From `nix develop`, after `pnpm install --frozen-lockfile`:
 pnpm test:conformance
 ```
 
-The command first prints a compact evidence banner containing the current Git HEAD, root package version, contract package version, actual Node and pnpm versions, and the three pinned standards URLs/digests. It then builds the existing contract prerequisite and runs these exact files through existing package test surfaces:
+The command first refuses a tracked-dirty worktree, then prints a compact evidence banner containing the exact clean Git HEAD, root package version, contract package version, actual Node and pnpm versions, and the three pinned standards URLs/digests. It then builds the existing contract prerequisite and runs these exact files through existing package test surfaces:
 
 - `packages/domain/src/test/midnight-did-syntax.conformance.test.ts`
 - `packages/did/src/test/midnight-did-jsonld-conformance.test.ts`
@@ -73,8 +73,8 @@ The evidence retains all compatibility rules landed by #434:
 
 ## Explicit residual limitations
 
-- DID URL dereferencing (fragment/resource/path/query dereferencing) is not exposed by `packages/did` or `packages/api`. Bare-DID resolution and DID URL reference normalization do not substitute for dereferencing.
-- No external W3C DID/DID Resolution test suite is integrated. `pnpm test:conformance` is repository-owned evidence only.
+- DID URL dereferencing (fragment/resource/path/query dereferencing) is not exposed by `packages/did` or `packages/api`. Bare-DID resolution and DID URL reference normalization do not substitute for dereferencing; implementation is tracked by [#445](https://github.com/midnightntwrk/midnight-did/issues/445).
+- No external W3C DID/DID Resolution test suite or immutable hosted evidence is integrated. `pnpm test:conformance` is repository-owned evidence only; external-suite/CI evidence and registry posture are tracked by [#446](https://github.com/midnightntwrk/midnight-did/issues/446).
 - `publicKeyMultibase`/`Multikey` is not a current ledger profile. Jubjub is Midnight-private, and the BLS JWK curve names remain a constrained profile.
 - The reference resolution path trusts the configured indexer/provider. It supplies no light client, independent state proof, or independent finality verification.
 - This lane does not provide a generic in-place contract migration or upgrade system.

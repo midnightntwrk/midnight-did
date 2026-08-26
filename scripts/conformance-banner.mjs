@@ -5,15 +5,40 @@ import { fileURLToPath } from "node:url";
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 const readPackage = (path) =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
+const git = (...args) =>
+  execFileSync("git", args, {
+    cwd: repositoryRoot,
+    encoding: "utf8",
+  }).trim();
+const assertCleanTrackedTree = () => {
+  const trackedChanges = git(
+    "status",
+    "--porcelain=v1",
+    "--untracked-files=no",
+  );
+  if (trackedChanges) {
+    console.error(
+      "Conformance evidence aborted: tracked staged or unstaged files are dirty. Commit or restore tracked changes before running this command; untracked files are ignored.",
+    );
+    process.exit(1);
+  }
+};
+
+assertCleanTrackedTree();
+const initialGitHead = git("rev-parse", "HEAD");
 const rootPackage = readPackage("../package.json");
 const contractPackage = readPackage("../packages/contract/package.json");
-const gitHead = execFileSync("git", ["rev-parse", "HEAD"], {
-  cwd: repositoryRoot,
-  encoding: "utf8",
-}).trim();
 const pnpmVersion =
   process.env.npm_config_user_agent?.match(/\bpnpm\/([^\s]+)/)?.[1] ??
   execFileSync("pnpm", ["--version"], { encoding: "utf8" }).trim();
+const gitHead = git("rev-parse", "HEAD");
+assertCleanTrackedTree();
+if (gitHead !== initialGitHead) {
+  console.error(
+    "Conformance evidence aborted: git HEAD changed while collecting runtime versions. Run the command again on a stable clean revision.",
+  );
+  process.exit(1);
+}
 
 const standards = [
   [
@@ -34,7 +59,7 @@ const standards = [
 ];
 
 console.log("Conformance evidence runtime");
-console.log(`  git HEAD: ${gitHead}`);
+console.log(`  clean git HEAD: ${gitHead}`);
 console.log(`  package: ${rootPackage.name}@${rootPackage.version}`);
 console.log(`  contract: ${contractPackage.name}@${contractPackage.version}`);
 console.log(`  Node: ${process.version}`);

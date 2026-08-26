@@ -19,7 +19,9 @@ unsupported dereferencing and external-suite work.
   resolver-level deactivation metadata, equal-quality and invalid `Accept`
   values.
 - One root `test:conformance` command could compose existing package build/test
-  surfaces without introducing a matrix parser or policy engine.
+  surfaces without introducing a matrix parser or policy engine, while a
+  clean-tree guard prevents dirty tracked state from being recorded as exact
+  revision evidence.
 - Reading the installed Midnight provider interfaces before documenting CMA and
   indexer posture separated controller/recovery custody from maintenance signing
   keys and separated trusted provider reads from independent verification.
@@ -29,11 +31,14 @@ unsupported dereferencing and external-suite work.
 ## Friction and decisions
 
 - The original branch run of `pnpm run verify` stopped in the review-dispatch
-  timeout fixture. The blocking-review rerun passed that fixture, then stopped
-  in the Jubjub Schnorr lane because local `compact 0.5.1` generated code for
-  Compact runtime `0.15.0` while the workspace dependency is `0.16.0`.
-  Conformance, domain, DID, docs, lint, and typecheck lanes remained green; the
-  aggregate gate is not represented as passing.
+  timeout fixture. A later inherited shell rerun passed that fixture, then
+  stopped in the Jubjub Schnorr lane: `compact 0.5.1` was using
+  `COMPACT_DIRECTORY` toolchain `0.30.0`, which generated code for Compact
+  runtime `0.15.0` while the workspace dependency is `0.16.0`. A fresh
+  `nix develop` resolved the repository-pinned `0.31.1` toolchain; the focused
+  Schnorr lane and full `pnpm run verify` then passed without source or generated
+  artifact changes. The mismatch was stale session-environment drift, not a
+  reason to alter unrelated Compact/runtime code.
 - DID JSON semantic equivalence is tested against the abstract resolution result
   after removing the representation-specific JSON-LD context. JSON-LD
   equivalence is tested by comparing deterministic expansion before and after
@@ -49,17 +54,18 @@ unsupported dereferencing and external-suite work.
 
 Focused conformance tests, full domain and DID suites, DID lint/typecheck, docs
 sync/validate/build/visual, diff checks, and commit integrity are recorded on the
-PR. Hosted CI and exact-head routed review remain pending. The local aggregate
-verification exception above remains visible rather than being represented as a
-clean gate.
+PR. The full aggregate verification passed in a fresh `nix develop` environment.
+Hosted CI and exact-head routed review remain pending.
 
 ## Follow-ups
 
 - Release integration remains tracked by
   [#443](https://github.com/midnightntwrk/midnight-did/issues/443).
-- DID URL dereferencing, external W3C suite integration, Multikey support, and
-  independent indexer proof/light-client verification remain non-goals until a
-  separate tracker defines their compatibility and ownership boundaries.
-- The local Compact compiler/runtime mismatch should be reconciled in the
-  release toolchain/setup scope rather than by changing generated artifacts in
-  this evidence PR.
+- DID URL dereferencing is tracked by
+  [#445](https://github.com/midnightntwrk/midnight-did/issues/445).
+- External W3C suite integration, immutable hosted/CI evidence, and registry
+  posture are tracked by
+  [#446](https://github.com/midnightntwrk/midnight-did/issues/446).
+- When a Compact mismatch recurs, validation must start in a fresh repository
+  `nix develop` environment before considering source or generated-artifact
+  changes.
