@@ -105,9 +105,8 @@ test("completes only after the full lane leaves HEAD and tracked files unchanged
     const result = runConformance(root);
 
     assert.equal(result.status, 0, result.stderr);
-    assert.match(
-      result.stdout,
-      new RegExp(`completed at unchanged clean HEAD ${head}`, "u"),
+    assert.ok(
+      result.stdout.includes(`completed at unchanged clean HEAD ${head}`),
     );
     assert.equal(
       readFileSync(resolve(root, "pnpm-invocations.log"), "utf8")
