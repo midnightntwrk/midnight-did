@@ -27,7 +27,7 @@ DID Core 1.0 is the normative conformance baseline for 0.6. DID Core 1.1 and DID
 - Node requirement: `>=24`
 - Inspected surfaces: `w3c-spec/midnight-method.md`, `packages/domain`, `packages/did`, `packages/api`, `packages/contract`, and their tests.
 
-The integration base identifies where this release-phase work began; it is not the revision tested at runtime. Exact revision evidence comes from clean-tree command output and is recorded in PR or release evidence. The command fails when tracked staged or unstaged files are dirty (untracked files are ignored). This repository does not currently run this focused lane in CI or retain its output; external-suite integration, immutable hosted/CI evidence, and registry posture remain tracked by [#446](https://github.com/midnightntwrk/midnight-did/issues/446). A mutable Markdown branch view alone is not exact release evidence.
+The integration base identifies where this release-phase work began; it is not the revision tested at runtime. Exact revision evidence comes from clean-tree command output and is recorded in PR or release evidence. The command records an initially clean tracked HEAD, runs the complete lane, and then fails if HEAD changed or tracked staged/unstaged files became dirty (untracked files are ignored). This repository does not currently run this focused lane in CI or retain its output; external-suite integration, immutable hosted/CI evidence, and registry posture remain tracked by [#446](https://github.com/midnightntwrk/midnight-did/issues/446). A mutable Markdown branch view alone is not exact release evidence.
 
 ## Reproduce the focused lane
 
@@ -37,7 +37,7 @@ From `nix develop`, after `pnpm install --frozen-lockfile`:
 pnpm test:conformance
 ```
 
-The command first refuses a tracked-dirty worktree, then prints a compact evidence banner containing the exact clean Git HEAD, root package version, contract package version, actual Node and pnpm versions, and the three pinned standards URLs/digests. Pinning and running tests against a target does not imply a passing result. In particular, the representation tests below prove the 0.6 DID Core 1.0-era profile and expose its 1.1/Resolution incompatibilities; they are not positive 1.1 representation evidence. The command builds the existing contract prerequisite and runs these exact files through existing package test surfaces:
+The command first refuses a tracked-dirty worktree, then prints a compact evidence banner containing the exact clean Git HEAD, root package version, contract package version, actual Node and pnpm versions, and the three pinned standards URLs/digests. After the package commands finish, it verifies that HEAD is unchanged and the tracked tree remains clean before reporting successful evidence. Pinning and running tests against a target does not imply a passing result. In particular, the representation tests below prove the 0.6 DID Core 1.0-era profile and expose its 1.1/Resolution incompatibilities; they are not positive 1.1 representation evidence. The command builds the existing contract prerequisite and runs these exact files through existing package test surfaces:
 
 - `packages/domain/src/test/midnight-did-syntax.conformance.test.ts`
 - `packages/did/src/test/midnight-did-jsonld-conformance.test.ts`

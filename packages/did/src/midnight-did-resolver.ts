@@ -241,8 +241,8 @@ const parseAcceptMediaRange = (
   if (mediaTypeParts.length !== 2) return null;
   const [type = "", subtype = ""] = mediaTypeParts;
   if (
-    !(type === "*" || httpToken.test(type)) ||
-    !(subtype === "*" || httpToken.test(subtype)) ||
+    !(type === "*" || (httpToken.test(type) && !type.includes("*"))) ||
+    !(subtype === "*" || (httpToken.test(subtype) && !subtype.includes("*"))) ||
     (type === "*" && subtype !== "*")
   ) {
     return null;

@@ -31,8 +31,8 @@ coordinated breaking API migration into 0.6.
   values.
 - One root `test:conformance` command could compose existing package build/test
   surfaces without introducing a matrix parser or policy engine, while a
-  clean-tree guard prevents dirty tracked state from being recorded as exact
-  revision evidence.
+  clean-tree guards before and after the complete lane prevent a changed HEAD or
+  dirty tracked state from being recorded as exact revision evidence.
 - Reading the installed Midnight provider interfaces before documenting CMA and
   indexer posture separated controller/recovery custody from maintenance signing
   keys and separated trusted provider reads from independent verification.

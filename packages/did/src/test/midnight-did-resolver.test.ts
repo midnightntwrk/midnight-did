@@ -704,6 +704,50 @@ describe("MidnightDIDResolver", () => {
     },
   );
 
+  it.each([
+    'application/did+json;profile="unterminated',
+    'application/did+json;profile="bad"quote"',
+    "application/did json",
+    "*/did+json",
+    "application/**",
+    "application/did+json;q=0.8;q=0.7",
+  ])(
+    "rejects a malformed-only Accept range %s without reading the ledger",
+    async (accept) => {
+      const ledgerReader = vi.fn();
+      const resolver = new MidnightDIDResolver({ ledgerReader });
+
+      const result = await resolver.resolveRepresentation(did, { accept });
+
+      expect(result).toEqual({
+        didDocumentStream: null,
+        didDocumentMetadata: {},
+        didResolutionMetadata: { error: "representationNotSupported" },
+      });
+      expect(ledgerReader).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    'application/did+json;profile="bad"quote, application/did+ld+json',
+    "application/did json, application/did+ld+json",
+    "application/**, application/did+ld+json",
+    "application/did+json;q=0.8;q=0.7, application/did+ld+json;q=0.5",
+  ])(
+    "ignores malformed Accept ranges when a valid range remains: %s",
+    async (accept) => {
+      const resolver = new MidnightDIDResolver({
+        ledgerReader: async () => ledgerState,
+      });
+
+      const result = await resolver.resolveRepresentation(did, { accept });
+
+      expect(result.didResolutionMetadata.contentType).toBe(
+        "application/did+ld+json",
+      );
+    },
+  );
+
   it("returns representationNotSupported without reading the ledger", async () => {
     const ledgerReader = vi.fn();
     const resolver = new MidnightDIDResolver({ ledgerReader });

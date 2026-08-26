@@ -20,8 +20,13 @@ published 0.5.0 packages retain their existing API and behavior.
   keyword errors, and readable deactivated documents as failures rather than
   passing representation evidence. The coordinated breaking migration remains
   outside 0.6 under #447. Add semantic DID JSON/JSON-LD evidence for the 1.0-era
-  profile, resolver-level deactivation metadata coverage, and stricter `Accept`
-  quality-value handling. Document that `contractVersion` is a
+  profile and resolver-level deactivation metadata coverage. The published DID
+  resolver runtime now follows RFC 9110 exact, type-wildcard, and global-wildcard
+  precedence for its retained 0.6 media types, honors exact `q=0` exclusions,
+  enforces strict quality-value syntax (including rejection of `.5`), and
+  rejects malformed-only ranges before ledger reads while retaining valid ranges
+  from mixed malformed/valid input. This hardening does not broaden media
+  support. Document that `contractVersion` is a
   schema/compatibility discriminator rather than an upgrade guarantee, that CMA
   signing keys require separate export and custody, that 0.6 has no generic
   in-place migration system, and that configured indexer reads are trusted
