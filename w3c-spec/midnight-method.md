@@ -794,66 +794,63 @@ Example of the implementation: Midnight DID Resolver in Rust
 
 ### 7.2.3. Resolution response composition and media types
 
-**Version 0.6 profile note:** This section documents the shipped DID Core 1.0-era
-API profile; it is not a claim of compatibility with the pinned 2026 DID Core
-1.1 or DID Resolution Candidate Recommendation snapshots. Version 0.6 exposes a
-bare-document `resolve(did)` plus separate resolution-result and representation
-helpers, negotiates `application/did+json` and `application/did+ld+json`, emits
-`https://www.w3.org/ns/did/v1`, returns keyword-string errors, and keeps a
-deactivated DID Document readable while marking its metadata. The 2026 CRs
-instead require `application/did` and the v1.1 context, the unaltered
-`resolve(did, resolutionOptions)` contract, structured errors with W3C
-URL-valued `type` fields, and a null DID Document after deactivation. These
-breaking changes are deliberately not backported to 0.6;
-[#447](https://github.com/midnightntwrk/midnight-did/issues/447) owns the
-coordinated migration. The rules below remain the explicit 0.6 compatibility
-behavior and must not be interpreted as the pinned CR behavior.
+**Version 0.6 profile note: This shipped profile FAILS the pinned 2026 DID
+Core 1.1 and DID Resolution Candidate Recommendation snapshots.** It documents
+the current DID Core 1.0-era API and is not a compatibility claim. Version 0.6
+exposes a bare-document `resolve(did)` plus separate resolution-result and
+representation helpers, negotiates `application/did+json` and
+`application/did+ld+json`, emits `https://www.w3.org/ns/did/v1`, returns
+keyword-string errors, and keeps a deactivated DID Document readable while
+marking its metadata. The 2026 CRs instead require `application/did` and the
+v1.1 context, the unaltered `resolve(did, resolutionOptions)` contract,
+structured errors with W3C URL-valued `type` fields, and a null DID Document
+after deactivation. These breaking changes are deliberately not backported to
+0.6; [#447](https://github.com/midnightntwrk/midnight-did/issues/447) owns the
+coordinated migration. The rules below describe only the shipped 0.6 behavior.
 
-DID Core distinguishes between `resolve` and `resolveRepresentation`; see
-[DID Core Section 7.1](https://www.w3.org/TR/did-core/#did-resolution).
-Midnight resolvers MUST preserve that distinction when composing responses:
+The version 0.6 response-composition APIs described here are:
 
-- `resolve(did, resolutionOptions)` returns the abstract data model triple:
-  `didResolutionMetadata`, `didDocument`, and `didDocumentMetadata`.
-  The `accept` option MUST NOT be used with `resolve`, and
-  `didResolutionMetadata.contentType` MUST NOT be present on successful
-  abstract resolution results.
-- `resolveRepresentation(did, resolutionOptions)` returns
-  `didResolutionMetadata`, `didDocumentStream`, and `didDocumentMetadata`.
-  The optional `accept` value selects the preferred DID Document
-  representation. On successful representation resolution,
-  `didResolutionMetadata.contentType` MUST be present and MUST describe the
-  returned `didDocumentStream`.
+- `resolve(did)` accepts only the DID, returns the bare `MidnightDIDDocument`,
+  and throws when the DID is not found. It does not accept resolution options
+  and does not return a resolution envelope.
+- `resolveDIDResolutionResult(did)` is the separate envelope helper. It returns
+  `didResolutionMetadata`, `didDocument`, and `didDocumentMetadata`; successful
+  results have empty resolution metadata with no `contentType`.
+- `resolveRepresentation(did, options)` is the separate stream helper. Its
+  optional `options.accept` value selects the preferred DID Document
+  representation. It returns `didResolutionMetadata`, `didDocumentStream`, and
+  `didDocumentMetadata`; successful results include the selected `contentType`.
 
 HTTP adapters MUST enforce their normal deployment-appropriate header field-size
-limits and runtime-validate inbound `Accept` values before passing them to this
-package boundary. The package-level parser intentionally imposes no separate
-arbitrary resource cap.
+limits and runtime-validate inbound `Accept` values before passing them to the
+representation helper. The package-level parser intentionally imposes no
+separate arbitrary resource cap.
 
-Midnight implementations SHOULD support the following response composition
-rules:
+The version 0.6 operations compose responses as follows:
 
 | Request mode | Requested media type | Response body | DID resolution metadata |
 | --- | --- | --- | --- |
-| `resolve` | none | DID Resolution Result object containing `didDocument`, `didResolutionMetadata`, and `didDocumentMetadata` | Empty object on success; no `contentType` |
-| `resolveRepresentation` | omitted or `application/did+ld+json` | DID Document byte stream serialized as JSON-LD | `{ "contentType": "application/did+ld+json" }` |
-| `resolveRepresentation` | `application/did+json` | DID Document byte stream serialized as DID Core JSON | `{ "contentType": "application/did+json" }` |
-| HTTP/service envelope | `application/json` | DID Resolution Result object encoded as JSON | HTTP response `Content-Type` is `application/json`; do not copy this value into `didResolutionMetadata.contentType` for abstract `resolve` |
-| HTTP/service envelope | `application/ld+json` | DID Resolution Result object encoded as JSON-LD, when the service supports a JSON-LD envelope | HTTP response `Content-Type` is `application/ld+json`; do not copy this value into `didResolutionMetadata.contentType` for abstract `resolve` |
+| `resolve(did)` | none | Bare `MidnightDIDDocument`; throws when the DID is not found | None; this operation does not return an envelope |
+| `resolveDIDResolutionResult(did)` | none | Object containing `didDocument`, `didResolutionMetadata`, and `didDocumentMetadata` | Empty object on success; no `contentType` |
+| `resolveRepresentation(did, options)` | omitted or `application/did+ld+json` | DID Document byte stream serialized as JSON-LD | `{ "contentType": "application/did+ld+json" }` |
+| `resolveRepresentation(did, options)` | `application/did+json` | DID Document byte stream serialized as DID Core JSON | `{ "contentType": "application/did+json" }` |
+| HTTP/service envelope | `application/json` | DID Resolution Result object encoded as JSON | HTTP response `Content-Type` is `application/json`; do not copy this value into `didResolutionMetadata.contentType` for the abstract envelope helper |
+| HTTP/service envelope | `application/ld+json` | DID Resolution Result object encoded as JSON-LD, when the service supports a JSON-LD envelope | HTTP response `Content-Type` is `application/ld+json`; do not copy this value into `didResolutionMetadata.contentType` for the abstract envelope helper |
 
-If a caller requests a DID Document representation that is not supported, the
-resolver MUST return `didResolutionMetadata.error = "representationNotSupported"`
-and MUST NOT return a `didDocument` or `didDocumentStream`.
+If `resolveRepresentation` receives an unsupported representation request, it
+returns `didResolutionMetadata.error = "representationNotSupported"` with no
+`didDocumentStream` and does not read the ledger.
 
-Failure responses MUST set `didResolutionMetadata.error` to a DID Core error
-keyword. Midnight resolvers SHOULD use `invalidDid`, `notFound`, and
-`representationNotSupported` for those DID Core-defined cases, and SHOULD use
-registered DID resolution keywords such as `methodNotSupported` and
-`internalError` for broader resolver failures. This implementation documents
-`invalidDid` for a ledger state that cannot be projected into a valid Midnight
-DID Document, and `notAllowedLocalDuplicateKey` for duplicate
-verification-method keys in the normalized ledger state. Resolver-specific extension values MAY be used when
-they are registered or documented as a single ASCII keyword that starts with a
+Failure responses from `resolveDIDResolutionResult` and
+`resolveRepresentation` set `didResolutionMetadata.error` to a keyword string.
+They use `invalidDid`, `notFound`, and `representationNotSupported` for those DID
+Core-defined cases and use keywords such as `methodNotSupported` and
+`internalError` for broader resolver failures. In contrast, public
+`resolve(did)` throws instead of returning error metadata. This implementation
+also uses `invalidDid` for ledger state that cannot be projected into a valid
+Midnight DID Document and `notAllowedLocalDuplicateKey` for duplicate
+verification-method keys in normalized ledger state. Resolver-specific
+extension values are documented as single ASCII keywords that start with a
 letter.
 
 The method document profile requires `@context` in resolved Midnight DID
