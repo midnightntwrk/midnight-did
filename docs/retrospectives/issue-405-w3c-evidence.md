@@ -28,25 +28,30 @@ unsupported dereferencing and external-suite work.
 
 ## Friction and decisions
 
-- The full `pnpm run verify` gate reached an unrelated pre-existing timeout in
-  `scripts/review/request-pr-reviews.test.mjs` while its fake PR-head read was
-  starting; an isolated rerun reproduced the same one-second harness timeout.
-  Product, conformance, domain, DID, docs, and package checks remained green.
+- The original branch run of `pnpm run verify` stopped in the review-dispatch
+  timeout fixture. The blocking-review rerun passed that fixture, then stopped
+  in the Jubjub Schnorr lane because local `compact 0.5.1` generated code for
+  Compact runtime `0.15.0` while the workspace dependency is `0.16.0`.
+  Conformance, domain, DID, docs, lint, and typecheck lanes remained green; the
+  aggregate gate is not represented as passing.
 - DID JSON semantic equivalence is tested against the abstract resolution result
   after removing the representation-specific JSON-LD context. JSON-LD
   equivalence is tested by comparing deterministic expansion before and after
   compaction. No general canonicalization framework was added.
-- Invalid `Accept` quality values are ignored as non-selectable; supported values
-  must be finite, greater than zero for selection, and no greater than one.
+- Accept negotiation computes each offered representation's quality from its
+  most specific matching range. Exact ranges override type/global wildcards,
+  including exact `q=0` exclusions; RFC qvalue syntax and media/extension
+  parameter placement are parsed without introducing a general HTTP library.
 - Unsupported DID URL dereferencing and external suite integration remain
   explicit limitations rather than being converted into passing rows.
 
 ## Validation and review evidence
 
 Focused conformance tests, full domain and DID suites, DID lint/typecheck, docs
-sync/validate/build/visual, diff checks, commit integrity, hosted CI, and
-exact-head routed review are recorded on the PR. The local aggregate verification
-exception above remains visible rather than being represented as a clean gate.
+sync/validate/build/visual, diff checks, and commit integrity are recorded on the
+PR. Hosted CI and exact-head routed review remain pending. The local aggregate
+verification exception above remains visible rather than being represented as a
+clean gate.
 
 ## Follow-ups
 
@@ -55,5 +60,6 @@ exception above remains visible rather than being represented as a clean gate.
 - DID URL dereferencing, external W3C suite integration, Multikey support, and
   independent indexer proof/light-client verification remain non-goals until a
   separate tracker defines their compatibility and ownership boundaries.
-- The recurring review-dispatch harness timeout should be fixed in its owning
-  tooling scope rather than widening this release evidence PR.
+- The local Compact compiler/runtime mismatch should be reconciled in the
+  release toolchain/setup scope rather than by changing generated artifacts in
+  this evidence PR.

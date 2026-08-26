@@ -15,14 +15,17 @@ These matrices are implementation evidence, not formal W3C certification. W3C do
 
 DID Core 1.0 is the primary evidence baseline. DID Core 1.1 and DID Resolution remain separately identified compatibility targets because both are Candidate Recommendation snapshots and can evolve independently.
 
-## Tested repository baseline
+## Integration base and implementation under test
 
 - Repository: `midnightntwrk/midnight-did`
-- 0.6 starting commit: `55dde88ce1e451587303b5f4fc388eef4bdb32f5`
+- 0.6 integration base: `55dde88ce1e451587303b5f4fc388eef4bdb32f5`
+- Runtime implementation under test: the current `git rev-parse HEAD` printed by `pnpm test:conformance`; it is intentionally not hardcoded in this document or script.
 - Package version: `0.6.0` (unreleased)
-- Package manager: `pnpm@10.34.4`
+- Package manager pin: `pnpm@10.34.4`
 - Node requirement: `>=24`
 - Inspected surfaces: `w3c-spec/midnight-method.md`, `packages/domain`, `packages/did`, `packages/api`, `packages/contract`, and their tests.
+
+The integration base identifies where this release-phase work began; it is not the revision tested at runtime. Exact release evidence is bound to the banner and results retained by CI for the implementation-under-test commit and to the immutable release tag that names that commit. A mutable Markdown branch view alone is not exact release evidence.
 
 ## Reproduce the focused lane
 
@@ -32,7 +35,7 @@ From `nix develop`, after `pnpm install --frozen-lockfile`:
 pnpm test:conformance
 ```
 
-The command builds the existing contract prerequisite, then runs these exact files through existing package test surfaces:
+The command first prints a compact evidence banner containing the current Git HEAD, root package version, contract package version, actual Node and pnpm versions, and the three pinned standards URLs/digests. It then builds the existing contract prerequisite and runs these exact files through existing package test surfaces:
 
 - `packages/domain/src/test/midnight-did-syntax.conformance.test.ts`
 - `packages/did/src/test/midnight-did-jsonld-conformance.test.ts`
@@ -45,7 +48,7 @@ pnpm --filter ./packages/domain test:ci
 pnpm --filter ./packages/did test:ci
 ```
 
-No matrix parser, generated report, or policy engine is required for this lane; the Markdown matrices and executable test names are intentionally direct.
+No matrix parser, generated report, or general conformance policy engine is required for this lane; the Markdown matrices, runtime banner, and executable test names are intentionally direct.
 
 ## Status vocabulary
 
