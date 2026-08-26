@@ -63,13 +63,10 @@ test("prints the exact clean HEAD and versions while ignoring untracked files", 
     const result = runBanner(root);
 
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, new RegExp(`  clean git HEAD: ${head}`));
+    assert.ok(result.stdout.includes(`  clean git HEAD: ${head}`));
     assert.match(result.stdout, /  package: fixture-root@1\.2\.3/u);
     assert.match(result.stdout, /  contract: fixture-contract@4\.5\.6/u);
-    assert.match(
-      result.stdout,
-      new RegExp(`  Node: ${process.version.replaceAll(".", "\\.")}`),
-    );
+    assert.ok(result.stdout.includes(`  Node: ${process.version}`));
     assert.match(result.stdout, /  pnpm: 10\.34\.4/u);
   } finally {
     await rm(root, { force: true, recursive: true });
