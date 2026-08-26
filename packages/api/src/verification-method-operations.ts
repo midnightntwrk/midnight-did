@@ -5,6 +5,7 @@ import {
 } from "@midnight-ntwrk/midnight-did-domain";
 import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
 
+import { registeredContractProviders } from "./contract-provider-registry.js";
 import {
   asSchnorrJubjubDigest,
   createControllerAuthorization,
@@ -337,9 +338,10 @@ type VerifySchnorrJubjubDigestSignature = {
     signature: SchnorrJubjubSignature,
   ): Promise<FinalizedTxData>;
   /**
-   * @deprecated Pass `providers` as the second argument so canonical and legacy
-   * ledger keys can be resolved from current state. This overload preserves the
-   * historical fragment-keyed behavior for existing consumers.
+   * @deprecated Pass `providers` as the second argument. Contract handles
+   * created by `deploy`, `createDID`, or `joinContract` retain their providers
+   * and resolve canonical/legacy keys from current state; unregistered handles
+   * preserve the historical fragment-keyed fallback.
    */
   (
     didContract: DeployedMidnightDIDContract,
@@ -373,10 +375,13 @@ export const verifySchnorrJubjubDigestSignature: VerifySchnorrJubjubDigestSignat
       "methodId",
     );
     const identifier = ledgerIdentifier(didContract, canonicalMethodId);
+    const providers = stateAware
+      ? providersOrMethodId
+      : registeredContractProviders(didContract);
     let normalizedMethodId: string;
-    if (stateAware) {
+    if (typeof providers !== "string" && providers !== undefined) {
       const didState = await requireDeployedMidnightDIDLedgerState(
-        providersOrMethodId,
+        providers,
         didContract,
       );
       normalizedMethodId = requireExistingVerificationMethodLedgerId(

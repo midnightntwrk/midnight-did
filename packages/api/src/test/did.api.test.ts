@@ -640,12 +640,21 @@ describeApi("Midnight DID method API", () => {
     expect(verifyJubjubPayload(jubjubPublicKey, payload, jubjubSignature)).toBe(
       true,
     );
+    const jubjubDigest = payloadToJubjubDigest(payload);
     await expect(
       api.verifySchnorrJubjubDigestSignature(
         realKeyContract,
         providers,
         jubjubMethodId,
-        payloadToJubjubDigest(payload),
+        jubjubDigest,
+        jubjubSignature,
+      ),
+    ).resolves.toBeDefined();
+    await expect(
+      api.verifySchnorrJubjubDigestSignature(
+        realKeyContract,
+        jubjubMethodId,
+        jubjubDigest,
         jubjubSignature,
       ),
     ).resolves.toBeDefined();

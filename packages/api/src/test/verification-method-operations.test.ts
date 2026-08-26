@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
     { announcement: { x: 1n, y: 2n }, response: 3n },
     7n,
   ]),
+  registeredContractProviders: vi.fn(),
   assertVerificationMethodIsNotReferenced: vi.fn(),
   assertExistingVerificationMethodRelationsCompatible: vi.fn(),
   assertVerificationMethodRelationAbsent: vi.fn(),
@@ -37,6 +38,10 @@ vi.mock("@midnight-ntwrk/midnight-did-contract", () => ({
 vi.mock("../controller-authorization.js", () => ({
   asSchnorrJubjubDigest: (digest: unknown) => digest,
   createControllerAuthorization: mocks.createControllerAuthorization,
+}));
+
+vi.mock("../contract-provider-registry.js", () => ({
+  registeredContractProviders: mocks.registeredContractProviders,
 }));
 
 vi.mock("../ledger-mappers.js", () => ({
@@ -142,7 +147,10 @@ const stateWithMethod = (
   }) as any;
 
 describe("verification method operations", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.registeredContractProviders.mockReset();
+  });
 
   it("updates an existing legacy fragment-keyed verification method", async () => {
     const didSubject = getDidSubject(didContract);
@@ -435,7 +443,90 @@ describe("verification method operations", () => {
     },
   );
 
-  it("preserves the historical four-argument Schnorr verifier overload", async () => {
+  it.each([
+    ["canonical API-created", (didSubject: string) => `${didSubject}#key-1`],
+    ["legacy-only", () => "#key-1"],
+  ])(
+    "uses associated provider state for the deprecated verifier with a %s key",
+    async (_label, existingMethodId) => {
+      const didSubject = getDidSubject(didContract);
+      const digest = [1n, 2n, 3n, 4n] as [bigint, bigint, bigint, bigint];
+      const signature = {
+        announcement: { x: 5n, y: 6n },
+        response: 7n,
+      };
+      const ledgerMethodId = existingMethodId(didSubject);
+      mocks.registeredContractProviders.mockReturnValue(providers);
+      mocks.requireDeployedMidnightDIDLedgerState.mockResolvedValue(
+        stateWithMethod(ledgerMethodId),
+      );
+
+      await expect(
+        verifySchnorrJubjubDigestSignature(
+          didContract,
+          `${didSubject}#key-1`,
+          digest,
+          signature,
+        ),
+      ).resolves.toEqual({ txId: "0x1" });
+
+      expect(mocks.requireDeployedMidnightDIDLedgerState).toHaveBeenCalledWith(
+        providers,
+        didContract,
+      );
+      expect(
+        didContract.callTx.verifySchnorrJubjubDigestSignature,
+      ).toHaveBeenCalledWith(ledgerMethodId, digest, signature);
+    },
+  );
+
+  it("fails the deprecated verifier when an associated ledger key is absent", async () => {
+    const didSubject = getDidSubject(didContract);
+    mocks.registeredContractProviders.mockReturnValue(providers);
+    mocks.requireDeployedMidnightDIDLedgerState.mockResolvedValue(
+      stateWithMethod("#another-key"),
+    );
+
+    await expect(
+      verifySchnorrJubjubDigestSignature(
+        didContract,
+        `${didSubject}#key-1`,
+        [1n, 2n, 3n, 4n],
+        { announcement: { x: 5n, y: 6n }, response: 7n },
+      ),
+    ).rejects.toThrow(/verification method .* does not exist/);
+
+    expect(
+      didContract.callTx.verifySchnorrJubjubDigestSignature,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when deprecated verification finds canonical and legacy entries", async () => {
+    const didSubject = getDidSubject(didContract);
+    mocks.registeredContractProviders.mockReturnValue(providers);
+    mocks.requireDeployedMidnightDIDLedgerState.mockResolvedValue({
+      ...stateWithMethod("#key-1"),
+      schnorrJubjubVerificationMethods: {
+        member: (candidate: string) =>
+          candidate === "#key-1" || candidate === `${didSubject}#key-1`,
+      },
+    });
+
+    await expect(
+      verifySchnorrJubjubDigestSignature(
+        didContract,
+        `${didSubject}#key-1`,
+        [1n, 2n, 3n, 4n],
+        { announcement: { x: 5n, y: 6n }, response: 7n },
+      ),
+    ).rejects.toThrow(/Ambiguous verification method identifier/);
+
+    expect(
+      didContract.callTx.verifySchnorrJubjubDigestSignature,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("preserves the historical four-argument fallback for unregistered handles", async () => {
     const didSubject = getDidSubject(didContract);
     const digest = [1n, 2n, 3n, 4n] as [bigint, bigint, bigint, bigint];
     const signature = {

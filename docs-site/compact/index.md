@@ -92,3 +92,9 @@ digest, and private signature. The private circuit inputs are the digest and
 signature, not the controller secret. It reads the public key from
 `schnorrJubjubVerificationMethods`, so the proof is tied to the current DID
 ledger state instead of a caller-supplied public key.
+
+Use the provider-aware overload so the SDK can fail closed while selecting the
+sole canonical or compatible legacy ledger key. The deprecated four-argument
+overload performs the same state-aware lookup for contract handles returned by
+`deploy`, `createDID`, or `joinContract`; unregistered handles retain only the
+historical fragment-key fallback.

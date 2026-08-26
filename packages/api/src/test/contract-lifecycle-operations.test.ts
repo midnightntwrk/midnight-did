@@ -10,6 +10,7 @@ import {
   DIDContractDeploymentFinalizedPrivateStateIncompleteError,
   joinContract,
 } from "../contract-lifecycle-operations.js";
+import { registeredContractProviders } from "../contract-provider-registry.js";
 import {
   bindOrAssertPrivateStateProvider,
   bindPrivateStateProvider,
@@ -94,11 +95,13 @@ describe("contract lifecycle operations", () => {
     const joinedContract = {
       deployTxData: { public: { contractAddress } },
     };
+    const providers = { privateStateProvider } as any;
     vi.mocked(findDeployedContract).mockResolvedValue(joinedContract as any);
 
-    await expect(
-      joinContract({ privateStateProvider } as any, contractAddress),
-    ).resolves.toBe(joinedContract);
+    await expect(joinContract(providers, contractAddress)).resolves.toBe(
+      joinedContract,
+    );
+    expect(registeredContractProviders(joinedContract as any)).toBe(providers);
 
     expect(privateStateProvider.setContractAddress).toHaveBeenCalledWith(
       contractAddress.toLowerCase(),
@@ -113,7 +116,7 @@ describe("contract lifecycle operations", () => {
       MidnightDIDPrivateStateId,
     );
     expect(findDeployedContract).toHaveBeenCalledWith(
-      { privateStateProvider },
+      providers,
       expect.objectContaining({
         contractAddress: contractAddress.toLowerCase(),
         privateStateId: MidnightDIDPrivateStateId,
@@ -434,6 +437,7 @@ describe("contract lifecycle operations", () => {
 
     const deployment = await deploy(providers, privateState);
     expect(deployment).toBe(constructedContract);
+    expect(registeredContractProviders(deployment)).toBe(providers);
 
     expect(setContractAddress).toHaveBeenCalledTimes(3);
     expect(setContractAddress).toHaveBeenNthCalledWith(

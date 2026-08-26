@@ -7,6 +7,7 @@ import {
 import { MidnightDidApiError } from "./api-errors.js";
 import { getLogger } from "./api-logger.js";
 import { midnightDIDCompiledContract } from "./contract-instance.js";
+import { registerContractProviders } from "./contract-provider-registry.js";
 import {
   bindPrivateStateProviderWithinLease,
   type PrivateStateProviderLease,
@@ -214,6 +215,7 @@ export const joinContract = async (
       privateStateId: MidnightDIDPrivateStateId,
       initialPrivateState: initialPrivateState,
     });
+    registerContractProviders(didContract, providers);
     getLogger().info(`Joined contract at address: ${canonicalContractAddress}`);
     return didContract;
   });
@@ -238,6 +240,7 @@ export const deploy = async (
       const canonicalContractAddress = parseContractAddress(
         didContract.deployTxData.public.contractAddress,
       );
+      registerContractProviders(didContract, providers);
       getLogger().info(
         `Deployed contract at address: ${canonicalContractAddress}`,
       );

@@ -41,6 +41,7 @@ import {
   MidnightNetwork,
   parseContractAddress,
 } from "../index.js";
+import { LedgerDocumentValidationError } from "../ledger-to-domain.js";
 
 function makeIterablePairs<K, V>(entries: Array<[K, V]>) {
   return {
@@ -362,6 +363,25 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
         `${did}/${reference.startsWith("/") ? reference.slice(1) : reference}`,
       );
     }
+    expect(LedgerToDomain.absoluteDidUrlReference(did, "/keys/a")).toBe(
+      `${did}/keys/a`,
+    );
+    expect(LedgerToDomain.absoluteDidUrlReference(did, "./keys/a")).toBe(
+      `${did}/keys/a`,
+    );
+  });
+
+  it("classifies network-path verification method ids as invalid ledger data", () => {
+    const did = `did:midnight:devnet:${"a".repeat(64)}`;
+
+    expect(() =>
+      LedgerToDomain.absoluteDidUrlReference(did, "//attacker.example/key"),
+    ).toThrow(LedgerDocumentValidationError);
+    try {
+      LedgerToDomain.absoluteDidUrlReference(did, "//attacker.example/key");
+    } catch (error) {
+      expect(error).toMatchObject({ resolutionCode: "invalidDid" });
+    }
   });
 
   it("preserves explicit ledger JSON identifiers and normalizes legacy labels", () => {
@@ -467,6 +487,28 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect("y" in (doc.verificationMethod?.[0]?.publicKeyJwk ?? {})).toBe(
       false,
     );
+  });
+
+  it("ledgerStateToDIDDocument accepts legacy foreign-DID service identifiers", () => {
+    const addr = parseContractAddress("0".repeat(64));
+    stubLedger.services = makeIterablePairs<string, any>([
+      [
+        "legacy-foreign-service",
+        {
+          id: "did:example:other#service-1",
+          typ: "LinkedDomains",
+          serviceEndpoint: JSON.stringify("https://messaging.example"),
+        },
+      ],
+    ]);
+
+    const doc = LedgerToDomain.ledgerStateToDIDDocument(
+      stubLedger,
+      MidnightNetwork.DevNet,
+      addr,
+    );
+
+    expect(doc.service?.[0]?.id).toBe("did:example:other#service-1");
   });
 
   it("ledgerStateToDIDDocument uses normalized ledger service identifiers", () => {

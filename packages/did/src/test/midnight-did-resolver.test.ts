@@ -186,6 +186,43 @@ describe("MidnightDIDResolver", () => {
     expect(result.didResolutionMetadata.error).toBe("invalidDid");
   });
 
+  it.each([
+    ["path", "/keys/holder"],
+    ["dot-relative", "./keys/holder"],
+  ])(
+    "renders historical %s verification method ids without fragments",
+    async (_label, methodId) => {
+      ledgerState.verificationMethods = makeIterablePairs<string, any>([
+        [
+          methodId,
+          {
+            typ: 1,
+            publicKeyJwk: {
+              kty: 3,
+              crv: 0,
+              x: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+              y: "",
+            },
+          },
+        ],
+      ]);
+      ledgerState.authenticationRelation = makeIterable<string>([methodId]);
+      const resolver = new MidnightDIDResolver({
+        ledgerReader: async () => ledgerState,
+      });
+
+      const result = await resolver.resolveDIDResolutionResult(did);
+
+      expect(result.didDocument?.verificationMethod?.[0]?.id).toBe(
+        `${did}/keys/holder`,
+      );
+      expect(result.didDocument?.authentication).toEqual([
+        `${did}/keys/holder`,
+      ]);
+      expect(result.didResolutionMetadata.error).toBeUndefined();
+    },
+  );
+
   it("preserves distinct path services with the same fragment", async () => {
     ledgerState.services = makeIterablePairs<string, any>([
       [
@@ -241,26 +278,64 @@ describe("MidnightDIDResolver", () => {
     expect(result.didResolutionMetadata.error).toBe("invalidDid");
   });
 
-  it.each([
-    [
-      "a foreign-DID service id",
-      {
-        id: "did:example:other#service-1",
-        typ: "LinkedDomains",
-        serviceEndpoint: JSON.stringify("https://example.com"),
-      },
-    ],
-    [
-      "an empty service endpoint set",
-      {
-        id: "#service-1",
-        typ: "LinkedDomains",
-        serviceEndpoint: JSON.stringify([]),
-      },
-    ],
-  ])("maps %s to invalidDid", async (_label, service) => {
+  it("renders foreign-DID service ids already present in legacy ledger state", async () => {
     ledgerState.services = makeIterablePairs<string, any>([
-      ["invalid-service", service],
+      [
+        "legacy-foreign-service",
+        {
+          id: "did:example:other#service-1",
+          typ: "LinkedDomains",
+          serviceEndpoint: JSON.stringify("https://example.com"),
+        },
+      ],
+    ]);
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument?.service?.[0]?.id).toBe(
+      "did:example:other#service-1",
+    );
+    expect(result.didResolutionMetadata.error).toBeUndefined();
+  });
+
+  it("maps an empty service endpoint set to invalidDid", async () => {
+    ledgerState.services = makeIterablePairs<string, any>([
+      [
+        "invalid-service",
+        {
+          id: "#service-1",
+          typ: "LinkedDomains",
+          serviceEndpoint: JSON.stringify([]),
+        },
+      ],
+    ]);
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument).toBeNull();
+    expect(result.didResolutionMetadata.error).toBe("invalidDid");
+  });
+
+  it("maps network-path verification method ids to invalidDid", async () => {
+    ledgerState.verificationMethods = makeIterablePairs<string, any>([
+      [
+        "//attacker.example/key",
+        {
+          typ: 1,
+          publicKeyJwk: {
+            kty: 3,
+            crv: 0,
+            x: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+            y: "",
+          },
+        },
+      ],
     ]);
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => ledgerState,

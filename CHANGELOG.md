@@ -71,8 +71,17 @@ published 0.5.0 packages retain their existing API and behavior.
   ambiguous.
 - Add a provider-aware `verifySchnorrJubjubDigestSignature` overload that
   selects the sole existing canonical or compatible legacy physical ledger key;
-  retain the historical fragment-keyed signature as a deprecated compatibility
-  overload.
+  the deprecated four-argument overload now uses the same fail-closed lookup
+  for API-created contract handles while retaining its documented fragment
+  fallback for unregistered handles.
+- Restore read compatibility for historical path and dot-relative verification
+  method ids without fragments, canonicalizing them to subject-bound absolute
+  DID URLs without admitting unrelated query-only, network-path, foreign-DID,
+  or external URL method ids.
+- Preserve historical foreign-DID service ids during ledger resolution under an
+  explicit read-only compatibility policy; new service writes remain
+  subject-bound. Network-path verification method ids now map to structured
+  `invalidDid` resolution diagnostics.
 - Restore DID Core service endpoint set validation: each endpoint array must be
   non-empty and unique after URI and structural normalization.
 - Upgrade the Compact toolchain from 0.30.0 to 0.31.1, now consumed from the
