@@ -26,8 +26,8 @@ case "${channel}" in
     fi
     ;;
   rc)
-    if [[ "${ref_name}" != "main" && "${ref_name}" != "develop" ]]; then
-      echo "::error::rc publication is only allowed from main or develop."
+    if [[ "${ref_name}" != "main" && "${ref_name}" != "develop" && "${ref_name}" != "release/0.5.x" ]]; then
+      echo "::error::rc publication is only allowed from main, develop, or release/0.5.x."
       exit 1
     fi
     if [[ ! "${rc_index}" =~ ^[1-9][0-9]*$ ]]; then
