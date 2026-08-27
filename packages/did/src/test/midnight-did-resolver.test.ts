@@ -175,6 +175,24 @@ describe("MidnightDIDResolver", () => {
     expect(result.didResolutionMetadata.error).toBe("notFound");
   });
 
+  it("returns deactivation metadata with the still-readable DID Document", async () => {
+    ledgerState.active = false;
+    ledgerState.deactivated = true;
+    ledgerState.updated = 10_000n;
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument?.id).toBe(did);
+    expect(result.didDocumentMetadata).toMatchObject({
+      deactivated: true,
+      updated: "1970-01-01T00:00:10Z",
+    });
+    expect(result.didResolutionMetadata).toEqual({});
+  });
+
   it("returns invalidDid in the DID Core resolution envelope", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => ledgerState,
@@ -514,23 +532,29 @@ describe("MidnightDIDResolver", () => {
     });
   });
 
-  it("selects DID Core JSON when requested", async () => {
+  it("preserves the abstract DID data model through DID JSON serialization", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => ledgerState,
       expectedNetwork: MidnightNetwork.DevNet,
     });
 
-    const result = await resolver.resolveRepresentation(did, {
+    const abstractResult = await resolver.resolveDIDResolutionResult(did);
+    const representationResult = await resolver.resolveRepresentation(did, {
       accept: "application/did+json",
     });
 
-    expect(result.didDocumentStream).not.toBeNull();
-    const didDocument = JSON.parse(
-      new TextDecoder().decode(result.didDocumentStream!),
+    expect(representationResult.didDocumentStream).not.toBeNull();
+    const didJsonDocument = JSON.parse(
+      new TextDecoder().decode(representationResult.didDocumentStream!),
     );
-    expect(didDocument).toEqual(expect.objectContaining({ id: did }));
-    expect(didDocument).not.toHaveProperty("@context");
-    expect(result.didResolutionMetadata.contentType).toBe(
+    const { "@context": _context, ...expectedDataModel } =
+      abstractResult.didDocument!;
+    expect(didJsonDocument).toEqual(expectedDataModel);
+    expect(didJsonDocument).not.toHaveProperty("@context");
+    expect(representationResult.didDocumentMetadata).toEqual(
+      abstractResult.didDocumentMetadata,
+    );
+    expect(representationResult.didResolutionMetadata.contentType).toBe(
       "application/did+json",
     );
   });
@@ -564,6 +588,183 @@ describe("MidnightDIDResolver", () => {
       "application/did+json",
     );
   });
+
+  it("lets an exact q=0 exclusion override a wildcard match", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "*/*;q=0.8, application/did+ld+json;q=0",
+    });
+
+    expect(result.didResolutionMetadata.contentType).toBe(
+      "application/did+json",
+    );
+  });
+
+  it("supports a type wildcard while retaining exact-range precedence", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "application/*;q=0.8, application/did+ld+json;q=0",
+    });
+
+    expect(result.didResolutionMetadata.contentType).toBe(
+      "application/did+json",
+    );
+  });
+
+  it("uses the first equally specific duplicate range for effective quality", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept:
+        "application/DID+JSON;q=0, Application/did+json;q=1, application/did+ld+json;q=0.5",
+    });
+
+    expect(result.didResolutionMetadata.contentType).toBe(
+      "application/did+ld+json",
+    );
+  });
+
+  it("does not match media-range parameters absent from an offered representation", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept:
+        'application/did+ld+json;profile="https://example.com/a,b";q=1, application/did+json;q=0.5',
+    });
+
+    expect(result.didResolutionMetadata.contentType).toBe(
+      "application/did+json",
+    );
+  });
+
+  it("does not match media-range parameters after q when absent from an offered representation", async () => {
+    const ledgerReader = vi.fn();
+    const resolver = new MidnightDIDResolver({ ledgerReader });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "application/did+json;q=0.9;profile=x",
+    });
+
+    expect(result).toEqual({
+      didDocumentStream: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "representationNotSupported" },
+    });
+    expect(ledgerReader).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "application/did+json;q=0.8, application/did+ld+json;q=0.8",
+      "application/did+json",
+    ],
+    [
+      "application/did+ld+json;q=0.8, application/did+json;q=0.8",
+      "application/did+ld+json",
+    ],
+  ] as const)(
+    "uses request order to break equal-quality Accept ties for %s",
+    async (accept, expectedContentType) => {
+      const resolver = new MidnightDIDResolver({
+        ledgerReader: async () => ledgerState,
+      });
+
+      const result = await resolver.resolveRepresentation(did, { accept });
+
+      expect(result.didResolutionMetadata.contentType).toBe(
+        expectedContentType,
+      );
+    },
+  );
+
+  it.each(["not-a-number", "1.1", ".5", "0.1234"])(
+    "rejects an invalid Accept quality value %s without reading the ledger",
+    async (quality) => {
+      const ledgerReader = vi.fn();
+      const resolver = new MidnightDIDResolver({ ledgerReader });
+
+      const result = await resolver.resolveRepresentation(did, {
+        accept: `application/did+json;q=${quality}`,
+      });
+
+      expect(result).toEqual({
+        didDocumentStream: null,
+        didDocumentMetadata: {},
+        didResolutionMetadata: { error: "representationNotSupported" },
+      });
+      expect(ledgerReader).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects a bare media-range parameter after q without reading the ledger", async () => {
+    const ledgerReader = vi.fn();
+    const resolver = new MidnightDIDResolver({ ledgerReader });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "application/did+json;q=0.9;profile",
+    });
+
+    expect(result).toEqual({
+      didDocumentStream: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "representationNotSupported" },
+    });
+    expect(ledgerReader).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'application/did+json;profile="unterminated',
+    'application/did+json;profile="bad"quote"',
+    "application/did json",
+    "*/did+json",
+    "application/**",
+    "application/did+json;q=0.8;q=0.7",
+  ])(
+    "rejects a malformed-only Accept range %s without reading the ledger",
+    async (accept) => {
+      const ledgerReader = vi.fn();
+      const resolver = new MidnightDIDResolver({ ledgerReader });
+
+      const result = await resolver.resolveRepresentation(did, { accept });
+
+      expect(result).toEqual({
+        didDocumentStream: null,
+        didDocumentMetadata: {},
+        didResolutionMetadata: { error: "representationNotSupported" },
+      });
+      expect(ledgerReader).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    'application/did+json;profile="bad"quote, application/did+ld+json',
+    "application/did json, application/did+ld+json",
+    "application/**, application/did+ld+json",
+    "application/did+json;q=0.8;q=0.7, application/did+ld+json;q=0.5",
+  ])(
+    "ignores malformed Accept ranges when a valid range remains: %s",
+    async (accept) => {
+      const resolver = new MidnightDIDResolver({
+        ledgerReader: async () => ledgerState,
+      });
+
+      const result = await resolver.resolveRepresentation(did, { accept });
+
+      expect(result.didResolutionMetadata.contentType).toBe(
+        "application/did+ld+json",
+      );
+    },
+  );
 
   it("returns representationNotSupported without reading the ledger", async () => {
     const ledgerReader = vi.fn();
@@ -686,6 +887,24 @@ describe("MidnightDIDResolver", () => {
       didDocumentStream: null,
       didDocumentMetadata: {},
       didResolutionMetadata: { error: "methodNotSupported" },
+    });
+  });
+
+  it("returns internalError without a representation stream when the provider fails", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => {
+        throw new Error("provider unavailable");
+      },
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "application/did+ld+json",
+    });
+
+    expect(result).toEqual({
+      didDocumentStream: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "internalError" },
     });
   });
 });

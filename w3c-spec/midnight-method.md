@@ -689,7 +689,7 @@ The following table summarizes the on-chain ledger state exported by the contrac
 
 | Field                          | Type                                         | Description |
 |--------------------------------|----------------------------------------------|-------------|
-| contractVersion                | `Uint<32>`                                   | Contract schema/version number to support upgrades and compatibility checks. |
+| contractVersion                | `Uint<32>`                                   | Contract schema/compatibility discriminator. It identifies the ledger/circuit shape a consumer expects; it is not a promise that the deployed contract can be upgraded in place. |
 | controllerPublicKey            | `JubjubPoint`                                | Active controller public key used to verify wallet-local controller authorization signatures. |
 | recoveryAuthorityPublicKey      | `JubjubPoint`                                | Dedicated recovery authority public key used only by `recoverControllerKey` to rotate `controllerPublicKey`. It is not emitted as a DID Document verification method. |
 | id                             | `ContractAddress`                            | Smart‑contract address (32‑byte / 64‑hex) that uniquely identifies the DID on Midnight. |
@@ -721,6 +721,22 @@ Before an update, removal, relationship operation, service operation, or ledger-
 This lookup preserves existing subject-fragment deployments without automatic state migration or redeployment. The `verificationMethods` and `schnorrJubjubVerificationMethods` maps share one logical identifier namespace. Resolvers MUST reject duplicate identifiers across the two maps after full absolute-DID-URL normalization, and relation sets MAY target entries from either map. The two maps are not duplicate storage for the same key material: each verification method is stored in exactly one representation.
 
 Because Compact treats `Opaque<"string">` identifiers as opaque values, DID URL reference resolution and subject binding are SDK/resolver responsibilities. The TypeScript API resolves references before submission; resolvers reject states that would produce duplicate full canonical identifiers.
+
+### 6.2. Contract version, maintenance authority, and migration
+
+`contractVersion` is a schema and compatibility discriminator. The 0.6 contract constructor writes `2`; consumers can use that value when deciding whether the ledger shape and circuit surface are compatible with the software they are running. The field does not dispatch an upgrade, promise forward compatibility, or authorize a state transition merely because a higher version exists.
+
+A deployed Compact contract also has a Contract Maintenance Authority (CMA), which is separate from the DID controller and recovery authority. The upstream `deployContract` interface accepts an optional signing key; when it is omitted, the runtime generates a fresh signing key, installs its public authority as the CMA, and stores the signing key through `PrivateStateProvider.setSigningKey` under the deployed contract address. CMA possession authorizes contract-maintenance operations exposed by the Midnight runtime. It does not authorize controller-gated DID Document mutations, and controller or recovery secrets do not substitute for a lost CMA signing key.
+
+Implementations MUST treat the CMA signing key as separate high-value custody material. The upstream private-state provider interface deliberately separates `exportPrivateStates()` from `exportSigningKeys()`: private-state export does not include signing keys.
+
+The following export details are bounded to that upstream interface and the pinned reference Level private-state provider, `levelPrivateStateProvider` from `@midnight-ntwrk/midnight-js-level-private-state-provider`; other provider implementations can define different custody surfaces. In the reference provider, `exportSigningKeys()` exports the account/provider-wide signing-key set, not only the CMA key for one DID or deployed contract.
+
+An operational backup that needs future maintenance capability MUST therefore protect the whole encrypted export at the highest sensitivity of any included key, supply an explicit independent high-entropy export password, and store the export and that password separately. The reference setup's default private-storage password is derived from wallet secret material; it MUST NOT be reused as the export password or treated as a low-sensitivity backup password. Although the reference interface permits omission of an explicit export password and then falls back to its storage password provider, applications following this custody profile MUST NOT rely on that fallback.
+
+Loss of the CMA key (or of the only usable export/password) removes the ability to authorize future maintenance with that authority; it does not by itself deactivate the DID or prevent ordinary controller-authorized updates. Loss of controller/recovery material has the distinct consequences described in [section 8.1](#81-controller-custody-key-loss-and-deactivation).
+
+Version 0.6 provides no generic in-place contract migration or upgrade system. Runtime maintenance interfaces and CMA custody do not automatically transform DID ledger schema, rewrite stored identifiers, or migrate a deployment to a newer DID contract. The compatibility reads in [section 6.1](#61-canonical-identity-and-legacy-physical-keys) preserve narrowly defined historical records without migration. Any future schema transition requires an explicitly designed, version-specific migration or replacement-deployment procedure with its own authorization, state mapping, and validation; applications MUST NOT infer such a procedure from `contractVersion` alone.
 
 Example DID Document metadata emitted by the resolver layer:
 
@@ -776,52 +792,71 @@ The Midnight JS library is used to attach to the smart-contract ledger state, an
 The smart-contract ledger state can be fetched by `id`.
 The ledger state is deserialized to reconstruct the corresponding DIDDocument.
 
+The configured indexer/public-data provider is a trusted input to this resolution profile. A `null` result can be interpreted as `notFound` only under that provider trust assumption. An unavailable provider, an exception, a stale or unfinalized response, or a response from an untrusted endpoint does not prove that the DID is absent, deactivated, or final. The 0.6 resolver does not run a light client and does not independently verify an indexer state proof or consensus finality. Block-height or block-hash selection, where an upstream provider exposes it, identifies the requested read point but does not by itself add independent proof verification.
+
 Example of the implementation: Midnight DID Resolver in Rust
 
 **NOTE**: The DID ledger state will be available within the smart-contract compact language as well when the support for the smart-contract composability is implemented.
 
 ### 7.2.3. Resolution response composition and media types
 
-DID Core distinguishes between `resolve` and `resolveRepresentation`; see
-[DID Core Section 7.1](https://www.w3.org/TR/did-core/#did-resolution).
-Midnight resolvers MUST preserve that distinction when composing responses:
+**Version 0.6 profile note: This shipped profile FAILS the pinned 2026 DID
+Core 1.1 and DID Resolution Candidate Recommendation snapshots.** It documents
+the current DID Core 1.0-era API and is not a compatibility claim. Version 0.6
+exposes a bare-document `resolve(did)` plus separate resolution-result and
+representation helpers, negotiates `application/did+json` and
+`application/did+ld+json`, emits `https://www.w3.org/ns/did/v1`, returns
+keyword-string errors, and keeps a deactivated DID Document readable while
+marking its metadata. The 2026 CRs instead require `application/did` and the
+v1.1 context, the unaltered `resolve(did, resolutionOptions)` contract,
+structured errors with W3C URL-valued `type` fields, and a null DID Document
+after deactivation. These breaking changes are deliberately not backported to
+0.6; [#447](https://github.com/midnightntwrk/midnight-did/issues/447) owns the
+coordinated migration. The rules below describe only the shipped 0.6 behavior.
 
-- `resolve(did, resolutionOptions)` returns the abstract data model triple:
-  `didResolutionMetadata`, `didDocument`, and `didDocumentMetadata`.
-  The `accept` option MUST NOT be used with `resolve`, and
-  `didResolutionMetadata.contentType` MUST NOT be present on successful
-  abstract resolution results.
-- `resolveRepresentation(did, resolutionOptions)` returns
-  `didResolutionMetadata`, `didDocumentStream`, and `didDocumentMetadata`.
-  The optional `accept` value selects the preferred DID Document
-  representation. On successful representation resolution,
-  `didResolutionMetadata.contentType` MUST be present and MUST describe the
-  returned `didDocumentStream`.
+The version 0.6 response-composition APIs described here are:
 
-Midnight implementations SHOULD support the following response composition
-rules:
+- `resolve(did)` accepts only the DID, returns the bare `MidnightDIDDocument`,
+  and throws when the DID is not found. It does not accept resolution options
+  and does not return a resolution envelope.
+- `resolveDIDResolutionResult(did)` is the separate envelope helper. It returns
+  `didResolutionMetadata`, `didDocument`, and `didDocumentMetadata`; successful
+  results have empty resolution metadata with no `contentType`.
+- `resolveRepresentation(did, options)` is the separate stream helper. Its
+  optional `options.accept` value selects the preferred DID Document
+  representation. It returns `didResolutionMetadata`, `didDocumentStream`, and
+  `didDocumentMetadata`; successful results include the selected `contentType`.
+
+HTTP adapters MUST enforce their normal deployment-appropriate header field-size
+limits and runtime-validate inbound `Accept` values before passing them to the
+representation helper. The package-level parser intentionally imposes no
+separate arbitrary resource cap.
+
+The version 0.6 operations compose responses as follows:
 
 | Request mode | Requested media type | Response body | DID resolution metadata |
 | --- | --- | --- | --- |
-| `resolve` | none | DID Resolution Result object containing `didDocument`, `didResolutionMetadata`, and `didDocumentMetadata` | Empty object on success; no `contentType` |
-| `resolveRepresentation` | omitted or `application/did+ld+json` | DID Document byte stream serialized as JSON-LD | `{ "contentType": "application/did+ld+json" }` |
-| `resolveRepresentation` | `application/did+json` | DID Document byte stream serialized as DID Core JSON | `{ "contentType": "application/did+json" }` |
-| HTTP/service envelope | `application/json` | DID Resolution Result object encoded as JSON | HTTP response `Content-Type` is `application/json`; do not copy this value into `didResolutionMetadata.contentType` for abstract `resolve` |
-| HTTP/service envelope | `application/ld+json` | DID Resolution Result object encoded as JSON-LD, when the service supports a JSON-LD envelope | HTTP response `Content-Type` is `application/ld+json`; do not copy this value into `didResolutionMetadata.contentType` for abstract `resolve` |
+| `resolve(did)` | none | Bare `MidnightDIDDocument`; throws when the DID is not found | None; this operation does not return an envelope |
+| `resolveDIDResolutionResult(did)` | none | Object containing `didDocument`, `didResolutionMetadata`, and `didDocumentMetadata` | Empty object on success; no `contentType` |
+| `resolveRepresentation(did, options)` | omitted or `application/did+ld+json` | DID Document byte stream serialized as JSON-LD | `{ "contentType": "application/did+ld+json" }` |
+| `resolveRepresentation(did, options)` | `application/did+json` | DID Document byte stream serialized as DID Core JSON | `{ "contentType": "application/did+json" }` |
+| HTTP/service envelope | `application/json` | DID Resolution Result object encoded as JSON | HTTP response `Content-Type` is `application/json`; do not copy this value into `didResolutionMetadata.contentType` for the abstract envelope helper |
+| HTTP/service envelope | `application/ld+json` | DID Resolution Result object encoded as JSON-LD, when the service supports a JSON-LD envelope | HTTP response `Content-Type` is `application/ld+json`; do not copy this value into `didResolutionMetadata.contentType` for the abstract envelope helper |
 
-If a caller requests a DID Document representation that is not supported, the
-resolver MUST return `didResolutionMetadata.error = "representationNotSupported"`
-and MUST NOT return a `didDocument` or `didDocumentStream`.
+If `resolveRepresentation` receives an unsupported representation request, it
+returns `didResolutionMetadata.error = "representationNotSupported"` with no
+`didDocumentStream` and does not read the ledger.
 
-Failure responses MUST set `didResolutionMetadata.error` to a DID Core error
-keyword. Midnight resolvers SHOULD use `invalidDid`, `notFound`, and
-`representationNotSupported` for those DID Core-defined cases, and SHOULD use
-registered DID resolution keywords such as `methodNotSupported` and
-`internalError` for broader resolver failures. This implementation documents
-`invalidDid` for a ledger state that cannot be projected into a valid Midnight
-DID Document, and `notAllowedLocalDuplicateKey` for duplicate
-verification-method keys in the normalized ledger state. Resolver-specific extension values MAY be used when
-they are registered or documented as a single ASCII keyword that starts with a
+Failure responses from `resolveDIDResolutionResult` and
+`resolveRepresentation` set `didResolutionMetadata.error` to a keyword string.
+They use `invalidDid`, `notFound`, and `representationNotSupported` for those DID
+Core-defined cases and use keywords such as `methodNotSupported` and
+`internalError` for broader resolver failures. In contrast, public
+`resolve(did)` throws instead of returning error metadata. This implementation
+also uses `invalidDid` for ledger state that cannot be projected into a valid
+Midnight DID Document and `notAllowedLocalDuplicateKey` for duplicate
+verification-method keys in normalized ledger state. Resolver-specific
+extension values are documented as single ASCII keywords that start with a
 letter.
 
 The method document profile requires `@context` in resolved Midnight DID
@@ -1170,9 +1205,9 @@ Applications that delegate proving still trust the proof server and its transpor
 
 ## 8.3. Resolver, indexer, and finality trust
 
-Resolution reads are indexer-backed in the reference implementation. A resolver that trusts a compromised, rogue, stale, or unfinalized indexer response can return a forged or stale DID Document. Indexer and resolver operators SHOULD use trusted indexer deployments, protect endpoint transport, monitor freshness, and prefer finalized or pinned reads when provider APIs expose block-height or block-hash constraints.
+Resolution reads are indexer-backed in the reference implementation, and the configured indexer/public-data provider is trusted. A compromised, rogue, stale, or unfinalized response can produce a forged or stale DID Document or an incorrect `notFound` result. Indexer and resolver operators SHOULD protect endpoint transport, monitor freshness, and use finalized or explicitly pinned reads when their trusted provider exposes block-height or block-hash constraints.
 
-Resolvers and consumers MUST treat indexer or resolver failures as availability failures, not as proof that a DID does not exist or has been deactivated. If an application requires a finality latency bound or independent state integrity check, it MUST define that policy above this specification version or use a resolver profile that exposes the required proof or block pin.
+Resolvers and consumers MUST treat unavailable, failed, stale, or untrusted reads as inconclusive. They do not prove that a DID is absent or deactivated, and they do not prove transaction finality. A provider-returned `null` maps to `notFound` only inside the configured provider's trust boundary. Version 0.6 supplies no light client, independent indexer state-proof verification, or independent consensus/finality check. Applications requiring those assurances MUST define and implement them above this resolver profile; selecting a block height or hash alone is not proof verification.
 
 ## 8.4. Client-asserted metadata
 
