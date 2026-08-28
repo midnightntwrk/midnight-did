@@ -6,10 +6,17 @@ import {
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  createControllerAuthorization: vi.fn(async () => [
-    { announcement: { x: 1n, y: 2n }, response: 3n },
-    7n,
-  ]),
+  createControllerAuthorization: vi.fn(
+    async (
+      _contract: unknown,
+      _providers: unknown,
+      digest: (ledgerState: unknown) => unknown,
+      ledgerState: unknown,
+    ) => {
+      digest(ledgerState);
+      return [{ announcement: { x: 1n, y: 2n }, response: 3n }, 7n];
+    },
+  ),
   registeredContractProviders: vi.fn(),
   assertVerificationMethodIsNotReferenced: vi.fn(),
   assertExistingVerificationMethodRelationsCompatible: vi.fn(),
@@ -19,6 +26,19 @@ const mocks = vi.hoisted(() => ({
   requireDeployedMidnightDIDLedgerState: vi.fn(),
   schnorrJubjubVerificationMethodToLedger: vi.fn(),
   verificationMethodToLedger: vi.fn(),
+  removeSchnorrJubjubVerificationMethodAuthorizationDigest: vi.fn(
+    (...args: unknown[]) => args,
+  ),
+  removeVerificationMethodAuthorizationDigest: vi.fn(
+    (...args: unknown[]) => args,
+  ),
+  setSchnorrJubjubVerificationMethodAuthorizationDigest: vi.fn(
+    (...args: unknown[]) => args,
+  ),
+  setVerificationMethodAuthorizationDigest: vi.fn((...args: unknown[]) => args),
+  setVerificationMethodRelationAuthorizationDigest: vi.fn(
+    (...args: unknown[]) => args,
+  ),
 }));
 
 vi.mock("@midnight-ntwrk/midnight-did-contract", () => ({
@@ -26,11 +46,16 @@ vi.mock("@midnight-ntwrk/midnight-did-contract", () => ({
     MapMutation: { Insert: "insert", Update: "update" },
     SetMutation: { Insert: "insert", Remove: "remove" },
     pureCircuits: {
-      removeSchnorrJubjubVerificationMethodAuthorizationDigest: vi.fn(),
-      removeVerificationMethodAuthorizationDigest: vi.fn(),
-      setSchnorrJubjubVerificationMethodAuthorizationDigest: vi.fn(),
-      setVerificationMethodAuthorizationDigest: vi.fn(),
-      setVerificationMethodRelationAuthorizationDigest: vi.fn(),
+      removeSchnorrJubjubVerificationMethodAuthorizationDigest:
+        mocks.removeSchnorrJubjubVerificationMethodAuthorizationDigest,
+      removeVerificationMethodAuthorizationDigest:
+        mocks.removeVerificationMethodAuthorizationDigest,
+      setSchnorrJubjubVerificationMethodAuthorizationDigest:
+        mocks.setSchnorrJubjubVerificationMethodAuthorizationDigest,
+      setVerificationMethodAuthorizationDigest:
+        mocks.setVerificationMethodAuthorizationDigest,
+      setVerificationMethodRelationAuthorizationDigest:
+        mocks.setVerificationMethodRelationAuthorizationDigest,
     },
   },
 }));
@@ -74,6 +99,8 @@ vi.mock("../verification-method-relations.js", () => ({
 import { getDidSubject } from "../did-subject.js";
 import { type DeployedMidnightDIDContract } from "../types.js";
 import {
+  addSchnorrJubjubVerificationMethod,
+  addVerificationMethod,
   addVerificationMethodRelation,
   removeSchnorrJubjubVerificationMethod,
   removeVerificationMethod,
@@ -131,6 +158,8 @@ const stateWithMethod = (
   kind: "opaque" | "schnorrJubjub" = "schnorrJubjub",
 ) =>
   ({
+    id: "ledger-id",
+    version: 12n,
     verificationMethods: {
       member: (candidate: string) =>
         kind === "opaque" && candidate === methodId,
@@ -151,6 +180,99 @@ describe("verification method operations", () => {
     vi.clearAllMocks();
     mocks.registeredContractProviders.mockReset();
   });
+
+  it("adds opaque and SchnorrJubjub methods with insert authorization bound to current state", async () => {
+    const didSubject = getDidSubject(didContract);
+    const opaqueMethod = {
+      id: `${didSubject}#key-1`,
+      publicKeyJwk: { crv: "Ed25519" },
+    };
+    const schnorrMethod = {
+      id: `${didSubject}#jubjub-1`,
+      publicKey: { x: 1n, y: 2n },
+    };
+    const didState = stateWithMethod("#absent", "opaque");
+    mocks.requireDeployedMidnightDIDLedgerState.mockResolvedValue(didState);
+    mocks.verificationMethodToLedger.mockReturnValue(opaqueMethod);
+    mocks.schnorrJubjubVerificationMethodToLedger.mockReturnValue(
+      schnorrMethod,
+    );
+
+    await expect(
+      addVerificationMethod(didContract, providers, opaqueMethod as never),
+    ).resolves.toEqual({ txId: "update" });
+    expect(mocks.setVerificationMethodAuthorizationDigest).toHaveBeenCalledWith(
+      "ledger-id",
+      12n,
+      opaqueMethod,
+      "insert",
+    );
+    expect(didContract.callTx.setVerificationMethod).toHaveBeenCalledWith(
+      opaqueMethod,
+      "insert",
+      { announcement: { x: 1n, y: 2n }, response: 3n },
+      7n,
+    );
+
+    await expect(
+      addSchnorrJubjubVerificationMethod(didContract, providers, schnorrMethod),
+    ).resolves.toEqual({ txId: "update-schnorr" });
+    expect(
+      mocks.setSchnorrJubjubVerificationMethodAuthorizationDigest,
+    ).toHaveBeenCalledWith("ledger-id", 12n, schnorrMethod, "insert");
+    expect(
+      didContract.callTx.setSchnorrJubjubVerificationMethod,
+    ).toHaveBeenCalledWith(
+      schnorrMethod,
+      "insert",
+      { announcement: { x: 1n, y: 2n }, response: 3n },
+      7n,
+    );
+  });
+
+  it.each([
+    ["opaque", addVerificationMethod, "setVerificationMethod"],
+    [
+      "SchnorrJubjub",
+      addSchnorrJubjubVerificationMethod,
+      "setSchnorrJubjubVerificationMethod",
+    ],
+  ] as const)(
+    "rejects duplicate %s additions before authorization or submission",
+    async (kind, add, callName) => {
+      const didSubject = getDidSubject(didContract);
+      const methodId = kind === "opaque" ? "#key-1" : "#jubjub-1";
+      const ledgerMethod =
+        kind === "opaque"
+          ? {
+              id: `${didSubject}${methodId}`,
+              publicKeyJwk: { crv: "Ed25519" },
+            }
+          : {
+              id: `${didSubject}${methodId}`,
+              publicKey: { x: 1n, y: 2n },
+            };
+      mocks.requireDeployedMidnightDIDLedgerState.mockResolvedValue(
+        stateWithMethod(
+          `${didSubject}${methodId}`,
+          kind === "opaque" ? "opaque" : "schnorrJubjub",
+        ),
+      );
+      if (kind === "opaque") {
+        mocks.verificationMethodToLedger.mockReturnValue(ledgerMethod);
+      } else {
+        mocks.schnorrJubjubVerificationMethodToLedger.mockReturnValue(
+          ledgerMethod,
+        );
+      }
+
+      await expect(
+        add(didContract, providers, ledgerMethod as never),
+      ).rejects.toThrow(/already exists/);
+      expect(mocks.createControllerAuthorization).not.toHaveBeenCalled();
+      expect(didContract.callTx[callName]).not.toHaveBeenCalled();
+    },
+  );
 
   it("updates an existing legacy fragment-keyed verification method", async () => {
     const didSubject = getDidSubject(didContract);
@@ -183,6 +305,62 @@ describe("verification method operations", () => {
       expect.any(Function),
       didState,
     );
+    expect(mocks.setVerificationMethodAuthorizationDigest).toHaveBeenCalledWith(
+      "ledger-id",
+      12n,
+      { ...canonicalMethod, id: "#key-1" },
+      "update",
+    );
+  });
+
+  it("rejects absent, wrong-kind, and relation-incompatible opaque updates before authorization", async () => {
+    const didSubject = getDidSubject(didContract);
+    const canonicalMethod = {
+      id: `${didSubject}#key-1`,
+      publicKeyJwk: { crv: "Ed25519" },
+    };
+    mocks.verificationMethodToLedger.mockReturnValue(canonicalMethod);
+
+    mocks.requireDeployedMidnightDIDLedgerState.mockResolvedValueOnce(
+      stateWithMethod("#other", "opaque"),
+    );
+    await expect(
+      updateVerificationMethod(
+        didContract,
+        providers,
+        canonicalMethod as never,
+      ),
+    ).rejects.toThrow(/does not exist/);
+
+    mocks.requireDeployedMidnightDIDLedgerState.mockResolvedValueOnce(
+      stateWithMethod("#key-1", "schnorrJubjub"),
+    );
+    await expect(
+      updateVerificationMethod(
+        didContract,
+        providers,
+        canonicalMethod as never,
+      ),
+    ).rejects.toThrow(/stored as schnorrJubjub, not opaque/);
+
+    mocks.requireDeployedMidnightDIDLedgerState.mockResolvedValueOnce(
+      stateWithMethod("#key-1", "opaque"),
+    );
+    mocks.assertExistingVerificationMethodRelationsCompatible.mockImplementationOnce(
+      () => {
+        throw new Error("existing relation is incompatible");
+      },
+    );
+    await expect(
+      updateVerificationMethod(
+        didContract,
+        providers,
+        canonicalMethod as never,
+      ),
+    ).rejects.toThrow(/incompatible/);
+
+    expect(mocks.createControllerAuthorization).not.toHaveBeenCalled();
+    expect(didContract.callTx.setVerificationMethod).not.toHaveBeenCalled();
   });
 
   it("rejects ambiguous canonical and legacy method records before authorization", async () => {
@@ -236,6 +414,14 @@ describe("verification method operations", () => {
       expect.any(Function),
       didState,
     );
+    expect(
+      mocks.setSchnorrJubjubVerificationMethodAuthorizationDigest,
+    ).toHaveBeenCalledWith(
+      "ledger-id",
+      12n,
+      { id: "#jubjub-1", publicKey: { x: 1n, y: 2n } },
+      "update",
+    );
 
     await expect(
       removeSchnorrJubjubVerificationMethod(
@@ -251,6 +437,9 @@ describe("verification method operations", () => {
     expect(
       didContract.callTx.removeSchnorrJubjubVerificationMethod,
     ).toHaveBeenCalledWith("#jubjub-1", expect.anything(), 7n);
+    expect(
+      mocks.removeSchnorrJubjubVerificationMethodAuthorizationDigest,
+    ).toHaveBeenCalledWith("ledger-id", 12n, "#jubjub-1");
     expect(
       didContract.callTx.setVerificationMethodRelation,
     ).not.toHaveBeenCalled();
@@ -283,6 +472,9 @@ describe("verification method operations", () => {
       expect.any(Function),
       didState,
     );
+    expect(
+      mocks.removeVerificationMethodAuthorizationDigest,
+    ).toHaveBeenCalledWith("ledger-id", 12n, "#key-1");
   });
 
   it("preflights and removes by the canonical physical ledger id", async () => {
@@ -365,12 +557,71 @@ describe("verification method operations", () => {
     expect(
       didContract.callTx.setVerificationMethodRelation,
     ).toHaveBeenCalledWith(
-      expect.anything(),
+      "authentication",
       "#key-1",
-      expect.anything(),
-      expect.anything(),
+      "insert",
+      { announcement: { x: 1n, y: 2n }, response: 3n },
       7n,
     );
+    expect(
+      mocks.setVerificationMethodRelationAuthorizationDigest,
+    ).toHaveBeenCalledWith(
+      "ledger-id",
+      12n,
+      "authentication",
+      "#key-1",
+      "insert",
+    );
+  });
+
+  it("rejects duplicate, incompatible, and missing relation mutations before authorization", async () => {
+    const didSubject = getDidSubject(didContract);
+    mocks.requireDeployedMidnightDIDLedgerState.mockResolvedValue(
+      stateWithMethod("#key-1", "opaque"),
+    );
+
+    mocks.assertVerificationMethodRelationAbsent.mockImplementationOnce(() => {
+      throw new Error("relation already contains method");
+    });
+    await expect(
+      addVerificationMethodRelation(
+        didContract,
+        providers,
+        VerificationMethodRelationType.Authentication,
+        `${didSubject}#key-1`,
+      ),
+    ).rejects.toThrow(/already contains/);
+
+    mocks.assertVerificationMethodRelationCompatible.mockImplementationOnce(
+      () => {
+        throw new Error("relation is incompatible");
+      },
+    );
+    await expect(
+      addVerificationMethodRelation(
+        didContract,
+        providers,
+        VerificationMethodRelationType.Authentication,
+        `${didSubject}#key-1`,
+      ),
+    ).rejects.toThrow(/incompatible/);
+
+    mocks.assertVerificationMethodRelationPresent.mockImplementationOnce(() => {
+      throw new Error("relation does not contain method");
+    });
+    await expect(
+      removeVerificationMethodRelation(
+        didContract,
+        providers,
+        VerificationMethodRelationType.Authentication,
+        `${didSubject}#key-1`,
+      ),
+    ).rejects.toThrow(/does not contain/);
+
+    expect(mocks.createControllerAuthorization).not.toHaveBeenCalled();
+    expect(
+      didContract.callTx.setVerificationMethodRelation,
+    ).not.toHaveBeenCalled();
   });
 
   it("removes a relation using the existing legacy verification-method key", async () => {
@@ -395,11 +646,20 @@ describe("verification method operations", () => {
     expect(
       didContract.callTx.setVerificationMethodRelation,
     ).toHaveBeenCalledWith(
-      expect.anything(),
+      "authentication",
       "#key-1",
-      expect.anything(),
-      expect.anything(),
+      "remove",
+      { announcement: { x: 1n, y: 2n }, response: 3n },
       7n,
+    );
+    expect(
+      mocks.setVerificationMethodRelationAuthorizationDigest,
+    ).toHaveBeenCalledWith(
+      "ledger-id",
+      12n,
+      "authentication",
+      "#key-1",
+      "remove",
     );
     expect(mocks.createControllerAuthorization).toHaveBeenCalledWith(
       didContract,
