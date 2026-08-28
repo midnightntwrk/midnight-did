@@ -634,6 +634,68 @@ test("keeps direct reviewed release scripts outside recursive runner scanning", 
   );
 });
 
+test("keeps npm administration exact and package production pnpm-only", async () => {
+  const publishScript = await text("scripts/publish-npm-packages.sh");
+  const tree = shellParser.parse(publishScript);
+  assert.equal(tree.rootNode.hasError, false, "publisher must parse as Bash");
+
+  const npmSubcommands = new Set();
+  let pnpmCommandCount = 0;
+  const visit = (node) => {
+    if (node.type === "command") {
+      const { name, args } = commandParts(node);
+      const executable = name == null ? null : executableName(name);
+      if (executable === "npm") npmSubcommands.add(args[0]?.value);
+      if (executable === "pnpm") pnpmCommandCount += 1;
+    }
+    node.namedChildren.forEach(visit);
+  };
+  visit(tree.rootNode);
+
+  assert.deepEqual(
+    npmSubcommands,
+    new Set(["view", "access", "dist-tag"]),
+    "npm must remain limited to the audited read/access/tag administration set",
+  );
+  assert.equal(
+    pnpmCommandCount,
+    1,
+    "publisher should have one pnpm producer call site",
+  );
+  assert.match(
+    publishScript,
+    /publish_args=\(publish --provenance --no-git-checks/,
+    "pnpm publication must retain provenance",
+  );
+  assert.match(publishScript, /pnpm\s+"\$\{publish_args\[@\]\}"/);
+  assert.doesNotMatch(publishScript, /\bnpm\s+(?:publish|pack)\b/);
+  assert.doesNotMatch(publishScript, /\bnpx\b/);
+  assert.doesNotMatch(publishScript, /--no-provenance\b/);
+});
+
+test("keeps the npm write token out of public post-publish smoke", async () => {
+  const workflow = loadYaml(await text(".github/workflows/publish.yml"));
+  const steps = workflow.jobs.publish.steps;
+  const publishStep = steps.find(
+    ({ name }) => name === "Publish npm packages to npmjs",
+  );
+  const smokeStep = steps.find(
+    ({ name }) => name === "Smoke test packages from npmjs",
+  );
+
+  assert.match(
+    publishStep.env.NODE_AUTH_TOKEN,
+    /MIDNIGHTCI_NPMJS_TOKEN/,
+    "the producer step still needs the npm publication credential",
+  );
+  assert.equal(
+    Object.hasOwn(smokeStep.env, "NODE_AUTH_TOKEN"),
+    false,
+    "the public --skip-zk smoke must not receive the write-capable npm token",
+  );
+  assert.match(smokeStep.run, /release-smoke-npm-packages\.sh/);
+});
+
 function compareVersions(left, right) {
   const leftParts = left.split(".").map(Number);
   const rightParts = right.split(".").map(Number);
