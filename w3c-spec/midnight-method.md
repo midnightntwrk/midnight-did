@@ -720,7 +720,7 @@ Before an update, removal, relationship operation, service operation, or ledger-
 
 This lookup preserves existing subject-fragment deployments without automatic state migration or redeployment. The `verificationMethods` and `schnorrJubjubVerificationMethods` maps share one logical identifier namespace. Resolvers MUST reject duplicate identifiers across the two maps after full absolute-DID-URL normalization, and relation sets MAY target entries from either map. The two maps are not duplicate storage for the same key material: each verification method is stored in exactly one representation.
 
-Because Compact treats `Opaque<"string">` identifiers as opaque values, DID URL reference resolution and subject binding are SDK/resolver responsibilities. The TypeScript API resolves references before submission; resolvers reject states that would produce duplicate full canonical identifiers.
+Because Compact treats `Opaque<"string">` identifiers as opaque values, DID URL reference resolution and subject binding are SDK/resolver responsibilities in the 0.6 ledger schema. The TypeScript API resolves and subject-binds references before submission. Resolvers reject foreign verification-method subjects instead of emitting them and reject identifiers that collide after full canonical normalization.
 
 ### 6.2. Contract version, maintenance authority, and migration
 
@@ -853,11 +853,22 @@ They use `invalidDid`, `notFound`, and `representationNotSupported` for those DI
 Core-defined cases and use keywords such as `methodNotSupported` and
 `internalError` for broader resolver failures. In contrast, public
 `resolve(did)` throws instead of returning error metadata. This implementation
-also uses `invalidDid` for ledger state that cannot be projected into a valid
-Midnight DID Document and `notAllowedLocalDuplicateKey` for duplicate
-verification-method keys in normalized ledger state. Resolver-specific
-extension values are documented as single ASCII keywords that start with a
-letter.
+uses the following deterministic malformed-ledger-state policy:
+
+| Ledger projection failure | 0.6 keyword |
+| --- | --- |
+| Malformed, non-canonical, or wrong-length profile-specific JWK coordinate; non-empty OKP `y` | `invalidPublicKey` |
+| Malformed service, alias, verification-method subject, or DID URL reference | `invalidDid` |
+| Verification-method identifiers that collide after canonicalization, within or across physical stores | `notAllowedLocalDuplicateKey` |
+| Unexpected provider, runtime, or programmer failure | `internalError` |
+
+For these failures, `resolveDIDResolutionResult` returns a null `didDocument`
+and `resolveRepresentation` returns a null `didDocumentStream`; both carry the
+keyword in `didResolutionMetadata.error`. The convenience `resolve(did)` API
+retains its throwing behavior. Resolver-specific extension values are
+documented as single ASCII keywords that start with a letter. These diagnostics
+classify projection of the configured reader's response; they do not
+authenticate that response or prove freshness or finality.
 
 The method document profile requires `@context` in resolved Midnight DID
 Documents. Producers of `application/did+ld+json` MUST include it. Producers of
@@ -874,7 +885,44 @@ Each update circuit requires a controller Schnorr signature over the DID contrac
 
 For an operation targeting an existing verification method or service, the SDK resolves canonical identity to the sole existing canonical or compatible legacy physical key according to Section 6.1. The selected physical key is used consistently for state preflight, authorization, and circuit submission. Canonical and legacy records for the same identity are an error, not a precedence rule.
 
-Conformance note: due to Compact language limitations for rich URI/data-model validation, normative checks for DID URL subject binding and DID Core structure conformance (for example `serviceEndpoint` shape), JWK/base64url canonicality, opaque JWK shape (for example OKP omits `y` while EC includes `y`), and non-native key parsing are enforced at the SDK/resolver layers (`domain`, `api`, `did`). The smart contract enforces authorization, exact ledger identifier existence/uniqueness, supported opaque JWK key/curve profiles, native SchnorrJubjub point storage, and state-transition invariants.
+The TypeScript API is the mandatory supported integration boundary for updates.
+Integrators MUST NOT submit exported Compact mutation circuits directly. Such a
+call is still controller-authorized, versioned, and argument-bound, but it
+bypasses SDK validation and can store opaque values outside the resolver's
+accepted document domain.
+
+The 0.6 validation boundary has three categories:
+
+1. **Enforced by the current contract.** Controller authorization, expected
+   version, exact physical identifier existence/uniqueness (including an exact
+   raw key shared by the opaque and native stores), supported opaque JWK
+   `kty`/`crv` profiles, native SchnorrJubjub point storage, relation
+   compatibility, and state-transition invariants.
+2. **Expressible as a bounded Compact defense but deferred in 0.6.** For a
+   supported OKP profile, equality against the empty `Opaque<"string">` sentinel
+   could reject non-empty `y`. Adding that defense changes circuit artifacts and
+   has not been justified for the compatibility-frozen 0.6 candidate; it is a
+   0.7 hardening item. Resolver and SDK validation remain normative in 0.6.
+3. **SDK/resolver-only with the current schema, or requiring a future
+   migration.** Base64url parsing/canonicality, URI and JSON service parsing,
+   DID-subject binding, and canonical identifier normalization require rich
+   string/data-model processing unavailable for opaque values. Enforcing
+   profile-specific coordinate lengths in contract requires replacing or
+   profile-tagging opaque coordinates with fixed-size byte representations;
+   fragment-only identifiers and structured services likewise require a ledger
+   schema/circuit design and migration. These changes are deferred to 0.7.
+
+The resolver applies the malformed-ledger-state policy in Section 7.2.3 and
+fails closed: foreign verification-method subjects are rejected rather than
+emitted, and same-store or cross-store canonical aliases are rejected as
+`notAllowedLocalDuplicateKey`. Raw state is durable but is not necessarily
+permanent. While the contract is active and controller custody remains, an
+operator can repair it through supported operations: remove every verification
+relationship that references an offending physical verification method before
+removing or updating that method, or update/remove an offending service. Each
+repair is separately finalized, so the operator MUST re-read trusted finalized
+state between steps. If controller custody is lost or the contract is inactive,
+0.6 provides no automatic repair or migration path.
 
 Each update operation is implemented by a small set/toggle circuit surface in the `did.compact` contract:
 - `rotateControllerKey` - rotates the DID controller commitment to a locally derived controller public key
