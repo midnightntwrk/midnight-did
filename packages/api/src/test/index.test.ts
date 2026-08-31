@@ -1,6 +1,9 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
-import type { RuntimeToDomainNetworkMap } from "../index.js";
+import type {
+  DIDContractDeploymentSetupStage,
+  RuntimeToDomainNetworkMap,
+} from "../index.js";
 import type { RuntimeToDomainNetworkMap as InternalRuntimeToDomainNetworkMap } from "../network-mapping.js";
 
 vi.mock("@midnight-ntwrk/midnight-js-http-client-proof-provider", () => {
@@ -28,6 +31,12 @@ describe("api package barrel", () => {
     expect(api.DomainToRuntime).toBeDefined();
     expect(api.RuntimeToDomain).toBeDefined();
     expectTypeOf<RuntimeToDomainNetworkMap>().toEqualTypeOf<InternalRuntimeToDomainNetworkMap>();
+    expectTypeOf<DIDContractDeploymentSetupStage>().toEqualTypeOf<
+      | "target_reservation"
+      | "private_state_persistence"
+      | "signing_key_persistence"
+      | "contract_handle_construction"
+    >();
   });
 
   it("keeps public lib runtime exports available through the package barrel", async () => {
@@ -52,12 +61,19 @@ describe("api package barrel", () => {
       "deactivate",
       "deploy",
       "deriveUnshieldedAddressFromSeed",
+      "DIDContractDeploymentFinalizedPrivateStateIncompleteError",
+      "discardPendingControllerPrivateState",
       "getMidnightDIDLedgerState",
       "getMidnightNetwork",
       "getWalletBalances",
       "initPrivateState",
       "joinContract",
       "midnightDIDContractInstance",
+      "MidnightDidApiError",
+      "PendingControllerPrivateStateBusyError",
+      "PendingControllerPrivateStateExistsError",
+      "PendingControllerPrivateStateUnavailableError",
+      "PrivateStateProviderContractMismatchError",
       "recoverControllerKey",
       "recoverPendingControllerPrivateState",
       "registerForDustGeneration",
@@ -78,6 +94,7 @@ describe("api package barrel", () => {
       "updateSchnorrJubjubVerificationMethod",
       "updateService",
       "updateVerificationMethod",
+      "VerificationMethodReferencedError",
       "verifySchnorrJubjubDigestSignature",
       "waitForWalletFunds",
       "waitForWalletSync",
@@ -138,7 +155,9 @@ describe("api package barrel", () => {
       "deactivate",
       "deploy",
       "deriveUnshieldedAddressFromSeed",
+      "DIDContractDeploymentFinalizedPrivateStateIncompleteError",
       "downloadMidnightDidGithubReleaseZkArtifacts",
+      "discardPendingControllerPrivateState",
       "getMidnightDIDLedgerState",
       "getMidnightNetwork",
       "getMidnightNetworkProfile",
@@ -148,6 +167,11 @@ describe("api package barrel", () => {
       "joinContract",
       "midnightDIDContractInstance",
       "MidnightDIDPendingControllerPrivateStateId",
+      "MidnightDidApiError",
+      "PendingControllerPrivateStateBusyError",
+      "PendingControllerPrivateStateExistsError",
+      "PendingControllerPrivateStateUnavailableError",
+      "PrivateStateProviderContractMismatchError",
       "pullMidnightDidGhcrZkArtifacts",
       "recoverControllerKey",
       "recoverPendingControllerPrivateState",
@@ -172,6 +196,7 @@ describe("api package barrel", () => {
       "updateSchnorrJubjubVerificationMethod",
       "updateService",
       "updateVerificationMethod",
+      "VerificationMethodReferencedError",
       "verifySchnorrJubjubDigestSignature",
       "verifyMidnightDidZkArtifactManifest",
       "waitForWalletFunds",

@@ -13,7 +13,7 @@ The contract enforces:
 - exact ledger identifier existence and uniqueness;
 - supported opaque JWK key/curve profiles;
 - native SchnorrJubjub point storage;
-- relation cleanup invariants where the operation requires it.
+- verification-method deletion guards that reject every still-referenced method.
 
 The SDK/domain/resolver layers enforce DID URL subject binding, fragment
 normalization, DID Core object shape, service endpoint shape, JWK canonicality,
@@ -25,9 +25,9 @@ and resolved DID Document output.
 | --- | --- | --- | --- |
 | `rotateControllerKey` | `rotateControllerKey` | `controllerPublicKey`, `updated`, `version` | Replaces the controller Jubjub public key with a locally derived public key |
 | `setVerificationMethod` | `addVerificationMethod`, `updateVerificationMethod` | `verificationMethods` | `MapMutation.Insert` or `MapMutation.Update` |
-| `removeVerificationMethod` | `removeVerificationMethod` | `verificationMethods`, relation sets | Remove after relation cleanup |
+| `removeVerificationMethod` | `removeVerificationMethod` | `verificationMethods` | Reject while any relation set references the method |
 | `setSchnorrJubjubVerificationMethod` | `addSchnorrJubjubVerificationMethod`, `updateSchnorrJubjubVerificationMethod` | `schnorrJubjubVerificationMethods` | `MapMutation.Insert` or `MapMutation.Update` |
-| `removeSchnorrJubjubVerificationMethod` | `removeSchnorrJubjubVerificationMethod` | `schnorrJubjubVerificationMethods`, relation sets | Remove after relation cleanup |
+| `removeSchnorrJubjubVerificationMethod` | `removeSchnorrJubjubVerificationMethod` | `schnorrJubjubVerificationMethods` | Reject while any relation set references the method |
 | `verifySchnorrJubjubDigestSignature` | `verifySchnorrJubjubDigestSignature` | Reads `schnorrJubjubVerificationMethods` | Non-mutating transaction-backed proof |
 | `setVerificationMethodRelation` | `addVerificationMethodRelation`, `removeVerificationMethodRelation` | `authentication`, `assertionMethod`, `keyAgreement`, `capabilityInvocation`, `capabilityDelegation` | `SetMutation.Insert` or `SetMutation.Remove` |
 | `setService` | `addService`, `updateService` | `services` | `MapMutation.Insert` or `MapMutation.Update` |
@@ -67,6 +67,14 @@ mutation enums instead of ambiguous booleans. The API can still expose natural
 helpers such as `addVerificationMethod` and `updateVerificationMethod`; those
 helpers map to the same circuit with the appropriate mutation value.
 
+Each API mutation maps to one circuit call. In particular, verification-method
+removal does not compose relationship cleanup: applications explicitly call
+`removeVerificationMethodRelation` for each selected relationship before the
+method-removal circuit. Those transactions finalize independently and cannot be
+made atomic by merging Midnight contract-call sections. The contract remains
+authoritative by checking every relation set during method removal, while the
+API mirrors the check as typed preflight feedback.
+
 ## Key Storage
 
 Non-native JWK keys are stored as opaque canonical strings in
@@ -84,3 +92,9 @@ digest, and private signature. The private circuit inputs are the digest and
 signature, not the controller secret. It reads the public key from
 `schnorrJubjubVerificationMethods`, so the proof is tied to the current DID
 ledger state instead of a caller-supplied public key.
+
+Use the provider-aware overload so the SDK can fail closed while selecting the
+sole canonical or compatible legacy ledger key. The deprecated four-argument
+overload performs the same state-aware lookup for contract handles returned by
+`deploy`, `createDID`, or `joinContract`; unregistered handles retain only the
+historical fragment-key fallback.

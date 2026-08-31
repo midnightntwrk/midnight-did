@@ -41,6 +41,7 @@ import {
   MidnightNetwork,
   parseContractAddress,
 } from "../index.js";
+import { LedgerDocumentValidationError } from "../ledger-to-domain.js";
 
 function makeIterablePairs<K, V>(entries: Array<[K, V]>) {
   return {
@@ -59,6 +60,20 @@ function makeIterable<T>(items: T[]) {
     isEmpty: () => items.length === 0,
   } as any;
 }
+
+const expectLedgerValidationCode = (
+  project: () => unknown,
+  resolutionCode:
+    "invalidDid" | "invalidPublicKey" | "notAllowedLocalDuplicateKey",
+): void => {
+  try {
+    project();
+    throw new Error("Expected ledger projection to fail");
+  } catch (error) {
+    expect(error).toBeInstanceOf(LedgerDocumentValidationError);
+    expect(error).toMatchObject({ resolutionCode });
+  }
+};
 
 describe("LedgerToDomain (unit, mocked managed runtime)", () => {
   const bytes32 = (fill: number) => new Uint8Array(32).fill(fill);
@@ -362,6 +377,25 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
         `${did}/${reference.startsWith("/") ? reference.slice(1) : reference}`,
       );
     }
+    expect(LedgerToDomain.absoluteDidUrlReference(did, "/keys/a")).toBe(
+      `${did}/keys/a`,
+    );
+    expect(LedgerToDomain.absoluteDidUrlReference(did, "./keys/a")).toBe(
+      `${did}/keys/a`,
+    );
+  });
+
+  it("classifies network-path verification method ids as invalid ledger data", () => {
+    const did = `did:midnight:devnet:${"a".repeat(64)}`;
+
+    expect(() =>
+      LedgerToDomain.absoluteDidUrlReference(did, "//attacker.example/key"),
+    ).toThrow(LedgerDocumentValidationError);
+    try {
+      LedgerToDomain.absoluteDidUrlReference(did, "//attacker.example/key");
+    } catch (error) {
+      expect(error).toMatchObject({ resolutionCode: "invalidDid" });
+    }
   });
 
   it("preserves explicit ledger JSON identifiers and normalizes legacy labels", () => {
@@ -469,6 +503,28 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     );
   });
 
+  it("ledgerStateToDIDDocument accepts legacy foreign-DID service identifiers", () => {
+    const addr = parseContractAddress("0".repeat(64));
+    stubLedger.services = makeIterablePairs<string, any>([
+      [
+        "legacy-foreign-service",
+        {
+          id: "did:example:other#service-1",
+          typ: "LinkedDomains",
+          serviceEndpoint: JSON.stringify("https://messaging.example"),
+        },
+      ],
+    ]);
+
+    const doc = LedgerToDomain.ledgerStateToDIDDocument(
+      stubLedger,
+      MidnightNetwork.DevNet,
+      addr,
+    );
+
+    expect(doc.service?.[0]?.id).toBe("did:example:other#service-1");
+  });
+
   it("ledgerStateToDIDDocument uses normalized ledger service identifiers", () => {
     const addr = parseContractAddress("0".repeat(64));
     const didSubject = `did:midnight:devnet:${"0".repeat(64)}`;
@@ -551,29 +607,104 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(doc.assertionMethod).toEqual([`${didSubject}#key-schnorr-jubjub`]);
   });
 
-  it("ledgerStateToDIDDocument rejects duplicate normalized verification method ids", () => {
-    const addr = parseContractAddress("0".repeat(64));
-    stubLedger.schnorrJubjubVerificationMethods = makeIterablePairs<
-      string,
-      any
-    >([
-      [
-        "#key-1",
-        {
-          id: "#key-1",
-          publicKey: { x: 1n, y: 256n },
-        },
-      ],
-    ]);
+  it.each([
+    {
+      name: "malformed supported-profile JWK material",
+      resolutionCode: "invalidPublicKey" as const,
+      mutate: (ledger: any): void => {
+        const [[id, method]] = Array.from(ledger.verificationMethods) as Array<
+          [string, any]
+        >;
+        ledger.verificationMethods = makeIterablePairs([
+          [
+            id,
+            { ...method, publicKeyJwk: { ...method.publicKeyJwk, x: "bad" } },
+          ],
+        ]);
+      },
+    },
+    {
+      name: "non-empty OKP y",
+      resolutionCode: "invalidPublicKey" as const,
+      mutate: (ledger: any): void => {
+        const [[id, method]] = Array.from(ledger.verificationMethods) as Array<
+          [string, any]
+        >;
+        ledger.verificationMethods = makeIterablePairs([
+          [
+            id,
+            {
+              ...method,
+              publicKeyJwk: { ...method.publicKeyJwk, y: keyString(2) },
+            },
+          ],
+        ]);
+      },
+    },
+    {
+      name: "malformed service payload",
+      resolutionCode: "invalidDid" as const,
+      mutate: (ledger: any): void => {
+        ledger.services = makeIterablePairs([
+          [
+            "malformed-service",
+            { id: "#service-1", typ: "", serviceEndpoint: "{not-json" },
+          ],
+        ]);
+      },
+    },
+    {
+      name: "foreign verification-method subject",
+      resolutionCode: "invalidDid" as const,
+      mutate: (ledger: any): void => {
+        const [[, method]] = Array.from(ledger.verificationMethods) as Array<
+          [string, any]
+        >;
+        ledger.verificationMethods = makeIterablePairs([
+          [`did:midnight:devnet:${"1".repeat(64)}#key-1`, method],
+        ]);
+        ledger.authenticationRelation = makeIterable([]);
+      },
+    },
+    {
+      name: "same-store canonical alias collision",
+      resolutionCode: "notAllowedLocalDuplicateKey" as const,
+      mutate: (ledger: any): void => {
+        const [[, method]] = Array.from(ledger.verificationMethods) as Array<
+          [string, any]
+        >;
+        ledger.verificationMethods = makeIterablePairs([
+          ["key-1", method],
+          ["#key-1", method],
+        ]);
+      },
+    },
+    {
+      name: "cross-store canonical alias collision",
+      resolutionCode: "notAllowedLocalDuplicateKey" as const,
+      mutate: (ledger: any): void => {
+        ledger.schnorrJubjubVerificationMethods = makeIterablePairs([
+          ["#key-1", { publicKey: { x: 1n, y: 256n } }],
+        ]);
+      },
+    },
+  ])(
+    "ledgerStateToDIDDocument classifies $name as $resolutionCode",
+    ({ mutate, resolutionCode }) => {
+      const addr = parseContractAddress("0".repeat(64));
+      mutate(stubLedger);
 
-    expect(() =>
-      LedgerToDomain.ledgerStateToDIDDocument(
-        stubLedger,
-        MidnightNetwork.DevNet,
-        addr,
-      ),
-    ).toThrow(/Duplicate verification method id/);
-  });
+      expectLedgerValidationCode(
+        () =>
+          LedgerToDomain.ledgerStateToDIDDocument(
+            stubLedger,
+            MidnightNetwork.DevNet,
+            addr,
+          ),
+        resolutionCode,
+      );
+    },
+  );
 
   it("ledgerStateToDIDDocument rejects relations to missing verification methods", () => {
     const addr = parseContractAddress("0".repeat(64));

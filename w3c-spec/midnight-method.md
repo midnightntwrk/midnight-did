@@ -1,4 +1,4 @@
-# Midnight DID Specification Draft v0.5.0
+# Midnight DID Specification Draft v0.6.0
 
 # Status of This Document
 
@@ -317,7 +317,7 @@ Every public key object linked to the `verificationMethod` property **MUST** inc
 
 ### 3.4.1. id
 
-Each linked public key has its own identifier specified using the field `id`. The value of `verificationMethod` **MUST NOT** contain multiple entries with the same canonical `id`. The identifier **MUST** be a subject-bound DID URL with a non-empty fragment, or a relative reference that resolves to one (for example, `#key-1` or `/keys/a#key-1`). Midnight resolves relative references against the DID subject and preserves path, query, and fragment components. Canonical storage, relation comparison, and resolved Document output use the resulting absolute DID URL.
+Each linked public key has its own identifier specified using the field `id`. The value of `verificationMethod` **MUST NOT** contain multiple entries with the same canonical `id`. New mutation inputs **MUST** use a subject-bound DID URL with a non-empty fragment, or a relative reference that resolves to one (for example, `#key-1` or `/keys/a#key-1`). For read compatibility, Midnight DID Document parsing and ledger rendering also accept historical root-path and dot-relative identifiers without fragments (for example, `/keys/key-1` and `./keys/key-1`) and their canonical subject-bound absolute forms. Midnight resolves relative references against the DID subject and preserves path, query, and fragment components. Canonical relation comparison and resolved Document output use the resulting absolute DID URL. This compatibility does not admit bare labels, query-only method ids, network-path references, foreign-DID ids, or external URLs. Current mutation helpers do not update or remove path-only physical ledger keys; deployments that must migrate them require replacement DID state with fragment-bearing ids or purpose-built ledger migration tooling that targets the exact historical key.
 
 ### 3.4.2. type
 
@@ -513,7 +513,7 @@ The `service` property is OPTIONAL. If present, the associated value MUST be a s
 
 #### 3.6.1.1. Id
 
-The value of the `id` property MUST be a valid absolute URL or a relative DID URL that resolves against the DID subject. For example, valid values include `did:midnight:<network>:<addr>#service-1`, `#service-1`, `/routing`, `?service=messaging`, and an absolute non-DID URL such as `https://example.com/service`. An absolute DID URL MUST use the current Midnight DID subject; foreign-DID service identifiers are not supported by this method profile. Midnight resolves relative values using RFC3986 reference-resolution cases and preserves path, query, and fragment components. Canonical storage, duplicate comparison, API mutation, and DID Document resolution use the resulting full absolute URL; `/a#service` and `/b#service` are distinct identifiers. A conforming producer MUST NOT emit multiple service entries with the same canonical `id`, and a conforming consumer MUST produce an error if duplicate `id` values are detected.
+The value of the `id` property MUST be a valid absolute URL or a relative DID URL that resolves against the DID subject. For example, valid values include `did:midnight:<network>:<addr>#service-1`, `#service-1`, `/routing`, `?service=messaging`, and an absolute non-DID URL such as `https://example.com/service`. New service writes using an absolute DID URL MUST use the current Midnight DID subject; the API rejects foreign-DID service identifiers. Ledger resolution has one narrow compatibility exception: it preserves foreign-DID service ids already present in historical ledger state and validates the reconstructed document under that same read-only policy. Midnight resolves relative values using RFC3986 reference-resolution cases and preserves path, query, and fragment components. Canonical storage, duplicate comparison, API mutation, and DID Document resolution use the resulting full absolute URL; `/a#service` and `/b#service` are distinct identifiers. A conforming producer MUST NOT emit multiple service entries with the same canonical `id`, and a conforming consumer MUST produce an error if duplicate `id` values are detected.
 
 #### 3.6.1.2. Type
 
@@ -689,7 +689,7 @@ The following table summarizes the on-chain ledger state exported by the contrac
 
 | Field                          | Type                                         | Description |
 |--------------------------------|----------------------------------------------|-------------|
-| contractVersion                | `Uint<32>`                                   | Contract schema/version number to support upgrades and compatibility checks. |
+| contractVersion                | `Uint<32>`                                   | Contract schema/compatibility discriminator. It identifies the ledger/circuit shape a consumer expects; it is not a promise that the deployed contract can be upgraded in place. |
 | controllerPublicKey            | `JubjubPoint`                                | Active controller public key used to verify wallet-local controller authorization signatures. |
 | recoveryAuthorityPublicKey      | `JubjubPoint`                                | Dedicated recovery authority public key used only by `recoverControllerKey` to rotate `controllerPublicKey`. It is not emitted as a DID Document verification method. |
 | id                             | `ContractAddress`                            | Smart‑contract address (32‑byte / 64‑hex) that uniquely identifies the DID on Midnight. |
@@ -716,11 +716,27 @@ The following table summarizes the on-chain ledger state exported by the contrac
 
 Canonical logical identity is always the complete resolved URL. New verification-method, verification-relationship, and service records use that canonical value as the physical ledger key. Earlier deployments can contain a `#fragment` physical key for the same `did:midnight:...#fragment` logical identity.
 
-Before an update, removal, relationship operation, service operation, or ledger-bound Schnorr verification, the SDK checks both the canonical physical key and this one exact legacy alias. It MUST use the sole existing physical key in the circuit input and authorization digest. If both forms exist, it MUST fail as ambiguous rather than selecting one. New inserts MUST reject an occupied legacy alias and MUST write the canonical key. A legacy alias MUST NOT be derived for path, query, foreign-DID, or external URL identities; for example, `did:midnight:.../routing` is not an alias for the historical fragment identity `did:midnight:...#/routing`.
+Before an update, removal, relationship operation, service operation, or ledger-bound Schnorr verification, the SDK checks both the canonical physical key and this one exact legacy alias. It MUST use the sole existing physical key in the circuit input and authorization digest. If both forms exist, it MUST fail as ambiguous rather than selecting one. New inserts MUST reject an occupied legacy alias and MUST write the canonical key. A legacy alias MUST NOT be derived for path, query, foreign-DID, or external URL identities; for example, `did:midnight:.../routing` is not an alias for the historical fragment identity `did:midnight:...#/routing`. The deprecated four-argument Schnorr verifier performs this state-aware lookup when its contract handle was created by the Midnight DID API (`deploy`, `createDID`, or `joinContract`); unregistered third-party handles retain the deprecated historical fragment-key fallback and SHOULD migrate to the provider-aware overload.
 
 This lookup preserves existing subject-fragment deployments without automatic state migration or redeployment. The `verificationMethods` and `schnorrJubjubVerificationMethods` maps share one logical identifier namespace. Resolvers MUST reject duplicate identifiers across the two maps after full absolute-DID-URL normalization, and relation sets MAY target entries from either map. The two maps are not duplicate storage for the same key material: each verification method is stored in exactly one representation.
 
-Because Compact treats `Opaque<"string">` identifiers as opaque values, DID URL reference resolution and subject binding are SDK/resolver responsibilities. The TypeScript API resolves references before submission; resolvers reject states that would produce duplicate full canonical identifiers.
+Because Compact treats `Opaque<"string">` identifiers as opaque values, DID URL reference resolution and subject binding are SDK/resolver responsibilities in the 0.6 ledger schema. The TypeScript API resolves and subject-binds references before submission. Resolvers reject foreign verification-method subjects instead of emitting them and reject identifiers that collide after full canonical normalization.
+
+### 6.2. Contract version, maintenance authority, and migration
+
+`contractVersion` is a schema and compatibility discriminator. The 0.6 contract constructor writes `2`; consumers can use that value when deciding whether the ledger shape and circuit surface are compatible with the software they are running. The field does not dispatch an upgrade, promise forward compatibility, or authorize a state transition merely because a higher version exists.
+
+A deployed Compact contract also has a Contract Maintenance Authority (CMA), which is separate from the DID controller and recovery authority. The upstream `deployContract` interface accepts an optional signing key; when it is omitted, the runtime generates a fresh signing key, installs its public authority as the CMA, and stores the signing key through `PrivateStateProvider.setSigningKey` under the deployed contract address. CMA possession authorizes contract-maintenance operations exposed by the Midnight runtime. It does not authorize controller-gated DID Document mutations, and controller or recovery secrets do not substitute for a lost CMA signing key.
+
+Implementations MUST treat the CMA signing key as separate high-value custody material. The upstream private-state provider interface deliberately separates `exportPrivateStates()` from `exportSigningKeys()`: private-state export does not include signing keys.
+
+The following export details are bounded to that upstream interface and the pinned reference Level private-state provider, `levelPrivateStateProvider` from `@midnight-ntwrk/midnight-js-level-private-state-provider`; other provider implementations can define different custody surfaces. In the reference provider, `exportSigningKeys()` exports the account/provider-wide signing-key set, not only the CMA key for one DID or deployed contract.
+
+An operational backup that needs future maintenance capability MUST therefore protect the whole encrypted export at the highest sensitivity of any included key, supply an explicit independent high-entropy export password, and store the export and that password separately. The reference setup's default private-storage password is derived from wallet secret material; it MUST NOT be reused as the export password or treated as a low-sensitivity backup password. Although the reference interface permits omission of an explicit export password and then falls back to its storage password provider, applications following this custody profile MUST NOT rely on that fallback.
+
+Loss of the CMA key (or of the only usable export/password) removes the ability to authorize future maintenance with that authority; it does not by itself deactivate the DID or prevent ordinary controller-authorized updates. Loss of controller/recovery material has the distinct consequences described in [section 8.1](#81-controller-custody-key-loss-and-deactivation).
+
+Version 0.6 provides no generic in-place contract migration or upgrade system. Runtime maintenance interfaces and CMA custody do not automatically transform DID ledger schema, rewrite stored identifiers, or migrate a deployment to a newer DID contract. The compatibility reads in [section 6.1](#61-canonical-identity-and-legacy-physical-keys) preserve narrowly defined historical records without migration. Any future schema transition requires an explicitly designed, version-specific migration or replacement-deployment procedure with its own authorization, state mapping, and validation; applications MUST NOT infer such a procedure from `contractVersion` alone.
 
 Example DID Document metadata emitted by the resolver layer:
 
@@ -745,7 +761,7 @@ The `created` and `updated` ledger fields are populated from the `currentTimesta
 
 The `currentTimestamp` value is client-asserted metadata, not a Midnight consensus timestamp. A conforming implementation MUST NOT treat `created` or `updated` as proof that an operation occurred at a particular wall-clock time unless an application adds an independent time attestation. Resolvers and SDKs MAY sanity-check the values for obviously too-low or too-high timestamps, malformed conversions, and local monotonicity expectations, but those checks only bound implausible values; they do not make the metadata ledger-authoritative. Resolvers SHOULD surface the values as DID Document Metadata only and SHOULD document that they are controller/prover-supplied.
 
-Each update is a separate circuit call; batching multiple logical operations into a single on-chain call is not supported in this version.
+Each API update operation maps to one circuit call; this method version defines no batch circuit. This design choice is separate from a hard Midnight transaction constraint: transaction contract-call sections cannot be merged, so separately submitted contract calls cannot be combined into one atomic transaction. Application workflows that compose multiple DID operations MUST treat them as independently finalized, non-atomic state transitions and MUST own ordering, ledger re-reads, and retry reconciliation.
 
 ## 7.1. Create
 
@@ -776,53 +792,83 @@ The Midnight JS library is used to attach to the smart-contract ledger state, an
 The smart-contract ledger state can be fetched by `id`.
 The ledger state is deserialized to reconstruct the corresponding DIDDocument.
 
+The configured indexer/public-data provider is a trusted input to this resolution profile. A `null` result can be interpreted as `notFound` only under that provider trust assumption. An unavailable provider, an exception, a stale or unfinalized response, or a response from an untrusted endpoint does not prove that the DID is absent, deactivated, or final. The 0.6 resolver does not run a light client and does not independently verify an indexer state proof or consensus finality. Block-height or block-hash selection, where an upstream provider exposes it, identifies the requested read point but does not by itself add independent proof verification.
+
 Example of the implementation: Midnight DID Resolver in Rust
 
 **NOTE**: The DID ledger state will be available within the smart-contract compact language as well when the support for the smart-contract composability is implemented.
 
 ### 7.2.3. Resolution response composition and media types
 
-DID Core distinguishes between `resolve` and `resolveRepresentation`; see
-[DID Core Section 7.1](https://www.w3.org/TR/did-core/#did-resolution).
-Midnight resolvers MUST preserve that distinction when composing responses:
+**Version 0.6 profile note: This shipped profile FAILS the pinned 2026 DID
+Core 1.1 and DID Resolution Candidate Recommendation snapshots.** It documents
+the current DID Core 1.0-era API and is not a compatibility claim. Version 0.6
+exposes a bare-document `resolve(did)` plus separate resolution-result and
+representation helpers, negotiates `application/did+json` and
+`application/did+ld+json`, emits `https://www.w3.org/ns/did/v1`, returns
+keyword-string errors, and keeps a deactivated DID Document readable while
+marking its metadata. The 2026 CRs instead require `application/did` and the
+v1.1 context, the unaltered `resolve(did, resolutionOptions)` contract,
+structured errors with W3C URL-valued `type` fields, and a null DID Document
+after deactivation. These breaking changes are deliberately not backported to
+0.6; [#447](https://github.com/midnightntwrk/midnight-did/issues/447) owns the
+coordinated migration. The rules below describe only the shipped 0.6 behavior.
 
-- `resolve(did, resolutionOptions)` returns the abstract data model triple:
-  `didResolutionMetadata`, `didDocument`, and `didDocumentMetadata`.
-  The `accept` option MUST NOT be used with `resolve`, and
-  `didResolutionMetadata.contentType` MUST NOT be present on successful
-  abstract resolution results.
-- `resolveRepresentation(did, resolutionOptions)` returns
-  `didResolutionMetadata`, `didDocumentStream`, and `didDocumentMetadata`.
-  The optional `accept` value selects the preferred DID Document
-  representation. On successful representation resolution,
-  `didResolutionMetadata.contentType` MUST be present and MUST describe the
-  returned `didDocumentStream`.
+The version 0.6 response-composition APIs described here are:
 
-Midnight implementations SHOULD support the following response composition
-rules:
+- `resolve(did)` accepts only the DID, returns the bare `MidnightDIDDocument`,
+  and throws when the DID is not found. It does not accept resolution options
+  and does not return a resolution envelope.
+- `resolveDIDResolutionResult(did)` is the separate envelope helper. It returns
+  `didResolutionMetadata`, `didDocument`, and `didDocumentMetadata`; successful
+  results have empty resolution metadata with no `contentType`.
+- `resolveRepresentation(did, options)` is the separate stream helper. Its
+  optional `options.accept` value selects the preferred DID Document
+  representation. It returns `didResolutionMetadata`, `didDocumentStream`, and
+  `didDocumentMetadata`; successful results include the selected `contentType`.
+
+HTTP adapters MUST enforce their normal deployment-appropriate header field-size
+limits and runtime-validate inbound `Accept` values before passing them to the
+representation helper. The package-level parser intentionally imposes no
+separate arbitrary resource cap.
+
+The version 0.6 operations compose responses as follows:
 
 | Request mode | Requested media type | Response body | DID resolution metadata |
 | --- | --- | --- | --- |
-| `resolve` | none | DID Resolution Result object containing `didDocument`, `didResolutionMetadata`, and `didDocumentMetadata` | Empty object on success; no `contentType` |
-| `resolveRepresentation` | omitted or `application/did+ld+json` | DID Document byte stream serialized as JSON-LD | `{ "contentType": "application/did+ld+json" }` |
-| `resolveRepresentation` | `application/did+json` | DID Document byte stream serialized as DID Core JSON | `{ "contentType": "application/did+json" }` |
-| HTTP/service envelope | `application/json` | DID Resolution Result object encoded as JSON | HTTP response `Content-Type` is `application/json`; do not copy this value into `didResolutionMetadata.contentType` for abstract `resolve` |
-| HTTP/service envelope | `application/ld+json` | DID Resolution Result object encoded as JSON-LD, when the service supports a JSON-LD envelope | HTTP response `Content-Type` is `application/ld+json`; do not copy this value into `didResolutionMetadata.contentType` for abstract `resolve` |
+| `resolve(did)` | none | Bare `MidnightDIDDocument`; throws when the DID is not found | None; this operation does not return an envelope |
+| `resolveDIDResolutionResult(did)` | none | Object containing `didDocument`, `didResolutionMetadata`, and `didDocumentMetadata` | Empty object on success; no `contentType` |
+| `resolveRepresentation(did, options)` | omitted or `application/did+ld+json` | DID Document byte stream serialized as JSON-LD | `{ "contentType": "application/did+ld+json" }` |
+| `resolveRepresentation(did, options)` | `application/did+json` | DID Document byte stream serialized as DID Core JSON | `{ "contentType": "application/did+json" }` |
+| HTTP/service envelope | `application/json` | DID Resolution Result object encoded as JSON | HTTP response `Content-Type` is `application/json`; do not copy this value into `didResolutionMetadata.contentType` for the abstract envelope helper |
+| HTTP/service envelope | `application/ld+json` | DID Resolution Result object encoded as JSON-LD, when the service supports a JSON-LD envelope | HTTP response `Content-Type` is `application/ld+json`; do not copy this value into `didResolutionMetadata.contentType` for the abstract envelope helper |
 
-If a caller requests a DID Document representation that is not supported, the
-resolver MUST return `didResolutionMetadata.error = "representationNotSupported"`
-and MUST NOT return a `didDocument` or `didDocumentStream`.
+If `resolveRepresentation` receives an unsupported representation request, it
+returns `didResolutionMetadata.error = "representationNotSupported"` with no
+`didDocumentStream` and does not read the ledger.
 
-Failure responses MUST set `didResolutionMetadata.error` to a DID Core error
-keyword. Midnight resolvers SHOULD use `invalidDid`, `notFound`, and
-`representationNotSupported` for those DID Core-defined cases, and SHOULD use
-registered DID resolution keywords such as `methodNotSupported` and
-`internalError` for broader resolver failures. This implementation documents
-`invalidDid` for a ledger state that cannot be projected into a valid Midnight
-DID Document, and `notAllowedLocalDuplicateKey` for duplicate
-verification-method keys in the normalized ledger state. Resolver-specific extension values MAY be used when
-they are registered or documented as a single ASCII keyword that starts with a
-letter.
+Failure responses from `resolveDIDResolutionResult` and
+`resolveRepresentation` set `didResolutionMetadata.error` to a keyword string.
+They use `invalidDid`, `notFound`, and `representationNotSupported` for those DID
+Core-defined cases and use keywords such as `methodNotSupported` and
+`internalError` for broader resolver failures. In contrast, public
+`resolve(did)` throws instead of returning error metadata. This implementation
+uses the following deterministic malformed-ledger-state policy:
+
+| Ledger projection failure | 0.6 keyword |
+| --- | --- |
+| Malformed, non-canonical, or wrong-length profile-specific JWK coordinate; non-empty OKP `y` | `invalidPublicKey` |
+| Malformed service, alias, verification-method subject, or DID URL reference | `invalidDid` |
+| Verification-method identifiers that collide after canonicalization, within or across physical stores | `notAllowedLocalDuplicateKey` |
+| Unexpected provider, runtime, or programmer failure | `internalError` |
+
+For these failures, `resolveDIDResolutionResult` returns a null `didDocument`
+and `resolveRepresentation` returns a null `didDocumentStream`; both carry the
+keyword in `didResolutionMetadata.error`. The convenience `resolve(did)` API
+retains its throwing behavior. Resolver-specific extension values are
+documented as single ASCII keywords that start with a letter. These diagnostics
+classify projection of the configured reader's response; they do not
+authenticate that response or prove freshness or finality.
 
 The method document profile requires `@context` in resolved Midnight DID
 Documents. Producers of `application/did+ld+json` MUST include it. Producers of
@@ -839,7 +885,44 @@ Each update circuit requires a controller Schnorr signature over the DID contrac
 
 For an operation targeting an existing verification method or service, the SDK resolves canonical identity to the sole existing canonical or compatible legacy physical key according to Section 6.1. The selected physical key is used consistently for state preflight, authorization, and circuit submission. Canonical and legacy records for the same identity are an error, not a precedence rule.
 
-Conformance note: due to Compact language limitations for rich URI/data-model validation, normative checks for DID URL subject binding and DID Core structure conformance (for example `serviceEndpoint` shape), JWK/base64url canonicality, opaque JWK shape (for example OKP omits `y` while EC includes `y`), and non-native key parsing are enforced at the SDK/resolver layers (`domain`, `api`, `did`). The smart contract enforces authorization, exact ledger identifier existence/uniqueness, supported opaque JWK key/curve profiles, native SchnorrJubjub point storage, and state-transition invariants.
+The TypeScript API is the mandatory supported integration boundary for updates.
+Integrators MUST NOT submit exported Compact mutation circuits directly. Such a
+call is still controller-authorized, versioned, and argument-bound, but it
+bypasses SDK validation and can store opaque values outside the resolver's
+accepted document domain.
+
+The 0.6 validation boundary has three categories:
+
+1. **Enforced by the current contract.** Controller authorization, expected
+   version, exact physical identifier existence/uniqueness (including an exact
+   raw key shared by the opaque and native stores), supported opaque JWK
+   `kty`/`crv` profiles, native SchnorrJubjub point storage, relation
+   compatibility, and state-transition invariants.
+2. **Expressible as a bounded Compact defense but deferred in 0.6.** For a
+   supported OKP profile, equality against the empty `Opaque<"string">` sentinel
+   could reject non-empty `y`. Adding that defense changes circuit artifacts and
+   has not been justified for the compatibility-frozen 0.6 candidate; it is a
+   0.7 hardening item. Resolver and SDK validation remain normative in 0.6.
+3. **SDK/resolver-only with the current schema, or requiring a future
+   migration.** Base64url parsing/canonicality, URI and JSON service parsing,
+   DID-subject binding, and canonical identifier normalization require rich
+   string/data-model processing unavailable for opaque values. Enforcing
+   profile-specific coordinate lengths in contract requires replacing or
+   profile-tagging opaque coordinates with fixed-size byte representations;
+   fragment-only identifiers and structured services likewise require a ledger
+   schema/circuit design and migration. These changes are deferred to 0.7.
+
+The resolver applies the malformed-ledger-state policy in Section 7.2.3 and
+fails closed: foreign verification-method subjects are rejected rather than
+emitted, and same-store or cross-store canonical aliases are rejected as
+`notAllowedLocalDuplicateKey`. Raw state is durable but is not necessarily
+permanent. While the contract is active and controller custody remains, an
+operator can repair it through supported operations: remove every verification
+relationship that references an offending physical verification method before
+removing or updating that method, or update/remove an offending service. Each
+repair is separately finalized, so the operator MUST re-read trusted finalized
+state between steps. If controller custody is lost or the contract is inactive,
+0.6 provides no automatic repair or migration path.
 
 Each update operation is implemented by a small set/toggle circuit surface in the `did.compact` contract:
 - `rotateControllerKey` - rotates the DID controller commitment to a locally derived controller public key
@@ -864,8 +947,12 @@ The circuit implementations are in [`packages/contract/src/did.compact`](https:/
 Controller rotation and recovery notes:
 - `rotateControllerKey` accepts only the next `controllerPublicKey`, not the next secret; authorization is supplied as a current-version controller signature. The next controller public key MUST differ from the current controller public key and from the recovery authority public key.
 - `recoverControllerKey` accepts only the next `controllerPublicKey`, a recovery-authority signature, and the expected version. The recovery authority can rotate the active controller key but cannot mutate DID Document content, verification methods, services, aliases, deactivation state, or the recovery authority itself.
-- The API helper generates a new 32-byte secret, derives the next public key locally with the contract package's `deriveControllerPublicKey` helper, submits the rotation or recovery transaction, and stores the new secret in private state after the transaction succeeds.
-- If the transaction finalizes but private-state persistence fails, the wallet must recover the same new secret to continue updating the DID.
+- The API helper generates a new 32-byte secret, persists it in a pending private-state slot, derives the next public key locally with the contract package's `deriveControllerPublicKey` helper, and submits the rotation or recovery transaction. After finalized transaction data returns, it promotes the pending secret to active private state and clears the pending slot.
+- If `callTx` is invoked but submission or finality throws before returning finalized transaction data, the helper MUST retain pending state because a thrown receipt/finality stream cannot distinguish rejection from successful on-chain finalization. After connectivity is restored, the application MUST obtain trusted finalized ledger state and re-read the on-ledger `controllerPublicKey` before retrying; reconnection or the first available read alone MUST NOT be treated as proof of non-finalization. If the replacement key is the finalized current key and the retained secret derives it, the application can promote the pending state with the public recovery helper by passing the providers and `{ contractAddress, rotationFinalized: true }`. The `rotationFinalized` value is a caller assertion; the helpers do not query ledger state or add a finality or freshness guarantee to the configured public data provider. The candidate MUST be discarded with `{ contractAddress, rotationFinalized: false }` only after authoritative reconciliation confirms that the operation did not finalize; until then it MUST remain pending even when an available read still shows the old key. If failure is definitely before `callTx` invocation, the helper MUST attempt to clear the just-created candidate inside the held lease. A cleanup rejection MUST warn that deletion disposition is unknown and retain explicit discard guidance for a record that remains.
+- While pending controller state exists, a later rotation or recovery MUST fail before authorization or a transaction-call attempt with <code>PendingControllerPrivateState<wbr>ExistsError</code> (<code>pending_controller_private_state_<wbr>exists</code>) instead of replacing that state. Reservation acquisition is fail-fast: rotation, recovery, promotion, or discard racing an unresolved owner MUST immediately fail with <code>PendingControllerPrivateState<wbr>BusyError</code> (<code>pending_controller_private_state_<wbr>busy</code>) without mutation or queueing. An unresolved owner MUST remain busy until underlying work is cancelled and the owner operation settles, the operation otherwise terminates or settles, or the process exits. The reservation MUST NOT expire merely because time elapsed: stale provider or transaction work could later complete and overwrite, promote, or remove state owned by a newer operation. After cancellation or termination, the application MUST reconcile ledger and private state before another mutation.
+- Public rotation and recovery MUST auto-bind or assert the operation's canonical contract address, and public promotion/discard reconciliation MUST require `contractAddress`. The supported API baseline assumes one application writer process per DID. API-bound wrappers for one DID share the process-local critical section from preflight through pending persistence, transaction settlement, promotion, and cleanup. Join MUST acquire the same fail-fast owner-token lease before binding, reserve its source and target addresses, and hold them through private-state loading and deployed-contract lookup. Competing lifecycle or binding operations on either address MUST fail busy before mutation, and join failure MUST release its owned keys. A known different idle binding MUST fail with <code>PrivateStateProviderContract<wbr>MismatchError</code>. Provider-object fallback is only for internal/deep unbound use. Direct provider mutation and independently unbound wrappers are outside this guarantee. Multiple application processes that intentionally write the same DID are outside the supported baseline and MUST use a distributed lock or equivalent fencing mechanism because the provider interface has no cross-process atomic conditional write.
+- Pending promotion MUST load a valid pending controller state. A missing or malformed candidate fails without mutation with <code>PendingControllerPrivateState<wbr>UnavailableError</code> (<code>pending_controller_private_state_<wbr>missing_or_malformed</code>). Pending discard with `{ rotationFinalized: false }` MUST remove any non-null pending record, including malformed state, because the caller has independently asserted non-finalization; an absent record MUST fail with the same typed unavailable error.
+- If the transaction finalizes but active private-state persistence fails, the wallet must recover the same pending secret to continue updating the DID. If explicit pending promotion writes active state but pending cleanup rejects, it MUST warn and return the promoted state while stating that the pending record MAY remain or MAY already have been removed. Later reconciliation processes retained state or returns <code>PendingControllerPrivateState<wbr>UnavailableError</code> if deletion committed.
 - Implementations that bypass the API and submit an arbitrary `newControllerPublicKey` are responsible for retaining the matching preimage. Losing the matching secret makes subsequent DID updates impossible unless the recovery authority remains available.
 
 ### 7.3.1 Add Verification Method
@@ -956,10 +1043,24 @@ Deletes a verification method by its `id`.
 - Inputs: `id` — the verification method identifier.
 - Constraints:
   - Removing a non-existent method MUST fail.
-  - Removing a Jubjub method MUST use `removeSchnorrJubjubVerificationMethod`, which applies the same relation cleanup behavior as the generic API helper.
+  - Removing a method that remains in any verification relationship MUST fail. The Compact circuit checks all five relation sets for both opaque JWK and native SchnorrJubjub stores, including direct calls that bypass API preflight.
+  - Removing a Jubjub method MUST use `removeSchnorrJubjubVerificationMethod`, which follows the same single-operation semantics.
+  - The API MUST NOT remove relationships implicitly. Its state preflight throws `VerificationMethodReferencedError` with code `verification_method_referenced`, the selected physical `methodId`, and referenced relationships in canonical order before authorization/submission.
+
+Applications explicitly remove selected relationships first, then remove the
+method. Each call is an independently finalized transaction. After a partial or
+ambiguous failure, the application MUST re-read current state and submit only
+outstanding operations; no purge/delete sequence is atomic or automatically
+resumable.
 
 Example:
 ```typescript
+await removeVerificationMethodRelation(
+  didContract,
+  providers,
+  VerificationMethodRelationType.Authentication,
+  '#key-1'
+);
 await removeVerificationMethod(didContract, providers, '#key-1');
 ```
 
@@ -989,7 +1090,7 @@ Removes a verification method `methodId` from a DID Core verification relationsh
 
 - Inputs: `relation`, `methodId`.
 - Constraints:
-  - Removing an unknown pair (relation, methodId) MUST fail.
+  - Removing an unknown pair (relation, methodId) MUST fail. Explicit relation removal remains non-idempotent; applications retrying a multi-step cleanup MUST re-read state and skip pairs already removed.
 
 Example:
 ```typescript
@@ -1152,9 +1253,9 @@ Applications that delegate proving still trust the proof server and its transpor
 
 ## 8.3. Resolver, indexer, and finality trust
 
-Resolution reads are indexer-backed in the reference implementation. A resolver that trusts a compromised, rogue, stale, or unfinalized indexer response can return a forged or stale DID Document. Indexer and resolver operators SHOULD use trusted indexer deployments, protect endpoint transport, monitor freshness, and prefer finalized or pinned reads when provider APIs expose block-height or block-hash constraints.
+Resolution reads are indexer-backed in the reference implementation, and the configured indexer/public-data provider is trusted. A compromised, rogue, stale, or unfinalized response can produce a forged or stale DID Document or an incorrect `notFound` result. Indexer and resolver operators SHOULD protect endpoint transport, monitor freshness, and use finalized or explicitly pinned reads when their trusted provider exposes block-height or block-hash constraints.
 
-Resolvers and consumers MUST treat indexer or resolver failures as availability failures, not as proof that a DID does not exist or has been deactivated. If an application requires a finality latency bound or independent state integrity check, it MUST define that policy above this specification version or use a resolver profile that exposes the required proof or block pin.
+Resolvers and consumers MUST treat unavailable, failed, stale, or untrusted reads as inconclusive. They do not prove that a DID is absent or deactivated, and they do not prove transaction finality. A provider-returned `null` maps to `notFound` only inside the configured provider's trust boundary. Version 0.6 supplies no light client, independent indexer state-proof verification, or independent consensus/finality check. Applications requiring those assurances MUST define and implement them above this resolver profile; selecting a block height or hash alone is not proof verification.
 
 ## 8.4. Client-asserted metadata
 

@@ -115,12 +115,21 @@ importers:
       eslint-plugin-simple-import-sort:
         specifier: 12.1.1
         version: 12.1.1(eslint@9.39.5)
+      js-yaml:
+        specifier: ^4.3.1
+        version: 4.3.1
       prettier:
         specifier: 3.9.6
         version: 3.9.6
       testcontainers:
         specifier: 12.1.0
         version: 12.1.0
+      tree-sitter:
+        specifier: 0.25.1
+        version: 0.25.1
+      tree-sitter-bash:
+        specifier: 0.25.1
+        version: 0.25.1(tree-sitter@0.25.1)
       ts-node:
         specifier: 10.9.2
         version: 10.9.2(@types/node@24.13.3)(typescript@5.9.3)
@@ -3499,6 +3508,10 @@ packages:
     resolution: {integrity: sha512-o2zOYiCpzRqSzPj0Zt/dQ/DqZeYoaQ7TUonc/xUPjCGl9WeHpNbxgVvOquXYAaJzI0M9BXV3HTzG0p8IUAbBTQ==}
     engines: {node: '>= 10.13'}
 
+  node-addon-api@8.9.2:
+    resolution: {integrity: sha512-VijLXbi3UACN69I0JVXJsX4tjACjNoQDgv2gTF6sx2wWEi8tkSg2eX8p5gSIFi8z2+DL3oHmY6OyKce38SDolg==}
+    engines: {node: ^18 || ^20 || >= 21}
+
   node-domexception@1.0.0:
     resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}
     engines: {node: '>=10.5.0'}
@@ -4092,6 +4105,17 @@ packages:
 
   tr46@0.0.3:
     resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
+
+  tree-sitter-bash@0.25.1:
+    resolution: {integrity: sha512-7hMytuYIMoXOq24yRulgIxthE9YmggZIOHCyPTTuJcu6EU54tYD+4G39cUb28kxC6jMf/AbPfWGLQtgPTdh3xw==}
+    peerDependencies:
+      tree-sitter: ^0.25.0
+    peerDependenciesMeta:
+      tree-sitter:
+        optional: true
+
+  tree-sitter@0.25.1:
+    resolution: {integrity: sha512-mrcEdkYtHfrK1A6fs3O6FxkBo0Qig5XUXqHhxUOQu0bmPo00QF4XaSx4edpazdHwxnSCjlGKGgIqWdaN4dvTLA==}
 
   trim-lines@3.0.1:
     resolution: {integrity: sha512-kRj8B+YHZCc9kQYdWfJB2/oUl9rA99qbowYYBtr4ui4mZyAQ2JpvVBd/6U2YloATfqBhBTSMhTpgBHtU0Mf3Rg==}
@@ -8087,6 +8111,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  node-addon-api@8.9.2: {}
+
   node-domexception@1.0.0: {}
 
   node-exports-info@1.6.0:
@@ -8826,6 +8852,18 @@ snapshots:
   tmp@0.2.7: {}
 
   tr46@0.0.3: {}
+
+  tree-sitter-bash@0.25.1(tree-sitter@0.25.1):
+    dependencies:
+      node-addon-api: 8.9.2
+      node-gyp-build: 4.8.4
+    optionalDependencies:
+      tree-sitter: 0.25.1
+
+  tree-sitter@0.25.1:
+    dependencies:
+      node-addon-api: 8.9.2
+      node-gyp-build: 4.8.4
 
   trim-lines@3.0.1: {}
 

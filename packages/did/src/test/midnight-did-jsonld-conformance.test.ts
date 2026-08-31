@@ -1,3 +1,18 @@
+import { describe, expect, it, vi } from "vitest";
+
+type ContractModule = typeof import("@midnight-ntwrk/midnight-did-contract");
+
+vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
+  const DIDContractMock = {
+    CurveType: { Ed25519: 0 },
+    KeyType: { OKP: 3 },
+    VerificationMethodType: { Undefined: 0, JsonWebKey: 1 },
+  } as const;
+  return {
+    DIDContract: DIDContractMock as unknown as ContractModule["DIDContract"],
+  } satisfies Partial<ContractModule>;
+});
+
 import {
   createVerificationMethod,
   CurveType,
@@ -5,10 +20,10 @@ import {
   VerificationMethodType,
 } from "@midnight-ntwrk/midnight-did-domain";
 import jsonld, { type JsonLdDocument } from "jsonld";
-import { describe, expect, it } from "vitest";
 
-import { MidnightDIDSchema } from "../midnight.js";
+import { MidnightDIDSchema, MidnightNetwork } from "../midnight.js";
 import { createMidnightDIDDocument } from "../midnight-did-document.js";
+import { MidnightDIDResolver } from "../midnight-did-resolver.js";
 
 const DID_CONTEXT_URL = "https://www.w3.org/ns/did/v1";
 const JWK_CONTEXT_URL = "https://w3id.org/security/jwk/v1";
@@ -112,6 +127,60 @@ const documentLoader = async (url: string): Promise<TestRemoteDocument> => {
 
   throw new Error(`Unexpected remote JSON-LD context requested: ${url}`);
 };
+
+const compactMidnightDocument = async (
+  document: JsonLdDocument,
+): Promise<JsonLdDocument> => {
+  const compact = jsonld.compact as (
+    input: JsonLdDocument,
+    context: JsonLdDocument,
+    options: unknown,
+  ) => Promise<JsonLdDocument>;
+  return compact(
+    document,
+    { "@context": [DID_CONTEXT_URL, JWK_CONTEXT_URL] },
+    { documentLoader },
+  );
+};
+
+const makeIterable = <T>(items: T[]) => ({
+  [Symbol.iterator]: function* () {
+    yield* items;
+  },
+  isEmpty: () => items.length === 0,
+});
+
+const resolverLedgerState = () => ({
+  id: { bytes: new Uint8Array(32).fill(0xaa) },
+  version: 7n,
+  active: true,
+  created: 1n,
+  updated: 2n,
+  deactivated: false,
+  operationCount: 3n,
+  alsoKnownAs: makeIterable<string>([]),
+  verificationMethods: makeIterable([
+    [
+      "key-ed25519",
+      {
+        typ: 1,
+        publicKeyJwk: {
+          kty: 3,
+          crv: 0,
+          x: encodeZeros(32),
+          y: "",
+        },
+      },
+    ] as const,
+  ]),
+  schnorrJubjubVerificationMethods: makeIterable([]),
+  authenticationRelation: makeIterable(["key-ed25519"]),
+  assertionMethodRelation: makeIterable<string>([]),
+  keyAgreementRelation: makeIterable<string>([]),
+  capabilityInvocationRelation: makeIterable<string>([]),
+  capabilityDelegationRelation: makeIterable<string>([]),
+  services: makeIterable([]),
+});
 
 const expandMidnightDocument = async (document: JsonLdDocument) => {
   const expand = jsonld.expand as (
@@ -256,6 +325,69 @@ describe("Midnight DID Document JSON-LD conformance", () => {
         },
       },
     ]);
+  });
+
+  it("preserves resolver-stream JSON-LD semantics through expansion and compaction", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => resolverLedgerState() as never,
+      expectedNetwork: MidnightNetwork.Testnet,
+    });
+
+    const representation = await resolver.resolveRepresentation(
+      exampleMidnightDid,
+      { accept: "application/did+ld+json" },
+    );
+
+    expect(representation.didDocumentStream).not.toBeNull();
+    expect(representation.didDocumentMetadata.versionId).toBe("7");
+    expect(representation.didResolutionMetadata).toEqual({
+      contentType: "application/did+ld+json",
+    });
+
+    const document = JSON.parse(
+      new TextDecoder().decode(representation.didDocumentStream!),
+    ) as JsonLdDocument;
+    const before = await expandMidnightDocument(document);
+    const compacted = await compactMidnightDocument(document);
+    const after = await expandMidnightDocument(compacted);
+
+    expect(after).toEqual(before);
+  });
+
+  it("preserves JSON-LD semantics through expansion and compaction", async () => {
+    const document = createMidnightDIDDocument({
+      id: exampleMidnightDid,
+      verificationMethod: [
+        createVerificationMethod({
+          id: "#key-ed25519",
+          type: VerificationMethodType.JsonWebKey,
+          controller: exampleMidnightDid,
+          publicKeyJwk: {
+            kty: KeyType.OKP,
+            crv: CurveType.Ed25519,
+            x: encodeZeros(32),
+          },
+        }),
+        createVerificationMethod({
+          id: "#key-x25519",
+          type: VerificationMethodType.JsonWebKey,
+          controller: exampleMidnightDid,
+          publicKeyJwk: {
+            kty: KeyType.OKP,
+            crv: CurveType.X25519,
+            x: encodeZeros(32),
+          },
+        }),
+      ],
+      authentication: [`${exampleMidnightDid}#key-ed25519`],
+      keyAgreement: [`${exampleMidnightDid}#key-x25519`],
+    });
+
+    const before = await expandMidnightDocument(document);
+    const compacted = await compactMidnightDocument(document);
+    const after = await expandMidnightDocument(compacted);
+
+    expect(after).toEqual(before);
   });
 
   it("documents that JsonWebKey2020 is not the Midnight JSON-LD verification method type", async () => {

@@ -44,3 +44,43 @@ test("reports missing protected modules and threshold failures", () => {
     "wallet-keys.ts: coverage entry is missing",
   ]);
 });
+
+for (const module of [
+  "verification-method-operations.ts",
+  "wallet-context.ts",
+  "wallet.ts",
+]) {
+  test(`${module} fails closed when missing`, () => {
+    const coverage = completeCoverage();
+    delete coverage[`/workspace/packages/api/src/${module}`];
+
+    assert.ok(
+      checkApiModuleCoverage(coverage).includes(
+        `${module}: coverage entry is missing`,
+      ),
+    );
+  });
+
+  test(`${module} fails closed when a metric is missing`, () => {
+    const coverage = completeCoverage();
+    delete coverage[`/workspace/packages/api/src/${module}`].f;
+
+    assert.ok(
+      checkApiModuleCoverage(coverage).includes(
+        `${module} functions: coverage metric is missing`,
+      ),
+    );
+  });
+
+  test(`${module} fails closed below its threshold`, () => {
+    const coverage = completeCoverage({
+      [module]: { s: { 0: 1, 1: 0 } },
+    });
+
+    assert.ok(
+      checkApiModuleCoverage(coverage).includes(
+        `${module} statements: 50.00% is below ${protectedApiModuleThresholds[module].statements}%`,
+      ),
+    );
+  });
+}

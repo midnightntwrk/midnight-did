@@ -715,6 +715,53 @@ describe("Midnight DID Document", () => {
       );
     });
 
+    it.each([
+      ["root-relative", "/keys/holder", `${exampleMidnightDid}/keys/holder`],
+      ["dot-relative", "./keys/holder", `${exampleMidnightDid}/keys/holder`],
+      [
+        "canonical absolute path",
+        `${exampleMidnightDid}/keys/holder`,
+        `${exampleMidnightDid}/keys/holder`,
+      ],
+    ])(
+      "preserves historical %s verification method ids without fragments",
+      (_label, methodId, expectedId) => {
+        const input = {
+          "@context": [
+            "https://www.w3.org/ns/did/v1",
+            "https://w3id.org/security/jwk/v1",
+          ],
+          id: exampleMidnightDid,
+          controller: exampleMidnightDid,
+          verificationMethod: [{ ...exampleVerificationMethod, id: methodId }],
+          authentication: [methodId],
+        };
+
+        const doc = parseMidnightDIDDocument(input);
+        expect(doc.verificationMethod?.[0].id).toBe(expectedId);
+        expect(doc.authentication).toEqual([expectedId]);
+      },
+    );
+
+    it.each(["?key=holder", "//keys/holder"])(
+      "does not extend path compatibility to malformed method id %s",
+      (methodId) => {
+        expect(() =>
+          parseMidnightDIDDocument({
+            "@context": [
+              "https://www.w3.org/ns/did/v1",
+              "https://w3id.org/security/jwk/v1",
+            ],
+            id: exampleMidnightDid,
+            controller: exampleMidnightDid,
+            verificationMethod: [
+              { ...exampleVerificationMethod, id: methodId },
+            ],
+          }),
+        ).toThrow();
+      },
+    );
+
     it("normalizes relative verification method references consistently", () => {
       const input = {
         "@context": [
