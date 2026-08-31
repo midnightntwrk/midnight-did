@@ -10,11 +10,11 @@ test("parses pinned scoped and unscoped npm package specifications", () => {
     version: "0.9.0",
   });
   assert.deepEqual(
-    parsePackageSpec("npm:@input-output-hk/agent-review-pi@0.5.0"),
+    parsePackageSpec("npm:@input-output-hk/agent-review-pi@0.6.0"),
     {
-      spec: "npm:@input-output-hk/agent-review-pi@0.5.0",
+      spec: "npm:@input-output-hk/agent-review-pi@0.6.0",
       name: "@input-output-hk/agent-review-pi",
-      version: "0.5.0",
+      version: "0.6.0",
     },
   );
   assert.equal(parsePackageSpec("github:user/repo"), null);

@@ -45,7 +45,7 @@ pi list
 ```
 
 The project-local `.pi/settings.json` installs
-`@input-output-hk/agent-review-pi@0.5.0`, which provides the native review tools
+`@input-output-hk/agent-review-pi@0.6.0`, which provides the native review tools
 and the `agent-review` skill. The repository `.npmrc` points the private scope
 to GitHub Packages and reads the token from `GITHUB_TOKEN`; the token is never
 committed. It needs `read:packages` for installation and the review workflow
