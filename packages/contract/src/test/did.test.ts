@@ -542,6 +542,117 @@ describe("DID smart contract", () => {
       ).toEqual(CurveType.BLS12381G2);
     });
 
+    it("characterizes controller-authorized raw Compact opaque state reachability", () => {
+      const malformedJwk = new DIDSimulator();
+      malformedJwk.addVerificationMethod({
+        id: "#malformed-jwk",
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.Ed25519,
+          x: "not-base64url!",
+          y: ""
+        }
+      });
+      expect(
+        malformedJwk.getLedger().verificationMethods.member("#malformed-jwk")
+      ).toEqual(true);
+
+      const nonEmptyOkpY = new DIDSimulator();
+      nonEmptyOkpY.addVerificationMethod({
+        id: "#non-empty-okp-y",
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.Ed25519,
+          x: keyValue(1),
+          y: keyValue(2)
+        }
+      });
+      expect(
+        nonEmptyOkpY.getLedger().verificationMethods.lookup("#non-empty-okp-y")
+          .publicKeyJwk.y
+      ).toEqual(keyValue(2));
+
+      const malformedService = new DIDSimulator();
+      malformedService.addService({
+        id: "#malformed-service",
+        typ: "",
+        serviceEndpoint: "{not-json"
+      });
+      expect(
+        malformedService.getLedger().services.member("#malformed-service")
+      ).toEqual(true);
+
+      const foreignSubject = new DIDSimulator();
+      const foreignId = `did:midnight:testnet:${"f".repeat(64)}#key-1`;
+      foreignSubject.addVerificationMethod({
+        id: foreignId,
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.Ed25519,
+          ...okpKey(3)
+        }
+      });
+      expect(
+        foreignSubject.getLedger().verificationMethods.member(foreignId)
+      ).toEqual(true);
+
+      const sameStoreAliases = new DIDSimulator();
+      for (const id of ["alias-key", "#alias-key"]) {
+        sameStoreAliases.addVerificationMethod({
+          id,
+          typ: VerificationMethodType.JsonWebKey,
+          publicKeyJwk: {
+            kty: KeyType.OKP,
+            crv: CurveType.Ed25519,
+            ...okpKey(id.length)
+          }
+        });
+      }
+      expect(sameStoreAliases.getLedger().verificationMethods.size()).toEqual(
+        2n
+      );
+
+      const crossStoreAliases = new DIDSimulator();
+      crossStoreAliases.addVerificationMethod({
+        id: "cross-store-key",
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.Ed25519,
+          ...okpKey(4)
+        }
+      });
+      crossStoreAliases.addSchnorrJubjubVerificationMethod({
+        id: "#cross-store-key",
+        publicKey: deriveJubjubPublicKeyFromSeed(keyBytes(5))
+      });
+      expect(
+        crossStoreAliases
+          .getLedger()
+          .schnorrJubjubVerificationMethods.member("#cross-store-key")
+      ).toEqual(true);
+
+      const exactCrossStoreKey = new DIDSimulator();
+      exactCrossStoreKey.addVerificationMethod({
+        id: "#exact-cross-store-key",
+        typ: VerificationMethodType.JsonWebKey,
+        publicKeyJwk: {
+          kty: KeyType.OKP,
+          crv: CurveType.Ed25519,
+          ...okpKey(6)
+        }
+      });
+      expect(() =>
+        exactCrossStoreKey.addSchnorrJubjubVerificationMethod({
+          id: "#exact-cross-store-key",
+          publicKey: deriveJubjubPublicKeyFromSeed(keyBytes(7))
+        })
+      ).toThrow(/already exists/);
+    });
+
     it("should add, update, relate, and remove SchnorrJubjub verification methods", () => {
       const seed = new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1));
       const updatedSeed = new Uint8Array(
