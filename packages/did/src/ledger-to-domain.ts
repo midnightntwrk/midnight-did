@@ -404,17 +404,22 @@ export class LedgerToDomain {
 
     const verificationMethod: VerificationMethod[] = [];
     const verificationMethodIds = new Set<string>();
-    const registerVerificationMethodId = (id: string): void => {
-      const normalizedId = this.absoluteDidUrlReference(did, id);
+    const registerVerificationMethodId = (id: string): string => {
+      let normalizedId: string;
+      try {
+        normalizedId = this.absoluteDidUrlReference(did, id);
+      } catch (error) {
+        if (error instanceof LedgerDocumentValidationError) throw error;
+        throw new LedgerDocumentValidationError(error, "invalidDid");
+      }
       if (verificationMethodIds.has(normalizedId)) {
         throw new LedgerDocumentValidationError(
-          new Error(
-            `Duplicate verification method id '${this.absoluteDidUrlReference(did, id)}'`,
-          ),
+          new Error(`Duplicate verification method id '${normalizedId}'`),
           "notAllowedLocalDuplicateKey",
         );
       }
       verificationMethodIds.add(normalizedId);
+      return normalizedId;
     };
 
     for (const [id, method] of ledger.verificationMethods) {
@@ -428,10 +433,10 @@ export class LedgerToDomain {
           "notAllowedVerificationMethodType",
         );
       }
-      registerVerificationMethodId(id);
+      const normalizedId = registerVerificationMethodId(id);
       verificationMethod.push(
         createVerificationMethod({
-          id: this.absoluteDidUrlReference(did, id),
+          id: normalizedId,
           type: verificationMethodType,
           controller: did,
           publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
@@ -440,10 +445,10 @@ export class LedgerToDomain {
     }
 
     for (const [id, method] of ledger.schnorrJubjubVerificationMethods) {
-      registerVerificationMethodId(id);
+      const normalizedId = registerVerificationMethodId(id);
       verificationMethod.push(
         createVerificationMethod({
-          id: this.absoluteDidUrlReference(did, id),
+          id: normalizedId,
           type: VerificationMethodType.JsonWebKey,
           controller: did,
           publicKeyJwk: this.schnorrJubjubPublicKeyJwk(method),

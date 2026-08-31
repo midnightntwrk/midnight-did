@@ -91,6 +91,36 @@ as `invalidDid`, `notFound`, `representationNotSupported`,
 are allowed when they are a single ASCII keyword. Resolution error keywords must
 start with a letter.
 
+## Supported mutation boundary and malformed ledger state
+
+The TypeScript API is the supported integration boundary for DID mutations. It
+validates DID-subject binding, canonical identifiers, JWK profiles and
+coordinates, service data, and aliases before it submits a controller-authorized
+circuit call. Integrators **must not call exported Compact mutation circuits
+directly**. A direct call is still controller-authorized and argument-bound, but
+it bypasses validations that opaque Compact strings cannot perform and is
+outside the supported path.
+
+The 0.6 resolver fails closed when authorized raw ledger state is outside the
+supported document domain. Malformed JWK material, including non-empty OKP `y`,
+returns `invalidPublicKey`; malformed services, aliases, or foreign
+verification-method subjects return `invalidDid`; verification-method keys that
+collide after canonicalization return `notAllowedLocalDuplicateKey`.
+`resolveDIDResolutionResult` returns a null document and
+`resolveRepresentation` returns a null stream with that keyword in
+`didResolutionMetadata.error`. The convenience `resolve` API continues to
+throw. Unexpected provider or runtime failures remain `internalError`; these
+keywords do not authenticate an indexer response or establish ledger finality.
+
+While the contract remains active and controller custody is available, repair
+malformed state with supported controller operations. Remove every relationship
+that references an offending verification method before removing or updating
+that physical method key; update or remove an offending service. Re-read trusted
+finalized state between these separately finalized operations. There is no
+automatic repair when controller custody is lost or the contract is inactive.
+Schema/profile changes, canonical parsing in Compact, structured service
+storage, and migrations are deferred to a future contract version.
+
 ## Running
 
 Prerequisites:

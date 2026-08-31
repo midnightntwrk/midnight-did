@@ -455,6 +455,116 @@ describe("MidnightDIDResolver", () => {
     );
   });
 
+  it.each([
+    {
+      name: "malformed supported-profile JWK material",
+      error: "invalidPublicKey",
+      mutate: (ledger: any): void => {
+        const [[id, method]] = Array.from(ledger.verificationMethods) as Array<
+          [string, any]
+        >;
+        ledger.verificationMethods = makeIterablePairs([
+          [
+            id,
+            { ...method, publicKeyJwk: { ...method.publicKeyJwk, x: "bad" } },
+          ],
+        ]);
+      },
+    },
+    {
+      name: "non-empty OKP y",
+      error: "invalidPublicKey",
+      mutate: (ledger: any): void => {
+        const [[id, method]] = Array.from(ledger.verificationMethods) as Array<
+          [string, any]
+        >;
+        ledger.verificationMethods = makeIterablePairs([
+          [
+            id,
+            {
+              ...method,
+              publicKeyJwk: {
+                ...method.publicKeyJwk,
+                y: method.publicKeyJwk.x,
+              },
+            },
+          ],
+        ]);
+      },
+    },
+    {
+      name: "malformed service payload",
+      error: "invalidDid",
+      mutate: (ledger: any): void => {
+        ledger.services = makeIterablePairs([
+          [
+            "malformed-service",
+            { id: "#service-1", typ: "", serviceEndpoint: "{not-json" },
+          ],
+        ]);
+      },
+    },
+    {
+      name: "foreign verification-method subject",
+      error: "invalidDid",
+      mutate: (ledger: any): void => {
+        const [[, method]] = Array.from(ledger.verificationMethods) as Array<
+          [string, any]
+        >;
+        ledger.verificationMethods = makeIterablePairs([
+          [`did:midnight:devnet:${"b".repeat(64)}#key-1`, method],
+        ]);
+        ledger.authenticationRelation = makeIterable([]);
+      },
+    },
+    {
+      name: "same-store canonical alias collision",
+      error: "notAllowedLocalDuplicateKey",
+      mutate: (ledger: any): void => {
+        const [[, method]] = Array.from(ledger.verificationMethods) as Array<
+          [string, any]
+        >;
+        ledger.verificationMethods = makeIterablePairs([
+          ["key-1", method],
+          ["#key-1", method],
+        ]);
+      },
+    },
+    {
+      name: "cross-store canonical alias collision",
+      error: "notAllowedLocalDuplicateKey",
+      mutate: (ledger: any): void => {
+        ledger.schnorrJubjubVerificationMethods = makeIterablePairs([
+          ["#key-1", { publicKey: { x: 1n, y: 2n } }],
+        ]);
+      },
+    },
+  ])(
+    "returns deterministic malformed-ledger envelopes for $name",
+    async ({ mutate, error }) => {
+      mutate(ledgerState);
+      const resolver = new MidnightDIDResolver({
+        ledgerReader: async () => ledgerState,
+      });
+
+      await expect(resolver.resolveDIDResolutionResult(did)).resolves.toEqual({
+        didDocument: null,
+        didDocumentMetadata: {},
+        didResolutionMetadata: { error },
+      });
+      await expect(
+        resolver.resolveRepresentation(did, {
+          accept: "application/did+ld+json",
+        }),
+      ).resolves.toEqual({
+        didDocumentStream: null,
+        didDocumentMetadata: {},
+        didResolutionMetadata: { error },
+      });
+      await expect(resolver.resolve(did)).rejects.toThrow();
+    },
+  );
+
   it("does not classify runtime error text as a resolver request failure", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => {
