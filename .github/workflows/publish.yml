@@ -207,7 +207,6 @@ jobs:
 
       - name: Smoke test packages from npmjs
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.MIDNIGHTCI_NPMJS_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
         run: ./scripts/release-smoke-npm-packages.sh
 

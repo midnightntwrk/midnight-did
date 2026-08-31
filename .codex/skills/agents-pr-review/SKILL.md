@@ -31,7 +31,7 @@ Routing rules:
 
 For this repository's SDLC, the routed lane requests Pat Losoponkul
 (`patextreme`) by default and applies the `ai-review` label. The dispatch helper
-uses the pinned `@input-output-hk/agent-review-pi@0.5.0` integration. It requires
+uses the pinned `@input-output-hk/agent-review-pi@0.6.0` integration. It requires
 the user-owned `~/.agent-peer-review/config.json`; if that file is missing or
 invalid, stop and ask the user to run:
 
