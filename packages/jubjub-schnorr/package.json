@@ -52,7 +52,7 @@
     "@noble/hashes": "^2.2.0"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "4.1.10",
+    "@vitest/coverage-v8": "4.1.11",
     "globals": "14.0.0"
   },
   "files": [
