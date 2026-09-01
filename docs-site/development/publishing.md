@@ -66,12 +66,13 @@ The root workspace and `docs-site` remain private. The package workspaces are
 publishable and keep `publishConfig.registry` pointed at
 `https://registry.npmjs.org/` with `publishConfig.access: "public"`.
 
-The workflow uses `MIDNIGHTCI_NPMJS_TOKEN` for the npmjs publish and post-publish
-package smoke steps. `GITHUB_TOKEN` is used for repository-scoped operations such
-as creating/updating GitHub Release assets and for publishing the GHCR ZK
-artifact. The workflow keeps `packages: write` only because GHCR generic OCI
-artifact publication requires it; npmjs publication is authenticated by the npm
-token.
+The workflow uses `MIDNIGHTCI_NPMJS_TOKEN` only for npmjs publication and
+read-only package/access/tag administration. The post-publish npmjs smoke step
+uses the public registry without a write-capable token. `GITHUB_TOKEN` is used
+for repository-scoped operations such as creating/updating GitHub Release assets
+and publishing the GHCR ZK artifact. The workflow keeps `packages: write` only
+because GHCR generic OCI artifact publication requires it; npmjs publication is
+authenticated by the npm token.
 
 Publication channels:
 
@@ -183,6 +184,52 @@ immutable GitHub Release is created, and all release assets are supplied in the
 initial creation request. This keeps a partial publication recoverable without
 making an immutable release mutable.
 
+### npm preflight, partial failure, and retry
+
+Before the first registry mutation, the npm publisher:
+
+1. derives the dependency-ordered workspace inventory from
+   `did-workspace-catalog.mjs --publish-workspaces` and requires exactly the five
+   canonical pre-packed tarballs;
+2. verifies every workspace and packed manifest name/version and records each
+   local tarball integrity;
+3. completes read-only package visibility, access-status, and exact-version
+   inventory for all five packages; and
+4. verifies the immutable payload of every target version that already exists.
+
+Missing, extra, malformed, ambiguous, or mismatched evidence stops the run before
+producer or metadata mutation. An exact-version E404 is considered absent only
+after package-level visibility and access reads succeed. In particular, an E404
+from a package-level read may hide missing authorization and therefore fails
+closed. The publisher does not use temporary dist-tag probes: they are mutations,
+their cleanup can fail, and they do not prove package-version PUT authority.
+
+This preflight reduces the chance of partial publication, but it cannot prove
+that a later PUT will be authorized and cannot make five sequential npm package
+writes transactional. A token can lose authority or the registry can fail after
+any successful publish. If a run fails:
+
+- Record the workflow SHA, exact version, channel/tag, first failing package, and
+  the final publisher evidence. Do not create a replacement version merely to
+  hide a partial snapshot.
+- Repair authorization outside the repository when reads or publication are
+  denied; never print or copy the token into logs.
+- Retry the same workflow SHA with the same exact version and npm tag. A partial
+  state is recoverable only when every existing remote payload matches its local
+  packed identity; the rerun publishes only missing packages in catalog order.
+- Stop and investigate when any immutable payload differs or any read remains
+  ambiguous. Never overwrite or unpublish a mismatched version as an automated
+  recovery step.
+- Access reconciliation runs only for explicit `restricted` evidence and must
+  read back `public`. Dist-tags are reconciled only after all five exact payloads
+  verify, and already-correct tags are not rewritten. A failure in either phase
+  is retried with the same SHA/version so final all-five payload, access, and tag
+  read-back can complete.
+- Treat the npm set as complete only after the publisher's final all-five
+  verification and the public npmjs smoke step succeed. Continue to use the
+  existing GHCR/GitHub Release pull-back checks as the ZK-artifact completion
+  evidence.
+
 The ZK bundle preserves the provider layout used by Midnight JS:
 
 ```text
@@ -203,7 +250,7 @@ the same layout used by `FetchZkConfigProvider` or `NodeZkConfigProvider`.
 pnpm run build:all
 pnpm run packages:check-contents
 
-export VERSION="0.5.0-snapshot.local"
+export VERSION="0.6.0-snapshot.local"
 export ZK_ARCHIVE="artifacts/zk/midnight-did-zk-artifacts-${VERSION}.tar.gz"
 
 pnpm run zk-artifacts:bundle -- --version "${VERSION}"
@@ -221,7 +268,7 @@ trigger the snapshot publication path. Use the version printed by the workflow
 summary:
 
 ```bash
-export VERSION="0.5.0-snapshot.<run>.<sha>"
+export VERSION="0.6.0-snapshot.<run>.<sha>"
 export GH_TOKEN="<github-token-with-repo-read>"
 export OCI_REF="ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${VERSION}"
 
@@ -234,7 +281,7 @@ pnpm run published-artifacts:smoke -- \
 For an RC or final release, smoke-test both public distribution paths:
 
 ```bash
-export VERSION="0.5.0-rc1"
+export VERSION="0.6.0-rc1"
 export GH_TOKEN="<github-token-with-repo-read>"
 export OCI_REF="ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${VERSION}"
 
@@ -266,7 +313,7 @@ adds and updates a service, and resolves the updated DID document.
 Local equivalent:
 
 ```bash
-export VERSION="0.5.0-rc1"
+export VERSION="0.6.0-rc1"
 export GH_TOKEN="<github-token-with-repo-read>"
 
 pnpm run published-standalone:smoke -- \

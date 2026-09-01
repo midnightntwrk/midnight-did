@@ -70,14 +70,34 @@ const extractKeyFragment = (value: string) => {
   return fragmentIndex >= 0 ? value.slice(fragmentIndex + 1) : "";
 };
 
-/** DID Key ID (e.g. did:example:123#key-1 or #key-1) */
+const isPathVerificationMethodReference = (value: string): boolean => {
+  if (value.includes("#")) return false;
+  if (value.startsWith("/") || value.startsWith(".")) {
+    return RelativeURLSchema.safeParse(value).success;
+  }
+  if (!value.startsWith("did:")) return false;
+  const didSubjectBoundary = value.search(/[/?#]/u);
+  return didSubjectBoundary >= 0 && value[didSubjectBoundary] === "/";
+};
+
+/**
+ * DID verification-method identifier.
+ *
+ * Fragment identifiers are preferred. Path and dot-relative references without
+ * fragments remain accepted for compatibility with historical Midnight DID
+ * Documents; bare labels, query-only references, and network-path references
+ * are still rejected.
+ */
 export const DIDKeyIDSchema = z
   .union([DIDURLSchema, URIStringSchema, RelativeURLSchema])
   .check(
     z.refine((val) => {
       const fragment = extractKeyFragment(val);
-      return fragment.length > 0 && KeyIDSchema.safeParse(fragment).success;
-    }, "Invalid DID Key ID format: invalid or missing fragment"),
+      return (
+        (fragment.length > 0 && KeyIDSchema.safeParse(fragment).success) ||
+        isPathVerificationMethodReference(val)
+      );
+    }, "Invalid DID Key ID format: expected a fragment or path reference"),
   )
   .brand("DIDKeyID");
 

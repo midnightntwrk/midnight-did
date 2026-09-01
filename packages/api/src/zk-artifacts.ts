@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { MidnightDidApiError } from "./api-errors.js";
 import {
   createMidnightDidZkArtifactLocations,
   MIDNIGHT_DID_API_VERSION,
@@ -22,12 +23,9 @@ export type MidnightDidZkArtifactErrorCode =
   | "provider_path_mismatch"
   | "unsafe_archive";
 
-export class MidnightDidZkArtifactError extends Error {
-  constructor(
-    readonly code: MidnightDidZkArtifactErrorCode,
-    message: string,
-  ) {
-    super(message);
+export class MidnightDidZkArtifactError extends MidnightDidApiError<MidnightDidZkArtifactErrorCode> {
+  constructor(code: MidnightDidZkArtifactErrorCode, message: string) {
+    super(code, message);
     this.name = "MidnightDidZkArtifactError";
   }
 }

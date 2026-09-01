@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { writeNetworkEndpointsPage } from "../docs-site/scripts/sync-network-endpoints.mjs";
 import {
+  latestPublishedReleaseVersion,
   releaseDocExamplesForVersion,
   releaseTrainVersionFromPackageVersion,
 } from "./release-doc-examples.mjs";
@@ -403,14 +404,17 @@ const docReleaseVersion = [
 const releaseExamplePatterns = [
   {
     label: "release badge",
+    expectedTrain: (examples) => examples.publishedReleaseTrain,
     pattern: new RegExp(`release-v(${docReleaseVersion})-blue`, "gu"),
   },
   {
     label: "VERSION assignment",
+    expectedTrain: (examples) => examples.releaseTrain,
     pattern: new RegExp(`export VERSION="(${docReleaseVersion})"`, "gu"),
   },
   {
     label: "ZK archive",
+    expectedTrain: (examples) => examples.releaseTrain,
     pattern: new RegExp(
       `midnight-did-zk-artifacts-(${docReleaseVersion})\\.tar\\.gz`,
       "gu",
@@ -418,6 +422,7 @@ const releaseExamplePatterns = [
   },
   {
     label: "GHCR artifact reference",
+    expectedTrain: (examples) => examples.releaseTrain,
     pattern: new RegExp(
       `midnight-did-zk-artifacts:(${docReleaseVersion})`,
       "gu",
@@ -433,7 +438,10 @@ const validateReleaseDocExamples = async (
   const rootPackageVersion =
     packageVersion ??
     JSON.parse(await readFile(resolve(root, "package.json"), "utf8")).version;
-  const examples = releaseDocExamplesForVersion(rootPackageVersion);
+  const examples = releaseDocExamplesForVersion(
+    rootPackageVersion,
+    latestPublishedReleaseVersion,
+  );
   const failures = [];
 
   for (const file of files) {
@@ -450,14 +458,15 @@ const validateReleaseDocExamples = async (
       }
     }
 
-    for (const { label, pattern } of releaseExamplePatterns) {
+    for (const { expectedTrain, label, pattern } of releaseExamplePatterns) {
+      const expectedReleaseTrain = expectedTrain(examples);
       for (const match of content.matchAll(pattern)) {
         const train = releaseTrainVersionFromPackageVersion(match[1]);
-        if (train !== examples.releaseTrain) {
+        if (train !== expectedReleaseTrain) {
           failures.push({
             filePath,
             line: lineAt(content, match.index),
-            message: `${label} uses stale release train '${train}', expected '${examples.releaseTrain}'`,
+            message: `${label} uses stale release train '${train}', expected '${expectedReleaseTrain}'`,
           });
         }
       }

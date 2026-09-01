@@ -43,12 +43,23 @@ describe("DID parsing utilities", () => {
     expect(() => parseDIDURL("http://example.com")).toThrow();
   });
 
-  it("parses and validates DID Key IDs", () => {
+  it("parses fragment and historical path DID Key IDs", () => {
     expect(parseDIDKeyID(exampleMethodId)).toBe(exampleMethodId);
     expect(parseDIDKeyID("#rel-key" as const)).toBe("#rel-key");
+    expect(parseDIDKeyID("/keys/key-1" as const)).toBe("/keys/key-1");
+    expect(parseDIDKeyID("./keys/key-1" as const)).toBe("./keys/key-1");
+    expect(parseDIDKeyID(`${exampleDid}/keys/key-1`)).toBe(
+      `${exampleDid}/keys/key-1`,
+    );
+  });
+
+  it("does not widen unrelated DID Key ID references", () => {
     expect(() => parseDIDKeyID(exampleDid)).toThrow();
     expect(() => parseDIDKeyID("did:example:abc#key?bad")).toThrow();
     expect(() => parseDIDKeyID("not/allowed/path" as const)).toThrow();
+    expect(() => parseDIDKeyID("?key=1" as const)).toThrow();
+    expect(() => parseDIDKeyID("//example.org/key" as const)).toThrow();
+    expect(() => parseDIDKeyID("https://example.org/key" as const)).toThrow();
   });
 
   it("accepts all known DID media types", () => {

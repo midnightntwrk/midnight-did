@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { parsePackageSpec, validateReviewPolicy } from "./diagnose.mjs";
@@ -9,6 +10,11 @@ test("parses pinned scoped and unscoped npm package specifications", () => {
     name: "dev-loops",
     version: "0.9.0",
   });
+  assert.deepEqual(parsePackageSpec("npm:pi-subagents@0.62.0"), {
+    spec: "npm:pi-subagents@0.62.0",
+    name: "pi-subagents",
+    version: "0.62.0",
+  });
   assert.deepEqual(
     parsePackageSpec("npm:@input-output-hk/agent-review-pi@0.6.0"),
     {
@@ -18,6 +24,17 @@ test("parses pinned scoped and unscoped npm package specifications", () => {
     },
   );
   assert.equal(parsePackageSpec("github:user/repo"), null);
+});
+
+test("keeps the reviewed stable Pi package pins exact", async () => {
+  const settings = JSON.parse(
+    await readFile(new URL("../../.pi/settings.json", import.meta.url), "utf8"),
+  );
+  assert.deepEqual(settings.packages, [
+    "npm:dev-loops@0.9.0",
+    "npm:pi-subagents@0.62.0",
+    "npm:@input-output-hk/agent-review-pi@0.6.0",
+  ]);
 });
 
 test("review readiness fails closed when a mandatory reviewer is not routed", () => {

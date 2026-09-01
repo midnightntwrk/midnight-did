@@ -103,7 +103,9 @@ docs-site/spec/midnight-method.md
 docs-site/spec/midnight-did-traits.md
 
 # Local agent/dev-loop runtime state
+# Keep the pre-0.47 pi-subagents path ignored for existing checkouts.
 /.pi-subagents/
+/.pi/subagents/
 /.pi/runner-coordination/
 /.pi/dev-loop-retrospective-checkpoint.json
 /tmp/phases/

@@ -16,6 +16,13 @@ export const protectedApiModuleThresholds = Object.freeze({
   },
   "service-operations.ts": { statements: 90, branches: 90, functions: 90 },
   "wallet-keys.ts": { statements: 80, branches: 50, functions: 90 },
+  "verification-method-operations.ts": {
+    statements: 100,
+    branches: 90,
+    functions: 100,
+  },
+  "wallet-context.ts": { statements: 100, branches: 100, functions: 100 },
+  "wallet.ts": { statements: 100, branches: 100, functions: 100 },
 });
 
 const coverageKeys = Object.freeze({

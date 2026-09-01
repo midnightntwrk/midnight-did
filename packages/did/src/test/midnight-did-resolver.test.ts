@@ -175,6 +175,24 @@ describe("MidnightDIDResolver", () => {
     expect(result.didResolutionMetadata.error).toBe("notFound");
   });
 
+  it("returns deactivation metadata with the still-readable DID Document", async () => {
+    ledgerState.active = false;
+    ledgerState.deactivated = true;
+    ledgerState.updated = 10_000n;
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument?.id).toBe(did);
+    expect(result.didDocumentMetadata).toMatchObject({
+      deactivated: true,
+      updated: "1970-01-01T00:00:10Z",
+    });
+    expect(result.didResolutionMetadata).toEqual({});
+  });
+
   it("returns invalidDid in the DID Core resolution envelope", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => ledgerState,
@@ -185,6 +203,43 @@ describe("MidnightDIDResolver", () => {
     expect(result.didDocument).toBeNull();
     expect(result.didResolutionMetadata.error).toBe("invalidDid");
   });
+
+  it.each([
+    ["path", "/keys/holder"],
+    ["dot-relative", "./keys/holder"],
+  ])(
+    "renders historical %s verification method ids without fragments",
+    async (_label, methodId) => {
+      ledgerState.verificationMethods = makeIterablePairs<string, any>([
+        [
+          methodId,
+          {
+            typ: 1,
+            publicKeyJwk: {
+              kty: 3,
+              crv: 0,
+              x: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+              y: "",
+            },
+          },
+        ],
+      ]);
+      ledgerState.authenticationRelation = makeIterable<string>([methodId]);
+      const resolver = new MidnightDIDResolver({
+        ledgerReader: async () => ledgerState,
+      });
+
+      const result = await resolver.resolveDIDResolutionResult(did);
+
+      expect(result.didDocument?.verificationMethod?.[0]?.id).toBe(
+        `${did}/keys/holder`,
+      );
+      expect(result.didDocument?.authentication).toEqual([
+        `${did}/keys/holder`,
+      ]);
+      expect(result.didResolutionMetadata.error).toBeUndefined();
+    },
+  );
 
   it("preserves distinct path services with the same fragment", async () => {
     ledgerState.services = makeIterablePairs<string, any>([
@@ -241,26 +296,64 @@ describe("MidnightDIDResolver", () => {
     expect(result.didResolutionMetadata.error).toBe("invalidDid");
   });
 
-  it.each([
-    [
-      "a foreign-DID service id",
-      {
-        id: "did:example:other#service-1",
-        typ: "LinkedDomains",
-        serviceEndpoint: JSON.stringify("https://example.com"),
-      },
-    ],
-    [
-      "an empty service endpoint set",
-      {
-        id: "#service-1",
-        typ: "LinkedDomains",
-        serviceEndpoint: JSON.stringify([]),
-      },
-    ],
-  ])("maps %s to invalidDid", async (_label, service) => {
+  it("renders foreign-DID service ids already present in legacy ledger state", async () => {
     ledgerState.services = makeIterablePairs<string, any>([
-      ["invalid-service", service],
+      [
+        "legacy-foreign-service",
+        {
+          id: "did:example:other#service-1",
+          typ: "LinkedDomains",
+          serviceEndpoint: JSON.stringify("https://example.com"),
+        },
+      ],
+    ]);
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument?.service?.[0]?.id).toBe(
+      "did:example:other#service-1",
+    );
+    expect(result.didResolutionMetadata.error).toBeUndefined();
+  });
+
+  it("maps an empty service endpoint set to invalidDid", async () => {
+    ledgerState.services = makeIterablePairs<string, any>([
+      [
+        "invalid-service",
+        {
+          id: "#service-1",
+          typ: "LinkedDomains",
+          serviceEndpoint: JSON.stringify([]),
+        },
+      ],
+    ]);
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveDIDResolutionResult(did);
+
+    expect(result.didDocument).toBeNull();
+    expect(result.didResolutionMetadata.error).toBe("invalidDid");
+  });
+
+  it("maps network-path verification method ids to invalidDid", async () => {
+    ledgerState.verificationMethods = makeIterablePairs<string, any>([
+      [
+        "//attacker.example/key",
+        {
+          typ: 1,
+          publicKeyJwk: {
+            kty: 3,
+            crv: 0,
+            x: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+            y: "",
+          },
+        },
+      ],
     ]);
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => ledgerState,
@@ -362,6 +455,116 @@ describe("MidnightDIDResolver", () => {
     );
   });
 
+  it.each([
+    {
+      name: "malformed supported-profile JWK material",
+      error: "invalidPublicKey",
+      mutate: (ledger: any): void => {
+        const [[id, method]] = Array.from(ledger.verificationMethods) as Array<
+          [string, any]
+        >;
+        ledger.verificationMethods = makeIterablePairs([
+          [
+            id,
+            { ...method, publicKeyJwk: { ...method.publicKeyJwk, x: "bad" } },
+          ],
+        ]);
+      },
+    },
+    {
+      name: "non-empty OKP y",
+      error: "invalidPublicKey",
+      mutate: (ledger: any): void => {
+        const [[id, method]] = Array.from(ledger.verificationMethods) as Array<
+          [string, any]
+        >;
+        ledger.verificationMethods = makeIterablePairs([
+          [
+            id,
+            {
+              ...method,
+              publicKeyJwk: {
+                ...method.publicKeyJwk,
+                y: method.publicKeyJwk.x,
+              },
+            },
+          ],
+        ]);
+      },
+    },
+    {
+      name: "malformed service payload",
+      error: "invalidDid",
+      mutate: (ledger: any): void => {
+        ledger.services = makeIterablePairs([
+          [
+            "malformed-service",
+            { id: "#service-1", typ: "", serviceEndpoint: "{not-json" },
+          ],
+        ]);
+      },
+    },
+    {
+      name: "foreign verification-method subject",
+      error: "invalidDid",
+      mutate: (ledger: any): void => {
+        const [[, method]] = Array.from(ledger.verificationMethods) as Array<
+          [string, any]
+        >;
+        ledger.verificationMethods = makeIterablePairs([
+          [`did:midnight:devnet:${"b".repeat(64)}#key-1`, method],
+        ]);
+        ledger.authenticationRelation = makeIterable([]);
+      },
+    },
+    {
+      name: "same-store canonical alias collision",
+      error: "notAllowedLocalDuplicateKey",
+      mutate: (ledger: any): void => {
+        const [[, method]] = Array.from(ledger.verificationMethods) as Array<
+          [string, any]
+        >;
+        ledger.verificationMethods = makeIterablePairs([
+          ["key-1", method],
+          ["#key-1", method],
+        ]);
+      },
+    },
+    {
+      name: "cross-store canonical alias collision",
+      error: "notAllowedLocalDuplicateKey",
+      mutate: (ledger: any): void => {
+        ledger.schnorrJubjubVerificationMethods = makeIterablePairs([
+          ["#key-1", { publicKey: { x: 1n, y: 2n } }],
+        ]);
+      },
+    },
+  ])(
+    "returns deterministic malformed-ledger envelopes for $name",
+    async ({ mutate, error }) => {
+      mutate(ledgerState);
+      const resolver = new MidnightDIDResolver({
+        ledgerReader: async () => ledgerState,
+      });
+
+      await expect(resolver.resolveDIDResolutionResult(did)).resolves.toEqual({
+        didDocument: null,
+        didDocumentMetadata: {},
+        didResolutionMetadata: { error },
+      });
+      await expect(
+        resolver.resolveRepresentation(did, {
+          accept: "application/did+ld+json",
+        }),
+      ).resolves.toEqual({
+        didDocumentStream: null,
+        didDocumentMetadata: {},
+        didResolutionMetadata: { error },
+      });
+      await expect(resolver.resolve(did)).rejects.toThrow();
+    },
+  );
+
   it("does not classify runtime error text as a resolver request failure", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => {
@@ -439,23 +642,29 @@ describe("MidnightDIDResolver", () => {
     });
   });
 
-  it("selects DID Core JSON when requested", async () => {
+  it("preserves the abstract DID data model through DID JSON serialization", async () => {
     const resolver = new MidnightDIDResolver({
       ledgerReader: async () => ledgerState,
       expectedNetwork: MidnightNetwork.DevNet,
     });
 
-    const result = await resolver.resolveRepresentation(did, {
+    const abstractResult = await resolver.resolveDIDResolutionResult(did);
+    const representationResult = await resolver.resolveRepresentation(did, {
       accept: "application/did+json",
     });
 
-    expect(result.didDocumentStream).not.toBeNull();
-    const didDocument = JSON.parse(
-      new TextDecoder().decode(result.didDocumentStream!),
+    expect(representationResult.didDocumentStream).not.toBeNull();
+    const didJsonDocument = JSON.parse(
+      new TextDecoder().decode(representationResult.didDocumentStream!),
     );
-    expect(didDocument).toEqual(expect.objectContaining({ id: did }));
-    expect(didDocument).not.toHaveProperty("@context");
-    expect(result.didResolutionMetadata.contentType).toBe(
+    const { "@context": _context, ...expectedDataModel } =
+      abstractResult.didDocument!;
+    expect(didJsonDocument).toEqual(expectedDataModel);
+    expect(didJsonDocument).not.toHaveProperty("@context");
+    expect(representationResult.didDocumentMetadata).toEqual(
+      abstractResult.didDocumentMetadata,
+    );
+    expect(representationResult.didResolutionMetadata.contentType).toBe(
       "application/did+json",
     );
   });
@@ -489,6 +698,183 @@ describe("MidnightDIDResolver", () => {
       "application/did+json",
     );
   });
+
+  it("lets an exact q=0 exclusion override a wildcard match", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "*/*;q=0.8, application/did+ld+json;q=0",
+    });
+
+    expect(result.didResolutionMetadata.contentType).toBe(
+      "application/did+json",
+    );
+  });
+
+  it("supports a type wildcard while retaining exact-range precedence", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "application/*;q=0.8, application/did+ld+json;q=0",
+    });
+
+    expect(result.didResolutionMetadata.contentType).toBe(
+      "application/did+json",
+    );
+  });
+
+  it("uses the first equally specific duplicate range for effective quality", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept:
+        "application/DID+JSON;q=0, Application/did+json;q=1, application/did+ld+json;q=0.5",
+    });
+
+    expect(result.didResolutionMetadata.contentType).toBe(
+      "application/did+ld+json",
+    );
+  });
+
+  it("does not match media-range parameters absent from an offered representation", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => ledgerState,
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept:
+        'application/did+ld+json;profile="https://example.com/a,b";q=1, application/did+json;q=0.5',
+    });
+
+    expect(result.didResolutionMetadata.contentType).toBe(
+      "application/did+json",
+    );
+  });
+
+  it("does not match media-range parameters after q when absent from an offered representation", async () => {
+    const ledgerReader = vi.fn();
+    const resolver = new MidnightDIDResolver({ ledgerReader });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "application/did+json;q=0.9;profile=x",
+    });
+
+    expect(result).toEqual({
+      didDocumentStream: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "representationNotSupported" },
+    });
+    expect(ledgerReader).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "application/did+json;q=0.8, application/did+ld+json;q=0.8",
+      "application/did+json",
+    ],
+    [
+      "application/did+ld+json;q=0.8, application/did+json;q=0.8",
+      "application/did+ld+json",
+    ],
+  ] as const)(
+    "uses request order to break equal-quality Accept ties for %s",
+    async (accept, expectedContentType) => {
+      const resolver = new MidnightDIDResolver({
+        ledgerReader: async () => ledgerState,
+      });
+
+      const result = await resolver.resolveRepresentation(did, { accept });
+
+      expect(result.didResolutionMetadata.contentType).toBe(
+        expectedContentType,
+      );
+    },
+  );
+
+  it.each(["not-a-number", "1.1", ".5", "0.1234"])(
+    "rejects an invalid Accept quality value %s without reading the ledger",
+    async (quality) => {
+      const ledgerReader = vi.fn();
+      const resolver = new MidnightDIDResolver({ ledgerReader });
+
+      const result = await resolver.resolveRepresentation(did, {
+        accept: `application/did+json;q=${quality}`,
+      });
+
+      expect(result).toEqual({
+        didDocumentStream: null,
+        didDocumentMetadata: {},
+        didResolutionMetadata: { error: "representationNotSupported" },
+      });
+      expect(ledgerReader).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects a bare media-range parameter after q without reading the ledger", async () => {
+    const ledgerReader = vi.fn();
+    const resolver = new MidnightDIDResolver({ ledgerReader });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "application/did+json;q=0.9;profile",
+    });
+
+    expect(result).toEqual({
+      didDocumentStream: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "representationNotSupported" },
+    });
+    expect(ledgerReader).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'application/did+json;profile="unterminated',
+    'application/did+json;profile="bad"quote"',
+    "application/did json",
+    "*/did+json",
+    "application/**",
+    "application/did+json;q=0.8;q=0.7",
+  ])(
+    "rejects a malformed-only Accept range %s without reading the ledger",
+    async (accept) => {
+      const ledgerReader = vi.fn();
+      const resolver = new MidnightDIDResolver({ ledgerReader });
+
+      const result = await resolver.resolveRepresentation(did, { accept });
+
+      expect(result).toEqual({
+        didDocumentStream: null,
+        didDocumentMetadata: {},
+        didResolutionMetadata: { error: "representationNotSupported" },
+      });
+      expect(ledgerReader).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    'application/did+json;profile="bad"quote, application/did+ld+json',
+    "application/did json, application/did+ld+json",
+    "application/**, application/did+ld+json",
+    "application/did+json;q=0.8;q=0.7, application/did+ld+json;q=0.5",
+  ])(
+    "ignores malformed Accept ranges when a valid range remains: %s",
+    async (accept) => {
+      const resolver = new MidnightDIDResolver({
+        ledgerReader: async () => ledgerState,
+      });
+
+      const result = await resolver.resolveRepresentation(did, { accept });
+
+      expect(result.didResolutionMetadata.contentType).toBe(
+        "application/did+ld+json",
+      );
+    },
+  );
 
   it("returns representationNotSupported without reading the ledger", async () => {
     const ledgerReader = vi.fn();
@@ -611,6 +997,24 @@ describe("MidnightDIDResolver", () => {
       didDocumentStream: null,
       didDocumentMetadata: {},
       didResolutionMetadata: { error: "methodNotSupported" },
+    });
+  });
+
+  it("returns internalError without a representation stream when the provider fails", async () => {
+    const resolver = new MidnightDIDResolver({
+      ledgerReader: async () => {
+        throw new Error("provider unavailable");
+      },
+    });
+
+    const result = await resolver.resolveRepresentation(did, {
+      accept: "application/did+ld+json",
+    });
+
+    expect(result).toEqual({
+      didDocumentStream: null,
+      didDocumentMetadata: {},
+      didResolutionMetadata: { error: "internalError" },
     });
   });
 });

@@ -3,6 +3,7 @@ import {
   DIDDocument,
   DIDDocumentSchema,
   DIDKeyID,
+  DIDKeyIDSchema,
   KeyType,
   resolveDIDURLReference,
   Service,
@@ -38,6 +39,15 @@ const REQUIRED_CONTEXTS = [
   "https://www.w3.org/ns/did/v1",
   "https://w3id.org/security/jwk/v1",
 ] as const;
+
+const isCompatibleVerificationMethodId = (id: string): boolean => {
+  if (!DIDKeyIDSchema.safeParse(id).success) return false;
+  if (id.includes("#")) return true;
+  if (id.startsWith("/") || id.startsWith(".")) return true;
+  if (!id.startsWith("did:")) return false;
+  const didSubjectBoundary = id.search(/[/?#]/u);
+  return didSubjectBoundary >= 0 && id[didSubjectBoundary] === "/";
+};
 
 /** Midnight-specific verification method validation */
 const MidnightVerificationMethodSchema = z
@@ -80,11 +90,10 @@ const MidnightVerificationMethodSchema = z
       }
       return false;
     }, "OKP keys must use Ed25519, X25519, BLS12381G1, or BLS12381G2 curve; EC keys must use Jubjub, P-256, or secp256k1 curve"),
-    z.refine((vm) => {
-      // Verification methods must be referenceable by a fragment.
-      const id = vm.id;
-      return id.includes("#") && !id.endsWith("#");
-    }, "Midnight DID does not support embedded verification methods - use referenced methods with fragments"),
+    z.refine(
+      (vm) => isCompatibleVerificationMethodId(vm.id),
+      "Midnight DID verification methods require a fragment or compatible path reference",
+    ),
   );
 
 /** Midnight DID Document Schema with method-specific constraints */
@@ -179,6 +188,7 @@ const canonicalizeMidnightSubjectReference = (
 const canonicalizeMidnightServiceReference = (
   value: string,
   did: MidnightDIDString,
+  allowLegacyForeignDID: boolean,
 ): string => {
   if (value.endsWith("#")) {
     throw new Error(`service id '${value}' must identify a service`);
@@ -186,6 +196,7 @@ const canonicalizeMidnightServiceReference = (
   let resolved: string;
   try {
     resolved = resolveDIDURLReference(value, did, {
+      allowExternalDID: allowLegacyForeignDID,
       allowExternalURL: true,
       caseInsensitiveDIDSubject: true,
     });
@@ -204,6 +215,7 @@ const canonicalizeMidnightServiceReference = (
 const normalizeMidnightDocumentReferences = (
   doc: DIDDocument,
   did: MidnightDIDString,
+  options: MidnightDIDDocumentCompatibilityOptions = {},
 ): DIDDocument => {
   const verificationMethod = doc.verificationMethod?.map((method) => {
     const id = canonicalizeMidnightSubjectReference(
@@ -250,7 +262,11 @@ const normalizeMidnightDocumentReferences = (
     ),
     service: doc.service?.map((service) => ({
       ...service,
-      id: canonicalizeMidnightServiceReference(service.id, did),
+      id: canonicalizeMidnightServiceReference(
+        service.id,
+        did,
+        options.allowLegacyForeignDIDServiceIds === true,
+      ),
     })),
   } as unknown as DIDDocument;
 };
@@ -306,6 +322,14 @@ const projectMidnightDIDDocument = (
       : { service: doc.service }),
   }) as MidnightDIDDocument;
 
+export type MidnightDIDDocumentCompatibilityOptions = {
+  /**
+   * Accept foreign-DID service ids already present in historical ledger state.
+   * This read-only compatibility policy must not be used to validate new writes.
+   */
+  allowLegacyForeignDIDServiceIds?: boolean;
+};
+
 /**
  * Create a Midnight DID Document
  *
@@ -334,18 +358,21 @@ const projectMidnightDIDDocument = (
  * });
  * ```
  */
-export function createMidnightDIDDocument(params: {
-  id: MidnightDIDString;
-  additionalContexts?: string[];
-  alsoKnownAs?: URIString[];
-  verificationMethod?: VerificationMethod[];
-  authentication?: string[];
-  assertionMethod?: string[];
-  keyAgreement?: string[];
-  capabilityInvocation?: string[];
-  capabilityDelegation?: string[];
-  service?: Service[];
-}): MidnightDIDDocument {
+export function createMidnightDIDDocument(
+  params: {
+    id: MidnightDIDString;
+    additionalContexts?: string[];
+    alsoKnownAs?: URIString[];
+    verificationMethod?: VerificationMethod[];
+    authentication?: string[];
+    assertionMethod?: string[];
+    keyAgreement?: string[];
+    capabilityInvocation?: string[];
+    capabilityDelegation?: string[];
+    service?: Service[];
+  },
+  compatibility: MidnightDIDDocumentCompatibilityOptions = {},
+): MidnightDIDDocument {
   const canonicalId = parseMidnightDIDString(params.id);
   const doc = {
     "@context": [
@@ -383,6 +410,7 @@ export function createMidnightDIDDocument(params: {
     normalizeMidnightDocumentReferences(
       MidnightDIDDocumentSchema.parse(doc) as DIDDocument,
       canonicalId,
+      compatibility,
     ),
     { normalizeServiceEndpoints: false },
   );

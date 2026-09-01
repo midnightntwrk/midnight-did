@@ -41,10 +41,24 @@ extension or integration-layer adaptation.
 
 ## Identifier Rules
 
-- Verification method ids may be relative fragments such as `#key-1`.
-- The SDK normalizes ids before submitting ledger updates.
-- Resolvers emit absolute DID URL ids in the DID Document.
-- Relation sets may reference methods from either key map.
+- New verification method writes use subject-bound identifiers with non-empty
+  fragments, such as `#key-1` or `/keys/a#key-1`.
+- Historical documents and ledger state may contain root-path or dot-relative
+  method ids without fragments, such as `/keys/key-1` or `./keys/key-1`. Readers
+  retain these ids and render them as canonical absolute DID URLs.
+- This read compatibility does not admit bare labels, query-only ids,
+  `//` network-path references, foreign-DID method ids, or external URLs.
+- Current mutation helpers do not update or remove path-only physical keys. Such
+  records remain readable; migration requires deploying replacement DID state
+  with fragment-bearing ids (or purpose-built ledger migration tooling that
+  targets the exact historical key). Passing the path-only id to current
+  mutation helpers is not a migration because those helpers require a fragment.
+- Resolvers emit absolute DID URL ids in the DID Document, and relation sets may
+  reference methods from either key map.
+
+Legacy ledger service ids have a separate, read-only exception: a resolver
+preserves an existing foreign-DID service id. `addService` and `updateService`
+remain subject-bound and reject new foreign-DID service writes.
 
 ## Verification Relationship Compatibility
 
@@ -74,7 +88,69 @@ operation-bound signatures cannot be reused for a different mutation or changed
 arguments.
 
 `rotateControllerKey` accepts only the next derived `controllerPublicKey`; the
-replacement secret remains wallet-local and is promoted after finalization.
+replacement secret remains wallet-local in a pending slot and is promoted after
+finalized transaction data returns. If `callTx` was invoked and submission or
+finality throws, the pending secret is retained because receipt loss cannot
+determine ledger outcome. A failure definitely before `callTx` invocation
+instead attempts to remove the candidate under the same lease; if cleanup
+rejects, the warning truthfully leaves its disposition unknown and keeps discard
+guidance for a retained record. Re-read `controllerPublicKey` before retrying an
+attempted call. After confirming the replacement key finalized, promote it
+explicitly:
+
+```ts
+await recoverPendingControllerPrivateState(providers, {
+  contractAddress,
+  rotationFinalized: true,
+});
+```
+
+After confirming the old key remains active, discard the candidate explicitly
+before retrying:
+
+```ts
+await discardPendingControllerPrivateState(providers, {
+  contractAddress,
+  rotationFinalized: false,
+});
+```
+
+A later attempt that finds a retained candidate fails with
+`PendingControllerPrivateStateExistsError`. A rotation, recovery, promotion, or
+discard racing an in-flight lifecycle fails with
+`PendingControllerPrivateStateBusyError`, without writing active state or
+removing the candidate. Promotion requires a valid candidate; missing or
+malformed state produces
+<code>PendingControllerPrivateState<wbr>UnavailableError</code> without mutation.
+Discard with `{ rotationFinalized: false }` removes any non-null pending record,
+including malformed state, because the caller has independently confirmed
+non-finalization; only an absent record produces the unavailable error. If
+promotion writes active state but pending cleanup rejects, it warns and returns
+the promoted state, but cannot confirm whether the pending record remains or was
+already removed. A later reconciliation either processes retained state or
+returns `PendingControllerPrivateStateUnavailableError` if deletion committed.
+
+Public rotation and recovery auto-bind or assert the canonical contract address;
+public promotion/discard reconciliation requires `contractAddress`. API-bound
+wrappers for one DID share a process-local critical section through preflight,
+transaction settlement, promotion, and cleanup. Acquisition is fail-fast, so a
+competitor immediately receives `PendingControllerPrivateStateBusyError`, even
+if the owner hangs. An unresolved owner remains busy until underlying work is
+cancelled and its operation settles, the operation otherwise terminates or
+settles, or the process exits. There is deliberately no lease expiry: stale
+provider or transaction work could later overwrite, promote, or remove another
+operation's state. After cancellation or termination, reconcile ledger and
+private state before another mutation.
+
+Provider-object fallback is only for internal/deep unbound use. Direct provider
+mutation, independently unbound wrappers, and separate processes are outside the
+guarantee and require external per-DID coordination. Join acquires the same
+fail-fast lease before binding, reserves both source and target addresses, and
+holds them through its private-state read and deployed-contract lookup. Competing
+source/target lifecycle and binding calls therefore fail busy before mutation;
+join failure releases its owned keys. Known different idle bindings fail with
+`PrivateStateProviderContractMismatchError`. The provider has no cross-process
+atomic conditional write.
 
 ## Controller Recovery and Backup Posture
 

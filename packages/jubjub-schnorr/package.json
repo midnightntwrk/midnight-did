@@ -1,6 +1,6 @@
 {
   "name": "@midnight-ntwrk/midnight-did-jubjub-schnorr",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "license": "Apache-2.0",
   "type": "module",
   "repository": {
@@ -52,7 +52,7 @@
     "@noble/hashes": "^2.2.0"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "4.1.10",
+    "@vitest/coverage-v8": "4.1.11",
     "globals": "14.0.0"
   },
   "files": [

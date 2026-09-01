@@ -164,28 +164,153 @@ const resolutionErrorCode = (error: unknown): DIDResolutionErrorCode => {
 const supportedRepresentationMediaTypes: readonly DIDDocumentRepresentationMediaTypes[] =
   ["application/did+ld+json", "application/did+json"];
 
-const requestedMediaTypes = (
-  accept: MidnightDIDResolutionOptions["accept"],
-): string[] => {
-  if (accept === undefined) return [];
-  const values = (typeof accept === "string" ? [accept] : [...accept]).flatMap(
-    (value) => value.split(","),
-  );
-  return values
-    .map((value) => {
-      const [mediaType, ...parameters] = value.split(";");
-      const quality = parameters.find((parameter) =>
-        /^\s*q\s*=/i.test(parameter),
-      );
-      const qualityValue = quality?.split("=", 2)[1]?.trim();
-      return {
-        mediaType: mediaType?.trim().toLowerCase() ?? "",
-        quality: qualityValue === undefined ? 1 : Number(qualityValue),
-      };
-    })
-    .filter(({ mediaType, quality }) => mediaType !== "" && quality > 0)
-    .sort((left, right) => right.quality - left.quality)
-    .map(({ mediaType }) => mediaType);
+type AcceptMediaRange = {
+  type: string;
+  subtype: string;
+  mediaParameterCount: number;
+  quality: number;
+  order: number;
+};
+
+const httpToken = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+const httpQuality = /^(?:0(?:\.\d{0,3})?|1(?:\.0{0,3})?)$/;
+
+/** Split an Accept list without treating quoted delimiters as separators. */
+const splitOutsideQuotes = (
+  value: string,
+  separator: "," | ";",
+): string[] | null => {
+  const parts: string[] = [];
+  let start = 0;
+  let quoted = false;
+  let escaped = false;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (quoted) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        quoted = false;
+      }
+    } else if (character === '"') {
+      quoted = true;
+    } else if (character === separator) {
+      parts.push(value.slice(start, index));
+      start = index + 1;
+    }
+  }
+
+  if (quoted || escaped) return null;
+  parts.push(value.slice(start));
+  return parts;
+};
+
+const validParameterValue = (value: string): boolean => {
+  if (httpToken.test(value)) return true;
+  if (!value.startsWith('"') || !value.endsWith('"')) return false;
+
+  let escaped = false;
+  for (const character of value.slice(1, -1)) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    const isQuotedCharacter =
+      codePoint === 9 ||
+      (codePoint >= 32 && codePoint <= 126) ||
+      (codePoint >= 128 && codePoint <= 255);
+    if (!isQuotedCharacter || (!escaped && character === '"')) return false;
+    if (escaped) {
+      escaped = false;
+    } else if (character === "\\") {
+      escaped = true;
+    }
+  }
+  return !escaped;
+};
+
+const parseAcceptMediaRange = (
+  value: string,
+  order: number,
+): AcceptMediaRange | null => {
+  const parts = splitOutsideQuotes(value, ";");
+  if (parts === null) return null;
+
+  const mediaType = parts.shift()?.trim().toLowerCase() ?? "";
+  const mediaTypeParts = mediaType.split("/");
+  if (mediaTypeParts.length !== 2) return null;
+  const [type = "", subtype = ""] = mediaTypeParts;
+  if (
+    !(type === "*" || (httpToken.test(type) && !type.includes("*"))) ||
+    !(subtype === "*" || (httpToken.test(subtype) && !subtype.includes("*"))) ||
+    (type === "*" && subtype !== "*")
+  ) {
+    return null;
+  }
+
+  let mediaParameterCount = 0;
+  let quality = 1;
+  let qualitySeen = false;
+  for (const rawParameter of parts) {
+    const parameter = rawParameter.trim();
+    const equals = parameter.indexOf("=");
+    const name = (equals === -1 ? parameter : parameter.slice(0, equals))
+      .trim()
+      .toLowerCase();
+    const parameterValue =
+      equals === -1 ? null : parameter.slice(equals + 1).trim();
+    if (!httpToken.test(name)) return null;
+
+    if (name === "q") {
+      if (
+        qualitySeen ||
+        parameterValue === null ||
+        !httpQuality.test(parameterValue)
+      ) {
+        return null;
+      }
+      quality = Number(parameterValue);
+      qualitySeen = true;
+    } else {
+      if (parameterValue === null || !validParameterValue(parameterValue)) {
+        return null;
+      }
+      mediaParameterCount += 1;
+    }
+  }
+
+  return { type, subtype, mediaParameterCount, quality, order };
+};
+
+const requestedMediaRanges = (
+  accept: Exclude<MidnightDIDResolutionOptions["accept"], undefined>,
+): AcceptMediaRange[] => {
+  const values = typeof accept === "string" ? [accept] : [...accept];
+  const ranges: AcceptMediaRange[] = [];
+  let order = 0;
+
+  for (const value of values) {
+    const entries = splitOutsideQuotes(value, ",");
+    if (entries === null) continue;
+    for (const entry of entries) {
+      const range = parseAcceptMediaRange(entry.trim(), order);
+      if (range !== null) ranges.push(range);
+      order += 1;
+    }
+  }
+  return ranges;
+};
+
+const matchingSpecificity = (
+  range: AcceptMediaRange,
+  representation: DIDDocumentRepresentationMediaTypes,
+): number => {
+  if (range.mediaParameterCount !== 0) return -1;
+  const [type, subtype] = representation.split("/") as [string, string];
+  if (range.type === type && range.subtype === subtype) return 2;
+  if (range.type === type && range.subtype === "*") return 1;
+  if (range.type === "*" && range.subtype === "*") return 0;
+  return -1;
 };
 
 const selectRepresentationMediaType = (
@@ -193,29 +318,48 @@ const selectRepresentationMediaType = (
 ): DIDDocumentRepresentationMediaTypes | null => {
   if (
     accept === undefined ||
-    (Array.isArray(accept) && accept.length === 0) ||
+    (Array.isArray(accept) && accept.every((value) => value.trim() === "")) ||
     (typeof accept === "string" && accept.trim() === "")
   ) {
     return "application/did+ld+json";
   }
 
-  const requested = requestedMediaTypes(accept);
-  if (requested.length === 0) {
-    return null;
-  }
+  const ranges = requestedMediaRanges(accept);
+  let selected:
+    | {
+        representation: DIDDocumentRepresentationMediaTypes;
+        quality: number;
+        requestOrder: number;
+      }
+    | undefined;
 
-  for (const value of requested) {
-    if (value === "*/*") return "application/did+ld+json";
+  for (const representation of supportedRepresentationMediaTypes) {
+    let effectiveRange: AcceptMediaRange | undefined;
+    let effectiveSpecificity = -1;
+    for (const range of ranges) {
+      const specificity = matchingSpecificity(range, representation);
+      if (specificity > effectiveSpecificity) {
+        effectiveRange = range;
+        effectiveSpecificity = specificity;
+      }
+    }
+
+    if (effectiveRange === undefined || effectiveRange.quality === 0) continue;
     if (
-      supportedRepresentationMediaTypes.includes(
-        value as DIDDocumentRepresentationMediaTypes,
-      )
+      selected === undefined ||
+      effectiveRange.quality > selected.quality ||
+      (effectiveRange.quality === selected.quality &&
+        effectiveRange.order < selected.requestOrder)
     ) {
-      return value as DIDDocumentRepresentationMediaTypes;
+      selected = {
+        representation,
+        quality: effectiveRange.quality,
+        requestOrder: effectiveRange.order,
+      };
     }
   }
 
-  return null;
+  return selected?.representation ?? null;
 };
 
 const documentForRepresentation = (
