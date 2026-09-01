@@ -75,7 +75,7 @@
     "retrospective:complete": "node scripts/harness/complete-retrospective.mjs"
   },
   "private": true,
-  "packageManager": "pnpm@10.34.4",
+  "packageManager": "pnpm@10.34.5",
   "pnpm": {
     "overrides": {
       "vitepress>vite": "^6.4.2",
@@ -110,7 +110,7 @@
     "eslint-import-resolver-typescript": "3.10.1",
     "eslint-plugin-import": "2.32.0",
     "eslint-plugin-simple-import-sort": "12.1.1",
-    "js-yaml": "4.3.1",
+    "js-yaml": "4.3.2",
     "prettier": "3.9.6",
     "testcontainers": "12.1.0",
     "tree-sitter": "0.25.1",
