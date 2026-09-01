@@ -417,7 +417,7 @@ function shellCommandIsForbidden(command) {
         (child) => child.type === "command",
       );
       if (command != null) {
-        const { name, args } = commandParts(command);
+        const { name } = commandParts(command);
         const executable = name == null ? null : executableName(name);
         if (["bash", "dash", "ksh", "sh", "zsh"].includes(executable)) {
           for (const redirect of node.namedChildren.filter((child) =>
