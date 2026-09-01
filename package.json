@@ -75,7 +75,7 @@
     "retrospective:complete": "node scripts/harness/complete-retrospective.mjs"
   },
   "private": true,
-  "packageManager": "pnpm@10.34.4",
+  "packageManager": "pnpm@10.34.5",
   "pnpm": {
     "overrides": {
       "vitepress>vite": "^6.4.2",
