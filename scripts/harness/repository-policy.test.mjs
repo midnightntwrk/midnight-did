@@ -853,6 +853,7 @@ test("branch, runtime, local-validation, and exact-head review invariants stay d
   assert.match(packageJson.scripts.verify, /coverage:all/);
   for (const runtimePath of [
     "/.pi-subagents/",
+    "/.pi/subagents/",
     "/.pi/runner-coordination/",
     "/.pi/dev-loop-retrospective-checkpoint.json",
   ]) {
