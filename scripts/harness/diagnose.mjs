@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const RUNTIME_PATHS = [
   ".pi-subagents/",
+  ".pi/subagents/",
   ".pi/runner-coordination/",
   ".pi/dev-loop-retrospective-checkpoint.json",
 ];

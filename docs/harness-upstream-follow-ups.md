@@ -40,15 +40,24 @@ for existing PRs. Acceptance: worktree creation and PR creation can resolve
 never retarget an existing PR by assumption. In 0.9.0 these rules remain in
 `AGENT.md` because adding unsupported `.devloops` keys would invalidate policy.
 
-## 4. Durable pi-subagents output after serialization failure
+## 4. Pi agent compatibility and concurrent package provisioning
 
-**Upstream:** `pi-subagents`.
+**Upstream:** `dev-loops`, `pi-subagents`, and Pi's package manager.
 
-Preserve final/partial child output and provenance when workflow serialization,
-extension loading, or advertised-tool validation fails after useful turns. The
-issue #426 planning fanout first raced project-local package provisioning, then
-produced useful output but surfaced failed status because project agents
-advertised unavailable `search`/`execute` tools. Acceptance: one durable result
-artifact records child status, output, tool/provisioning failure, run identity,
-and recovery instructions without requiring transcript scraping; concurrent
-children must not race the same package installation.
+Pi-subagents 0.62.0 addresses the earlier serialization-recovery gap by
+retaining typed errors, partial output, transcript metadata, artifacts, and
+completed-child references during foreground resume and workflow
+validation/return-serialization failures. Two integration gaps remain:
+
+- `dev-loops@0.9.0` agent definitions advertise Claude-style `search`,
+  `execute`, `agent`, and `todo` tools that the pinned Pi runtime does not
+  register. The package agents must publish Pi-valid allowlists without losing
+  their intended read/write or nested-delegation boundaries.
+- Concurrent Pi processes can still race project-local package provisioning in
+  the same `.pi/npm` tree. Installation must be serialized or made atomic before
+  child startup.
+
+Acceptance: every packaged dev-loop agent passes Pi tool preflight, and
+concurrent startup either observes one completed installation or waits for it;
+neither path loses child status, output, artifacts, run identity, or recovery
+instructions.

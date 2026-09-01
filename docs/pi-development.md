@@ -46,11 +46,20 @@ pi list
 
 The project-local `.pi/settings.json` installs
 `@input-output-hk/agent-review-pi@0.6.0`, which provides the native review tools
-and the `agent-review` skill. The repository `.npmrc` points the private scope
-to GitHub Packages and reads the token from `GITHUB_TOKEN`; the token is never
-committed. It needs `read:packages` for installation and the review workflow
-also needs the repository pull-request/issues permissions described by the
-upstream project.
+and the `agent-review` skill, and `pi-subagents@0.62.0` for delegated workflows.
+The repository `.npmrc` points the private scope to GitHub Packages and reads
+the token from `GITHUB_TOKEN`; the token is never committed. It needs
+`read:packages` for installation and the review workflow also needs the
+repository pull-request/issues permissions described by the upstream project.
+
+Pi-subagents 0.47 and later keep project-scoped state under `.pi/subagents/`.
+That path and the legacy `.pi-subagents/` path are local runtime state and must
+remain ignored. Pi-subagents does not automatically migrate durable legacy
+state: before upgrading an existing checkout, finish or remove 0.42 schedules,
+then recreate any still-needed schedules under 0.62. To retain legacy mission
+history, point `missions.directory` at the old mission path or copy the records
+into the current mission store as described by the installed package's
+`docs/missions.md`; never commit either runtime directory.
 
 Use the skill for the asynchronous reviewer workflow; it never merges. Dispatch is only a request. The repository's exact-head feedback audit must observe current formal reviews, inline threads, and structured AgentFlow comments before the human approval boundary. Local Claude/Agy reviews are explicit advisory opt-ins.
 
@@ -109,11 +118,12 @@ cryptographic material in local run artifacts.
 
 ## Versioning and trust
 
-The project-local `dev-loops` package is pinned in `.pi/settings.json` so the
-workflow does not silently drift. Review changes to that file like executable
-tooling: Pi packages and extensions run with the permissions of the invoking
-user. Update the pin deliberately and validate the development workflow before
-merging.
+The project-local `dev-loops`, `pi-subagents`, and agent-review packages are
+pinned in `.pi/settings.json` so the workflow does not silently drift. Review
+changes to that file like executable tooling: Pi packages and extensions run
+with the permissions of the invoking user. Update pins deliberately and
+validate the development workflow before merging. Keep `dev-loops` on its
+stable release channel; a prerelease requires a separate Pi/schema migration.
 
 Check the effective repository configuration before starting work. A config
 schema error means the repository-specific policy was not applied and must be
