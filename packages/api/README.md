@@ -64,10 +64,80 @@ API enforces lifecycle rules around:
 - active DID: allows updates
 - deactivated DID: mutating operations rejected
 - controller authorization: signs a domain-separated digest containing contract id, current version, operation name, and operation arguments before each controller-gated mutation
-- controller rotation: generates a new wallet-local secret, derives the next controller public key locally, submits the rotation circuit with a current-version controller signature, and stores the new secret after the transaction succeeds
+- controller rotation: generates a new wallet-local secret, persists it in a pending slot, derives the next controller public key locally, and submits the rotation circuit with a current-version controller signature. The pending secret is promoted and cleared only after finalized transaction data returns; ambiguous submission/finality failures retain it for ledger reconciliation
 - controller recovery: a dedicated `recoveryAuthorityPublicKey` can authorize `recoverControllerKey` to rotate the active controller key; ordinary controller-gated operations require only the active controller secret, while recovery requires the matching recovery secret
 
 (Exact schema/canonicalization rules live in `domain`.)
+
+## Explicit Verification-Method Removal
+
+`removeVerificationMethod` and `removeSchnorrJubjubVerificationMethod` each
+submit at most one removal circuit call. They never remove DID verification
+relationships implicitly. If the method is still referenced, the API rejects
+before signing or submission with `VerificationMethodReferencedError`:
+
+- `code` is `verification_method_referenced`;
+- `methodId` is the selected physical ledger identifier;
+- `relations` lists current references in canonical DID relation order.
+
+Applications choose the cleanup order by calling
+`removeVerificationMethodRelation` once per relationship and then calling the
+method-removal helper. These independently finalized transactions are not
+atomic. After an ambiguous or partial failure, re-read ledger/DID state, skip
+operations already reflected on-chain, and submit only the outstanding steps.
+Removing an absent relationship remains an explicit error rather than an
+idempotent no-op. The Compact removal circuits independently reject referenced
+methods, so API preflight is useful typed feedback but not the authority for
+direct callers or concurrent updates.
+
+## Finalized Deployment With Incomplete Private-State Setup
+
+`@midnight-ntwrk/midnight-js-contracts` 4.0.2 performs more work after the
+ledger reports deployment success but before `deployContract` returns:
+`submitDeployTx` synchronously calls `setContractAddress(target)`, then awaits
+`set(initialPrivateState)` and `setSigningKey(target, signingKey)`. A wrapper
+around only the returned promise cannot distinguish rejection of those
+post-finality writes from a pre-success deployment failure, and reserving the
+target after return is too late.
+
+`deploy` therefore passes a deployment-scoped private-state-provider interceptor
+to `deployContract`. On the dependency's synchronous target-binding call it
+canonicalizes and reserves the target under the already-held source lease before
+delegating the provider mutation. All other provider methods retain their
+original receiver. The source and target reservations remain held until the
+entire dependency call settles; there is no elapsed-time lease expiry, because
+stale dependency work could otherwise mutate state after a competitor takes the
+same target. The captured interceptor is deactivated when that call settles and
+cannot spend the released lease later.
+
+If target reservation, active-state persistence, signing-key persistence, or
+returned-handle construction then fails, `deploy`/`createDID` throws
+`DIDContractDeploymentFinalizedPrivateStateIncompleteError` with only a stable
+`code`/`name`, canonical `contractAddress`, and interceptor-controlled
+`setupStage`: `target_reservation`, `private_state_persistence`,
+`signing_key_persistence`, or `contract_handle_construction`. The address is
+evidence that the dependency reported ledger success by calling
+`setContractAddress`; the stage identifies the local step that did not complete.
+The handle-construction stage begins after both writes complete and includes the
+second address bind performed while `deployContract` builds `callTx`; that repeat
+bind never resets the stage to reservation or persistence. The error deliberately
+discards the source error,
+deployed-contract handle, transaction/finality data, and all public or private
+deployment data. It never uses `cause`, copies provider fields, or includes an
+arbitrary provider name/message. A rejection before the target is observed,
+including a genuine `DeployTxFailedError`, is preserved unchanged. On success
+the dependency has already bound the provider and persisted both values, so the
+API performs no second bind or active-state write that could overwrite a
+concurrently rotated controller key.
+
+Do not retry deployment blindly. Retain the original private state separately
+and reconcile provider and ledger state by the error's canonical address. Use
+the stage to determine which local setup step needs verification; any write that
+rejected can have an uncertain disposition. Resolve a competing binding owner
+and join the finalized address using state that matches the current ledger
+controller rather than overwriting its namespace. Inspect restricted external
+provider logs separately when diagnostics are needed. Never log the source error
+through this typed error or attach it to the typed error before propagating it.
 
 ## Controller Secret Recovery Posture
 
@@ -79,6 +149,78 @@ caller explicitly supplies, the `recoverySecretKey` matching the on-ledger
 that recovery call and are not newly persisted into active private state, though
 an already stored recovery secret that matches the on-ledger recovery authority
 is preserved when the new controller secret is promoted.
+
+If rotation or recovery throws after `callTx` is invoked without returning
+finalized transaction data, the API retains the pending replacement secret
+because receipt loss cannot prove that the on-chain operation failed. After
+connectivity is restored, obtain a trusted finalized read of the on-ledger
+`controllerPublicKey` before retrying; reconnection or the first available read
+alone is not proof of non-finalization. A failure definitely before `callTx`
+invocation instead attempts to remove the newly created candidate while the same
+lease is held. If that cleanup rejects, its disposition is unknown; the warning
+says the record may remain or may already have been removed and keeps explicit
+discard guidance for a retained record. If the replacement public key is the
+finalized current key, verify that the retained secret derives that key and
+promote it with
+`recoverPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: true })`.
+The `rotationFinalized` option is an explicit caller assertion; these helpers do
+not query ledger state or verify finality. `getMidnightDIDLedgerState` returns the
+state supplied by the configured public data provider without adding a finality
+or freshness guarantee, so the application must obtain provider-specific
+authoritative evidence before making that assertion. If authoritative
+reconciliation confirms that the operation did not finalize, discard the
+candidate explicitly with
+`discardPendingControllerPrivateState(providers, { contractAddress, rotationFinalized: false })`
+before starting another attempt. Until then, retain it even if an available read
+still shows the old public key. That explicit assertion also permits removal of
+a malformed non-null pending record, avoiding a persistent lockout; an absent
+record still throws `PendingControllerPrivateStateUnavailableError`. Promotion
+requires a valid pending controller state, so a missing or malformed record
+throws the same stable typed error without writing active state or removing the
+record. If promotion succeeds but pending cleanup rejects, the helper warns and
+returns the promoted state, but cannot confirm the cleanup disposition: the
+pending record may remain or may already have been removed. A later
+reconciliation either processes retained state or throws
+`PendingControllerPrivateStateUnavailableError` if deletion committed.
+
+A new attempt made after any non-null candidate is persisted fails with
+`PendingControllerPrivateStateExistsError`. A rotation, recovery, promotion, or
+discard racing an in-flight pending-state lifecycle fails with
+`PendingControllerPrivateStateBusyError`; neither error can replace, promote, or
+remove that operation's candidate. Rotation, recovery, and reconciliation bind
+an untracked provider to the operation's canonical DID address and reject a
+known different API-tracked binding with
+`PrivateStateProviderContractMismatchError` before provider or ledger access.
+
+Public rotation and recovery auto-bind or assert the canonical contract address;
+public promotion/discard reconciliation requires `contractAddress`. The supported
+baseline assumes that one application process is the writer for a given DID.
+Calls through API-bound wrappers in that process share a process-local critical
+section from preflight through pending persistence, transaction settlement,
+promotion, and cleanup. Reservation acquisition is fail-fast: competing
+rotation, recovery, or reconciliation immediately throws
+`PendingControllerPrivateStateBusyError`, even if the owner hangs. The owner
+remains busy until underlying work is cancelled and its operation settles, the
+operation otherwise terminates or settles, or the process exits. There is
+deliberately no lease expiry: stale provider or transaction work could complete
+later and overwrite, promote, or remove state owned by another operation. After
+cancellation, termination, or process restart, reconcile trusted finalized
+ledger state and private state before another mutation.
+
+Provider-object fallback is only for internal/deep unbound use. Direct
+`setContractAddress` or storage mutation and independently unbound wrappers are
+outside this guarantee. Multiple application processes intentionally writing the
+same DID are outside the supported baseline and must use a distributed lock or
+equivalent fencing mechanism; the API does not provide one. `joinContract`
+acquires the same fail-fast owner-token lease before binding and holds both its
+source and target reservations through private-state loading and
+`findDeployedContract`; competing source/target controller lifecycle or binding
+calls fail busy before mutation. Join failure releases only its owned keys. The
+provider exposes no atomic conditional write across processes. Its unbound-state
+exception is ignored only when it exactly matches the upstream message;
+decorated I/O and other provider failures propagate. See
+[discussion #440](https://github.com/midnightntwrk/midnight-did/discussions/440)
+for the architecture decision and future multi-writer considerations.
 
 Applications should back up controller and recovery private state alongside
 their wallet backup material, protect it with custody controls appropriate for
@@ -184,7 +326,9 @@ import {
   createMidnightDidZkArtifactLocations,
 } from "@midnight-ntwrk/midnight-did-api";
 
-const locations = createMidnightDidZkArtifactLocations(MIDNIGHT_DID_API_VERSION);
+const locations = createMidnightDidZkArtifactLocations(
+  MIDNIGHT_DID_API_VERSION,
+);
 ```
 
 Use `locations.ghcr.reference` to pull the matching GHCR OCI artifact in Node or

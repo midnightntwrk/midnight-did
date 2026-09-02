@@ -1,10 +1,14 @@
 import "./polyfills.js";
 
+export { MidnightDidApiError } from "./api-errors.js";
 export { setLogger } from "./api-logger.js";
 export { midnightDIDContractInstance } from "./contract-instance.js";
 export {
   createDID,
   deploy,
+  DIDContractDeploymentFinalizedPrivateStateIncompleteError,
+  type DIDContractDeploymentFinalizedPrivateStateIncompleteErrorCode,
+  type DIDContractDeploymentSetupStage,
   joinContract,
 } from "./contract-lifecycle-operations.js";
 export {
@@ -19,8 +23,17 @@ export {
 } from "./document-operations.js";
 export { getMidnightDIDLedgerState } from "./ledger-state.js";
 export {
+  discardPendingControllerPrivateState,
+  type DiscardPendingControllerPrivateStateOptions,
   initPrivateState,
+  PendingControllerPrivateStateBusyError,
+  type PendingControllerPrivateStateErrorCode,
+  PendingControllerPrivateStateExistsError,
+  PendingControllerPrivateStateUnavailableError,
+  PrivateStateProviderContractMismatchError,
+  type PrivateStateProviderContractMismatchErrorCode,
   recoverPendingControllerPrivateState,
+  type RecoverPendingControllerPrivateStateOptions,
   requirePrivateState,
   restorePrivateState,
 } from "./private-state.js";
@@ -38,6 +51,11 @@ export {
   removeService,
   updateService,
 } from "./service-operations.js";
+export {
+  type ReferencedVerificationMethodRelation,
+  type VerificationMethodErrorCode,
+  VerificationMethodReferencedError,
+} from "./verification-method-errors.js";
 export {
   addSchnorrJubjubVerificationMethod,
   addVerificationMethod,

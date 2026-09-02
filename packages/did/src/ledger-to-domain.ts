@@ -297,6 +297,15 @@ export class LedgerToDomain {
 
   static absoluteDidUrlReference(did: string, id: string): string {
     id = id.trim();
+    // Reject malformed network-path keys through the ledger diagnostic type so
+    // resolver callers receive invalidDid instead of a raw URL-resolution error.
+    if (id.startsWith("//")) {
+      throw new LedgerDocumentValidationError(
+        new Error(
+          `Verification method id '${id}' must not be a network-path reference`,
+        ),
+      );
+    }
     // Ledger verification-method keys historically stored bare fragments.
     // Preserve that method-level key convention while retaining any explicit
     // path/query/fragment DID URL supplied by newer entries.
@@ -395,17 +404,22 @@ export class LedgerToDomain {
 
     const verificationMethod: VerificationMethod[] = [];
     const verificationMethodIds = new Set<string>();
-    const registerVerificationMethodId = (id: string): void => {
-      const normalizedId = this.absoluteDidUrlReference(did, id);
+    const registerVerificationMethodId = (id: string): string => {
+      let normalizedId: string;
+      try {
+        normalizedId = this.absoluteDidUrlReference(did, id);
+      } catch (error) {
+        if (error instanceof LedgerDocumentValidationError) throw error;
+        throw new LedgerDocumentValidationError(error, "invalidDid");
+      }
       if (verificationMethodIds.has(normalizedId)) {
         throw new LedgerDocumentValidationError(
-          new Error(
-            `Duplicate verification method id '${this.absoluteDidUrlReference(did, id)}'`,
-          ),
+          new Error(`Duplicate verification method id '${normalizedId}'`),
           "notAllowedLocalDuplicateKey",
         );
       }
       verificationMethodIds.add(normalizedId);
+      return normalizedId;
     };
 
     for (const [id, method] of ledger.verificationMethods) {
@@ -419,10 +433,10 @@ export class LedgerToDomain {
           "notAllowedVerificationMethodType",
         );
       }
-      registerVerificationMethodId(id);
+      const normalizedId = registerVerificationMethodId(id);
       verificationMethod.push(
         createVerificationMethod({
-          id: this.absoluteDidUrlReference(did, id),
+          id: normalizedId,
           type: verificationMethodType,
           controller: did,
           publicKeyJwk: this.publicKeyJwk(method.publicKeyJwk),
@@ -431,10 +445,10 @@ export class LedgerToDomain {
     }
 
     for (const [id, method] of ledger.schnorrJubjubVerificationMethods) {
-      registerVerificationMethodId(id);
+      const normalizedId = registerVerificationMethodId(id);
       verificationMethod.push(
         createVerificationMethod({
-          id: this.absoluteDidUrlReference(did, id),
+          id: normalizedId,
           type: VerificationMethodType.JsonWebKey,
           controller: did,
           publicKeyJwk: this.schnorrJubjubPublicKeyJwk(method),
@@ -511,17 +525,20 @@ export class LedgerToDomain {
       : Array.from(ledger.alsoKnownAs);
 
     try {
-      return createMidnightDIDDocument({
-        id: did,
-        verificationMethod,
-        authentication,
-        assertionMethod,
-        keyAgreement,
-        capabilityInvocation,
-        capabilityDelegation,
-        service,
-        alsoKnownAs,
-      });
+      return createMidnightDIDDocument(
+        {
+          id: did,
+          verificationMethod,
+          authentication,
+          assertionMethod,
+          keyAgreement,
+          capabilityInvocation,
+          capabilityDelegation,
+          service,
+          alsoKnownAs,
+        },
+        { allowLegacyForeignDIDServiceIds: true },
+      );
     } catch (error) {
       if (
         error instanceof LedgerDocumentValidationError ||
