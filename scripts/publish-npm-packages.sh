@@ -71,6 +71,11 @@ parse_json_string() {
   node -e 'let input=""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => { try { const value=JSON.parse(input); if (typeof value !== "string") process.exit(1); process.stdout.write(value); } catch { process.exit(1); } });'
 }
 
+parse_access_status() {
+  local package_name="$1"
+  node -e 'let input=""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => { try { const value=JSON.parse(input); if (value === null || typeof value !== "object" || Array.isArray(value)) process.exit(1); const keys=Object.getOwnPropertyNames(value); if (keys.length !== 1 || keys[0] !== process.argv[1]) process.exit(1); const status=value[keys[0]]; if (status !== "public" && status !== "private") process.exit(1); process.stdout.write(status); } catch { process.exit(1); } });' "${package_name}"
+}
+
 parse_remote_metadata() {
   node -e 'let input=""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => { try { const value=JSON.parse(input); const version=value?.version; const integrity=value?.dist?.integrity; const tarball=value?.dist?.tarball; if (![version,integrity,tarball].every(item => typeof item === "string" && item.length > 0)) process.exit(1); process.stdout.write(`${version}\t${integrity}\t${tarball}`); } catch { process.exit(1); } });'
 }
@@ -97,12 +102,8 @@ read_access_status() {
     echo "::error::Unable to read npm access status for ${package_name}: ${output}" >&2
     return 1
   fi
-  if ! status="$(parse_json_string <<< "${output}")"; then
-    echo "::error::Malformed npm access status for ${package_name}." >&2
-    return 1
-  fi
-  if [[ "${status}" != "public" && "${status}" != "restricted" ]]; then
-    echo "::error::Unsupported npm access status for ${package_name}: ${status}" >&2
+  if ! status="$(parse_access_status "${package_name}" <<< "${output}")"; then
+    echo "::error::Malformed or unsupported npm access status evidence for ${package_name}." >&2
     return 1
   fi
   printf '%s\n' "${status}"
@@ -207,14 +208,14 @@ case "${present_count}" in
 esac
 echo "[publish-npm-packages] Read-only preflight cannot prove a later package-version PUT or make five publishes transactional."
 
-# Reconcile access only when read-only evidence explicitly reports restricted.
+# Reconcile access only when read-only evidence explicitly reports private.
 if [[ "${publish_access}" == "public" ]]; then
   for index in "${!package_names[@]}"; do
-    if [[ "${access_states[index]}" != "restricted" ]]; then
+    if [[ "${access_states[index]}" != "private" ]]; then
       continue
     fi
     package_name="${package_names[index]}"
-    echo "[publish-npm-packages] Reconciling explicit restricted access for ${package_name}."
+    echo "[publish-npm-packages] Reconciling explicit private access for ${package_name}."
     npm access set status=public "${package_name}" --registry "${registry}"
     reconciled_status="$(read_access_status "${package_name}")"
     if [[ "${reconciled_status}" != "public" ]]; then

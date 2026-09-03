@@ -75,6 +75,35 @@ const inspectOwnPropertyGraph = (root: unknown) => {
   return { reachable, text: text.join("\n") };
 };
 
+const createAdversarialFailure = (label: string) => {
+  const secret = `${label}-secret-do-not-expose`;
+  const privateState = { secretKey: new Uint8Array(32).fill(23), secret };
+  const signingKey = new Uint8Array(32).fill(47);
+  const transaction = { secret, privateState, signingKey };
+  const failure = Object.assign(
+    new Error(`${label} provider message: ${secret}`),
+    {
+      transaction,
+      privateState,
+      signingKey,
+    },
+  );
+  const secretSymbol = Symbol(`${label}-symbol-${secret}`);
+  Object.defineProperty(failure, "hiddenProviderEvidence", {
+    value: { secret, transaction },
+    enumerable: false,
+  });
+  Object.defineProperty(failure, secretSymbol, {
+    value: { secret, privateState },
+    enumerable: false,
+  });
+  return {
+    failure,
+    retainedValues: [failure, transaction, privateState, signingKey],
+    secret,
+  };
+};
+
 describe("contract lifecycle operations", () => {
   const contractAddress = "A".repeat(64);
   const deployedContractAddress = "D".repeat(64);
@@ -897,6 +926,118 @@ describe("contract lifecycle operations", () => {
         expect(inspected.text).not.toContain(sourceText);
         expect(JSON.stringify(error)).not.toContain(sourceText);
       }
+    },
+  );
+
+  it.each([
+    ["string", "primitive-provider-failure"],
+    ["number", 37],
+    ["boolean", false],
+    ["null", null],
+    ["symbol", Symbol("primitive-provider-symbol")],
+    ["adversarial object", createAdversarialFailure("pre-finality").failure],
+  ])(
+    "preserves %s rejection identity when no finalized target was observed",
+    async (_label, deployFailure) => {
+      const privateState = { secretKey: new Uint8Array(32).fill(8) };
+      const privateStateProvider = {
+        setContractAddress: vi.fn(),
+        set: vi.fn(),
+        setSigningKey: vi.fn(),
+      };
+      vi.mocked(deployContract).mockRejectedValueOnce(deployFailure);
+
+      const sentinel = Symbol("deployment resolved unexpectedly");
+      const observed = await deploy(
+        { privateStateProvider } as any,
+        privateState,
+      ).then(
+        () => sentinel,
+        (cause: unknown) => cause,
+      );
+      expect(Object.is(observed, deployFailure)).toBe(true);
+      expect(privateStateProvider.setContractAddress).not.toHaveBeenCalled();
+      expect(privateStateProvider.set).not.toHaveBeenCalled();
+      expect(privateStateProvider.setSigningKey).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    "target_reservation",
+    "private_state_persistence",
+    "signing_key_persistence",
+    "contract_handle_construction",
+  ] as const)(
+    "does not retain adversarial provider evidence after %s failure",
+    async (failureStage) => {
+      const sourceAddress = "7".repeat(64);
+      const privateState = { secretKey: new Uint8Array(32).fill(8) };
+      const signingKey = new Uint8Array(32).fill(5);
+      const adversarial = createAdversarialFailure(failureStage);
+      let finalizedAddressBindings = 0;
+      const privateStateProvider = {
+        setContractAddress: vi.fn((address: string) => {
+          if (address.toLowerCase() !== deployedContractAddress.toLowerCase()) {
+            return;
+          }
+          finalizedAddressBindings += 1;
+          if (
+            failureStage === "target_reservation" ||
+            (failureStage === "contract_handle_construction" &&
+              finalizedAddressBindings === 2)
+          ) {
+            throw adversarial.failure;
+          }
+        }),
+        set: vi.fn(async () => {
+          if (failureStage === "private_state_persistence") {
+            throw adversarial.failure;
+          }
+        }),
+        setSigningKey: vi.fn(async () => {
+          if (failureStage === "signing_key_persistence") {
+            throw adversarial.failure;
+          }
+        }),
+      };
+      const providers = { privateStateProvider } as any;
+      bindPrivateStateProvider(providers, sourceAddress);
+      vi.mocked(deployContract).mockImplementationOnce(
+        async (deploymentProviders: any, options: any) => {
+          deploymentProviders.privateStateProvider.setContractAddress(
+            deployedContractAddress,
+          );
+          await deploymentProviders.privateStateProvider.set(
+            options.privateStateId,
+            options.initialPrivateState,
+          );
+          await deploymentProviders.privateStateProvider.setSigningKey(
+            deployedContractAddress,
+            signingKey,
+          );
+          deploymentProviders.privateStateProvider.setContractAddress(
+            deployedContractAddress,
+          );
+          throw new Error("unreachable after selected setup failure");
+        },
+      );
+
+      const error = await deploy(providers, privateState).catch(
+        (cause: unknown) => cause,
+      );
+      expect(error).toMatchObject({
+        name: "DIDContractDeploymentFinalizedPrivateStateIncompleteError",
+        code: "did_contract_deployment_finalized_private_state_incomplete",
+        contractAddress: deployedContractAddress.toLowerCase(),
+        setupStage: failureStage,
+      });
+      expect(error).not.toHaveProperty("cause");
+      const inspected = inspectOwnPropertyGraph(error);
+      for (const retainedValue of adversarial.retainedValues) {
+        expect(inspected.reachable).not.toContain(retainedValue);
+      }
+      expect(inspected.text).not.toContain(adversarial.secret);
+      expect(JSON.stringify(error)).not.toContain(adversarial.secret);
     },
   );
 
