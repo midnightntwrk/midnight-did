@@ -14,6 +14,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const publisher = path.join(repoRoot, "scripts/publish-npm-packages.sh");
 const version = "0.6.0";
+const registry = "https://registry.invalid/";
 const packageNames = [
   "@midnight-ntwrk/midnight-did-jubjub-schnorr",
   "@midnight-ntwrk/midnight-did-contract",
@@ -29,7 +30,8 @@ const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
 const args = process.argv.slice(2);
 const save = () => fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
 const fail = (message, code = 1) => { console.error(message); save(); process.exit(code); };
-state.calls.push({ tool: "npm", args, npmrc: process.env.NPM_CONFIG_USERCONFIG });
+const call = { tool: "npm", args, npmrc: process.env.NPM_CONFIG_USERCONFIG };
+state.calls.push(call);
 const command = args[0];
 if (command === "view") {
   const spec = args[1];
@@ -60,11 +62,25 @@ if (command === "view") {
 }
 if (command === "access" && args[1] === "get" && args[2] === "status") {
   const name = args[3];
+  const expectedArgs = ["access", "get", "status", name, "--json", "--loglevel=error", "--registry", state.registry];
+  if (!Object.hasOwn(state.packages, name) || args.length !== expectedArgs.length || args.some((arg, index) => arg !== expectedArgs[index])) {
+    fail("unsupported mocked npm access get command; expected exact package and flags: " + expectedArgs.join(" "));
+  }
   const pkg = state.packages[name];
   pkg.accessReadCount = (pkg.accessReadCount || 0) + 1;
   if (pkg.failAccessReadAt === pkg.accessReadCount || pkg.access === "error") fail("E403 mocked access read failure");
-  if (pkg.access === "malformed") console.log(JSON.stringify({ unexpected: true }));
-  else console.log(JSON.stringify(pkg.access));
+  const response = pkg.accessResponses?.[pkg.accessReadCount - 1];
+  if (response && typeof response === "object" && Object.hasOwn(response, "rawOutput")) {
+    call.accessOutput = response.rawOutput;
+    process.stdout.write(response.rawOutput);
+  } else if (response && typeof response === "object" && Object.hasOwn(response, "rawJson")) {
+    call.accessOutput = response.rawJson;
+    console.log(response.rawJson);
+  } else {
+    const accessResponse = response === undefined ? { [name]: pkg.access } : response;
+    call.accessResponse = accessResponse;
+    console.log(JSON.stringify(accessResponse));
+  }
   save();
   process.exit(0);
 }
@@ -150,6 +166,7 @@ function integrity(file) {
 function setup({
   states = {},
   access = {},
+  accessResponses = {},
   tags = {},
   corruptAfterPublish = [],
 } = {}) {
@@ -174,6 +191,7 @@ function setup({
       visibility: "ok",
       target: states[name] ?? "absent",
       access: access[name] ?? "public",
+      accessResponses: accessResponses[name],
       tags: { ...(tags[name] ?? {}) },
       localTarball,
       localIntegrity: integrity(localTarball),
@@ -187,7 +205,7 @@ function setup({
   const statePath = path.join(root, "state.json");
   fs.writeFileSync(
     statePath,
-    JSON.stringify({ version, calls: [], packages }, null, 2),
+    JSON.stringify({ version, registry, calls: [], packages }, null, 2),
   );
   return { root, assets, bin, statePath, packages };
 }
@@ -205,7 +223,7 @@ function run(fixture, env = {}) {
       NPM_TAG: "snapshot",
       NPM_ACCESS: "public",
       NPM_ASSETS_DIR: fixture.assets,
-      NPM_REGISTRY: "https://registry.invalid/",
+      NPM_REGISTRY: registry,
       NODE_AUTH_TOKEN: sentinel,
       ...env,
     },
@@ -223,9 +241,116 @@ function mutations(calls) {
   );
 }
 
+function accessReads(calls) {
+  return calls.filter(
+    ({ tool, args }) =>
+      tool === "npm" &&
+      args[0] === "access" &&
+      args[1] === "get" &&
+      args[2] === "status",
+  );
+}
+
+function expectedAccessReadArgs(packageName) {
+  return [
+    "access",
+    "get",
+    "status",
+    packageName,
+    "--json",
+    "--loglevel=error",
+    "--registry",
+    registry,
+  ];
+}
+
+function assertExactAccessReads(calls, expectedPackages) {
+  assert.deepEqual(
+    calls.map(({ args }) => args),
+    expectedPackages.map(expectedAccessReadArgs),
+  );
+}
+
 function cleanup(fixture) {
   fs.rmSync(fixture.root, { recursive: true, force: true });
 }
+
+test("fake npm rejects incomplete or incorrect access-get commands", async (t) => {
+  const requestedPackage = packageNames[0];
+  const cases = [
+    [
+      "missing --json",
+      [
+        "access",
+        "get",
+        "status",
+        requestedPackage,
+        "--loglevel=error",
+        "--registry",
+        registry,
+      ],
+    ],
+    [
+      "wrong registry",
+      [
+        "access",
+        "get",
+        "status",
+        requestedPackage,
+        "--json",
+        "--loglevel=error",
+        "--registry",
+        "https://wrong-registry.invalid/",
+      ],
+    ],
+    [
+      "wrong package",
+      [
+        "access",
+        "get",
+        "status",
+        "@midnight-ntwrk/not-requested",
+        "--json",
+        "--loglevel=error",
+        "--registry",
+        registry,
+      ],
+    ],
+    [
+      "wrong flag order",
+      [
+        "access",
+        "get",
+        "status",
+        requestedPackage,
+        "--loglevel=error",
+        "--json",
+        "--registry",
+        registry,
+      ],
+    ],
+  ];
+
+  for (const [label, args] of cases) {
+    await t.test(label, () => {
+      const fixture = setup();
+      try {
+        const result = spawnSync(path.join(fixture.bin, "npm"), args, {
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            FAKE_REGISTRY_STATE: fixture.statePath,
+          },
+        });
+        assert.notEqual(result.status, 0);
+        assert.equal(result.stdout, "");
+        assert.match(result.stderr, /expected exact package and flags/iu);
+      } finally {
+        cleanup(fixture);
+      }
+    });
+  }
+});
 
 test("local inventory failure occurs before any registry command", () => {
   const fixture = setup();
@@ -247,7 +372,7 @@ test("late all-five remote read failure performs no mutation", () => {
     fs.writeFileSync(
       fixture.statePath,
       JSON.stringify(
-        { version, calls: [], packages: fixture.packages },
+        { version, registry, calls: [], packages: fixture.packages },
         null,
         2,
       ),
@@ -260,37 +385,158 @@ test("late all-five remote read failure performs no mutation", () => {
   }
 });
 
-test("ambiguous E404 and malformed access evidence fail closed without mutation", async (t) => {
-  await t.test("package visibility E404 is ambiguous", () => {
-    const fixture = setup();
-    try {
-      fixture.packages[packageNames[0]].visibility = "e404";
-      fs.writeFileSync(
-        fixture.statePath,
-        JSON.stringify(
-          { version, calls: [], packages: fixture.packages },
-          null,
-          2,
-        ),
-      );
-      const result = run(fixture);
-      assert.notEqual(result.status, 0);
-      assert.deepEqual(mutations(result.state.calls), []);
-      assert.match(result.stderr, /ambiguous|authorization/iu);
-    } finally {
-      cleanup(fixture);
-    }
+test("ambiguous package visibility fails closed without mutation", () => {
+  const fixture = setup();
+  try {
+    fixture.packages[packageNames[0]].visibility = "e404";
+    fs.writeFileSync(
+      fixture.statePath,
+      JSON.stringify(
+        { version, registry, calls: [], packages: fixture.packages },
+        null,
+        2,
+      ),
+    );
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(mutations(result.state.calls), []);
+    assert.match(result.stderr, /ambiguous|authorization/iu);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("invalid or ambiguous access evidence fails closed without mutation", async (t) => {
+  const requestedPackage = packageNames[2];
+  const cases = [
+    ["bare string", "public"],
+    ["malformed JSON", { rawJson: "{" }],
+    ["null", null],
+    ["number", 1],
+    ["boolean", true],
+    ["array", ["public"]],
+    ["object-valued status", { [requestedPackage]: { status: "public" } }],
+    ["number-valued status", { [requestedPackage]: 1 }],
+    ["missing key", {}],
+    ["wrong key", { "@midnight-ntwrk/not-requested": "public" }],
+    [
+      "multiple keys",
+      {
+        [requestedPackage]: "public",
+        "@midnight-ntwrk/not-requested": "private",
+      },
+    ],
+    ["empty status", { [requestedPackage]: "" }],
+    ["restricted status", { [requestedPackage]: "restricted" }],
+    ["unknown status", { [requestedPackage]: "unlisted" }],
+  ];
+
+  for (const [label, response] of cases) {
+    await t.test(label, () => {
+      const fixture = setup({
+        accessResponses: { [requestedPackage]: [response] },
+      });
+      try {
+        const result = run(fixture);
+        assert.notEqual(result.status, 0);
+        assert.deepEqual(mutations(result.state.calls), []);
+        assert.match(result.stderr, /npm access status/iu);
+      } finally {
+        cleanup(fixture);
+      }
+    });
+  }
+});
+
+test("zero-byte access-status output on the fifth probe fails under set -e before mutation", () => {
+  const fifthPackage = packageNames.at(-1);
+  const fixture = setup({
+    access: { [packageNames[0]]: "private" },
+    accessResponses: {
+      [fifthPackage]: [{ rawOutput: "" }],
+    },
   });
-  await t.test("malformed access status is rejected", () => {
-    const fixture = setup({ access: { [packageNames[2]]: "malformed" } });
-    try {
-      const result = run(fixture);
-      assert.notEqual(result.status, 0);
-      assert.deepEqual(mutations(result.state.calls), []);
-    } finally {
-      cleanup(fixture);
-    }
+  try {
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(mutations(result.state.calls), []);
+    assert.equal(
+      result.state.calls.filter(({ tool }) => tool === "pnpm").length,
+      0,
+    );
+    assert.equal(
+      result.state.calls.filter(
+        ({ tool, args }) => tool === "pnpm" && args[0] === "publish",
+      ).length,
+      0,
+    );
+    assert.equal(
+      result.state.calls.filter(
+        ({ tool, args }) =>
+          tool === "npm" && args[0] === "access" && args[1] === "set",
+      ).length,
+      0,
+    );
+    assert.equal(
+      result.state.calls.filter(
+        ({ tool, args }) => tool === "npm" && args[0] === "dist-tag",
+      ).length,
+      0,
+    );
+    assert.match(result.stderr, /npm access status/iu);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("multiple access-status JSON documents on the fifth probe fail before mutation", () => {
+  const fifthPackage = packageNames.at(-1);
+  const fixture = setup({
+    access: { [packageNames[0]]: "private" },
+    accessResponses: {
+      [fifthPackage]: [
+        {
+          rawJson: `${JSON.stringify({ [fifthPackage]: "public" })}\n${JSON.stringify({ [fifthPackage]: "private" })}`,
+        },
+      ],
+    },
   });
+  try {
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(mutations(result.state.calls), []);
+    assert.equal(
+      result.state.calls.filter(({ tool }) => tool === "pnpm").length,
+      0,
+    );
+    assert.equal(
+      result.state.calls.filter(
+        ({ tool, args }) =>
+          tool === "npm" && args[0] === "access" && args[1] === "set",
+      ).length,
+      0,
+    );
+    assert.equal(
+      result.state.calls.filter(
+        ({ tool, args }) => tool === "npm" && args[0] === "dist-tag",
+      ).length,
+      0,
+    );
+    const accessReads = result.state.calls.filter(
+      ({ tool, args }) =>
+        tool === "npm" &&
+        args[0] === "access" &&
+        args[1] === "get" &&
+        args[2] === "status",
+    );
+    assert.deepEqual(
+      accessReads.map(({ args }) => args[3]),
+      packageNames,
+    );
+    assert.match(result.stderr, /npm access status/iu);
+  } finally {
+    cleanup(fixture);
+  }
 });
 
 test("mismatched existing payload fails before producer or metadata mutation", () => {
@@ -302,7 +548,7 @@ test("mismatched existing payload fails before producer or metadata mutation", (
     fs.writeFileSync(
       fixture.statePath,
       JSON.stringify(
-        { version, calls: [], packages: fixture.packages },
+        { version, registry, calls: [], packages: fixture.packages },
         null,
         2,
       ),
@@ -384,33 +630,88 @@ test("all-present immutable rerun publishes nothing and avoids redundant metadat
   }
 });
 
-test("public access is a no-op while restricted access requires successful read-back", async (t) => {
-  await t.test("public packages never receive access set", () => {
-    const fixture = setup();
-    try {
-      const result = run(fixture);
-      assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-      assert.equal(
-        result.state.calls.some(
-          ({ tool, args }) =>
-            tool === "npm" && args[0] === "access" && args[1] === "set",
-        ),
-        false,
-      );
-    } finally {
-      cleanup(fixture);
+test("exact-key public access is a no-op", () => {
+  const fixture = setup();
+  try {
+    const result = run(fixture);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.equal(
+      result.state.calls.some(
+        ({ tool, args }) =>
+          tool === "npm" && args[0] === "access" && args[1] === "set",
+      ),
+      false,
+    );
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("exact-key private access is set once, read back public, then published", () => {
+  const privatePackage = packageNames[0];
+  const fixture = setup({ access: { [privatePackage]: "private" } });
+  try {
+    const result = run(fixture);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const calls = result.state.calls;
+    const accessSets = calls.filter(
+      ({ tool, args }) =>
+        tool === "npm" && args[0] === "access" && args[1] === "set",
+    );
+    assert.equal(accessSets.length, 1);
+    assert.equal(accessSets[0].args[3], privatePackage);
+    assert.equal(result.state.packages[privatePackage].accessReadCount, 3);
+    for (const packageName of packageNames.slice(1)) {
+      assert.equal(result.state.packages[packageName].accessReadCount, 2);
     }
-  });
-  await t.test(
-    "failed restricted reconciliation read-back stops before publish",
-    () => {
-      const fixture = setup({ access: { [packageNames[0]]: "restricted" } });
+
+    const allAccessReads = accessReads(calls);
+    assert.equal(allAccessReads.length, 11);
+
+    const setIndex = calls.indexOf(accessSets[0]);
+    const firstPublishIndex = calls.findIndex(({ tool }) => tool === "pnpm");
+    assert.ok(setIndex >= 0);
+    assert.ok(firstPublishIndex > setIndex);
+
+    const preflightAccessReads = accessReads(calls.slice(0, setIndex));
+    assertExactAccessReads(preflightAccessReads, packageNames);
+
+    const reconciliationAccessReads = accessReads(
+      calls.slice(setIndex + 1, firstPublishIndex),
+    );
+    assertExactAccessReads(reconciliationAccessReads, [privatePackage]);
+    assert.deepEqual(reconciliationAccessReads[0].accessResponse, {
+      [privatePackage]: "public",
+    });
+    assert.ok(calls.indexOf(reconciliationAccessReads[0]) > setIndex);
+    assert.ok(calls.indexOf(reconciliationAccessReads[0]) < firstPublishIndex);
+
+    const lastPublishIndex = calls.findLastIndex(({ tool }) => tool === "pnpm");
+    const finalAccessReads = allAccessReads.slice(6);
+    assertExactAccessReads(finalAccessReads, packageNames);
+    assert.ok(
+      finalAccessReads.every(
+        (accessRead) => calls.indexOf(accessRead) > lastPublishIndex,
+      ),
+    );
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("failed or still-private reconciliation read-back stops before publish", async (t) => {
+  for (const [label, afterSetAccess] of [
+    ["failed read-back", "error-after-set"],
+    ["still-private read-back", "private"],
+  ]) {
+    await t.test(label, () => {
+      const fixture = setup({ access: { [packageNames[0]]: "private" } });
       try {
-        fixture.packages[packageNames[0]].afterSetAccess = "error-after-set";
+        fixture.packages[packageNames[0]].afterSetAccess = afterSetAccess;
         fs.writeFileSync(
           fixture.statePath,
           JSON.stringify(
-            { version, calls: [], packages: fixture.packages },
+            { version, registry, calls: [], packages: fixture.packages },
             null,
             2,
           ),
@@ -431,8 +732,8 @@ test("public access is a no-op while restricted access requires successful read-
       } finally {
         cleanup(fixture);
       }
-    },
-  );
+    });
+  }
 });
 
 test("post-publish all-five verification blocks tag mutation on a corrupt payload", () => {

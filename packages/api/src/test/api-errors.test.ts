@@ -67,40 +67,49 @@ describe("typed API errors", () => {
     },
   );
 
-  it("exposes only canonical finalized-deployment reconciliation fields", () => {
-    const error = new DIDContractDeploymentFinalizedPrivateStateIncompleteError(
-      "A".repeat(64),
-      "private_state_persistence",
-    );
+  it.each([
+    "target_reservation",
+    "private_state_persistence",
+    "signing_key_persistence",
+    "contract_handle_construction",
+  ] as const)(
+    "exposes only canonical finalized-deployment reconciliation fields at %s",
+    (setupStage) => {
+      const error =
+        new DIDContractDeploymentFinalizedPrivateStateIncompleteError(
+          "A".repeat(64),
+          setupStage,
+        );
 
-    expect(error).toMatchObject({
-      name: "DIDContractDeploymentFinalizedPrivateStateIncompleteError",
-      code: "did_contract_deployment_finalized_private_state_incomplete",
-      contractAddress: "a".repeat(64),
-      setupStage: "private_state_persistence",
-    });
-    expect(Reflect.ownKeys(error).sort()).toEqual(
-      [
-        "stack",
-        "message",
-        "code",
-        "setupStage",
-        "name",
-        "contractAddress",
-      ].sort(),
-    );
-    expect(error).not.toHaveProperty("cause");
-    expect(error).not.toHaveProperty("deployedContract");
-    expect(error).not.toHaveProperty("deployTxData");
-    expect(error).not.toHaveProperty("finalizedTxData");
-    expect(error).not.toHaveProperty("transaction");
-    expect(JSON.parse(JSON.stringify(error))).toEqual({
-      code: "did_contract_deployment_finalized_private_state_incomplete",
-      setupStage: "private_state_persistence",
-      name: "DIDContractDeploymentFinalizedPrivateStateIncompleteError",
-      contractAddress: "a".repeat(64),
-    });
-  });
+      expect(error).toMatchObject({
+        name: "DIDContractDeploymentFinalizedPrivateStateIncompleteError",
+        code: "did_contract_deployment_finalized_private_state_incomplete",
+        contractAddress: "a".repeat(64),
+        setupStage,
+      });
+      expect(Reflect.ownKeys(error).sort()).toEqual(
+        [
+          "stack",
+          "message",
+          "code",
+          "setupStage",
+          "name",
+          "contractAddress",
+        ].sort(),
+      );
+      expect(error).not.toHaveProperty("cause");
+      expect(error).not.toHaveProperty("deployedContract");
+      expect(error).not.toHaveProperty("deployTxData");
+      expect(error).not.toHaveProperty("finalizedTxData");
+      expect(error).not.toHaveProperty("transaction");
+      expect(JSON.parse(JSON.stringify(error))).toEqual({
+        code: "did_contract_deployment_finalized_private_state_incomplete",
+        setupStage,
+        name: "DIDContractDeploymentFinalizedPrivateStateIncompleteError",
+        contractAddress: "a".repeat(64),
+      });
+    },
+  );
 
   it("rejects arbitrary finalized-deployment setup stage text", () => {
     expect(

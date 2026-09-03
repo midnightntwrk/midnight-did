@@ -197,6 +197,12 @@ Before the first registry mutation, the npm publisher:
    inventory for all five packages; and
 4. verifies the immutable payload of every target version that already exists.
 
+The npm 11 access-status response must contain exactly one top-level JSON value:
+an object containing exactly one key, the exact scoped package name requested.
+Its value must be `public` or `private`. Empty or concatenated JSON streams, bare
+strings, additional or mismatched keys, and all other values or JSON shapes fail
+closed before any registry mutation.
+
 Missing, extra, malformed, ambiguous, or mismatched evidence stops the run before
 producer or metadata mutation. An exact-version E404 is considered absent only
 after package-level visibility and access reads succeed. In particular, an E404
@@ -220,8 +226,8 @@ any successful publish. If a run fails:
 - Stop and investigate when any immutable payload differs or any read remains
   ambiguous. Never overwrite or unpublish a mismatched version as an automated
   recovery step.
-- Access reconciliation runs only for explicit `restricted` evidence and must
-  read back `public`. Dist-tags are reconciled only after all five exact payloads
+- Access reconciliation runs only for explicit `private` evidence and must read
+  back `public`. Dist-tags are reconciled only after all five exact payloads
   verify, and already-correct tags are not rewritten. A failure in either phase
   is retried with the same SHA/version so final all-five payload, access, and tag
   read-back can complete.
