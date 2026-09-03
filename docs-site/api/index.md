@@ -93,8 +93,8 @@ complete and includes `deployContract`'s second address bind, which cannot reset
 the stage to reservation or persistence. The error discards the source error,
 contract handle, deployment and
 transaction/finality objects, provider name/message, and all public/private
-evidence. It has no `cause`. Pre-target failures, including
-`DeployTxFailedError`, remain unchanged.
+evidence. It has no `cause`. Every pre-target rejection, including primitive
+values, adversarial error objects, and `DeployTxFailedError`, remains unchanged.
 
 Do not redeploy blindly. Preserve private state separately, reconcile storage
 and ledger state by the canonical address, and verify the stage's write before
@@ -102,7 +102,9 @@ retrying because a rejected write can have committed. Resolve binding ownership
 and join using state that matches the current ledger controller rather than
 overwriting a namespace that may have rotated. Inspect access-controlled
 external provider logs separately for source diagnostics; never log or expose
-the source error through this typed object.
+the source error through this typed object. Any future diagnostic carried by the
+typed error must be explicitly allowlisted and redacted without retaining or
+traversing the provider error graph.
 
 Controller rotation and recovery retain the pending replacement secret whenever
 finalized transaction data is not returned. A later or overlapping attempt fails
