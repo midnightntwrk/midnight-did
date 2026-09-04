@@ -6,7 +6,12 @@ set -euo pipefail
 
 output_file="${GITHUB_OUTPUT:?GITHUB_OUTPUT is required}"
 event_name="${GITHUB_EVENT_NAME:?GITHUB_EVENT_NAME is required}"
-ref_name="${GITHUB_REF_NAME:?GITHUB_REF_NAME is required}"
+github_ref="${GITHUB_REF:?GITHUB_REF is required}"
+github_ref_type="${GITHUB_REF_TYPE:?GITHUB_REF_TYPE is required}"
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source-path=SCRIPTDIR
+source "${script_dir}/release-validate-context.sh"
 
 if [[ "${event_name}" == "push" ]]; then
   channel="snapshot"
@@ -18,37 +23,14 @@ else
   rc_index="${DISPATCH_RC_INDEX:-}"
 fi
 
-case "${channel}" in
-  snapshot)
-    if [[ "${ref_name}" != "develop" ]]; then
-      echo "::error::snapshot publication is only allowed from develop."
-      exit 1
-    fi
-    ;;
-  rc)
-    if [[ "${ref_name}" != "main" && "${ref_name}" != "develop" ]]; then
-      echo "::error::rc publication is only allowed from main or develop."
-      exit 1
-    fi
-    if [[ ! "${rc_index}" =~ ^[1-9][0-9]*$ ]]; then
-      echo "::error::rc_index must be a positive integer for rc publication."
-      exit 1
-    fi
-    ;;
-  release)
-    if [[ "${ref_name}" != "main" ]]; then
-      echo "::error::release publication is only allowed from main."
-      exit 1
-    fi
-    ;;
-  *)
-    echo "::error::Unsupported publication channel: ${channel}"
-    exit 1
-    ;;
-esac
+validate_release_request \
+  "${event_name}" \
+  "${github_ref}" \
+  "${github_ref_type}" \
+  "${channel}" \
+  "${version}" \
+  "${rc_index}"
 
-{
-  echo "channel=${channel}"
-  echo "version=${version}"
-  echo "rc_index=${rc_index}"
-} >> "${output_file}"
+write_github_output_record "${output_file}" channel "${channel}"
+write_github_output_record "${output_file}" version "${version}"
+write_github_output_record "${output_file}" rc_index "${rc_index}"
