@@ -696,6 +696,122 @@ test("keeps the npm write token out of public post-publish smoke", async () => {
   assert.match(smokeStep.run, /release-smoke-npm-packages\.sh/);
 });
 
+function assertReleaseContextEnv(step) {
+  assert.match(step.env.CHANNEL, /outputs\.channel/);
+  assert.match(step.env.BASE_VERSION, /outputs\.base_version/);
+  assert.match(step.env.RELEASE_VERSION, /outputs\.version/);
+  assert.match(step.env.RC_INDEX, /outputs\.rc_index/);
+}
+
+function assertUsesTrustedGithubRefEnvironment(step) {
+  for (const name of ["GITHUB_REF", "GITHUB_REF_NAME", "GITHUB_REF_TYPE"]) {
+    assert.equal(
+      Object.hasOwn(step.env ?? {}, name),
+      false,
+      `${step.name} must use GitHub's immutable default ${name}`,
+    );
+  }
+}
+
+function assertPrivilegedReleaseBoundary(step, boundaryCommand) {
+  assert.ok(step, `missing privileged boundary for ${boundaryCommand}`);
+  const validationCommand = "./scripts/release-validate-context.sh";
+  const validationIndex = step.run.indexOf(validationCommand);
+  const boundaryIndex = step.run.indexOf(boundaryCommand);
+  assert.ok(
+    validationIndex >= 0,
+    `${step.name} must revalidate release context`,
+  );
+  assert.ok(
+    boundaryIndex > validationIndex,
+    `${step.name} must revalidate before its privileged command`,
+  );
+
+  const interveningLines = step.run
+    .slice(validationIndex + validationCommand.length, boundaryIndex)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  for (const line of interveningLines) {
+    assert.match(
+      line,
+      /^[A-Z][A-Z0-9_]*=.*\\$/u,
+      `${step.name} must not run another command after context validation`,
+    );
+  }
+  assertReleaseContextEnv(step);
+  assertUsesTrustedGithubRefEnvironment(step);
+}
+
+test("revalidates release context at every privileged publication boundary", async () => {
+  const [workflow, resolver, validator] = await Promise.all([
+    text(".github/workflows/publish.yml").then(loadYaml),
+    text("scripts/release-resolve-context.sh"),
+    text("scripts/release-validate-context.sh"),
+  ]);
+  for (const script of [resolver, validator]) {
+    assert.match(script, /\$\{GITHUB_REF:\?GITHUB_REF is required\}/u);
+    assert.match(
+      script,
+      /\$\{GITHUB_REF_TYPE:\?GITHUB_REF_TYPE is required\}/u,
+    );
+    assert.doesNotMatch(script, /GITHUB_REF_NAME/u);
+  }
+  assert.equal(workflow.on.workflow_dispatch.inputs.version.required, true);
+  assert.match(
+    workflow.on.workflow_dispatch.inputs.version.description,
+    /stable semantic version/iu,
+  );
+  assert.equal(
+    workflow.jobs.publish.outputs.base_version,
+    "${{ steps.version.outputs.base_version }}",
+  );
+  assert.equal(
+    workflow.jobs.publish.outputs.rc_index,
+    "${{ steps.context.outputs.rc_index }}",
+  );
+
+  const publishSteps = workflow.jobs.publish.steps;
+  assertUsesTrustedGithubRefEnvironment(
+    publishSteps.find(({ name }) => name === "Resolve publication context"),
+  );
+  assertPrivilegedReleaseBoundary(
+    publishSteps.find(({ name }) => name === "Sign GitHub Release assets"),
+    "./scripts/release-sign-assets.sh",
+  );
+  assertPrivilegedReleaseBoundary(
+    publishSteps.find(({ name }) => name === "Publish npm packages to npmjs"),
+    "./scripts/publish-npm-packages.sh",
+  );
+  assertPrivilegedReleaseBoundary(
+    publishSteps.find(
+      ({ name }) => name === "Publish and verify GHCR ZK artifact",
+    ),
+    "./scripts/publish-ghcr-zk-artifact.sh",
+  );
+
+  const validationJob = workflow.jobs["validate-github-release-context"];
+  assert.deepEqual(validationJob.needs, ["publish"]);
+  const validationStep = validationJob.steps.find(
+    ({ name }) => name === "Revalidate release context",
+  );
+  assert.equal(validationStep.run, "./scripts/release-validate-context.sh");
+  assertReleaseContextEnv(validationStep);
+  assertUsesTrustedGithubRefEnvironment(validationStep);
+  assert.ok(
+    workflow.jobs["github-release-provenance"].needs.includes(
+      "validate-github-release-context",
+    ),
+  );
+
+  assertPrivilegedReleaseBoundary(
+    workflow.jobs["finalize-github-release"].steps.find(
+      ({ name }) => name === "Publish and verify GitHub Release assets",
+    ),
+    "./scripts/publish-github-release-assets.sh",
+  );
+});
+
 function compareVersions(left, right) {
   const leftParts = left.split(".").map(Number);
   const rightParts = right.split(".").map(Number);
