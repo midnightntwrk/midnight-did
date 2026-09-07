@@ -111,3 +111,42 @@ jobs:
             packages/did/coverage
             packages/domain/coverage
             packages/jubjub-schnorr/coverage
+
+  w3c-conformance:
+    name: W3C conformance
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js, pnpm, and Compact
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
+          github-token: ${{ github.token }}
+          node-version-file: w3c-spec/conformance/node-version
+
+      - name: Check external evidence contracts and generated documentation
+        run: |
+          pnpm test:conformance:external:contracts
+          pnpm check:conformance:external-docs
+
+      - name: Run mandatory repository-owned conformance gate
+        run: pnpm test:conformance
+
+      - name: Run approved fresh external conformance lane
+        env:
+          W3C_SUITE_DERIVED_ARTIFACTS_APPROVED: ${{ vars.W3C_SUITE_DERIVED_ARTIFACTS_APPROVED }}
+        run: pnpm test:conformance:external
+
+      - name: Upload exact-SHA external conformance evidence
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # ratchet:actions/upload-artifact@v4
+        with:
+          name: w3c-conformance-${{ github.sha }}
+          if-no-files-found: error
+          path: test-results/w3c-conformance/**

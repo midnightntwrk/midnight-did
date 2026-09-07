@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "1.0.0",
+  "claim": "supplemental-fixture-based-did-core-1.0-evidence",
+  "toolchains": {
+    "node": "24.18.1",
+    "npm": "11.16.0",
+    "pnpm": "10.34.5",
+    "compact": "0.31.1"
+  },
+  "standards": [
+    {
+      "name": "DID Core 1.0",
+      "status": "PASS",
+      "url": "https://www.w3.org/TR/2022/REC-did-core-20220719/",
+      "sha256": "5e44345740d9bfaa852d3b66c57e98c9beb6c5bf6083b0126dd5daac377b9993"
+    },
+    {
+      "name": "DID Core 1.1",
+      "status": "FAIL",
+      "url": "https://www.w3.org/TR/2026/CR-did-1.1-20260305/",
+      "sha256": "4a48022defe07d37d2decc3ec9027a932dc883b2ad164a5aeaf9256e530bd979"
+    },
+    {
+      "name": "DID Resolution v1",
+      "status": "FAIL",
+      "url": "https://www.w3.org/TR/2026/CR-did-resolution-1.0-20260806/",
+      "sha256": "a4632a09600e0136022969114520dc3f8ee9af99ad80963e3ba1a368bea9af1a"
+    }
+  ],
+  "upstream": {
+    "repository": "https://github.com/w3c/did-test-suite",
+    "commit": "939b31d07d5b1699340ac0702ec0fa46ffcdef0a",
+    "archiveUrl": "https://github.com/w3c/did-test-suite/archive/939b31d07d5b1699340ac0702ec0fa46ffcdef0a.tar.gz",
+    "archiveSha256": "c4e464d3f49d265a4023f646a77db7abc0992ff844d3055c180cd1c1c86717bd",
+    "extractedTreeSha256": "bacdbd9ed79bbe772383f99b8df39c037bc6ee8a49622ca33de77c73be55526c",
+    "lockfiles": {
+      "package-lock.json": "94522540945e4c92f05a8de446216b451639984ca77bf066670fde59f0cc9321",
+      "packages/did-core-test-server/package-lock.json": "5410ff6a0c881765c146050399d0d3dc8aed2cca896caf4e07d330405ecf05f7",
+      "packages/jest-did-matcher/package-lock.json": "72dcaa3e7855701c73634937658cf72dfce8d5e72ba4e6e0e74dbbc472b49b57"
+    },
+    "verifiedFiles": {
+      "LICENSE.md": "7a3ad7d36b8855bc301276279769da4aff648ea5d7b92f3f023c0823ee948764",
+      "package.json": "d4927b3885e7b67919d66be591df5d6b72f7c16702916817c27d9dba36d5e939",
+      "packages/did-core-test-server/package.json": "948e54351de8dd7a543ee3434bdd61dae6244768502b6e8d3e39f7f7b0b126b2",
+      "packages/jest-did-matcher/package.json": "4b0f8d3323f6803fdc757c2ffd1ca1a36d69eb724f5f61279e3ef3003c44da65",
+      "packages/did-core-test-server/services/runSuite.js": "678d21c6defa7d086b15e8cc991d4490aaa299396d519f8248acd7531d634d28"
+    },
+    "license": {
+      "status": "mixed-or-unclear",
+      "rootMetadata": "Apache-2.0",
+      "notice": "W3C Document License",
+      "childPackageMetadata": "missing-or-empty",
+      "approvalStatus": "approved",
+      "approvalRecord": "https://github.com/midnightntwrk/midnight-did/issues/446#issuecomment-5569537724",
+      "approvedScope": "Execute the unmodified checksum-verified snapshot and publish exact-commit derived test results with this mixed-license caveat.",
+      "excludedScope": "No vendoring, upstream source modification, registry submission, or authorization to trigger a package, tag, or release publication.",
+      "policy": "Require W3C_SUITE_DERIVED_ARTIFACTS_APPROVED=true, backed by the recorded approval, before preparing or executing the adapted runtime or publishing exact-commit derived test results."
+    },
+    "runtime": {
+      "declaredNode": ">=14",
+      "requiredNode": "24.18.1",
+      "platform": "linux-only",
+      "dependencyAcquisition": "npm-ci-ignore-scripts-from-verified-lockfiles",
+      "installedLockfiles": [
+        "packages/did-core-test-server/package-lock.json",
+        "packages/jest-did-matcher/package-lock.json"
+      ],
+      "rootLockfileDisposition": "verified-but-not-installed-because-the-adapter-needs-only-the-two-child-runtimes",
+      "lifecycleScripts": "disabled",
+      "networkDuringExecution": "denied",
+      "executionEnvironment": "allowlisted-no-ci-credentials",
+      "sourceDuringExecution": "read-only",
+      "snapshotRetention": "ephemeral-temporary-directory-removed-after-execution",
+      "sourceAllowlist": [
+        "packages/did-core-test-server/package.json",
+        "packages/did-core-test-server/suites/utils.js",
+        "packages/did-core-test-server/suites/implementations",
+        "packages/did-core-test-server/suites/did-identifier",
+        "packages/did-core-test-server/suites/did-core-properties",
+        "packages/did-core-test-server/suites/did-production",
+        "packages/did-core-test-server/suites/did-consumption"
+      ],
+      "allowlistedSourceSha256": "3690c1123ed5bf94a7aac5d271c7b323336019a99ce7ec6a0567ecb456f28a49",
+      "matcherSourceSha256": "331f01f8bf654864ee6ddb2e99d6d63296062b14a457dcf9681c4eb2e0b74031",
+      "resourceLimits": {
+        "maxArchiveBytes": 20971520,
+        "maxOldSpaceMiB": 1024,
+        "timeoutSeconds": 120,
+        "maxCapturedOutputBytes": 52428800
+      }
+    }
+  },
+  "selectedSuites": [
+    "did-identifier",
+    "did-core-properties",
+    "did-production",
+    "did-consumption"
+  ],
+  "suiteLabels": {
+    "did-consumption": "representation-consumability-after-parseMidnightDIDDocument-round-trip"
+  },
+  "expectedAssertions": {
+    "did-identifier": 1,
+    "did-core-properties": 60,
+    "did-production": 47,
+    "did-consumption": 46
+  },
+  "excludedSuites": [
+    "did-resolution (legacy keyword-error and split-helper contract)",
+    "did-url-dereferencing (not exposed by the package)",
+    "synthetic DID Core 1.1 context rewriting",
+    "CBOR representations",
+    "HTTP binding and public endpoints",
+    "unrelated upstream implementations"
+  ],
+  "limitations": [
+    "Supplemental static-fixture DID Core 1.0 evidence only; repository-owned semantic and negative tests remain authoritative.",
+    "Does not exercise a deployed ledger or indexer, finality, availability, an HTTP resolver, DID Resolution CR, dereferencing, DID Core 1.1, certification, or endorsement.",
+    "The upstream assertions are sometimes shallow and the upstream dependency stack is obsolete.",
+    "Full DID Resolution work is deferred to issue #447 and belongs primarily in midnight-did-resolver.",
+    "Execution is CI-only and requires Node 24 compatibility plus a fresh mode-0700, network-disabled, read-only, resource-limited sandbox that is removed after every run.",
+    "Preparing the adapted matcher runtime, executing it, or publishing suite-derived material requires maintainer/legal confirmation because upstream licensing is mixed or unclear."
+  ],
+  "registry": {
+    "status": "decision-pending-ownership-confirmation",
+    "existingEntry": "https://github.com/w3c/did-extensions/blob/de7836c8c4b51fde9500f5fa093e17f5229ec99d/methods/midnight.json",
+    "openDecision": "update-existing-registration-or-record-no-update-after-ownership-and-contact-review",
+    "humanConfirmationRequired": true,
+    "duplicateRegistrationAllowed": false
+  }
+}
