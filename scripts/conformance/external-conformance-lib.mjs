@@ -84,6 +84,18 @@ const requireStringArray = (value, path) => {
     fail(`${path} must not contain duplicates`);
 };
 
+export const assertSupportedNodeVersion = (version, requiredMajor) => {
+  requireString(version, "Node version");
+  if (!Number.isSafeInteger(requiredMajor) || requiredMajor < 1) {
+    fail("required Node major must be a positive integer");
+  }
+  const major = Number(/^v(\d+)\.\d+\.\d+$/u.exec(version)?.[1]);
+  if (major !== requiredMajor) {
+    fail(`Node major ${requiredMajor} is required; got ${version}`);
+  }
+  return version;
+};
+
 export const loadAndValidateBaseline = (
   baselineUrl,
   { packageJsonUrl = new URL("../../package.json", import.meta.url) } = {},
@@ -93,7 +105,9 @@ export const loadAndValidateBaseline = (
 
   requireString(baseline.schemaVersion, "schemaVersion");
   requireString(baseline.claim, "claim");
-  requireString(baseline.toolchains?.node, "toolchains.node");
+  if (baseline.toolchains?.nodeMajor !== 24) {
+    fail("toolchains.nodeMajor must remain 24");
+  }
   requireString(baseline.toolchains?.npm, "toolchains.npm");
   requireString(baseline.toolchains?.pnpm, "toolchains.pnpm");
   requireString(baseline.toolchains?.compact, "toolchains.compact");
@@ -176,6 +190,8 @@ export const loadAndValidateBaseline = (
     );
   }
   if (
+    baseline.upstream.runtime?.requiredNodeMajor !==
+      baseline.toolchains.nodeMajor ||
     baseline.upstream.runtime?.platform !== "linux-only" ||
     baseline.upstream.runtime?.lifecycleScripts !== "disabled" ||
     baseline.upstream.runtime?.networkDuringExecution !== "denied" ||
@@ -309,12 +325,15 @@ export const validateEvidence = (evidence, baseline) => {
     requireString(evidence.packages?.[name], `packages.${name}`);
   for (const name of ["node", "npm", "pnpm", "nix", "compact"])
     requireString(evidence.toolchains?.[name], `toolchains.${name}`);
+  assertSupportedNodeVersion(
+    evidence.toolchains.node,
+    baseline.toolchains.nodeMajor,
+  );
   if (
-    evidence.toolchains.node !== `v${baseline.toolchains.node}` ||
     evidence.toolchains.npm !== baseline.toolchains.npm ||
     evidence.toolchains.pnpm !== baseline.toolchains.pnpm
   ) {
-    fail("runtime package-manager toolchain does not match the exact baseline");
+    fail("runtime package-manager toolchain does not match the baseline");
   }
   if (!sameJson(evidence.standards, baseline.standards))
     fail("standards identity drift");
@@ -349,11 +368,15 @@ export const validateEvidence = (evidence, baseline) => {
   }
   requireString(evidence.upstreamRuntime?.node, "upstreamRuntime.node");
   requireString(evidence.upstreamRuntime?.npm, "upstreamRuntime.npm");
+  assertSupportedNodeVersion(
+    evidence.upstreamRuntime.node,
+    baseline.toolchains.nodeMajor,
+  );
   if (
-    evidence.upstreamRuntime.node !== `v${baseline.toolchains.node}` ||
+    evidence.upstreamRuntime.node !== evidence.toolchains.node ||
     evidence.upstreamRuntime.npm !== baseline.toolchains.npm
   ) {
-    fail("upstreamRuntime Node/npm toolchain drift");
+    fail("upstreamRuntime exact Node/npm toolchain drift");
   }
   requireSha256(
     evidence.upstreamRuntime?.packageInventorySha256,
@@ -422,8 +445,22 @@ export const validateEvidence = (evidence, baseline) => {
   ) {
     fail("adapter resource limits drift");
   }
-  requireString(evidence.fixture?.path, "fixture.path");
   requireSha256(evidence.fixture?.sha256, "fixture.sha256");
+  if (
+    evidence.fixture?.data === null ||
+    typeof evidence.fixture?.data !== "object" ||
+    Array.isArray(evidence.fixture.data)
+  ) {
+    fail("fixture.data must be an object");
+  }
+  if (
+    sha256(canonicalJson(evidence.fixture.data)) !== evidence.fixture.sha256
+  ) {
+    fail("fixture data checksum mismatch");
+  }
+  if ("path" in evidence.fixture) {
+    fail("fixture must not reference a supplementary output artifact");
+  }
 
   const actualSuites = evidence.suites?.map(({ name }) => name) ?? [];
   if (!sameJson(actualSuites, baseline.selectedSuites))
@@ -435,8 +472,16 @@ export const validateEvidence = (evidence, baseline) => {
         `suite ${suite.name} returned ${suite.totals.total} assertions, expected ${baseline.expectedAssertions[suite.name]}`,
       );
     }
-    requireString(suite.rawOutput, `suites[${index}].rawOutput`);
     requireSha256(suite.rawOutputSha256, `suites[${index}].rawOutputSha256`);
+    if ("rawOutput" in suite) {
+      fail(
+        `suites[${index}] must not reference a supplementary output artifact`,
+      );
+    }
+    const { rawOutputSha256, ...normalizedSuite } = suite;
+    if (sha256(canonicalJson(normalizedSuite)) !== rawOutputSha256) {
+      fail(`suites[${index}] normalized result checksum mismatch`);
+    }
     if (
       !Array.isArray(suite.assertions) ||
       suite.assertions.length !== suite.totals.total

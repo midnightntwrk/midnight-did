@@ -128,7 +128,6 @@ jobs:
         with:
           compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
           github-token: ${{ github.token }}
-          node-version-file: w3c-spec/conformance/node-version
 
       - name: Check external evidence contracts and generated documentation
         run: |
@@ -149,4 +148,6 @@ jobs:
         with:
           name: w3c-conformance-${{ github.sha }}
           if-no-files-found: error
-          path: test-results/w3c-conformance/**
+          path: |
+            test-results/w3c-conformance/w3c-conformance-evidence.json
+            test-results/w3c-conformance/w3c-conformance-evidence.json.sha256

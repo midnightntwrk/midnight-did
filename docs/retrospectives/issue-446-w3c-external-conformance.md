@@ -10,7 +10,7 @@ The repository-owned DID Core matrices and focused conformance lane had no exter
 
 ## What worked
 
-- One machine-readable baseline binds standards, exact Node/npm/pnpm/Compact toolchains, upstream commit/archive/tree/lock/source hashes, mixed-license status, applied/excluded suites, assertion counts, limitations, and open registry posture.
+- One machine-readable baseline binds standards, the required Node 24 major, exact npm/pnpm/Compact toolchains, upstream commit/archive/tree/lock/source hashes, mixed-license status, applied/excluded suites, assertion counts, limitations, and open registry posture. Evidence records the exact Node patch actually used.
 - Trusted built package code generates the deterministic fixture before any external execution. `did-consumption` is described only as representation-consumability evidence after the public JSON-LD parser round trip.
 - The trusted parent independently normalizes and validates Jest results, rejecting failed, pending, skipped, todo, missing, empty, malformed, and count-drifting output.
 - CI keeps the authoritative repository lane separate from the approved external lane and names retained output with the exact checked-out SHA.

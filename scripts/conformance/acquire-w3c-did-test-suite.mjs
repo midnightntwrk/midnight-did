@@ -18,6 +18,7 @@ import { pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
 
 import {
+  assertSupportedNodeVersion,
   canonicalJson,
   hashDirectory,
   loadAndValidateBaseline,
@@ -58,11 +59,7 @@ const checkCiApproval = () => {
       "Maintainer/legal approval is required before preparing or executing the adapted upstream runtime; set W3C_SUITE_DERIVED_ARTIFACTS_APPROVED=true only after that decision",
     );
   }
-  if (process.version !== `v${baseline.toolchains.node}`) {
-    throw new Error(
-      `Exact Node ${baseline.toolchains.node} is required; got ${process.version}`,
-    );
-  }
+  assertSupportedNodeVersion(process.version, baseline.toolchains.nodeMajor);
   const npm = run("npm", ["--version"], {
     capture: true,
     env: { PATH: process.env.PATH ?? "" },

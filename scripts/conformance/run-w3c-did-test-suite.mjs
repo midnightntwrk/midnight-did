@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 import { execFileSync, spawnSync } from "node:child_process";
 import {
-  mkdirSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   statSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { basename, join, relative, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { withFreshW3cRuntime } from "./acquire-w3c-did-test-suite.mjs";
@@ -17,6 +18,7 @@ import {
 } from "./destructive-output-path.mjs";
 import {
   assertCleanExactHead,
+  assertSupportedNodeVersion,
   canonicalJson,
   loadAndValidateBaseline,
   sha256,
@@ -123,25 +125,6 @@ const totals = (suites) =>
     { failed: 0, passed: 0, pending: 0, skipped: 0, todo: 0, total: 0 },
   );
 
-const escapeHtml = (value) =>
-  String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-
-const html = (evidence) => `<!doctype html>
-<meta charset="utf-8">
-<title>Midnight DID supplemental W3C suite evidence</title>
-<h1>Midnight DID supplemental W3C suite evidence</h1>
-<p>Not W3C certification or endorsement. Canonical evidence: <code>w3c-conformance-evidence.json</code>.</p>
-<p>Repository commit: <code>${escapeHtml(evidence.repository.commit)}</code></p>
-<table><thead><tr><th>Suite</th><th>Passed</th><th>Failed</th><th>Pending/skipped/todo</th></tr></thead><tbody>
-${evidence.suites.map((suite) => `<tr><td>${escapeHtml(suite.name)}</td><td>${suite.totals.passed}</td><td>${suite.totals.failed}</td><td>${suite.totals.pending + suite.totals.skipped + suite.totals.todo}</td></tr>`).join("\n")}
-</tbody></table>
-`;
-
 if (process.env.CI !== "true") {
   throw new Error(
     "The external W3C harness is CI-only; refusing execution outside CI",
@@ -161,11 +144,7 @@ if (
     `GITHUB_SHA ${process.env.GITHUB_SHA} does not match checked-out HEAD ${initialHead}`,
   );
 }
-if (process.version !== `v${baseline.toolchains.node}`) {
-  throw new Error(
-    `Exact Node ${baseline.toolchains.node} is mandatory; got ${process.version}`,
-  );
-}
+assertSupportedNodeVersion(process.version, baseline.toolchains.nodeMajor);
 const npm = run("npm", ["--version"], { capture: true });
 if (npm !== baseline.toolchains.npm) {
   throw new Error(
@@ -269,16 +248,20 @@ const execution = await withFreshW3cRuntime(
 const suites = execution.parsedSuites.map((suite) => {
   if (!baseline.selectedSuites.includes(suite.name))
     throw new Error(`Unexpected suite result: ${suite.name}`);
-  const rawPath = join(outputRoot, `${suite.name}.json`);
-  const raw = canonicalJson(suite);
-  writeFileSync(rawPath, raw, { flag: "wx", mode: 0o600 });
   return {
     ...suite,
-    rawOutput: basename(rawPath),
-    rawOutputSha256: sha256(raw),
+    rawOutputSha256: sha256(canonicalJson(suite)),
   };
 });
 const fixture = readFileSync(fixturePath);
+const fixtureData = JSON.parse(fixture);
+if (
+  canonicalJson(fixtureData) !== fixture.toString("utf8") ||
+  sha256(fixture) !== execution.trustedFileHashes["fixture.json"]
+) {
+  throw new Error("Trusted fixture validation failed");
+}
+unlinkSync(fixturePath);
 const evidence = {
   adapter: {
     acquisitionSha256: sha256(readFileSync(acquisitionScriptPath)),
@@ -297,7 +280,7 @@ const evidence = {
   excludedSuites: baseline.excludedSuites,
   expectedAssertions: baseline.expectedAssertions,
   fixture: {
-    path: relative(outputRoot, fixturePath),
+    data: fixtureData,
     sha256: execution.trustedFileHashes["fixture.json"],
   },
   limitations: baseline.limitations,
@@ -337,21 +320,16 @@ writeFileSync(
   `${sha256(evidenceJson)}  ${basename(evidencePath)}\n`,
   { flag: "wx", mode: 0o600 },
 );
-writeFileSync(join(outputRoot, "report.html"), html(evidence), {
-  flag: "wx",
-  mode: 0o600,
-});
-
-for (const suite of evidence.suites) {
-  if (
-    sha256(readFileSync(join(outputRoot, suite.rawOutput))) !==
-    suite.rawOutputSha256
-  ) {
-    throw new Error(`Trusted raw-output validation failed: ${suite.name}`);
-  }
+const artifactNames = readdirSync(outputRoot).sort();
+if (
+  canonicalJson(artifactNames) !==
+  canonicalJson([
+    "w3c-conformance-evidence.json",
+    "w3c-conformance-evidence.json.sha256",
+  ])
+) {
+  throw new Error("External conformance output contains unexpected artifacts");
 }
-if (sha256(fixture) !== evidence.fixture.sha256)
-  throw new Error("Trusted fixture validation failed");
 const finalHead = assertCleanExactHead(repositoryRoot);
 if (finalHead !== initialHead) {
   throw new Error(

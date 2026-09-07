@@ -14,7 +14,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { test } from "node:test";
 import { load as loadYaml } from "js-yaml";
 
@@ -25,6 +25,7 @@ import {
 } from "./destructive-output-path.mjs";
 import {
   assertCleanExactHead,
+  assertSupportedNodeVersion,
   canonicalJson,
   hashDirectory,
   loadAndValidateBaseline,
@@ -125,7 +126,7 @@ const createValidEvidence = (baseline, commit = "a".repeat(40)) => ({
     contract: "@midnight-ntwrk/midnight-did-contract@0.6.0",
   },
   toolchains: {
-    node: `v${baseline.toolchains.node}`,
+    node: `v${baseline.toolchains.nodeMajor}.0.0`,
     npm: baseline.toolchains.npm,
     pnpm: baseline.toolchains.pnpm,
     nix: "nix (Nix) 2.0.0",
@@ -146,32 +147,39 @@ const createValidEvidence = (baseline, commit = "a".repeat(40)) => ({
     validatorSha256: "f".repeat(64),
     version: "1.0.0",
   },
-  fixture: { sha256: "1".repeat(64), path: "fixture.json" },
+  fixture: {
+    data: { fixture: true },
+    sha256: sha256(canonicalJson({ fixture: true })),
+  },
   selectedSuites: baseline.selectedSuites,
   suiteLabels: baseline.suiteLabels,
   expectedAssertions: baseline.expectedAssertions,
   excludedSuites: baseline.excludedSuites,
-  suites: baseline.selectedSuites.map((name) => ({
-    name,
-    assertions: Array.from(
-      { length: baseline.expectedAssertions[name] },
-      (_, index) => ({
-        ancestors: [name],
-        status: "passed",
-        title: `assertion ${index + 1}`,
-      }),
-    ),
-    rawOutput: `${name}.json`,
-    rawOutputSha256: "2".repeat(64),
-    totals: {
-      failed: 0,
-      passed: baseline.expectedAssertions[name],
-      pending: 0,
-      skipped: 0,
-      todo: 0,
-      total: baseline.expectedAssertions[name],
-    },
-  })),
+  suites: baseline.selectedSuites.map((name) => {
+    const suite = {
+      name,
+      assertions: Array.from(
+        { length: baseline.expectedAssertions[name] },
+        (_, index) => ({
+          ancestors: [name],
+          status: "passed",
+          title: `assertion ${index + 1}`,
+        }),
+      ),
+      totals: {
+        failed: 0,
+        passed: baseline.expectedAssertions[name],
+        pending: 0,
+        skipped: 0,
+        todo: 0,
+        total: baseline.expectedAssertions[name],
+      },
+    };
+    return {
+      ...suite,
+      rawOutputSha256: sha256(canonicalJson(suite)),
+    };
+  }),
   totals: {
     failed: 0,
     passed: Object.values(baseline.expectedAssertions).reduce(
@@ -195,7 +203,7 @@ const createValidEvidence = (baseline, commit = "a".repeat(40)) => ({
     installedLockfiles: baseline.upstream.runtime.installedLockfiles,
     lifecycleScripts: "disabled",
     matcherSourceSha256: baseline.upstream.runtime.matcherSourceSha256,
-    node: `v${baseline.toolchains.node}`,
+    node: `v${baseline.toolchains.nodeMajor}.0.0`,
     npm: baseline.toolchains.npm,
     packageCount: 1,
     packageInventorySha256: "3".repeat(64),
@@ -234,7 +242,8 @@ test("tracked baseline pins exact source, dependencies, license, suites, and ope
     "331f01f8bf654864ee6ddb2e99d6d63296062b14a457dcf9681c4eb2e0b74031",
   );
   assert.equal(Object.keys(baseline.upstream.lockfiles).length, 3);
-  assert.equal(baseline.toolchains.node, "24.18.1");
+  assert.equal(baseline.toolchains.nodeMajor, 24);
+  assert.equal(baseline.upstream.runtime.requiredNodeMajor, 24);
   assert.equal(baseline.toolchains.npm, "11.16.0");
   assert.equal(baseline.upstream.runtime.platform, "linux-only");
   assert.equal(baseline.upstream.runtime.lifecycleScripts, "disabled");
@@ -270,12 +279,38 @@ test("trusted fixture generation is deterministic and uses declared public packa
   assert.equal(first.dids.length, 1);
 });
 
+test("supported Node 24 patches are accepted and other majors are rejected", () => {
+  assert.equal(assertSupportedNodeVersion("v24.18.1", 24), "v24.18.1");
+  assert.equal(assertSupportedNodeVersion("v24.20.0", 24), "v24.20.0");
+  assert.throws(() => assertSupportedNodeVersion("v23.11.1", 24), /major 24/u);
+  assert.throws(() => assertSupportedNodeVersion("v25.0.0", 24), /major 24/u);
+});
+
 test("trusted evidence validation fails closed on status, count, runtime, and identity drift", () => {
   const baseline = loadAndValidateBaseline(baselineUrl, {
     packageJsonUrl: new URL("../../package.json", import.meta.url),
   });
   const valid = createValidEvidence(baseline);
   assert.doesNotThrow(() => validateEvidence(valid, baseline));
+  for (const patch of ["v24.18.1", "v24.20.0"]) {
+    const supportedPatch = structuredClone(valid);
+    supportedPatch.toolchains.node = patch;
+    supportedPatch.upstreamRuntime.node = patch;
+    assert.doesNotThrow(() => validateEvidence(supportedPatch, baseline));
+  }
+  const unsupportedMajor = structuredClone(valid);
+  unsupportedMajor.toolchains.node = "v25.0.0";
+  unsupportedMajor.upstreamRuntime.node = "v25.0.0";
+  assert.throws(
+    () => validateEvidence(unsupportedMajor, baseline),
+    /Node major 24/u,
+  );
+  const inconsistentPatch = structuredClone(valid);
+  inconsistentPatch.upstreamRuntime.node = "v24.20.0";
+  assert.throws(
+    () => validateEvidence(inconsistentPatch, baseline),
+    /exact Node/u,
+  );
   for (const field of ["failed", "pending", "skipped", "todo"]) {
     const invalid = structuredClone(valid);
     invalid.suites[0].totals[field] = 1;
@@ -296,6 +331,12 @@ test("trusted evidence validation fails closed on status, count, runtime, and id
   assert.throws(
     () => validateEvidence(changedAllowlist, baseline),
     /source allowlist/u,
+  );
+  const supplementaryOutput = structuredClone(valid);
+  supplementaryOutput.suites[0].rawOutput = "did-identifier.json";
+  assert.throws(
+    () => validateEvidence(supplementaryOutput, baseline),
+    /supplementary output artifact/u,
   );
 });
 
@@ -565,50 +606,45 @@ test("checksum drift fails before extraction or execution and leaves no persiste
   }
 });
 
-test("evidence file validator checks canonical fixture and raw-result bytes", () => {
+test("evidence file validator checks canonical result hashes and the evidence checksum", () => {
   const directory = mkdtempSync(join(tmpdir(), "w3c-evidence-files-"));
   const evidencePath = join(directory, "evidence.json");
+  const checksumPath = `${evidencePath}.sha256`;
   const validator = new URL("./validate-w3c-evidence.mjs", import.meta.url);
   const baseline = loadAndValidateBaseline(baselineUrl, {
     packageJsonUrl: new URL("../../package.json", import.meta.url),
   });
   const evidence = createValidEvidence(baseline);
+  const writeArtifacts = (value) => {
+    const json = canonicalJson(value);
+    writeFileSync(evidencePath, json);
+    writeFileSync(checksumPath, `${sha256(json)}  ${basename(evidencePath)}\n`);
+  };
+  const validate = () =>
+    spawnSync(
+      process.execPath,
+      [validator.pathname, "--evidence", evidencePath],
+      {
+        encoding: "utf8",
+      },
+    );
   try {
-    const fixture = canonicalJson({ fixture: true });
-    writeFileSync(join(directory, evidence.fixture.path), fixture);
-    evidence.fixture.sha256 = sha256(fixture);
-    for (const suite of evidence.suites) {
-      const raw = canonicalJson({ name: suite.name });
-      writeFileSync(join(directory, suite.rawOutput), raw);
-      suite.rawOutputSha256 = sha256(raw);
-    }
-    writeFileSync(evidencePath, canonicalJson(evidence));
-    const passed = spawnSync(
-      process.execPath,
-      [
-        validator.pathname,
-        "--evidence",
-        evidencePath,
-        "--artifacts-dir",
-        directory,
-      ],
-      { encoding: "utf8" },
-    );
+    writeArtifacts(evidence);
+    const passed = validate();
     assert.equal(passed.status, 0, passed.stderr);
-    writeFileSync(join(directory, evidence.suites[0].rawOutput), "drift\n");
-    const failed = spawnSync(
-      process.execPath,
-      [
-        validator.pathname,
-        "--evidence",
-        evidencePath,
-        "--artifacts-dir",
-        directory,
-      ],
-      { encoding: "utf8" },
-    );
-    assert.equal(failed.status, 1);
-    assert.match(failed.stderr, /raw output checksum mismatch/u);
+
+    evidence.suites[0].assertions[0].title = "drift";
+    writeArtifacts(evidence);
+    const resultDrift = validate();
+    assert.equal(resultDrift.status, 1);
+    assert.match(resultDrift.stderr, /normalized result checksum mismatch/u);
+
+    evidence.suites[0].assertions[0].title = "assertion 1";
+    writeArtifacts(evidence);
+    writeFileSync(checksumPath, `${"0".repeat(64)}  evidence.json\n`);
+    const checksumDrift = validate();
+    assert.equal(checksumDrift.status, 1);
+    assert.match(checksumDrift.stderr, /evidence checksum mismatch/u);
   } finally {
     rmSync(directory, { force: true, recursive: true });
   }
@@ -622,6 +658,9 @@ test("CI has separate repository and approved fresh external lanes with exact-SH
     false,
   );
   const steps = ci.jobs["w3c-conformance"].steps;
+  const setupStep = steps.find(
+    ({ name }) => name === "Set up Node.js, pnpm, and Compact",
+  );
   const repositoryStep = steps.find(
     ({ name }) => name === "Run mandatory repository-owned conformance gate",
   );
@@ -632,6 +671,7 @@ test("CI has separate repository and approved fresh external lanes with exact-SH
     ({ name }) => name === "Upload exact-SHA external conformance evidence",
   );
   assert.ok(repositoryStep);
+  assert.equal(setupStep.with["node-version-file"], undefined);
   assert.equal(externalStep.run, "pnpm test:conformance:external");
   assert.equal(
     externalStep.env.W3C_SUITE_DERIVED_ARTIFACTS_APPROVED,
@@ -639,7 +679,10 @@ test("CI has separate repository and approved fresh external lanes with exact-SH
   );
   assert.equal(upload.if, "success()");
   assert.equal(upload.with.name, "w3c-conformance-${{ github.sha }}");
-  assert.equal(upload.with.path, "test-results/w3c-conformance/**");
+  assert.deepEqual(upload.with.path.trim().split("\n"), [
+    "test-results/w3c-conformance/w3c-conformance-evidence.json",
+    "test-results/w3c-conformance/w3c-conformance-evidence.json.sha256",
+  ]);
   assert.equal(upload.with["if-no-files-found"], "error");
 });
 
@@ -671,6 +714,10 @@ test("external integration remains absent from release, signing, provenance, and
   assert.match(acquisition, /withMode0700TemporaryDirectory/u);
   assert.match(acquisition, /finally/u);
   const runner = read("scripts/conformance/run-w3c-did-test-suite.mjs");
+  assert.doesNotMatch(
+    runner,
+    /report\.html|escapeHtml|<!doctype|replaceAll\(/iu,
+  );
   assert.doesNotMatch(runner, /allow-fs-read=\$\{repositoryRoot\}/u);
   assert.match(runner, /allow-fs-read=\$\{realRuntimeRoot\}/u);
   assert.match(runner, /allow-fs-write=\$\{realScratchRoot\}/u);
