@@ -10,13 +10,14 @@ The repository-owned DID Core matrices and focused conformance lane had no exter
 
 ## What worked
 
-- One machine-readable baseline binds standards, the required Node 24 major, exact npm/pnpm/Compact toolchains, upstream commit/archive/tree/lock/source hashes, mixed-license status, applied/excluded suites, assertion counts, limitations, and open registry posture. Evidence records the exact Node patch actually used.
+- One machine-readable baseline binds standards, the required Node 24 and npm 11 majors, exact pnpm/Compact toolchains, upstream commit/archive/tree/lock/source hashes, mixed-license status, applied/excluded suites, assertion counts, limitations, and open registry posture. Evidence records the exact accepted Node and npm versions actually used.
 - Trusted built package code generates the deterministic fixture before any external execution. `did-consumption` is described only as representation-consumability evidence after the public JSON-LD parser round trip.
 - The trusted parent independently normalizes and validates Jest results, rejecting failed, pending, skipped, todo, missing, empty, malformed, and count-drifting output.
 - CI keeps the authoritative repository lane separate from the approved external lane and names retained output with the exact checked-out SHA.
 
 ## Friction and decisions
 
+- CI's npm 11 patch can advance independently of the local Nix npm 11 patch. Acquisition and execution therefore accept only strict-semver npm 11.x releases, evidence records the exact version used, and trusted validation requires the acquisition/runtime and evidence versions to match. npm is not installed dynamically, and the exact authoritative `pnpm@10.34.5` pin remains unchanged.
 - The upstream bootstrap runs lifecycle scripts and references an unpublished local matcher absent from the server lockfile. The harness instead verifies all three lockfiles, installs only the two required child lockfiles with scripts disabled, builds the exact verified matcher source, and never modifies or vendors upstream source.
 - A persistent owner-writable cache plus owner-writable integrity marker was not a valid trust anchor. It was removed. Every diagnostic or evidence execution now creates an unpredictable mode-0700 temporary root, downloads, verifies, installs, and runs afresh, then removes the complete tree in `finally`.
 - External code previously had a repository-wide filesystem read permission. Trusted adapter/setup/fixture files and only explicitly allowlisted upstream source/data now enter an isolated read-only runtime. External writes are limited to temporary raw results; the trusted parent alone emits the fixed `test-results/w3c-conformance` tree.

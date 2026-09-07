@@ -3,7 +3,7 @@
   "claim": "supplemental-fixture-based-did-core-1.0-evidence",
   "toolchains": {
     "nodeMajor": 24,
-    "npm": "11.16.0",
+    "npmMajor": 11,
     "pnpm": "10.34.5",
     "compact": "0.31.1"
   },
@@ -59,6 +59,7 @@
     "runtime": {
       "declaredNode": ">=14",
       "requiredNodeMajor": 24,
+      "requiredNpmMajor": 11,
       "platform": "linux-only",
       "dependencyAcquisition": "npm-ci-ignore-scripts-from-verified-lockfiles",
       "installedLockfiles": [

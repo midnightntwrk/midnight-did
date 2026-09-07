@@ -96,6 +96,20 @@ export const assertSupportedNodeVersion = (version, requiredMajor) => {
   return version;
 };
 
+export const assertSupportedNpmVersion = (version, requiredMajor) => {
+  requireString(version, "npm version");
+  if (!Number.isSafeInteger(requiredMajor) || requiredMajor < 1) {
+    fail("required npm major must be a positive integer");
+  }
+  const major = Number(
+    /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u.exec(version)?.[1],
+  );
+  if (major !== requiredMajor) {
+    fail(`npm major ${requiredMajor} is required; got ${version}`);
+  }
+  return version;
+};
+
 export const loadAndValidateBaseline = (
   baselineUrl,
   { packageJsonUrl = new URL("../../package.json", import.meta.url) } = {},
@@ -108,7 +122,9 @@ export const loadAndValidateBaseline = (
   if (baseline.toolchains?.nodeMajor !== 24) {
     fail("toolchains.nodeMajor must remain 24");
   }
-  requireString(baseline.toolchains?.npm, "toolchains.npm");
+  if (baseline.toolchains?.npmMajor !== 11) {
+    fail("toolchains.npmMajor must remain 11");
+  }
   requireString(baseline.toolchains?.pnpm, "toolchains.pnpm");
   requireString(baseline.toolchains?.compact, "toolchains.compact");
   const packageManager = packageJson.packageManager;
@@ -192,6 +208,8 @@ export const loadAndValidateBaseline = (
   if (
     baseline.upstream.runtime?.requiredNodeMajor !==
       baseline.toolchains.nodeMajor ||
+    baseline.upstream.runtime?.requiredNpmMajor !==
+      baseline.toolchains.npmMajor ||
     baseline.upstream.runtime?.platform !== "linux-only" ||
     baseline.upstream.runtime?.lifecycleScripts !== "disabled" ||
     baseline.upstream.runtime?.networkDuringExecution !== "denied" ||
@@ -329,10 +347,11 @@ export const validateEvidence = (evidence, baseline) => {
     evidence.toolchains.node,
     baseline.toolchains.nodeMajor,
   );
-  if (
-    evidence.toolchains.npm !== baseline.toolchains.npm ||
-    evidence.toolchains.pnpm !== baseline.toolchains.pnpm
-  ) {
+  assertSupportedNpmVersion(
+    evidence.toolchains.npm,
+    baseline.toolchains.npmMajor,
+  );
+  if (evidence.toolchains.pnpm !== baseline.toolchains.pnpm) {
     fail("runtime package-manager toolchain does not match the baseline");
   }
   if (!sameJson(evidence.standards, baseline.standards))
@@ -372,9 +391,13 @@ export const validateEvidence = (evidence, baseline) => {
     evidence.upstreamRuntime.node,
     baseline.toolchains.nodeMajor,
   );
+  assertSupportedNpmVersion(
+    evidence.upstreamRuntime.npm,
+    baseline.toolchains.npmMajor,
+  );
   if (
     evidence.upstreamRuntime.node !== evidence.toolchains.node ||
-    evidence.upstreamRuntime.npm !== baseline.toolchains.npm
+    evidence.upstreamRuntime.npm !== evidence.toolchains.npm
   ) {
     fail("upstreamRuntime exact Node/npm toolchain drift");
   }

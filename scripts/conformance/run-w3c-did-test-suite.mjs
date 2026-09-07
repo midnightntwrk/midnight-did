@@ -19,6 +19,7 @@ import {
 import {
   assertCleanExactHead,
   assertSupportedNodeVersion,
+  assertSupportedNpmVersion,
   canonicalJson,
   loadAndValidateBaseline,
   sha256,
@@ -146,11 +147,7 @@ if (
 }
 assertSupportedNodeVersion(process.version, baseline.toolchains.nodeMajor);
 const npm = run("npm", ["--version"], { capture: true });
-if (npm !== baseline.toolchains.npm) {
-  throw new Error(
-    `npm ${npm} does not match exact baseline ${baseline.toolchains.npm}`,
-  );
-}
+assertSupportedNpmVersion(npm, baseline.toolchains.npmMajor);
 const pnpm = run("pnpm", ["--version"], { capture: true });
 if (pnpm !== baseline.toolchains.pnpm) {
   throw new Error(

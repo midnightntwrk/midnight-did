@@ -14,7 +14,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, delimiter, join } from "node:path";
 import { test } from "node:test";
 import { load as loadYaml } from "js-yaml";
 
@@ -26,6 +26,7 @@ import {
 import {
   assertCleanExactHead,
   assertSupportedNodeVersion,
+  assertSupportedNpmVersion,
   canonicalJson,
   hashDirectory,
   loadAndValidateBaseline,
@@ -127,7 +128,7 @@ const createValidEvidence = (baseline, commit = "a".repeat(40)) => ({
   },
   toolchains: {
     node: `v${baseline.toolchains.nodeMajor}.0.0`,
-    npm: baseline.toolchains.npm,
+    npm: "11.16.0",
     pnpm: baseline.toolchains.pnpm,
     nix: "nix (Nix) 2.0.0",
     compact: baseline.toolchains.compact,
@@ -204,7 +205,7 @@ const createValidEvidence = (baseline, commit = "a".repeat(40)) => ({
     lifecycleScripts: "disabled",
     matcherSourceSha256: baseline.upstream.runtime.matcherSourceSha256,
     node: `v${baseline.toolchains.nodeMajor}.0.0`,
-    npm: baseline.toolchains.npm,
+    npm: "11.16.0",
     packageCount: 1,
     packageInventorySha256: "3".repeat(64),
     platform: "linux",
@@ -244,7 +245,8 @@ test("tracked baseline pins exact source, dependencies, license, suites, and ope
   assert.equal(Object.keys(baseline.upstream.lockfiles).length, 3);
   assert.equal(baseline.toolchains.nodeMajor, 24);
   assert.equal(baseline.upstream.runtime.requiredNodeMajor, 24);
-  assert.equal(baseline.toolchains.npm, "11.16.0");
+  assert.equal(baseline.toolchains.npmMajor, 11);
+  assert.equal(baseline.upstream.runtime.requiredNpmMajor, 11);
   assert.equal(baseline.upstream.runtime.platform, "linux-only");
   assert.equal(baseline.upstream.runtime.lifecycleScripts, "disabled");
   assert.equal(
@@ -286,6 +288,17 @@ test("supported Node 24 patches are accepted and other majors are rejected", () 
   assert.throws(() => assertSupportedNodeVersion("v25.0.0", 24), /major 24/u);
 });
 
+test("supported npm 11 patches are accepted and other majors or malformed versions are rejected", () => {
+  assert.equal(assertSupportedNpmVersion("11.16.0", 11), "11.16.0");
+  assert.equal(assertSupportedNpmVersion("11.19.0", 11), "11.19.0");
+  for (const version of ["10.9.4", "12.0.0", "v11.19.0", "11.19", "11.019.0"]) {
+    assert.throws(
+      () => assertSupportedNpmVersion(version, 11),
+      /npm major 11/u,
+    );
+  }
+});
+
 test("trusted evidence validation fails closed on status, count, runtime, and identity drift", () => {
   const baseline = loadAndValidateBaseline(baselineUrl, {
     packageJsonUrl: new URL("../../package.json", import.meta.url),
@@ -298,6 +311,30 @@ test("trusted evidence validation fails closed on status, count, runtime, and id
     supportedPatch.upstreamRuntime.node = patch;
     assert.doesNotThrow(() => validateEvidence(supportedPatch, baseline));
   }
+  for (const patch of ["11.16.0", "11.19.0"]) {
+    const supportedPatch = structuredClone(valid);
+    supportedPatch.toolchains.npm = patch;
+    supportedPatch.upstreamRuntime.npm = patch;
+    assert.doesNotThrow(() => validateEvidence(supportedPatch, baseline));
+  }
+  for (const version of ["10.9.4", "12.0.0", "not-semver"]) {
+    const unsupportedNpm = structuredClone(valid);
+    unsupportedNpm.toolchains.npm = version;
+    unsupportedNpm.upstreamRuntime.npm = version;
+    assert.throws(() => validateEvidence(unsupportedNpm, baseline), /npm/u);
+  }
+  const unsupportedRuntimeNpm = structuredClone(valid);
+  unsupportedRuntimeNpm.upstreamRuntime.npm = "12.0.0";
+  assert.throws(
+    () => validateEvidence(unsupportedRuntimeNpm, baseline),
+    /npm major 11/u,
+  );
+  const inconsistentNpmPatch = structuredClone(valid);
+  inconsistentNpmPatch.upstreamRuntime.npm = "11.19.0";
+  assert.throws(
+    () => validateEvidence(inconsistentNpmPatch, baseline),
+    /exact Node\/npm/u,
+  );
   const unsupportedMajor = structuredClone(valid);
   unsupportedMajor.toolchains.node = "v25.0.0";
   unsupportedMajor.upstreamRuntime.node = "v25.0.0";
@@ -572,10 +609,14 @@ test("acquisition is CI-only and approval-gated before network access", () => {
 test("checksum drift fails before extraction or execution and leaves no persistent acquisition state", () => {
   const directory = mkdtempSync(join(tmpdir(), "w3c-acquisition-drift-"));
   const archive = join(directory, "upstream.tar.gz");
+  const npmBin = join(directory, "bin");
   const acquisition = new URL(
     "./acquire-w3c-did-test-suite.mjs",
     import.meta.url,
   );
+  mkdirSync(npmBin);
+  writeFileSync(join(npmBin, "npm"), "#!/bin/sh\nprintf '%s\\n' 11.19.0\n");
+  chmodSync(join(npmBin, "npm"), 0o755);
   writeFileSync(archive, "not the pinned archive\n");
   const before = new Set(
     readdirSync(realpathSync(tmpdir())).filter((name) =>
@@ -591,6 +632,7 @@ test("checksum drift fails before extraction or execution and leaves no persiste
         env: {
           ...process.env,
           CI: "true",
+          PATH: `${npmBin}${delimiter}${process.env.PATH ?? ""}`,
           W3C_SUITE_DERIVED_ARTIFACTS_APPROVED: "true",
         },
       },

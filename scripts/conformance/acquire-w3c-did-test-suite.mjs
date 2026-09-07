@@ -19,6 +19,7 @@ import { tmpdir } from "node:os";
 
 import {
   assertSupportedNodeVersion,
+  assertSupportedNpmVersion,
   canonicalJson,
   hashDirectory,
   loadAndValidateBaseline,
@@ -64,11 +65,8 @@ const checkCiApproval = () => {
     capture: true,
     env: { PATH: process.env.PATH ?? "" },
   });
-  if (npm !== baseline.toolchains.npm) {
-    throw new Error(
-      `Exact npm ${baseline.toolchains.npm} is required; got ${npm}`,
-    );
-  }
+  assertSupportedNpmVersion(npm, baseline.toolchains.npmMajor);
+  return npm;
 };
 
 const run = (command, args, options = {}) => {
@@ -286,7 +284,7 @@ export const withFreshW3cRuntime = async (
   { archiveInput, trustedFiles = {} } = {},
   callback = async ({ acquisition }) => acquisition,
 ) => {
-  checkCiApproval();
+  const npm = checkCiApproval();
   return withMode0700TemporaryDirectory(async (temporary) => {
     const archive = await readArchive(archiveInput);
     if (
@@ -464,7 +462,7 @@ export const withFreshW3cRuntime = async (
       lifecycleScripts: "disabled",
       matcherSourceSha256: baseline.upstream.runtime.matcherSourceSha256,
       node: process.version,
-      npm: baseline.toolchains.npm,
+      npm,
       packageCount: packages.length,
       packageInventorySha256: sha256(canonicalJson(packages)),
       platform: process.platform,
