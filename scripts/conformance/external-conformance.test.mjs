@@ -670,6 +670,8 @@ test("external integration remains absent from release, signing, provenance, and
   assert.doesNotMatch(runner, /allow-fs-read=\$\{repositoryRoot\}/u);
   assert.match(runner, /allow-fs-read=\$\{realRuntimeRoot\}/u);
   assert.match(runner, /allow-fs-write=\$\{realScratchRoot\}/u);
+  const adapter = read("scripts/conformance/w3c-did-test-suite-adapter.cjs");
+  assert.match(adapter, /rootDir: sourceRoot/u);
   assert.match(
     read("w3c-spec/conformance/README.md"),
     /immutable release evidence.*remain open/u,
