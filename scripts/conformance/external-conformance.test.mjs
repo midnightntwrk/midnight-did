@@ -664,14 +664,20 @@ test("external integration remains absent from release, signing, provenance, and
     acquisition,
     /cacheRoot|markerPath|W3C_CONFORMANCE_CACHE_DIR/u,
   );
+  assert.match(
+    acquisition,
+    /const trustedRoot = join\(serverRoot, "trusted"\)/u,
+  );
   assert.match(acquisition, /withMode0700TemporaryDirectory/u);
   assert.match(acquisition, /finally/u);
   const runner = read("scripts/conformance/run-w3c-did-test-suite.mjs");
   assert.doesNotMatch(runner, /allow-fs-read=\$\{repositoryRoot\}/u);
   assert.match(runner, /allow-fs-read=\$\{realRuntimeRoot\}/u);
   assert.match(runner, /allow-fs-write=\$\{realScratchRoot\}/u);
-  const adapter = read("scripts/conformance/w3c-did-test-suite-adapter.cjs");
-  assert.match(adapter, /rootDir: sourceRoot/u);
+  assert.match(
+    runner,
+    /const runtimeTrustedRoot = join\(realRuntimeRoot, "server", "trusted"\)/u,
+  );
   assert.match(
     read("w3c-spec/conformance/README.md"),
     /immutable release evidence.*remain open/u,

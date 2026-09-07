@@ -217,7 +217,7 @@ const execution = await withFreshW3cRuntime(
     writeFileSync(browserslistStats, "{}\n", { flag: "wx", mode: 0o600 });
     const realRuntimeRoot = realpathSync(runtimeRoot);
     const realScratchRoot = realpathSync(scratchRoot);
-    const runtimeTrustedRoot = join(realRuntimeRoot, "trusted");
+    const runtimeTrustedRoot = join(realRuntimeRoot, "server", "trusted");
     const externalEnvironment = {
       BROWSERSLIST_CONFIG: browserslistConfig,
       BROWSERSLIST_STATS: browserslistStats,

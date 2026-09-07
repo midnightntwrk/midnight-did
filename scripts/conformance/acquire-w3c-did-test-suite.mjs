@@ -418,7 +418,7 @@ export const withFreshW3cRuntime = async (
 
     const runtimeRoot = join(temporary, "isolated-runtime");
     const serverRoot = join(runtimeRoot, "server");
-    const trustedRoot = join(runtimeRoot, "trusted");
+    const trustedRoot = join(serverRoot, "trusted");
     const scratchRoot = join(temporary, "raw-results");
     await mkdir(serverRoot, { recursive: true, mode: 0o700 });
     await mkdir(trustedRoot, { mode: 0o700 });

@@ -26,7 +26,6 @@ const run = async () => {
         ci: true,
         json: false,
         reporters: [],
-        rootDir: sourceRoot,
         roots: [path.join(serverRoot, "suites", suite)],
         runInBand: true,
         setupFiles: [setupPath],
