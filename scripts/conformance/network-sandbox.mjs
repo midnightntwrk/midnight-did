@@ -190,6 +190,7 @@ const linuxUtilities = () => ({
 
 const usable = (sandbox) => {
   const result = spawnSync(sandbox.command, sandbox.args, {
+    env: {},
     stdio: "ignore",
     timeout: 10_000,
   });
