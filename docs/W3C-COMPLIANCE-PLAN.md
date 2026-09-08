@@ -21,6 +21,8 @@ Related historical issue:
 
 - https://github.com/midnightntwrk/midnight-did/issues/249
 
+Implementation status (issue #446): a pinned `w3c/did-test-suite` static-fixture subset is integrated as supplemental DID Core 1.0 CI evidence. [Maintainer approval is recorded](https://github.com/midnightntwrk/midnight-did/issues/446#issuecomment-5569537724) for executing the unmodified checksum-verified snapshot and publishing exact-commit derived results with the mixed-license caveat; `W3C_SUITE_DERIVED_ARTIFACTS_APPROVED=true` remains a fail-closed control. The external lane uses a fresh removed-after-run sandbox and emits retention-bound exact-SHA CI artifacts. Immutable release evidence, signing, and provenance integration remain open and are not part of this slice. DID Core 1.1 and DID Resolution remain failed; resolution/dereferencing work is deferred to #447 and the resolver repository. The registry decision also remains open pending human ownership/contact confirmation; duplicate registration is forbidden. The approval does not permit vendoring or modifying upstream source, registry submission, or package, tag, or release publication.
+
 ---
 
 # 1. Target Standards
@@ -229,19 +231,19 @@ The matrix MUST map every applicable normative DID Core requirement to:
 
 Use this structure:
 
-| ID | Requirement | W3C section | Midnight spec | Implementation | Test | Status | Notes |
-|---|---|---|---|---|---|---|---|
-| DID-001 | DID syntax is valid | DID Core | §2 | parser | test | PASS | |
-| DID-002 | method-specific-id rules defined | DID Core | §2 | parser/builder | test | PASS | |
-| DID-003 | normalization rules documented | DID Core | §2 | parser | test | PASS/FAIL | |
-| DOC-001 | DID Document contains valid `id` | DID Core | §3 | mapper | test | PASS | |
-| VM-001 | verification methods valid | DID Core | §3.x | schema | test | PASS | |
-| REL-001 | authentication is valid | DID Core | §3.x | mapper | test | PASS | |
-| SRV-001 | services are valid | DID Core | §3.x | mapper | test | PASS | |
-| CRUD-001 | create is defined | DID Core | §7 | contract | integration | PASS | |
-| CRUD-002 | read/resolve is defined | DID Core | §7 | resolver | integration | PASS | |
-| CRUD-003 | update is defined | DID Core | §7 | contract | integration | PASS | |
-| CRUD-004 | deactivate is defined | DID Core | §7 | contract | integration | PASS | |
+| ID       | Requirement                      | W3C section | Midnight spec | Implementation | Test        | Status    | Notes |
+| -------- | -------------------------------- | ----------- | ------------- | -------------- | ----------- | --------- | ----- |
+| DID-001  | DID syntax is valid              | DID Core    | §2            | parser         | test        | PASS      |       |
+| DID-002  | method-specific-id rules defined | DID Core    | §2            | parser/builder | test        | PASS      |       |
+| DID-003  | normalization rules documented   | DID Core    | §2            | parser         | test        | PASS/FAIL |       |
+| DOC-001  | DID Document contains valid `id` | DID Core    | §3            | mapper         | test        | PASS      |       |
+| VM-001   | verification methods valid       | DID Core    | §3.x          | schema         | test        | PASS      |       |
+| REL-001  | authentication is valid          | DID Core    | §3.x          | mapper         | test        | PASS      |       |
+| SRV-001  | services are valid               | DID Core    | §3.x          | mapper         | test        | PASS      |       |
+| CRUD-001 | create is defined                | DID Core    | §7            | contract       | integration | PASS      |       |
+| CRUD-002 | read/resolve is defined          | DID Core    | §7            | resolver       | integration | PASS      |       |
+| CRUD-003 | update is defined                | DID Core    | §7            | contract       | integration | PASS      |       |
+| CRUD-004 | deactivate is defined            | DID Core    | §7            | contract       | integration | PASS      |       |
 
 Allowed statuses:
 
@@ -271,14 +273,14 @@ This report SHOULD reference the DID Core 1.0 matrix rather than duplicate all e
 
 Suggested form:
 
-| Requirement | DID Core 1.0 | DID Core 1.1 | Midnight status | Action |
-|---|---:|---:|---|---|
-| DID syntax | required | required | PASS | none |
-| DID Documents | required | required | PASS | none |
-| verification methods | required | required | PASS | none |
-| services | required | required | PASS | none |
-| security considerations | required | changed/clarified | REVIEW | audit |
-| privacy considerations | required | changed/clarified | REVIEW | audit |
+| Requirement             | DID Core 1.0 |      DID Core 1.1 | Midnight status | Action |
+| ----------------------- | -----------: | ----------------: | --------------- | ------ |
+| DID syntax              |     required |          required | PASS            | none   |
+| DID Documents           |     required |          required | PASS            | none   |
+| verification methods    |     required |          required | PASS            | none   |
+| services                |     required |          required | PASS            | none   |
+| security considerations |     required | changed/clarified | REVIEW          | audit  |
+| privacy considerations  |     required | changed/clarified | REVIEW          | audit  |
 
 The objective is to avoid a second large conformance project later.
 
@@ -632,16 +634,16 @@ Do not mix crypto interoperability limitations with DID Core conformance failure
 
 Use a matrix similar to:
 
-| Profile | DID Core representation | JOSE interoperability | Multikey/Data Integrity | Midnight support |
-|---|---:|---:|---:|---:|
-| Ed25519 JWK | yes | yes | separate profile | yes |
-| X25519 JWK | yes | yes | separate profile | yes |
-| P-256 JWK | yes | yes | separate profile | yes |
-| secp256k1 JWK | yes | yes | separate profile | yes |
-| Jubjub JWK | yes | Midnight-specific | no generic support | yes |
-| BLS12381G1 JWK | yes | profile-dependent | limited | yes |
-| BLS12381G2 JWK | yes | profile-dependent | limited | yes |
-| Multikey | optional | n/a | strong ecosystem support | no |
+| Profile        | DID Core representation | JOSE interoperability |  Multikey/Data Integrity | Midnight support |
+| -------------- | ----------------------: | --------------------: | -----------------------: | ---------------: |
+| Ed25519 JWK    |                     yes |                   yes |         separate profile |              yes |
+| X25519 JWK     |                     yes |                   yes |         separate profile |              yes |
+| P-256 JWK      |                     yes |                   yes |         separate profile |              yes |
+| secp256k1 JWK  |                     yes |                   yes |         separate profile |              yes |
+| Jubjub JWK     |                     yes |     Midnight-specific |       no generic support |              yes |
+| BLS12381G1 JWK |                     yes |     profile-dependent |                  limited |              yes |
+| BLS12381G2 JWK |                     yes |     profile-dependent |                  limited |              yes |
+| Multikey       |                optional |                   n/a | strong ecosystem support |               no |
 
 ## Jubjub
 
@@ -765,21 +767,15 @@ A failure MUST result in:
 
 Evaluate the currently available W3C DID test suites and implementation-report tooling.
 
-If suitable:
+Selected implementation for #446:
 
-1. fork or configure the suite;
-2. add `did:midnight` fixtures;
-3. run all applicable DID method tests;
-4. commit reproducible configuration;
-5. publish generated reports.
+1. pin `w3c/did-test-suite@939b31d07d5b1699340ac0702ec0fa46ffcdef0a` and verify its archive, three lockfiles, license metadata, and adapter-relevant source files;
+2. generate a Midnight-only descriptor through built public package exports and a deterministic ledger reader;
+3. generate fixtures in trusted code, copy only allowlisted inputs into a fresh mode-0700 runtime, and run only `did-identifier`, `did-core-properties`, `did-production`, and representation-labelled `did-consumption` as non-root with cleared groups, no-new-privileges, no network, read-only runtime inputs, and writes confined to temporary raw results;
+4. explicitly exclude legacy resolution, dereferencing, synthetic DID Core 1.1 rewriting, CBOR, HTTP/public endpoints, and unrelated implementations; and
+5. keep repository-owned normative, semantic, and negative tests authoritative.
 
-If the suite is stale or does not match the current target standard:
-
-1. document this;
-2. still run the applicable subset where useful;
-3. rely on the project-owned normative assertion matrix as the canonical evidence.
-
-Do not treat an external suite as a replacement for reading normative requirements.
+The upstream licensing boundary is mixed or unclear. No suite source is vendored or modified. The recorded issue #446 maintainer approval covers execution of the exact unmodified snapshot and publication of exact-commit derived results with the caveat; automation still requires `W3C_SUITE_DERIVED_ARTIFACTS_APPROVED=true` and fails closed otherwise. It does not authorize registry submission or independently triggering package, tag, or release publication. Do not treat external evidence as certification, endorsement, registration, or a replacement for reading normative requirements.
 
 ---
 
@@ -1105,12 +1101,12 @@ Issue #405 is complete when all of the following are true:
 - [ ] Jubjub interoperability limitations are documented.
 - [ ] BLS interoperability limitations are documented.
 - [ ] Multikey/publicKeyMultibase limitation is documented.
-- [ ] External W3C/community suite applicability is evaluated.
-- [ ] reproducible test commands are documented.
-- [ ] CI publishes conformance evidence.
-- [ ] public conformance report is published.
-- [ ] the exact tested commit and standards versions are recorded.
-- [ ] W3C DID Method registry submission is completed or an explicit decision not to submit is documented.
+- [x] External W3C/community suite applicability is evaluated and a narrow DID Core 1.0 subset is integrated.
+- [x] reproducible repository-owned and external test commands are documented.
+- [x] CI is configured to retain SHA-bound conformance evidence after explicit maintainer/legal approval; absent approval fails closed.
+- [ ] immutable public/release conformance evidence, signing, and provenance are published.
+- [ ] the exact tested release commit and standards versions are recorded in immutable release evidence.
+- [ ] maintainers decide whether to update the existing W3C DID Method registry entry or record no update after ownership/contact confirmation; duplicate registration is forbidden.
 - [ ] public wording does not imply W3C certification.
 
 ---

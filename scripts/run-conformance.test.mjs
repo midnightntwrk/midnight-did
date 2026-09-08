@@ -14,6 +14,10 @@ import { delimiter, resolve } from "node:path";
 import { test } from "node:test";
 
 const bannerSource = new URL("./conformance-banner.mjs", import.meta.url);
+const baselineSource = new URL(
+  "../w3c-spec/conformance/external-suites.json",
+  import.meta.url,
+);
 const runnerSource = new URL("./run-conformance.mjs", import.meta.url);
 const runGit = (root, ...args) =>
   execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
@@ -48,15 +52,20 @@ const createFixture = async () => {
   const root = await mkdtemp(resolve(tmpdir(), "run-conformance-"));
   await mkdir(resolve(root, "scripts"));
   await mkdir(resolve(root, "packages", "contract"), { recursive: true });
+  await mkdir(resolve(root, "w3c-spec", "conformance"), { recursive: true });
   await mkdir(resolve(root, "bin"));
   await copyFile(
     bannerSource,
     resolve(root, "scripts", "conformance-banner.mjs"),
   );
   await copyFile(runnerSource, resolve(root, "scripts", "run-conformance.mjs"));
+  await copyFile(
+    baselineSource,
+    resolve(root, "w3c-spec", "conformance", "external-suites.json"),
+  );
   await writeFile(
     resolve(root, "package.json"),
-    `${JSON.stringify({ name: "fixture-root", type: "module", version: "1.2.3" }, null, 2)}\n`,
+    `${JSON.stringify({ name: "fixture-root", packageManager: "pnpm@10.34.5", type: "module", version: "1.2.3" }, null, 2)}\n`,
   );
   await writeFile(
     resolve(root, "packages", "contract", "package.json"),
@@ -93,7 +102,7 @@ const runConformance = (root, mutation) =>
         ...process.env,
         CONFORMANCE_FIXTURE_MUTATION: mutation,
         PATH: `${resolve(root, "bin")}${delimiter}${process.env.PATH ?? ""}`,
-        npm_config_user_agent: "pnpm/10.34.4 npm/? node/v24",
+        npm_config_user_agent: "pnpm/10.34.5 npm/? node/v24",
       },
     },
   );

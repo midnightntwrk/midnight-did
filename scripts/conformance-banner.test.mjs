@@ -6,6 +6,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 const bannerSource = new URL("./conformance-banner.mjs", import.meta.url);
+const baselineSource = new URL(
+  "../w3c-spec/conformance/external-suites.json",
+  import.meta.url,
+);
 const runGit = (root, ...args) =>
   execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
 
@@ -13,13 +17,18 @@ const createFixture = async () => {
   const root = await mkdtemp(resolve(tmpdir(), "conformance-banner-"));
   await mkdir(resolve(root, "scripts"));
   await mkdir(resolve(root, "packages", "contract"), { recursive: true });
+  await mkdir(resolve(root, "w3c-spec", "conformance"), { recursive: true });
   await copyFile(
     bannerSource,
     resolve(root, "scripts", "conformance-banner.mjs"),
   );
+  await copyFile(
+    baselineSource,
+    resolve(root, "w3c-spec", "conformance", "external-suites.json"),
+  );
   await writeFile(
     resolve(root, "package.json"),
-    `${JSON.stringify({ name: "fixture-root", version: "1.2.3" }, null, 2)}\n`,
+    `${JSON.stringify({ name: "fixture-root", packageManager: "pnpm@10.34.5", version: "1.2.3" }, null, 2)}\n`,
   );
   await writeFile(
     resolve(root, "packages", "contract", "package.json"),
@@ -41,7 +50,7 @@ const createFixture = async () => {
   return root;
 };
 
-const runBanner = (root) =>
+const runBanner = (root, pnpmVersion = "10.34.5") =>
   spawnSync(
     process.execPath,
     [resolve(root, "scripts", "conformance-banner.mjs")],
@@ -50,7 +59,7 @@ const runBanner = (root) =>
       encoding: "utf8",
       env: {
         ...process.env,
-        npm_config_user_agent: "pnpm/10.34.4 npm/? node/v24",
+        npm_config_user_agent: `pnpm/${pnpmVersion} npm/? node/v24`,
       },
     },
   );
@@ -67,7 +76,24 @@ test("prints the exact clean HEAD and versions while ignoring untracked files", 
     assert.match(result.stdout, /  package: fixture-root@1\.2\.3/u);
     assert.match(result.stdout, /  contract: fixture-contract@4\.5\.6/u);
     assert.ok(result.stdout.includes(`  Node: ${process.version}`));
-    assert.match(result.stdout, /  pnpm: 10\.34\.4/u);
+    assert.match(result.stdout, /  pnpm: 10\.34\.5/u);
+    assert.match(result.stdout, /  Nix:/u);
+    assert.match(result.stdout, /  Compact compiler:/u);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("fails closed when runtime pnpm drifts from package.json authority", async () => {
+  const root = await createFixture();
+  try {
+    const result = runBanner(root, "10.34.4");
+
+    assert.equal(result.status, 1);
+    assert.match(
+      result.stderr,
+      /does not match package\.json authority pnpm@10\.34\.5/u,
+    );
   } finally {
     await rm(root, { force: true, recursive: true });
   }
