@@ -397,8 +397,9 @@ pointing at `https://registry.npmjs.org/` with `publishConfig.access: "public"`.
 Publication order is owned by `scripts/did-workspace-catalog.mjs
 --publish-workspaces`.
 
-npmjs package publication uses `NPM_REGISTRY=https://registry.npmjs.org/`,
-`MIDNIGHTCI_NPMJS_TOKEN`, and `NPM_ACCESS=public`.
+npmjs package publication uses `NPM_REGISTRY=https://registry.npmjs.org/`, the
+`npm-release` environment-only secret `NPMJS_RELEASE_TOKEN`, and
+`NPM_ACCESS=public`.
 
 Release CI publishes snapshot versions from `develop`, RC versions from `main`
 or `develop`, and final releases from `main` only. ZK artifacts are

@@ -7,9 +7,11 @@ This change is the separately reviewable `develop` reconciliation required by
 release-control fixes reviewed in
 [#462](https://github.com/midnightntwrk/midnight-did/pull/462) and
 [#464](https://github.com/midnightntwrk/midnight-did/pull/464) replayed in that
-order. It does not merge the divergent `main` history, publish anything, or
-change registry, package-access, dist-tag, GHCR, tag, release, or workflow-run
-state.
+order. It now also replays only the reviewed npm-authority/environment patch
+from [#474](https://github.com/midnightntwrk/midnight-did/pull/474) source
+commit `5610191b1015ef9bd618cc0fee461b2d51a8d600`. It does not merge the
+divergent `main` history, publish anything, or change registry, package-access,
+dist-tag, GHCR, tag, release, or workflow-run state.
 
 The branch was created from freshly fetched
 `origin/develop@cb79be02c016102ae933dfbd37cc3a36eb0a7ad5`. That tip includes
@@ -28,8 +30,8 @@ source commit has an author-matching `Signed-off-by` trailer.
 
 | Reviewed change | Source parent                              | Source / merged tree                       | Stable patch ID                            | Signed replay                              |
 | --------------- | ------------------------------------------ | ------------------------------------------ | ------------------------------------------ | ------------------------------------------ |
-| #462            | `de776912bb806f67bce54838cf9f9f3da1340900` | `53d44dbcc96e1601cda376d1ad22a36d46de1ab4` | `b27fde2add6ceddfb9b585a3b94e8f755e76525f` | `a1a1c101249b57f018299ae2db4bbaefee8cc7c1` |
-| #464            | `218ec2f44848fd5f1977c653b134441ce647703f` | `12801065fb740a82f2f9cded72ffabe37a3bf43d` | `6b1c06f64d4abfbb6291bc16aa0a345801db309a` | `292d0a0ea69b787f1a4a2b66c1915c28f1758f27` |
+| #462            | `de776912bb806f67bce54838cf9f9f3da1340900` | `53d44dbcc96e1601cda376d1ad22a36d46de1ab4` | `b27fde2add6ceddfb9b585a3b94e8f755e76525f` | `0d40b444428f8d8be0172939ab2d47a47e693fce` |
+| #464            | `218ec2f44848fd5f1977c653b134441ce647703f` | `12801065fb740a82f2f9cded72ffabe37a3bf43d` | `6b1c06f64d4abfbb6291bc16aa0a345801db309a` | `e30304044f81e573b6dce2b8750d004bd95b207e` |
 
 The source trees equal their corresponding merged-main trees
 (`218ec2f44848fd5f1977c653b134441ce647703f` for #462 and
@@ -39,6 +41,20 @@ was subsetted. Both applied without textual conflicts. The follow-up policy
 test makes the semantic conflict resolutions explicit by pinning the current
 `develop` setup, dependency, Quality, publisher-provenance, and token-isolation
 contracts.
+
+The #474 replay uses source parent
+`e865a7c24dff3233c9ba6b20233c1b5822b59ba9`; its stable source patch ID is
+`072e997f949ead654133c948098c0df16dbb7f8f`. Source signature verification is
+good for key `4BEFC05538080D6E`, and the source has an author-matching DCO
+trailer. The one textual conflict was confined to
+`scripts/harness/repository-policy.test.mjs` and was resolved by retaining the
+#473 token-isolation assertions while changing the exact credential authority
+to the environment-only `NPMJS_RELEASE_TOKEN` and retaining all #474 dispatch,
+authority, and pinned-action assertions. All ten source-patch paths are
+present. The later #474 branch commit
+`67a698ae5dc7beff985df8627b82e2c99e8865c9` was deliberately not replayed:
+#472 already supplies the reviewed `js-yaml` 4.3.2 and unconditional Quality
+audit policy on `develop`.
 
 At the #443 snapshot `develop@2ecab377cf4adb1a5ec8896e2e0f62e446e661da`,
 `main...develop` was 25/38 with merge base
@@ -61,16 +77,19 @@ preserved deliberately rather than hidden by the historical count.
   audit, publication drops provenance, or the npm write token reaches another
   step.
 - Frozen installation used pnpm `10.34.5`; the low-level audit reported no
-  known vulnerabilities. Publisher (36/36), release-context (132/132), policy
-  (12/12), harness (48 passed / 1 platform skip), and workspace checks passed.
+  known vulnerabilities. For the npm-authority replay, authority tests (26/26),
+  publisher tests (36/36), release-context tests (132/132), and reconciled
+  repository-policy tests (27/27) passed. `pnpm run verify` passed, including
+  the strict light/core lanes and coverage gates, and the full strict runner
+  passed all 27 API integration cases.
 
 ## What failed or was surprising
 
-- The first local signing attempt for the #464 replay was reported as a bad GPG
-  signature. Before any push, review, or acceptance claim, the commit was
-  re-signed without changing its tree, message, DCO trailer, provenance
-  trailer, or stable patch ID. The retained replay commit
-  `292d0a0ea69b787f1a4a2b66c1915c28f1758f27` verifies locally as good.
+- An earlier pre-rewrite local signing attempt for the #464 replay was reported
+  as a bad GPG signature. Before any acceptance claim, the branch history was
+  replaced with the current author-preserving, terminal-DCO replay. The retained
+  #462 and #464 commits `0d40b444428f8d8be0172939ab2d47a47e693fce`
+  and `e30304044f81e573b6dce2b8750d004bd95b207e` both verify locally as good.
 - Running focused Node policy tests before dependency installation failed
   because this fresh worktree had no `node_modules`. The required frozen
   install fixed the environment; subsequent tests passed.
@@ -81,23 +100,36 @@ preserved deliberately rather than hidden by the historical count.
 - The pinned dev-loop doctor still reports the documented optional subagent
   availability warning. The strict schema and repository harness remain the
   authoritative local checks.
+- The first local conformance invocation correctly refused to run while the
+  reviewed replay was still staged. Conformance evidence is intentionally run
+  only from the signed committed tree; no bypass was used.
 
 ## Process gaps and follow-up actions
 
-1. **Release owner / npm administrator:** record a trusted, read-only
-   `npm whoami` and package-level permission proof for all five package names.
-   Do not use publication as a credential test and do not record a token.
-2. **Release owner:** explicitly authorize one exact-head snapshot attempt
-   before this draft can be merged. Because the classifier marks this replay
-   release-relevant, merge to `develop` automatically attempts a snapshot.
-3. **Release engineering follow-up:** investigate the low-risk raw
+1. **Release owner:** merge #474 to `main` before this reconciliation can
+   proceed; #473 is not a substitute for landing the reviewed release-branch
+   protection first.
+2. **Environment administrator:** attest that `npm-release` has required
+   reviewers with self-review prevention and exact selected deployment branches
+   `main` and `develop`, excluding tags, wildcards, and all other branches.
+3. **Secret administrator:** attest that `NPMJS_RELEASE_TOKEN` exists only in
+   `npm-release`, and that the old `MIDNIGHTCI_NPMJS_TOKEN` plus any broader
+   `NPMJS_RELEASE_TOKEN` visibility have been removed from repository and
+   organization scope. Do not record or inspect the token value.
+4. **Release owner / npm administrator:** run the read-only authority workflow
+   successfully from its allowed exact `main` context, recording expected npm
+   identity and read-write authority for all five package names. Do not use
+   publication as a credential test.
+5. **Release owner:** explicitly authorize and approve one exact #473-head
+   snapshot attempt before this draft can be merged. Because the classifier
+   marks this replay release-relevant, merge to `develop` automatically attempts
+   a snapshot.
+6. **Release engineering follow-up:** investigate the low-risk raw
    output-writer defense separately. This reconciliation intentionally keeps
    the complete reviewed #464 implementation and does not broaden release-
    context code with a new defense during replay.
-4. **Backlog owners:** keep unrelated release/readiness cleanup in its owning
-   issues rather than expanding this security reconciliation.
-5. **Tooling follow-up:** resolve the pinned dev-loop subagent-discovery warning
-   independently; it is not release-control behavior.
+7. **Backlog and tooling owners:** keep unrelated cleanup in its owning issues,
+   including the pinned dev-loop subagent-discovery warning.
 
 ## Hold and residual risk
 
@@ -106,6 +138,11 @@ This PR must remain draft even when tests, CI, and routed review are clean.
 `snapshot_release_relevant=true`; merging to `develop` therefore automatically
 attempts a snapshot publication. Read-only package visibility and access status
 do not prove that the credential can perform all five immutable package PUTs,
-and five publications are not transactional. Human merge remains blocked until
-trusted read-only npm identity/all-five permission evidence and explicit
-one-snapshot authorization are durably recorded.
+and five publications are not transactional.
+
+**HOLD:** merge cannot proceed until #474 is merged to `main`; the
+`npm-release` environment is administrator-attested; `NPMJS_RELEASE_TOKEN`
+exists only there; the old `MIDNIGHTCI_NPMJS_TOKEN` and any broader
+`NPMJS_RELEASE_TOKEN` visibility are removed; the read-only authority workflow
+passes; and one exact snapshot from the exact #473 head is explicitly
+authorized and approved.
