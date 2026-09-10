@@ -66,13 +66,33 @@ The root workspace and `docs-site` remain private. The package workspaces are
 publishable and keep `publishConfig.registry` pointed at
 `https://registry.npmjs.org/` with `publishConfig.access: "public"`.
 
-The workflow uses `MIDNIGHTCI_NPMJS_TOKEN` only for npmjs publication and
-read-only package/access/tag administration. The post-publish npmjs smoke step
-uses the public registry without a write-capable token. `GITHUB_TOKEN` is used
-for repository-scoped operations such as creating/updating GitHub Release assets
+The workflow receives `NPMJS_RELEASE_TOKEN` only from the protected
+`npm-release` environment and exposes it only to the npm producer step. The
+separate `Verify npm Publication Authority` workflow exposes the same secret
+only to its read-only checker step. The post-publish npmjs smoke step uses the
+public registry without a write-capable token. `GITHUB_TOKEN` is used for
+repository-scoped operations such as creating/updating GitHub Release assets
 and publishing the GHCR ZK artifact. The workflow keeps `packages: write` only
 because GHCR generic OCI artifact publication requires it; npmjs publication is
 authenticated by the npm token.
+
+Repository administrators must configure `npm-release` with all of these
+controls before this code is considered active protection:
+
+- required environment reviewers, with prevention of self-review enabled;
+- exact selected deployment-branch rules for `main` and `develop`, excluding
+  tags, wildcard branches, and every other branch;
+- the `NPMJS_RELEASE_TOKEN` environment secret for the expected npm identity
+  `ntwrk-bot`; and
+- removal of both `MIDNIGHTCI_NPMJS_TOKEN` and `NPMJS_RELEASE_TOKEN` from
+  repository and organization secret scope, so no broader-scope fallback
+  credential remains available.
+
+The environment deployment-branch restrictions and required reviewers are the
+actual protection boundary. Workflow event/ref conditions, immutable-SHA
+checkout, runtime assertions, and secret step scoping are defense in depth, not
+substitutes for those GitHub settings. An environment administrator must attest
+the complete configuration before this change is marked ready or merged.
 
 Publication channels:
 
@@ -93,22 +113,47 @@ GitHub output record is written.
 
 The workflow revalidates the event, exact full source ref, branch ref type,
 channel, base version, resolved version, and RC index immediately before signing
-or publishing. Snapshot contexts require `refs/heads/develop`; final releases
-require `refs/heads/main`; RCs allow either branch ref. A dispatch from a tag,
-even one named `main` or `develop`, fails before outputs are written or a
-privileged command runs. These checks consume GitHub's default `GITHUB_REF` and
-`GITHUB_REF_TYPE` directly in the credential-bearing step rather than trusting
-short ref names, dispatch inputs, or initial context job outputs. A release fix
-made directly on `main` must also be synchronized back to `develop` before any
-later `develop` snapshot or RC.
+or publishing. Snapshots require `refs/heads/develop`; RCs allow
+`refs/heads/main` or `refs/heads/develop`; final releases require
+`refs/heads/main`. A dispatch from another branch or a tag, even one named
+`main` or `develop`, fails in a checkout-free, secret-free job before environment
+approval or repository checkout. An eligible dispatch then checks out the
+immutable dispatch SHA rather than a later-moving branch head. These checks
+consume GitHub's full ref directly rather than trusting short ref names. A
+release fix made directly on `main` must also be synchronized back to `develop`
+before any later `develop` snapshot or RC.
 
 Automated snapshot publication is intentionally gated. A push to `main` or
 `develop` publishes a snapshot only when the diff contains Compact, TypeScript,
 JavaScript, or shell-script changes under package/runtime paths. Markdown,
 `docs-site`, W3C spec pages, GitHub workflow/configuration changes, Renovate or
 Dependabot configuration, and manifest/lockfile-only dependency updates do not
-publish snapshot packages or ZK artifacts. Manual RC and release dispatches are
-not gated by this classifier.
+publish snapshot packages or ZK artifacts. Manual snapshots from `develop`, RCs
+from `main` or `develop`, and final releases from `main` are not gated by this
+classifier.
+
+## Read-only npm authority verification
+
+The manually dispatched `Verify npm Publication Authority` workflow runs with
+only `contents: read`, checks out no code until the exact `refs/heads/main`
+context passes, installs no dependencies, and executes only authenticated
+`npm whoami` and `npm access list packages` reads against the exact registry
+`https://registry.npmjs.org/`. It requires identity `ntwrk-bot` and read-write
+access evidence for the canonical five-package catalog.
+
+The checker invokes npm without a shell, with bounded time and output, strict
+single-value JSON and UTF-8 handling, an isolated temporary npm configuration,
+and an allowlisted child environment. It removes the temporary state on every
+exit and does not include provider output, provider errors, or credentials in
+reported failures. The runner and npm executable remain trusted components; a
+fake-npm test demonstrates command selection, containment, and redaction, not
+containment of a malicious npm binary that receives the credential.
+
+This read-only check is point-in-time evidence only. It does not prove that a
+later package PUT will succeed, that authority cannot be revoked between the
+check and publication, or that five sequential publishes are transactional. Do
+not use the publication workflow as a credential test, and do not infer release
+authorization from a successful authority check.
 
 ## Distribution Use Cases
 

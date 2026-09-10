@@ -358,12 +358,12 @@ assertIncludes(
 );
 assertIncludes(
   readText(".github/workflows/publish.yml"),
-  "github.event_name != 'push' || (github.ref == 'refs/heads/develop' && needs.changes.outputs.snapshot_release_relevant == 'true')",
+  "inputs.channel == 'snapshot' && github.ref == 'refs/heads/develop'",
   ".github/workflows/publish.yml",
 );
 assertIncludes(
   readText(".github/workflows/publish.yml"),
-  "MIDNIGHTCI_NPMJS_TOKEN",
+  "NPMJS_RELEASE_TOKEN",
   ".github/workflows/publish.yml",
 );
 assertIncludes(
