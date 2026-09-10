@@ -75,13 +75,17 @@ The Compact module follows the zkloan pattern:
 - use `r` as the actual Jubjub challenge scalar
 
 The quotient is intentionally typed as `Uint<7>` in Compact and the verifier
-asserts that it is less than `116`. For any valid BLS12-381 field element
-returned by `transientHash`, the integer quotient is at most `115`; the bounded
-type plus range assertion prevents field-modulus wrap-around witnesses from
-satisfying the reduction equation with a different remainder.
+asserts that it is less than `116`. This covers the honest integer quotient
+range `0..115` for a valid BLS12-381 field element returned by `transientHash`
+and rejects `q = 116`. It does not establish a unique `(q, r)` decomposition
+for every transcript because the reduction equation is checked in the
+BLS12-381 field. As documented in [issue #241](https://github.com/midnightntwrk/midnight-did/issues/241),
+a narrow overlap admits two bounded decompositions with different remainders.
+No signature forgery has been demonstrated from this non-uniqueness.
 
-Every host contract that imports the shared `schnorr` module must implement
-the witness with exactly this arithmetic:
+Every host contract that imports the shared `schnorr` module must supply the
+canonical honest witness using host integer division and modulo exactly as
+follows:
 
 ```ts
 const q = challengeHash / TWO_248;
@@ -89,8 +93,11 @@ const r = challengeHash % TWO_248;
 return [privateState, [q, r]];
 ```
 
-This witness contract is part of the protocol. If a consumer changes the
-reduction rule, Compact verification and TS signing drift again.
+This host computation selects the canonical honest witness used by the signer,
+but does not make the in-circuit decomposition unique. Cryptographic, circuit,
+and formal remediation remains separately reviewed 0.7 work or part of a
+coordinated upstream Jubjub integration; this documentation correction does not
+claim that remediation is complete.
 
 Constants:
 
