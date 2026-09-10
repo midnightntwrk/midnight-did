@@ -56,6 +56,29 @@ the production timeout remains bounded. macOS also injects
 platform-added value from inherited ambient configuration while checking the
 explicit child-environment allowlist.
 
+## Held-draft security remediation
+
+PR #474 was intentionally held after its exact-main validation found the
+high-severity `js-yaml` advisory GHSA-2883-xcg3-v3hh in the inherited 4.3.1
+resolution. The complete reviewed PR #472 security patch was replayed from its
+signed source commit
+`96cdc0e2ec4b6807da8ad395a8f211e67c60daa0` onto the clean authority head
+`5610191b1015ef9bd618cc0fee461b2d51a8d600`, without merging or changing the
+npm-authority implementation.
+
+The replay kept main's pnpm 10.34.4 and all unrelated dependency resolutions,
+raised only the direct and override `js-yaml` requirements to 4.3.2, retained
+the exact maturity exclusion and the global frozen/maturity/trust policies,
+and added PR #472's unconditional explicit Quality audit. A pnpm-only lockfile
+refresh was a no-op beyond the intended 4.3.2 resolution. Frozen installation,
+the explicit low-threshold audit, npm-authority and repository-policy tests,
+release-context and publisher tests, mandatory verification, full strict API
+integration, and documentation validation/build/visual checks all passed.
+
+The environment-administrator hold remains unchanged: dependency remediation
+removes the audit blocker but is not evidence that environment reviewers,
+branch deployment rules, or secret scopes are correctly configured.
+
 ## Decisions, limits, and follow-up
 
 The actual trust boundary is the `npm-release` GitHub environment configured

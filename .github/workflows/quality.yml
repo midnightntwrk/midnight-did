@@ -72,11 +72,13 @@ jobs:
         run: echo "No code-impacting changes detected; Compact/typecheck/static quality implementation skipped."
 
       - name: Set up Node.js, pnpm, and Compact
-        if: steps.scope.outputs.full_quality_required == 'true'
         uses: ./.github/actions/setup-node-pnpm
         with:
           compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
           github-token: ${{ github.token }}
+
+      - name: Audit dependencies
+        run: pnpm audit --audit-level low
 
       - name: Build typecheck prerequisites
         if: steps.scope.outputs.full_quality_required == 'true'
