@@ -673,9 +673,10 @@ test("keeps npm administration exact and package production pnpm-only", async ()
   assert.doesNotMatch(publishScript, /--no-provenance\b/);
 });
 
-test("keeps the npm write token out of public post-publish smoke", async () => {
+test("keeps the npm write token isolated to the pnpm publication step", async () => {
   const workflow = loadYaml(await text(".github/workflows/publish.yml"));
-  const steps = workflow.jobs.publish.steps;
+  const publishJob = workflow.jobs.publish;
+  const steps = publishJob.steps;
   const publishStep = steps.find(
     ({ name }) => name === "Publish npm packages to npmjs",
   );
@@ -683,17 +684,81 @@ test("keeps the npm write token out of public post-publish smoke", async () => {
     ({ name }) => name === "Smoke test packages from npmjs",
   );
 
+  assert.equal(Object.hasOwn(publishJob, "env"), false);
   assert.match(
     publishStep.env.NODE_AUTH_TOKEN,
-    /MIDNIGHTCI_NPMJS_TOKEN/,
-    "the producer step still needs the npm publication credential",
+    /^\$\{\{ secrets\.MIDNIGHTCI_NPMJS_TOKEN \}\}$/,
+    "the producer step still needs the exact npm publication credential",
   );
-  assert.equal(
-    Object.hasOwn(smokeStep.env, "NODE_AUTH_TOKEN"),
-    false,
-    "the public --skip-zk smoke must not receive the write-capable npm token",
-  );
+  assert.equal(Object.hasOwn(publishStep.env, "NPM_TOKEN"), false);
+  for (const step of steps.filter((candidate) => candidate !== publishStep)) {
+    assert.equal(
+      Object.hasOwn(step.env ?? {}, "NODE_AUTH_TOKEN"),
+      false,
+      `${step.name} must not receive NODE_AUTH_TOKEN`,
+    );
+    assert.equal(
+      Object.hasOwn(step.env ?? {}, "NPM_TOKEN"),
+      false,
+      `${step.name} must not receive NPM_TOKEN`,
+    );
+    assert.doesNotMatch(
+      JSON.stringify(step),
+      /MIDNIGHTCI_NPMJS_TOKEN/,
+      `${step.name} must not reference the npm publication secret`,
+    );
+  }
   assert.match(smokeStep.run, /release-smoke-npm-packages\.sh/);
+  assert.equal(
+    JSON.stringify(workflow).match(/MIDNIGHTCI_NPMJS_TOKEN/g)?.length,
+    1,
+    "the npm write secret must have exactly one workflow reference",
+  );
+});
+
+test("shared setup freezes installs and Quality always runs the explicit audit", async () => {
+  const [action, quality] = await Promise.all([
+    text(".github/actions/setup-node-pnpm/action.yml").then(loadYaml),
+    text(".github/workflows/quality.yml").then(loadYaml),
+  ]);
+
+  assert.equal(action.inputs.install.default, "true");
+  assert.equal(
+    action.inputs["install-args"].default,
+    "--frozen-lockfile --prefer-offline",
+  );
+  const installStep = action.runs.steps.find(
+    ({ name }) => name === "Install dependencies",
+  );
+  assert.equal(installStep.if, "inputs.install == 'true'");
+  assert.equal(installStep.env.INSTALL_ARGS, "${{ inputs.install-args }}");
+  assert.equal(installStep.run, "pnpm install ${INSTALL_ARGS}");
+
+  const qualitySteps = quality.jobs.quality.steps;
+  const setupStep = qualitySteps.find(
+    ({ name }) => name === "Set up Node.js, pnpm, and Compact",
+  );
+  const auditStep = qualitySteps.find(
+    ({ name }) => name === "Audit dependencies",
+  );
+  assert.equal(Object.hasOwn(setupStep, "if"), false);
+  assert.equal(Object.hasOwn(auditStep, "if"), false);
+  assert.equal(auditStep.run, "pnpm audit --audit-level low");
+  assert.ok(qualitySteps.indexOf(setupStep) < qualitySteps.indexOf(auditStep));
+
+  for (const name of [
+    "Build typecheck prerequisites",
+    "Typecheck all workspaces",
+    "Run static contract checks",
+  ]) {
+    const step = qualitySteps.find((candidate) => candidate.name === name);
+    assert.equal(
+      step.if,
+      "steps.scope.outputs.full_quality_required == 'true'",
+      `${name} must remain conditional after the unconditional audit`,
+    );
+    assert.ok(qualitySteps.indexOf(step) > qualitySteps.indexOf(auditStep));
+  }
 });
 
 function assertReleaseContextEnv(step) {
@@ -934,19 +999,40 @@ test("code-scanning supply-chain remediations do not regress", async () => {
 });
 
 test("pnpm supply-chain policy stays strict with only reviewed exact-version exclusions", async () => {
-  const workspace = await text("pnpm-workspace.yaml");
-  assert.match(workspace, /^trustPolicy: no-downgrade$/m);
+  const [workspaceText, npmrc, packageJson] = await Promise.all([
+    text("pnpm-workspace.yaml"),
+    text(".npmrc"),
+    text("package.json").then((contents) => JSON.parse(contents)),
+  ]);
+  const workspace = loadYaml(workspaceText);
 
-  const exclusions = workspace.match(
+  assert.equal(packageJson.packageManager, "pnpm@10.34.5");
+  assert.equal(packageJson.engines.node, ">=24");
+  assert.equal(packageJson.devDependencies["js-yaml"], "4.3.2");
+  assert.equal(packageJson.pnpm.overrides["js-yaml"], "^4.3.2");
+  assert.equal(npmrc.match(/^engine-strict=true$/gm)?.length, 1);
+  assert.equal(npmrc.match(/^min-release-age=7$/gm)?.length, 1);
+
+  assert.equal(workspace.blockExoticSubdeps, true);
+  assert.equal(workspace.minimumReleaseAge, 10080);
+  assert.equal(workspace.trustPolicy, "no-downgrade");
+  assert.deepEqual(workspace.minimumReleaseAgeExclude, [
+    "brace-expansion@5.0.8",
+    "mermaid@11.16.1",
+    "pnpm@10.34.4",
+    "js-yaml@4.3.2",
+  ]);
+  assert.deepEqual(workspace.trustPolicyExclude, [
+    "tinyexec@1.2.2",
+    "pino@9.14.0",
+  ]);
+
+  const trustExclusions = workspaceText.match(
     /^trustPolicyExclude:\n((?: {2}.*(?:\n|$))*)/m,
   );
-  assert.ok(exclusions, "trustPolicyExclude must remain explicit");
-  assert.deepEqual(
-    [...exclusions[1].matchAll(/^  - (\S+)$/gm)].map((match) => match[1]),
-    ["tinyexec@1.2.2", "pino@9.14.0"],
-  );
+  assert.ok(trustExclusions, "trustPolicyExclude must remain explicit");
   assert.match(
-    exclusions[1],
+    trustExclusions[1],
     /pino@9\.14\.0[\s\S]*already-locked[\s\S]*integrity matches npm[\s\S]*signed upstream tag commit 339f1d6c899fa584324e15c587fbd811664dd07c[\s\S]*lacks[\s\S]*trusted-publisher provenance used by pino@9\.13\.1/,
   );
 });
