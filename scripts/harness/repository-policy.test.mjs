@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
@@ -673,9 +674,10 @@ test("keeps npm administration exact and package production pnpm-only", async ()
   assert.doesNotMatch(publishScript, /--no-provenance\b/);
 });
 
-test("keeps the npm write token out of public post-publish smoke", async () => {
+test("keeps the npm write token isolated to the pnpm publication step", async () => {
   const workflow = loadYaml(await text(".github/workflows/publish.yml"));
-  const steps = workflow.jobs.publish.steps;
+  const publishJob = workflow.jobs.publish;
+  const steps = publishJob.steps;
   const publishStep = steps.find(
     ({ name }) => name === "Publish npm packages to npmjs",
   );
@@ -683,17 +685,406 @@ test("keeps the npm write token out of public post-publish smoke", async () => {
     ({ name }) => name === "Smoke test packages from npmjs",
   );
 
+  assert.equal(Object.hasOwn(publishJob, "env"), false);
   assert.match(
     publishStep.env.NODE_AUTH_TOKEN,
-    /MIDNIGHTCI_NPMJS_TOKEN/,
-    "the producer step still needs the npm publication credential",
+    /^\$\{\{ secrets\.NPMJS_RELEASE_TOKEN \}\}$/,
+    "the producer step still needs the exact environment-only npm publication credential",
   );
   assert.equal(
     Object.hasOwn(smokeStep.env, "NODE_AUTH_TOKEN"),
     false,
     "the public --skip-zk smoke must not receive the write-capable npm token",
   );
+  assert.equal(Object.hasOwn(publishStep.env, "NPM_TOKEN"), false);
+  for (const step of steps.filter((candidate) => candidate !== publishStep)) {
+    assert.equal(
+      Object.hasOwn(step.env ?? {}, "NODE_AUTH_TOKEN"),
+      false,
+      `${step.name} must not receive NODE_AUTH_TOKEN`,
+    );
+    assert.equal(
+      Object.hasOwn(step.env ?? {}, "NPM_TOKEN"),
+      false,
+      `${step.name} must not receive NPM_TOKEN`,
+    );
+    assert.doesNotMatch(
+      JSON.stringify(step),
+      /NPMJS_RELEASE_TOKEN/,
+      `${step.name} must not reference the npm publication secret`,
+    );
+  }
   assert.match(smokeStep.run, /release-smoke-npm-packages\.sh/);
+  assert.equal(
+    JSON.stringify(workflow).match(/NPMJS_RELEASE_TOKEN/g)?.length,
+    1,
+    "the npm write secret must have exactly one workflow reference",
+  );
+  assert.doesNotMatch(JSON.stringify(workflow), /MIDNIGHTCI_NPMJS_TOKEN/);
+});
+
+test("shared setup freezes installs and Quality always runs the explicit audit", async () => {
+  const [action, quality] = await Promise.all([
+    text(".github/actions/setup-node-pnpm/action.yml").then(loadYaml),
+    text(".github/workflows/quality.yml").then(loadYaml),
+  ]);
+
+  assert.equal(action.inputs.install.default, "true");
+  assert.equal(
+    action.inputs["install-args"].default,
+    "--frozen-lockfile --prefer-offline",
+  );
+  const installStep = action.runs.steps.find(
+    ({ name }) => name === "Install dependencies",
+  );
+  assert.equal(installStep.if, "inputs.install == 'true'");
+  assert.equal(installStep.env.INSTALL_ARGS, "${{ inputs.install-args }}");
+  assert.equal(installStep.run, "pnpm install ${INSTALL_ARGS}");
+
+  const qualitySteps = quality.jobs.quality.steps;
+  const setupStep = qualitySteps.find(
+    ({ name }) => name === "Set up Node.js, pnpm, and Compact",
+  );
+  const auditStep = qualitySteps.find(
+    ({ name }) => name === "Audit dependencies",
+  );
+  assert.equal(Object.hasOwn(setupStep, "if"), false);
+  assert.equal(Object.hasOwn(auditStep, "if"), false);
+  assert.equal(auditStep.run, "pnpm audit --audit-level low");
+  assert.ok(qualitySteps.indexOf(setupStep) < qualitySteps.indexOf(auditStep));
+
+  for (const name of [
+    "Build typecheck prerequisites",
+    "Typecheck all workspaces",
+    "Run static contract checks",
+  ]) {
+    const step = qualitySteps.find((candidate) => candidate.name === name);
+    assert.equal(
+      step.if,
+      "steps.scope.outputs.full_quality_required == 'true'",
+      `${name} must remain conditional after the unconditional audit`,
+    );
+    assert.ok(qualitySteps.indexOf(step) > qualitySteps.indexOf(auditStep));
+  }
+});
+
+test("protects publish dispatch and npm authority behind the environment-only credential", async () => {
+  const [publishText, authorityText, checker] = await Promise.all([
+    text(".github/workflows/publish.yml"),
+    text(".github/workflows/npm-publish-authority.yml"),
+    text("scripts/check-npm-publish-authority.mjs"),
+  ]);
+  const publish = loadYaml(publishText);
+  const authority = loadYaml(authorityText);
+
+  assert.equal(publish.jobs.publish.environment, "npm-release");
+  assert.equal(authority.jobs["verify-authority"].environment, "npm-release");
+  assert.equal(publish.jobs.changes.if, "github.event_name == 'push'");
+
+  const publishCondition = publish.jobs.publish.if;
+  assert.match(publishCondition, /github\.ref_type == 'branch'/u);
+  assert.match(
+    publishCondition,
+    /inputs\.channel == 'snapshot' && github\.ref == 'refs\/heads\/develop'/u,
+  );
+  assert.match(
+    publishCondition,
+    /inputs\.channel == 'rc'[\s\S]*github\.ref == 'refs\/heads\/main'[\s\S]*github\.ref == 'refs\/heads\/develop'/u,
+  );
+  assert.match(
+    publishCondition,
+    /inputs\.channel == 'release' && github\.ref == 'refs\/heads\/main'/u,
+  );
+  assert.match(
+    publishCondition,
+    /github\.event_name == 'push'[\s\S]*github\.ref == 'refs\/heads\/develop'[\s\S]*github\.ref_type == 'branch'[\s\S]*snapshot_release_relevant == 'true'/u,
+  );
+  assert.match(
+    authority.jobs["verify-authority"].if,
+    /github\.event_name == 'workflow_dispatch'.*github\.ref == 'refs\/heads\/main'.*github\.ref_type == 'branch'/u,
+  );
+
+  for (const workflow of [publish, authority]) {
+    const gate = workflow.jobs["validate-dispatch-ref"];
+    assert.ok(
+      gate,
+      "manual dispatch must have a checkout-free fail-closed gate",
+    );
+    assert.deepEqual(gate.permissions, {});
+    assert.equal(Object.hasOwn(gate, "environment"), false);
+    assert.equal(
+      gate.steps.some((step) => Object.hasOwn(step, "uses")),
+      false,
+      "the untrusted-ref gate must not checkout code or use an action",
+    );
+    assert.doesNotMatch(JSON.stringify(gate), /NPMJS_RELEASE_TOKEN/u);
+    assert.match(JSON.stringify(gate), /refs\/heads\/main/u);
+  }
+  assert.match(
+    JSON.stringify(publish.jobs["validate-dispatch-ref"]),
+    /refs\/heads\/develop/u,
+  );
+
+  const publishSteps = publish.jobs.publish.steps;
+  const publishCheckout = publishSteps.find((step) =>
+    String(step.uses ?? "").startsWith("actions/checkout@"),
+  );
+  assert.equal(publishCheckout.with.ref, "${{ github.sha }}");
+  assert.equal(publishCheckout.with["persist-credentials"], false);
+  assert.equal(
+    publishSteps.filter((step) =>
+      JSON.stringify(step.env ?? {}).includes("NPMJS_RELEASE_TOKEN"),
+    ).length,
+    1,
+    "only the npm producer step may receive the environment secret",
+  );
+  assert.equal(
+    (publishText.match(/secrets\.NPMJS_RELEASE_TOKEN/gu) ?? []).length,
+    1,
+  );
+
+  const authoritySteps = authority.jobs["verify-authority"].steps;
+  const checkoutIndex = authoritySteps.findIndex((step) =>
+    String(step.uses ?? "").startsWith("actions/checkout@"),
+  );
+  const assertionIndex = authoritySteps.findIndex(
+    (step) => step.name === "Revalidate trusted dispatch context",
+  );
+  const authorityIndex = authoritySteps.findIndex(
+    (step) => step.name === "Verify npm identity and package authority",
+  );
+  assert.ok(assertionIndex >= 0 && assertionIndex < checkoutIndex);
+  assert.ok(checkoutIndex >= 0 && checkoutIndex < authorityIndex);
+  assert.equal(authoritySteps[checkoutIndex].with.ref, "${{ github.sha }}");
+  assert.equal(
+    authoritySteps[checkoutIndex].with["persist-credentials"],
+    false,
+  );
+  assert.equal(
+    authoritySteps.filter((step) =>
+      JSON.stringify(step.env ?? {}).includes("NPMJS_RELEASE_TOKEN"),
+    ).length,
+    1,
+    "only the checker step may receive the environment secret",
+  );
+  assert.equal(
+    (authorityText.match(/secrets\.NPMJS_RELEASE_TOKEN/gu) ?? []).length,
+    1,
+  );
+  assert.doesNotMatch(
+    `${publishText}\n${authorityText}`,
+    /MIDNIGHTCI_NPMJS_TOKEN/u,
+  );
+  assert.deepEqual(authority.permissions, { contents: "read" });
+  assert.deepEqual(authority.jobs["verify-authority"].permissions, {
+    contents: "read",
+  });
+  assert.equal(
+    Object.hasOwn(authority.jobs["verify-authority"], "outputs"),
+    false,
+  );
+  assert.doesNotMatch(authorityText, /(?:pnpm|npm)\s+(?:install|publish)/u);
+
+  assert.match(checker, /"whoami"/u);
+  assert.match(checker, /"access",\s*"list",\s*"packages"/u);
+  assert.doesNotMatch(
+    checker,
+    /["'](?:publish|unpublish|deprecate|dist-tag|adduser|login|logout|owner|team)["']/u,
+  );
+});
+
+test("release environment gates reject every disallowed dispatch ref and channel", async (t) => {
+  const [publish, authority] = await Promise.all([
+    text(".github/workflows/publish.yml").then(loadYaml),
+    text(".github/workflows/npm-publish-authority.yml").then(loadYaml),
+  ]);
+  const runGate = (workflow, values) => {
+    const script = workflow.jobs["validate-dispatch-ref"].steps[0].run;
+    return spawnSync("bash", ["-c", script], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, ...values },
+    });
+  };
+
+  const publishCases = [
+    ["snapshot develop", 0, "snapshot", "refs/heads/develop", "branch"],
+    ["rc main", 0, "rc", "refs/heads/main", "branch"],
+    ["rc develop", 0, "rc", "refs/heads/develop", "branch"],
+    ["release main", 0, "release", "refs/heads/main", "branch"],
+    ["snapshot main", 1, "snapshot", "refs/heads/main", "branch"],
+    ["rc feature", 1, "rc", "refs/heads/feature", "branch"],
+    ["release develop", 1, "release", "refs/heads/develop", "branch"],
+    ["tag named main", 1, "release", "refs/tags/main", "tag"],
+    ["unsupported channel", 1, "unsupported", "refs/heads/main", "branch"],
+  ];
+  for (const [name, expectedStatus, channel, ref, refType] of publishCases) {
+    await t.test(name, () => {
+      const result = runGate(publish, {
+        DISPATCH_CHANNEL: channel,
+        DISPATCH_REF: ref,
+        DISPATCH_REF_TYPE: refType,
+      });
+      assert.equal(result.status, expectedStatus, result.stderr);
+      assert.doesNotMatch(
+        `${result.stdout}\n${result.stderr}`,
+        /token|secret/iu,
+      );
+    });
+  }
+
+  for (const [name, expectedStatus, ref, refType] of [
+    ["authority main", 0, "refs/heads/main", "branch"],
+    ["authority develop", 1, "refs/heads/develop", "branch"],
+    ["authority tag named main", 1, "refs/tags/main", "tag"],
+  ]) {
+    await t.test(name, () => {
+      const result = runGate(authority, {
+        DISPATCH_REF: ref,
+        DISPATCH_REF_TYPE: refType,
+      });
+      assert.equal(result.status, expectedStatus, result.stderr);
+      assert.doesNotMatch(
+        `${result.stdout}\n${result.stderr}`,
+        /token|secret/iu,
+      );
+    });
+  }
+});
+
+test("pins third-party actions used by release authority workflows", async () => {
+  for (const relative of [
+    ".github/workflows/publish.yml",
+    ".github/workflows/npm-publish-authority.yml",
+  ]) {
+    const workflow = loadYaml(await text(relative));
+    const actionUses = [];
+    for (const job of Object.values(workflow.jobs)) {
+      if (typeof job.uses === "string") actionUses.push(job.uses);
+      for (const step of job.steps ?? []) {
+        if (typeof step.uses === "string") actionUses.push(step.uses);
+      }
+    }
+    for (const uses of actionUses.filter((value) => !value.startsWith("./"))) {
+      assert.match(uses, /@[0-9a-f]{40}$/u, `${relative}: ${uses}`);
+    }
+  }
+});
+
+function assertReleaseContextEnv(step) {
+  assert.match(step.env.CHANNEL, /outputs\.channel/);
+  assert.match(step.env.BASE_VERSION, /outputs\.base_version/);
+  assert.match(step.env.RELEASE_VERSION, /outputs\.version/);
+  assert.match(step.env.RC_INDEX, /outputs\.rc_index/);
+}
+
+function assertUsesTrustedGithubRefEnvironment(step) {
+  for (const name of ["GITHUB_REF", "GITHUB_REF_NAME", "GITHUB_REF_TYPE"]) {
+    assert.equal(
+      Object.hasOwn(step.env ?? {}, name),
+      false,
+      `${step.name} must use GitHub's immutable default ${name}`,
+    );
+  }
+}
+
+function assertPrivilegedReleaseBoundary(step, boundaryCommand) {
+  assert.ok(step, `missing privileged boundary for ${boundaryCommand}`);
+  const validationCommand = "./scripts/release-validate-context.sh";
+  const validationIndex = step.run.indexOf(validationCommand);
+  const boundaryIndex = step.run.indexOf(boundaryCommand);
+  assert.ok(
+    validationIndex >= 0,
+    `${step.name} must revalidate release context`,
+  );
+  assert.ok(
+    boundaryIndex > validationIndex,
+    `${step.name} must revalidate before its privileged command`,
+  );
+
+  const interveningLines = step.run
+    .slice(validationIndex + validationCommand.length, boundaryIndex)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  for (const line of interveningLines) {
+    assert.match(
+      line,
+      /^[A-Z][A-Z0-9_]*=.*\\$/u,
+      `${step.name} must not run another command after context validation`,
+    );
+  }
+  assertReleaseContextEnv(step);
+  assertUsesTrustedGithubRefEnvironment(step);
+}
+
+test("revalidates release context at every privileged publication boundary", async () => {
+  const [workflow, resolver, validator] = await Promise.all([
+    text(".github/workflows/publish.yml").then(loadYaml),
+    text("scripts/release-resolve-context.sh"),
+    text("scripts/release-validate-context.sh"),
+  ]);
+  for (const script of [resolver, validator]) {
+    assert.match(script, /\$\{GITHUB_REF:\?GITHUB_REF is required\}/u);
+    assert.match(
+      script,
+      /\$\{GITHUB_REF_TYPE:\?GITHUB_REF_TYPE is required\}/u,
+    );
+    assert.doesNotMatch(script, /GITHUB_REF_NAME/u);
+  }
+  assert.equal(workflow.on.workflow_dispatch.inputs.version.required, true);
+  assert.match(
+    workflow.on.workflow_dispatch.inputs.version.description,
+    /stable semantic version/iu,
+  );
+  assert.equal(
+    workflow.jobs.publish.outputs.base_version,
+    "${{ steps.version.outputs.base_version }}",
+  );
+  assert.equal(
+    workflow.jobs.publish.outputs.rc_index,
+    "${{ steps.context.outputs.rc_index }}",
+  );
+
+  const publishSteps = workflow.jobs.publish.steps;
+  assertUsesTrustedGithubRefEnvironment(
+    publishSteps.find(({ name }) => name === "Resolve publication context"),
+  );
+  assertPrivilegedReleaseBoundary(
+    publishSteps.find(({ name }) => name === "Sign GitHub Release assets"),
+    "./scripts/release-sign-assets.sh",
+  );
+  assertPrivilegedReleaseBoundary(
+    publishSteps.find(({ name }) => name === "Publish npm packages to npmjs"),
+    "./scripts/publish-npm-packages.sh",
+  );
+  assertPrivilegedReleaseBoundary(
+    publishSteps.find(
+      ({ name }) => name === "Publish and verify GHCR ZK artifact",
+    ),
+    "./scripts/publish-ghcr-zk-artifact.sh",
+  );
+
+  const validationJob = workflow.jobs["validate-github-release-context"];
+  assert.deepEqual(validationJob.needs, ["publish"]);
+  const validationStep = validationJob.steps.find(
+    ({ name }) => name === "Revalidate release context",
+  );
+  assert.equal(validationStep.run, "./scripts/release-validate-context.sh");
+  assertReleaseContextEnv(validationStep);
+  assertUsesTrustedGithubRefEnvironment(validationStep);
+  assert.ok(
+    workflow.jobs["github-release-provenance"].needs.includes(
+      "validate-github-release-context",
+    ),
+  );
+
+  assertPrivilegedReleaseBoundary(
+    workflow.jobs["finalize-github-release"].steps.find(
+      ({ name }) => name === "Publish and verify GitHub Release assets",
+    ),
+    "./scripts/publish-github-release-assets.sh",
+  );
 });
 
 function compareVersions(left, right) {
@@ -818,19 +1209,40 @@ test("code-scanning supply-chain remediations do not regress", async () => {
 });
 
 test("pnpm supply-chain policy stays strict with only reviewed exact-version exclusions", async () => {
-  const workspace = await text("pnpm-workspace.yaml");
-  assert.match(workspace, /^trustPolicy: no-downgrade$/m);
+  const [workspaceText, npmrc, packageJson] = await Promise.all([
+    text("pnpm-workspace.yaml"),
+    text(".npmrc"),
+    text("package.json").then((contents) => JSON.parse(contents)),
+  ]);
+  const workspace = loadYaml(workspaceText);
 
-  const exclusions = workspace.match(
+  assert.equal(packageJson.packageManager, "pnpm@10.34.5");
+  assert.equal(packageJson.engines.node, ">=24");
+  assert.equal(packageJson.devDependencies["js-yaml"], "4.3.2");
+  assert.equal(packageJson.pnpm.overrides["js-yaml"], "^4.3.2");
+  assert.equal(npmrc.match(/^engine-strict=true$/gm)?.length, 1);
+  assert.equal(npmrc.match(/^min-release-age=7$/gm)?.length, 1);
+
+  assert.equal(workspace.blockExoticSubdeps, true);
+  assert.equal(workspace.minimumReleaseAge, 10080);
+  assert.equal(workspace.trustPolicy, "no-downgrade");
+  assert.deepEqual(workspace.minimumReleaseAgeExclude, [
+    "brace-expansion@5.0.8",
+    "mermaid@11.16.1",
+    "pnpm@10.34.4",
+    "js-yaml@4.3.2",
+  ]);
+  assert.deepEqual(workspace.trustPolicyExclude, [
+    "tinyexec@1.2.2",
+    "pino@9.14.0",
+  ]);
+
+  const trustExclusions = workspaceText.match(
     /^trustPolicyExclude:\n((?: {2}.*(?:\n|$))*)/m,
   );
-  assert.ok(exclusions, "trustPolicyExclude must remain explicit");
-  assert.deepEqual(
-    [...exclusions[1].matchAll(/^  - (\S+)$/gm)].map((match) => match[1]),
-    ["tinyexec@1.2.2", "pino@9.14.0"],
-  );
+  assert.ok(trustExclusions, "trustPolicyExclude must remain explicit");
   assert.match(
-    exclusions[1],
+    trustExclusions[1],
     /pino@9\.14\.0[\s\S]*already-locked[\s\S]*integrity matches npm[\s\S]*signed upstream tag commit 339f1d6c899fa584324e15c587fbd811664dd07c[\s\S]*lacks[\s\S]*trusted-publisher provenance used by pino@9\.13\.1/,
   );
 });

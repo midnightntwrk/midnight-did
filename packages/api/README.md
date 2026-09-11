@@ -124,8 +124,9 @@ bind never resets the stage to reservation or persistence. The error deliberatel
 discards the source error,
 deployed-contract handle, transaction/finality data, and all public or private
 deployment data. It never uses `cause`, copies provider fields, or includes an
-arbitrary provider name/message. A rejection before the target is observed,
-including a genuine `DeployTxFailedError`, is preserved unchanged. On success
+arbitrary provider name/message. Every rejection before the target is observed,
+including primitive rejection values, adversarial error objects, and a genuine
+`DeployTxFailedError`, is preserved unchanged. On success
 the dependency has already bound the provider and persisted both values, so the
 API performs no second bind or active-state write that could overwrite a
 concurrently rotated controller key.
@@ -138,6 +139,8 @@ and join the finalized address using state that matches the current ledger
 controller rather than overwriting its namespace. Inspect restricted external
 provider logs separately when diagnostics are needed. Never log the source error
 through this typed error or attach it to the typed error before propagating it.
+Future diagnostics at this boundary must be explicitly allowlisted and redacted;
+they must not retain or traverse the provider error graph.
 
 ## Controller Secret Recovery Posture
 
