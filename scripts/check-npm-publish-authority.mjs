@@ -38,6 +38,19 @@ class AuthorityCheckError extends Error {
 const invalidEvidence = () =>
   new AuthorityCheckError("npm returned invalid authority evidence.");
 
+const npmAuthorityOperation = Object.freeze({
+  identity: Symbol("npm identity"),
+  packageAuthority: Symbol("npm package authority"),
+});
+
+function requireOperationLabel(operation) {
+  if (operation === npmAuthorityOperation.identity) return "npm identity";
+  if (operation === npmAuthorityOperation.packageAuthority) {
+    return "npm package authority";
+  }
+  throw new Error("Unexpected npm authority operation.");
+}
+
 class StrictJsonReader {
   constructor(text) {
     this.text = text;
@@ -189,6 +202,7 @@ function terminate(child) {
 }
 
 async function runNpmJson({
+  operation,
   npmExecutable,
   args,
   env,
@@ -196,6 +210,7 @@ async function runNpmJson({
   timeoutMs,
   outputLimit,
 }) {
+  const operationLabel = requireOperationLabel(operation);
   return new Promise((resolve, reject) => {
     let settled = false;
     let outputBytes = 0;
@@ -218,7 +233,7 @@ async function runNpmJson({
     const collect = (chunk, retain) => {
       outputBytes += chunk.length;
       if (outputBytes > outputLimit) {
-        fail("npm authority evidence exceeded the output limit.");
+        fail(`The ${operationLabel} command output exceeded the output limit.`);
         return;
       }
       if (retain) stdout.push(chunk);
@@ -226,13 +241,15 @@ async function runNpmJson({
 
     child.stdout.on("data", (chunk) => collect(chunk, true));
     child.stderr.on("data", (chunk) => collect(chunk, false));
-    child.on("error", () => fail("The npm authority command failed."));
+    child.on("error", () => fail(`The ${operationLabel} command failed.`));
     child.on("close", (code, signal) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       if (code !== 0 || signal != null) {
-        reject(new AuthorityCheckError("The npm authority command failed."));
+        reject(
+          new AuthorityCheckError(`The ${operationLabel} command failed.`),
+        );
         return;
       }
       try {
@@ -243,7 +260,7 @@ async function runNpmJson({
     });
 
     const timer = setTimeout(
-      () => fail("The npm authority command timed out."),
+      () => fail(`The ${operationLabel} command timed out.`),
       timeoutMs,
     );
     timer.unref();
@@ -315,6 +332,7 @@ export async function verifyNpmPublishAuthority({
 
     const identity = await runNpmJson({
       ...common,
+      operation: npmAuthorityOperation.identity,
       args: [
         "whoami",
         "--json",
@@ -331,6 +349,7 @@ export async function verifyNpmPublishAuthority({
 
     const packageAccess = await runNpmJson({
       ...common,
+      operation: npmAuthorityOperation.packageAuthority,
       args: [
         "access",
         "list",

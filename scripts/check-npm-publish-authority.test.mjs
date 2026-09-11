@@ -3,10 +3,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   expectedNpmIdentity,
@@ -16,6 +18,9 @@ import {
 import { npmPackageRegistry } from "./did-workspace-catalog.mjs";
 
 const token = "test-token-that-must-never-appear-in-errors";
+const authorityScriptPath = fileURLToPath(
+  new URL("./check-npm-publish-authority.mjs", import.meta.url),
+);
 const expectedWhoamiArgs = [
   "whoami",
   "--json",
@@ -92,9 +97,11 @@ state.calls.push({
   userConfig: fs.readFileSync(process.env.NPM_CONFIG_USERCONFIG, "utf8"),
 });
 fs.writeFileSync(statePath, JSON.stringify(state));
+if (response.removeExecutable) fs.unlinkSync(__filename);
 if (response.type === "timeout") {
   setInterval(() => {}, 1000);
 } else if (response.type === "failure") {
+  if (response.stdout) process.stdout.write(response.stdout);
   process.stderr.write(response.stderr);
   process.exit(response.code || 1);
 } else if (response.type === "bytes") {
@@ -111,6 +118,7 @@ if (response.type === "timeout") {
   );
   return {
     executable,
+    path: root,
     readState: () => JSON.parse(fs.readFileSync(statePath, "utf8")),
     remove: () => fs.rmSync(root, { force: true, recursive: true }),
   };
@@ -135,6 +143,23 @@ async function run(responses, options = {}) {
     return { result, state: current.readState() };
   } catch (error) {
     return { error, state: current.readState() };
+  } finally {
+    current.remove();
+  }
+}
+
+function runCli(responses) {
+  const current = fixture(responses);
+  try {
+    const result = spawnSync(process.execPath, [authorityScriptPath], {
+      encoding: "utf8",
+      env: {
+        NODE_AUTH_TOKEN: token,
+        PATH: current.path,
+      },
+      timeout: 5_000,
+    });
+    return { result, state: current.readState() };
   } finally {
     current.remove();
   }
@@ -244,15 +269,25 @@ test("rejects a missing credential before invoking npm", async () => {
 });
 
 test("rejects wrong and missing npm identities without querying package access", async (t) => {
-  for (const response of [
-    { value: "another-user" },
-    { value: null },
-    { value: { username: expectedNpmIdentity } },
-    { type: "raw", value: "" },
+  for (const [response, expectedMessage] of [
+    [
+      { value: "another-user" },
+      "The authenticated npm identity is not authorized for release.",
+    ],
+    [
+      { value: null },
+      "The authenticated npm identity is not authorized for release.",
+    ],
+    [
+      { value: { username: expectedNpmIdentity } },
+      "The authenticated npm identity is not authorized for release.",
+    ],
+    [{ type: "raw", value: "" }, "npm returned invalid authority evidence."],
   ]) {
     await t.test(JSON.stringify(response), async () => {
       const { error, state } = await run([response]);
       assertRedacted(error);
+      assert.equal(error.message, expectedMessage);
       assert.equal(state.calls.length, 1);
       assertNoMutations(state);
     });
@@ -270,6 +305,10 @@ test("rejects missing and read-only canonical package authority", async (t) => {
         { value: access },
       ]);
       assertRedacted(error);
+      assert.equal(
+        error.message,
+        "The npm release identity lacks required package authority.",
+      );
       assertNoMutations(state);
     });
   }
@@ -335,43 +374,64 @@ test("rejects non-object and non-string package authority values", async (t) => 
   }
 });
 
-test("bounds provider output", async () => {
-  const { error, state } = await run(
+test("bounds provider output with only the allowlisted operation name", async (t) => {
+  for (const [responses, expectedMessage] of [
     [
-      { value: expectedNpmIdentity },
-      { type: "repeat", value: "x", count: 1025 },
+      [{ type: "repeat", value: "untrusted-operation-label", count: 100 }],
+      "The npm identity command output exceeded the output limit.",
     ],
-    { outputLimit: 1024 },
-  );
-  assertRedacted(error);
-  assert.match(error.message, /output limit/u);
-  assertNoMutations(state);
+    [
+      [
+        { value: expectedNpmIdentity },
+        { type: "repeat", value: "untrusted-operation-label", count: 100 },
+      ],
+      "The npm package authority command output exceeded the output limit.",
+    ],
+  ]) {
+    await t.test(expectedMessage, async () => {
+      const { error, state } = await run(responses, { outputLimit: 1024 });
+      assertRedacted(error);
+      assert.equal(error.message, expectedMessage);
+      assert.doesNotMatch(String(error), /untrusted-operation-label/u);
+      assertNoMutations(state);
+    });
+  }
 });
 
-test("times out npm and cleans isolated state", async () => {
-  const temporaryRoot = fs.mkdtempSync(
-    path.join(os.tmpdir(), "npm-authority-timeout-test-"),
-  );
-  try {
-    const { error, state } = await run([{ type: "timeout" }], {
-      temporaryRoot,
-      timeoutMs: 500,
-    });
-    assertRedacted(error);
-    assert.match(error.message, /timed out/u);
-    assert.equal(
-      fs.readdirSync(temporaryRoot).length,
-      0,
-      "the authority checker must remove its temporary directory",
-    );
-    for (const call of state.calls) {
-      for (const isolatedPath of Object.values(call.paths)) {
-        assert.equal(fs.existsSync(isolatedPath), false);
+test("times out npm with only the allowlisted operation name and cleans isolated state", async (t) => {
+  for (const [responses, expectedMessage] of [
+    [[{ type: "timeout" }], "The npm identity command timed out."],
+    [
+      [{ value: expectedNpmIdentity }, { type: "timeout" }],
+      "The npm package authority command timed out.",
+    ],
+  ]) {
+    await t.test(expectedMessage, async () => {
+      const temporaryRoot = fs.mkdtempSync(
+        path.join(os.tmpdir(), "npm-authority-timeout-test-"),
+      );
+      try {
+        const { error, state } = await run(responses, {
+          temporaryRoot,
+          timeoutMs: 500,
+        });
+        assertRedacted(error);
+        assert.equal(error.message, expectedMessage);
+        assert.equal(
+          fs.readdirSync(temporaryRoot).length,
+          0,
+          "the authority checker must remove its temporary directory",
+        );
+        for (const call of state.calls) {
+          for (const isolatedPath of Object.values(call.paths)) {
+            assert.equal(fs.existsSync(isolatedPath), false);
+          }
+        }
+        assertNoMutations(state);
+      } finally {
+        fs.rmSync(temporaryRoot, { force: true, recursive: true });
       }
-    }
-    assertNoMutations(state);
-  } finally {
-    fs.rmSync(temporaryRoot, { force: true, recursive: true });
+    });
   }
 });
 
@@ -387,24 +447,86 @@ test("redacts malformed provider stdout", async () => {
   assertNoMutations(state);
 });
 
-test("redacts provider failures and never retains raw stderr as a cause", async () => {
-  const { error, state } = await run([
+test("redacts provider failures and uses only allowlisted operation names", async (t) => {
+  const capturedOutput = `raw-provider-error provider-secret ${token} untrusted-operation-label`;
+  for (const [responses, expectedMessage] of [
+    [
+      [
+        {
+          type: "failure",
+          stdout: capturedOutput,
+          stderr: capturedOutput,
+          code: 23,
+        },
+      ],
+      "The npm identity command failed.",
+    ],
+    [
+      [
+        { value: expectedNpmIdentity },
+        {
+          type: "failure",
+          stdout: capturedOutput,
+          stderr: capturedOutput,
+          code: 23,
+        },
+      ],
+      "The npm package authority command failed.",
+    ],
+  ]) {
+    await t.test(expectedMessage, async () => {
+      const { error, state } = await run(responses);
+      assertRedacted(error);
+      assert.equal(error.message, expectedMessage);
+      assert.doesNotMatch(String(error), /untrusted-operation-label/u);
+      assert.equal(Object.hasOwn(error, "cause"), false);
+      assertNoMutations(state);
+    });
+  }
+});
+
+test("the CLI never logs captured npm output or an injected operation label", () => {
+  const capturedOutput = `raw-provider-error provider-secret ${token} ::error::untrusted-operation-label`;
+  const { result, state } = runCli([
+    { value: expectedNpmIdentity },
     {
       type: "failure",
-      stderr: `raw-provider-error provider-secret ${token}`,
+      stdout: capturedOutput,
+      stderr: capturedOutput,
       code: 23,
     },
   ]);
-  assertRedacted(error);
-  assert.equal(error.message, "The npm authority command failed.");
+
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "");
+  assert.equal(
+    result.stderr,
+    "[npm-release-authority] The npm package authority command failed.\n",
+  );
+  assert.doesNotMatch(
+    `${result.stdout}${result.stderr}`,
+    /raw-provider|provider-secret|test-token|untrusted-operation-label|::error::/u,
+  );
   assertNoMutations(state);
 });
 
-test("redacts npm process start failures", async () => {
-  const { error, state } = await run([], {
-    npmExecutable: "/missing/provider-secret/npm",
+test("redacts npm process start failures and identifies the closed operation", async (t) => {
+  await t.test("npm identity", async () => {
+    const { error, state } = await run([], {
+      npmExecutable: "/missing/provider-secret/npm",
+    });
+    assertRedacted(error);
+    assert.equal(error.message, "The npm identity command failed.");
+    assert.deepEqual(state.calls, []);
   });
-  assertRedacted(error);
-  assert.equal(error.message, "The npm authority command failed.");
-  assert.deepEqual(state.calls, []);
+
+  await t.test("npm package authority", async () => {
+    const { error, state } = await run([
+      { value: expectedNpmIdentity, removeExecutable: true },
+    ]);
+    assertRedacted(error);
+    assert.equal(error.message, "The npm package authority command failed.");
+    assert.equal(state.calls.length, 1);
+    assertNoMutations(state);
+  });
 });
