@@ -29,8 +29,9 @@ deterministic without contacting npm. They cover identity mismatch or absence,
 missing and read-only packages, duplicate decoded JSON keys, invalid UTF-8,
 trailing and concatenated JSON, invalid value shapes, oversized output,
 timeout and command failure, ambient Node/shell/npm configuration stripping,
-exact argv/environment, temporary permissions and cleanup, redaction, and the
-absence of mutating command selection.
+exact argv/environment, temporary permissions and cleanup, redaction, closed
+operation labels, suppression of captured npm output, and the absence of
+mutating command selection.
 
 The authority workflow rejects every manual ref except exact `refs/heads/main`,
 and the publish workflow rejects dispatches outside the existing channel policy,
@@ -41,6 +42,26 @@ name the `npm-release` environment, and only one step in each workflow receives
 `NODE_AUTH_TOKEN`, sourced from `secrets.MIDNIGHTCI_NPMJS_TOKEN`. Snapshot
 publication remains on `develop`, RC publication remains on `main` or `develop`,
 and final publication remains on `main`.
+
+## Exact-main run evidence and safe diagnostics
+
+Read-only authority run `34581782692` executed the exact `main` commit
+`4f5b399fcc798f5ca2d9af7ba1c5f2a04e1c7f1e`. Its masked credential handling
+established that `MIDNIGHTCI_NPMJS_TOKEN` was non-empty without inspecting or
+printing the value, but the checker reported only the generic npm command
+failure. That left no safe way to tell whether `npm whoami` or
+`npm access list packages` had failed.
+
+The checker now assigns those two invocations closed internal operation
+identifiers. Spawn, non-zero exit, signal, timeout, and combined-output-limit
+failures can report only `npm identity` or `npm package authority`. These labels
+are static descriptions of repository-selected read-only stages: they contain
+no npm response data, credential material, registry URL, package-access
+payload, ambient environment value, or observed identity. npm stdout and stderr
+remain captured only for bounded strict parsing and are never included in an
+error, cause, or CLI log. Semantic failures still use their existing messages,
+and unexpected internal errors still collapse to the generic authority-check
+failure.
 
 ## Friction and failures
 
