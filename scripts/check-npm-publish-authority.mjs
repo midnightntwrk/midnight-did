@@ -375,7 +375,7 @@ const isDirectExecution =
 if (isDirectExecution) {
   try {
     const result = await verifyNpmPublishAuthority({
-      token: process.env.NPMJS_RELEASE_TOKEN,
+      token: process.env.NODE_AUTH_TOKEN,
     });
     console.log(
       `[npm-release-authority] Verified ${result.identity} read-write authority for ${result.packages.length} packages at ${result.registry}`,
