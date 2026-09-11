@@ -363,7 +363,7 @@ assertIncludes(
 );
 assertIncludes(
   readText(".github/workflows/publish.yml"),
-  "NPMJS_RELEASE_TOKEN",
+  "NODE_AUTH_TOKEN: ${{ secrets.MIDNIGHTCI_NPMJS_TOKEN }}",
   ".github/workflows/publish.yml",
 );
 assertIncludes(
