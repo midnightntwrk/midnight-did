@@ -66,33 +66,38 @@ The root workspace and `docs-site` remain private. The package workspaces are
 publishable and keep `publishConfig.registry` pointed at
 `https://registry.npmjs.org/` with `publishConfig.access: "public"`.
 
-The workflow receives `NPMJS_RELEASE_TOKEN` only from the protected
-`npm-release` environment and exposes it only to the npm producer step. The
-separate `Verify npm Publication Authority` workflow exposes the same secret
-only to its read-only checker step. The post-publish npmjs smoke step uses the
-public registry without a write-capable token. `GITHUB_TOKEN` is used for
-repository-scoped operations such as creating/updating GitHub Release assets
-and publishing the GHCR ZK artifact. The workflow keeps `packages: write` only
-because GHCR generic OCI artifact publication requires it; npmjs publication is
-authenticated by the npm token.
+The workflow sources `NODE_AUTH_TOKEN` from the permanent SRE-managed
+organization secret `MIDNIGHTCI_NPMJS_TOKEN` only in the npm producer step. The
+separate `Verify npm Publication Authority` workflow sources `NODE_AUTH_TOKEN`
+from the same organization secret only in its read-only checker step. The
+post-publish npmjs smoke step uses the public registry without a write-capable
+token. `GITHUB_TOKEN` is used for repository-scoped operations such as
+creating/updating GitHub Release assets and publishing the GHCR ZK artifact.
+The workflow keeps `packages: write` only because GHCR generic OCI artifact
+publication requires it; npmjs publication is authenticated by the npm token.
 
-Repository administrators must configure `npm-release` with all of these
-controls before this code is considered active protection:
+Repository administrators must keep `npm-release` configured with required
+environment reviewers, prevention of self-review, and exact selected
+deployment-branch rules for `main` and `develop`, excluding tags, wildcard
+branches, and every other branch. The environment has no environment-scoped
+secret. Consequently, `MIDNIGHTCI_NPMJS_TOKEN` will not appear in the
+`npm-release` environment secret list.
 
-- required environment reviewers, with prevention of self-review enabled;
-- exact selected deployment-branch rules for `main` and `develop`, excluding
-  tags, wildcard branches, and every other branch;
-- the `NPMJS_RELEASE_TOKEN` environment secret for the expected npm identity
-  `ntwrk-bot`; and
-- removal of both `MIDNIGHTCI_NPMJS_TOKEN` and `NPMJS_RELEASE_TOKEN` from
-  repository and organization secret scope, so no broader-scope fallback
-  credential remains available.
+SRE manages `MIDNIGHTCI_NPMJS_TOKEN` as a permanent organization secret. It is
+available to this repository only when the organization secret's
+selected-repository policy includes `midnightntwrk/midnight-did`. That policy,
+not the `npm-release` environment, determines repository access to the secret.
+The environment cannot scope an organization secret against a malicious branch
+workflow change that references it from another job or workflow without the
+environment gate.
 
-The environment deployment-branch restrictions and required reviewers are the
-actual protection boundary. Workflow event/ref conditions, immutable-SHA
-checkout, runtime assertions, and secret step scoping are defense in depth, not
-substitutes for those GitHub settings. An environment administrator must attest
-the complete configuration before this change is marked ready or merged.
+This is an externally accepted residual organization-secret trust boundary.
+The `npm-release` approval and deployment-branch controls still
+gate the intended publish and authority jobs. Workflow event and exact-ref
+conditions, immutable-SHA checkout, runtime assertions, least-privilege
+permissions, secret step scoping, provenance, and the read-only authority
+checker remain mandatory defense in depth; none may be weakened because the
+credential is organization-scoped.
 
 Publication channels:
 
