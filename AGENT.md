@@ -397,9 +397,19 @@ pointing at `https://registry.npmjs.org/` with `publishConfig.access: "public"`.
 Publication order is owned by `scripts/did-workspace-catalog.mjs
 --publish-workspaces`.
 
-npmjs package publication uses `NPM_REGISTRY=https://registry.npmjs.org/`, the
-`npm-release` environment-only secret `NPMJS_RELEASE_TOKEN`, and
-`NPM_ACCESS=public`.
+npmjs package publication uses `NPM_REGISTRY=https://registry.npmjs.org/`,
+`NPM_ACCESS=public`, and `NODE_AUTH_TOKEN` sourced only in the npm step from the
+permanent SRE-managed organization secret `MIDNIGHTCI_NPMJS_TOKEN`. The
+`npm-release` environment has no environment-scoped secret; the organization
+secret is available only when its selected-repository policy includes
+`midnightntwrk/midnight-did`, and it does not appear in the environment secret
+list. Keep the environment approval gate, but do not misrepresent it as scoping
+the organization secret: another malicious branch workflow change in a selected
+repository could reference the organization secret without naming the
+environment. This externally accepted residual organization-secret trust
+boundary does not relax exact-ref runtime checks, immutable-SHA checkout,
+least-privilege workflow permissions, provenance, read-only authority checks,
+or the prohibition on using publication as a credential test.
 
 Release CI publishes snapshot versions from `develop`, RC versions from `main`
 or `develop`, and final releases from `main` only. ZK artifacts are

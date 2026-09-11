@@ -686,10 +686,10 @@ test("keeps the npm write token isolated to the pnpm publication step", async ()
   );
 
   assert.equal(Object.hasOwn(publishJob, "env"), false);
-  assert.match(
+  assert.equal(
     publishStep.env.NODE_AUTH_TOKEN,
-    /^\$\{\{ secrets\.NPMJS_RELEASE_TOKEN \}\}$/,
-    "the producer step still needs the exact environment-only npm publication credential",
+    "${{ secrets.MIDNIGHTCI_NPMJS_TOKEN }}",
+    "the producer step must source the SRE-managed organization credential",
   );
   assert.equal(
     Object.hasOwn(smokeStep.env, "NODE_AUTH_TOKEN"),
@@ -710,17 +710,17 @@ test("keeps the npm write token isolated to the pnpm publication step", async ()
     );
     assert.doesNotMatch(
       JSON.stringify(step),
-      /NPMJS_RELEASE_TOKEN/,
+      /MIDNIGHTCI_NPMJS_TOKEN/,
       `${step.name} must not reference the npm publication secret`,
     );
   }
   assert.match(smokeStep.run, /release-smoke-npm-packages\.sh/);
   assert.equal(
-    JSON.stringify(workflow).match(/NPMJS_RELEASE_TOKEN/g)?.length,
+    JSON.stringify(workflow).match(/MIDNIGHTCI_NPMJS_TOKEN/g)?.length,
     1,
     "the npm write secret must have exactly one workflow reference",
   );
-  assert.doesNotMatch(JSON.stringify(workflow), /MIDNIGHTCI_NPMJS_TOKEN/);
+  assert.doesNotMatch(JSON.stringify(workflow), /NPMJS_RELEASE_TOKEN/);
 });
 
 test("shared setup freezes installs and Quality always runs the explicit audit", async () => {
@@ -768,11 +768,21 @@ test("shared setup freezes installs and Quality always runs the explicit audit",
   }
 });
 
-test("protects publish dispatch and npm authority behind the environment-only credential", async () => {
-  const [publishText, authorityText, checker] = await Promise.all([
+test("protects publish dispatch and npm authority while using the managed organization credential", async () => {
+  const [
+    publishText,
+    authorityText,
+    checker,
+    agent,
+    publishingDocs,
+    retrospective,
+  ] = await Promise.all([
     text(".github/workflows/publish.yml"),
     text(".github/workflows/npm-publish-authority.yml"),
     text("scripts/check-npm-publish-authority.mjs"),
+    text("AGENT.md"),
+    text("docs-site/development/publishing.md"),
+    text("docs/retrospectives/issue-443-npm-publication-authority.md"),
   ]);
   const publish = loadYaml(publishText);
   const authority = loadYaml(authorityText);
@@ -817,7 +827,7 @@ test("protects publish dispatch and npm authority behind the environment-only cr
       false,
       "the untrusted-ref gate must not checkout code or use an action",
     );
-    assert.doesNotMatch(JSON.stringify(gate), /NPMJS_RELEASE_TOKEN/u);
+    assert.doesNotMatch(JSON.stringify(gate), /MIDNIGHTCI_NPMJS_TOKEN/u);
     assert.match(JSON.stringify(gate), /refs\/heads\/main/u);
   }
   assert.match(
@@ -833,13 +843,13 @@ test("protects publish dispatch and npm authority behind the environment-only cr
   assert.equal(publishCheckout.with["persist-credentials"], false);
   assert.equal(
     publishSteps.filter((step) =>
-      JSON.stringify(step.env ?? {}).includes("NPMJS_RELEASE_TOKEN"),
+      JSON.stringify(step.env ?? {}).includes("MIDNIGHTCI_NPMJS_TOKEN"),
     ).length,
     1,
-    "only the npm producer step may receive the environment secret",
+    "only the npm producer step may receive the organization secret",
   );
   assert.equal(
-    (publishText.match(/secrets\.NPMJS_RELEASE_TOKEN/gu) ?? []).length,
+    (publishText.match(/secrets\.MIDNIGHTCI_NPMJS_TOKEN/gu) ?? []).length,
     1,
   );
 
@@ -862,29 +872,49 @@ test("protects publish dispatch and npm authority behind the environment-only cr
   );
   assert.equal(
     authoritySteps.filter((step) =>
-      JSON.stringify(step.env ?? {}).includes("NPMJS_RELEASE_TOKEN"),
+      JSON.stringify(step.env ?? {}).includes("MIDNIGHTCI_NPMJS_TOKEN"),
     ).length,
     1,
-    "only the checker step may receive the environment secret",
+    "only the checker step may receive the organization secret",
   );
   assert.equal(
-    (authorityText.match(/secrets\.NPMJS_RELEASE_TOKEN/gu) ?? []).length,
+    authoritySteps[authorityIndex].env.NODE_AUTH_TOKEN,
+    "${{ secrets.MIDNIGHTCI_NPMJS_TOKEN }}",
+  );
+  assert.equal(
+    (authorityText.match(/secrets\.MIDNIGHTCI_NPMJS_TOKEN/gu) ?? []).length,
     1,
   );
   assert.doesNotMatch(
-    `${publishText}\n${authorityText}`,
-    /MIDNIGHTCI_NPMJS_TOKEN/u,
+    `${publishText}\n${authorityText}\n${checker}`,
+    /NPMJS_RELEASE_TOKEN/u,
   );
   assert.deepEqual(authority.permissions, { contents: "read" });
   assert.deepEqual(authority.jobs["verify-authority"].permissions, {
     contents: "read",
   });
+  for (const document of [agent, publishingDocs, retrospective]) {
+    assert.match(document, /MIDNIGHTCI_NPMJS_TOKEN/u);
+    assert.match(document, /no environment-scoped\s+secret/u);
+    assert.match(document, /selected-repository\s+policy/u);
+    assert.match(
+      document,
+      /will not appear|does not appear|absent[\s\S]*environment secret\s+list/u,
+    );
+    assert.match(document, /malicious branch\s+workflow change/u);
+    assert.match(
+      document,
+      /externally accepted residual\s+organization-secret trust\s+boundary/u,
+    );
+    assert.doesNotMatch(document, /NPMJS_RELEASE_TOKEN/u);
+  }
   assert.equal(
     Object.hasOwn(authority.jobs["verify-authority"], "outputs"),
     false,
   );
   assert.doesNotMatch(authorityText, /(?:pnpm|npm)\s+(?:install|publish)/u);
 
+  assert.match(checker, /token: process\.env\.NODE_AUTH_TOKEN/u);
   assert.match(checker, /"whoami"/u);
   assert.match(checker, /"access",\s*"list",\s*"packages"/u);
   assert.doesNotMatch(
