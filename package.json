@@ -108,11 +108,11 @@
   "devDependencies": {
     "@eslint/js": "9.39.5",
     "@midnight-ntwrk/midnight-js-fetch-zk-config-provider": "4.0.2",
-    "@playwright/test": "1.62.1",
+    "@playwright/test": "1.63.0",
     "@types/node": "24.13.3",
     "@types/ws": "8.18.1",
-    "@typescript-eslint/eslint-plugin": "8.67.0",
-    "@typescript-eslint/parser": "8.67.0",
+    "@typescript-eslint/eslint-plugin": "8.69.0",
+    "@typescript-eslint/parser": "8.69.0",
     "@vitest/coverage-v8": "4.1.11",
     "eslint": "9.39.5",
     "eslint-import-resolver-typescript": "3.10.1",
@@ -124,7 +124,7 @@
     "tree-sitter": "0.25.1",
     "tree-sitter-bash": "0.25.1",
     "ts-node": "10.9.2",
-    "turbo": "2.10.11",
+    "turbo": "2.10.12",
     "typescript": "5.9.3",
     "vite": "7.3.6",
     "vitest": "4.1.11"
