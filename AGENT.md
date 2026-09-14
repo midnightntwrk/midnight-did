@@ -397,9 +397,22 @@ pointing at `https://registry.npmjs.org/` with `publishConfig.access: "public"`.
 Publication order is owned by `scripts/did-workspace-catalog.mjs
 --publish-workspaces`.
 
-npmjs package publication uses `NPM_REGISTRY=https://registry.npmjs.org/`, the
-`npm-release` environment-only secret `NPMJS_RELEASE_TOKEN`, and
-`NPM_ACCESS=public`.
+npmjs package publication uses npm Trusted Publishing (GitHub Actions OIDC)
+with npm CLI `>=11.5.1`; no npm publication secret is required. Configure one
+npmjs Trusted Publisher for each of the five packages with organization
+`midnightntwrk`, repository `midnight-did`, workflow `publish.yml`, and GitHub
+environment `npm-release`. Build, dependency installation, packing, signing,
+and GHCR publication stay outside that environment; only the minimal npm job
+has its OIDC subject. That job sparsely checks out immutable publisher scripts,
+downloads the package artifact by ID, verifies producer and inventory digests,
+and installs no dependencies or lifecycle hooks. The normal workflow rejects
+alternate credentials, runtime injection, and registry redirects, rechecks the
+npm minimum at the publication boundary, publishes prepacked tarballs with a
+narrowly allowlisted environment, disabled lifecycle scripts, provenance, and
+public access, and never runs
+npm access or dist-tag mutations. Existing exact versions are recoverable only
+when their immutable payload and requested tag already match; tag/access repair
+belongs to a separately authorized npm-administration process.
 
 Release CI publishes snapshot versions from `develop`, RC versions from `main`
 or `develop`, and final releases from `main` only. ZK artifacts are
@@ -408,7 +421,8 @@ distributed as a separate validated archive with the provider layout
 consumers to discover proving keys by walking arbitrary generated directories.
 Publish CI smoke-tests the exact package version from npmjs and fetches
 pulled/downloaded ZK bundles through `FetchZkConfigProvider`. Reruns skip npm
-packages whose exact immutable version already exists.
+packages only when the exact immutable payload and requested dist-tag already
+match.
 
 GHCR publication uses ORAS because the ZK bundle is a generic OCI artifact
 rather than a container image or npm package. The publish workflow installs the

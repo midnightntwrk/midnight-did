@@ -267,8 +267,9 @@ generated Compact output readiness and source manifests for `contract` and
 `pnpm run check:managed-artifacts` to fail on missing or stale generated
 artifacts after a local build.
 
-Release CI publishes the same packages to npmjs. Snapshot versions are
-published automatically from `develop` as
+Release CI publishes the same packages to npmjs through npm Trusted Publishing
+(GitHub Actions OIDC); no npm publication secret is required. Snapshot versions
+are published automatically from `develop` as
 `x.y.z-snapshot.<run>.<sha>` with the `snapshot` npm tag. Manual workflow
 dispatch can publish `x.y.z-rc{index}` with the `rc` npm tag from `main` or
 `develop`, and `x.y.z` with the `latest` npm tag from `main` only.
@@ -291,7 +292,8 @@ The archive preserves the Midnight JS provider layout:
 `zkir/<circuit>.bzkir`. Publish CI smoke-tests the exact npm package version
 from npmjs and fetches the published ZK archive through `FetchZkConfigProvider`
 over runtime HTTP after pulling/downloading it from GHCR or GitHub Release
-assets. Reruns skip npm packages whose exact immutable version already exists.
+assets. Reruns skip an existing npm package only when its immutable payload and
+requested dist-tag both match.
 
 Release engineers can run a heavier standalone smoke against an RC or release.
 It installs the exact package version from npmjs, downloads the
@@ -329,7 +331,9 @@ import {
   createMidnightDidZkArtifactLocations,
 } from "@midnight-ntwrk/midnight-did-api";
 
-const locations = createMidnightDidZkArtifactLocations(MIDNIGHT_DID_API_VERSION);
+const locations = createMidnightDidZkArtifactLocations(
+  MIDNIGHT_DID_API_VERSION,
+);
 ```
 
 Use `locations.ghcr.reference` for the matching GHCR OCI artifact. RC and final

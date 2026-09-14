@@ -1,5 +1,9 @@
 # Issue 443 release-controls synchronization retrospective
 
+> **Partially superseded:** The release-control history remains authoritative,
+> but its npm token/authority-workflow guidance was replaced by npm Trusted
+> Publishing. See `issue-443-npm-trusted-publishing.md` for current operations.
+
 ## Scope and outcome
 
 This change is the separately reviewable `develop` reconciliation required by

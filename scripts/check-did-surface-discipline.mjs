@@ -361,26 +361,36 @@ assertIncludes(
   "inputs.channel == 'snapshot' && github.ref == 'refs/heads/develop'",
   ".github/workflows/publish.yml",
 );
-assertIncludes(
-  readText(".github/workflows/publish.yml"),
-  "NPMJS_RELEASE_TOKEN",
-  ".github/workflows/publish.yml",
-);
-assertIncludes(
-  readText(".github/workflows/publish.yml"),
+const publishWorkflow = readText(".github/workflows/publish.yml");
+for (const requiredPhrase of [
+  "environment: npm-release",
+  "id-token: write",
   "NPM_REGISTRY: https://registry.npmjs.org/",
-  ".github/workflows/publish.yml",
-);
-assertIncludes(
-  readText(".github/workflows/publish.yml"),
-  "NPM_ACCESS: public",
-  ".github/workflows/publish.yml",
-);
-assertNotIncludes(
-  readText(".github/workflows/publish.yml"),
+  "scripts/check-npm-trusted-publishing.mjs",
+  'run_bounded_npm publish "${publish_output}" publish --provenance',
+]) {
+  const source = requiredPhrase.startsWith("run_bounded_npm publish")
+    ? readText("scripts/publish-npm-packages.sh")
+    : publishWorkflow;
+  assertIncludes(
+    source,
+    requiredPhrase,
+    ".github/workflows/publish.yml Trusted Publishing policy",
+  );
+}
+for (const forbiddenPhrase of [
+  "MIDNIGHTCI_NPMJS_TOKEN",
+  "NPMJS_RELEASE_TOKEN",
+  "NODE_AUTH_TOKEN:",
+  "NPM_TOKEN:",
   "npm.pkg.github.com",
-  ".github/workflows/publish.yml",
-);
+]) {
+  assertNotIncludes(
+    publishWorkflow,
+    forbiddenPhrase,
+    ".github/workflows/publish.yml",
+  );
+}
 assertIncludes(
   readText(".github/workflows/docs.yml"),
   "pnpm run check:did-surface-discipline",
