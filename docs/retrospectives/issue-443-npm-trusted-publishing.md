@@ -1,6 +1,6 @@
 # Issue #443 npm Trusted Publishing migration retrospective
 
-Date: 2026-09-11; finalization checkpoint updated 2026-09-14
+Date: 2026-09-11; finalization checkpoint updated 2026-09-15
 Canonical trackers: [midnightntwrk/midnight-did#443](https://github.com/midnightntwrk/midnight-did/issues/443) and [midnightntwrk/midnight-did#281](https://github.com/midnightntwrk/midnight-did/issues/281)
 
 ## Scope and outcome
@@ -121,16 +121,14 @@ OIDC workflow never calls `npm access` or mutating `npm dist-tag` commands.
 
 ## Validation and hold
 
-Finalization ran a frozen install and zero-vulnerability audit; the 49-test
-Trusted Publishing, 60-test publisher, 24-test repository-policy, 133-test
-release-context, and 16-test classifier suites; DID-surface,
-workspace-manifest, package-content, formatting, shell-syntax, and diff checks;
-`pnpm run verify`; docs validation/build/visual checks; and the full strict lane
-with the bootstrapped proof-server image. All passed. The release-change
-classifier is required to report `snapshotReleaseRelevant=true` for the exact
-committed diff. A local preflight cannot pass outside the exact GitHub
-Actions/OIDC context by design, and no test performs an npm publish or any
-registry, GHCR, tag, workflow-dispatch, or release mutation. Validation ran
+Finalization ran a frozen install and zero-vulnerability audit; the Trusted
+Publishing, publisher, repository-policy, release-context, and general CI
+classifier suites; DID-surface, workspace-manifest, package-content, formatting,
+shell-syntax, and diff checks; `pnpm run verify`; docs
+validation/build/visual checks; and the full strict lane with the bootstrapped
+proof-server image. All passed. A local preflight cannot pass outside the exact
+GitHub Actions/OIDC context by design, and no test performs an npm publish or
+any registry, GHCR, tag, workflow-dispatch, or release mutation. Validation ran
 without npm/GitHub token variables, and no OIDC JWT or provider output was
 requested, decoded, or retained.
 

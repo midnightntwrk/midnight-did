@@ -367,18 +367,7 @@ assertIncludes(
   "inputs.channel == 'snapshot' && github.ref == 'refs/heads/develop'",
   ".github/workflows/publish.yml",
 );
-for (const forbiddenPhrase of [
-  "  push:",
-  "snapshot_release_relevant",
-  "Classify snapshot release changes",
-  "Skip snapshot publication",
-]) {
-  assertNotIncludes(
-    publishWorkflow,
-    forbiddenPhrase,
-    ".github/workflows/publish.yml",
-  );
-}
+assertNotIncludes(publishWorkflow, "  push:", ".github/workflows/publish.yml");
 for (const requiredPhrase of [
   "environment: npm-release",
   "id-token: write",

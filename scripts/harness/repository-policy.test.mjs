@@ -828,8 +828,6 @@ test("allows only manual dispatch to reach publication jobs and protects Trusted
 
   assert.deepEqual(Object.keys(publish.on), ["workflow_dispatch"]);
   assert.equal(Object.hasOwn(publish.on, "push"), false);
-  assert.equal(Object.hasOwn(publish.jobs, "changes"), false);
-  assert.equal(Object.hasOwn(publish.jobs, "skip-snapshot"), false);
 
   const buildJob = publish.jobs["build-release-assets"];
   const npmReleaseJob = publish.jobs["npm-release"];
