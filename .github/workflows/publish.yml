@@ -1,9 +1,6 @@
 name: Publish npmjs Packages and ZK Artifacts
 
 on:
-  push:
-    branches:
-      - develop
   workflow_dispatch:
     inputs:
       channel:
@@ -41,7 +38,6 @@ concurrency:
 jobs:
   validate-dispatch-ref:
     name: Reject untrusted dispatch ref
-    if: github.event_name == 'workflow_dispatch'
     permissions: {}
     runs-on: ubuntu-latest
     steps:
@@ -80,90 +76,34 @@ jobs:
               ;;
           esac
 
-  changes:
-    name: Classify snapshot release changes
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    outputs:
-      changed_file_count: ${{ steps.classify.outputs.changed_file_count }}
-      snapshot_release_relevant: ${{ steps.classify.outputs.snapshot_release_relevant }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-          ref: ${{ github.sha }}
-
-      - name: Classify changed files
-        id: classify
-        env:
-          BASE_SHA: ${{ github.event_name == 'push' && github.event.before || github.sha }}
-          HEAD_SHA: ${{ github.sha }}
-        run: node scripts/ci-change-classifier.mjs --output "$GITHUB_OUTPUT"
-
-      - name: Print snapshot release classification
-        env:
-          CHANGED_FILE_COUNT: ${{ steps.classify.outputs.changed_file_count }}
-          SNAPSHOT_RELEASE_RELEVANT: ${{ steps.classify.outputs.snapshot_release_relevant }}
-        run: |
-          echo "snapshot_release_relevant=${SNAPSHOT_RELEASE_RELEVANT}"
-          echo "changed_file_count=${CHANGED_FILE_COUNT}"
-
-  skip-snapshot:
-    name: Skip snapshot publication
-    runs-on: ubuntu-latest
-    needs:
-      - changes
-    if: github.event_name == 'push' && (github.ref != 'refs/heads/develop' || needs.changes.outputs.snapshot_release_relevant != 'true')
-    steps:
-      - name: Report skipped snapshot
-        env:
-          REF_NAME: ${{ github.ref_name }}
-          CHANGED_FILE_COUNT: ${{ needs.changes.outputs.changed_file_count }}
-        run: |
-          echo "Skipping automated snapshot publication."
-          echo "Branch: $REF_NAME"
-          echo "Changed files: $CHANGED_FILE_COUNT"
-          echo "Snapshot publication is reserved for develop pushes with Compact, TypeScript, JavaScript, or script changes."
-
-  publish:
-    name: Publish packages and ZK artifacts
+  build-release-assets:
+    name: Build and pack release assets
     permissions:
-      actions: read
-      contents: write
-      id-token: write
-      packages: write
+      contents: read
     runs-on: ubuntu-latest
     outputs:
-      base64_subjects: ${{ steps.provenance-subjects.outputs.base64_subjects }}
       base_version: ${{ steps.version.outputs.base_version }}
       channel: ${{ steps.version.outputs.channel }}
+      npm_artifact_digest: ${{ steps.upload-npm.outputs.artifact-digest }}
+      npm_artifact_id: ${{ steps.upload-npm.outputs.artifact-id }}
+      npm_checksums_sha256: ${{ steps.npm-assets.outputs.npm_checksums_sha256 }}
       rc_index: ${{ steps.context.outputs.rc_index }}
       version: ${{ steps.version.outputs.version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
       release_tag: ${{ steps.version.outputs.release_tag }}
-      provenance_present: ${{ steps.release-state.outputs.provenance_present }}
-      release_exists: ${{ steps.release-state.outputs.release_exists }}
+      npm_tag: ${{ steps.version.outputs.npm_tag }}
+      zk_artifact_digest: ${{ steps.upload-zk.outputs.artifact-digest }}
     needs:
-      - changes
       - validate-dispatch-ref
     if: >-
-      always() &&
-      ((github.event_name == 'workflow_dispatch' &&
-        github.ref_type == 'branch' &&
-        ((inputs.channel == 'snapshot' && github.ref == 'refs/heads/develop') ||
-         (inputs.channel == 'rc' &&
-          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) ||
-         (inputs.channel == 'release' && github.ref == 'refs/heads/main')) &&
-        needs.validate-dispatch-ref.result == 'success') ||
-       (github.event_name == 'push' &&
-        github.ref == 'refs/heads/develop' &&
-        github.ref_type == 'branch' &&
-        needs.changes.result == 'success' &&
-        needs.changes.outputs.snapshot_release_relevant == 'true'))
-    environment: npm-release
-    timeout-minutes: 90
+      github.event_name == 'workflow_dispatch' &&
+      github.ref_type == 'branch' &&
+      ((inputs.channel == 'snapshot' && github.ref == 'refs/heads/develop') ||
+       (inputs.channel == 'rc' &&
+        (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) ||
+       (inputs.channel == 'release' && github.ref == 'refs/heads/main')) &&
+      needs.validate-dispatch-ref.result == 'success'
+    timeout-minutes: 75
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
@@ -180,12 +120,15 @@ jobs:
           DISPATCH_RC_INDEX: ${{ inputs.rc_index }}
         run: ./scripts/release-resolve-context.sh
 
-      - name: Set up Node.js, pnpm, Compact, and npm registry
+      - name: Set up Node.js, pnpm, and Compact without installing dependencies
         uses: ./.github/actions/setup-node-pnpm
         with:
           compact-version: ${{ env.COMPACT_COMPILER_VERSION }}
           github-token: ${{ github.token }}
-          registry-url: https://registry.npmjs.org/
+          install: "false"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Prepare release version
         id: version
@@ -208,11 +151,14 @@ jobs:
         run: ./scripts/release-pack-npm-assets.sh
 
       - name: Upload workflow npm package assets
+        id: upload-npm
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # ratchet:actions/upload-artifact@v4
         with:
           name: midnight-did-npm-packages-${{ steps.version.outputs.version }}
           if-no-files-found: error
-          path: ${{ steps.npm-assets.outputs.npm_assets_dir }}/*.tgz
+          path: |
+            ${{ steps.npm-assets.outputs.npm_assets_dir }}/*.tgz
+            ${{ steps.npm-assets.outputs.npm_checksums_file }}
 
       - name: Build ZK artifact bundle
         id: zk
@@ -226,6 +172,7 @@ jobs:
         run: node scripts/check-zk-artifact-bundle.mjs "$ZK_ARCHIVE"
 
       - name: Upload workflow ZK artifact bundle
+        id: upload-zk
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # ratchet:actions/upload-artifact@v4
         with:
           name: midnight-did-zk-artifacts-${{ steps.version.outputs.version }}
@@ -235,52 +182,232 @@ jobs:
             ${{ steps.zk.outputs.zk_manifest }}
             ${{ steps.zk.outputs.zk_sha256 }}
 
+  sign-release-assets:
+    name: Sign release assets
+    needs:
+      - build-release-assets
+    if: needs.build-release-assets.result == 'success' && needs.build-release-assets.outputs.channel != 'snapshot'
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Download npm package assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # ratchet:actions/download-artifact@v4
+        with:
+          name: midnight-did-npm-packages-${{ needs.build-release-assets.outputs.version }}
+          path: dist/release/npm
+
+      - name: Download ZK assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # ratchet:actions/download-artifact@v4
+        with:
+          name: midnight-did-zk-artifacts-${{ needs.build-release-assets.outputs.version }}
+          path: dist/release/zk
+
+      - name: Locate downloaded release assets
+        id: assets
+        run: |
+          echo "zk_archive=$(find dist/release/zk -maxdepth 1 -type f -name '*.tar.gz' -print -quit)" >> "${GITHUB_OUTPUT}"
+          echo "zk_manifest=$(find dist/release/zk -maxdepth 1 -type f -name '*.json' -print -quit)" >> "${GITHUB_OUTPUT}"
+          echo "zk_sha256=$(find dist/release/zk -maxdepth 1 -type f -name '*.sha256' -print -quit)" >> "${GITHUB_OUTPUT}"
+
       - name: Install Cosign
-        if: steps.version.outputs.channel != 'snapshot'
         uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # ratchet:sigstore/cosign-installer@v3.10.1
 
       - name: Sign GitHub Release assets
         id: signatures
-        if: steps.version.outputs.channel != 'snapshot'
         env:
-          BASE_VERSION: ${{ steps.version.outputs.base_version }}
-          CHANNEL: ${{ steps.version.outputs.channel }}
-          RC_INDEX: ${{ steps.context.outputs.rc_index }}
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
-          NPM_ASSETS_DIR: ${{ steps.npm-assets.outputs.npm_assets_dir }}
-          ZK_ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
-          ZK_MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
-          ZK_SHA256: ${{ steps.zk.outputs.zk_sha256 }}
+          BASE_VERSION: ${{ needs.build-release-assets.outputs.base_version }}
+          CHANNEL: ${{ needs.build-release-assets.outputs.channel }}
+          RC_INDEX: ${{ needs.build-release-assets.outputs.rc_index }}
+          RELEASE_VERSION: ${{ needs.build-release-assets.outputs.version }}
+          NPM_ASSETS_DIR: dist/release/npm
+          ZK_ARCHIVE: ${{ steps.assets.outputs.zk_archive }}
+          ZK_MANIFEST: ${{ steps.assets.outputs.zk_manifest }}
+          ZK_SHA256: ${{ steps.assets.outputs.zk_sha256 }}
         run: |
           ./scripts/release-validate-context.sh
           ./scripts/release-sign-assets.sh
 
       - name: Upload workflow signature assets
-        if: steps.version.outputs.channel != 'snapshot'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # ratchet:actions/upload-artifact@v4
         with:
-          name: midnight-did-signatures-${{ steps.version.outputs.version }}
+          name: midnight-did-signatures-${{ needs.build-release-assets.outputs.version }}
           if-no-files-found: error
           path: ${{ steps.signatures.outputs.signature_assets_dir }}/*
 
+  npm-release:
+    name: Publish npm packages with Trusted Publishing
+    needs:
+      - build-release-assets
+    if: needs.build-release-assets.result == 'success'
+    environment: npm-release
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout immutable publisher scripts
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+          sparse-checkout: |
+            .nvmrc
+            scripts/check-npm-trusted-publishing.mjs
+            scripts/did-workspace-catalog.mjs
+            scripts/inspect-packed-npm-assets.mjs
+            scripts/publish-npm-packages.sh
+            scripts/release-validate-context.sh
+            scripts/run-bounded-command.mjs
+            scripts/verify-npm-package-identity.mjs
+          sparse-checkout-cone-mode: false
+
+      - name: Set up publication Node.js only
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Download immutable npm package artifact by ID
+        env:
+          ARTIFACT_ID: ${{ needs.build-release-assets.outputs.npm_artifact_id }}
+          EXPECTED_ARTIFACT_DIGEST: ${{ needs.build-release-assets.outputs.npm_artifact_digest }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "${ARTIFACT_ID}" =~ ^[1-9][0-9]*$ ]]
+          artifact_digest="${EXPECTED_ARTIFACT_DIGEST#sha256:}"
+          [[ "${artifact_digest}" =~ ^[0-9a-fA-F]{64}$ ]]
+          archive="$(mktemp)"
+          trap 'rm -f -- "${archive}"' EXIT
+          curl --fail --silent --show-error --location \
+            --proto '=https' --tlsv1.2 \
+            --connect-timeout 10 --max-time 300 --max-filesize 1073741824 \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" \
+            --output "${archive}"
+          printf '%s  %s\n' "${artifact_digest}" "${archive}" | sha256sum --check --strict -
+          if unzip -Z1 "${archive}" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+            echo "::error::npm artifact archive contains an unsafe path."
+            exit 1
+          fi
+          rm -rf dist/release/npm
+          mkdir -p dist/release/npm
+          unzip -q "${archive}" -d dist/release/npm
+
+      - name: Verify downloaded npm package inventory
+        env:
+          EXPECTED_CHECKSUMS_SHA256: ${{ needs.build-release-assets.outputs.npm_checksums_sha256 }}
+          VERSION: ${{ needs.build-release-assets.outputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "${EXPECTED_CHECKSUMS_SHA256}" =~ ^[0-9a-fA-F]{64}$ ]]
+          printf '%s  %s\n' "${EXPECTED_CHECKSUMS_SHA256}" dist/release/npm/SHA256SUMS | sha256sum --check --strict -
+          (cd dist/release/npm && sha256sum --check --strict SHA256SUMS)
+          node scripts/inspect-packed-npm-assets.mjs \
+            --assets-dir dist/release/npm \
+            --version "${VERSION}" >/dev/null
+
+      - name: Check npm Trusted Publishing prerequisites
+        env:
+          NPM_TRUSTED_PUBLISHING_ENVIRONMENT: npm-release
+        run: node scripts/check-npm-trusted-publishing.mjs
+
       - name: Publish npm packages to npmjs
         env:
-          BASE_VERSION: ${{ steps.version.outputs.base_version }}
-          CHANNEL: ${{ steps.version.outputs.channel }}
-          RC_INDEX: ${{ steps.context.outputs.rc_index }}
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPMJS_RELEASE_TOKEN }}
-          NPM_ACCESS: public
-          NPM_ASSETS_DIR: ${{ steps.npm-assets.outputs.npm_assets_dir }}
-          NPM_TAG: ${{ steps.version.outputs.npm_tag }}
-          VERSION: ${{ steps.version.outputs.version }}
+          BASE_VERSION: ${{ needs.build-release-assets.outputs.base_version }}
+          CHANNEL: ${{ needs.build-release-assets.outputs.channel }}
+          RC_INDEX: ${{ needs.build-release-assets.outputs.rc_index }}
+          RELEASE_VERSION: ${{ needs.build-release-assets.outputs.version }}
+          NPM_ASSETS_DIR: dist/release/npm
+          NPM_TAG: ${{ needs.build-release-assets.outputs.npm_tag }}
+          VERSION: ${{ needs.build-release-assets.outputs.version }}
         run: |
           ./scripts/release-validate-context.sh
           ./scripts/publish-npm-packages.sh
 
+  publish-release-assets:
+    name: Publish and verify non-npm release assets
+    needs:
+      - build-release-assets
+      - npm-release
+      - sign-release-assets
+    if: >-
+      always() &&
+      needs.build-release-assets.result == 'success' &&
+      needs.npm-release.result == 'success' &&
+      (needs.build-release-assets.outputs.channel == 'snapshot' ||
+       needs.sign-release-assets.result == 'success')
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      base64_subjects: ${{ steps.provenance-subjects.outputs.base64_subjects }}
+      base_version: ${{ needs.build-release-assets.outputs.base_version }}
+      channel: ${{ needs.build-release-assets.outputs.channel }}
+      rc_index: ${{ needs.build-release-assets.outputs.rc_index }}
+      version: ${{ needs.build-release-assets.outputs.version }}
+      prerelease: ${{ needs.build-release-assets.outputs.prerelease }}
+      release_tag: ${{ needs.build-release-assets.outputs.release_tag }}
+      provenance_present: ${{ steps.release-state.outputs.provenance_present }}
+      release_exists: ${{ steps.release-state.outputs.release_exists }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Set up Node.js and install dependencies
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          github-token: ${{ github.token }}
+
+      - name: Download npm package assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # ratchet:actions/download-artifact@v4
+        with:
+          name: midnight-did-npm-packages-${{ needs.build-release-assets.outputs.version }}
+          path: dist/release/npm
+
+      - name: Download ZK assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # ratchet:actions/download-artifact@v4
+        with:
+          name: midnight-did-zk-artifacts-${{ needs.build-release-assets.outputs.version }}
+          path: dist/release/zk
+
+      - name: Download signature assets
+        if: needs.build-release-assets.outputs.channel != 'snapshot'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # ratchet:actions/download-artifact@v4
+        with:
+          name: midnight-did-signatures-${{ needs.build-release-assets.outputs.version }}
+          path: dist/release/signatures
+
+      - name: Locate downloaded release assets
+        id: assets
+        run: |
+          echo "zk_archive=$(find dist/release/zk -maxdepth 1 -type f -name '*.tar.gz' -print -quit)" >> "${GITHUB_OUTPUT}"
+          echo "zk_archive_name=$(basename "$(find dist/release/zk -maxdepth 1 -type f -name '*.tar.gz' -print -quit)")" >> "${GITHUB_OUTPUT}"
+          echo "zk_manifest=$(find dist/release/zk -maxdepth 1 -type f -name '*.json' -print -quit)" >> "${GITHUB_OUTPUT}"
+          echo "zk_sha256=$(find dist/release/zk -maxdepth 1 -type f -name '*.sha256' -print -quit)" >> "${GITHUB_OUTPUT}"
+
       - name: Smoke test packages from npmjs
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.build-release-assets.outputs.version }}
         run: ./scripts/release-smoke-npm-packages.sh
 
       - name: Install ORAS
@@ -289,37 +416,37 @@ jobs:
       - name: Publish and verify GHCR ZK artifact
         id: oci
         env:
-          BASE_VERSION: ${{ steps.version.outputs.base_version }}
-          CHANNEL: ${{ steps.version.outputs.channel }}
-          RC_INDEX: ${{ steps.context.outputs.rc_index }}
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          BASE_VERSION: ${{ needs.build-release-assets.outputs.base_version }}
+          CHANNEL: ${{ needs.build-release-assets.outputs.channel }}
+          RC_INDEX: ${{ needs.build-release-assets.outputs.rc_index }}
+          RELEASE_VERSION: ${{ needs.build-release-assets.outputs.version }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
-          ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
-          ARCHIVE_NAME: ${{ steps.zk.outputs.zk_archive_name }}
-          MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
+          VERSION: ${{ needs.build-release-assets.outputs.version }}
+          ARCHIVE: ${{ steps.assets.outputs.zk_archive }}
+          ARCHIVE_NAME: ${{ steps.assets.outputs.zk_archive_name }}
+          MANIFEST: ${{ steps.assets.outputs.zk_manifest }}
         run: |
           ./scripts/release-validate-context.sh
           ./scripts/publish-ghcr-zk-artifact.sh
 
       - name: Build SLSA provenance subject list from release assets
         id: provenance-subjects
-        if: steps.version.outputs.channel != 'snapshot'
+        if: needs.build-release-assets.outputs.channel != 'snapshot'
         env:
-          NPM_ASSETS_DIR: ${{ steps.npm-assets.outputs.npm_assets_dir }}
-          SIGNATURE_ASSETS_DIR: ${{ steps.signatures.outputs.signature_assets_dir }}
-          ZK_ARCHIVE: ${{ steps.zk.outputs.zk_archive }}
-          ZK_MANIFEST: ${{ steps.zk.outputs.zk_manifest }}
-          ZK_SHA256: ${{ steps.zk.outputs.zk_sha256 }}
+          NPM_ASSETS_DIR: dist/release/npm
+          SIGNATURE_ASSETS_DIR: dist/release/signatures
+          ZK_ARCHIVE: ${{ steps.assets.outputs.zk_archive }}
+          ZK_MANIFEST: ${{ steps.assets.outputs.zk_manifest }}
+          ZK_SHA256: ${{ steps.assets.outputs.zk_sha256 }}
         run: ./scripts/release-build-provenance-subjects.sh
 
       - name: Check existing GitHub Release state
         id: release-state
-        if: steps.version.outputs.channel != 'snapshot'
+        if: needs.build-release-assets.outputs.channel != 'snapshot'
         env:
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+          RELEASE_TAG: ${{ needs.build-release-assets.outputs.release_tag }}
         run: |
           set -euo pipefail
           release_exists=false
@@ -333,17 +460,17 @@ jobs:
 
       - name: Print publication summary
         env:
-          NPM_TAG: ${{ steps.version.outputs.npm_tag }}
-          VERSION: ${{ steps.version.outputs.version }}
+          NPM_TAG: ${{ needs.build-release-assets.outputs.npm_tag }}
+          VERSION: ${{ needs.build-release-assets.outputs.version }}
           OCI_REF: ${{ steps.oci.outputs.oci_ref }}
-          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+          RELEASE_TAG: ${{ needs.build-release-assets.outputs.release_tag }}
         run: ./scripts/release-print-summary.sh
 
   validate-github-release-context:
     name: Revalidate GitHub Release context
     needs:
-      - publish
-    if: needs.publish.result == 'success' && needs.publish.outputs.channel != 'snapshot'
+      - publish-release-assets
+    if: needs.publish-release-assets.result == 'success' && needs.publish-release-assets.outputs.channel != 'snapshot'
     permissions:
       contents: read
     runs-on: ubuntu-latest
@@ -355,38 +482,38 @@ jobs:
 
       - name: Revalidate release context
         env:
-          BASE_VERSION: ${{ needs.publish.outputs.base_version }}
-          CHANNEL: ${{ needs.publish.outputs.channel }}
-          RC_INDEX: ${{ needs.publish.outputs.rc_index }}
-          RELEASE_VERSION: ${{ needs.publish.outputs.version }}
+          BASE_VERSION: ${{ needs.publish-release-assets.outputs.base_version }}
+          CHANNEL: ${{ needs.publish-release-assets.outputs.channel }}
+          RC_INDEX: ${{ needs.publish-release-assets.outputs.rc_index }}
+          RELEASE_VERSION: ${{ needs.publish-release-assets.outputs.version }}
         run: ./scripts/release-validate-context.sh
 
   github-release-provenance:
     name: Generate GitHub Release SLSA provenance
     needs:
-      - publish
+      - publish-release-assets
       - validate-github-release-context
-    if: needs.publish.result == 'success' && needs.validate-github-release-context.result == 'success' && needs.publish.outputs.channel != 'snapshot' && needs.publish.outputs.provenance_present != 'true'
+    if: needs.publish-release-assets.result == 'success' && needs.validate-github-release-context.result == 'success' && needs.publish-release-assets.outputs.channel != 'snapshot' && needs.publish-release-assets.outputs.provenance_present != 'true'
     permissions:
       actions: read
       contents: write
       id-token: write
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
     with:
-      base64-subjects: ${{ needs.publish.outputs.base64_subjects }}
+      base64-subjects: ${{ needs.publish-release-assets.outputs.base64_subjects }}
       upload-assets: false
 
   finalize-github-release:
     name: Publish GitHub Release with provenance
     needs:
-      - publish
+      - publish-release-assets
       - validate-github-release-context
       - github-release-provenance
     if: >-
-      always() && needs.publish.result == 'success' &&
+      always() && needs.publish-release-assets.result == 'success' &&
       needs.validate-github-release-context.result == 'success' &&
-      needs.publish.outputs.channel != 'snapshot' &&
-      (needs.publish.outputs.provenance_present == 'true' || needs.github-release-provenance.result == 'success')
+      needs.publish-release-assets.outputs.channel != 'snapshot' &&
+      (needs.publish-release-assets.outputs.provenance_present == 'true' || needs.github-release-provenance.result == 'success')
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -407,24 +534,24 @@ jobs:
       - name: Download npm package assets
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # ratchet:actions/download-artifact@v4
         with:
-          name: midnight-did-npm-packages-${{ needs.publish.outputs.version }}
+          name: midnight-did-npm-packages-${{ needs.publish-release-assets.outputs.version }}
           path: dist/release/npm
 
       - name: Download ZK assets
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # ratchet:actions/download-artifact@v4
         with:
-          name: midnight-did-zk-artifacts-${{ needs.publish.outputs.version }}
+          name: midnight-did-zk-artifacts-${{ needs.publish-release-assets.outputs.version }}
           path: dist/release/zk
 
       - name: Download signature assets
-        if: needs.publish.outputs.channel != 'snapshot'
+        if: needs.publish-release-assets.outputs.channel != 'snapshot'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # ratchet:actions/download-artifact@v4
         with:
-          name: midnight-did-signatures-${{ needs.publish.outputs.version }}
+          name: midnight-did-signatures-${{ needs.publish-release-assets.outputs.version }}
           path: dist/release/signatures
 
       - name: Download generated provenance
-        if: needs.publish.outputs.provenance_present != 'true'
+        if: needs.publish-release-assets.outputs.provenance_present != 'true'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # ratchet:actions/download-artifact@v4
         with:
           name: ${{ needs.github-release-provenance.outputs.provenance-name }}
@@ -432,17 +559,17 @@ jobs:
 
       - name: Publish and verify GitHub Release assets
         env:
-          BASE_VERSION: ${{ needs.publish.outputs.base_version }}
-          CHANNEL: ${{ needs.publish.outputs.channel }}
-          RC_INDEX: ${{ needs.publish.outputs.rc_index }}
-          RELEASE_VERSION: ${{ needs.publish.outputs.version }}
+          BASE_VERSION: ${{ needs.publish-release-assets.outputs.base_version }}
+          CHANNEL: ${{ needs.publish-release-assets.outputs.channel }}
+          RC_INDEX: ${{ needs.publish-release-assets.outputs.rc_index }}
+          RELEASE_VERSION: ${{ needs.publish-release-assets.outputs.version }}
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.publish.outputs.release_tag }}
-          PRERELEASE: ${{ needs.publish.outputs.prerelease }}
-          VERSION: ${{ needs.publish.outputs.version }}
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release_tag }}
+          PRERELEASE: ${{ needs.publish-release-assets.outputs.prerelease }}
+          VERSION: ${{ needs.publish-release-assets.outputs.version }}
           GITHUB_SHA: ${{ github.sha }}
-          PROVENANCE_PRESENT: ${{ needs.publish.outputs.provenance_present }}
+          PROVENANCE_PRESENT: ${{ needs.publish-release-assets.outputs.provenance_present }}
           COSIGN_CERTIFICATE_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/publish.yml@refs/heads/${{ github.ref_name }}
           COSIGN_CERTIFICATE_OIDC_ISSUER: https://token.actions.githubusercontent.com
         run: |
@@ -467,10 +594,10 @@ jobs:
   verify-github-release-provenance:
     name: Verify GitHub Release provenance asset
     needs:
-      - publish
+      - publish-release-assets
       - github-release-provenance
       - finalize-github-release
-    if: always() && needs.publish.result == 'success' && needs.publish.outputs.channel != 'snapshot'
+    if: always() && needs.publish-release-assets.result == 'success' && needs.publish-release-assets.outputs.channel != 'snapshot'
     permissions:
       contents: read
     runs-on: ubuntu-latest
@@ -479,7 +606,7 @@ jobs:
         env:
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.publish.outputs.release_tag }}
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release_tag }}
         run: |
           set -euo pipefail
           gh release view "${RELEASE_TAG}" --json assets --jq '.assets[].name' | tee /tmp/release-assets.txt

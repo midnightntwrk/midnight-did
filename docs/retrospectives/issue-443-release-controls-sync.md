@@ -1,5 +1,10 @@
 # Issue 443 release-controls synchronization retrospective
 
+> **Partially superseded:** The release-control history remains authoritative,
+> but its npm token/authority-workflow and automatic-snapshot guidance were
+> replaced by manual-only npm Trusted Publishing. See
+> `issue-443-npm-trusted-publishing.md` for current operations.
+
 ## Scope and outcome
 
 This change is the separately reviewable `develop` reconciliation required by
@@ -120,10 +125,10 @@ preserved deliberately rather than hidden by the historical count.
    successfully from its allowed exact `main` context, recording expected npm
    identity and read-write authority for all five package names. Do not use
    publication as a credential test.
-5. **Release owner:** explicitly authorize and approve one exact #473-head
-   snapshot attempt before this draft can be merged. Because the classifier
-   marks this replay release-relevant, merge to `develop` automatically attempts
-   a snapshot.
+5. **Release owner (historical):** the former workflow required authorization
+   of one exact #473-head merge-triggered snapshot. That requirement no longer
+   applies because the current publication workflow has no push trigger and
+   every publication requires a separate manual dispatch.
 6. **Release engineering follow-up:** investigate the low-risk raw
    output-writer defense separately. This reconciliation intentionally keeps
    the complete reviewed #464 implementation and does not broaden release-
@@ -133,16 +138,15 @@ preserved deliberately rather than hidden by the historical count.
 
 ## Hold and residual risk
 
-This PR must remain draft even when tests, CI, and routed review are clean.
-`release`-relevant script changes produce
-`snapshot_release_relevant=true`; merging to `develop` therefore automatically
-attempts a snapshot publication. Read-only package visibility and access status
-do not prove that the credential can perform all five immutable package PUTs,
-and five publications are not transactional.
+This section records the historical hold and is not current operating guidance.
+The current publication workflow has no push trigger, so merging to `develop`
+cannot start publication; every snapshot, RC, or final release requires a later
+manual dispatch. The historical observation remains valid that read-only
+package visibility and access status did not prove authority for five immutable
+package PUTs, and five publications are not transactional.
 
-**HOLD:** merge cannot proceed until #474 is merged to `main`; the
-`npm-release` environment is administrator-attested; `NPMJS_RELEASE_TOKEN`
-exists only there; the old `MIDNIGHTCI_NPMJS_TOKEN` and any broader
-`NPMJS_RELEASE_TOKEN` visibility are removed; the read-only authority workflow
-passes; and one exact snapshot from the exact #473 head is explicitly
-authorized and approved.
+The historical hold required #474 on `main`, an administrator-attested
+`npm-release` environment, narrowly scoped token authority, a passing read-only
+authority workflow, and approval of a merge-triggered snapshot. The current
+Trusted Publishing prerequisites and manual-dispatch approval process supersede
+those requirements; see `issue-443-npm-trusted-publishing.md`.

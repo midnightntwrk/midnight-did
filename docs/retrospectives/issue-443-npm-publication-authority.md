@@ -1,5 +1,10 @@
 # Issues #443 and #281 npm publication authority retrospective
 
+> **Superseded:** This records the historical token-authority design. The
+> repository's current normal release path uses npm Trusted Publishing as
+> documented in `issue-443-npm-trusted-publishing.md`; the old authority workflow
+> is intentionally removed.
+
 Date: 2026-09-10
 Canonical trackers: [midnightntwrk/midnight-did#443](https://github.com/midnightntwrk/midnight-did/issues/443) and [midnightntwrk/midnight-did#281](https://github.com/midnightntwrk/midnight-did/issues/281)
 

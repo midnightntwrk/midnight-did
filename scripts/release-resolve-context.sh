@@ -13,15 +13,9 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source-path=SCRIPTDIR
 source "${script_dir}/release-validate-context.sh"
 
-if [[ "${event_name}" == "push" ]]; then
-  channel="snapshot"
-  version=""
-  rc_index=""
-else
-  channel="${DISPATCH_CHANNEL:-}"
-  version="${DISPATCH_VERSION:-}"
-  rc_index="${DISPATCH_RC_INDEX:-}"
-fi
+channel="${DISPATCH_CHANNEL:-}"
+version="${DISPATCH_VERSION:-}"
+rc_index="${DISPATCH_RC_INDEX:-}"
 
 validate_release_request \
   "${event_name}" \

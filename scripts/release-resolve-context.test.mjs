@@ -151,20 +151,8 @@ function assertRejectedWithoutOutput(options) {
   assert.equal(result.output, "");
 }
 
-test("preserves valid snapshot, RC, and final release context resolution", async (t) => {
+test("preserves valid manually dispatched snapshot, RC, and final release context resolution", async (t) => {
   const cases = [
-    {
-      name: "trusted push snapshot",
-      options: {
-        event: "push",
-        ref: "refs/heads/develop",
-        refName: "develop",
-        channel: "ignored",
-        version: "ignored",
-        rcIndex: "ignored",
-      },
-      output: "channel=snapshot\nversion=\nrc_index=\n",
-    },
     {
       name: "manual snapshot",
       options: {
@@ -310,6 +298,14 @@ test("initial resolution requires an exact full branch ref and branch ref type",
 test("event, channel, and RC-index guards fail closed", async (t) => {
   const invalidContexts = [
     { event: "pull_request" },
+    {
+      event: "push",
+      ref: "refs/heads/develop",
+      refName: "develop",
+      channel: "snapshot",
+      version: "0.6.0",
+      rcIndex: "",
+    },
     { event: "push", ref: "refs/heads/main", refName: "main" },
     {
       ref: "refs/heads/feature",
@@ -376,7 +372,7 @@ test("privileged-boundary validator accepts valid main and develop branch contex
       rcIndex: "",
     },
     {
-      event: "push",
+      event: "workflow_dispatch",
       ref: "refs/heads/develop",
       refName: "develop",
       channel: "snapshot",
@@ -396,6 +392,14 @@ test("privileged-boundary validator accepts valid main and develop branch contex
 test("invalid boundary context cannot execute its wrapped privileged command", async (t) => {
   const invalidContexts = [
     { releaseVersion: "0.6.0-rc2" },
+    {
+      event: "push",
+      ref: "refs/heads/develop",
+      refName: "develop",
+      channel: "snapshot",
+      releaseVersion: "0.6.0-snapshot.42.abcdef123456",
+      rcIndex: "",
+    },
     { baseVersion: "0.6.1" },
     {
       channel: "release",
