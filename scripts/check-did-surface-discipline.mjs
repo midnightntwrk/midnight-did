@@ -351,17 +351,34 @@ assertIncludes(
   "Report skipped CI implementation",
   ".github/workflows/ci.yml",
 );
+const publishWorkflow = readText(".github/workflows/publish.yml");
 assertIncludes(
-  readText(".github/workflows/publish.yml"),
-  "snapshot_release_relevant",
+  publishWorkflow,
+  "workflow_dispatch:",
   ".github/workflows/publish.yml",
 );
 assertIncludes(
-  readText(".github/workflows/publish.yml"),
+  publishWorkflow,
+  "github.event_name == 'workflow_dispatch'",
+  ".github/workflows/publish.yml",
+);
+assertIncludes(
+  publishWorkflow,
   "inputs.channel == 'snapshot' && github.ref == 'refs/heads/develop'",
   ".github/workflows/publish.yml",
 );
-const publishWorkflow = readText(".github/workflows/publish.yml");
+for (const forbiddenPhrase of [
+  "  push:",
+  "snapshot_release_relevant",
+  "Classify snapshot release changes",
+  "Skip snapshot publication",
+]) {
+  assertNotIncludes(
+    publishWorkflow,
+    forbiddenPhrase,
+    ".github/workflows/publish.yml",
+  );
+}
 for (const requiredPhrase of [
   "environment: npm-release",
   "id-token: write",

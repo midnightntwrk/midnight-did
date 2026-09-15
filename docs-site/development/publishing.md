@@ -78,8 +78,8 @@ secret is required. `GITHUB_TOKEN` remains
 limited to repository-scoped operations; `packages: write` is held by the
 separate GHCR job and is not available to the npm publisher.
 
-Before this code is merged, npm administrators must add a Trusted Publisher to
-each package:
+Before the first manual publication, npm administrators must add a Trusted
+Publisher to each package:
 
 | npm package                                   | Organization    | Repository     | Workflow      | Environment   |
 | --------------------------------------------- | --------------- | -------------- | ------------- | ------------- |
@@ -93,21 +93,22 @@ Repository administrators must configure required `npm-release` reviewers with
 self-review prevention and exact selected deployment branches `main` and
 `develop`, excluding tags, wildcard branches, and all other branches. Repository
 code cannot inspect or prove those external settings; an environment
-administrator must attest them. No additional secret is required. After
-confirming no other workflow depends on the old organization credential, it can
-be removed from this normal release path.
+administrator must attest them before a publication is dispatched. No
+additional secret is required. After confirming no other workflow depends on
+the old organization credential, it can be removed from this normal release
+path.
 
 The environment deployment-branch restrictions and required reviewers are the
 actual protection boundary. Workflow event/ref conditions, immutable-SHA
 checkout, runtime assertions, and secret step scoping are defense in depth, not
 substitutes for those GitHub settings. An environment administrator must attest
-the complete configuration before this change is marked ready or merged.
+the complete configuration before any publication is dispatched.
 
 Publication channels:
 
 | Channel  | Trigger                  | Branches          | Version shape                | npm tag    | ZK artifacts                               |
 | -------- | ------------------------ | ----------------- | ---------------------------- | ---------- | ------------------------------------------ |
-| Snapshot | Push or manual dispatch  | `develop`         | `x.y.z-snapshot.<run>.<sha>` | `snapshot` | Workflow artifact and GHCR OCI artifact    |
+| Snapshot | Manual workflow dispatch | `develop`         | `x.y.z-snapshot.<run>.<sha>` | `snapshot` | Workflow artifact and GHCR OCI artifact    |
 | RC       | Manual workflow dispatch | `main`, `develop` | `x.y.z-rc{index}`            | `rc`       | GitHub Release asset and GHCR OCI artifact |
 | Release  | Manual workflow dispatch | `main` only       | `x.y.z`                      | `latest`   | GitHub Release asset and GHCR OCI artifact |
 
@@ -132,14 +133,10 @@ consume GitHub's full ref directly rather than trusting short ref names. A
 release fix made directly on `main` must also be synchronized back to `develop`
 before any later `develop` snapshot or RC.
 
-Automated snapshot publication is intentionally gated. A push to `main` or
-`develop` publishes a snapshot only when the diff contains Compact, TypeScript,
-JavaScript, or shell-script changes under package/runtime paths. Markdown,
-`docs-site`, W3C spec pages, GitHub workflow/configuration changes, Renovate or
-Dependabot configuration, and manifest/lockfile-only dependency updates do not
-publish snapshot packages or ZK artifacts. Manual snapshots from `develop`, RCs
-from `main` or `develop`, and final releases from `main` are not gated by this
-classifier.
+The publication workflow has no `push` trigger. Pushes to every branch,
+including `develop`, and PR merges cannot start any publication job. Snapshot,
+RC, and final publication all require an explicit manual dispatch; the exact-ref
+checks above still fail closed before a build or privileged job can run.
 
 ## Trusted Publishing prerequisite check
 
@@ -356,9 +353,16 @@ pnpm run published-artifacts:smoke -- --skip-npm --zk-archive "${ZK_ARCHIVE}"
 PR CI validates package contents, ZK bundle structure, package imports, docs, and
 the normal core/API lanes. It does not publish packages or push GHCR artifacts.
 
-After this branch lands on `develop`, a code-impacting push to `develop` should
-trigger the snapshot publication path. Use the version printed by the workflow
-summary:
+Merging a PR is non-publishing. After all five npm Trusted Publisher mappings
+and the protected `npm-release` environment prerequisites are configured and
+attested, a release owner can later dispatch a `0.6.0` snapshot manually from
+the exact `develop` branch with:
+
+```bash
+gh workflow run publish.yml --repo midnightntwrk/midnight-did --ref develop --field channel=snapshot --field version=0.6.0
+```
+
+Use the version printed by that workflow's summary for public smoke testing:
 
 ```bash
 export VERSION="0.6.0-snapshot.<run>.<sha>"

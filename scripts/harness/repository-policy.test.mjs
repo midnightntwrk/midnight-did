@@ -822,9 +822,14 @@ test("shared setup freezes installs and Quality always runs the explicit audit",
   }
 });
 
-test("protects publish dispatch and Trusted Publishing identity", async () => {
+test("allows only manual dispatch to reach publication jobs and protects Trusted Publishing identity", async () => {
   const publishText = await text(".github/workflows/publish.yml");
   const publish = loadYaml(publishText);
+
+  assert.deepEqual(Object.keys(publish.on), ["workflow_dispatch"]);
+  assert.equal(Object.hasOwn(publish.on, "push"), false);
+  assert.equal(Object.hasOwn(publish.jobs, "changes"), false);
+  assert.equal(Object.hasOwn(publish.jobs, "skip-snapshot"), false);
 
   const buildJob = publish.jobs["build-release-assets"];
   const npmReleaseJob = publish.jobs["npm-release"];
@@ -840,9 +845,10 @@ test("protects publish dispatch and Trusted Publishing identity", async () => {
     if (jobName === "npm-release") continue;
     assert.notEqual(job.environment, "npm-release");
   }
-  assert.equal(publish.jobs.changes.if, "github.event_name == 'push'");
+  assert.deepEqual(buildJob.needs, ["validate-dispatch-ref"]);
 
   const publishCondition = buildJob.if;
+  assert.match(publishCondition, /^github\.event_name == 'workflow_dispatch'/u);
   assert.match(publishCondition, /github\.ref_type == 'branch'/u);
   assert.match(
     publishCondition,
@@ -856,20 +862,43 @@ test("protects publish dispatch and Trusted Publishing identity", async () => {
     publishCondition,
     /inputs\.channel == 'release' && github\.ref == 'refs\/heads\/main'/u,
   );
-  assert.match(
-    publishCondition,
-    /github\.event_name == 'push'[\s\S]*github\.ref == 'refs\/heads\/develop'[\s\S]*github\.ref_type == 'branch'[\s\S]*snapshot_release_relevant == 'true'/u,
-  );
+  assert.doesNotMatch(publishCondition, /github\.event_name == 'push'/u);
 
   const gate = publish.jobs["validate-dispatch-ref"];
   assert.ok(gate, "manual dispatch must have a checkout-free fail-closed gate");
   assert.deepEqual(gate.permissions, {});
+  assert.equal(Object.hasOwn(gate, "if"), false);
   assert.equal(Object.hasOwn(gate, "environment"), false);
   assert.equal(
     gate.steps.some((step) => Object.hasOwn(step, "uses")),
     false,
   );
   assert.match(JSON.stringify(gate), /refs\/heads\/(?:main|develop)/u);
+
+  const reachesBuild = (jobName, visited = new Set()) => {
+    if (jobName === "build-release-assets") return true;
+    if (visited.has(jobName)) return false;
+    visited.add(jobName);
+    const needs = publish.jobs[jobName]?.needs ?? [];
+    return needs.some((dependency) =>
+      reachesBuild(dependency, new Set(visited)),
+    );
+  };
+  for (const jobName of [
+    "sign-release-assets",
+    "npm-release",
+    "publish-release-assets",
+    "validate-github-release-context",
+    "github-release-provenance",
+    "finalize-github-release",
+    "verify-github-release-provenance",
+  ]) {
+    assert.equal(
+      reachesBuild(jobName),
+      true,
+      `${jobName} must remain downstream of the dispatch-only build gate`,
+    );
+  }
 
   const publishSteps = npmReleaseJob.steps;
   const publishCheckout = publishSteps.find((step) =>

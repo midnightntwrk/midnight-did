@@ -6,8 +6,10 @@ Canonical trackers: [midnightntwrk/midnight-did#443](https://github.com/midnight
 ## Scope and outcome
 
 The normal npmjs release path migrated from a long-lived npm token to npm
-Trusted Publishing through GitHub Actions OIDC. Snapshot, RC, and final channel
-rules are unchanged, as are GHCR publication, npm/GHCR pull-back smoke tests,
+Trusted Publishing through GitHub Actions OIDC. Publication is now explicitly
+on-demand: the workflow has no push trigger, so pushes and merges cannot start a
+snapshot or any other publication job. Snapshot, RC, and final exact-ref/channel
+rules remain strict, as do GHCR publication, npm/GHCR pull-back smoke tests,
 Cosign signatures, SLSA provenance, immutable GitHub Releases, exact-ref gates,
 and immutable-SHA checkout.
 
@@ -27,7 +29,7 @@ npm publication secret is required.
 ## External npmjs setup
 
 An npm administrator must configure a separate Trusted Publisher for every
-package before merge:
+package before the first manual publication:
 
 | npm package                                   | Organization    | Repository     | Workflow      | Environment   |
 | --------------------------------------------- | --------------- | -------------- | ------------- | ------------- |
@@ -41,8 +43,9 @@ Required configuration is: the protected GitHub environment has required
 reviewers, self-review prevention, and exact `main`/`develop` deployment
 branches. These are requirements, not verified facts: the external settings
 were not inspected and remain unverified. An environment administrator must
-attest the complete configuration before merge. No additional secret is
-required. The existing organization secret may be retained only if another
+attest the complete configuration before a publication is dispatched. No
+additional secret is required. The existing organization secret may be retained
+only if another
 separately documented future npm-administration process needs it; this change
 does not add that maintenance workflow or expose the secret to the normal path.
 
@@ -95,8 +98,9 @@ review/deployment settings, and no non-mutating command can prove the complete
 OIDC relationship. [Issue #281](https://github.com/midnightntwrk/midnight-did/issues/281)
 tracks the protected publication boundary. Its required follow-up for this
 change is administrator attestation of all five npm mappings and all
-`npm-release` protections before merge. Issue #443 remains the release-readiness
-record and owns explicit authorization of the merge-triggered snapshot.
+`npm-release` protections before the first manual publication. Issue #443
+remains the release-readiness record and owns explicit authorization of any
+later snapshot dispatch.
 
 ## Limits and residual risk
 
@@ -118,7 +122,7 @@ OIDC workflow never calls `npm access` or mutating `npm dist-tag` commands.
 ## Validation and hold
 
 Finalization ran a frozen install and zero-vulnerability audit; the 49-test
-Trusted Publishing, 60-test publisher, 24-test repository-policy, 132-test
+Trusted Publishing, 60-test publisher, 24-test repository-policy, 133-test
 release-context, and 16-test classifier suites; DID-surface,
 workspace-manifest, package-content, formatting, shell-syntax, and diff checks;
 `pnpm run verify`; docs validation/build/visual checks; and the full strict lane
@@ -130,12 +134,12 @@ registry, GHCR, tag, workflow-dispatch, or release mutation. Validation ran
 without npm/GitHub token variables, and no OIDC JWT or provider output was
 requested, decoded, or retained.
 
-The migration changes release-relevant scripts, so the classifier should report
-`snapshot_release_relevant=true`. **HOLD:** merging to `develop` automatically
-attempts a snapshot and must remain blocked while the externally managed
-settings remain unverified. Before merge, npm and environment administrators
-must attest all five npmjs mappings plus required `npm-release` reviewers,
-self-review prevention, and exact `main`/`develop` deployment branches; the
-exact merge-triggered snapshot must also be explicitly authorized. No workflow
-dispatch, npm publication, push, merge, or unrelated issue closure is part of
-this implementation step.
+Repository-policy and release-context tests prove the workflow is
+`workflow_dispatch`-only and rejects push events, including pushes to
+`refs/heads/develop`, before any publication boundary. Merging to `develop` is
+therefore non-publishing. Before a later manual dispatch, npm and environment
+administrators must attest all five npmjs mappings plus required `npm-release`
+reviewers, self-review prevention, and exact `main`/`develop` deployment
+branches, and the release owner must authorize that dispatch. No workflow was
+dispatched and no npm, GHCR, tag, or release state was mutated during this
+implementation.

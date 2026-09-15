@@ -414,8 +414,11 @@ npm access or dist-tag mutations. Existing exact versions are recoverable only
 when their immutable payload and requested tag already match; tag/access repair
 belongs to a separately authorized npm-administration process.
 
-Release CI publishes snapshot versions from `develop`, RC versions from `main`
-or `develop`, and final releases from `main` only. ZK artifacts are
+The release workflow is on-demand only: pushes and merges never start
+publication. Manual `workflow_dispatch` runs may publish snapshot versions only
+from the exact ref `refs/heads/develop`, RC versions from the exact trusted
+branch refs `refs/heads/main` or `refs/heads/develop`, and final releases only
+from `refs/heads/main`. ZK artifacts are
 distributed as a separate validated archive with the provider layout
 `keys/*.prover`, `keys/*.verifier`, and `zkir/*.bzkir`; do not rely on package
 consumers to discover proving keys by walking arbitrary generated directories.
