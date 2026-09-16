@@ -4,11 +4,16 @@ This flow creates a DID in the standalone environment, publishes key material,
 resolves the DID Document, and verifies a SchnorrJubjub signature against the key
 stored in ledger state.
 
+External consumers should first follow [Adopt and migrate to
+0.6](/guide/migrating-to-0.6) to install the exact published RC1 packages and
+bootstrap the matching ZK bundle. The commands below otherwise assume a source
+checkout of this repository.
+
 ## Prerequisites
 
 - Node.js 24 and pnpm 10.
-- Midnight Compact compiler `0.31.1`.
 - The standalone Midnight services required by `./run.sh api --light --strict`.
+- For a source checkout, Compact compiler `0.31.1` and repository dependencies:
 
 ```bash
 pnpm install
@@ -169,6 +174,8 @@ Document state.
 
 ## Next Steps
 
+- Keep consumer packages and ZK artifacts coordinated with [Adopt and migrate
+  to 0.6](/guide/migrating-to-0.6).
 - Review the [Key Model](/guide/key-model) before choosing key profiles.
 - Use [Network Endpoints](/guide/network-endpoints) when selecting a runtime
   profile.
