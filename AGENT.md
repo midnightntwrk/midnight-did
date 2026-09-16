@@ -438,7 +438,10 @@ GHCR publication uses ORAS because the ZK bundle is a generic OCI artifact
 rather than a container image or npm package. The publish workflow installs the
 configured `ORAS_VERSION`, verifies the ORAS release checksum, pushes the
 archive/manifest to GHCR, pulls it back, and validates the pulled bundle.
-Local ORAS is needed only for manual GHCR artifact testing.
+Local ORAS is needed only for manual GHCR artifact testing. The reusable SLSA
+workflow remains pinned to an exact commit and must set
+`compile-generator: true`: its release-binary mode accepts only a tag ref, while
+repository policy forbids replacing the immutable action pin with a movable tag.
 
 The API package exports `MIDNIGHT_DID_API_VERSION` and
 `createMidnightDidZkArtifactLocations()` so downstream services can derive the

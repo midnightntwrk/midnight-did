@@ -263,8 +263,11 @@ safe reruns after partial failure:
 A remote artifact with a different payload fails closed rather than being
 replaced. RC and final releases receive their SLSA provenance before the
 immutable GitHub Release is created, and all release assets are supplied in the
-initial creation request. This keeps a partial publication recoverable without
-making an immutable release mutable.
+initial creation request. The reusable SLSA workflow is pinned to an exact
+commit and compiles its generator from that pinned source; release-binary mode
+is not used because it requires the reusable workflow reference to be a version
+tag rather than the repository's required immutable commit pin. This keeps a
+partial publication recoverable without making an immutable release mutable.
 
 ### npm preflight, partial failure, and retry
 
