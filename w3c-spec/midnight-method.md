@@ -4,6 +4,10 @@
 
 This is a draft document and may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to cite this document as anything other than a work in progress.
 
+Version 0.6 targets the method-specific profile of the [W3C DID Core 1.0 Recommendation, 19 July 2022](https://www.w3.org/TR/2022/REC-did-core-20220719/). Its [DID Core 1.0 evidence matrix](./conformance/did-core-1.0.md) combines repository tests with a pinned external fixture harness; that evidence is bounded and supplemental, not W3C certification or endorsement.
+
+Version 0.6 does not claim conformance to [W3C DID Core 1.1 Candidate Recommendation Snapshot, 05 March 2026](https://www.w3.org/TR/2026/CR-did-1.1-20260305/) or the [2026 W3C DID Resolution v1 Candidate Recommendation Snapshot](https://www.w3.org/TR/2026/CR-did-resolution-1.0-20260806/). The [DID Core 1.1 compatibility matrix](./conformance/did-core-1.1.md), [2026 DID Resolution CR compatibility matrix](./conformance/did-resolution.md), and [current resolution limitations](#723-resolution-response-composition-and-media-types) record those failures; [#447](https://github.com/midnightntwrk/midnight-did/issues/447) owns the coordinated migration.
+
 # Contributions
 
 [IAMX AG](https://iamx.id/)  
@@ -30,7 +34,7 @@ Contact: <contact@identus.io>
 
 # Abstract
 
-This specification describes a new DID method called Midnight for storing DIDs using blockchains as public storage, also referred to as Midnight DID. This specification conforms to the requirements specified in the [W3C-DID] currently published by the W3C Credentials Community Group.
+This specification defines the Midnight DID method for storing DID state on the Midnight blockchain. Version 0.6 targets a method-specific profile of the dated [W3C DID Core 1.0 Recommendation](https://www.w3.org/TR/2022/REC-did-core-20220719/), subject to the bounded evidence and explicit exclusions in the status above.
 
 # Contents
 
@@ -1459,7 +1463,7 @@ A simple example of a Midnight DID Document is as follows:
 
 ## Normative References
 
-- [W3C-DID] - Decentralized Identifiers (DID) v1.0
+- [W3C-DID] - W3C Decentralized Identifiers (DID) v1.0 Recommendation, 19 July 2022
 - [RFC2119] - Keywords for use in RFCs to Indicate Requirement Levels
 - [RFC3986] - Uniform Resource Identifier (URI): Generic Syntax
 - [RFC4648] - The Base16, Base32, and Base64 Data Encodings
@@ -1478,7 +1482,7 @@ A simple example of a Midnight DID Document is as follows:
 - [IETF-BLS-KEY-REPRESENTATIONS] - Barreto-Lynn-Scott Elliptic Curve Key Representations for JOSE and COSE
 - [MIDNIGHT-WHITEPAPER] - Midnight Whitepaper
 
-[W3C-DID]: https://www.w3.org/TR/did-core/ "Decentralized Identifiers (DID) v1.0"
+[W3C-DID]: https://www.w3.org/TR/2022/REC-did-core-20220719/ "W3C Decentralized Identifiers (DID) v1.0 Recommendation, 19 July 2022"
 [RFC2119]: https://www.rfc-editor.org/info/rfc2119 "RFC 2119: Keywords for use in RFCs to Indicate Requirement Levels"
 [RFC3986]: https://www.rfc-editor.org/info/rfc3986 "RFC 3986: Uniform Resource Identifier (URI): Generic Syntax"
 [RFC4648]: https://www.rfc-editor.org/info/rfc4648 "RFC 4648: The Base16, Base32, and Base64 Data Encodings"
