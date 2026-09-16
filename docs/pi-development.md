@@ -136,3 +136,23 @@ node scripts/harness/diagnose.mjs
 ```
 
 The repository diagnostic independently validates the pinned 0.9.0 schema because that version's CLI doctor can report a false clean result when configuration loading falls back. The diagnostic reports that known upstream gap but never turns a real schema, package, worktree, review-readiness, or runtime-path failure into success.
+
+The diagnostic also resolves the full checkpoint helper from the pinned
+project-local package, syntax-checks it, and probes its CLI help contract.
+Inspect its authoritative command contract at that bounded path before
+considering the fallback:
+
+```sh
+node .pi/npm/node_modules/dev-loops/scripts/github/upsert-checkpoint-verdict.mjs --help
+```
+
+Do not infer that the full helper is absent merely because there is no
+repository-root `scripts/github/upsert-checkpoint-verdict.mjs`. A diagnostic
+result of `full-helper-ready` identifies the full helper; `fallback-only`
+means the installed helper is missing or malformed. The packaged
+`post-gate-verdict-fallback.mjs` path is intentionally degraded: it omits full
+stale-head, gate-coordination, blocking-severity, and internal-only-PR checks.
+Fallback output must be identified as degraded evidence and cannot silently
+replace full exact-head gate evidence. A `package-failure` result is instead a
+real missing, malformed, or wrong-version `dev-loops` installation and remains
+a readiness failure rather than permission to use the fallback.

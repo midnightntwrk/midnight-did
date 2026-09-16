@@ -13,6 +13,17 @@ const RUNTIME_PATHS = [
   ".pi/runner-coordination/",
   ".pi/dev-loop-retrospective-checkpoint.json",
 ];
+const DEV_LOOPS_PACKAGE_PATH = path.join(
+  ".pi",
+  "npm",
+  "node_modules",
+  "dev-loops",
+);
+const FULL_GATE_HELPER_PATH = path.join(
+  "scripts",
+  "github",
+  "upsert-checkpoint-verdict.mjs",
+);
 
 function usage() {
   return "Usage: diagnose.mjs [--repo-root <path>] [--json]\n";
@@ -67,6 +78,83 @@ async function exists(file) {
   } catch {
     return false;
   }
+}
+
+export async function inspectFullGateHelper({ packageRoot, expectedVersion }) {
+  const helperPath = path.join(packageRoot, FULL_GATE_HELPER_PATH);
+  const result = {
+    status: "package-failure",
+    packageRoot,
+    helperPath,
+    expectedVersion: expectedVersion ?? null,
+    installedVersion: null,
+    reason: null,
+  };
+  if (!expectedVersion) {
+    result.reason = "dev-loops is not pinned in .pi/settings.json";
+    return result;
+  }
+
+  let metadata;
+  try {
+    metadata = JSON.parse(
+      await readFile(path.join(packageRoot, "package.json"), "utf8"),
+    );
+  } catch {
+    result.reason = "dev-loops package metadata is missing or invalid";
+    return result;
+  }
+  result.installedVersion = metadata.version ?? null;
+  if (metadata.name !== "dev-loops") {
+    result.reason = "installed package metadata does not identify dev-loops";
+    return result;
+  }
+  if (metadata.version !== expectedVersion) {
+    result.reason = `dev-loops version mismatch: expected ${expectedVersion}, found ${metadata.version ?? "unknown"}`;
+    return result;
+  }
+
+  let helperSource;
+  try {
+    helperSource = await readFile(helperPath, "utf8");
+  } catch {
+    return {
+      ...result,
+      status: "fallback-only",
+      reason: "full helper is missing from the installed dev-loops package",
+    };
+  }
+  if (helperSource.trim().length === 0) {
+    return {
+      ...result,
+      status: "fallback-only",
+      reason: "full helper is empty",
+    };
+  }
+  const syntax = await run(process.execPath, ["--check", helperPath], {
+    cwd: packageRoot,
+  });
+  if (!syntax.ok) {
+    return {
+      ...result,
+      status: "fallback-only",
+      reason: "full helper failed JavaScript syntax validation",
+    };
+  }
+  const helpProbe = await run(process.execPath, [helperPath, "--help"], {
+    cwd: packageRoot,
+  });
+  if (
+    !helpProbe.ok ||
+    !helpProbe.stdout.includes("Usage: upsert-checkpoint-verdict.mjs")
+  ) {
+    return {
+      ...result,
+      status: "fallback-only",
+      reason: "full helper failed its CLI help probe",
+    };
+  }
+  return { ...result, status: "full-helper-ready", reason: null };
 }
 
 export function parsePackageSpec(spec) {
@@ -189,6 +277,7 @@ export async function diagnose(repoRoot = process.cwd()) {
   );
 
   let settings = null;
+  let versions = { packages: [], mismatches: [] };
   try {
     settings = JSON.parse(
       await readFile(path.join(root, ".pi", "settings.json"), "utf8"),
@@ -203,7 +292,7 @@ export async function diagnose(repoRoot = process.cwd()) {
       ),
     );
   else {
-    const versions = await packageVersionChecks(root, settings);
+    versions = await packageVersionChecks(root, settings);
     checks.push(
       check(
         "pinned-packages",
@@ -218,6 +307,34 @@ export async function diagnose(repoRoot = process.cwd()) {
       ),
     );
   }
+
+  const devLoopsPin = versions.packages.find(
+    ({ name }) => name === "dev-loops",
+  );
+  const gateHelper = await inspectFullGateHelper({
+    packageRoot: path.join(root, DEV_LOOPS_PACKAGE_PATH),
+    expectedVersion: devLoopsPin?.version,
+  });
+  const boundedHelperPath = path.join(
+    DEV_LOOPS_PACKAGE_PATH,
+    FULL_GATE_HELPER_PATH,
+  );
+  const gateHelperReady = gateHelper.status === "full-helper-ready";
+  const packageFailure = gateHelper.status === "package-failure";
+  const gateHelperSummary = gateHelperReady
+    ? `full helper ready: ${boundedHelperPath}`
+    : packageFailure
+      ? `full helper blocked by a dev-loops package failure: ${boundedHelperPath}`
+      : `full helper unavailable; fallback only: ${boundedHelperPath}`;
+  checks.push(
+    check(
+      "full-gate-helper",
+      gateHelperReady,
+      gateHelperSummary,
+      gateHelper,
+      gateHelperReady || packageFailure ? "error" : "warning",
+    ),
+  );
 
   let configResult = null;
   try {
