@@ -975,6 +975,17 @@ test("release environment gate rejects every disallowed dispatch ref and channel
 
 test("pins every third-party action used by the publish workflow", async () => {
   const workflow = loadYaml(await text(".github/workflows/publish.yml"));
+  const provenanceJob = workflow.jobs["github-release-provenance"];
+  assert.match(
+    provenanceJob.uses,
+    /^slsa-framework\/slsa-github-generator\/\.github\/workflows\/generator_generic_slsa3\.yml@[0-9a-f]{40}$/u,
+  );
+  assert.equal(
+    provenanceJob.with["compile-generator"],
+    true,
+    "a commit-pinned SLSA generator must compile from pinned source because release-binary mode requires a tag ref",
+  );
+
   const actionUses = [];
   for (const job of Object.values(workflow.jobs)) {
     if (typeof job.uses === "string") actionUses.push(job.uses);
