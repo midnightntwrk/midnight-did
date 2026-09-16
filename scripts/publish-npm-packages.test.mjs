@@ -20,6 +20,9 @@ const registry = "https://registry.npmjs.org/";
 const defaultNpmTag = "snapshot";
 const hostileOutput = "hostile-provider-secret-must-not-leak";
 const repositoryUrl = "git+https://github.com/midnightntwrk/midnight-did.git";
+// Harness-only wall-clock allowance for a complete mocked five-package run.
+// Fake date/sleep commands still advance convergence time without real waits.
+const publisherFixtureSubprocessTimeoutMs = 60_000;
 const packageNames = [
   "@midnight-ntwrk/midnight-did-jubjub-schnorr",
   "@midnight-ntwrk/midnight-did-contract",
@@ -326,7 +329,7 @@ function run(fixture, overrides = {}) {
     cwd: repoRoot,
     encoding: "utf8",
     env,
-    timeout: 15_000,
+    timeout: publisherFixtureSubprocessTimeoutMs,
   });
   return {
     ...result,
@@ -1064,6 +1067,18 @@ test("fails closed on oversized publish output before any dependent package", ()
   } finally {
     cleanup(fixture);
   }
+});
+
+test("harness allowance is separate from production publisher limits", () => {
+  const source = fs.readFileSync(publisher, "utf8");
+  assert.equal(publisherFixtureSubprocessTimeoutMs, 60_000);
+  assert.match(source, /readonly npm_read_timeout_ms="30000"/u);
+  assert.match(source, /readonly npm_publish_timeout_ms="300000"/u);
+  assert.match(source, /readonly npm_output_limit_bytes="65536"/u);
+  assert.match(source, /readonly registry_convergence_deadline_seconds="300"/u);
+  assert.match(source, /readonly tarball_connect_timeout_seconds="10"/u);
+  assert.match(source, /readonly tarball_timeout_seconds="120"/u);
+  assert.match(source, /readonly tarball_size_limit_bytes="104857600"/u);
 });
 
 test("publisher has one bounded npm publish call site and bounded tarball downloads", () => {
