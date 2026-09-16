@@ -24,6 +24,12 @@ configuration.
   one bounded page serve application setup and package discovery.
 - Keeping the existing behavior migration sections preserved useful 0.5-to-0.6
   guidance while adding the missing installation and bootstrap sequence.
+- Review identified that a distribution location is not necessarily a public
+  consumer path. Naming the GitHub Release asset as the public route and GHCR as
+  access- and authentication-required makes the trust boundary explicit.
+- Rebasing only the two issue #484 commits onto the updated `origin/develop`
+  excluded the superseded #482/#487 stack history. `git range-diff` matched both
+  rewritten commits and the aggregate pre/post-rebase patches were byte-identical.
 
 ## Friction, failures, and configuration drift
 
@@ -38,14 +44,32 @@ configuration.
 - The existing publishing guide contains the authoritative artifact behavior
   but is release-engineering oriented. The adoption page links only its focused
   metadata section rather than copying operational controls into consumer docs.
+- The first adoption draft presented GHCR alongside the GitHub Release without
+  the access caveat required by the public/private link policy. That could imply
+  anonymous availability even though GHCR requires Midnight organization access
+  and registry authentication.
+- An initial publisher-fixture run was launched from a nested login shell inside
+  `nix develop`. The login shell replaced the Nix `PATH`, selected macOS system
+  Bash, and produced misleading Bash-version failures. Invoking each harness
+  command directly through `nix develop --command` restored the pinned toolchain
+  and the full publisher fixture passed. Future validation should avoid nested
+  login shells at this boundary.
+- The first repository verification attempt hit an unrelated timing flake in the
+  PR-review process-group timeout test. Its immediate focused rerun passed without
+  source changes; the complete exact-head verification rerun remains the final
+  local gate.
 
 ## Validation and review evidence
 
-The change is checked with the focused documentation validator tests, docs link
-and content validation, VitePress build and visual checks, formatting and audit,
-and the mandatory repository verification gate. Commit signature and DCO are
-verified separately. Hosted CI and routed review remain out of scope because
-this task intentionally does not push or create a pull request.
+The change is checked with focused, deterministic documentation assertions for
+the adoption navigation, exact RC1 installation and imports, unpublished final
+release warning, public GitHub Release asset, access-controlled GHCR wording,
+and bounded non-certification language. Docs link and content validation,
+VitePress build and visual checks, formatting, publisher-fixture validation,
+and audit provide the broader green evidence. Commit signature and DCO are
+verified separately. The rewritten exact head must still pass the complete
+repository verification rerun, hosted CI, both gate checkpoints, and routed Pat
+review before the PR can return to ready-for-review state.
 
 ## Follow-ups
 

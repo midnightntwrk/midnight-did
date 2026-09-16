@@ -33,14 +33,19 @@ These exact versions are public on npmjs:
 - [`@midnight-ntwrk/midnight-did-jubjub-schnorr@0.6.0-rc1`](https://www.npmjs.com/package/@midnight-ntwrk/midnight-did-jubjub-schnorr/v/0.6.0-rc1)
 - [`@midnight-ntwrk/midnight-did-contract@0.6.0-rc1`](https://www.npmjs.com/package/@midnight-ntwrk/midnight-did-contract/v/0.6.0-rc1)
 
-The npmjs version pages expose each package's npm provenance. The matching
-[`v0.6.0-rc1` GitHub prerelease](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.6.0-rc1)
-contains the ZK archive, manifest, SHA-256 file, signatures, certificates, and
-SLSA provenance. The same ZK bundle is available from the [GHCR package](https://github.com/orgs/midnightntwrk/packages/container/package/midnight-did-zk-artifacts)
-as `ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.6.0-rc1`. For the
-existing artifact layout, checksum validation, signature/provenance behavior,
-and helper API, see [Package Artifact
-Metadata](/development/publishing#package-artifact-metadata).
+The npmjs version pages expose each package's npm provenance. The public
+download path for the ZK bundle is the
+[`v0.6.0-rc1` GitHub prerelease](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.6.0-rc1).
+Download the [release archive](https://github.com/midnightntwrk/midnight-did/releases/download/v0.6.0-rc1/midnight-did-zk-artifacts-0.6.0-rc1.tar.gz);
+the release also contains its manifest, SHA-256 file, signatures, certificates,
+and SLSA provenance.
+
+The same bundle exists as the [GHCR package](https://github.com/orgs/midnightntwrk/packages/container/package/midnight-did-zk-artifacts)
+`ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.6.0-rc1`, but that path
+requires Midnight organization access and GitHub Container Registry
+authentication. It is not the public download path. For the existing artifact
+layout, checksum validation, signature/provenance behavior, and helper API, see
+[Package Artifact Metadata](/development/publishing#package-artifact-metadata).
 
 ## Bootstrap the matching ZK bundle
 
@@ -112,10 +117,11 @@ pnpm add \
   @midnight-ntwrk/midnight-did-contract@0.6.0
 ```
 
-When final `0.6.0` is published, use
-`ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.6.0` or the `v0.6.0`
-release asset with those packages. Do not reuse the RC1 ZK bundle with final
-packages.
+When final `0.6.0` is published, use its public `v0.6.0` GitHub Release asset
+with those packages. The GHCR copy,
+`ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.6.0`, will require Midnight
+organization access and GitHub Container Registry authentication. Do not reuse
+the RC1 ZK bundle with final packages.
 
 ## Migrate from 0.5.0
 
