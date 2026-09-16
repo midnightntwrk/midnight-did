@@ -245,8 +245,11 @@ where histories are comparable.
 
 ## Dev-loop and retrospective discipline
 
-The pinned dev-loop configuration is schema-validated. Run these checks before
-starting or resuming a loop and treat configuration errors as blockers:
+The pinned dev-loop configuration is schema-validated. The repository
+diagnostic also exercises the full gate helper's required read-only `gh pr view`
+field surface; `fallback-only` is degraded evidence and fails readiness just like
+a package failure. Run these checks before starting or resuming a loop and treat
+configuration or helper-readiness errors as blockers:
 
 ```bash
 node .pi/npm/node_modules/dev-loops/cli/index.mjs doctor

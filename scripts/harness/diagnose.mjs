@@ -24,6 +24,22 @@ const FULL_GATE_HELPER_PATH = path.join(
   "github",
   "upsert-checkpoint-verdict.mjs",
 );
+const FULL_GATE_HELPER_REQUIRED_PR_FIELDS = [
+  "number",
+  "state",
+  "isDraft",
+  "headRefOid",
+  "mergeable",
+  "mergeStateStatus",
+  "body",
+  "title",
+  "closingIssuesReferences",
+  "reviews",
+  "statusCheckRollup",
+  "files",
+].join(",");
+const GH_CAPABILITY_PROBE_TIMEOUT_MS = 10_000;
+const MAX_CAPTURED_COMMAND_OUTPUT_BYTES = 16 * 1024;
 
 function usage() {
   return "Usage: diagnose.mjs [--repo-root <path>] [--json]\n";
@@ -47,7 +63,16 @@ function parseArgs(argv) {
   return options;
 }
 
-function run(command, args, { cwd, env = process.env } = {}) {
+function run(
+  command,
+  args,
+  {
+    cwd,
+    env = process.env,
+    timeoutMs = null,
+    maxOutputBytes = MAX_CAPTURED_COMMAND_OUTPUT_BYTES,
+  } = {},
+) {
   return new Promise((resolve) => {
     const child = spawn(command, args, {
       cwd,
@@ -56,17 +81,40 @@ function run(command, args, { cwd, env = process.env } = {}) {
     });
     let stdout = "";
     let stderr = "";
+    let timedOut = false;
+    let settled = false;
+    const appendBounded = (current, chunk) =>
+      `${current}${chunk}`.slice(0, maxOutputBytes);
+    const timer = Number.isInteger(timeoutMs)
+      ? setTimeout(() => {
+          timedOut = true;
+          child.kill("SIGKILL");
+        }, timeoutMs)
+      : null;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      resolve(result);
+    };
     child.stdout.on("data", (chunk) => {
-      stdout += chunk;
+      stdout = appendBounded(stdout, chunk);
     });
     child.stderr.on("data", (chunk) => {
-      stderr += chunk;
+      stderr = appendBounded(stderr, chunk);
     });
     child.on("error", (error) =>
-      resolve({ ok: false, code: null, stdout, stderr, error: error.message }),
+      finish({
+        ok: false,
+        code: null,
+        stdout,
+        stderr,
+        error: error.message,
+        timedOut,
+      }),
     );
     child.on("close", (code) =>
-      resolve({ ok: code === 0, code, stdout, stderr }),
+      finish({ ok: code === 0, code, stdout, stderr, timedOut }),
     );
   });
 }
@@ -80,7 +128,80 @@ async function exists(file) {
   }
 }
 
-export async function inspectFullGateHelper({ packageRoot, expectedVersion }) {
+export async function probeFullGateHelperRuntime({ cwd, runCommand = run }) {
+  const probe = await runCommand(
+    "gh",
+    ["pr", "view", "--json", FULL_GATE_HELPER_REQUIRED_PR_FIELDS],
+    {
+      cwd,
+      env: {
+        ...process.env,
+        GH_PAGER: "cat",
+        PAGER: "cat",
+        NO_COLOR: "1",
+        CLICOLOR: "0",
+      },
+      timeoutMs: GH_CAPABILITY_PROBE_TIMEOUT_MS,
+      maxOutputBytes: MAX_CAPTURED_COMMAND_OUTPUT_BYTES,
+    },
+  );
+  if (!probe.ok) {
+    if (/unknown json field/i.test(probe.stderr ?? "")) {
+      return {
+        ok: false,
+        status: "unsupported",
+        reason:
+          "gh does not support the pull-request fields required by the full helper",
+      };
+    }
+    return {
+      ok: false,
+      status: "unavailable",
+      reason: probe.timedOut
+        ? "gh runtime capability probe timed out"
+        : "gh runtime capability probe is unavailable for the current pull request",
+    };
+  }
+  try {
+    const payload = JSON.parse(probe.stdout);
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      Array.isArray(payload) ||
+      !("closingIssuesReferences" in payload)
+    ) {
+      throw new Error("missing required field");
+    }
+  } catch {
+    return {
+      ok: false,
+      status: "unavailable",
+      reason: "gh runtime capability probe returned an invalid response",
+    };
+  }
+  return { ok: true, status: "ready", reason: null };
+}
+
+export function evaluateFullGateHelperReadiness(gateHelper) {
+  const ready = gateHelper.status === "full-helper-ready";
+  const packageFailure = gateHelper.status === "package-failure";
+  return {
+    ok: ready,
+    severity: "error",
+    summary: ready
+      ? `full helper ready: ${gateHelper.helperPath}`
+      : packageFailure
+        ? `full helper blocked by a dev-loops package failure: ${gateHelper.helperPath}`
+        : `full helper unavailable; fallback only: ${gateHelper.helperPath}`,
+  };
+}
+
+export async function inspectFullGateHelper({
+  packageRoot,
+  expectedVersion,
+  probeCwd = packageRoot,
+  runtimeProbe = probeFullGateHelperRuntime,
+}) {
   const helperPath = path.join(packageRoot, FULL_GATE_HELPER_PATH);
   const result = {
     status: "package-failure",
@@ -89,6 +210,7 @@ export async function inspectFullGateHelper({ packageRoot, expectedVersion }) {
     expectedVersion: expectedVersion ?? null,
     installedVersion: null,
     reason: null,
+    runtimeCapability: "not-probed",
   };
   if (!expectedVersion) {
     result.reason = "dev-loops is not pinned in .pi/settings.json";
@@ -154,7 +276,21 @@ export async function inspectFullGateHelper({ packageRoot, expectedVersion }) {
       reason: "full helper failed its CLI help probe",
     };
   }
-  return { ...result, status: "full-helper-ready", reason: null };
+  const runtimeCapability = await runtimeProbe({ cwd: probeCwd });
+  if (!runtimeCapability.ok) {
+    return {
+      ...result,
+      status: "fallback-only",
+      reason: runtimeCapability.reason,
+      runtimeCapability: runtimeCapability.status,
+    };
+  }
+  return {
+    ...result,
+    status: "full-helper-ready",
+    reason: null,
+    runtimeCapability: "ready",
+  };
 }
 
 export function parsePackageSpec(spec) {
@@ -314,25 +450,16 @@ export async function diagnose(repoRoot = process.cwd()) {
   const gateHelper = await inspectFullGateHelper({
     packageRoot: path.join(root, DEV_LOOPS_PACKAGE_PATH),
     expectedVersion: devLoopsPin?.version,
+    probeCwd: root,
   });
-  const boundedHelperPath = path.join(
-    DEV_LOOPS_PACKAGE_PATH,
-    FULL_GATE_HELPER_PATH,
-  );
-  const gateHelperReady = gateHelper.status === "full-helper-ready";
-  const packageFailure = gateHelper.status === "package-failure";
-  const gateHelperSummary = gateHelperReady
-    ? `full helper ready: ${boundedHelperPath}`
-    : packageFailure
-      ? `full helper blocked by a dev-loops package failure: ${boundedHelperPath}`
-      : `full helper unavailable; fallback only: ${boundedHelperPath}`;
+  const gateHelperReadiness = evaluateFullGateHelperReadiness(gateHelper);
   checks.push(
     check(
       "full-gate-helper",
-      gateHelperReady,
-      gateHelperSummary,
+      gateHelperReadiness.ok,
+      gateHelperReadiness.summary,
       gateHelper,
-      gateHelperReady || packageFailure ? "error" : "warning",
+      gateHelperReadiness.severity,
     ),
   );
 

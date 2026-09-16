@@ -138,8 +138,11 @@ node scripts/harness/diagnose.mjs
 The repository diagnostic independently validates the pinned 0.9.0 schema because that version's CLI doctor can report a false clean result when configuration loading falls back. The diagnostic reports that known upstream gap but never turns a real schema, package, worktree, review-readiness, or runtime-path failure into success.
 
 The diagnostic also resolves the full checkpoint helper from the pinned
-project-local package, syntax-checks it, and probes its CLI help contract.
-Inspect its authoritative command contract at that bounded path before
+project-local package, syntax-checks it, probes its CLI help contract, and runs
+a bounded, read-only `gh pr view` probe for the exact pull-request fields used
+by the helper's gate-coordination runtime. The probe is time- and output-bounded,
+does not stream provider output, and must succeed for the current pull request.
+Inspect the helper's authoritative command contract at that bounded path before
 considering the fallback:
 
 ```sh
@@ -148,11 +151,15 @@ node .pi/npm/node_modules/dev-loops/scripts/github/upsert-checkpoint-verdict.mjs
 
 Do not infer that the full helper is absent merely because there is no
 repository-root `scripts/github/upsert-checkpoint-verdict.mjs`. A diagnostic
-result of `full-helper-ready` identifies the full helper; `fallback-only`
-means the installed helper is missing or malformed. The packaged
-`post-gate-verdict-fallback.mjs` path is intentionally degraded: it omits full
-stale-head, gate-coordination, blocking-severity, and internal-only-PR checks.
-Fallback output must be identified as degraded evidence and cannot silently
-replace full exact-head gate evidence. A `package-failure` result is instead a
-real missing, malformed, or wrong-version `dev-loops` installation and remains
-a readiness failure rather than permission to use the fallback.
+result of `full-helper-ready` identifies a helper whose package and required
+local `gh` runtime surface are usable. `fallback-only` means the installed
+helper is missing or malformed, or that its required `gh` fields are unsupported
+or unavailable. The packaged `post-gate-verdict-fallback.mjs` path is
+intentionally degraded: it omits full stale-head, gate-coordination,
+blocking-severity, and internal-only-PR checks. Fallback output must be
+identified as degraded evidence, never counts as diagnostic readiness, and
+cannot silently replace full exact-head gate evidence. A `package-failure`
+result instead identifies a missing, malformed, or wrong-version `dev-loops`
+installation. Both non-ready classifications make the top-level diagnostic exit
+nonzero, while remaining distinct so remediation can target the package or the
+runtime capability.

@@ -5,10 +5,18 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  evaluateFullGateHelperReadiness,
   inspectFullGateHelper,
   parsePackageSpec,
+  probeFullGateHelperRuntime,
   validateReviewPolicy,
 } from "./diagnose.mjs";
+
+const readyRuntimeProbe = async () => ({
+  ok: true,
+  status: "ready",
+  reason: null,
+});
 
 async function createDevLoopsFixture(t, { helperSource, version = "0.9.0" }) {
   const fixtureRoot = await mkdtemp(
@@ -72,10 +80,12 @@ test("reports the package-local full gate helper as ready", async (t) => {
   const result = await inspectFullGateHelper({
     packageRoot,
     expectedVersion: "0.9.0",
+    runtimeProbe: readyRuntimeProbe,
   });
 
   assert.equal(result.status, "full-helper-ready");
   assert.equal(result.reason, null);
+  assert.equal(result.runtimeCapability, "ready");
   assert.equal(
     result.helperPath,
     path.join(
@@ -85,6 +95,84 @@ test("reports the package-local full gate helper as ready", async (t) => {
       "upsert-checkpoint-verdict.mjs",
     ),
   );
+});
+
+test("reports an unsupported gh runtime surface as fallback only", async (t) => {
+  const packageRoot = await createDevLoopsFixture(t, {
+    helperSource:
+      'process.stdout.write("Usage: upsert-checkpoint-verdict.mjs\\n");\n',
+  });
+  const result = await inspectFullGateHelper({
+    packageRoot,
+    expectedVersion: "0.9.0",
+    probeCwd: "/deterministic/repository-fixture",
+    runtimeProbe: async ({ cwd }) => {
+      assert.equal(cwd, "/deterministic/repository-fixture");
+      return {
+        ok: false,
+        status: "unsupported",
+        reason:
+          "gh does not support the pull-request fields required by the full helper",
+      };
+    },
+  });
+
+  assert.equal(result.status, "fallback-only");
+  assert.equal(result.runtimeCapability, "unsupported");
+  assert.match(result.reason, /does not support/);
+  assert.deepEqual(evaluateFullGateHelperReadiness(result), {
+    ok: false,
+    severity: "error",
+    summary: `full helper unavailable; fallback only: ${result.helperPath}`,
+  });
+});
+
+test("reports unavailable gh runtime capability as fallback only", async (t) => {
+  const packageRoot = await createDevLoopsFixture(t, {
+    helperSource:
+      'process.stdout.write("Usage: upsert-checkpoint-verdict.mjs\\n");\n',
+  });
+  const result = await inspectFullGateHelper({
+    packageRoot,
+    expectedVersion: "0.9.0",
+    runtimeProbe: async () => ({
+      ok: false,
+      status: "unavailable",
+      reason: "gh runtime capability probe timed out",
+    }),
+  });
+
+  assert.equal(result.status, "fallback-only");
+  assert.equal(result.runtimeCapability, "unavailable");
+  assert.match(result.reason, /timed out/);
+  assert.equal(evaluateFullGateHelperReadiness(result).ok, false);
+});
+
+test("runtime capability probe is bounded and suppresses gh provider output", async () => {
+  let invocation;
+  const result = await probeFullGateHelperRuntime({
+    cwd: "/deterministic/repository-fixture",
+    runCommand: async (command, args, options) => {
+      invocation = { command, args, options };
+      return {
+        ok: false,
+        code: 1,
+        stdout: "provider stdout that must not escape",
+        stderr:
+          "Unknown JSON field: closingIssuesReferences\\nprovider details that must not escape",
+        timedOut: false,
+      };
+    },
+  });
+
+  assert.equal(invocation.command, "gh");
+  assert.deepEqual(invocation.args.slice(0, 3), ["pr", "view", "--json"]);
+  assert.match(invocation.args[3], /closingIssuesReferences/);
+  assert.equal(invocation.options.cwd, "/deterministic/repository-fixture");
+  assert.equal(invocation.options.timeoutMs, 10_000);
+  assert.equal(result.ok, false);
+  assert.equal(result.status, "unsupported");
+  assert.doesNotMatch(JSON.stringify(result), /provider/);
 });
 
 test("reports a missing package-local helper as fallback only", async (t) => {
@@ -97,6 +185,8 @@ test("reports a missing package-local helper as fallback only", async (t) => {
 
   assert.equal(result.status, "fallback-only");
   assert.match(result.reason, /missing/);
+  assert.equal(evaluateFullGateHelperReadiness(result).ok, false);
+  assert.equal(evaluateFullGateHelperReadiness(result).severity, "error");
 });
 
 test("reports a malformed package-local helper as fallback only", async (t) => {
@@ -141,6 +231,11 @@ test("distinguishes a package version failure from fallback-only state", async (
 
   assert.equal(result.status, "package-failure");
   assert.match(result.reason, /expected 0\.9\.0, found 0\.8\.0/);
+  assert.deepEqual(evaluateFullGateHelperReadiness(result), {
+    ok: false,
+    severity: "error",
+    summary: `full helper blocked by a dev-loops package failure: ${result.helperPath}`,
+  });
 });
 
 test("review readiness fails closed when a mandatory reviewer is not routed", () => {
