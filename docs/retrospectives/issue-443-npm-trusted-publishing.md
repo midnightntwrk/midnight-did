@@ -3,6 +3,11 @@
 Date: 2026-09-11; finalization checkpoint updated 2026-09-15
 Canonical trackers: [midnightntwrk/midnight-did#443](https://github.com/midnightntwrk/midnight-did/issues/443) and [midnightntwrk/midnight-did#281](https://github.com/midnightntwrk/midnight-did/issues/281)
 
+> **Operational addendum:** The first RC publication exposed npmjs read-after-write
+> lag after a successful publish. The bounded convergence fix and exact same-RC
+> recovery procedure are recorded in
+> `issue-443-npm-registry-convergence.md`.
+
 ## Scope and outcome
 
 The normal npmjs release path migrated from a long-lived npm token to npm

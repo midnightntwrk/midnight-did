@@ -255,7 +255,9 @@ jobs:
       contents: read
       id-token: write
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Five sequential publishes each have a five-minute read-back convergence
+    # gate; retain room for bounded npm commands and the final all-five audit.
+    timeout-minutes: 75
     steps:
       - name: Checkout immutable publisher scripts
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5

@@ -9,6 +9,11 @@ readonly npm_read_timeout_ms="30000"
 readonly npm_publish_timeout_ms="300000"
 readonly npm_output_limit_bytes="65536"
 readonly trusted_publishing_minimum_npm_version="11.5.1"
+# npmjs metadata may converge after a successful immutable publish. Bound each
+# post-publish package gate to five minutes, polling every 30 seconds; never
+# retry the publish mutation itself.
+readonly registry_convergence_deadline_seconds="300"
+readonly registry_convergence_poll_seconds="30"
 readonly tarball_connect_timeout_seconds="10"
 readonly tarball_timeout_seconds="120"
 readonly tarball_size_limit_bytes="104857600"
@@ -239,21 +244,11 @@ read_dist_tags() {
   fi
 }
 
-verify_remote_payload() {
+verify_remote_payload_metadata() {
   local index="$1"
+  local metadata="$2"
   local package_name="${package_names[index]}"
-  local metadata metadata_status remote_version remote_integrity remote_url
-
-  set +e
-  metadata="$(read_target_metadata "${package_name}")"
-  metadata_status=$?
-  set -e
-  if [[ "${metadata_status}" -ne 0 ]]; then
-    if [[ "${metadata_status}" -eq 2 ]]; then
-      echo "::error::Expected ${package_name}@${version} during immutable payload verification." >&2
-    fi
-    return 1
-  fi
+  local remote_version remote_integrity remote_url
   IFS=$'\t' read -r remote_version remote_integrity remote_url <<< "${metadata}"
   if [[ "${remote_version}" != "${version}" ]]; then
     echo "::error::Registry returned an unexpected version for ${package_name}." >&2
@@ -283,6 +278,24 @@ verify_remote_payload() {
   echo "[publish-npm-packages] ${package_name}@${version} matches package contents despite tarball metadata differences."
 }
 
+verify_remote_payload() {
+  local index="$1"
+  local package_name="${package_names[index]}"
+  local metadata metadata_status
+
+  set +e
+  metadata="$(read_target_metadata "${package_name}")"
+  metadata_status=$?
+  set -e
+  if [[ "${metadata_status}" -ne 0 ]]; then
+    if [[ "${metadata_status}" -eq 2 ]]; then
+      echo "::error::Expected ${package_name}@${version} during immutable payload verification." >&2
+    fi
+    return 1
+  fi
+  verify_remote_payload_metadata "${index}" "${metadata}"
+}
+
 verify_requested_tags() {
   local package_name="$1"
   local required_existing="$2"
@@ -303,6 +316,81 @@ verify_requested_tags() {
     echo "::error::Non-latest ${package_name}@${version} unexpectedly owns the latest dist-tag; repair is forbidden in the normal Trusted Publishing workflow." >&2
     return 1
   fi
+}
+
+registry_now_seconds() {
+  local now
+  if ! now="$(date +%s)" || [[ ! "${now}" =~ ^[0-9]+$ ]]; then
+    echo "::error::Unable to measure the bounded npm registry convergence deadline." >&2
+    return 1
+  fi
+  printf '%s' "${now}"
+}
+
+wait_for_published_registry_convergence() {
+  local index="$1"
+  local package_name="${package_names[index]}"
+  local started_at deadline now remaining sleep_seconds
+  local metadata metadata_status tag_state requested_version latest_version pending_reason
+
+  started_at="$(registry_now_seconds)" || return 1
+  deadline=$((started_at + registry_convergence_deadline_seconds))
+  while true; do
+    pending_reason=""
+    set +e
+    metadata="$(read_target_metadata "${package_name}")"
+    metadata_status=$?
+    set -e
+    if [[ "${metadata_status}" -eq 0 ]]; then
+      # Malformed metadata and confirmed immutable payload mismatches are fatal;
+      # only propagation of valid exact-version/tag evidence is retried.
+      verify_remote_payload_metadata "${index}" "${metadata}" || return 1
+      tag_state="$(read_dist_tags "${package_name}")" || return 1
+      IFS='|' read -r requested_version latest_version <<< "${tag_state}"
+      if [[ "${npm_tag}" != "latest" && "${latest_version}" == "${version}" ]]; then
+        echo "::error::Non-latest ${package_name}@${version} unexpectedly owns the latest dist-tag; repair is forbidden in the normal Trusted Publishing workflow." >&2
+        return 1
+      fi
+      if [[ "${requested_version}" == "${version}" ]]; then
+        now="$(registry_now_seconds)" || return 1
+        if (( now < started_at )); then
+          echo "::error::System clock moved backwards during bounded npm registry convergence." >&2
+          return 1
+        fi
+        if (( now > deadline )); then
+          echo "::error::npm registry evidence arrived after the ${registry_convergence_deadline_seconds}-second convergence deadline; provider output suppressed." >&2
+          return 1
+        fi
+        echo "[publish-npm-packages] ${package_name}@${version} immutable payload and ${npm_tag} tag converged after $((now - started_at)) seconds."
+        return 0
+      fi
+      pending_reason="requested dist-tag ${npm_tag}"
+    elif [[ "${metadata_status}" -eq 2 ]]; then
+      pending_reason="exact version metadata"
+    else
+      return 1
+    fi
+
+    now="$(registry_now_seconds)" || return 1
+    if (( now < started_at )); then
+      echo "::error::System clock moved backwards during bounded npm registry convergence." >&2
+      return 1
+    fi
+    if (( now >= deadline )); then
+      echo "::error::Timed out after ${registry_convergence_deadline_seconds} seconds waiting for ${package_name}@${version} ${pending_reason}; provider output suppressed." >&2
+      return 1
+    fi
+    remaining=$((deadline - now))
+    sleep_seconds="${registry_convergence_poll_seconds}"
+    if (( sleep_seconds > remaining )); then
+      sleep_seconds="${remaining}"
+    fi
+    echo "[publish-npm-packages] Waiting ${sleep_seconds} seconds for ${package_name}@${version} ${pending_reason} to converge."
+    if ! sleep "${sleep_seconds}"; then
+      echo "::error::Unable to wait for npm registry convergence." >&2
+      return 1
+    fi
+  done
 }
 
 echo "[publish-npm-packages] Inventoried all five local packed package identities before registry reads."
@@ -361,11 +449,10 @@ for index in "${!package_names[@]}"; do
     exit 1
   fi
 
-  # A successful provider exit is not sufficient evidence. Verify this package
-  # before granting the next dependent package a chance to publish.
-  read_package_visibility "${package_names[index]}"
-  verify_remote_payload "${index}"
-  verify_requested_tags "${package_names[index]}" true
+  # A successful provider exit is not sufficient evidence. npmjs can require
+  # minutes to expose an immutable write, so retry only read-back evidence—not
+  # publish—before granting the next dependent package a chance to publish.
+  wait_for_published_registry_convergence "${index}"
 done
 
 # Retain an all-five final read-back so later registry inconsistency is caught.

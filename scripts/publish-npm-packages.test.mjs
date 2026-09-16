@@ -77,7 +77,13 @@ if (args[0] === "view") {
     pkg.exactReads = (pkg.exactReads || 0) + 1;
     if (pkg.failExactReadAt === pkg.exactReads || pkg.target === "error") fail(state.hostileOutput);
     if (pkg.target === "absent") fail("npm error code E404\nnpm error 404 Not Found");
-    process.stdout.write(JSON.stringify({ version: state.version, dist: { integrity: pkg.remoteIntegrity, tarball: pkg.remoteTarball } }));
+    if (pkg.publishedThisRun) {
+      pkg.postPublishExactReads = (pkg.postPublishExactReads || 0) + 1;
+      if (pkg.postPublishExactReads <= pkg.visibilityDelayReads)
+        fail("npm error code E404\nnpm error 404 Not Found");
+      state.nowSeconds += pkg.postPublishExactReadAdvanceSeconds;
+    }
+    process.stdout.write(pkg.malformedMetadata ? "{bad-json" : JSON.stringify({ version: state.version, dist: { integrity: pkg.remoteIntegrity, tarball: pkg.remoteTarball } }));
     save();
     process.exit(0);
   }
@@ -89,6 +95,11 @@ if (args[0] === "view") {
     process.stdout.write(JSON.stringify(spec));
   } else if (args[2] === "dist-tags") {
     if (pkg.tagsError) fail(state.hostileOutput);
+    if (pkg.publishedThisRun && pkg.tagDelayReads > 0) {
+      pkg.postPublishTagReads = (pkg.postPublishTagReads || 0) + 1;
+      if (pkg.postPublishTagReads > pkg.tagDelayReads)
+        pkg.tags[state.npmTag] = state.version;
+    }
     process.stdout.write(pkg.malformedTags ? "{bad-json" : JSON.stringify(pkg.tags));
   } else fail("unsupported view");
   save();
@@ -105,9 +116,11 @@ if (args[0] === "publish") {
   if (args.length !== expected.length || args.some((arg, index) => arg !== expected[index])) fail("incorrect publish arguments");
   if (state.failPublish === name) fail(state.hostileOutput);
   pkg.target = "present";
+  pkg.publishedThisRun = true;
   pkg.remoteIntegrity = pkg.corruptAfterPublish ? pkg.corruptIntegrity : pkg.localIntegrity;
   pkg.remoteTarball = pkg.corruptAfterPublish ? pkg.corruptTarball : pathToFileURL(tarball).href;
-  pkg.tags[state.npmTag] = pkg.wrongTagAfterPublish ? "0.0.0-wrong" : state.version;
+  if (pkg.wrongTagAfterPublish) pkg.tags[state.npmTag] = "0.0.0-wrong";
+  else if (pkg.tagDelayReads === 0) pkg.tags[state.npmTag] = state.version;
   save();
   if (state.lostResponse === name) { process.stderr.write(state.hostileOutput); process.exit(42); }
   process.exit(0);
@@ -133,6 +146,25 @@ const output = args[args.indexOf("--output") + 1];
 const url = args.find((arg) => arg.startsWith("file:"));
 if (!url || !output) process.exit(2);
 fs.copyFileSync(fileURLToPath(url), output);
+`;
+
+const fakeDate = String.raw`#!/usr/bin/env node
+const fs = require("node:fs");
+const statePath = require("node:path").join(__dirname, "..", "state.json");
+const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
+if (process.argv[2] !== "+%s") process.exit(2);
+process.stdout.write(String(state.nowSeconds));
+`;
+
+const fakeSleep = String.raw`#!/usr/bin/env node
+const fs = require("node:fs");
+const statePath = require("node:path").join(__dirname, "..", "state.json");
+const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
+const seconds = Number(process.argv[2]);
+if (!Number.isSafeInteger(seconds) || seconds < 0) process.exit(2);
+state.nowSeconds += seconds;
+state.sleeps.push(seconds);
+fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
 `;
 
 function tarballName(name) {
@@ -181,6 +213,9 @@ function setup({
   tags = {},
   corruptAfterPublish = [],
   wrongTagAfterPublish = [],
+  visibilityDelayReads = {},
+  tagDelayReads = {},
+  postPublishExactReadAdvanceSeconds = {},
   npmTag = defaultNpmTag,
   npmVersion = "11.5.1\n",
   manifestOverrides = {},
@@ -194,6 +229,8 @@ function setup({
     ["npm", fakeNpm],
     ["pnpm", fakePnpm],
     ["curl", fakeCurl],
+    ["date", fakeDate],
+    ["sleep", fakeSleep],
   ]) {
     fs.writeFileSync(path.join(bin, name), contents, { mode: 0o755 });
   }
@@ -217,6 +254,10 @@ function setup({
       corruptTarball: pathToFileURL(corruptTarball).href,
       corruptAfterPublish: corruptAfterPublish.includes(name),
       wrongTagAfterPublish: wrongTagAfterPublish.includes(name),
+      visibilityDelayReads: visibilityDelayReads[name] ?? 0,
+      tagDelayReads: tagDelayReads[name] ?? 0,
+      postPublishExactReadAdvanceSeconds:
+        postPublishExactReadAdvanceSeconds[name] ?? 0,
     };
   }
   const statePath = path.join(root, "state.json");
@@ -226,6 +267,8 @@ function setup({
     npmTag,
     hostileOutput,
     npmVersion,
+    nowSeconds: 1_000,
+    sleeps: [],
     calls: [],
     packages,
   };
@@ -549,6 +592,25 @@ test("partial recovery publishes only missing packages when every existing paylo
   }
 });
 
+test("existing Jubjub with four absent resumes in order without a duplicate publish", () => {
+  const fixture = setup(matchingPresent([packageNames[0]], "rc"));
+  try {
+    const result = run(fixture);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      packageNames.slice(1),
+    );
+    assert.match(
+      result.stdout,
+      /midnight-did-jubjub-schnorr@0\.6\.0 already matches payload and tag; skipping publish/u,
+    );
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
 test("existing payload mismatch fails before any mutation", () => {
   const fixture = setup(matchingPresent([packageNames[1]]));
   try {
@@ -580,6 +642,7 @@ test("missing or wrong requested tag on an existing version fails before publica
         const result = run(fixture);
         assert.notEqual(result.status, 0);
         assert.deepEqual(publishCalls(result.state), []);
+        assert.deepEqual(result.state.sleeps, []);
         assertNoAdministration(result.state);
       } finally {
         cleanup(fixture);
@@ -640,6 +703,13 @@ test("publish failure stops immediately, invokes no later package, and suppresse
       publishCalls(result.state).map(({ packageName }) => packageName),
       packageNames.slice(0, 3),
     );
+    assert.equal(
+      publishCalls(result.state).filter(
+        ({ packageName }) => packageName === packageNames[2],
+      ).length,
+      1,
+    );
+    assert.deepEqual(result.state.sleeps, []);
     assert.doesNotMatch(`${result.stdout}${result.stderr}`, /must-not-leak/u);
     assertNoAdministration(result.state);
   } finally {
@@ -658,6 +728,13 @@ test("retry recognizes a publish that succeeded despite a lost response and cont
       publishCalls(first.state).map(({ packageName }) => packageName),
       packageNames.slice(0, 2),
     );
+    assert.equal(
+      publishCalls(first.state).filter(
+        ({ packageName }) => packageName === packageNames[1],
+      ).length,
+      1,
+    );
+    assert.deepEqual(first.state.sleeps, []);
 
     fixture.state = first.state;
     fixture.state.calls = [];
@@ -675,25 +752,180 @@ test("retry recognizes a publish that succeeded despite a lost response and cont
   }
 });
 
-test("corrupt payload or wrong tag on the first successful publish blocks every dependent package", async (t) => {
-  for (const [label, options] of [
-    ["payload", { corruptAfterPublish: [packageNames[0]] }],
-    ["tag", { wrongTagAfterPublish: [packageNames[0]] }],
-  ]) {
-    await t.test(label, () => {
-      const fixture = setup(options);
-      try {
-        const result = run(fixture);
-        assert.notEqual(result.status, 0);
-        assert.deepEqual(
-          publishCalls(result.state).map(({ packageName }) => packageName),
-          [packageNames[0]],
-        );
-        assertNoAdministration(result.state);
-      } finally {
-        cleanup(fixture);
-      }
-    });
+test("post-publish exact-version visibility converges without republishing", () => {
+  const fixture = setup({
+    visibilityDelayReads: { [packageNames[0]]: 3 },
+  });
+  try {
+    const result = run(fixture);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      packageNames,
+    );
+    assert.equal(
+      publishCalls(result.state).filter(
+        ({ packageName }) => packageName === packageNames[0],
+      ).length,
+      1,
+    );
+    assert.deepEqual(result.state.sleeps, [30, 30, 30]);
+    assert.match(result.stdout, /exact version metadata to converge/u);
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("post-publish requested tag converges without republishing", () => {
+  const fixture = setup({
+    tagDelayReads: { [packageNames[0]]: 2 },
+  });
+  try {
+    const result = run(fixture);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      packageNames,
+    );
+    assert.equal(
+      publishCalls(result.state).filter(
+        ({ packageName }) => packageName === packageNames[0],
+      ).length,
+      1,
+    );
+    assert.deepEqual(result.state.sleeps, [30, 30]);
+    assert.match(result.stdout, /requested dist-tag snapshot to converge/u);
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("registry evidence at exactly five minutes is accepted without republishing", () => {
+  const fixture = setup({
+    visibilityDelayReads: { [packageNames[0]]: 10 },
+  });
+  try {
+    const result = run(fixture);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.equal(
+      publishCalls(result.state).filter(
+        ({ packageName }) => packageName === packageNames[0],
+      ).length,
+      1,
+    );
+    assert.equal(result.state.sleeps.length, 10);
+    assert.equal(
+      result.state.sleeps.reduce((sum, value) => sum + value, 0),
+      300,
+    );
+    assert.match(result.stdout, /converged after 300 seconds/u);
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("registry evidence after five minutes fails closed without republishing", () => {
+  const fixture = setup({
+    postPublishExactReadAdvanceSeconds: { [packageNames[0]]: 301 },
+  });
+  try {
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      [packageNames[0]],
+    );
+    assert.deepEqual(result.state.sleeps, []);
+    assert.match(
+      result.stderr,
+      /evidence arrived after the 300-second convergence deadline/u,
+    );
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("registry convergence timeout publishes no dependent package", () => {
+  const fixture = setup({
+    visibilityDelayReads: { [packageNames[0]]: 100 },
+  });
+  try {
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      [packageNames[0]],
+    );
+    assert.equal(
+      result.state.sleeps.reduce((sum, value) => sum + value, 0),
+      300,
+    );
+    assert.match(result.stderr, /Timed out after 300 seconds/u);
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("confirmed post-publish payload mismatch fails immediately with no dependent publish", () => {
+  const fixture = setup({ corruptAfterPublish: [packageNames[0]] });
+  try {
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      [packageNames[0]],
+    );
+    assert.deepEqual(result.state.sleeps, []);
+    assert.match(
+      result.stderr,
+      /payload differs from the expected packed identity/u,
+    );
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("malformed post-publish metadata fails immediately with no dependent publish", () => {
+  const fixture = setup();
+  try {
+    fixture.state.packages[packageNames[0]].malformedMetadata = true;
+    persist(fixture);
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      [packageNames[0]],
+    );
+    assert.deepEqual(result.state.sleeps, []);
+    assert.doesNotMatch(`${result.stdout}${result.stderr}`, /\{bad-json/u);
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("wrong tag on the first successful publish times out before every dependent package", () => {
+  const fixture = setup({ wrongTagAfterPublish: [packageNames[0]] });
+  try {
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      [packageNames[0]],
+    );
+    assert.equal(
+      result.state.sleeps.reduce((sum, value) => sum + value, 0),
+      300,
+    );
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
   }
 });
 
@@ -846,6 +1078,12 @@ test("publisher has one bounded npm publish call site and bounded tarball downlo
   );
   assert.match(source, /verify_npm_version_at_publication_boundary/u);
   assert.match(source, /trusted_publishing_minimum_npm_version="11\.5\.1"/u);
+  assert.match(source, /registry_convergence_deadline_seconds="300"/u);
+  assert.match(source, /registry_convergence_poll_seconds="30"/u);
+  assert.match(
+    source,
+    /wait_for_published_registry_convergence "\$\{index\}"/u,
+  );
   assert.match(source, /run_bounded_npm[\s\S]*publish/u);
   assert.match(source, /--connect-timeout/u);
   assert.match(source, /--max-time/u);

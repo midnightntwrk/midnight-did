@@ -410,9 +410,13 @@ alternate credentials, runtime injection, and registry redirects, rechecks the
 npm minimum at the publication boundary, publishes prepacked tarballs with a
 narrowly allowlisted environment, disabled lifecycle scripts, provenance, and
 public access, and never runs
-npm access or dist-tag mutations. Existing exact versions are recoverable only
-when their immutable payload and requested tag already match; tag/access repair
-belongs to a separately authorized npm-administration process.
+npm access or dist-tag mutations. After a successful `npm publish`, exact-version
+metadata and the requested dist-tag are allowed up to five minutes to converge,
+with read-only checks every 30 seconds; the mutation itself is never retried and
+the next dependent package remains blocked until immutable payload and tag
+verification succeeds. Existing exact versions are recoverable only when their
+immutable payload and requested tag already match; tag/access repair belongs to
+a separately authorized npm-administration process.
 
 The release workflow is on-demand only: pushes and merges never start
 publication. Manual `workflow_dispatch` runs may publish snapshot versions only
@@ -423,9 +427,12 @@ distributed as a separate validated archive with the provider layout
 `keys/*.prover`, `keys/*.verifier`, and `zkir/*.bzkir`; do not rely on package
 consumers to discover proving keys by walking arbitrary generated directories.
 Publish CI smoke-tests the exact package version from npmjs and fetches
-pulled/downloaded ZK bundles through `FetchZkConfigProvider`. Reruns skip npm
+pulled/downloaded ZK bundles through `FetchZkConfigProvider`. After a partial
+release, rerun the same channel, base version, and RC index from an allowed
+branch revision whose packed package payloads are unchanged: reruns skip npm
 packages only when the exact immutable payload and requested dist-tag already
-match.
+match, then publish the still-absent packages in dependency order. Do not create
+a replacement version or repair tags through the normal workflow.
 
 GHCR publication uses ORAS because the ZK bundle is a generic OCI artifact
 rather than a container image or npm package. The publish workflow installs the
