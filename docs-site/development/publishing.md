@@ -121,6 +121,15 @@ rejects an environment variable containing NUL before the resolver can run. The
 same stable-SemVer rule rejects every representable control character before any
 GitHub output record is written.
 
+For RC and final releases, the finalizer extracts the body beneath exactly one
+Keep-a-Changelog heading matching the stable base version, for example
+`## [0.6.0] - Unreleased` or a valid dated heading. Extraction is dependency-free
+and fails before the privileged boundary for a missing, duplicate, empty, or
+malformed section, an unexpected level-two boundary, an invalid version, or an
+unsafe output path. The privileged publisher receives the generated file only
+through `--notes-file`; it does not construct notes from event text or shell
+arguments.
+
 The workflow revalidates the event, exact full source ref, branch ref type,
 channel, base version, resolved version, and RC index immediately before signing
 or publishing. Snapshots require `refs/heads/develop`; RCs allow
@@ -253,17 +262,21 @@ safe reruns after partial failure:
   confirming that it already owns the requested dist-tag;
 - GHCR preserves an existing version tag, pulls it back, and verifies the bundle
   payload and manifest instead of overwriting it;
-- GitHub Release assets are immutable: existing payloads are verified, missing
-  assets are uploaded, and existing signatures are preserved;
+- GitHub Release bodies and assets are immutable: initial creation uses the
+  reviewed generated changelog notes and complete asset set; a rerun requires
+  the existing body and every expected asset to match and never edits the body
+  or uploads into the existing release;
 - SLSA subjects are calculated from the assets actually present in the GitHub
   Release, so reruns cannot attest newly generated files that were not uploaded;
 - ZK archives use a reproducible timestamp, ordering, ownership, and gzip header
   so equivalent builds produce the same payload.
 
-A remote artifact with a different payload fails closed rather than being
-replaced. RC and final releases receive their SLSA provenance before the
-immutable GitHub Release is created, and all release assets are supplied in the
-initial creation request. The reusable SLSA workflow is pinned to an exact
+A remote artifact or release body with different content, or an existing
+release missing an expected asset, fails closed rather than being replaced or
+repaired. GitHub CLI provider output is bounded and suppressed on failure. RC
+and final releases receive their SLSA provenance before the immutable GitHub
+Release is created, and the reviewed notes file plus all release assets are
+supplied in the initial creation request. The reusable SLSA workflow is pinned to an exact
 commit and compiles its generator from that pinned source; release-binary mode
 is not used because it requires the reusable workflow reference to be a version
 tag rather than the repository's required immutable commit pin. This keeps a

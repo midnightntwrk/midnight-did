@@ -584,6 +584,10 @@ jobs:
           if [[ "${PROVENANCE_PRESENT}" != "true" ]]; then
             provenance_file="$(find dist/release/provenance -maxdepth 1 -type f -name '*.intoto.jsonl' -print -quit)"
           fi
+          notes_file="dist/release/github-release-notes.md"
+          node scripts/extract-changelog-section.mjs \
+            --version "${BASE_VERSION}" \
+            --output-file "${notes_file}"
           ./scripts/release-validate-context.sh
           ARCHIVE="${archive}" \
           ARCHIVE_NAME="$(basename "${archive}")" \
@@ -592,7 +596,7 @@ jobs:
           NPM_ASSETS_DIR=dist/release/npm \
           SIGNATURE_ASSETS_DIR=dist/release/signatures \
           PROVENANCE_FILE="${provenance_file}" \
-          ./scripts/publish-github-release-assets.sh
+          ./scripts/publish-github-release-assets.sh --notes-file "${notes_file}"
 
   verify-github-release-provenance:
     name: Verify GitHub Release provenance asset

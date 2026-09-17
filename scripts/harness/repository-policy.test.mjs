@@ -1111,12 +1111,41 @@ test("revalidates release context at every privileged publication boundary", asy
     ),
   );
 
+  const finalizeStep = workflow.jobs["finalize-github-release"].steps.find(
+    ({ name }) => name === "Publish and verify GitHub Release assets",
+  );
   assertPrivilegedReleaseBoundary(
-    workflow.jobs["finalize-github-release"].steps.find(
-      ({ name }) => name === "Publish and verify GitHub Release assets",
-    ),
+    finalizeStep,
     "./scripts/publish-github-release-assets.sh",
   );
+  const extractionIndex = finalizeStep.run.indexOf(
+    "node scripts/extract-changelog-section.mjs",
+  );
+  const finalValidationIndex = finalizeStep.run.indexOf(
+    "./scripts/release-validate-context.sh",
+  );
+  assert.ok(
+    extractionIndex >= 0 && extractionIndex < finalValidationIndex,
+    "reviewed changelog notes must be generated before privileged context validation",
+  );
+  assert.match(
+    finalizeStep.run,
+    /extract-changelog-section\.mjs[\s\\]*\n\s*--version "\$\{BASE_VERSION\}"[\s\\]*\n\s*--output-file "\$\{notes_file\}"/u,
+  );
+  assert.match(
+    finalizeStep.run,
+    /publish-github-release-assets\.sh --notes-file "\$\{notes_file\}"/u,
+  );
+});
+
+test("keeps GitHub Release notes and assets immutable across reruns", async () => {
+  const publisher = await text("scripts/publish-github-release-assets.sh");
+  assert.match(publisher, /--notes-file/u);
+  assert.match(publisher, /--json isDraft,isPrerelease,assets,body/u);
+  assert.match(publisher, /verify-github-release-state\.mjs/u);
+  assert.match(publisher, /scripts\/run-bounded-command\.mjs/u);
+  assert.doesNotMatch(publisher, /--notes(?:\s|$)/u);
+  assert.doesNotMatch(publisher, /gh\s+release\s+(?:edit|upload)/u);
 });
 
 function compareVersions(left, right) {
