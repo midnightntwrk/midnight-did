@@ -150,16 +150,28 @@ nix develop --command node scripts/harness/diagnose.mjs --repo midnightntwrk/mid
 
 The repository diagnostic independently validates the pinned 0.9.0 schema because that version's CLI doctor can report a false clean result when configuration loading falls back. The diagnostic reports that known upstream gap but never turns a real schema, package, worktree, review-readiness, or runtime-path failure into success.
 
-The diagnostic also resolves the full checkpoint helper from the pinned
-project-local package, syntax-checks it, and probes its CLI help contract under
-a bounded timeout that terminates the process group. With an explicit PR target,
-it runs a bounded, read-only `gh pr view` probe for the exact pull-request fields
-used by the helper's gate-coordination runtime. `gh --jq` projects that response
-to fixed-size own-key booleans before capture, so author-controlled body,
-review, file, and status data is neither parsed by the diagnostic nor truncated
-into invalid JSON. Every required field must be present. Inspect the helper's
-authoritative command contract at that bounded path before considering the
-fallback:
+The diagnostic also resolves the full checkpoint helper from the exact pinned
+project-local package, syntax-checks it, and requires its `--help` output to
+advertise the complete required verdict, findings, target, gate, and execution
+contract. With an explicit PR target, it runs a bounded, read-only `gh pr view`
+probe for the exact pull-request fields used by the helper's gate-coordination
+runtime. `gh --jq` projects that response to fixed-size own-key booleans before
+capture, so author-controlled body, review, file, and status data is neither
+parsed by the diagnostic nor truncated into invalid JSON. Every required field
+must be present.
+
+Executed probes redirect stdout and stderr to private temporary regular files
+and close the diagnostic process's file descriptors immediately after spawn.
+Completion therefore follows the direct child rather than inherited-pipe
+closure, and captured output is read and removed under a byte bound. Timeout or
+output-limit failures trigger a POSIX process-group kill and only a short,
+bounded settle wait; timeout, output-limit, spawn-error, and signal states all
+fail closed. This does not claim that arbitrary descendants are eradicated: a
+detached process can escape its former process group and fixture or caller
+owners must clean up processes they intentionally create. The trust boundary is
+the exact package pin plus bounded probe completion, not discovery or control of
+unknown descendants. Inspect the helper's authoritative command contract at
+that bounded path before considering the fallback:
 
 ```sh
 nix develop --command node .pi/npm/node_modules/dev-loops/scripts/github/upsert-checkpoint-verdict.mjs --help

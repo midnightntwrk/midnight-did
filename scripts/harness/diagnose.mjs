@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
-import { constants } from "node:fs";
-import { access, readFile } from "node:fs/promises";
+import { constants, statSync } from "node:fs";
+import { access, mkdtemp, open, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -41,9 +41,25 @@ const FULL_GATE_HELPER_REQUIRED_PR_FIELDS = [
 const FULL_GATE_HELPER_FIELD_EVIDENCE_JQ = `{${FULL_GATE_HELPER_REQUIRED_PR_FIELDS.map(
   (field) => `${JSON.stringify(field)}: has(${JSON.stringify(field)})`,
 ).join(", ")}}`;
+const FULL_GATE_HELPER_REQUIRED_CLI_FLAGS = [
+  "--repo",
+  "--pr",
+  "--head-sha",
+  "--verdict",
+  "--findings-summary",
+  "--findings-file",
+  "--findings-json",
+  "--next-action",
+  "--gate",
+  "--findings-severity-counts",
+  "--execution-mode",
+  "--inline-reason",
+];
 const GH_CAPABILITY_PROBE_TIMEOUT_MS = 10_000;
 const FULL_GATE_HELPER_HELP_TIMEOUT_MS = 5_000;
 const MAX_CAPTURED_COMMAND_OUTPUT_BYTES = 16 * 1024;
+const COMMAND_SETTLE_TIMEOUT_MS = 250;
+const OUTPUT_SIZE_POLL_INTERVAL_MS = 10;
 
 function usage() {
   return "Usage: diagnose.mjs [--repo-root <path>] [--repo <owner/name> --pr <number>] [--json]\n";
@@ -94,7 +110,19 @@ function terminateProcessTree(child) {
   child.kill("SIGKILL");
 }
 
-export function run(
+async function readBoundedFile(file, maxBytes) {
+  if (maxBytes === 0) return "";
+  const handle = await open(file, "r");
+  try {
+    const buffer = Buffer.alloc(maxBytes);
+    const { bytesRead } = await handle.read(buffer, 0, maxBytes, 0);
+    return buffer.subarray(0, bytesRead).toString("utf8");
+  } finally {
+    await handle.close();
+  }
+}
+
+export async function run(
   command,
   args,
   {
@@ -102,60 +130,165 @@ export function run(
     env = process.env,
     timeoutMs = null,
     maxOutputBytes = MAX_CAPTURED_COMMAND_OUTPUT_BYTES,
+    settleTimeoutMs = COMMAND_SETTLE_TIMEOUT_MS,
   } = {},
 ) {
-  return new Promise((resolve) => {
-    const child = spawn(command, args, {
+  const outputLimit =
+    Number.isInteger(maxOutputBytes) && maxOutputBytes >= 0
+      ? maxOutputBytes
+      : MAX_CAPTURED_COMMAND_OUTPUT_BYTES;
+  const setupFailure = (error) => ({
+    ok: false,
+    code: null,
+    error: error.message,
+    stdout: "",
+    stderr: "",
+    timedOut: false,
+    outputLimited: false,
+  });
+  let outputDirectory;
+  try {
+    outputDirectory = await mkdtemp(
+      path.join(os.tmpdir(), "midnight-did-command-output-"),
+    );
+  } catch (error) {
+    return setupFailure(error);
+  }
+  const stdoutPath = path.join(outputDirectory, "stdout");
+  const stderrPath = path.join(outputDirectory, "stderr");
+  let stdoutHandle;
+  let stderrHandle;
+  try {
+    stdoutHandle = await open(stdoutPath, "w", 0o600);
+    stderrHandle = await open(stderrPath, "w", 0o600);
+  } catch (error) {
+    await Promise.allSettled([stdoutHandle?.close(), stderrHandle?.close()]);
+    await rm(outputDirectory, { recursive: true, force: true }).catch(() => {});
+    return setupFailure(error);
+  }
+  let child;
+  try {
+    child = spawn(command, args, {
       cwd,
       env,
       detached: process.platform !== "win32",
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["ignore", stdoutHandle.fd, stderrHandle.fd],
     });
-    const captures = {
-      stdout: { chunks: [], bytes: 0 },
-      stderr: { chunks: [], bytes: 0 },
-    };
+  } catch (error) {
+    await Promise.allSettled([stdoutHandle.close(), stderrHandle.close()]);
+    await rm(outputDirectory, { recursive: true, force: true }).catch(() => {});
+    return setupFailure(error);
+  }
+
+  // The child owns duplicated regular-file descriptors after spawn. Closing the
+  // parent's copies immediately means descendant descriptor lifetime cannot hold
+  // completion open as inherited pipes can.
+  const parentHandlesClosed = Promise.allSettled([
+    stdoutHandle.close(),
+    stderrHandle.close(),
+  ]);
+
+  return new Promise((resolve) => {
     let timedOut = false;
+    let outputLimited = false;
     let settled = false;
-    const appendBounded = (capture, chunk) => {
-      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-      const remaining = Math.max(0, maxOutputBytes - capture.bytes);
-      if (remaining === 0) return;
-      const bounded = buffer.subarray(0, remaining);
-      capture.chunks.push(bounded);
-      capture.bytes += bounded.length;
+    let settleTimer = null;
+    let timeoutTimer = null;
+    let outputTimer = null;
+
+    const outputSize = (file) => {
+      try {
+        return statSync(file).size;
+      } catch {
+        return 0;
+      }
     };
-    const output = (capture) => Buffer.concat(capture.chunks).toString("utf8");
-    const timer =
-      Number.isInteger(timeoutMs) && timeoutMs >= 0
-        ? setTimeout(() => {
-            timedOut = true;
-            terminateProcessTree(child);
-          }, timeoutMs)
-        : null;
-    const finish = (result) => {
+    const terminate = (reason) => {
+      if (settled) return;
+      if (reason === "timeout") timedOut = true;
+      if (reason === "output-limit") outputLimited = true;
+      terminateProcessTree(child);
+      if (settleTimer == null) {
+        settleTimer = setTimeout(() => {
+          child.unref();
+          void finish({ code: child.exitCode, signal: child.signalCode });
+        }, settleTimeoutMs);
+      }
+    };
+    const finish = async ({ code, signal, error }) => {
       if (settled) return;
       settled = true;
-      if (timer) clearTimeout(timer);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      if (outputTimer) clearInterval(outputTimer);
+      if (settleTimer) clearTimeout(settleTimer);
+      const closeResults = await parentHandlesClosed;
+      let completionError = error ?? null;
+      const closeFailure = closeResults.find(
+        ({ status }) => status === "rejected",
+      );
+      if (completionError == null && closeFailure?.status === "rejected")
+        completionError = `failed to close command output: ${closeFailure.reason}`;
+
+      outputLimited =
+        outputLimited ||
+        outputSize(stdoutPath) > outputLimit ||
+        outputSize(stderrPath) > outputLimit;
+      let stdout = "";
+      let stderr = "";
+      try {
+        [stdout, stderr] = await Promise.all([
+          readBoundedFile(stdoutPath, outputLimit),
+          readBoundedFile(stderrPath, outputLimit),
+        ]);
+      } catch (captureError) {
+        completionError ??= `failed to read command output: ${captureError.message}`;
+      }
+      try {
+        await rm(outputDirectory, { recursive: true, force: true });
+      } catch (cleanupError) {
+        completionError ??= `failed to clean up command output: ${cleanupError.message}`;
+      }
+      const ok =
+        code === 0 &&
+        signal == null &&
+        completionError == null &&
+        !timedOut &&
+        !outputLimited;
       resolve({
-        ...result,
-        stdout: output(captures.stdout),
-        stderr: output(captures.stderr),
+        ok,
+        code,
+        ...(signal != null ? { signal } : {}),
+        ...(completionError != null ? { error: completionError } : {}),
+        stdout,
+        stderr,
         timedOut,
+        outputLimited,
       });
     };
-    child.stdout.on("data", (chunk) => {
-      appendBounded(captures.stdout, chunk);
-    });
-    child.stderr.on("data", (chunk) => {
-      appendBounded(captures.stderr, chunk);
-    });
-    child.on("error", (error) =>
-      finish({ ok: false, code: null, error: error.message }),
+
+    child.once(
+      "error",
+      (error) =>
+        void finish({ code: null, signal: null, error: error.message }),
     );
-    child.on("close", (code, signal) =>
-      finish({ ok: code === 0, code, signal }),
-    );
+    child.once("exit", (code, signal) => void finish({ code, signal }));
+
+    outputTimer = setInterval(() => {
+      if (
+        outputSize(stdoutPath) > outputLimit ||
+        outputSize(stderrPath) > outputLimit
+      )
+        terminate("output-limit");
+    }, OUTPUT_SIZE_POLL_INTERVAL_MS);
+    if (Number.isInteger(timeoutMs) && timeoutMs >= 0) {
+      timeoutTimer = setTimeout(() => {
+        if (child.exitCode !== null || child.signalCode !== null) {
+          void finish({ code: child.exitCode, signal: child.signalCode });
+          return;
+        }
+        terminate("timeout");
+      }, timeoutMs);
+    }
   });
 }
 
@@ -211,7 +344,13 @@ export async function probeFullGateHelperRuntime({
       maxOutputBytes,
     },
   );
-  if (!probe.ok) {
+  if (
+    !probe.ok ||
+    probe.timedOut ||
+    probe.outputLimited ||
+    probe.error != null ||
+    probe.signal != null
+  ) {
     if (/unknown json field/i.test(probe.stderr ?? "")) {
       return {
         ok: false,
@@ -225,7 +364,9 @@ export async function probeFullGateHelperRuntime({
       status: "unavailable",
       reason: probe.timedOut
         ? "gh runtime capability probe timed out"
-        : "gh runtime capability probe is unavailable for the current pull request",
+        : probe.outputLimited
+          ? "gh runtime capability probe exceeded its output limit"
+          : "gh runtime capability probe is unavailable for the current pull request",
     };
   }
   try {
@@ -344,16 +485,30 @@ export async function inspectFullGateHelper({
     timeoutMs: helpProbeTimeoutMs,
     maxOutputBytes,
   });
+  const helpContractReady =
+    helpProbe.stdout.includes("Usage: upsert-checkpoint-verdict.mjs") &&
+    helpProbe.stdout.includes("clean|findings_present|blocked") &&
+    helpProbe.stdout.includes("draft_gate|pre_approval_gate") &&
+    helpProbe.stdout.includes("fanout_fanin|inline_single_agent") &&
+    FULL_GATE_HELPER_REQUIRED_CLI_FLAGS.every((flag) =>
+      helpProbe.stdout.includes(flag),
+    );
   if (
     !helpProbe.ok ||
-    !helpProbe.stdout.includes("Usage: upsert-checkpoint-verdict.mjs")
+    helpProbe.timedOut ||
+    helpProbe.outputLimited ||
+    helpProbe.error != null ||
+    helpProbe.signal != null ||
+    !helpContractReady
   ) {
     return {
       ...result,
       status: "fallback-only",
       reason: helpProbe.timedOut
         ? "full helper CLI help probe timed out"
-        : "full helper failed its CLI help probe",
+        : helpProbe.outputLimited
+          ? "full helper CLI help probe exceeded its output limit"
+          : "full helper failed its complete CLI help contract probe",
     };
   }
   if (runtimeTarget == null) {

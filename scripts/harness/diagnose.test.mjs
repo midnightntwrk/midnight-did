@@ -34,6 +34,12 @@ const completeFieldEvidence = (overrides = {}) => ({
   ...overrides,
 });
 
+const COMPLETE_HELP_TEXT = `Usage: upsert-checkpoint-verdict.mjs --repo <owner/name> --pr <number> --head-sha <sha> --verdict <clean|findings_present|blocked> (--findings-summary <text> | --findings-file <path> | --findings-json <path>) --next-action <text> [--gate <draft_gate|pre_approval_gate>]
+Required: --repo --pr --head-sha --verdict --findings-summary --findings-file --findings-json --next-action
+Optional: --gate --findings-severity-counts --execution-mode <fanout_fanin|inline_single_agent> --inline-reason
+`;
+const completeHelperSource = `process.stdout.write(${JSON.stringify(COMPLETE_HELP_TEXT)});\n`;
+
 const readyRuntimeProbe = async () => ({
   ok: true,
   status: "ready",
@@ -68,6 +74,23 @@ async function createExecutableFixture(t, name, source) {
   const executable = path.join(fixtureRoot, name);
   await writeFile(executable, source, { mode: 0o755 });
   return { fixtureRoot, executable };
+}
+
+function registerPidFileCleanup(t, pidFile) {
+  t.after(async () => {
+    let pid;
+    try {
+      pid = Number.parseInt(await readFile(pidFile, "utf8"), 10);
+    } catch {
+      return;
+    }
+    if (!Number.isSafeInteger(pid)) return;
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch (error) {
+      if (error.code !== "ESRCH") throw error;
+    }
+  });
 }
 
 test("parses pinned scoped and unscoped npm package specifications", () => {
@@ -128,8 +151,7 @@ test("keeps the reviewed stable Pi package pins exact", async () => {
 
 test("reports the package-local full gate helper as ready", async (t) => {
   const packageRoot = await createDevLoopsFixture(t, {
-    helperSource:
-      'process.stdout.write("Usage: upsert-checkpoint-verdict.mjs\\n");\n',
+    helperSource: completeHelperSource,
   });
 
   const result = await inspectFullGateHelper({
@@ -155,8 +177,7 @@ test("reports the package-local full gate helper as ready", async (t) => {
 
 test("reports package readiness without blocking issue intake on a missing PR", async (t) => {
   const packageRoot = await createDevLoopsFixture(t, {
-    helperSource:
-      'process.stdout.write("Usage: upsert-checkpoint-verdict.mjs\\n");\n',
+    helperSource: completeHelperSource,
   });
   let runtimeProbeCalled = false;
 
@@ -177,8 +198,7 @@ test("reports package readiness without blocking issue intake on a missing PR", 
 
 test("reports an unsupported gh runtime surface as fallback only", async (t) => {
   const packageRoot = await createDevLoopsFixture(t, {
-    helperSource:
-      'process.stdout.write("Usage: upsert-checkpoint-verdict.mjs\\n");\n',
+    helperSource: completeHelperSource,
   });
   const result = await inspectFullGateHelper({
     packageRoot,
@@ -210,8 +230,7 @@ test("reports an unsupported gh runtime surface as fallback only", async (t) => 
 
 test("reports unavailable gh runtime capability as fallback only", async (t) => {
   const packageRoot = await createDevLoopsFixture(t, {
-    helperSource:
-      'process.stdout.write("Usage: upsert-checkpoint-verdict.mjs\\n");\n',
+    helperSource: completeHelperSource,
   });
   const result = await inspectFullGateHelper({
     packageRoot,
@@ -286,6 +305,28 @@ test("runtime capability probe suppresses unsupported-field provider output", as
   assert.doesNotMatch(JSON.stringify(result), /provider/);
 });
 
+test("runtime capability probe rejects an internally inconsistent timed-out success", async () => {
+  const result = await probeFullGateHelperRuntime({
+    cwd: "/deterministic/repository-fixture",
+    repo: "midnightntwrk/midnight-did",
+    pr: "482",
+    runCommand: async () => ({
+      ok: true,
+      code: 0,
+      stdout: JSON.stringify(completeFieldEvidence()),
+      stderr: "",
+      timedOut: true,
+      outputLimited: false,
+    }),
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    status: "unavailable",
+    reason: "gh runtime capability probe timed out",
+  });
+});
+
 test("runtime capability probe fails closed when a non-closing field is missing", async () => {
   const result = await probeFullGateHelperRuntime({
     cwd: "/deterministic/repository-fixture",
@@ -337,6 +378,82 @@ else process.stdout.write(JSON.stringify(Object.fromEntries(fields.map((field) =
 });
 
 test(
+  "real command runner returns promptly when an exited parent leaves a same-group child on inherited stdio",
+  { skip: process.platform === "win32" },
+  async (t) => {
+    const { fixtureRoot } = await createExecutableFixture(
+      t,
+      "unused.mjs",
+      "process.exit(0);\n",
+    );
+    const pidFile = path.join(fixtureRoot, "same-group-child.pid");
+    registerPidFileCleanup(t, pidFile);
+    const parent = path.join(fixtureRoot, "same-group-parent.mjs");
+    await writeFile(
+      parent,
+      `import { spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
+const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: ["ignore", "inherit", "inherit"] });
+writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));
+process.stdout.write(String(child.pid) + "\\n");
+process.exit(0);
+`,
+    );
+    const startedAt = Date.now();
+
+    const result = await run(process.execPath, [parent], {
+      cwd: fixtureRoot,
+      timeoutMs: 1_000,
+      maxOutputBytes: 128,
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.timedOut, false);
+    assert.equal(result.outputLimited, false);
+    assert.ok(Date.now() - startedAt < 750);
+    assert.ok(Number.isSafeInteger(Number.parseInt(result.stdout, 10)));
+  },
+);
+
+test(
+  "real command runner returns promptly when an exited parent leaves a detached child on inherited stdio",
+  { skip: process.platform === "win32" },
+  async (t) => {
+    const { fixtureRoot } = await createExecutableFixture(
+      t,
+      "unused.mjs",
+      "process.exit(0);\n",
+    );
+    const pidFile = path.join(fixtureRoot, "detached-child.pid");
+    registerPidFileCleanup(t, pidFile);
+    const parent = path.join(fixtureRoot, "detached-parent.mjs");
+    await writeFile(
+      parent,
+      `import { spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
+const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { detached: true, stdio: ["ignore", "inherit", "inherit"] });
+child.unref();
+writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));
+process.stdout.write(String(child.pid) + "\\n");
+`,
+    );
+    const startedAt = Date.now();
+
+    const result = await run(process.execPath, [parent], {
+      cwd: fixtureRoot,
+      timeoutMs: 1_000,
+      maxOutputBytes: 128,
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.timedOut, false);
+    assert.equal(result.outputLimited, false);
+    assert.ok(Date.now() - startedAt < 750);
+    assert.ok(Number.isSafeInteger(Number.parseInt(result.stdout, 10)));
+  },
+);
+
+test(
   "real command runner times out and terminates the descendant process group",
   { skip: process.platform === "win32" },
   async (t) => {
@@ -345,15 +462,20 @@ test(
       "descendant.mjs",
       `setInterval(() => process.stdout.write("descendant-alive\\n"), 1_000);\n`,
     );
+    const pidFile = path.join(fixtureRoot, "timeout-child.pid");
+    registerPidFileCleanup(t, pidFile);
     const parent = path.join(fixtureRoot, "parent.mjs");
     await writeFile(
       parent,
       `import { spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
 const descendant = spawn(process.execPath, [${JSON.stringify(path.join(fixtureRoot, "descendant.mjs"))}], { stdio: ["ignore", "inherit", "inherit"] });
+writeFileSync(${JSON.stringify(pidFile)}, String(descendant.pid));
 process.stdout.write(String(descendant.pid) + "\\n");
 setInterval(() => {}, 1_000);
 `,
     );
+    const startedAt = Date.now();
 
     const result = await run(process.execPath, [parent], {
       cwd: fixtureRoot,
@@ -363,17 +485,14 @@ setInterval(() => {}, 1_000);
 
     assert.equal(result.timedOut, true);
     assert.equal(result.ok, false);
+    assert.equal(result.outputLimited, false);
     assert.equal(result.signal, "SIGKILL");
-    const descendantPid = Number.parseInt(result.stdout, 10);
-    assert.ok(Number.isSafeInteger(descendantPid));
-    assert.throws(
-      () => process.kill(descendantPid, 0),
-      (error) => error.code === "ESRCH",
-    );
+    assert.ok(Date.now() - startedAt < 1_000);
+    assert.ok(Number.isSafeInteger(Number.parseInt(result.stdout, 10)));
   },
 );
 
-test("real command runner bounds oversized stdout and stderr capture", async (t) => {
+test("real command runner fails closed and returns promptly on oversized output", async (t) => {
   const { fixtureRoot, executable } = await createExecutableFixture(
     t,
     "oversized.mjs",
@@ -382,6 +501,7 @@ process.stdout.write("o".repeat(4_096));
 process.stderr.write("e".repeat(4_096));
 `,
   );
+  const startedAt = Date.now();
 
   const result = await run(executable, [], {
     cwd: fixtureRoot,
@@ -389,9 +509,50 @@ process.stderr.write("e".repeat(4_096));
     maxOutputBytes: 64,
   });
 
-  assert.equal(result.ok, true);
+  assert.equal(result.ok, false);
+  assert.equal(result.timedOut, false);
+  assert.equal(result.outputLimited, true);
   assert.equal(result.stdout, "o".repeat(64));
   assert.equal(result.stderr, "e".repeat(64));
+  assert.ok(Date.now() - startedAt < 1_000);
+});
+
+test("real command runner fails closed when the direct child is signaled", async (t) => {
+  const { fixtureRoot, executable } = await createExecutableFixture(
+    t,
+    "signaled.mjs",
+    `#!/usr/bin/env node
+process.kill(process.pid, "SIGTERM");
+`,
+  );
+
+  const result = await run(executable, [], {
+    cwd: fixtureRoot,
+    timeoutMs: 1_000,
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.timedOut, false);
+  assert.equal(result.outputLimited, false);
+  assert.equal(result.signal, "SIGTERM");
+});
+
+test("real command runner reports spawn errors as failure", async (t) => {
+  const fixtureRoot = await mkdtemp(
+    path.join(os.tmpdir(), "midnight-did-command-error-fixture-"),
+  );
+  t.after(() => rm(fixtureRoot, { recursive: true, force: true }));
+
+  const result = await run(path.join(fixtureRoot, "missing-command"), [], {
+    cwd: fixtureRoot,
+    timeoutMs: 1_000,
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, null);
+  assert.equal(result.timedOut, false);
+  assert.equal(result.outputLimited, false);
+  assert.match(result.error, /ENOENT/);
 });
 
 test("reports a missing package-local helper as fallback only", async (t) => {
@@ -422,6 +583,36 @@ test("reports a malformed package-local helper as fallback only", async (t) => {
   assert.match(result.reason, /syntax validation/);
 });
 
+test("rejects a helper fixture that prints only the usage banner", async (t) => {
+  const packageRoot = await createDevLoopsFixture(t, {
+    helperSource:
+      'process.stdout.write("Usage: upsert-checkpoint-verdict.mjs\\n");\n',
+  });
+
+  const result = await inspectFullGateHelper({
+    packageRoot,
+    expectedVersion: "0.9.0",
+  });
+
+  assert.equal(result.status, "fallback-only");
+  assert.match(result.reason, /complete CLI help contract/);
+});
+
+test("rejects helper help that omits one required contract flag", async (t) => {
+  const incompleteHelp = COMPLETE_HELP_TEXT.replaceAll("--head-sha", "");
+  const packageRoot = await createDevLoopsFixture(t, {
+    helperSource: `process.stdout.write(${JSON.stringify(incompleteHelp)});\n`,
+  });
+
+  const result = await inspectFullGateHelper({
+    packageRoot,
+    expectedVersion: "0.9.0",
+  });
+
+  assert.equal(result.status, "fallback-only");
+  assert.match(result.reason, /complete CLI help contract/);
+});
+
 test("reports an invalid helper CLI contract as fallback only", async (t) => {
   const packageRoot = await createDevLoopsFixture(t, {
     helperSource: 'process.stdout.write("not the full helper\\n");\n',
@@ -433,7 +624,7 @@ test("reports an invalid helper CLI contract as fallback only", async (t) => {
   });
 
   assert.equal(result.status, "fallback-only");
-  assert.match(result.reason, /CLI help probe/);
+  assert.match(result.reason, /CLI help contract probe/);
 });
 
 test("times out a hanging package-local helper help probe", async (t) => {
@@ -456,8 +647,7 @@ test("times out a hanging package-local helper help probe", async (t) => {
 
 test("distinguishes a package version failure from fallback-only state", async (t) => {
   const packageRoot = await createDevLoopsFixture(t, {
-    helperSource:
-      'process.stdout.write("Usage: upsert-checkpoint-verdict.mjs\\n");\n',
+    helperSource: completeHelperSource,
     version: "0.8.0",
   });
 

@@ -261,12 +261,17 @@ nix develop --command node scripts/harness/diagnose.mjs
 ```
 
 Once a pull request exists, or before resuming a PR loop, rerun the diagnostic
-with the authoritative target. This second phase exercises the full gate
-helper's complete read-only `gh pr view` field surface. It requests every helper
-field but validates only fixed-size key-presence evidence, never captured PR
-body, review, file, or status content. `fallback-only` is degraded evidence and
-blocks PR resume just like a package failure; a version string alone is not
-readiness evidence:
+with the authoritative target. This second phase exercises the exact pinned full
+gate helper's complete CLI-help contract and read-only `gh pr view` field
+surface. It requests every helper field but validates only fixed-size
+key-presence evidence, never captured PR body, review, file, or status content.
+Probe subprocesses use temporary regular-file output and bounded post-read so
+an inherited descriptor cannot hold completion open; timeout, output-limit,
+spawn-error, and signal states fail closed. POSIX timeout handling kills the
+original process group, but does not claim to eradicate detached descendants.
+The trust boundary is the exact package pin plus bounded completion.
+`fallback-only` is degraded evidence and blocks PR resume just like a package
+failure; a version string alone is not readiness evidence:
 
 ```bash
 nix develop --command node scripts/harness/diagnose.mjs --repo midnightntwrk/midnight-did --pr <n>
