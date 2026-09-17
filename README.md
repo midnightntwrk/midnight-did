@@ -272,9 +272,19 @@ Release CI publishes the same packages to npmjs through npm Trusted Publishing
 manual only: pushes and merges cannot start the workflow. A manual dispatch can
 publish `x.y.z-snapshot.<run>.<sha>` with the `snapshot` npm tag from `develop`,
 `x.y.z-rc{index}` with the `rc` npm tag from `main` or `develop`, and `x.y.z`
-with the `latest` npm tag from `main` only. For example, after all external
-Trusted Publisher and `npm-release` environment prerequisites are confirmed,
-dispatch a later `0.6.0` snapshot with:
+with the `latest` npm tag from `main` only. RC and final GitHub Releases use the
+body beneath the one exact `## [x.y.z] - ...` section in `CHANGELOG.md`; the
+workflow generates that notes file before its privileged context validation.
+The canonical body uses LF line endings and exactly one terminal newline, and
+reruns compare those raw bytes without CRLF normalization. An existing release
+is reusable only when its body and exact canonical asset multiset still match,
+including exactly one `multiple.intoto.jsonl`; duplicates, extras, and missing
+assets fail closed. The workflow never edits the body or uploads a missing
+asset. It downloads that provenance on both creation and reuse, verifies its
+signature and pinned reusable-workflow certificate identity with GitHub's OIDC
+issuer, and then checks its SLSA v0.2 subjects and publication context. For
+example, after all external Trusted Publisher and `npm-release` environment
+prerequisites are confirmed, dispatch a later `0.6.0` snapshot with:
 
 ```bash
 gh workflow run publish.yml --repo midnightntwrk/midnight-did --ref develop --field channel=snapshot --field version=0.6.0

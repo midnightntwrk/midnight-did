@@ -51,7 +51,7 @@
     "check:managed-artifacts": "node scripts/managed-artifact-catalog.mjs --check",
     "check:api-source-imports": "node scripts/check-source-imports.mjs packages/api/src",
     "test:ci-change-classifier": "node --test scripts/ci-change-classifier.test.mjs",
-    "test:release-context": "node --test scripts/release-resolve-context.test.mjs",
+    "test:release-context": "node --test scripts/release-resolve-context.test.mjs scripts/extract-changelog-section.test.mjs scripts/publish-github-release-assets.test.mjs scripts/verify-slsa-provenance.test.mjs",
     "test:pr-review-dispatch": "node --test scripts/review/request-pr-reviews.test.mjs scripts/review/audit-pr-feedback.test.mjs",
     "check:api-module-coverage": "node scripts/check-api-module-coverage.mjs",
     "test:api-module-coverage": "node --test scripts/check-api-module-coverage.test.mjs",
