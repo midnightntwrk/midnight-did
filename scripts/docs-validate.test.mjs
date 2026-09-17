@@ -282,7 +282,7 @@ test("validateConformanceClaim rejects the legacy CCG and unqualified wording", 
 
     await writeFile(
       resolve(root, "w3c-spec", "midnight-method.md"),
-      "The Midnight DID method conforms to W3C DID Core 1.0.\n",
+      "Version 0.6 conforms to W3C DID Core 1.0.\n",
     );
     const rephrasedFailures = await validateConformanceClaim(root);
     assert.ok(
@@ -318,7 +318,7 @@ test("Midnight DID 0.6 claim stays bounded in source and generated docs", async 
     );
     assert.match(
       content,
-      /https:\/\/www\.w3\.org\/TR\/2022\/REC-did-core-20220719\//iu,
+      /Version 0\.6 targets a method-specific profile of the dated \[W3C DID Core 1\.0 Recommendation\]\(https:\/\/www\.w3\.org\/TR\/2022\/REC-did-core-20220719\/\)/iu,
     );
     assert.match(
       content,
@@ -329,6 +329,10 @@ test("Midnight DID 0.6 claim stays bounded in source and generated docs", async 
       /https:\/\/www\.w3\.org\/TR\/2026\/CR-did-resolution-1\.0-20260806\//iu,
     );
     assert.match(content, /pinned external fixture harness/iu);
+    assert.match(
+      content,
+      /\[W3C-DID\]: https:\/\/www\.w3\.org\/TR\/2022\/REC-did-core-20220719\//iu,
+    );
     assert.match(content, /issues\/447/iu);
   }
 

@@ -281,6 +281,8 @@ const conformanceClaimRequirements = [
   "[2026 DID Resolution CR compatibility matrix](./conformance/did-resolution.md)",
   "[current resolution limitations](#723-resolution-response-composition-and-media-types)",
   "[#447](https://github.com/midnightntwrk/midnight-did/issues/447)",
+  "Version 0.6 targets a method-specific profile of the dated [W3C DID Core 1.0 Recommendation](https://www.w3.org/TR/2022/REC-did-core-20220719/), subject to the bounded evidence and explicit exclusions in the status above.",
+  '[W3C-DID]: https://www.w3.org/TR/2022/REC-did-core-20220719/ "W3C Decentralized Identifiers (DID) v1.0 Recommendation, 19 July 2022"',
 ];
 
 const forbiddenConformanceClaims = [
@@ -291,7 +293,7 @@ const forbiddenConformanceClaims = [
   },
   {
     pattern:
-      /\b(?:this specification|the midnight did method)\s+conforms?\s+to\b/iu,
+      /(?<!not )\b(?:conforms?|claims? conformance)\s+to\s+(?:(?:the|all)\s+requirements\s+(?:specified\s+in|of)\s+)?(?:the\s+)?(?:\[W3C-DID\]|(?:W3C\s+)?DID Core)/iu,
     message: "unqualified DID Core conformance claim is forbidden",
   },
 ];
