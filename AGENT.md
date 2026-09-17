@@ -168,6 +168,10 @@ pnpm --filter ./packages/contract test
 
 ## PR review dispatch
 
+Run every dev-loop, gate, and review command from an entered repository Nix
+shell or prefix it with `nix develop --command`; do not inherit host `gh` for
+these workflows.
+
 Every PR workflow—dev-loop or standalone—must run
 `scripts/review/request-pr-reviews.mjs` after PR creation and after every push.
 The caller must supply the exact current head SHA. The helper validates that SHA
@@ -245,8 +249,10 @@ where histories are comparable.
 
 ## Dev-loop and retrospective discipline
 
-The pinned dev-loop configuration is schema-validated. Run these checks before
-starting or resuming a loop and treat configuration errors as blockers:
+The pinned dev-loop configuration is schema-validated. From an entered Nix
+shell, run these checks before starting or resuming a loop and treat
+configuration errors as blockers (otherwise use `nix develop --command` for
+each command):
 
 ```bash
 node .pi/npm/node_modules/dev-loops/cli/index.mjs doctor
@@ -397,34 +403,63 @@ pointing at `https://registry.npmjs.org/` with `publishConfig.access: "public"`.
 Publication order is owned by `scripts/did-workspace-catalog.mjs
 --publish-workspaces`.
 
-npmjs package publication uses `NPM_REGISTRY=https://registry.npmjs.org/`,
-`NPM_ACCESS=public`, and `NODE_AUTH_TOKEN` sourced only in the npm step from the
-permanent SRE-managed organization secret `MIDNIGHTCI_NPMJS_TOKEN`. The
-`npm-release` environment has no environment-scoped secret; the organization
-secret is available only when its selected-repository policy includes
-`midnightntwrk/midnight-did`, and it does not appear in the environment secret
-list. Keep the environment approval gate, but do not misrepresent it as scoping
-the organization secret: another malicious branch workflow change in a selected
-repository could reference the organization secret without naming the
-environment. This externally accepted residual organization-secret trust
-boundary does not relax exact-ref runtime checks, immutable-SHA checkout,
-least-privilege workflow permissions, provenance, read-only authority checks,
-or the prohibition on using publication as a credential test.
+npmjs package publication uses npm Trusted Publishing (GitHub Actions OIDC)
+with npm CLI `>=11.5.1`; no npm publication secret is required. Configure one
+npmjs Trusted Publisher for each of the five packages with organization
+`midnightntwrk`, repository `midnight-did`, workflow `publish.yml`, and GitHub
+environment `npm-release`. Build, dependency installation, packing, signing,
+and GHCR publication stay outside that environment; only the minimal npm job
+has its OIDC subject. That job sparsely checks out immutable publisher scripts,
+downloads the package artifact by ID, verifies producer and inventory digests,
+and installs no dependencies or lifecycle hooks. The normal workflow rejects
+alternate credentials, runtime injection, and registry redirects, rechecks the
+npm minimum at the publication boundary, publishes prepacked tarballs with a
+narrowly allowlisted environment, disabled lifecycle scripts, provenance, and
+public access, and never runs
+npm access or dist-tag mutations. After a successful `npm publish`, exact-version
+metadata and the requested dist-tag are allowed up to five minutes to converge,
+with read-only checks every 30 seconds; the mutation itself is never retried and
+the next dependent package remains blocked until immutable payload and tag
+verification succeeds. Existing exact versions are recoverable only when their
+immutable payload and requested tag already match; tag/access repair belongs to
+a separately authorized npm-administration process.
 
-Release CI publishes snapshot versions from `develop`, RC versions from `main`
-or `develop`, and final releases from `main` only. ZK artifacts are
+The release workflow is on-demand only: pushes and merges never start
+publication. Manual `workflow_dispatch` runs may publish snapshot versions only
+from the exact ref `refs/heads/develop`, RC versions from the exact trusted
+branch refs `refs/heads/main` or `refs/heads/develop`, and final releases only
+from `refs/heads/main`. ZK artifacts are
 distributed as a separate validated archive with the provider layout
 `keys/*.prover`, `keys/*.verifier`, and `zkir/*.bzkir`; do not rely on package
 consumers to discover proving keys by walking arbitrary generated directories.
 Publish CI smoke-tests the exact package version from npmjs and fetches
-pulled/downloaded ZK bundles through `FetchZkConfigProvider`. Reruns skip npm
-packages whose exact immutable version already exists.
+pulled/downloaded ZK bundles through `FetchZkConfigProvider`. RC and final GitHub
+Release bodies are extracted before the privileged boundary from exactly one
+reviewed Keep-a-Changelog section matching the stable base version. The body is
+canonical raw UTF-8 with LF line endings and exactly one terminal newline;
+reruns do not normalize CRLF. Initial creation accepts only that generated notes
+file; reruns require byte-identical body content and the exact canonical asset
+multiset, including exactly one `multiple.intoto.jsonl`, and never edit or
+upload into an existing release. Creation is allowed only after an exact bounded
+`release not found` result; ambiguous provider failures stop. Both creation and
+reuse download the canonical provenance and cryptographically verify it against
+the commit-pinned SLSA reusable-workflow identity, GitHub OIDC issuer, source
+repository, and SLSA v0.2 predicate before dependency-free semantic checks bind
+every non-provenance asset and the dispatch context. After a partial release, rerun the same channel, base version,
+and RC index from an allowed branch revision whose packed package payloads are
+unchanged: reruns skip npm packages only when the exact immutable payload and
+requested dist-tag already match, then publish the still-absent packages in
+dependency order. Do not create a replacement version, mutate an existing
+release, or repair tags through the normal workflow.
 
 GHCR publication uses ORAS because the ZK bundle is a generic OCI artifact
 rather than a container image or npm package. The publish workflow installs the
 configured `ORAS_VERSION`, verifies the ORAS release checksum, pushes the
 archive/manifest to GHCR, pulls it back, and validates the pulled bundle.
-Local ORAS is needed only for manual GHCR artifact testing.
+Local ORAS is needed only for manual GHCR artifact testing. The reusable SLSA
+workflow remains pinned to an exact commit and must set
+`compile-generator: true`: its release-binary mode accepts only a tag ref, while
+repository policy forbids replacing the immutable action pin with a movable tag.
 
 The API package exports `MIDNIGHT_DID_API_VERSION` and
 `createMidnightDidZkArtifactLocations()` so downstream services can derive the

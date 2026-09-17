@@ -2,7 +2,14 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
-import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
+import {
+  dirname,
+  extname,
+  isAbsolute,
+  relative,
+  resolve,
+  sep,
+} from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { writeNetworkEndpointsPage } from "../docs-site/scripts/sync-network-endpoints.mjs";
@@ -94,7 +101,10 @@ const markdownAnchors = (content) => {
 };
 
 const buildDocsIndex = async (root = docsRoot) => {
-  const files = await walkFiles(root, (filePath) => extname(filePath) === ".md");
+  const files = await walkFiles(
+    root,
+    (filePath) => extname(filePath) === ".md",
+  );
   const byFile = new Map();
   const byRoute = new Map();
 
@@ -160,10 +170,9 @@ const resolveRouteTarget = (sourceEntry, rawPath, index) => {
   const routeDir = sourceEntry.route.endsWith("/")
     ? sourceEntry.route
     : `${dirname(sourceEntry.route)}/`;
-  const routeCandidate = `/${toPosix(resolve("/", routeDir, normalized)).replace(
-    /^\/+/u,
-    "",
-  )}`;
+  const routeCandidate = `/${toPosix(
+    resolve("/", routeDir, normalized),
+  ).replace(/^\/+/u, "")}`;
   return (
     index.byRoute.get(routeCandidate) ??
     index.byRoute.get(`${routeCandidate}/`) ??
@@ -263,6 +272,32 @@ const staleContentRules = [
   },
 ];
 
+const conformanceClaimRequirements = [
+  "Version 0.6 targets the method-specific profile of the [W3C DID Core 1.0 Recommendation, 19 July 2022](https://www.w3.org/TR/2022/REC-did-core-20220719/)",
+  "combines repository tests with a pinned external fixture harness; that evidence is bounded and supplemental, not W3C certification or endorsement.",
+  "Version 0.6 does not claim conformance to [W3C DID Core 1.1 Candidate Recommendation Snapshot, 05 March 2026](https://www.w3.org/TR/2026/CR-did-1.1-20260305/) or the [2026 W3C DID Resolution v1 Candidate Recommendation Snapshot](https://www.w3.org/TR/2026/CR-did-resolution-1.0-20260806/)",
+  "[DID Core 1.0 evidence matrix](./conformance/did-core-1.0.md)",
+  "[DID Core 1.1 compatibility matrix](./conformance/did-core-1.1.md)",
+  "[2026 DID Resolution CR compatibility matrix](./conformance/did-resolution.md)",
+  "[current resolution limitations](#723-resolution-response-composition-and-media-types)",
+  "[#447](https://github.com/midnightntwrk/midnight-did/issues/447)",
+  "Version 0.6 targets a method-specific profile of the dated [W3C DID Core 1.0 Recommendation](https://www.w3.org/TR/2022/REC-did-core-20220719/), subject to the bounded evidence and explicit exclusions in the status above.",
+  '[W3C-DID]: https://www.w3.org/TR/2022/REC-did-core-20220719/ "W3C Decentralized Identifiers (DID) v1.0 Recommendation, 19 July 2022"',
+];
+
+const forbiddenConformanceClaims = [
+  {
+    pattern: /W3C Credentials Community Group/iu,
+    message:
+      "DID Core 1.0 must not be attributed to the W3C Credentials Community Group",
+  },
+  {
+    pattern:
+      /(?<!not )\b(?:(?:conforms?|claims? conformance)\s+to|(?:is\s+)?(?:conformant|compliant)\s+with|complies\s+with)\s+(?:(?:the|all)\s+requirements\s+(?:specified\s+in|of)\s+)?(?:the\s+)?(?:\[W3C-DID\]|(?:W3C\s+)?DID Core|W3C Decentralized Identifiers|\[[^\]\n]*(?:DID Core|Decentralized Identifiers \(DID\))[^\]\n]*\]\(https:\/\/www\.w3\.org\/TR\/[^)\n]*did[^)\n]*\))/iu,
+    message: "unqualified DID Core conformance claim is forbidden",
+  },
+];
+
 const accessRequiredGithubRepos = new Set([]);
 
 const githubRepoFromTarget = (target) => {
@@ -342,6 +377,35 @@ const validateContentRules = async (root = repoRoot) => {
   return failures;
 };
 
+const validateConformanceClaim = async (root = repoRoot) => {
+  const filePath = resolve(root, "w3c-spec/midnight-method.md");
+  const content = await readFile(filePath, "utf8");
+  const failures = [];
+
+  for (const { pattern, message } of forbiddenConformanceClaims) {
+    const match = pattern.exec(content);
+    if (match) {
+      failures.push({
+        filePath,
+        line: lineAt(content, match.index),
+        message,
+      });
+    }
+  }
+
+  for (const requirement of conformanceClaimRequirements) {
+    if (!content.includes(requirement)) {
+      failures.push({
+        filePath,
+        line: 1,
+        message: `missing bounded 0.6 conformance claim or link '${requirement}'`,
+      });
+    }
+  }
+
+  return failures;
+};
+
 const validateAccessRequiredLinks = async (
   root = docsRoot,
   accessRequiredRepos = accessRequiredGithubRepos,
@@ -376,7 +440,7 @@ const releaseDocFiles = [
     requiredExamples: (examples) => [
       examples.latestReleaseBadge,
       `export VERSION="${examples.snapshotLocalVersion}"`,
-      'midnight-did-zk-artifacts-${VERSION}.tar.gz',
+      "midnight-did-zk-artifacts-${VERSION}.tar.gz",
       `export VERSION="${examples.rcVersion}"`,
     ],
   },
@@ -384,9 +448,9 @@ const releaseDocFiles = [
     relativePath: "docs-site/development/publishing.md",
     requiredExamples: (examples) => [
       `export VERSION="${examples.snapshotLocalVersion}"`,
-      'midnight-did-zk-artifacts-${VERSION}.tar.gz',
+      "midnight-did-zk-artifacts-${VERSION}.tar.gz",
       `export VERSION="${examples.snapshotWorkflowVersion}"`,
-      'midnight-did-zk-artifacts:${VERSION}',
+      "midnight-did-zk-artifacts:${VERSION}",
       `export VERSION="${examples.rcVersion}"`,
     ],
   },
@@ -497,6 +561,7 @@ const main = async () => {
   const failures = [
     ...(await validateLinks()),
     ...(await validateContentRules()),
+    ...(await validateConformanceClaim()),
     ...(await validateAccessRequiredLinks()),
     ...(await validateReleaseDocExamples()),
   ];
@@ -511,7 +576,10 @@ const main = async () => {
   console.log("docs validation passed");
 };
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   await main();
 }
 
@@ -520,6 +588,7 @@ export {
   extractLinks,
   markdownAnchors,
   validateAccessRequiredLinks,
+  validateConformanceClaim,
   validateContentRules,
   validateReleaseDocExamples,
   routeForMarkdownFile,

@@ -23,13 +23,21 @@ Check the loop tooling with:
 /dev-loops gates
 ```
 
-Use the normal issue and pull-request lifecycle from the Pi shell:
+Use the normal issue and pull-request lifecycle from Pi started inside the Nix
+shell:
 
 ```text
 /dev-loops start <issue-number>
 /dev-loops status <issue-number>
 /dev-loops continue <pull-request-number>
 ```
+
+Run all dev-loop, gate, and review commands from an entered repository Nix
+shell or with `nix develop --command`. The observed operator host had
+`gh 2.67.0`, which lacked the `closingIssuesReferences` JSON field used by the
+pinned gate tooling; the locked nixpkgs devshell provides `gh 2.97.0` and that
+capability. The capability, rather than a broad minimum-version claim, is the
+repository contract.
 
 The exact command help exposed by the installed package is authoritative.
 
@@ -129,10 +137,14 @@ Check the effective repository configuration before starting work. A config
 schema error means the repository-specific policy was not applied and must be
 fixed before continuing:
 
+From an entered repository Nix shell:
+
 ```sh
 node .pi/npm/node_modules/dev-loops/cli/index.mjs doctor
 node .pi/npm/node_modules/dev-loops/cli/index.mjs gates
 node scripts/harness/diagnose.mjs
 ```
+
+Outside that shell, prefix each command with `nix develop --command`.
 
 The repository diagnostic independently validates the pinned 0.9.0 schema because that version's CLI doctor can report a false clean result when configuration loading falls back. The diagnostic reports that known upstream gap but never turns a real schema, package, worktree, review-readiness, or runtime-path failure into success.

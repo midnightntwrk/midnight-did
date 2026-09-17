@@ -7,7 +7,6 @@ import {
   diffRangeForChangedFiles,
   isCodeImpactingPath,
   isDocsOnlyPath,
-  isSnapshotReleaseRelevantPath,
 } from "./ci-change-classifier.mjs";
 
 describe("ci-change-classifier", () => {
@@ -20,7 +19,10 @@ describe("ci-change-classifier", () => {
   it("treats docs roots as docs-only even for site code and assets", () => {
     assert.equal(isDocsOnlyPath("docs/testing.md"), true);
     assert.equal(isDocsOnlyPath("docs-site/.vitepress/config.ts"), true);
-    assert.equal(isDocsOnlyPath("docs-site/public/midnight-header-logo.svg"), true);
+    assert.equal(
+      isDocsOnlyPath("docs-site/public/midnight-header-logo.svg"),
+      true,
+    );
     assert.equal(isDocsOnlyPath("w3c-spec/midnight-method.md"), true);
   });
 
@@ -47,35 +49,21 @@ describe("ci-change-classifier", () => {
     assert.equal(isCodeImpactingPath("pnpm-lock.yaml"), true);
     assert.equal(isCodeImpactingPath("flake.nix"), true);
     assert.equal(isCodeImpactingPath("run.sh"), true);
-    assert.equal(isCodeImpactingPath("scripts/check-workspace-manifests.mjs"), true);
+    assert.equal(
+      isCodeImpactingPath("scripts/check-workspace-manifests.mjs"),
+      true,
+    );
     assert.equal(isCodeImpactingPath("packages/api/package.json"), true);
     assert.equal(isCodeImpactingPath("packages/api/src/index.ts"), true);
-    assert.equal(isCodeImpactingPath("packages/contract/src/did.compact"), true);
+    assert.equal(
+      isCodeImpactingPath("packages/contract/src/did.compact"),
+      true,
+    );
   });
 
   it("does not treat package markdown or docs-site code as rebuild-relevant source", () => {
     assert.equal(isCodeImpactingPath("packages/api/README.md"), false);
     assert.equal(isCodeImpactingPath("docs-site/.vitepress/config.ts"), false);
-  });
-
-  it("treats Compact, TypeScript, and script changes as snapshot-release relevant", () => {
-    assert.equal(
-      isSnapshotReleaseRelevantPath("packages/contract/src/did.compact"),
-      true,
-    );
-    assert.equal(isSnapshotReleaseRelevantPath("packages/api/src/index.ts"), true);
-    assert.equal(isSnapshotReleaseRelevantPath("scripts/release-resolve-context.sh"), true);
-    assert.equal(isSnapshotReleaseRelevantPath("run-api.sh"), true);
-  });
-
-  it("does not treat docs, CI, security config, or manifest-only changes as snapshot-release relevant", () => {
-    assert.equal(isSnapshotReleaseRelevantPath("README.md"), false);
-    assert.equal(isSnapshotReleaseRelevantPath("docs-site/.vitepress/config.ts"), false);
-    assert.equal(isSnapshotReleaseRelevantPath(".github/workflows/publish.yml"), false);
-    assert.equal(isSnapshotReleaseRelevantPath(".github/dependabot.yml"), false);
-    assert.equal(isSnapshotReleaseRelevantPath("package.json"), false);
-    assert.equal(isSnapshotReleaseRelevantPath("pnpm-lock.yaml"), false);
-    assert.equal(isSnapshotReleaseRelevantPath("renovate.json"), false);
   });
 
   it("classifies docs-only changes", () => {
@@ -95,7 +83,6 @@ describe("ci-change-classifier", () => {
         codeChanged: false,
         docsOnly: true,
         hasDocsChanges: true,
-        snapshotReleaseRelevant: false,
       },
     );
   });
@@ -109,10 +96,9 @@ describe("ci-change-classifier", () => {
     assert.equal(classification.docsOnly, false);
     assert.equal(classification.hasDocsChanges, true);
     assert.equal(classification.codeChanged, true);
-    assert.equal(classification.snapshotReleaseRelevant, true);
   });
 
-  it("classifies dependency-only changes as rebuild-relevant but snapshot-release irrelevant", () => {
+  it("classifies dependency-only changes as rebuild-relevant", () => {
     const classification = classifyChangedFiles([
       "package.json",
       "packages/api/package.json",
@@ -122,7 +108,6 @@ describe("ci-change-classifier", () => {
     assert.equal(classification.docsOnly, false);
     assert.equal(classification.hasDocsChanges, false);
     assert.equal(classification.codeChanged, true);
-    assert.equal(classification.snapshotReleaseRelevant, false);
   });
 
   it("classifies maintenance-only changes as non-code", () => {
@@ -142,7 +127,6 @@ describe("ci-change-classifier", () => {
         codeChanged: false,
         docsOnly: false,
         hasDocsChanges: false,
-        snapshotReleaseRelevant: false,
       },
     );
   });
@@ -154,7 +138,6 @@ describe("ci-change-classifier", () => {
       codeChanged: false,
       docsOnly: false,
       hasDocsChanges: false,
-      snapshotReleaseRelevant: false,
     });
   });
 

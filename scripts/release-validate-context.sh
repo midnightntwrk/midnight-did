@@ -27,20 +27,6 @@ validate_release_request() {
   fi
 
   case "${event_name}" in
-    push)
-      if [[ "${channel}" != "snapshot" || "${github_ref}" != "refs/heads/develop" ]]; then
-        release_context_error "Push publication is only allowed for snapshots from refs/heads/develop."
-        return 1
-      fi
-      if [[ -n "${base_version}" ]] && ! is_stable_semver "${base_version}"; then
-        release_context_error "Resolved snapshot base version must be a stable SemVer."
-        return 1
-      fi
-      if [[ -n "${rc_index}" ]]; then
-        release_context_error "Snapshot publication does not accept an RC index."
-        return 1
-      fi
-      ;;
     workflow_dispatch)
       if ! is_stable_semver "${base_version}"; then
         release_context_error "Manual version must be exactly one stable SemVer such as 0.6.0."

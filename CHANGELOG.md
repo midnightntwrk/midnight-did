@@ -12,6 +12,11 @@ published 0.5.0 packages retain their existing API and behavior.
 
 ### Changed
 
+- Publish RC and final GitHub Release bodies from the exact reviewed
+  Keep-a-Changelog section for the stable base version. Extraction, exact body
+  bytes, canonical asset inventory, and downloaded SLSA v0.2 provenance are
+  verified fail-closed; reruns never edit an immutable release body or upload
+  missing assets.
 - Refresh the DID Core 1.0, DID Core 1.1, and DID Resolution evidence matrices
   for the post-#434 0.6 baseline and add `pnpm test:conformance` for the focused
   repository-owned reproduction lane. The 0.6 conformance claim is bounded to

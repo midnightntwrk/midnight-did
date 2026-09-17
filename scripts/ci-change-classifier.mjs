@@ -3,7 +3,8 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { argv, cwd, env, stdout } from "node:process";
 
-const normalizePath = (filePath) => filePath.replaceAll("\\", "/").replace(/^\.\/+/u, "");
+const normalizePath = (filePath) =>
+  filePath.replaceAll("\\", "/").replace(/^\.\/+/u, "");
 
 export const isDocsOnlyPath = (filePath) => {
   const normalized = normalizePath(filePath);
@@ -56,47 +57,14 @@ export const isCodeImpactingPath = (filePath) => {
   );
 };
 
-export const isSnapshotReleaseRelevantPath = (filePath) => {
-  const normalized = normalizePath(filePath);
-
-  if (!normalized || isDocsOnlyPath(normalized)) return false;
-
-  if (
-    normalized.startsWith(".github/") ||
-    normalized.startsWith(".claude/") ||
-    normalized.startsWith(".codex/") ||
-    normalized.startsWith(".obsidian/")
-  ) {
-    return false;
-  }
-
-  if (
-    normalized === "package.json" ||
-    normalized === "pnpm-lock.yaml" ||
-    normalized === "pnpm-workspace.yaml" ||
-    normalized === "renovate.json" ||
-    normalized === "package-lock.json"
-  ) {
-    return false;
-  }
-
-  if (/^packages\/.*\.(?:ts|tsx|mts|cts|js|mjs|cjs|compact)$/u.test(normalized)) {
-    return true;
-  }
-
-  if (/^scripts\/.*\.(?:sh|js|mjs|cjs)$/u.test(normalized)) {
-    return true;
-  }
-
-  return /^run(?:-[a-z0-9-]+)?\.sh$/u.test(normalized);
-};
-
 export const classifyChangedFiles = (files) => {
-  const changedFiles = [...new Set(files.map(normalizePath).filter(Boolean))].sort();
+  const changedFiles = [
+    ...new Set(files.map(normalizePath).filter(Boolean)),
+  ].sort();
   const codeChanged = changedFiles.some(isCodeImpactingPath);
-  const docsOnly = changedFiles.length > 0 && changedFiles.every(isDocsOnlyPath);
+  const docsOnly =
+    changedFiles.length > 0 && changedFiles.every(isDocsOnlyPath);
   const hasDocsChanges = changedFiles.some(isDocsOnlyPath);
-  const snapshotReleaseRelevant = changedFiles.some(isSnapshotReleaseRelevantPath);
 
   return {
     changedFiles,
@@ -104,7 +72,6 @@ export const classifyChangedFiles = (files) => {
     codeChanged,
     docsOnly,
     hasDocsChanges,
-    snapshotReleaseRelevant,
   };
 };
 
@@ -208,7 +175,6 @@ const writeGitHubOutputs = (outputPath, classification) => {
       `docs_only=${classification.docsOnly ? "true" : "false"}`,
       `has_docs_changes=${classification.hasDocsChanges ? "true" : "false"}`,
       `code_changed=${classification.codeChanged ? "true" : "false"}`,
-      `snapshot_release_relevant=${classification.snapshotReleaseRelevant ? "true" : "false"}`,
       `changed_file_count=${classification.changedFileCount}`,
       "",
     ].join("\n"),
@@ -230,7 +196,6 @@ if (isDirectExecution) {
     stdout.write(
       `docs_only=${classification.docsOnly ? "true" : "false"} ` +
         `code_changed=${classification.codeChanged ? "true" : "false"} ` +
-        `snapshot_release_relevant=${classification.snapshotReleaseRelevant ? "true" : "false"} ` +
         `changed_file_count=${classification.changedFileCount}\n`,
     );
   }
