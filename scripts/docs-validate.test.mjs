@@ -282,7 +282,7 @@ test("validateConformanceClaim rejects the legacy CCG and unqualified wording", 
 
     await writeFile(
       resolve(root, "w3c-spec", "midnight-method.md"),
-      "Version 0.6 conforms to W3C DID Core 1.0.\n",
+      "Version 0.6 conforms to [W3C DID Core 1.0 Recommendation](https://www.w3.org/TR/2022/REC-did-core-20220719/).\n",
     );
     const rephrasedFailures = await validateConformanceClaim(root);
     assert.ok(

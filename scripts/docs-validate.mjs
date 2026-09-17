@@ -293,7 +293,7 @@ const forbiddenConformanceClaims = [
   },
   {
     pattern:
-      /(?<!not )\b(?:conforms?|claims? conformance)\s+to\s+(?:(?:the|all)\s+requirements\s+(?:specified\s+in|of)\s+)?(?:the\s+)?(?:\[W3C-DID\]|(?:W3C\s+)?DID Core)/iu,
+      /(?<!not )\b(?:conforms?|claims? conformance)\s+to[^\n]{0,120}(?:\[W3C-DID\]|DID Core)/iu,
     message: "unqualified DID Core conformance claim is forbidden",
   },
 ];
