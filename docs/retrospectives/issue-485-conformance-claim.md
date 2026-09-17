@@ -43,6 +43,11 @@ evidence.
   checks coexist in `scripts/docs-validate.test.mjs`. `git range-diff` reported
   the original and rewritten #485 patches as equivalent; prior #482, #487, and
   #488 stack commits are absent from the final PR range.
+- The exact-head draft gate found that the initial guard was too literal: a
+  rephrased affirmative claim, changed dated URL, or positive Resolution claim
+  could evade it. The follow-up tightened the complete dated links and coupled
+  exclusions, added a rephrased negative fixture, and checks those contracts in
+  generated output.
 
 ## Validation and review evidence
 

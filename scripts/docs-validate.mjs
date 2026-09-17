@@ -273,9 +273,9 @@ const staleContentRules = [
 ];
 
 const conformanceClaimRequirements = [
-  "Version 0.6 targets the method-specific profile of the [W3C DID Core 1.0 Recommendation, 19 July 2022]",
-  "that evidence is bounded and supplemental, not W3C certification or endorsement.",
-  "Version 0.6 does not claim conformance to [W3C DID Core 1.1 Candidate Recommendation Snapshot, 05 March 2026]",
+  "Version 0.6 targets the method-specific profile of the [W3C DID Core 1.0 Recommendation, 19 July 2022](https://www.w3.org/TR/2022/REC-did-core-20220719/)",
+  "combines repository tests with a pinned external fixture harness; that evidence is bounded and supplemental, not W3C certification or endorsement.",
+  "Version 0.6 does not claim conformance to [W3C DID Core 1.1 Candidate Recommendation Snapshot, 05 March 2026](https://www.w3.org/TR/2026/CR-did-1.1-20260305/) or the [2026 W3C DID Resolution v1 Candidate Recommendation Snapshot](https://www.w3.org/TR/2026/CR-did-resolution-1.0-20260806/)",
   "[DID Core 1.0 evidence matrix](./conformance/did-core-1.0.md)",
   "[DID Core 1.1 compatibility matrix](./conformance/did-core-1.1.md)",
   "[2026 DID Resolution CR compatibility matrix](./conformance/did-resolution.md)",
@@ -291,7 +291,7 @@ const forbiddenConformanceClaims = [
   },
   {
     pattern:
-      /This specification conforms to the requirements specified in (?:the )?\[W3C-DID\]/iu,
+      /\b(?:this specification|the midnight did method)\s+conforms?\s+to\b/iu,
     message: "unqualified DID Core conformance claim is forbidden",
   },
 ];

@@ -279,6 +279,17 @@ test("validateConformanceClaim rejects the legacy CCG and unqualified wording", 
         message.includes("missing bounded 0.6 conformance claim or link"),
       ),
     );
+
+    await writeFile(
+      resolve(root, "w3c-spec", "midnight-method.md"),
+      "The Midnight DID method conforms to W3C DID Core 1.0.\n",
+    );
+    const rephrasedFailures = await validateConformanceClaim(root);
+    assert.ok(
+      rephrasedFailures.some(({ message }) =>
+        message.includes("unqualified DID Core conformance claim is forbidden"),
+      ),
+    );
   } finally {
     await rm(root, { force: true, recursive: true });
   }
@@ -303,12 +314,21 @@ test("Midnight DID 0.6 claim stays bounded in source and generated docs", async 
     assert.match(content, /not W3C certification or endorsement/iu);
     assert.match(
       content,
-      /does not claim conformance to \[W3C DID Core 1\.1/iu,
+      /does not claim conformance to \[W3C DID Core 1\.1[^\n]+ or the \[2026 W3C DID Resolution v1 Candidate Recommendation/iu,
     );
     assert.match(
       content,
-      /2026 W3C DID Resolution v1 Candidate Recommendation/iu,
+      /https:\/\/www\.w3\.org\/TR\/2022\/REC-did-core-20220719\//iu,
     );
+    assert.match(
+      content,
+      /https:\/\/www\.w3\.org\/TR\/2026\/CR-did-1\.1-20260305\//iu,
+    );
+    assert.match(
+      content,
+      /https:\/\/www\.w3\.org\/TR\/2026\/CR-did-resolution-1\.0-20260806\//iu,
+    );
+    assert.match(content, /pinned external fixture harness/iu);
     assert.match(content, /issues\/447/iu);
   }
 
