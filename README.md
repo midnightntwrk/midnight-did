@@ -275,8 +275,14 @@ publish `x.y.z-snapshot.<run>.<sha>` with the `snapshot` npm tag from `develop`,
 with the `latest` npm tag from `main` only. RC and final GitHub Releases use the
 body beneath the one exact `## [x.y.z] - ...` section in `CHANGELOG.md`; the
 workflow generates that notes file before its privileged context validation.
-An existing release is reusable only when its body and complete asset set still
-match, and the workflow never edits the body or uploads a missing asset. For
+The canonical body uses LF line endings and exactly one terminal newline, and
+reruns compare those raw bytes without CRLF normalization. An existing release
+is reusable only when its body and exact canonical asset multiset still match,
+including exactly one `multiple.intoto.jsonl`; duplicates, extras, and missing
+assets fail closed. The workflow never edits the body or uploads a missing
+asset. It downloads that provenance on both creation and reuse, verifies its
+signature and pinned reusable-workflow certificate identity with GitHub's OIDC
+issuer, and then checks its SLSA v0.2 subjects and publication context. For
 example, after all external Trusted Publisher and `npm-release` environment
 prerequisites are confirmed, dispatch a later `0.6.0` snapshot with:
 

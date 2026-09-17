@@ -974,7 +974,10 @@ test("release environment gate rejects every disallowed dispatch ref and channel
 });
 
 test("pins every third-party action used by the publish workflow", async () => {
-  const workflow = loadYaml(await text(".github/workflows/publish.yml"));
+  const [workflow, publisher] = await Promise.all([
+    text(".github/workflows/publish.yml").then(loadYaml),
+    text("scripts/publish-github-release-assets.sh"),
+  ]);
   const provenanceJob = workflow.jobs["github-release-provenance"];
   assert.match(
     provenanceJob.uses,
@@ -984,6 +987,15 @@ test("pins every third-party action used by the publish workflow", async () => {
     provenanceJob.with["compile-generator"],
     true,
     "a commit-pinned SLSA generator must compile from pinned source because release-binary mode requires a tag ref",
+  );
+  const provenancePin = provenanceJob.uses.split("@").at(-1);
+  assert.match(
+    publisher,
+    new RegExp(
+      `slsa-framework/slsa-github-generator/\\.github/workflows/generator_generic_slsa3\\.yml@${provenancePin}`,
+      "u",
+    ),
+    "the attestation certificate and builder identity must match the pinned reusable workflow",
   );
 
   const actionUses = [];
@@ -1138,12 +1150,35 @@ test("revalidates release context at every privileged publication boundary", asy
   );
 });
 
-test("keeps GitHub Release notes and assets immutable across reruns", async () => {
-  const publisher = await text("scripts/publish-github-release-assets.sh");
+test("keeps GitHub Release notes, assets, and provenance immutable across reruns", async () => {
+  const [
+    publisher,
+    releaseReader,
+    stateVerifier,
+    notesVerifier,
+    provenanceVerifier,
+  ] = await Promise.all([
+    text("scripts/publish-github-release-assets.sh"),
+    text("scripts/read-github-release-state.sh"),
+    text("scripts/verify-github-release-state.mjs"),
+    text("scripts/validate-release-notes.mjs"),
+    text("scripts/verify-slsa-provenance.mjs"),
+  ]);
   assert.match(publisher, /--notes-file/u);
-  assert.match(publisher, /--json isDraft,isPrerelease,assets,body/u);
+  assert.match(releaseReader, /--json isDraft,isPrerelease,assets,body/u);
   assert.match(publisher, /verify-github-release-state\.mjs/u);
-  assert.match(publisher, /scripts\/run-bounded-command\.mjs/u);
+  assert.match(releaseReader, /scripts\/run-bounded-command\.mjs/u);
+  assert.match(releaseReader, /classify-github-release-view\.mjs/u);
+  assert.match(publisher, /multiple\.intoto\.jsonl/u);
+  assert.match(publisher, /attestation verify/u);
+  assert.match(publisher, /--bundle/u);
+  assert.match(publisher, /--cert-identity/u);
+  assert.match(publisher, /--cert-oidc-issuer/u);
+  assert.match(publisher, /https:\/\/slsa\.dev\/provenance\/v0\.2/u);
+  assert.match(provenanceVerifier, /workflow_dispatch/u);
+  assert.match(publisher, /\.github\/workflows\/publish\.yml/u);
+  assert.match(notesVerifier, /exactly one terminal newline/u);
+  assert.match(stateVerifier, /remoteNames\.size !== remoteNameList\.length/u);
   assert.doesNotMatch(publisher, /--notes(?:\s|$)/u);
   assert.doesNotMatch(publisher, /gh\s+release\s+(?:edit|upload)/u);
 });

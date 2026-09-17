@@ -16,13 +16,31 @@ The previous publisher constructed one hard-coded sentence with `--notes`, so su
 
 The first implementation pass exposed a documentation mismatch: guidance said missing assets were uploaded on rerun, while the script correctly refused to mutate an existing immutable release. The documentation now states the fail-closed behavior rather than weakening the publisher.
 
+Exact-head review then found that any failed release read was treated as absence,
+that asset verification accepted extras and duplicate names, and that provenance
+was checked only by filename rather than cryptographically and semantically.
+The remediation shares one bounded release-state classifier between discovery
+and publication, permits creation only for the exact `release not found` result,
+requires the exact canonical multiset with `multiple.intoto.jsonl`, and verifies
+the downloaded SLSA v0.2 statement against the pinned reusable workflow,
+source, subjects, workflow-dispatch event, and release inputs. It also makes the
+previously implicit release-body byte contract explicit: LF with one terminal
+newline, with CRLF treated as a mismatch rather than normalized.
+
 ## Configuration drift and process gaps
 
 No action pin, branch/ref rule, publication trigger, signature, SLSA, npm, GHCR, or snapshot behavior needed to change. The process gap was that release-body provenance and immutability were not part of repository policy tests even though asset immutability was. Policy coverage now fixes ordering around the privileged boundary and forbids release edit/upload paths in the publisher.
 
 ## Validation and safety boundary
 
-Extractor and publisher tests use temporary files and local fake providers only. They do not publish npm packages, push GHCR artifacts, create or edit GitHub Releases, dispatch workflows, transition a PR, merge, or publish a release. Focused context, publication, repository-policy, shell-syntax, formatting, audit, and mandatory repository verification remain required before review.
+Extractor, publisher, and semantic-provenance tests use temporary files and
+local fake providers only. Deterministic fixtures cover exact absence plus auth,
+rate-limit, 5xx, timeout, output-limit, malformed state, canonical asset-set,
+CRLF, attestation-policy, and semantic-statement failures. They do not publish
+npm packages, push GHCR artifacts, create or edit GitHub Releases, dispatch
+workflows, transition a PR, merge, or publish a release. Focused context,
+publication, repository-policy, shell-syntax, formatting, audit, and mandatory
+repository verification remain required before review.
 
 ## Tracked follow-up actions
 
