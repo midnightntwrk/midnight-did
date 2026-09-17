@@ -19,6 +19,7 @@
       devShells.default = pkgs.mkShell {
         packages = with pkgs; [
           docker
+          gh
           git
           gnutar
           just

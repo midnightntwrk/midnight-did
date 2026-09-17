@@ -1279,6 +1279,15 @@ test("pnpm supply-chain policy stays strict with only reviewed exact-version exc
   );
 });
 
+test("the default Nix devshell provides GitHub CLI", async () => {
+  const devshell = await text("nix/devshells/default.nix");
+  const packages = devshell.match(
+    /devShells\.default\s*=\s*pkgs\.mkShell\s*\{[\s\S]*?packages\s*=\s*with pkgs;\s*\[([\s\S]*?)\];/u,
+  );
+  assert.ok(packages, "default devshell package list must remain explicit");
+  assert.match(packages[1], /^\s*gh\s*$/mu);
+});
+
 test("branch, runtime, local-validation, and exact-head review invariants stay documented", async () => {
   const [agent, ignore, packageJson, policy] = await Promise.all([
     text("AGENT.md"),
