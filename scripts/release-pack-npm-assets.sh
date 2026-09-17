@@ -18,12 +18,27 @@ while IFS= read -r workspace; do
 done < <(node scripts/did-workspace-catalog.mjs --publish-workspaces)
 
 mapfile -t package_assets < <(find "${assets_dir}" -maxdepth 1 -type f -name '*.tgz' | sort)
-if [[ "${#package_assets[@]}" -eq 0 ]]; then
-  echo "::error::No npm package tarballs were produced in ${assets_dir}."
+if [[ "${#package_assets[@]}" -ne 5 ]]; then
+  echo "::error::Expected exactly five npm package tarballs in ${assets_dir}."
   exit 1
 fi
 
-echo "[release-pack-npm-assets] Packed ${#package_assets[@]} npm package tarballs:"
+node scripts/inspect-packed-npm-assets.mjs \
+  --assets-dir "${assets_dir}" \
+  --version "${version}" >/dev/null
+
+echo "[release-pack-npm-assets] Packed and inventoried ${#package_assets[@]} npm package tarballs:"
 printf '  %s\n' "${package_assets[@]}"
 
-echo "npm_assets_dir=${assets_dir}" >> "${output_file}"
+checksums_file="${assets_dir}/SHA256SUMS"
+(
+  cd "${assets_dir}"
+  sha256sum ./*.tgz > "$(basename "${checksums_file}")"
+)
+checksums_sha256="$(sha256sum "${checksums_file}" | awk '{print $1}')"
+
+{
+  echo "npm_assets_dir=${assets_dir}"
+  echo "npm_checksums_file=${checksums_file}"
+  echo "npm_checksums_sha256=${checksums_sha256}"
+} >> "${output_file}"

@@ -11,10 +11,18 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { runBoundedCommand } from "./run-bounded-command.mjs";
+
 const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const publisher = path.join(repoRoot, "scripts/publish-npm-packages.sh");
 const version = "0.6.0";
-const registry = "https://registry.invalid/";
+const registry = "https://registry.npmjs.org/";
+const defaultNpmTag = "snapshot";
+const hostileOutput = "hostile-provider-secret-must-not-leak";
+const repositoryUrl = "git+https://github.com/midnightntwrk/midnight-did.git";
+// Harness-only wall-clock allowance for a complete mocked five-package run.
+// Fake date/sleep commands still advance convergence time without real waits.
+const publisherFixtureSubprocessTimeoutMs = 60_000;
 const packageNames = [
   "@midnight-ntwrk/midnight-did-jubjub-schnorr",
   "@midnight-ntwrk/midnight-did-contract",
@@ -25,105 +33,112 @@ const packageNames = [
 
 const fakeNpm = String.raw`#!/usr/bin/env node
 const fs = require("node:fs");
-const statePath = process.env.FAKE_REGISTRY_STATE;
+const { pathToFileURL } = require("node:url");
+const statePath = require("node:path").join(__dirname, "..", "state.json");
 const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
 const args = process.argv.slice(2);
 const save = () => fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
-const fail = (message, code = 1) => { console.error(message); save(); process.exit(code); };
-const call = { tool: "npm", args, npmrc: process.env.NPM_CONFIG_USERCONFIG };
+const call = {
+  tool: "npm",
+  args,
+  nodeAuthTokenPresent: Object.hasOwn(process.env, "NODE_AUTH_TOKEN"),
+  npmTokenPresent: Object.hasOwn(process.env, "NPM_TOKEN"),
+  npmIdTokenPresent: Object.hasOwn(process.env, "NPM_ID_TOKEN"),
+  nodeOptionsPresent: Object.hasOwn(process.env, "NODE_OPTIONS"),
+  environmentKeys: Object.keys(process.env).sort(),
+  npmrc: fs.readFileSync(process.env.NPM_CONFIG_USERCONFIG, "utf8"),
+  globalNpmrc: fs.readFileSync(process.env.NPM_CONFIG_GLOBALCONFIG, "utf8"),
+  npmrcPath: process.env.NPM_CONFIG_USERCONFIG,
+  globalNpmrcPath: process.env.NPM_CONFIG_GLOBALCONFIG,
+};
 state.calls.push(call);
-const command = args[0];
-if (command === "view") {
+const fail = (message, code = 1) => { save(); process.stderr.write(message); process.exit(code); };
+const maybeAdversarial = (operation, name) => {
+  if (state.hangOperation === operation && state.hangPackage === name) {
+    save();
+    setInterval(() => {}, 1000);
+    return true;
+  }
+  if (state.oversizedOperation === operation && state.oversizedPackage === name) {
+    save();
+    process.stdout.write("x".repeat(state.oversizedBytes || 131072));
+    process.exit(0);
+  }
+  return false;
+};
+if (args[0] === "--version") {
+  process.stdout.write(state.npmVersion);
+  save();
+  process.exit(0);
+}
+if (args[0] === "view") {
   const spec = args[1];
   const exactName = Object.keys(state.packages).find((name) => spec === name + "@" + state.version);
   if (exactName) {
+    if (maybeAdversarial("view", exactName)) return;
     const pkg = state.packages[exactName];
-    pkg.exactViewCount = (pkg.exactViewCount || 0) + 1;
-    if (pkg.failExactViewAt === pkg.exactViewCount || pkg.target === "error") fail("E500 mocked read failure");
-    if (pkg.target === "absent" || pkg.target === "e404") fail("npm error code E404\nnpm error 404 Not Found", 1);
-    console.log(JSON.stringify({ name: exactName, version: state.version, dist: { integrity: pkg.remoteIntegrity, tarball: pkg.remoteTarball } }));
+    pkg.exactReads = (pkg.exactReads || 0) + 1;
+    if (pkg.failExactReadAt === pkg.exactReads || pkg.target === "error") fail(state.hostileOutput);
+    if (pkg.target === "absent") fail("npm error code E404\nnpm error 404 Not Found");
+    if (pkg.publishedThisRun) {
+      pkg.postPublishExactReads = (pkg.postPublishExactReads || 0) + 1;
+      if (pkg.postPublishExactReads <= pkg.visibilityDelayReads)
+        fail("npm error code E404\nnpm error 404 Not Found");
+      state.nowSeconds += pkg.postPublishExactReadAdvanceSeconds;
+    }
+    process.stdout.write(pkg.malformedMetadata ? "{bad-json" : JSON.stringify({ version: state.version, dist: { integrity: pkg.remoteIntegrity, tarball: pkg.remoteTarball } }));
     save();
     process.exit(0);
   }
+  if (maybeAdversarial("view", spec)) return;
   const pkg = state.packages[spec];
-  if (!pkg) fail("E404 unknown package");
+  if (!pkg) fail("npm error code E404");
   if (args[2] === "name") {
-    if (pkg.visibility === "e404") fail("npm error code E404\nnpm error 404 Not Found");
-    if (pkg.visibility === "error") fail("E500 mocked package read failure");
-    console.log(JSON.stringify(spec));
+    if (pkg.visibilityError) fail(state.hostileOutput);
+    process.stdout.write(JSON.stringify(spec));
   } else if (args[2] === "dist-tags") {
-    if (pkg.tagsError) fail("E500 mocked tags read failure");
-    console.log(JSON.stringify(pkg.tags));
-  } else {
-    fail("unsupported mocked npm view: " + args.join(" "));
-  }
+    if (pkg.tagsError) fail(state.hostileOutput);
+    if (pkg.publishedThisRun && pkg.tagDelayReads > 0) {
+      pkg.postPublishTagReads = (pkg.postPublishTagReads || 0) + 1;
+      if (pkg.postPublishTagReads > pkg.tagDelayReads)
+        pkg.tags[state.npmTag] = state.version;
+    }
+    process.stdout.write(pkg.malformedTags ? "{bad-json" : JSON.stringify(pkg.tags));
+  } else fail("unsupported view");
   save();
   process.exit(0);
 }
-if (command === "access" && args[1] === "get" && args[2] === "status") {
-  const name = args[3];
-  const expectedArgs = ["access", "get", "status", name, "--json", "--loglevel=error", "--registry", state.registry];
-  if (!Object.hasOwn(state.packages, name) || args.length !== expectedArgs.length || args.some((arg, index) => arg !== expectedArgs[index])) {
-    fail("unsupported mocked npm access get command; expected exact package and flags: " + expectedArgs.join(" "));
-  }
-  const pkg = state.packages[name];
-  pkg.accessReadCount = (pkg.accessReadCount || 0) + 1;
-  if (pkg.failAccessReadAt === pkg.accessReadCount || pkg.access === "error") fail("E403 mocked access read failure");
-  const response = pkg.accessResponses?.[pkg.accessReadCount - 1];
-  if (response && typeof response === "object" && Object.hasOwn(response, "rawOutput")) {
-    call.accessOutput = response.rawOutput;
-    process.stdout.write(response.rawOutput);
-  } else if (response && typeof response === "object" && Object.hasOwn(response, "rawJson")) {
-    call.accessOutput = response.rawJson;
-    console.log(response.rawJson);
-  } else {
-    const accessResponse = response === undefined ? { [name]: pkg.access } : response;
-    call.accessResponse = accessResponse;
-    console.log(JSON.stringify(accessResponse));
-  }
+if (args[0] === "publish") {
+  const tarball = args.at(-1);
+  const entry = Object.entries(state.packages).find(([, pkg]) => pkg.localTarball === tarball);
+  if (!entry) fail("unknown tarball");
+  const [name, pkg] = entry;
+  call.packageName = name;
+  if (maybeAdversarial("publish", name)) return;
+  const expected = ["publish", "--provenance", "--ignore-scripts", "--tag", state.npmTag, "--access", "public", "--registry", state.registry, tarball];
+  if (args.length !== expected.length || args.some((arg, index) => arg !== expected[index])) fail("incorrect publish arguments");
+  if (state.failPublish === name) fail(state.hostileOutput);
+  pkg.target = "present";
+  pkg.publishedThisRun = true;
+  pkg.remoteIntegrity = pkg.corruptAfterPublish ? pkg.corruptIntegrity : pkg.localIntegrity;
+  pkg.remoteTarball = pkg.corruptAfterPublish ? pkg.corruptTarball : pathToFileURL(tarball).href;
+  if (pkg.wrongTagAfterPublish) pkg.tags[state.npmTag] = "0.0.0-wrong";
+  else if (pkg.tagDelayReads === 0) pkg.tags[state.npmTag] = state.version;
   save();
+  if (state.lostResponse === name) { process.stderr.write(state.hostileOutput); process.exit(42); }
   process.exit(0);
 }
-if (command === "access" && args[1] === "set" && args[2] === "status=public") {
-  const name = args[3];
-  const pkg = state.packages[name];
-  pkg.access = pkg.afterSetAccess || "public";
-  if (pkg.access === "error-after-set") pkg.access = "error";
-  save();
-  process.exit(0);
-}
-if (command === "dist-tag" && args[1] === "add") {
-  const [name, targetVersion] = args[2].split(/@(?=[^@]+$)/);
-  state.packages[name].tags[args[3]] = targetVersion;
-  save();
-  process.exit(0);
-}
-if (command === "dist-tag" && args[1] === "rm") {
-  delete state.packages[args[2]].tags[args[3]];
-  save();
-  process.exit(0);
-}
-fail("unsupported mocked npm command: " + args.join(" "));
+fail("unsupported npm operation");
 `;
 
 const fakePnpm = String.raw`#!/usr/bin/env node
 const fs = require("node:fs");
-const crypto = require("node:crypto");
-const { pathToFileURL } = require("node:url");
-const statePath = process.env.FAKE_REGISTRY_STATE;
+const statePath = require("node:path").join(__dirname, "..", "state.json");
 const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
-const args = process.argv.slice(2);
-const tarball = args.at(-1);
-const entry = Object.entries(state.packages).find(([, pkg]) => pkg.localTarball === tarball);
-if (!entry) { console.error("unknown packed tarball: " + tarball); process.exit(1); }
-const [name, pkg] = entry;
-state.calls.push({ tool: "pnpm", args, packageName: name, npmrc: process.env.NPM_CONFIG_USERCONFIG });
-pkg.target = "present";
-pkg.remoteIntegrity = pkg.corruptAfterPublish ? pkg.corruptIntegrity : pkg.localIntegrity;
-pkg.remoteTarball = pkg.corruptAfterPublish ? pkg.corruptTarball : pathToFileURL(tarball).href;
-const tagIndex = args.indexOf("--tag");
-pkg.tags[args[tagIndex + 1]] = state.version;
+state.calls.push({ tool: "pnpm", args: process.argv.slice(2) });
 fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
+process.stderr.write("pnpm must not publish");
+process.exit(99);
 `;
 
 const fakeCurl = String.raw`#!/usr/bin/env node
@@ -136,26 +151,59 @@ if (!url || !output) process.exit(2);
 fs.copyFileSync(fileURLToPath(url), output);
 `;
 
+const fakeDate = String.raw`#!/usr/bin/env node
+const fs = require("node:fs");
+const statePath = require("node:path").join(__dirname, "..", "state.json");
+const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
+if (process.argv[2] !== "+%s") process.exit(2);
+process.stdout.write(String(state.nowSeconds));
+`;
+
+const fakeSleep = String.raw`#!/usr/bin/env node
+const fs = require("node:fs");
+const statePath = require("node:path").join(__dirname, "..", "state.json");
+const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
+const seconds = Number(process.argv[2]);
+if (!Number.isSafeInteger(seconds) || seconds < 0) process.exit(2);
+state.nowSeconds += seconds;
+state.sleeps.push(seconds);
+fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
+`;
+
 function tarballName(name) {
   return `${name.replace(/^@/u, "").replaceAll("/", "-")}-${version}.tgz`;
 }
 
-function makeTarball(root, name, content = name) {
-  const source = fs.mkdtempSync(path.join(root, "package-source-"));
+function makeTarball(root, name, content = name, manifestOverrides = {}) {
+  const source = fs.mkdtempSync(path.join(root, "source-"));
   const packageRoot = path.join(source, "package");
+  const workspace = {
+    "@midnight-ntwrk/midnight-did-jubjub-schnorr": "packages/jubjub-schnorr",
+    "@midnight-ntwrk/midnight-did-contract": "packages/contract",
+    "@midnight-ntwrk/midnight-did-domain": "packages/domain",
+    "@midnight-ntwrk/midnight-did": "packages/did",
+    "@midnight-ntwrk/midnight-did-api": "packages/api",
+  }[name];
   fs.mkdirSync(packageRoot);
   fs.writeFileSync(
     path.join(packageRoot, "package.json"),
-    `${JSON.stringify({ name, version })}\n`,
+    `${JSON.stringify({
+      name,
+      version,
+      publishConfig: { access: "public", registry },
+      repository: { type: "git", url: repositoryUrl, directory: workspace },
+      ...manifestOverrides,
+    })}\n`,
   );
   fs.writeFileSync(path.join(packageRoot, "index.js"), `${content}\n`);
   const destination = path.join(root, tarballName(name));
-  const result = spawnSync(
+  const packed = spawnSync(
     "tar",
     ["-czf", destination, "-C", source, "package"],
     { encoding: "utf8" },
   );
-  assert.equal(result.status, 0, result.stderr);
+  assert.equal(packed.status, 0, packed.stderr);
+  fs.rmSync(source, { force: true, recursive: true });
   return destination;
 }
 
@@ -165,186 +213,250 @@ function integrity(file) {
 
 function setup({
   states = {},
-  access = {},
-  accessResponses = {},
   tags = {},
   corruptAfterPublish = [],
+  wrongTagAfterPublish = [],
+  visibilityDelayReads = {},
+  tagDelayReads = {},
+  postPublishExactReadAdvanceSeconds = {},
+  npmTag = defaultNpmTag,
+  npmVersion = "11.5.1\n",
+  manifestOverrides = {},
 } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "did-npm-publish-test-"));
   const assets = path.join(root, "assets");
   const bin = path.join(root, "bin");
   fs.mkdirSync(assets);
   fs.mkdirSync(bin);
-  for (const [name, source] of [
+  for (const [name, contents] of [
     ["npm", fakeNpm],
     ["pnpm", fakePnpm],
     ["curl", fakeCurl],
+    ["date", fakeDate],
+    ["sleep", fakeSleep],
   ]) {
-    const executable = path.join(bin, name);
-    fs.writeFileSync(executable, source, { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, name), contents, { mode: 0o755 });
   }
   const packages = {};
   for (const name of packageNames) {
-    const localTarball = makeTarball(assets, name);
-    const corruptTarball = makeTarball(root, name, `${name}-different`);
+    const localTarball = makeTarball(
+      assets,
+      name,
+      name,
+      manifestOverrides[name],
+    );
+    const corruptTarball = makeTarball(root, name, `${name}-corrupt`);
     packages[name] = {
-      visibility: "ok",
       target: states[name] ?? "absent",
-      access: access[name] ?? "public",
-      accessResponses: accessResponses[name],
       tags: { ...(tags[name] ?? {}) },
       localTarball,
       localIntegrity: integrity(localTarball),
       remoteIntegrity: integrity(localTarball),
       remoteTarball: pathToFileURL(localTarball).href,
-      corruptAfterPublish: corruptAfterPublish.includes(name),
       corruptIntegrity: integrity(corruptTarball),
       corruptTarball: pathToFileURL(corruptTarball).href,
+      corruptAfterPublish: corruptAfterPublish.includes(name),
+      wrongTagAfterPublish: wrongTagAfterPublish.includes(name),
+      visibilityDelayReads: visibilityDelayReads[name] ?? 0,
+      tagDelayReads: tagDelayReads[name] ?? 0,
+      postPublishExactReadAdvanceSeconds:
+        postPublishExactReadAdvanceSeconds[name] ?? 0,
     };
   }
   const statePath = path.join(root, "state.json");
-  fs.writeFileSync(
-    statePath,
-    JSON.stringify({ version, registry, calls: [], packages }, null, 2),
-  );
-  return { root, assets, bin, statePath, packages };
+  const state = {
+    version,
+    registry,
+    npmTag,
+    hostileOutput,
+    npmVersion,
+    nowSeconds: 1_000,
+    sleeps: [],
+    calls: [],
+    packages,
+  };
+  fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
+  return { root, assets, bin, statePath, state };
 }
 
-function run(fixture, env = {}) {
-  const sentinel = "sentinel-token-must-not-leak";
+function persist(fixture) {
+  fs.writeFileSync(fixture.statePath, JSON.stringify(fixture.state, null, 2));
+}
+
+function assertPublisherFixtureProcessCompleted(result) {
+  if (result.error?.code === "ETIMEDOUT") {
+    assert.fail(
+      `Publisher fixture exceeded its ${publisherFixtureSubprocessTimeoutMs}ms outer harness allowance.`,
+    );
+  }
+  if (result.error) {
+    assert.fail(
+      `Publisher fixture failed to spawn (${result.error.code ?? result.error.name}).`,
+    );
+  }
+  if (result.signal !== null) {
+    assert.fail(`Publisher fixture terminated by signal ${result.signal}.`);
+  }
+  if (result.status === null) {
+    assert.fail("Publisher fixture returned no exit status.");
+  }
+}
+
+function run(fixture, overrides = {}) {
+  const env = {
+    ...process.env,
+    PATH: `${fixture.bin}${path.delimiter}${process.env.PATH}`,
+    VERSION: version,
+    NPM_TAG: fixture.state.npmTag,
+    NPM_ASSETS_DIR: fixture.assets,
+    NPM_REGISTRY: registry,
+    ACTIONS_ID_TOKEN_REQUEST_TOKEN: "test-oidc-request-token",
+    ACTIONS_ID_TOKEN_REQUEST_URL: "https://oidc.invalid/token",
+    GITHUB_ACTIONS: "true",
+    GITHUB_EVENT_NAME: "push",
+    GITHUB_REF: "refs/heads/develop",
+    GITHUB_REF_NAME: "develop",
+    GITHUB_REF_TYPE: "branch",
+    GITHUB_REPOSITORY: "midnightntwrk/midnight-did",
+    GITHUB_REPOSITORY_ID: "123456",
+    GITHUB_REPOSITORY_OWNER_ID: "654321",
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_RUN_ID: "123",
+    GITHUB_SERVER_URL: "https://github.com",
+    GITHUB_SHA: "abcdef1234567890abcdef1234567890abcdef12",
+    GITHUB_WORKFLOW: "Publish npmjs Packages and ZK Artifacts",
+    GITHUB_WORKFLOW_REF:
+      "midnightntwrk/midnight-did/.github/workflows/publish.yml@refs/heads/develop",
+    GITHUB_WORKFLOW_SHA: "abcdef1234567890abcdef1234567890abcdef12",
+    RUNNER_ENVIRONMENT: "github-hosted",
+  };
+  delete env.NODE_AUTH_TOKEN;
+  delete env.NPM_TOKEN;
+  delete env.NPM_ID_TOKEN;
+  delete env.NODE_OPTIONS;
+  delete env.NPM_CONFIG__PASSWORD;
+  delete env.NPM_CONFIG_USERNAME;
+  delete env.NPM_CONFIG_OTP;
+  delete env.NPM_CONFIG_CERT;
+  delete env.NPM_CONFIG_KEY;
+  delete env.NPM_CONFIG_REGISTRY;
+  for (const [name, value] of Object.entries(overrides)) {
+    if (value === undefined) delete env[name];
+    else env[name] = value;
+  }
   const result = spawnSync("bash", [publisher], {
     cwd: repoRoot,
     encoding: "utf8",
-    env: {
-      ...process.env,
-      PATH: `${fixture.bin}${path.delimiter}${process.env.PATH}`,
-      FAKE_REGISTRY_STATE: fixture.statePath,
-      VERSION: version,
-      NPM_TAG: "snapshot",
-      NPM_ACCESS: "public",
-      NPM_ASSETS_DIR: fixture.assets,
-      NPM_REGISTRY: registry,
-      NODE_AUTH_TOKEN: sentinel,
-      ...env,
-    },
+    env,
+    timeout: publisherFixtureSubprocessTimeoutMs,
   });
-  const state = JSON.parse(fs.readFileSync(fixture.statePath, "utf8"));
-  return { ...result, state, sentinel };
+  assertPublisherFixtureProcessCompleted(result);
+  return {
+    ...result,
+    state: JSON.parse(fs.readFileSync(fixture.statePath, "utf8")),
+  };
 }
 
-function mutations(calls) {
-  return calls.filter(
-    ({ tool, args }) =>
-      tool === "pnpm" ||
-      (tool === "npm" && args[0] === "access" && args[1] === "set") ||
-      (tool === "npm" && args[0] === "dist-tag"),
+function publishCalls(state) {
+  return state.calls.filter(
+    ({ tool, args }) => tool === "npm" && args[0] === "publish",
   );
 }
 
-function accessReads(calls) {
-  return calls.filter(
-    ({ tool, args }) =>
-      tool === "npm" &&
-      args[0] === "access" &&
-      args[1] === "get" &&
-      args[2] === "status",
-  );
+function assertNoAdministration(state) {
+  for (const call of state.calls) {
+    assert.ok(!["access", "dist-tag"].includes(call.args[0]));
+    assert.notEqual(call.tool, "pnpm");
+  }
 }
 
-function expectedAccessReadArgs(packageName) {
-  return [
-    "access",
-    "get",
-    "status",
-    packageName,
-    "--json",
-    "--loglevel=error",
-    "--registry",
-    registry,
-  ];
-}
-
-function assertExactAccessReads(calls, expectedPackages) {
-  assert.deepEqual(
-    calls.map(({ args }) => args),
-    expectedPackages.map(expectedAccessReadArgs),
-  );
+function assertAuthFreeAndClean(state) {
+  for (const call of state.calls.filter(({ tool }) => tool === "npm")) {
+    assert.equal(call.nodeAuthTokenPresent, false);
+    assert.equal(call.npmTokenPresent, false);
+    assert.equal(call.npmIdTokenPresent, false);
+    assert.equal(call.nodeOptionsPresent, false);
+    assert.equal(call.npmrc, `registry=${registry}\nignore-scripts=true\n`);
+    assert.equal(call.globalNpmrc, "");
+    assert.doesNotMatch(`${call.npmrc}${call.globalNpmrc}`, /auth|token/iu);
+    assert.equal(fs.existsSync(call.npmrcPath), false);
+    assert.equal(fs.existsSync(call.globalNpmrcPath), false);
+    const allowed = new Set([
+      "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+      "ACTIONS_ID_TOKEN_REQUEST_URL",
+      "CI",
+      "GITHUB_ACTIONS",
+      "GITHUB_EVENT_NAME",
+      "GITHUB_REF",
+      "GITHUB_REPOSITORY",
+      "GITHUB_REPOSITORY_ID",
+      "GITHUB_REPOSITORY_OWNER_ID",
+      "GITHUB_RUN_ATTEMPT",
+      "GITHUB_RUN_ID",
+      "GITHUB_SERVER_URL",
+      "GITHUB_SHA",
+      "GITHUB_WORKFLOW_REF",
+      "RUNNER_ENVIRONMENT",
+      "HOME",
+      "NPM_CONFIG_CACHE",
+      "NPM_CONFIG_GLOBALCONFIG",
+      "NPM_CONFIG_REGISTRY",
+      "NPM_CONFIG_USERCONFIG",
+      "PATH",
+      "TMPDIR",
+      "__CF_USER_TEXT_ENCODING",
+    ]);
+    assert.deepEqual(
+      call.environmentKeys.filter((name) => !allowed.has(name)),
+      [],
+    );
+  }
 }
 
 function cleanup(fixture) {
   fs.rmSync(fixture.root, { recursive: true, force: true });
 }
 
-test("fake npm rejects incomplete or incorrect access-get commands", async (t) => {
-  const requestedPackage = packageNames[0];
-  const cases = [
-    [
-      "missing --json",
-      [
-        "access",
-        "get",
-        "status",
-        requestedPackage,
-        "--loglevel=error",
-        "--registry",
-        registry,
-      ],
-    ],
-    [
-      "wrong registry",
-      [
-        "access",
-        "get",
-        "status",
-        requestedPackage,
-        "--json",
-        "--loglevel=error",
-        "--registry",
-        "https://wrong-registry.invalid/",
-      ],
-    ],
-    [
-      "wrong package",
-      [
-        "access",
-        "get",
-        "status",
-        "@midnight-ntwrk/not-requested",
-        "--json",
-        "--loglevel=error",
-        "--registry",
-        registry,
-      ],
-    ],
-    [
-      "wrong flag order",
-      [
-        "access",
-        "get",
-        "status",
-        requestedPackage,
-        "--loglevel=error",
-        "--json",
-        "--registry",
-        registry,
-      ],
-    ],
-  ];
+function matchingPresent(
+  names = packageNames,
+  tag = defaultNpmTag,
+  latest = tag === "latest" ? version : "0.5.0",
+) {
+  return {
+    npmTag: tag,
+    states: Object.fromEntries(names.map((name) => [name, "present"])),
+    tags: Object.fromEntries(
+      names.map((name) => [name, { [tag]: version, latest }]),
+    ),
+  };
+}
 
-  for (const [label, args] of cases) {
-    await t.test(label, () => {
+test("rejects ambient npm tokens before any npm invocation", async (t) => {
+  for (const [name, value] of [
+    ["NODE_AUTH_TOKEN", hostileOutput],
+    ["NPM_TOKEN", hostileOutput],
+    ["NPM_ID_TOKEN", hostileOutput],
+    ["NODE_AUTH_TOKEN", ""],
+    ["npm_config_auth_token", hostileOutput],
+    ["NPM_CONFIG__PASSWORD", hostileOutput],
+    ["NPM_CONFIG_USERNAME", hostileOutput],
+    ["NPM_CONFIG_OTP", "123456"],
+    ["NPM_CONFIG_CERT", hostileOutput],
+    ["NPM_CONFIG_KEY", hostileOutput],
+    ["NODE_OPTIONS", `--require=${hostileOutput}`],
+    ["NPM_REGISTRY", "https://registry.example/"],
+    ["NPM_CONFIG_REGISTRY", "https://registry.example/"],
+  ]) {
+    await t.test(`${name} present`, () => {
       const fixture = setup();
       try {
-        const result = spawnSync(path.join(fixture.bin, "npm"), args, {
-          encoding: "utf8",
-          env: {
-            ...process.env,
-            FAKE_REGISTRY_STATE: fixture.statePath,
-          },
-        });
+        const result = run(fixture, { [name]: value });
         assert.notEqual(result.status, 0);
-        assert.equal(result.stdout, "");
-        assert.match(result.stderr, /expected exact package and flags/iu);
+        assert.deepEqual(result.state.calls, []);
+        assert.doesNotMatch(
+          `${result.stdout}${result.stderr}`,
+          /must-not-leak/u,
+        );
       } finally {
         cleanup(fixture);
       }
@@ -352,95 +464,61 @@ test("fake npm rejects incomplete or incorrect access-get commands", async (t) =
   }
 });
 
-test("local inventory failure occurs before any registry command", () => {
-  const fixture = setup();
-  try {
-    fs.rmSync(fixture.packages[packageNames.at(-1)].localTarball);
-    const result = run(fixture);
-    assert.notEqual(result.status, 0);
-    assert.deepEqual(result.state.calls, []);
-    assert.match(result.stderr, /packed npm asset|inventory/iu);
-  } finally {
-    cleanup(fixture);
+test("rejects missing, extra, or malformed packed inventory before npm", async (t) => {
+  for (const scenario of ["missing", "extra", "malformed"]) {
+    await t.test(scenario, () => {
+      const fixture = setup();
+      try {
+        if (scenario === "missing")
+          fs.rmSync(fixture.state.packages[packageNames.at(-1)].localTarball);
+        if (scenario === "extra")
+          fs.copyFileSync(
+            fixture.state.packages[packageNames[0]].localTarball,
+            path.join(fixture.assets, "extra.tgz"),
+          );
+        if (scenario === "malformed")
+          fs.writeFileSync(
+            fixture.state.packages[packageNames[0]].localTarball,
+            "not a tarball",
+          );
+        const result = run(fixture);
+        assert.notEqual(result.status, 0);
+        assert.deepEqual(result.state.calls, []);
+      } finally {
+        cleanup(fixture);
+      }
+    });
   }
 });
 
-test("late all-five remote read failure performs no mutation", () => {
-  const fixture = setup();
-  try {
-    fixture.packages[packageNames.at(-1)].target = "error";
-    fs.writeFileSync(
-      fixture.statePath,
-      JSON.stringify(
-        { version, registry, calls: [], packages: fixture.packages },
-        null,
-        2,
-      ),
-    );
-    const result = run(fixture);
-    assert.notEqual(result.status, 0);
-    assert.deepEqual(mutations(result.state.calls), []);
-  } finally {
-    cleanup(fixture);
-  }
-});
-
-test("ambiguous package visibility fails closed without mutation", () => {
-  const fixture = setup();
-  try {
-    fixture.packages[packageNames[0]].visibility = "e404";
-    fs.writeFileSync(
-      fixture.statePath,
-      JSON.stringify(
-        { version, registry, calls: [], packages: fixture.packages },
-        null,
-        2,
-      ),
-    );
-    const result = run(fixture);
-    assert.notEqual(result.status, 0);
-    assert.deepEqual(mutations(result.state.calls), []);
-    assert.match(result.stderr, /ambiguous|authorization/iu);
-  } finally {
-    cleanup(fixture);
-  }
-});
-
-test("invalid or ambiguous access evidence fails closed without mutation", async (t) => {
-  const requestedPackage = packageNames[2];
-  const cases = [
-    ["bare string", "public"],
-    ["malformed JSON", { rawJson: "{" }],
-    ["null", null],
-    ["number", 1],
-    ["boolean", true],
-    ["array", ["public"]],
-    ["object-valued status", { [requestedPackage]: { status: "public" } }],
-    ["number-valued status", { [requestedPackage]: 1 }],
-    ["missing key", {}],
-    ["wrong key", { "@midnight-ntwrk/not-requested": "public" }],
+test("rejects packed publish authority metadata drift before npm", async (t) => {
+  const packageName = packageNames[2];
+  for (const [label, manifestOverrides] of [
+    ["name", { name: "@midnight-ntwrk/wrong" }],
     [
-      "multiple keys",
+      "registry",
+      { publishConfig: { access: "public", registry: "https://invalid/" } },
+    ],
+    ["access", { publishConfig: { access: "restricted", registry } }],
+    [
+      "repository",
       {
-        [requestedPackage]: "public",
-        "@midnight-ntwrk/not-requested": "private",
+        repository: {
+          type: "git",
+          url: "git+https://github.com/other/repo.git",
+          directory: "packages/domain",
+        },
       },
     ],
-    ["empty status", { [requestedPackage]: "" }],
-    ["restricted status", { [requestedPackage]: "restricted" }],
-    ["unknown status", { [requestedPackage]: "unlisted" }],
-  ];
-
-  for (const [label, response] of cases) {
+  ]) {
     await t.test(label, () => {
       const fixture = setup({
-        accessResponses: { [requestedPackage]: [response] },
+        manifestOverrides: { [packageName]: manifestOverrides },
       });
       try {
         const result = run(fixture);
         assert.notEqual(result.status, 0);
-        assert.deepEqual(mutations(result.state.calls), []);
-        assert.match(result.stderr, /npm access status/iu);
+        assert.deepEqual(result.state.calls, []);
       } finally {
         cleanup(fixture);
       }
@@ -448,287 +526,147 @@ test("invalid or ambiguous access evidence fails closed without mutation", async
   }
 });
 
-test("zero-byte access-status output on the fifth probe fails under set -e before mutation", () => {
-  const fifthPackage = packageNames.at(-1);
-  const fixture = setup({
-    access: { [packageNames[0]]: "private" },
-    accessResponses: {
-      [fifthPackage]: [{ rawOutput: "" }],
-    },
-  });
-  try {
-    const result = run(fixture);
-    assert.notEqual(result.status, 0);
-    assert.deepEqual(mutations(result.state.calls), []);
-    assert.equal(
-      result.state.calls.filter(({ tool }) => tool === "pnpm").length,
-      0,
-    );
-    assert.equal(
-      result.state.calls.filter(
-        ({ tool, args }) => tool === "pnpm" && args[0] === "publish",
-      ).length,
-      0,
-    );
-    assert.equal(
-      result.state.calls.filter(
-        ({ tool, args }) =>
-          tool === "npm" && args[0] === "access" && args[1] === "set",
-      ).length,
-      0,
-    );
-    assert.equal(
-      result.state.calls.filter(
-        ({ tool, args }) => tool === "npm" && args[0] === "dist-tag",
-      ).length,
-      0,
-    );
-    assert.match(result.stderr, /npm access status/iu);
-  } finally {
-    cleanup(fixture);
-  }
-});
-
-test("multiple access-status JSON documents on the fifth probe fail before mutation", () => {
-  const fifthPackage = packageNames.at(-1);
-  const fixture = setup({
-    access: { [packageNames[0]]: "private" },
-    accessResponses: {
-      [fifthPackage]: [
-        {
-          rawJson: `${JSON.stringify({ [fifthPackage]: "public" })}\n${JSON.stringify({ [fifthPackage]: "private" })}`,
-        },
-      ],
-    },
-  });
-  try {
-    const result = run(fixture);
-    assert.notEqual(result.status, 0);
-    assert.deepEqual(mutations(result.state.calls), []);
-    assert.equal(
-      result.state.calls.filter(({ tool }) => tool === "pnpm").length,
-      0,
-    );
-    assert.equal(
-      result.state.calls.filter(
-        ({ tool, args }) =>
-          tool === "npm" && args[0] === "access" && args[1] === "set",
-      ).length,
-      0,
-    );
-    assert.equal(
-      result.state.calls.filter(
-        ({ tool, args }) => tool === "npm" && args[0] === "dist-tag",
-      ).length,
-      0,
-    );
-    const accessReads = result.state.calls.filter(
-      ({ tool, args }) =>
-        tool === "npm" &&
-        args[0] === "access" &&
-        args[1] === "get" &&
-        args[2] === "status",
-    );
-    assert.deepEqual(
-      accessReads.map(({ args }) => args[3]),
-      packageNames,
-    );
-    assert.match(result.stderr, /npm access status/iu);
-  } finally {
-    cleanup(fixture);
-  }
-});
-
-test("mismatched existing payload fails before producer or metadata mutation", () => {
-  const fixture = setup({ states: { [packageNames[1]]: "present" } });
-  try {
-    const pkg = fixture.packages[packageNames[1]];
-    pkg.remoteIntegrity = pkg.corruptIntegrity;
-    pkg.remoteTarball = pkg.corruptTarball;
-    fs.writeFileSync(
-      fixture.statePath,
-      JSON.stringify(
-        { version, registry, calls: [], packages: fixture.packages },
-        null,
-        2,
-      ),
-    );
-    const result = run(fixture);
-    assert.notEqual(result.status, 0);
-    assert.deepEqual(mutations(result.state.calls), []);
-    assert.match(
-      `${result.stdout}\n${result.stderr}`,
-      /differs|identity|payload/iu,
-    );
-  } finally {
-    cleanup(fixture);
-  }
-});
-
-test("none-present state publishes all packages in catalog order with provenance", () => {
+test("all-absent state publishes all five with exact npm arguments in dependency order", () => {
   const fixture = setup();
   try {
     const result = run(fixture);
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    const publishes = result.state.calls.filter(({ tool }) => tool === "pnpm");
+    const publishes = publishCalls(result.state);
     assert.deepEqual(
       publishes.map(({ packageName }) => packageName),
       packageNames,
     );
-    for (const { args } of publishes) {
-      assert.equal(args[0], "publish");
-      assert.ok(args.includes("--provenance"));
-      assert.ok(args.includes("--access"));
-      assert.ok(args.includes("public"));
+    const versionChecks = result.state.calls.filter(
+      ({ tool, args }) => tool === "npm" && args[0] === "--version",
+    );
+    assert.equal(versionChecks.length, 1);
+    assert.ok(
+      result.state.calls.indexOf(versionChecks[0]) <
+        result.state.calls.indexOf(publishes[0]),
+    );
+    for (const call of publishes) {
+      const tarball = result.state.packages[call.packageName].localTarball;
+      assert.deepEqual(call.args, [
+        "publish",
+        "--provenance",
+        "--ignore-scripts",
+        "--tag",
+        fixture.state.npmTag,
+        "--access",
+        "public",
+        "--registry",
+        registry,
+        tarball,
+      ]);
     }
+    assertNoAdministration(result.state);
+    assertAuthFreeAndClean(result.state);
   } finally {
     cleanup(fixture);
   }
 });
 
-test("matching partial state publishes only missing packages in catalog order", () => {
-  const fixture = setup({
-    states: { [packageNames[0]]: "present", [packageNames[2]]: "present" },
-    tags: {
-      [packageNames[0]]: { snapshot: version },
-      [packageNames[2]]: { snapshot: version },
-    },
-  });
+test("old npm fails at the publication boundary before the first publish", () => {
+  const fixture = setup({ npmVersion: "11.5.0\n" });
+  try {
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(publishCalls(result.state), []);
+    assert.match(
+      result.stderr,
+      /npm 11\.5\.1 or newer.*publication boundary/iu,
+    );
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("all-present matching rerun publishes nothing and completes final readback", () => {
+  const fixture = setup(matchingPresent());
   try {
     const result = run(fixture);
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    const publishes = result.state.calls.filter(({ tool }) => tool === "pnpm");
+    assert.deepEqual(publishCalls(result.state), []);
+    for (const name of packageNames)
+      assert.ok(result.state.packages[name].exactReads >= 2);
+    assert.match(
+      result.stdout,
+      /Final all-five public metadata, payload, and dist-tag verification succeeded/u,
+    );
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("partial recovery publishes only missing packages when every existing payload and tag matches", () => {
+  const existing = [packageNames[0], packageNames[2]];
+  const fixture = setup(matchingPresent(existing));
+  try {
+    const result = run(fixture);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
     assert.deepEqual(
-      publishes.map(({ packageName }) => packageName),
+      publishCalls(result.state).map(({ packageName }) => packageName),
       [packageNames[1], packageNames[3], packageNames[4]],
     );
+    assertNoAdministration(result.state);
   } finally {
     cleanup(fixture);
   }
 });
 
-test("all-present immutable rerun publishes nothing and avoids redundant metadata writes", () => {
-  const states = Object.fromEntries(
-    packageNames.map((name) => [name, "present"]),
-  );
-  const tags = Object.fromEntries(
-    packageNames.map((name) => [name, { snapshot: version, latest: "0.5.0" }]),
-  );
-  const fixture = setup({ states, tags });
+test("existing Jubjub with four absent resumes in order without a duplicate publish", () => {
+  const fixture = setup(matchingPresent([packageNames[0]], "rc"));
   try {
     const result = run(fixture);
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    assert.deepEqual(mutations(result.state.calls), []);
-    for (const name of packageNames) {
-      assert.ok(
-        result.state.packages[name].exactViewCount >= 3,
-        `${name} should be verified in preflight, post-publish, and final read-back`,
-      );
-    }
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      packageNames.slice(1),
+    );
+    assert.match(
+      result.stdout,
+      /midnight-did-jubjub-schnorr@0\.6\.0 already matches payload and tag; skipping publish/u,
+    );
+    assertNoAdministration(result.state);
   } finally {
     cleanup(fixture);
   }
 });
 
-test("exact-key public access is a no-op", () => {
-  const fixture = setup();
+test("existing payload mismatch fails before any mutation", () => {
+  const fixture = setup(matchingPresent([packageNames[1]]));
   try {
+    const pkg = fixture.state.packages[packageNames[1]];
+    pkg.remoteIntegrity = pkg.corruptIntegrity;
+    pkg.remoteTarball = pkg.corruptTarball;
+    persist(fixture);
     const result = run(fixture);
-    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    assert.equal(
-      result.state.calls.some(
-        ({ tool, args }) =>
-          tool === "npm" && args[0] === "access" && args[1] === "set",
-      ),
-      false,
-    );
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(publishCalls(result.state), []);
+    assertNoAdministration(result.state);
   } finally {
     cleanup(fixture);
   }
 });
 
-test("exact-key private access is set once, read back public, then published", () => {
-  const privatePackage = packageNames[0];
-  const fixture = setup({ access: { [privatePackage]: "private" } });
-  try {
-    const result = run(fixture);
-    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    const calls = result.state.calls;
-    const accessSets = calls.filter(
-      ({ tool, args }) =>
-        tool === "npm" && args[0] === "access" && args[1] === "set",
-    );
-    assert.equal(accessSets.length, 1);
-    assert.equal(accessSets[0].args[3], privatePackage);
-    assert.equal(result.state.packages[privatePackage].accessReadCount, 3);
-    for (const packageName of packageNames.slice(1)) {
-      assert.equal(result.state.packages[packageName].accessReadCount, 2);
-    }
-
-    const allAccessReads = accessReads(calls);
-    assert.equal(allAccessReads.length, 11);
-
-    const setIndex = calls.indexOf(accessSets[0]);
-    const firstPublishIndex = calls.findIndex(({ tool }) => tool === "pnpm");
-    assert.ok(setIndex >= 0);
-    assert.ok(firstPublishIndex > setIndex);
-
-    const preflightAccessReads = accessReads(calls.slice(0, setIndex));
-    assertExactAccessReads(preflightAccessReads, packageNames);
-
-    const reconciliationAccessReads = accessReads(
-      calls.slice(setIndex + 1, firstPublishIndex),
-    );
-    assertExactAccessReads(reconciliationAccessReads, [privatePackage]);
-    assert.deepEqual(reconciliationAccessReads[0].accessResponse, {
-      [privatePackage]: "public",
-    });
-    assert.ok(calls.indexOf(reconciliationAccessReads[0]) > setIndex);
-    assert.ok(calls.indexOf(reconciliationAccessReads[0]) < firstPublishIndex);
-
-    const lastPublishIndex = calls.findLastIndex(({ tool }) => tool === "pnpm");
-    const finalAccessReads = allAccessReads.slice(6);
-    assertExactAccessReads(finalAccessReads, packageNames);
-    assert.ok(
-      finalAccessReads.every(
-        (accessRead) => calls.indexOf(accessRead) > lastPublishIndex,
-      ),
-    );
-  } finally {
-    cleanup(fixture);
-  }
-});
-
-test("failed or still-private reconciliation read-back stops before publish", async (t) => {
-  for (const [label, afterSetAccess] of [
-    ["failed read-back", "error-after-set"],
-    ["still-private read-back", "private"],
+test("missing or wrong requested tag on an existing version fails before publication", async (t) => {
+  for (const tags of [
+    {},
+    { [defaultNpmTag]: "0.0.0-wrong" },
+    { latest: version },
   ]) {
-    await t.test(label, () => {
-      const fixture = setup({ access: { [packageNames[0]]: "private" } });
+    await t.test(JSON.stringify(tags), () => {
+      const fixture = setup({
+        states: { [packageNames[3]]: "present" },
+        tags: { [packageNames[3]]: tags },
+      });
       try {
-        fixture.packages[packageNames[0]].afterSetAccess = afterSetAccess;
-        fs.writeFileSync(
-          fixture.statePath,
-          JSON.stringify(
-            { version, registry, calls: [], packages: fixture.packages },
-            null,
-            2,
-          ),
-        );
         const result = run(fixture);
         assert.notEqual(result.status, 0);
-        assert.equal(
-          result.state.calls.filter(({ tool }) => tool === "pnpm").length,
-          0,
-        );
-        assert.equal(
-          result.state.calls.filter(
-            ({ tool, args }) =>
-              tool === "npm" && args[0] === "access" && args[1] === "set",
-          ).length,
-          1,
-        );
+        assert.deepEqual(publishCalls(result.state), []);
+        assert.deepEqual(result.state.sleeps, []);
+        assertNoAdministration(result.state);
       } finally {
         cleanup(fixture);
       }
@@ -736,41 +674,538 @@ test("failed or still-private reconciliation read-back stops before publish", as
   }
 });
 
-test("post-publish all-five verification blocks tag mutation on a corrupt payload", () => {
-  const fixture = setup({ corruptAfterPublish: [packageNames[3]] });
+test("non-latest target owning latest fails before publication", () => {
+  const fixture = setup({
+    states: { [packageNames[0]]: "present" },
+    tags: {
+      [packageNames[0]]: { [defaultNpmTag]: version, latest: version },
+    },
+  });
   try {
     const result = run(fixture);
     assert.notEqual(result.status, 0);
-    assert.equal(
-      result.state.calls.some(
-        ({ tool, args }) => tool === "npm" && args[0] === "dist-tag",
-      ),
-      false,
-    );
-    assert.match(
-      `${result.stdout}\n${result.stderr}`,
-      /differs|identity|payload/iu,
-    );
+    assert.deepEqual(publishCalls(result.state), []);
+    assertNoAdministration(result.state);
   } finally {
     cleanup(fixture);
   }
 });
 
-test("temporary npmrc is removed and token is absent from logs", () => {
+test("late all-five read failures and malformed tags fail before publication with hostile output suppressed", async (t) => {
+  for (const mode of ["target", "visibility", "tags", "malformedTags"]) {
+    await t.test(mode, () => {
+      const fixture = setup();
+      try {
+        const pkg = fixture.state.packages[packageNames.at(-1)];
+        if (mode === "target") pkg.target = "error";
+        else pkg[mode === "visibility" ? "visibilityError" : mode] = true;
+        persist(fixture);
+        const result = run(fixture);
+        assert.notEqual(result.status, 0);
+        assert.deepEqual(publishCalls(result.state), []);
+        assert.doesNotMatch(
+          `${result.stdout}${result.stderr}`,
+          /must-not-leak/u,
+        );
+        assertNoAdministration(result.state);
+      } finally {
+        cleanup(fixture);
+      }
+    });
+  }
+});
+
+test("publish failure stops immediately, invokes no later package, and suppresses provider output", () => {
   const fixture = setup();
   try {
+    fixture.state.failPublish = packageNames[2];
+    persist(fixture);
     const result = run(fixture);
-    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    assert.doesNotMatch(
-      `${result.stdout}\n${result.stderr}`,
-      new RegExp(result.sentinel, "u"),
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      packageNames.slice(0, 3),
     );
-    const npmrcPaths = new Set(
-      result.state.calls.map(({ npmrc }) => npmrc).filter(Boolean),
+    assert.equal(
+      publishCalls(result.state).filter(
+        ({ packageName }) => packageName === packageNames[2],
+      ).length,
+      1,
     );
-    assert.equal(npmrcPaths.size, 1);
-    for (const npmrc of npmrcPaths) assert.equal(fs.existsSync(npmrc), false);
+    assert.deepEqual(result.state.sleeps, []);
+    assert.doesNotMatch(`${result.stdout}${result.stderr}`, /must-not-leak/u);
+    assertNoAdministration(result.state);
   } finally {
     cleanup(fixture);
   }
+});
+
+test("retry recognizes a publish that succeeded despite a lost response and continues safely", () => {
+  const fixture = setup();
+  try {
+    fixture.state.lostResponse = packageNames[1];
+    persist(fixture);
+    const first = run(fixture);
+    assert.notEqual(first.status, 0);
+    assert.deepEqual(
+      publishCalls(first.state).map(({ packageName }) => packageName),
+      packageNames.slice(0, 2),
+    );
+    assert.equal(
+      publishCalls(first.state).filter(
+        ({ packageName }) => packageName === packageNames[1],
+      ).length,
+      1,
+    );
+    assert.deepEqual(first.state.sleeps, []);
+
+    fixture.state = first.state;
+    fixture.state.calls = [];
+    delete fixture.state.lostResponse;
+    persist(fixture);
+    const retry = run(fixture);
+    assert.equal(retry.status, 0, `${retry.stdout}\n${retry.stderr}`);
+    assert.deepEqual(
+      publishCalls(retry.state).map(({ packageName }) => packageName),
+      packageNames.slice(2),
+    );
+    assertNoAdministration(retry.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("post-publish exact-version visibility converges without republishing", () => {
+  const fixture = setup({
+    visibilityDelayReads: { [packageNames[0]]: 3 },
+  });
+  try {
+    const result = run(fixture);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      packageNames,
+    );
+    assert.equal(
+      publishCalls(result.state).filter(
+        ({ packageName }) => packageName === packageNames[0],
+      ).length,
+      1,
+    );
+    assert.deepEqual(result.state.sleeps, [30, 30, 30]);
+    assert.match(result.stdout, /exact version metadata to converge/u);
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("post-publish requested tag converges without republishing", () => {
+  const fixture = setup({
+    tagDelayReads: { [packageNames[0]]: 2 },
+  });
+  try {
+    const result = run(fixture);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      packageNames,
+    );
+    assert.equal(
+      publishCalls(result.state).filter(
+        ({ packageName }) => packageName === packageNames[0],
+      ).length,
+      1,
+    );
+    assert.deepEqual(result.state.sleeps, [30, 30]);
+    assert.match(result.stdout, /requested dist-tag snapshot to converge/u);
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("registry evidence at exactly five minutes is accepted without republishing", () => {
+  const fixture = setup({
+    visibilityDelayReads: { [packageNames[0]]: 10 },
+  });
+  try {
+    const result = run(fixture);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.equal(
+      publishCalls(result.state).filter(
+        ({ packageName }) => packageName === packageNames[0],
+      ).length,
+      1,
+    );
+    assert.equal(result.state.sleeps.length, 10);
+    assert.equal(
+      result.state.sleeps.reduce((sum, value) => sum + value, 0),
+      300,
+    );
+    assert.match(result.stdout, /converged after 300 seconds/u);
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("registry evidence after five minutes fails closed without republishing", () => {
+  const fixture = setup({
+    postPublishExactReadAdvanceSeconds: { [packageNames[0]]: 301 },
+  });
+  try {
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      [packageNames[0]],
+    );
+    assert.deepEqual(result.state.sleeps, []);
+    assert.match(
+      result.stderr,
+      /evidence arrived after the 300-second convergence deadline/u,
+    );
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("registry convergence timeout publishes no dependent package", () => {
+  const fixture = setup({
+    visibilityDelayReads: { [packageNames[0]]: 100 },
+  });
+  try {
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      [packageNames[0]],
+    );
+    assert.equal(
+      result.state.sleeps.reduce((sum, value) => sum + value, 0),
+      300,
+    );
+    assert.match(result.stderr, /Timed out after 300 seconds/u);
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("confirmed post-publish payload mismatch fails immediately with no dependent publish", () => {
+  const fixture = setup({ corruptAfterPublish: [packageNames[0]] });
+  try {
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      [packageNames[0]],
+    );
+    assert.deepEqual(result.state.sleeps, []);
+    assert.match(
+      result.stderr,
+      /payload differs from the expected packed identity/u,
+    );
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("malformed post-publish metadata fails immediately with no dependent publish", () => {
+  const fixture = setup();
+  try {
+    fixture.state.packages[packageNames[0]].malformedMetadata = true;
+    persist(fixture);
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      [packageNames[0]],
+    );
+    assert.deepEqual(result.state.sleeps, []);
+    assert.doesNotMatch(`${result.stdout}${result.stderr}`, /\{bad-json/u);
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("wrong tag on the first successful publish times out before every dependent package", () => {
+  const fixture = setup({ wrongTagAfterPublish: [packageNames[0]] });
+  try {
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      [packageNames[0]],
+    );
+    assert.equal(
+      result.state.sleeps.reduce((sum, value) => sum + value, 0),
+      300,
+    );
+    assertNoAdministration(result.state);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("snapshot, RC, and latest support fresh, partial, lost-response, and idempotent publication", async (t) => {
+  for (const tag of ["snapshot", "rc", "latest"]) {
+    await t.test(tag, async (t) => {
+      const previousLatest = "0.5.0";
+      const initialTags = Object.fromEntries(
+        packageNames.map((name) => [name, { latest: previousLatest }]),
+      );
+
+      await t.test("fresh and idempotent rerun", () => {
+        const fixture = setup({ npmTag: tag, tags: initialTags });
+        try {
+          const fresh = run(fixture);
+          assert.equal(fresh.status, 0, `${fresh.stdout}\n${fresh.stderr}`);
+          assert.equal(publishCalls(fresh.state).length, 5);
+          for (const pkg of Object.values(fresh.state.packages)) {
+            assert.equal(pkg.tags[tag], version);
+            assert.equal(
+              pkg.tags.latest,
+              tag === "latest" ? version : previousLatest,
+            );
+          }
+
+          fixture.state = fresh.state;
+          fixture.state.calls = [];
+          persist(fixture);
+          const rerun = run(fixture);
+          assert.equal(rerun.status, 0, `${rerun.stdout}\n${rerun.stderr}`);
+          assert.deepEqual(publishCalls(rerun.state), []);
+        } finally {
+          cleanup(fixture);
+        }
+      });
+
+      await t.test("partial recovery", () => {
+        const fixture = setup({
+          ...matchingPresent(packageNames.slice(0, 2), tag),
+          tags: {
+            ...initialTags,
+            ...matchingPresent(packageNames.slice(0, 2), tag).tags,
+          },
+        });
+        try {
+          const result = run(fixture);
+          assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+          assert.deepEqual(
+            publishCalls(result.state).map(({ packageName }) => packageName),
+            packageNames.slice(2),
+          );
+        } finally {
+          cleanup(fixture);
+        }
+      });
+
+      await t.test("lost response recovery", () => {
+        const fixture = setup({ npmTag: tag, tags: initialTags });
+        try {
+          fixture.state.lostResponse = packageNames[0];
+          persist(fixture);
+          const first = run(fixture);
+          assert.notEqual(first.status, 0);
+          assert.deepEqual(
+            publishCalls(first.state).map(({ packageName }) => packageName),
+            [packageNames[0]],
+          );
+
+          fixture.state = first.state;
+          fixture.state.calls = [];
+          delete fixture.state.lostResponse;
+          persist(fixture);
+          const retry = run(fixture);
+          assert.equal(retry.status, 0, `${retry.stdout}\n${retry.stderr}`);
+          assert.deepEqual(
+            publishCalls(retry.state).map(({ packageName }) => packageName),
+            packageNames.slice(1),
+          );
+        } finally {
+          cleanup(fixture);
+        }
+      });
+    });
+  }
+});
+
+test("bounded provider runner terminates a hanging subprocess", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "bounded-provider-test-"));
+  const outputFile = path.join(root, "output");
+  try {
+    const started = Date.now();
+    const result = await runBoundedCommand({
+      command: process.execPath,
+      args: ["-e", "setInterval(() => {}, 1000)"],
+      outputFile,
+      outputLimit: 1024,
+      timeoutMs: 500,
+    });
+    assert.equal(result.reason, "timeout");
+    assert.ok(Date.now() - started < 5_000);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("fails closed on oversized registry output before publication", () => {
+  const fixture = setup();
+  try {
+    fixture.state.oversizedOperation = "view";
+    fixture.state.oversizedPackage = packageNames[0];
+    fixture.state.oversizedBytes = 128 * 1024;
+    persist(fixture);
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(publishCalls(result.state), []);
+    assert.doesNotMatch(`${result.stdout}${result.stderr}`, /x{100}/u);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("fails closed on oversized publish output before any dependent package", () => {
+  const fixture = setup();
+  try {
+    fixture.state.oversizedOperation = "publish";
+    fixture.state.oversizedPackage = packageNames[0];
+    fixture.state.oversizedBytes = 128 * 1024;
+    persist(fixture);
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(
+      publishCalls(result.state).map(({ packageName }) => packageName),
+      [packageNames[0]],
+    );
+    assert.doesNotMatch(`${result.stdout}${result.stderr}`, /x{100}/u);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("run helper rejects incomplete publisher fixture subprocess results centrally", async (t) => {
+  const timeoutError = Object.assign(new Error("spawnSync bash ETIMEDOUT"), {
+    code: "ETIMEDOUT",
+  });
+  for (const [name, result, expected] of [
+    [
+      "outer harness timeout",
+      { error: timeoutError, signal: "SIGTERM", status: null },
+      /exceeded its 60000ms outer harness allowance/u,
+    ],
+    [
+      "spawn error",
+      {
+        error: Object.assign(new Error("spawn failed"), { code: "EACCES" }),
+        signal: null,
+        status: null,
+      },
+      /failed to spawn \(EACCES\)/u,
+    ],
+    [
+      "terminating signal",
+      { error: undefined, signal: "SIGKILL", status: null },
+      /terminated by signal SIGKILL/u,
+    ],
+    [
+      "null exit status",
+      { error: undefined, signal: null, status: null },
+      /returned no exit status/u,
+    ],
+  ]) {
+    await t.test(name, () => {
+      assert.throws(
+        () => assertPublisherFixtureProcessCompleted(result),
+        expected,
+      );
+    });
+  }
+});
+
+test("harness allowance is separate from active production publisher limits", () => {
+  const source = fs.readFileSync(publisher, "utf8");
+  assert.equal(publisherFixtureSubprocessTimeoutMs, 60_000);
+  for (const [name, declaration, activeUse] of [
+    [
+      "npm read timeout",
+      /^readonly npm_read_timeout_ms="30000"$/mu,
+      /^  local timeout_ms="\$\{npm_read_timeout_ms\}"$/mu,
+    ],
+    [
+      "npm publish timeout",
+      /^readonly npm_publish_timeout_ms="300000"$/mu,
+      /^    timeout_ms="\$\{npm_publish_timeout_ms\}"$/mu,
+    ],
+    [
+      "npm output limit",
+      /^readonly npm_output_limit_bytes="65536"$/mu,
+      /^    --output-limit "\$\{npm_output_limit_bytes\}" \\$/mu,
+    ],
+    [
+      "registry convergence deadline",
+      /^readonly registry_convergence_deadline_seconds="300"$/mu,
+      /^  deadline=\$\(\(started_at \+ registry_convergence_deadline_seconds\)\)$/mu,
+    ],
+    [
+      "registry convergence poll interval",
+      /^readonly registry_convergence_poll_seconds="30"$/mu,
+      /^    sleep_seconds="\$\{registry_convergence_poll_seconds\}"$/mu,
+    ],
+    [
+      "tarball connection timeout",
+      /^readonly tarball_connect_timeout_seconds="10"$/mu,
+      /^    --connect-timeout "\$\{tarball_connect_timeout_seconds\}" \\$/mu,
+    ],
+    [
+      "tarball transfer timeout",
+      /^readonly tarball_timeout_seconds="120"$/mu,
+      /^    --max-time "\$\{tarball_timeout_seconds\}" \\$/mu,
+    ],
+    [
+      "tarball size limit",
+      /^readonly tarball_size_limit_bytes="104857600"$/mu,
+      /^    --max-filesize "\$\{tarball_size_limit_bytes\}" \\$/mu,
+    ],
+  ]) {
+    assert.match(source, declaration, `${name} declaration changed`);
+    assert.match(source, activeUse, `${name} is not consumed by its call site`);
+  }
+  assert.match(source, /^    --timeout-ms "\$\{timeout_ms\}" \\$/mu);
+});
+
+test("publisher has one bounded npm publish call site and bounded tarball downloads", () => {
+  const source = fs.readFileSync(publisher, "utf8");
+  assert.equal(
+    (
+      source.match(
+        /run_bounded_npm publish "\$\{publish_output\}" publish --provenance --ignore-scripts/gu,
+      ) ?? []
+    ).length,
+    1,
+  );
+  assert.match(source, /verify_npm_version_at_publication_boundary/u);
+  assert.match(source, /trusted_publishing_minimum_npm_version="11\.5\.1"/u);
+  assert.match(source, /registry_convergence_deadline_seconds="300"/u);
+  assert.match(source, /registry_convergence_poll_seconds="30"/u);
+  assert.match(
+    source,
+    /wait_for_published_registry_convergence "\$\{index\}"/u,
+  );
+  assert.match(source, /run_bounded_npm[\s\S]*publish/u);
+  assert.match(source, /--connect-timeout/u);
+  assert.match(source, /--max-time/u);
+  assert.match(source, /--max-filesize/u);
+  assert.match(source, /env -i/u);
+  assert.doesNotMatch(source, /\bnpm\s+(?:access|dist-tag)\b/u);
+  assert.doesNotMatch(source, /\bpnpm\s+publish\b/u);
+  assert.doesNotMatch(
+    source,
+    /_authToken|NODE_AUTH_TOKEN=.*\$\{|NPM_TOKEN=.*\$\{/u,
+  );
 });

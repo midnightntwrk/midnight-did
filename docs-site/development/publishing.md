@@ -66,44 +66,49 @@ The root workspace and `docs-site` remain private. The package workspaces are
 publishable and keep `publishConfig.registry` pointed at
 `https://registry.npmjs.org/` with `publishConfig.access: "public"`.
 
-The workflow sources `NODE_AUTH_TOKEN` from the permanent SRE-managed
-organization secret `MIDNIGHTCI_NPMJS_TOKEN` only in the npm producer step. The
-separate `Verify npm Publication Authority` workflow sources `NODE_AUTH_TOKEN`
-from the same organization secret only in its read-only checker step. The
-post-publish npmjs smoke step uses the public registry without a write-capable
-token. `GITHUB_TOKEN` is used for repository-scoped operations such as
-creating/updating GitHub Release assets and publishing the GHCR ZK artifact.
-The workflow keeps `packages: write` only because GHCR generic OCI artifact
-publication requires it; npmjs publication is authenticated by the npm token.
+npmjs publication uses npm Trusted Publishing. Build, dependency installation,
+packing, signing, GHCR publication, and GitHub Release work run outside the
+`npm-release` environment. Only the minimal `npm-release` job has both that
+environment and `id-token: write`; it sparsely checks out only immutable
+publisher scripts plus the Node version pin, downloads the package artifact by
+immutable ID, verifies the producer archive digest and exact checksummed
+inventory, rechecks npm CLI `>=11.5.1` at the mutation boundary, and publishes
+the already packed tarballs with lifecycle scripts disabled. No npm publication
+secret is required. `GITHUB_TOKEN` remains
+limited to repository-scoped operations; `packages: write` is held by the
+separate GHCR job and is not available to the npm publisher.
 
-Repository administrators must keep `npm-release` configured with required
-environment reviewers, prevention of self-review, and exact selected
-deployment-branch rules for `main` and `develop`, excluding tags, wildcard
-branches, and every other branch. The environment has no environment-scoped
-secret. Consequently, `MIDNIGHTCI_NPMJS_TOKEN` will not appear in the
-`npm-release` environment secret list.
+Before the first manual publication, npm administrators must add a Trusted
+Publisher to each package:
 
-SRE manages `MIDNIGHTCI_NPMJS_TOKEN` as a permanent organization secret. It is
-available to this repository only when the organization secret's
-selected-repository policy includes `midnightntwrk/midnight-did`. That policy,
-not the `npm-release` environment, determines repository access to the secret.
-The environment cannot scope an organization secret against a malicious branch
-workflow change that references it from another job or workflow without the
-environment gate.
+| npm package                                   | Organization    | Repository     | Workflow      | Environment   |
+| --------------------------------------------- | --------------- | -------------- | ------------- | ------------- |
+| `@midnight-ntwrk/midnight-did-jubjub-schnorr` | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-release` |
+| `@midnight-ntwrk/midnight-did-contract`       | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-release` |
+| `@midnight-ntwrk/midnight-did-domain`         | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-release` |
+| `@midnight-ntwrk/midnight-did`                | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-release` |
+| `@midnight-ntwrk/midnight-did-api`            | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-release` |
 
-This is an externally accepted residual organization-secret trust boundary.
-The `npm-release` approval and deployment-branch controls still
-gate the intended publish and authority jobs. Workflow event and exact-ref
-conditions, immutable-SHA checkout, runtime assertions, least-privilege
-permissions, secret step scoping, provenance, and the read-only authority
-checker remain mandatory defense in depth; none may be weakened because the
-credential is organization-scoped.
+Repository administrators must configure required `npm-release` reviewers with
+self-review prevention and exact selected deployment branches `main` and
+`develop`, excluding tags, wildcard branches, and all other branches. Repository
+code cannot inspect or prove those external settings; an environment
+administrator must attest them before a publication is dispatched. No
+additional secret is required. After confirming no other workflow depends on
+the old organization credential, it can be removed from this normal release
+path.
+
+The environment deployment-branch restrictions and required reviewers are the
+actual protection boundary. Workflow event/ref conditions, immutable-SHA
+checkout, runtime assertions, and secret step scoping are defense in depth, not
+substitutes for those GitHub settings. An environment administrator must attest
+the complete configuration before any publication is dispatched.
 
 Publication channels:
 
 | Channel  | Trigger                  | Branches          | Version shape                | npm tag    | ZK artifacts                               |
 | -------- | ------------------------ | ----------------- | ---------------------------- | ---------- | ------------------------------------------ |
-| Snapshot | Push or manual dispatch  | `develop`         | `x.y.z-snapshot.<run>.<sha>` | `snapshot` | Workflow artifact and GHCR OCI artifact    |
+| Snapshot | Manual workflow dispatch | `develop`         | `x.y.z-snapshot.<run>.<sha>` | `snapshot` | Workflow artifact and GHCR OCI artifact    |
 | RC       | Manual workflow dispatch | `main`, `develop` | `x.y.z-rc{index}`            | `rc`       | GitHub Release asset and GHCR OCI artifact |
 | Release  | Manual workflow dispatch | `main` only       | `x.y.z`                      | `latest`   | GitHub Release asset and GHCR OCI artifact |
 
@@ -115,6 +120,15 @@ environment itself cannot represent NUL: the operating-system process boundary
 rejects an environment variable containing NUL before the resolver can run. The
 same stable-SemVer rule rejects every representable control character before any
 GitHub output record is written.
+
+For RC and final releases, the finalizer extracts the body beneath exactly one
+Keep-a-Changelog heading matching the stable base version, for example
+`## [0.6.0] - Unreleased` or a valid dated heading. Extraction is dependency-free
+and fails before the privileged boundary for a missing, duplicate, empty, or
+malformed section, an unexpected level-two boundary, an invalid version, or an
+unsafe output path. The privileged publisher receives the generated file only
+through `--notes-file`; it does not construct notes from event text or shell
+arguments.
 
 The workflow revalidates the event, exact full source ref, branch ref type,
 channel, base version, resolved version, and RC index immediately before signing
@@ -128,37 +142,44 @@ consume GitHub's full ref directly rather than trusting short ref names. A
 release fix made directly on `main` must also be synchronized back to `develop`
 before any later `develop` snapshot or RC.
 
-Automated snapshot publication is intentionally gated. A push to `main` or
-`develop` publishes a snapshot only when the diff contains Compact, TypeScript,
-JavaScript, or shell-script changes under package/runtime paths. Markdown,
-`docs-site`, W3C spec pages, GitHub workflow/configuration changes, Renovate or
-Dependabot configuration, and manifest/lockfile-only dependency updates do not
-publish snapshot packages or ZK artifacts. Manual snapshots from `develop`, RCs
-from `main` or `develop`, and final releases from `main` are not gated by this
-classifier.
+The publication workflow has no `push` trigger. Pushes to every branch,
+including `develop`, and PR merges cannot start any publication job. Snapshot,
+RC, and final publication all require an explicit manual dispatch; the exact-ref
+checks above still fail closed before a build or privileged job can run.
 
-## Read-only npm authority verification
+## Trusted Publishing prerequisite check
 
-The manually dispatched `Verify npm Publication Authority` workflow runs with
-only `contents: read`, checks out no code until the exact `refs/heads/main`
-context passes, installs no dependencies, and executes only authenticated
-`npm whoami` and `npm access list packages` reads against the exact registry
-`https://registry.npmjs.org/`. It requires identity `ntwrk-bot` and read-write
-access evidence for the canonical five-package catalog.
+After the unprivileged build job has uploaded the package artifact, the separate
+`npm-release` job downloads it by immutable artifact ID and verifies the
+producer's archive digest, checksum-manifest digest, exact five-tarball
+inventory, packed manifest ownership metadata, and all tarball checksums. It
+then runs a fail-closed prerequisite check directly at the publication boundary.
+It installs no repository dependencies and runs no package, Compact, or
+lifecycle build. The checker verifies the
+exact repository, `publish.yml` workflow ref, allowed branch ref, GitHub-hosted
+runner, `npm-release` environment expectation, and presence of both GitHub OIDC
+request-capability variables. It does not request, decode, or log an OIDC JWT or
+any environment secret. Ambient `NODE_AUTH_TOKEN`, `NPM_TOKEN`, `NPM_ID_TOKEN`,
+npm credential/client-certificate settings, registry redirects, and
+`NODE_OPTIONS` runtime injection are rejected before npm is invoked.
 
-The checker invokes npm without a shell, with bounded time and output, strict
-single-value JSON and UTF-8 handling, an isolated temporary npm configuration,
-and an allowlisted child environment. It removes the temporary state on every
-exit and does not include provider output, provider errors, or credentials in
-reported failures. The runner and npm executable remain trusted components; a
-fake-npm test demonstrates command selection, containment, and redaction, not
-containment of a malicious npm binary that receives the credential.
+The checker requires npm CLI `>=11.5.1`, derives the canonical five-package
+inventory from `did-workspace-catalog.mjs`, and performs bounded unauthenticated
+public metadata reads. Artifact inventory validation separately checks every
+packed package's npmjs registry, public access, package name, version, and
+repository ownership metadata. The publisher rechecks the npm minimum
+immediately before the first mutation. npm runs without a
+shell, with isolated auth-free configuration, bounded output/time, and raw
+provider output suppressed on failure. The publisher repeats the input guard
+immediately before each mutation and launches npm with a narrowly allowlisted
+environment containing only isolated npm paths plus required GitHub
+OIDC/provenance context.
 
-This read-only check is point-in-time evidence only. It does not prove that a
-later package PUT will succeed, that authority cannot be revoked between the
-check and publication, or that five sequential publishes are transactional. Do
-not use the publication workflow as a credential test, and do not infer release
-authorization from a successful authority check.
+A successful prerequisite check proves only observable repository, workflow,
+runner, CLI, manifest, and public-readability prerequisites. npm exposes no
+cheap unauthenticated API for this relationship, so the npm-side Trusted
+Publisher mapping is **not verified and cannot be verified without an actual
+publish**. Five sequential publishes also remain non-transactional.
 
 ## Distribution Use Cases
 
@@ -237,74 +258,88 @@ as workflow artifacts and GHCR OCI artifacts. For RC and final release versions,
 Exact npm package versions are immutable. The publication flow is designed for
 safe reruns after partial failure:
 
-- npm skips an existing version only after verifying the published `dist.integrity`
-  matches the release tarball, then reconciles its dist-tag;
+- npm skips an existing version only after verifying its immutable payload and
+  confirming that it already owns the requested dist-tag;
 - GHCR preserves an existing version tag, pulls it back, and verifies the bundle
   payload and manifest instead of overwriting it;
-- GitHub Release assets are immutable: existing payloads are verified, missing
-  assets are uploaded, and existing signatures are preserved;
-- SLSA subjects are calculated from the assets actually present in the GitHub
-  Release, so reruns cannot attest newly generated files that were not uploaded;
+- GitHub Release bodies and assets are immutable: initial creation uses the
+  reviewed generated changelog notes and complete canonical asset multiset; a
+  rerun requires raw byte equality for the LF-terminated body and rejects every
+  duplicate, extra, or missing asset instead of editing or uploading;
+- the canonical `multiple.intoto.jsonl` is downloaded after both creation and
+  reuse, cryptographically checked against the pinned reusable SLSA workflow
+  identity and GitHub OIDC issuer, and semantically bound to every downloaded
+  non-provenance asset plus the exact source and dispatch context;
 - ZK archives use a reproducible timestamp, ordering, ownership, and gzip header
   so equivalent builds produce the same payload.
 
-A remote artifact with a different payload fails closed rather than being
-replaced. RC and final releases receive their SLSA provenance before the
-immutable GitHub Release is created, and all release assets are supplied in the
-initial creation request. This keeps a partial publication recoverable without
-making an immutable release mutable.
+A remote artifact, non-canonical release body, or mismatched asset multiset
+fails closed rather than being replaced or repaired. Body equality is raw UTF-8
+byte equality: LF line endings and exactly one terminal newline are canonical,
+while CRLF is a mismatch. Only the exact bounded `release not found` response
+permits creation; authentication, rate-limit, server, timeout, output-limit, and
+malformed failures stop with provider output suppressed. RC and final releases
+receive their SLSA provenance before the immutable GitHub Release is created,
+and the reviewed notes file plus all release assets are supplied in the initial
+creation request. The reusable SLSA workflow is pinned to an exact
+commit and compiles its generator from that pinned source; release-binary mode
+is not used because it requires the reusable workflow reference to be a version
+tag rather than the repository's required immutable commit pin. This keeps a
+partial publication recoverable without making an immutable release mutable.
 
 ### npm preflight, partial failure, and retry
 
-Before the first registry mutation, the npm publisher:
+Before the first publish, the npm publisher:
 
-1. derives the dependency-ordered workspace inventory from
+1. requires the exact `https://registry.npmjs.org/` registry and rejects every
+   ambient npm token, credential, OTP, client-certificate input, registry
+   redirect, and `NODE_OPTIONS` injection before any npm invocation;
+2. derives the dependency-ordered workspace inventory from
    `did-workspace-catalog.mjs --publish-workspaces` and requires exactly the five
    canonical pre-packed tarballs;
-2. verifies every workspace and packed manifest name/version and records each
-   local tarball integrity;
-3. completes read-only package visibility, access-status, and exact-version
-   inventory for all five packages; and
-4. verifies the immutable payload of every target version that already exists.
+3. verifies every packed manifest name/version and records each local tarball
+   integrity; and
+4. completes all-five public package-name, exact-version, immutable-payload, and
+   dist-tag reads.
 
-The npm 11 access-status response must contain exactly one top-level JSON value:
-an object containing exactly one key, the exact scoped package name requested.
-Its value must be `public` or `private`. Empty or concatenated JSON streams, bare
-strings, additional or mismatched keys, and all other values or JSON shapes fail
-closed before any registry mutation.
+An exact-version E404 is considered absent only after package-level public
+readability succeeds. Missing, extra, malformed, ambiguous, or mismatched
+evidence fails closed. Before any missing package is published, every existing
+exact version must already match both the packed payload and requested tag. For
+non-`latest` channels, the target version must not own `latest`.
 
-Missing, extra, malformed, ambiguous, or mismatched evidence stops the run before
-producer or metadata mutation. An exact-version E404 is considered absent only
-after package-level visibility and access reads succeed. In particular, an E404
-from a package-level read may hide missing authorization and therefore fails
-closed. The publisher does not use temporary dist-tag probes: they are mutations,
-their cleanup can fail, and they do not prove package-version PUT authority.
+Missing packages are published in catalog dependency order with the npm CLI:
 
-This preflight reduces the chance of partial publication, but it cannot prove
-that a later PUT will be authorized and cannot make five sequential npm package
-writes transactional. A token can lose authority or the registry can fail after
-any successful publish. If a run fails:
+```bash
+npm publish --provenance --ignore-scripts --tag "${NPM_TAG}" --access public \
+  --registry "https://registry.npmjs.org/" "<prepacked-tarball>"
+```
+
+`npm publish --tag` creates the initial requested tag. The normal Trusted
+Publishing workflow never invokes `npm access` or mutating `npm dist-tag`
+commands. Existing wrong/missing tags or access requiring repair therefore fail
+closed; an npm administrator must repair them through a separately authorized,
+documented maintenance process outside this normal OIDC workflow. No such
+maintenance workflow is currently provided.
+
+Every npm registry command has a strict output and wall-clock bound. Fallback
+tarball identity downloads have connect/overall timeouts and a 100 MiB size
+limit. After every successful publish, payload and requested-tag read-back must
+succeed before the next dependent package can publish; a final all-five read-back
+is retained. This reduces partial-publication risk but cannot make five writes
+transactional. If a run fails:
 
 - Record the workflow SHA, exact version, channel/tag, first failing package, and
-  the final publisher evidence. Do not create a replacement version merely to
-  hide a partial snapshot.
-- Repair authorization outside the repository when reads or publication are
-  denied; never print or copy the token into logs.
-- Retry the same workflow SHA with the same exact version and npm tag. A partial
-  state is recoverable only when every existing remote payload matches its local
-  packed identity; the rerun publishes only missing packages in catalog order.
-- Stop and investigate when any immutable payload differs or any read remains
-  ambiguous. Never overwrite or unpublish a mismatched version as an automated
-  recovery step.
-- Access reconciliation runs only for explicit `private` evidence and must read
-  back `public`. Dist-tags are reconciled only after all five exact payloads
-  verify, and already-correct tags are not rewritten. A failure in either phase
-  is retried with the same SHA/version so final all-five payload, access, and tag
-  read-back can complete.
-- Treat the npm set as complete only after the publisher's final all-five
-  verification and the public npmjs smoke step succeed. Continue to use the
-  existing GHCR/GitHub Release pull-back checks as the ZK-artifact completion
-  evidence.
+  final publisher evidence. Do not replace a version merely to hide a partial
+  snapshot.
+- Retry the same workflow SHA/version/tag. A publish that succeeded despite a
+  lost response is recognized only when its immutable payload and requested tag
+  both match; only missing packages continue in dependency order.
+- Stop when any existing payload/tag differs or any read is ambiguous. Do not
+  overwrite, unpublish, change access, or mutate tags in automated recovery.
+- Treat npm publication as complete only after final all-five public metadata,
+  payload, and tag read-back plus the public npmjs smoke test succeeds. Continue
+  using the existing GHCR/GitHub Release pull-back checks for ZK artifacts.
 
 The ZK bundle preserves the provider layout used by Midnight JS:
 
@@ -339,9 +374,16 @@ pnpm run published-artifacts:smoke -- --skip-npm --zk-archive "${ZK_ARCHIVE}"
 PR CI validates package contents, ZK bundle structure, package imports, docs, and
 the normal core/API lanes. It does not publish packages or push GHCR artifacts.
 
-After this branch lands on `develop`, a code-impacting push to `develop` should
-trigger the snapshot publication path. Use the version printed by the workflow
-summary:
+Merging a PR is non-publishing. After all five npm Trusted Publisher mappings
+and the protected `npm-release` environment prerequisites are configured and
+attested, a release owner can later dispatch a `0.6.0` snapshot manually from
+the exact `develop` branch with:
+
+```bash
+gh workflow run publish.yml --repo midnightntwrk/midnight-did --ref develop --field channel=snapshot --field version=0.6.0
+```
+
+Use the version printed by that workflow's summary for public smoke testing:
 
 ```bash
 export VERSION="0.6.0-snapshot.<run>.<sha>"

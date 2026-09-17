@@ -1,19 +1,33 @@
 # Midnight DID W3C Conformance Evidence
 
-**Release lane:** focused 0.6 evidence refresh from the post-[#434](https://github.com/midnightntwrk/midnight-did/pull/434) baseline.
-**Source of record:** [issue #405](https://github.com/midnightntwrk/midnight-did/issues/405), coordinated with the [0.6 release tracker #443](https://github.com/midnightntwrk/midnight-did/issues/443).
+**Evidence lane:** focused repository and CI conformance evidence for the 0.6 implementation baseline.
+**Source of record:** [issue #405](https://github.com/midnightntwrk/midnight-did/issues/405); external-harness work is tracked by [#446](https://github.com/midnightntwrk/midnight-did/issues/446).
 
 The 0.6 conformance claim is bounded to the DID Core 1.0 Recommendation. The DID Core 1.1 and 2026 DID Resolution Candidate Recommendation snapshots are audited forward-compatibility targets with disclosed failures; they are not 0.6 passing claims. The coordinated breaking representation and resolution migration is tracked by [#447](https://github.com/midnightntwrk/midnight-did/issues/447).
 
 These matrices are implementation evidence, not formal W3C certification. W3C does not certify individual DID methods, and this repository does not claim full DID Core 1.1, DID Resolution, resolver-service, or ecosystem compatibility.
 
-## Pinned standards baselines
+<!-- BEGIN EXTERNAL SUITE BASELINE -->
 
-| Baseline          | Status/date                                       | Dated URL                                                                                      | SHA-256 of audited HTML                                            |
-| ----------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| DID Core 1.0      | W3C Recommendation, 2022-07-19                    | [`REC-did-core-20220719`](https://www.w3.org/TR/2022/REC-did-core-20220719/)                   | `5e44345740d9bfaa852d3b66c57e98c9beb6c5bf6083b0126dd5daac377b9993` |
-| DID Core 1.1      | W3C Candidate Recommendation Snapshot, 2026-03-05 | [`CR-did-1.1-20260305`](https://www.w3.org/TR/2026/CR-did-1.1-20260305/)                       | `4a48022defe07d37d2decc3ec9027a932dc883b2ad164a5aeaf9256e530bd979` |
-| DID Resolution v1 | W3C Candidate Recommendation Snapshot, 2026-08-06 | [`CR-did-resolution-1.0-20260806`](https://www.w3.org/TR/2026/CR-did-resolution-1.0-20260806/) | `a4632a09600e0136022969114520dc3f8ee9af99ad80963e3ba1a368bea9af1a` |
+## External DID Core suite evidence
+
+The machine-readable source of truth is [`external-suites.json`](./external-suites.json). This section is rendered from that baseline; edit the JSON and rerun `pnpm conformance:external:docs` rather than editing this block.
+
+| Standard          | 0.6 status | Immutable baseline                                                           | SHA-256                                                            |
+| ----------------- | ---------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| DID Core 1.0      | PASS       | [dated snapshot](https://www.w3.org/TR/2022/REC-did-core-20220719/)          | `5e44345740d9bfaa852d3b66c57e98c9beb6c5bf6083b0126dd5daac377b9993` |
+| DID Core 1.1      | FAIL       | [dated snapshot](https://www.w3.org/TR/2026/CR-did-1.1-20260305/)            | `4a48022defe07d37d2decc3ec9027a932dc883b2ad164a5aeaf9256e530bd979` |
+| DID Resolution v1 | FAIL       | [dated snapshot](https://www.w3.org/TR/2026/CR-did-resolution-1.0-20260806/) | `a4632a09600e0136022969114520dc3f8ee9af99ad80963e3ba1a368bea9af1a` |
+
+The supplementary harness is [`w3c/did-test-suite`](https://github.com/w3c/did-test-suite) at commit `939b31d07d5b1699340ac0702ec0fa46ffcdef0a` (archive SHA-256 `c4e464d3f49d265a4023f646a77db7abc0992ff844d3055c180cd1c1c86717bd`; complete extracted-tree SHA-256 `bacdbd9ed79bbe772383f99b8df39c037bc6ee8a49622ca33de77c73be55526c`). It requires Node major 24 and npm major 11, while canonical evidence records the exact accepted Node and npm versions used. It runs only these suites, with pinned expected assertion counts: `did-identifier` (1), `did-core-properties` (60), `did-production` (47), `did-consumption` (46). They execute against a deterministic descriptor generated through the built public `@midnight-ntwrk/midnight-did` exports. `did-consumption` is labelled representation consumability because generation first round-trips the JSON-LD representation through `parseMidnightDIDDocument`; it is not broader semantic conformance.
+
+Excluded scope: did-resolution (legacy keyword-error and split-helper contract); did-url-dereferencing (not exposed by the package); synthetic DID Core 1.1 context rewriting; CBOR representations; HTTP binding and public endpoints; unrelated upstream implementations.
+
+Upstream licensing is **mixed-or-unclear**: root metadata says Apache-2.0, `LICENSE.md` applies the W3C Document License, and child package metadata is missing-or-empty. [Maintainer approval is recorded](https://github.com/midnightntwrk/midnight-did/issues/446#issuecomment-5569537724) for executing the unmodified checksum-verified snapshot and publishing exact-commit derived test results with this caveat. The CI-only harness creates a new unpredictable mode-0700 temporary root for every acquisition and execution, verifies the exact archive, complete source tree, all three lockfiles, license metadata, and explicit runtime-source digests, and installs only the two required child lockfiles with lifecycle scripts disabled. Trusted repository code generates the fixture first; only that fixture, the adapter/setup files, the selected suite allowlist, implementation data, matcher source, and lockfile-installed dependencies enter the isolated runtime. Before external code starts, that runtime is read-only. External code receives no repository-wide read, CI credentials, supplementary groups, privilege gain, or network and can write only a temporary raw-results directory. The trusted parent validates and normalizes those raw bytes before atomically publishing only canonical `w3c-conformance-evidence.json` and its `.sha256` checksum in the fixed `test-results/w3c-conformance` tree. The exact accepted Node and npm versions used by the run are recorded in the canonical evidence. The complete download/install/runtime tree is made removable and deleted in `finally`; no cache or marker persists. The lane is Linux-only and uses trusted `unshare`/`setpriv`, restoring the original non-root UID/GID, clearing groups, and setting no-new-privileges with an in-namespace guard; unsupported platforms or isolation fail closed. The approval variable remains fail closed. It does not permit vendoring or modifying upstream source, registry submission, or package, tag, release, signing, or provenance integration.
+
+Registry posture: **`decision-pending-ownership-confirmation`**. The decision whether to update the [existing IAMX-linked entry](https://github.com/w3c/did-extensions/blob/de7836c8c4b51fde9500f5fa093e17f5229ec99d/methods/midnight.json) or record no update remains open until maintainers confirm ownership/contact continuity. Do not create a duplicate registration. Suite evidence is not registration, certification, W3C endorsement, or immutable release evidence.
+
+<!-- END EXTERNAL SUITE BASELINE -->
 
 DID Core 1.0 is the normative conformance baseline for 0.6. DID Core 1.1 and DID Resolution remain separately identified audited compatibility targets because both are Candidate Recommendation snapshots and can evolve independently. Their matrices intentionally show the incompatible 0.6 context, media types, resolver signature, split helpers, keyword errors, and deactivation result as failures or absent capabilities rather than converting DID Core 1.0 tests into positive CR evidence. [#447](https://github.com/midnightntwrk/midnight-did/issues/447) owns the coordinated breaking migration after 0.6.
 
@@ -23,11 +37,11 @@ DID Core 1.0 is the normative conformance baseline for 0.6. DID Core 1.1 and DID
 - 0.6 integration base: `55dde88ce1e451587303b5f4fc388eef4bdb32f5`
 - Runtime implementation under test: the exact clean `git rev-parse HEAD` printed by `pnpm test:conformance`; it is intentionally not hardcoded in this document or script.
 - Package version: `0.6.0` (unreleased)
-- Package manager pin: `pnpm@10.34.4`
-- Node requirement: `>=24`
+- Package manager pin: `pnpm@10.34.5` (authoritative `package.json#packageManager`)
+- External-lane runtime policy: Node major `24` and npm major `11` (the exact accepted versions are recorded in evidence); `pnpm@10.34.5` remains exact and authoritative
 - Inspected surfaces: `w3c-spec/midnight-method.md`, `packages/domain`, `packages/did`, `packages/api`, `packages/contract`, and their tests.
 
-The integration base identifies where this release-phase work began; it is not the revision tested at runtime. Exact revision evidence comes from clean-tree command output and is recorded in PR or release evidence. The command records an initially clean tracked HEAD, runs the complete lane, and then fails if HEAD changed or tracked staged/unstaged files became dirty (untracked files are ignored). This repository does not currently run this focused lane in CI or retain its output; external-suite integration, immutable hosted/CI evidence, and registry posture remain tracked by [#446](https://github.com/midnightntwrk/midnight-did/issues/446). A mutable Markdown branch view alone is not exact release evidence.
+The integration base identifies where the analysis began; it is not the revision tested at runtime. Both repository and external evidence commands record an initially clean tracked HEAD and fail if HEAD or tracked files change. The dedicated `W3C conformance` CI job runs the repository-owned lane independently, then runs the external lane only with the approval variable and uploads only canonical `w3c-conformance-evidence.json` and its checksum from the fixed `test-results/w3c-conformance/` tree under the exact checked-out SHA. Missing approval, isolation, acquisition, validation, or output fails visibly. Workflow artifacts are retention-bound CI evidence; immutable release evidence, signing, and provenance integration remain open and are deliberately not implemented by this slice.
 
 ## Reproduce the focused lane
 
@@ -50,7 +64,17 @@ pnpm --filter ./packages/domain test:ci
 pnpm --filter ./packages/did test:ci
 ```
 
-No matrix parser, generated report, or general conformance policy engine is required for this lane; the Markdown matrices, runtime banner, and executable test names are intentionally direct.
+The repository-owned lane remains authoritative and mandatory. The external command is CI-only. In an isolated CI-equivalent validation runner, use:
+
+```bash
+CI=true W3C_SUITE_DERIVED_ARTIFACTS_APPROVED=true pnpm test:conformance:external
+```
+
+On a Linux CI runner, the command generates the fixture with trusted built package code, then creates a fresh unpredictable mode-0700 temporary root, downloads, verifies, installs, and executes the exact pinned upstream snapshot. All lifecycle scripts are disabled. Only allowlisted external source/data and trusted fixture/adapter/setup files are copied into the isolated read-only runtime. External execution is non-root with supplementary groups cleared and no-new-privileges set, has no network, secrets, or repository-wide read access, and can write only temporary raw results. The trusted parent validates those bytes and atomically emits only canonical JSON, including normalized per-suite results and hashes, plus its checksum to the fixed `test-results/w3c-conformance/` path. The complete temporary root is removed in `finally`; no cache or acquisition marker survives. It requires trusted `unshare` and `setpriv` and an original non-root runner identity; unsupported platforms or unavailable isolation fail closed.
+
+The command requires Node major 24, strict-semver npm major 11, exact `pnpm@10.34.5`, Compact 0.31.1, a clean exact HEAD, and explicit approval; it records the exact accepted Node and npm versions actually used in canonical evidence. Failed, missing, pending, skipped, todo, empty, malformed, or drifting results fail. `pnpm conformance:external:acquire` is only a CI diagnostic of the same fresh acquisition path and also removes its runtime before returning; it does not prepare reusable state.
+
+Immutable release publication evidence is still open. This CI-only slice does not modify release workflows, sign conformance outputs, add them to provenance, publish a release asset, or claim that a retention-bound workflow artifact is immutable release evidence.
 
 ## Status vocabulary
 
@@ -77,7 +101,7 @@ The evidence retains all compatibility rules landed by #434:
 
 - Version 0.6 does not satisfy the pinned DID Core 1.1 and DID Resolution CR representation/resolution contracts. It uses `https://www.w3.org/ns/did/v1`, `application/did+json`/`application/did+ld+json`, split resolution helpers, keyword-string errors, and a readable document after deactivation. The coordinated breaking migration to `https://www.w3.org/ns/did/v1.1`, `application/did`, the standard resolver signature, structured URL-typed errors, and aligned deactivation results is tracked by [#447](https://github.com/midnightntwrk/midnight-did/issues/447).
 - DID URL dereferencing (fragment/resource/path/query dereferencing) is not exposed by `packages/did` or `packages/api`. Bare-DID resolution and DID URL reference normalization do not substitute for dereferencing; implementation is tracked by [#445](https://github.com/midnightntwrk/midnight-did/issues/445).
-- No external W3C DID/DID Resolution test suite or immutable hosted evidence is integrated. `pnpm test:conformance` is repository-owned evidence only; external-suite/CI evidence and registry posture are tracked by [#446](https://github.com/midnightntwrk/midnight-did/issues/446).
+- The external lane is supplemental static-fixture DID Core 1.0 evidence only. It does not exercise deployed ledger/indexer behavior, finality, availability, HTTP resolution, DID Resolution CR, dereferencing, DID Core 1.1, certification, or endorsement. Repository-owned tests remain authoritative.
 - `publicKeyMultibase`/`Multikey` is not a current ledger profile. Jubjub is Midnight-private, and the BLS JWK curve names remain a constrained profile.
 - The reference resolution path trusts the configured indexer/provider. It supplies no light client, independent state proof, or independent finality verification.
 - This lane does not provide a generic in-place contract migration or upgrade system.
@@ -87,3 +111,4 @@ The evidence retains all compatibility rules landed by #434:
 - [DID Core 1.0 — 0.6 conformance baseline](./did-core-1.0.md)
 - [DID Core 1.1 — audited compatibility target, overall FAIL](./did-core-1.1.md)
 - [DID Resolution — audited 2026 CR target, overall FAIL](./did-resolution.md)
+- [Registry posture — existing registration update deferred pending human confirmation](./registry.md)

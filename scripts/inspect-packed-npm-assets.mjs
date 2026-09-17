@@ -6,8 +6,14 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { publishWorkspaces } from "./did-workspace-catalog.mjs";
+import {
+  npmPackageRegistry,
+  packageManifestCatalog,
+  publishWorkspaces,
+  repositoryUrl,
+} from "./did-workspace-catalog.mjs";
 
 const canonicalWorkspaces = [
   "packages/jubjub-schnorr",
@@ -41,14 +47,6 @@ function parseArgs(args) {
   return options;
 }
 
-function readJson(filePath, description) {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
-  } catch (error) {
-    fail(`Unable to read ${description} ${filePath}: ${error.message}`);
-  }
-}
-
 function readPackedManifest(tarball) {
   const result = spawnSync("tar", ["-xOzf", tarball, "package/package.json"], {
     encoding: "utf8",
@@ -73,62 +71,99 @@ function sha512(filePath) {
   return `sha512-${createHash("sha512").update(fs.readFileSync(filePath)).digest("base64")}`;
 }
 
-const { assetsDir: rawAssetsDir, version } = parseArgs(process.argv.slice(2));
-const assetsDir = path.resolve(rawAssetsDir);
-
-if (JSON.stringify(publishWorkspaces) !== JSON.stringify(canonicalWorkspaces)) {
-  fail(
-    `Publish catalog must contain exactly the five canonical workspaces in dependency order; received ${JSON.stringify(publishWorkspaces)}`,
-  );
-}
-if (!fs.statSync(assetsDir, { throwIfNoEntry: false })?.isDirectory()) {
-  fail(`Packed npm asset directory does not exist: ${assetsDir}`);
-}
-
-const actualAssets = fs
-  .readdirSync(assetsDir, { withFileTypes: true })
-  .filter((entry) => entry.isFile() && entry.name.endsWith(".tgz"))
-  .map((entry) => entry.name)
-  .sort();
-const expectedAssets = canonicalPackageNames
-  .map((name) => tarballName(name, version))
-  .sort();
-if (JSON.stringify(actualAssets) !== JSON.stringify(expectedAssets)) {
-  fail(
-    `Packed npm asset inventory differs from the expected five tarballs. expected=${expectedAssets.join(",")} actual=${actualAssets.join(",")}`,
-  );
-}
-
-const rows = publishWorkspaces.map((workspace, index) => {
-  const expectedName = canonicalPackageNames[index];
-  const workspaceManifestPath = path.join(workspace, "package.json");
-  const workspaceManifest = readJson(
-    workspaceManifestPath,
-    "workspace manifest",
-  );
+function validatePackedManifest(manifest, workspace, expectedName, version) {
+  if (manifest?.name !== expectedName || manifest?.version !== version) {
+    fail(
+      `Packed identity mismatch for ${workspace}: expected ${expectedName}@${version}, received ${manifest?.name}@${manifest?.version}`,
+    );
+  }
   if (
-    workspaceManifest.name !== expectedName ||
-    workspaceManifest.version !== version
+    manifest?.publishConfig?.registry !== npmPackageRegistry ||
+    manifest?.publishConfig?.access !== "public"
+  ) {
+    fail(`Packed npm publish configuration is invalid for ${workspace}`);
+  }
+  if (
+    manifest?.repository?.type !== "git" ||
+    manifest?.repository?.url !== repositoryUrl ||
+    manifest?.repository?.directory !== workspace
+  ) {
+    fail(`Packed repository ownership metadata is invalid for ${workspace}`);
+  }
+}
+
+export function inspectPackedNpmAssets({ assetsDir: rawAssetsDir, version }) {
+  if (
+    JSON.stringify(publishWorkspaces) !== JSON.stringify(canonicalWorkspaces)
   ) {
     fail(
-      `Workspace identity mismatch for ${workspace}: expected ${expectedName}@${version}, received ${workspaceManifest.name}@${workspaceManifest.version}`,
+      `Publish catalog must contain exactly the five canonical workspaces in dependency order; received ${JSON.stringify(publishWorkspaces)}`,
+    );
+  }
+  if (
+    JSON.stringify(
+      publishWorkspaces.map(
+        (workspace) => packageManifestCatalog.get(workspace)?.name,
+      ),
+    ) !== JSON.stringify(canonicalPackageNames)
+  ) {
+    fail("Publish catalog package names differ from the canonical inventory");
+  }
+  if (
+    npmPackageRegistry !== "https://registry.npmjs.org/" ||
+    repositoryUrl !== "git+https://github.com/midnightntwrk/midnight-did.git"
+  ) {
+    fail("Canonical npm registry or repository ownership metadata is invalid");
+  }
+
+  const assetsDir = path.resolve(rawAssetsDir);
+  if (!fs.statSync(assetsDir, { throwIfNoEntry: false })?.isDirectory()) {
+    fail(`Packed npm asset directory does not exist: ${assetsDir}`);
+  }
+
+  const directoryEntries = fs.readdirSync(assetsDir, { withFileTypes: true });
+  if (
+    directoryEntries.some(
+      (entry) =>
+        !entry.isFile() ||
+        (entry.name !== "SHA256SUMS" && !entry.name.endsWith(".tgz")),
+    )
+  ) {
+    fail("Packed npm asset directory contains an unexpected entry");
+  }
+  const actualAssets = directoryEntries
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".tgz"))
+    .map((entry) => entry.name)
+    .sort();
+  const expectedAssets = canonicalPackageNames
+    .map((name) => tarballName(name, version))
+    .sort();
+  if (JSON.stringify(actualAssets) !== JSON.stringify(expectedAssets)) {
+    fail(
+      `Packed npm asset inventory differs from the expected five tarballs. expected=${expectedAssets.join(",")} actual=${actualAssets.join(",")}`,
     );
   }
 
-  const tarball = path.join(assetsDir, tarballName(expectedName, version));
-  const packedManifest = readPackedManifest(tarball);
-  if (
-    packedManifest.name !== expectedName ||
-    packedManifest.version !== version
-  ) {
-    fail(
-      `Packed identity mismatch for ${tarball}: expected ${expectedName}@${version}, received ${packedManifest.name}@${packedManifest.version}`,
+  return publishWorkspaces.map((workspace, index) => {
+    const expectedName = canonicalPackageNames[index];
+    const tarball = path.join(assetsDir, tarballName(expectedName, version));
+    validatePackedManifest(
+      readPackedManifest(tarball),
+      workspace,
+      expectedName,
+      version,
     );
-  }
+    return [workspace, expectedName, version, tarball, sha512(tarball)].join(
+      "\t",
+    );
+  });
+}
 
-  return [workspace, expectedName, version, tarball, sha512(tarball)].join(
-    "\t",
-  );
-});
+const isDirectExecution =
+  process.argv[1] != null &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
-process.stdout.write(`${rows.join("\n")}\n`);
+if (isDirectExecution) {
+  const rows = inspectPackedNpmAssets(parseArgs(process.argv.slice(2)));
+  process.stdout.write(`${rows.join("\n")}\n`);
+}
