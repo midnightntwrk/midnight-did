@@ -84,7 +84,7 @@ if (args[1] === "view") {
     case "rate-limit": fail("API rate limit exceeded: " + state.hostileOutput + "\\n");
     case "server": fail("HTTP 503: " + state.hostileOutput + "\\n");
     case "near-not-found": fail("release not found: " + state.hostileOutput + "\\n");
-    case "timeout": save(); setTimeout(() => {}, 10000); break;
+    case "timeout": save(); Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10000); process.exit(0);
     case "output-limit": save(); process.stderr.write(state.hostileOutput.repeat(1000)); process.exit(1);
     case "malformed": save(); process.stdout.write("{bad-json" + state.hostileOutput); process.exit(0);
     default: break;
