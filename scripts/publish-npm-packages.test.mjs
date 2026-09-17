@@ -283,6 +283,25 @@ function persist(fixture) {
   fs.writeFileSync(fixture.statePath, JSON.stringify(fixture.state, null, 2));
 }
 
+function assertPublisherFixtureProcessCompleted(result) {
+  if (result.error?.code === "ETIMEDOUT") {
+    assert.fail(
+      `Publisher fixture exceeded its ${publisherFixtureSubprocessTimeoutMs}ms outer harness allowance.`,
+    );
+  }
+  if (result.error) {
+    assert.fail(
+      `Publisher fixture failed to spawn (${result.error.code ?? result.error.name}).`,
+    );
+  }
+  if (result.signal !== null) {
+    assert.fail(`Publisher fixture terminated by signal ${result.signal}.`);
+  }
+  if (result.status === null) {
+    assert.fail("Publisher fixture returned no exit status.");
+  }
+}
+
 function run(fixture, overrides = {}) {
   const env = {
     ...process.env,
@@ -331,6 +350,7 @@ function run(fixture, overrides = {}) {
     env,
     timeout: publisherFixtureSubprocessTimeoutMs,
   });
+  assertPublisherFixtureProcessCompleted(result);
   return {
     ...result,
     state: JSON.parse(fs.readFileSync(fixture.statePath, "utf8")),
@@ -1069,16 +1089,94 @@ test("fails closed on oversized publish output before any dependent package", ()
   }
 });
 
-test("harness allowance is separate from production publisher limits", () => {
+test("run helper rejects incomplete publisher fixture subprocess results centrally", async (t) => {
+  const timeoutError = Object.assign(new Error("spawnSync bash ETIMEDOUT"), {
+    code: "ETIMEDOUT",
+  });
+  for (const [name, result, expected] of [
+    [
+      "outer harness timeout",
+      { error: timeoutError, signal: "SIGTERM", status: null },
+      /exceeded its 60000ms outer harness allowance/u,
+    ],
+    [
+      "spawn error",
+      {
+        error: Object.assign(new Error("spawn failed"), { code: "EACCES" }),
+        signal: null,
+        status: null,
+      },
+      /failed to spawn \(EACCES\)/u,
+    ],
+    [
+      "terminating signal",
+      { error: undefined, signal: "SIGKILL", status: null },
+      /terminated by signal SIGKILL/u,
+    ],
+    [
+      "null exit status",
+      { error: undefined, signal: null, status: null },
+      /returned no exit status/u,
+    ],
+  ]) {
+    await t.test(name, () => {
+      assert.throws(
+        () => assertPublisherFixtureProcessCompleted(result),
+        expected,
+      );
+    });
+  }
+});
+
+test("harness allowance is separate from active production publisher limits", () => {
   const source = fs.readFileSync(publisher, "utf8");
   assert.equal(publisherFixtureSubprocessTimeoutMs, 60_000);
-  assert.match(source, /readonly npm_read_timeout_ms="30000"/u);
-  assert.match(source, /readonly npm_publish_timeout_ms="300000"/u);
-  assert.match(source, /readonly npm_output_limit_bytes="65536"/u);
-  assert.match(source, /readonly registry_convergence_deadline_seconds="300"/u);
-  assert.match(source, /readonly tarball_connect_timeout_seconds="10"/u);
-  assert.match(source, /readonly tarball_timeout_seconds="120"/u);
-  assert.match(source, /readonly tarball_size_limit_bytes="104857600"/u);
+  for (const [name, declaration, activeUse] of [
+    [
+      "npm read timeout",
+      /^readonly npm_read_timeout_ms="30000"$/mu,
+      /^  local timeout_ms="\$\{npm_read_timeout_ms\}"$/mu,
+    ],
+    [
+      "npm publish timeout",
+      /^readonly npm_publish_timeout_ms="300000"$/mu,
+      /^    timeout_ms="\$\{npm_publish_timeout_ms\}"$/mu,
+    ],
+    [
+      "npm output limit",
+      /^readonly npm_output_limit_bytes="65536"$/mu,
+      /^    --output-limit "\$\{npm_output_limit_bytes\}" \\$/mu,
+    ],
+    [
+      "registry convergence deadline",
+      /^readonly registry_convergence_deadline_seconds="300"$/mu,
+      /^  deadline=\$\(\(started_at \+ registry_convergence_deadline_seconds\)\)$/mu,
+    ],
+    [
+      "registry convergence poll interval",
+      /^readonly registry_convergence_poll_seconds="30"$/mu,
+      /^    sleep_seconds="\$\{registry_convergence_poll_seconds\}"$/mu,
+    ],
+    [
+      "tarball connection timeout",
+      /^readonly tarball_connect_timeout_seconds="10"$/mu,
+      /^    --connect-timeout "\$\{tarball_connect_timeout_seconds\}" \\$/mu,
+    ],
+    [
+      "tarball transfer timeout",
+      /^readonly tarball_timeout_seconds="120"$/mu,
+      /^    --max-time "\$\{tarball_timeout_seconds\}" \\$/mu,
+    ],
+    [
+      "tarball size limit",
+      /^readonly tarball_size_limit_bytes="104857600"$/mu,
+      /^    --max-filesize "\$\{tarball_size_limit_bytes\}" \\$/mu,
+    ],
+  ]) {
+    assert.match(source, declaration, `${name} declaration changed`);
+    assert.match(source, activeUse, `${name} is not consumed by its call site`);
+  }
+  assert.match(source, /^    --timeout-ms "\$\{timeout_ms\}" \\$/mu);
 });
 
 test("publisher has one bounded npm publish call site and bounded tarball downloads", () => {

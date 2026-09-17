@@ -2,7 +2,8 @@
 
 Date: 2026-09-17
 Canonical tracker: [midnightntwrk/midnight-did#486](https://github.com/midnightntwrk/midnight-did/issues/486)
-Related change: [PR #479](https://github.com/midnightntwrk/midnight-did/pull/479)
+Fixing change and current revision: [PR #487](https://github.com/midnightntwrk/midnight-did/pull/487)
+Scenario origin: [PR #479](https://github.com/midnightntwrk/midnight-did/pull/479)
 
 ## What worked
 
@@ -22,7 +23,7 @@ No production configuration drift was found. The publisher constants and 300-sec
 
 ## Validation and safety boundary
 
-Validation runs only local fake npm, curl, date, and sleep executables. It does not dispatch the release workflow or mutate npm packages, access, dist-tags, GHCR, GitHub Releases, or merge state. Repeated publisher tests, Trusted Publishing, repository-policy, release-context, formatting, audit, and the mandatory repository verification gate provide the evidence for this test-only change.
+The publisher fixture scenarios use local fake npm, curl, date, and sleep executables, so those scenarios do not contact npmjs or wait for real registry convergence. The broader validation is not fully offline: `pnpm install --frozen-lockfile` may fetch dependencies when they are absent from the local store, and `pnpm audit` accesses registry audit data; it also uses real local Node and tar tooling. Validation does not dispatch the release workflow or mutate npm packages, access, dist-tags, GHCR, GitHub Releases, or merge state. Repeated publisher tests, Trusted Publishing, repository-policy, release-context, formatting, audit, and the mandatory repository verification gate provide the evidence for this test-only change.
 
 ## Tracked follow-up actions
 
