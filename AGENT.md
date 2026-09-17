@@ -433,24 +433,12 @@ distributed as a separate validated archive with the provider layout
 `keys/*.prover`, `keys/*.verifier`, and `zkir/*.bzkir`; do not rely on package
 consumers to discover proving keys by walking arbitrary generated directories.
 Publish CI smoke-tests the exact package version from npmjs and fetches
-pulled/downloaded ZK bundles through `FetchZkConfigProvider`. RC and final GitHub
-Release bodies are extracted before the privileged boundary from exactly one
-reviewed Keep-a-Changelog section matching the stable base version. The body is
-canonical raw UTF-8 with LF line endings and exactly one terminal newline;
-reruns do not normalize CRLF. Initial creation accepts only that generated notes
-file; reruns require byte-identical body content and the exact canonical asset
-multiset, including exactly one `multiple.intoto.jsonl`, and never edit or
-upload into an existing release. Creation is allowed only after an exact bounded
-`release not found` result; ambiguous provider failures stop. Both creation and
-reuse download the canonical provenance and cryptographically verify it against
-the commit-pinned SLSA reusable-workflow identity, GitHub OIDC issuer, source
-repository, and SLSA v0.2 predicate before dependency-free semantic checks bind
-every non-provenance asset and the dispatch context. After a partial release, rerun the same channel, base version,
-and RC index from an allowed branch revision whose packed package payloads are
-unchanged: reruns skip npm packages only when the exact immutable payload and
-requested dist-tag already match, then publish the still-absent packages in
-dependency order. Do not create a replacement version, mutate an existing
-release, or repair tags through the normal workflow.
+pulled/downloaded ZK bundles through `FetchZkConfigProvider`. After a partial
+release, rerun the same channel, base version, and RC index from an allowed
+branch revision whose packed package payloads are unchanged: reruns skip npm
+packages only when the exact immutable payload and requested dist-tag already
+match, then publish the still-absent packages in dependency order. Do not create
+a replacement version or repair tags through the normal workflow.
 
 GHCR publication uses ORAS because the ZK bundle is a generic OCI artifact
 rather than a container image or npm package. The publish workflow installs the

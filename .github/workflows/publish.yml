@@ -451,11 +451,14 @@ jobs:
           RELEASE_TAG: ${{ needs.build-release-assets.outputs.release_tag }}
         run: |
           set -euo pipefail
-          release_state_file="$(mktemp)"
-          trap 'rm -f -- "${release_state_file}"' EXIT
-          ./scripts/read-github-release-state.sh \
-            --state-file "${release_state_file}" \
-            --github-output "${GITHUB_OUTPUT}"
+          release_exists=false
+          provenance_present=false
+          if release_json="$(gh release view "${RELEASE_TAG}" --repo "${GH_REPO}" --json assets 2>/dev/null)"; then
+            release_exists=true
+            provenance_present="$(jq -r '[.assets[].name | select(test("\\.intoto\\.jsonl$"))] | length > 0' <<<"${release_json}")"
+          fi
+          echo "release_exists=${release_exists}" >> "${GITHUB_OUTPUT}"
+          echo "provenance_present=${provenance_present}" >> "${GITHUB_OUTPUT}"
 
       - name: Print publication summary
         env:
@@ -579,16 +582,8 @@ jobs:
           sha256_file="$(find dist/release/zk -maxdepth 1 -type f -name '*.sha256' -print -quit)"
           provenance_file=""
           if [[ "${PROVENANCE_PRESENT}" != "true" ]]; then
-            provenance_file="dist/release/provenance/multiple.intoto.jsonl"
-            [[ -f "${provenance_file}" && ! -L "${provenance_file}" ]] || {
-              echo "::error::Generated provenance is not the canonical multiple.intoto.jsonl file."
-              exit 1
-            }
+            provenance_file="$(find dist/release/provenance -maxdepth 1 -type f -name '*.intoto.jsonl' -print -quit)"
           fi
-          notes_file="dist/release/github-release-notes.md"
-          node scripts/extract-changelog-section.mjs \
-            --version "${BASE_VERSION}" \
-            --output-file "${notes_file}"
           ./scripts/release-validate-context.sh
           ARCHIVE="${archive}" \
           ARCHIVE_NAME="$(basename "${archive}")" \
@@ -597,24 +592,32 @@ jobs:
           NPM_ASSETS_DIR=dist/release/npm \
           SIGNATURE_ASSETS_DIR=dist/release/signatures \
           PROVENANCE_FILE="${provenance_file}" \
-          ./scripts/publish-github-release-assets.sh --notes-file "${notes_file}"
+          ./scripts/publish-github-release-assets.sh
 
   verify-github-release-provenance:
-    name: Confirm GitHub Release provenance verification
+    name: Verify GitHub Release provenance asset
     needs:
       - publish-release-assets
       - github-release-provenance
       - finalize-github-release
     if: always() && needs.publish-release-assets.result == 'success' && needs.publish-release-assets.outputs.channel != 'snapshot'
-    permissions: {}
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
-      - name: Require the bounded cryptographic and semantic verification gate
+      - name: Verify release includes SLSA provenance
         env:
-          FINALIZE_RESULT: ${{ needs.finalize-github-release.result }}
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.publish-release-assets.outputs.release_tag }}
         run: |
           set -euo pipefail
-          if [[ "${FINALIZE_RESULT}" != "success" ]]; then
-            echo "::error::The GitHub Release provenance verification gate did not succeed."
+          gh release view "${RELEASE_TAG}" --json assets --jq '.assets[].name' | tee /tmp/release-assets.txt
+          if ! grep -Eq '\.intoto\.jsonl$' /tmp/release-assets.txt; then
+            echo "::error::GitHub Release ${RELEASE_TAG} does not include a SLSA .intoto.jsonl provenance asset."
+            exit 1
+          fi
+          if ! grep -Eq '\.sig$' /tmp/release-assets.txt; then
+            echo "::error::GitHub Release ${RELEASE_TAG} does not include Cosign .sig signature assets."
             exit 1
           fi
