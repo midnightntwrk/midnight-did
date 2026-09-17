@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -9,6 +10,7 @@ import {
   routeForMarkdownFile,
   slugify,
   validateAccessRequiredLinks,
+  validateConformanceClaim,
   validateContentRules,
   validateReleaseDocExamples,
   validateLinks,
@@ -248,6 +250,121 @@ test("validateContentRules catches retired controller-secret witness prose", asy
   } finally {
     await rm(root, { force: true, recursive: true });
   }
+});
+
+test("validateConformanceClaim rejects the legacy CCG and unqualified wording", async () => {
+  const root = await mkdtemp(resolve(tmpdir(), "docs-validate-claim-"));
+  try {
+    await mkdir(resolve(root, "w3c-spec"), { recursive: true });
+    await writeFile(
+      resolve(root, "w3c-spec", "midnight-method.md"),
+      "This specification conforms to the requirements specified in the [W3C-DID] currently published by the W3C Credentials Community Group.\n",
+    );
+
+    const failures = await validateConformanceClaim(root);
+    assert.ok(
+      failures.some(({ message }) =>
+        message.includes(
+          "must not be attributed to the W3C Credentials Community Group",
+        ),
+      ),
+    );
+    assert.ok(
+      failures.some(({ message }) =>
+        message.includes("unqualified DID Core conformance claim is forbidden"),
+      ),
+    );
+    assert.ok(
+      failures.some(({ message }) =>
+        message.includes("missing bounded 0.6 conformance claim or link"),
+      ),
+    );
+
+    await writeFile(
+      resolve(root, "w3c-spec", "midnight-method.md"),
+      "Version 0.6 conforms to [W3C Decentralized Identifiers (DID) v1.0 Recommendation](https://www.w3.org/TR/2022/REC-did-core-20220719/).\n",
+    );
+    const rephrasedFailures = await validateConformanceClaim(root);
+    assert.ok(
+      rephrasedFailures.some(({ message }) =>
+        message.includes("unqualified DID Core conformance claim is forbidden"),
+      ),
+    );
+
+    await writeFile(
+      resolve(root, "w3c-spec", "midnight-method.md"),
+      "The external fixture harness complies with repository policy and documents DID Core limitations.\n",
+    );
+    const unrelatedComplianceFailures = await validateConformanceClaim(root);
+    assert.ok(
+      unrelatedComplianceFailures.every(
+        ({ message }) =>
+          !message.includes(
+            "unqualified DID Core conformance claim is forbidden",
+          ),
+      ),
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("Midnight DID 0.6 claim stays bounded in source and generated docs", async () => {
+  assert.deepEqual(await validateConformanceClaim(), []);
+
+  execFileSync(process.execPath, ["docs-site/scripts/sync-spec-docs.mjs"]);
+  const [source, generated] = await Promise.all([
+    readFile(resolve("w3c-spec/midnight-method.md"), "utf8"),
+    readFile(resolve("docs-site/spec/midnight-method.md"), "utf8"),
+  ]);
+
+  for (const content of [source, generated]) {
+    assert.doesNotMatch(content, /W3C Credentials Community Group/iu);
+    assert.doesNotMatch(
+      content,
+      /This specification conforms to the requirements specified in/iu,
+    );
+    assert.match(content, /evidence is bounded and supplemental/iu);
+    assert.match(content, /not W3C certification or endorsement/iu);
+    assert.match(
+      content,
+      /does not claim conformance to \[W3C DID Core 1\.1[^\n]+ or the \[2026 W3C DID Resolution v1 Candidate Recommendation/iu,
+    );
+    assert.match(
+      content,
+      /Version 0\.6 targets a method-specific profile of the dated \[W3C DID Core 1\.0 Recommendation\]\(https:\/\/www\.w3\.org\/TR\/2022\/REC-did-core-20220719\/\)/iu,
+    );
+    assert.match(
+      content,
+      /https:\/\/www\.w3\.org\/TR\/2026\/CR-did-1\.1-20260305\//iu,
+    );
+    assert.match(
+      content,
+      /https:\/\/www\.w3\.org\/TR\/2026\/CR-did-resolution-1\.0-20260806\//iu,
+    );
+    assert.match(content, /pinned external fixture harness/iu);
+    assert.match(
+      content,
+      /\[W3C-DID\]: https:\/\/www\.w3\.org\/TR\/2022\/REC-did-core-20220719\//iu,
+    );
+    assert.match(content, /issues\/447/iu);
+  }
+
+  assert.match(source, /\.\/conformance\/did-core-1\.0\.md/iu);
+  assert.match(source, /\.\/conformance\/did-core-1\.1\.md/iu);
+  assert.match(source, /\.\/conformance\/did-resolution\.md/iu);
+  assert.match(
+    generated,
+    /github\.com\/midnightntwrk\/midnight-did\/blob\/main\/w3c-spec\/conformance\/did-core-1\.0\.md/iu,
+  );
+  assert.match(
+    generated,
+    /github\.com\/midnightntwrk\/midnight-did\/blob\/main\/w3c-spec\/conformance\/did-core-1\.1\.md/iu,
+  );
+  assert.match(
+    generated,
+    /github\.com\/midnightntwrk\/midnight-did\/blob\/main\/w3c-spec\/conformance\/did-resolution\.md/iu,
+  );
 });
 
 test("validateAccessRequiredLinks requires a caveat for private repo links", async () => {
