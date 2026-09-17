@@ -181,7 +181,7 @@ Before dispatch, record the retrospective under `docs/retrospectives/` and
 write its ignored completion checkpoint with:
 
 ```bash
-node scripts/harness/complete-retrospective.mjs --record docs/retrospectives/<file>.md --repo midnightntwrk/midnight-did --issue <issue> --pr <n> --head-sha <full-sha>
+nix develop --command node scripts/harness/complete-retrospective.mjs --record docs/retrospectives/<file>.md --repo midnightntwrk/midnight-did --issue <issue> --pr <n> --head-sha <full-sha>
 ```
 
 After dispatch, run `scripts/review/audit-pr-feedback.mjs` against the same
@@ -197,7 +197,7 @@ and the user-owned `~/.agent-peer-review/config.json`. If configuration is
 missing, initialize it through the pinned local CLI (never ambiguous `npx`):
 
 ```bash
-node .pi/npm/node_modules/@input-output-hk/agent-review/dist/cli/index.js init --repo midnightntwrk/midnight-did
+nix develop --command node .pi/npm/node_modules/@input-output-hk/agent-review/dist/cli/index.js init --repo midnightntwrk/midnight-did
 ```
 
 ## Development Cycle
@@ -237,7 +237,7 @@ insufficient.
 
 ```bash
 git log --show-signature --pretty=fuller origin/<actual-base>..HEAD
-node scripts/review/verify-pr-commits.mjs --repo midnightntwrk/midnight-did --pr <n> --head-sha <full-sha>
+nix develop --command node scripts/review/verify-pr-commits.mjs --repo midnightntwrk/midnight-did --pr <n> --head-sha <full-sha>
 ```
 
 Any amend, rebase, or force-push invalidates prior commit, validation, and review
@@ -247,20 +247,29 @@ where histories are comparable.
 
 ## Dev-loop and retrospective discipline
 
-The pinned dev-loop configuration is schema-validated. The repository
-diagnostic also exercises the full gate helper's required read-only `gh pr view`
-field surface; `fallback-only` is degraded evidence and fails readiness just like
-a package failure. Run all harness operations through the Nix development shell,
-report its pinned `gh` version, and require the field-capability probe to pass;
-a version string alone is not readiness evidence. Run these checks before
-starting or resuming a loop and treat configuration or helper-readiness errors
-as blockers:
+The pinned dev-loop configuration is schema-validated. Before issue intake,
+run the package/schema checks below; this phase deliberately does not require a
+current pull request, so a no-PR issue startup is not blocked by PR-only runtime
+evidence. Run all harness operations through the Nix development shell and
+report its pinned `gh` version:
 
 ```bash
 nix develop --command gh --version
 nix develop --command node .pi/npm/node_modules/dev-loops/cli/index.mjs doctor
 nix develop --command node .pi/npm/node_modules/dev-loops/cli/index.mjs gates
 nix develop --command node scripts/harness/diagnose.mjs
+```
+
+Once a pull request exists, or before resuming a PR loop, rerun the diagnostic
+with the authoritative target. This second phase exercises the full gate
+helper's complete read-only `gh pr view` field surface. It requests every helper
+field but validates only fixed-size key-presence evidence, never captured PR
+body, review, file, or status content. `fallback-only` is degraded evidence and
+blocks PR resume just like a package failure; a version string alone is not
+readiness evidence:
+
+```bash
+nix develop --command node scripts/harness/diagnose.mjs --repo midnightntwrk/midnight-did --pr <n>
 ```
 
 GitHub uses `main` as the release/default branch. Normal feature work integrates

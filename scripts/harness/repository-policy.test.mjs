@@ -1288,6 +1288,35 @@ test("the Nix development shell explicitly provides the GitHub CLI", async () =>
   );
 });
 
+test("diagnostic guidance separates issue intake from explicit PR resume", async () => {
+  const [agent, developmentGuide] = await Promise.all([
+    text("AGENT.md"),
+    text("docs/pi-development.md"),
+  ]);
+
+  for (const guidance of [agent, developmentGuide]) {
+    assert.match(guidance, /Before issue intake/i);
+    assert.match(guidance, /no-PR issue/i);
+    assert.match(
+      guidance,
+      /nix develop --command node scripts\/harness\/diagnose\.mjs --repo midnightntwrk\/midnight-did --pr <n>/,
+    );
+    assert.match(guidance, /before resuming/i);
+  }
+  assert.doesNotMatch(
+    agent,
+    /^node (?:\.pi\/npm\/node_modules|scripts\/(?:harness|review))\//m,
+  );
+  assert.match(
+    developmentGuide,
+    /nix develop --command node \.pi\/npm\/node_modules\/dev-loops\/scripts\/github\/upsert-checkpoint-verdict\.mjs --help/,
+  );
+  assert.doesNotMatch(
+    developmentGuide,
+    /\nnode \.pi\/npm\/node_modules\/dev-loops\/scripts\/github\/upsert-checkpoint-verdict\.mjs --help/,
+  );
+});
+
 test("branch, runtime, local-validation, and exact-head review invariants stay documented", async () => {
   const [agent, ignore, packageJson, policy] = await Promise.all([
     text("AGENT.md"),

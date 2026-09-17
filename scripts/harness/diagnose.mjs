@@ -37,16 +37,25 @@ const FULL_GATE_HELPER_REQUIRED_PR_FIELDS = [
   "reviews",
   "statusCheckRollup",
   "files",
-].join(",");
+];
+const FULL_GATE_HELPER_FIELD_EVIDENCE_JQ = `{${FULL_GATE_HELPER_REQUIRED_PR_FIELDS.map(
+  (field) => `${JSON.stringify(field)}: has(${JSON.stringify(field)})`,
+).join(", ")}}`;
 const GH_CAPABILITY_PROBE_TIMEOUT_MS = 10_000;
+const FULL_GATE_HELPER_HELP_TIMEOUT_MS = 5_000;
 const MAX_CAPTURED_COMMAND_OUTPUT_BYTES = 16 * 1024;
 
 function usage() {
-  return "Usage: diagnose.mjs [--repo-root <path>] [--json]\n";
+  return "Usage: diagnose.mjs [--repo-root <path>] [--repo <owner/name> --pr <number>] [--json]\n";
 }
 
-function parseArgs(argv) {
-  const options = { repoRoot: process.cwd(), json: false };
+export function parseArgs(argv) {
+  const options = {
+    repoRoot: process.cwd(),
+    repo: null,
+    pr: null,
+    json: false,
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "-h" || arg === "--help") return { help: true };
@@ -58,12 +67,34 @@ function parseArgs(argv) {
     if (!value || value.startsWith("--"))
       throw new Error(`${arg} requires a value`);
     if (arg === "--repo-root") options.repoRoot = path.resolve(value);
+    else if (arg === "--repo") options.repo = value;
+    else if (arg === "--pr") options.pr = value;
     else throw new Error(`unknown option: ${arg}`);
   }
+  if ((options.repo == null) !== (options.pr == null))
+    throw new Error("--repo and --pr must be provided together");
+  if (options.repo != null && !/^[^/\s]+\/[^/\s]+$/.test(options.repo))
+    throw new Error("--repo must use the owner/name form");
+  if (options.pr != null && !/^[1-9]\d*$/.test(options.pr))
+    throw new Error("--pr must be a positive integer");
   return options;
 }
 
-function run(
+function terminateProcessTree(child) {
+  if (child.pid == null) return;
+  if (process.platform !== "win32") {
+    try {
+      process.kill(-child.pid, "SIGKILL");
+      return;
+    } catch (error) {
+      if (error.code !== "ESRCH") child.kill("SIGKILL");
+      return;
+    }
+  }
+  child.kill("SIGKILL");
+}
+
+export function run(
   command,
   args,
   {
@@ -77,44 +108,53 @@ function run(
     const child = spawn(command, args, {
       cwd,
       env,
+      detached: process.platform !== "win32",
       stdio: ["ignore", "pipe", "pipe"],
     });
-    let stdout = "";
-    let stderr = "";
+    const captures = {
+      stdout: { chunks: [], bytes: 0 },
+      stderr: { chunks: [], bytes: 0 },
+    };
     let timedOut = false;
     let settled = false;
-    const appendBounded = (current, chunk) =>
-      `${current}${chunk}`.slice(0, maxOutputBytes);
-    const timer = Number.isInteger(timeoutMs)
-      ? setTimeout(() => {
-          timedOut = true;
-          child.kill("SIGKILL");
-        }, timeoutMs)
-      : null;
+    const appendBounded = (capture, chunk) => {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      const remaining = Math.max(0, maxOutputBytes - capture.bytes);
+      if (remaining === 0) return;
+      const bounded = buffer.subarray(0, remaining);
+      capture.chunks.push(bounded);
+      capture.bytes += bounded.length;
+    };
+    const output = (capture) => Buffer.concat(capture.chunks).toString("utf8");
+    const timer =
+      Number.isInteger(timeoutMs) && timeoutMs >= 0
+        ? setTimeout(() => {
+            timedOut = true;
+            terminateProcessTree(child);
+          }, timeoutMs)
+        : null;
     const finish = (result) => {
       if (settled) return;
       settled = true;
       if (timer) clearTimeout(timer);
-      resolve(result);
+      resolve({
+        ...result,
+        stdout: output(captures.stdout),
+        stderr: output(captures.stderr),
+        timedOut,
+      });
     };
     child.stdout.on("data", (chunk) => {
-      stdout = appendBounded(stdout, chunk);
+      appendBounded(captures.stdout, chunk);
     });
     child.stderr.on("data", (chunk) => {
-      stderr = appendBounded(stderr, chunk);
+      appendBounded(captures.stderr, chunk);
     });
     child.on("error", (error) =>
-      finish({
-        ok: false,
-        code: null,
-        stdout,
-        stderr,
-        error: error.message,
-        timedOut,
-      }),
+      finish({ ok: false, code: null, error: error.message }),
     );
-    child.on("close", (code) =>
-      finish({ ok: code === 0, code, stdout, stderr, timedOut }),
+    child.on("close", (code, signal) =>
+      finish({ ok: code === 0, code, signal }),
     );
   });
 }
@@ -128,21 +168,47 @@ async function exists(file) {
   }
 }
 
-export async function probeFullGateHelperRuntime({ cwd, runCommand = run }) {
+export async function probeFullGateHelperRuntime({
+  cwd,
+  repo,
+  pr,
+  env = process.env,
+  timeoutMs = GH_CAPABILITY_PROBE_TIMEOUT_MS,
+  maxOutputBytes = MAX_CAPTURED_COMMAND_OUTPUT_BYTES,
+  runCommand = run,
+}) {
+  if (!repo || !pr) {
+    return {
+      ok: false,
+      status: "unavailable",
+      reason:
+        "gh runtime capability probe requires an explicit --repo/--pr target",
+    };
+  }
   const probe = await runCommand(
     "gh",
-    ["pr", "view", "--json", FULL_GATE_HELPER_REQUIRED_PR_FIELDS],
+    [
+      "pr",
+      "view",
+      String(pr),
+      "--repo",
+      repo,
+      "--json",
+      FULL_GATE_HELPER_REQUIRED_PR_FIELDS.join(","),
+      "--jq",
+      FULL_GATE_HELPER_FIELD_EVIDENCE_JQ,
+    ],
     {
       cwd,
       env: {
-        ...process.env,
+        ...env,
         GH_PAGER: "cat",
         PAGER: "cat",
         NO_COLOR: "1",
         CLICOLOR: "0",
       },
-      timeoutMs: GH_CAPABILITY_PROBE_TIMEOUT_MS,
-      maxOutputBytes: MAX_CAPTURED_COMMAND_OUTPUT_BYTES,
+      timeoutMs,
+      maxOutputBytes,
     },
   );
   if (!probe.ok) {
@@ -168,9 +234,11 @@ export async function probeFullGateHelperRuntime({ cwd, runCommand = run }) {
       !payload ||
       typeof payload !== "object" ||
       Array.isArray(payload) ||
-      !("closingIssuesReferences" in payload)
+      !FULL_GATE_HELPER_REQUIRED_PR_FIELDS.every(
+        (field) => Object.hasOwn(payload, field) && payload[field] === true,
+      )
     ) {
-      throw new Error("missing required field");
+      throw new Error("missing required field evidence");
     }
   } catch {
     return {
@@ -183,16 +251,19 @@ export async function probeFullGateHelperRuntime({ cwd, runCommand = run }) {
 }
 
 export function evaluateFullGateHelperReadiness(gateHelper) {
-  const ready = gateHelper.status === "full-helper-ready";
+  const fullReady = gateHelper.status === "full-helper-ready";
+  const packageReady = gateHelper.status === "helper-package-ready";
   const packageFailure = gateHelper.status === "package-failure";
   return {
-    ok: ready,
+    ok: fullReady || packageReady,
     severity: "error",
-    summary: ready
-      ? `full helper ready: ${gateHelper.helperPath}`
-      : packageFailure
-        ? `full helper blocked by a dev-loops package failure: ${gateHelper.helperPath}`
-        : `full helper unavailable; fallback only: ${gateHelper.helperPath}`,
+    summary: fullReady
+      ? `full helper ready for the explicit pull request: ${gateHelper.helperPath}`
+      : packageReady
+        ? `full helper package ready; pull-request runtime capability not yet probed: ${gateHelper.helperPath}`
+        : packageFailure
+          ? `full helper blocked by a dev-loops package failure: ${gateHelper.helperPath}`
+          : `full helper unavailable; fallback only: ${gateHelper.helperPath}`,
   };
 }
 
@@ -200,7 +271,11 @@ export async function inspectFullGateHelper({
   packageRoot,
   expectedVersion,
   probeCwd = packageRoot,
+  runtimeTarget = null,
   runtimeProbe = probeFullGateHelperRuntime,
+  runCommand = run,
+  helpProbeTimeoutMs = FULL_GATE_HELPER_HELP_TIMEOUT_MS,
+  maxOutputBytes = MAX_CAPTURED_COMMAND_OUTPUT_BYTES,
 }) {
   const helperPath = path.join(packageRoot, FULL_GATE_HELPER_PATH);
   const result = {
@@ -253,8 +328,9 @@ export async function inspectFullGateHelper({
       reason: "full helper is empty",
     };
   }
-  const syntax = await run(process.execPath, ["--check", helperPath], {
+  const syntax = await runCommand(process.execPath, ["--check", helperPath], {
     cwd: packageRoot,
+    maxOutputBytes,
   });
   if (!syntax.ok) {
     return {
@@ -263,8 +339,10 @@ export async function inspectFullGateHelper({
       reason: "full helper failed JavaScript syntax validation",
     };
   }
-  const helpProbe = await run(process.execPath, [helperPath, "--help"], {
+  const helpProbe = await runCommand(process.execPath, [helperPath, "--help"], {
     cwd: packageRoot,
+    timeoutMs: helpProbeTimeoutMs,
+    maxOutputBytes,
   });
   if (
     !helpProbe.ok ||
@@ -273,10 +351,24 @@ export async function inspectFullGateHelper({
     return {
       ...result,
       status: "fallback-only",
-      reason: "full helper failed its CLI help probe",
+      reason: helpProbe.timedOut
+        ? "full helper CLI help probe timed out"
+        : "full helper failed its CLI help probe",
     };
   }
-  const runtimeCapability = await runtimeProbe({ cwd: probeCwd });
+  if (runtimeTarget == null) {
+    return {
+      ...result,
+      status: "helper-package-ready",
+      reason: null,
+      runtimeCapability: "not-probed",
+    };
+  }
+  const runtimeCapability = await runtimeProbe({
+    cwd: probeCwd,
+    repo: runtimeTarget.repo,
+    pr: runtimeTarget.pr,
+  });
   if (!runtimeCapability.ok) {
     return {
       ...result,
@@ -367,7 +459,10 @@ async function packageVersionChecks(repoRoot, settings) {
   return { packages, mismatches };
 }
 
-export async function diagnose(repoRoot = process.cwd()) {
+export async function diagnose(
+  repoRoot = process.cwd(),
+  { repo = null, pr = null } = {},
+) {
   const root = path.resolve(repoRoot);
   const checks = [];
   const top = await run("git", ["rev-parse", "--show-toplevel"], { cwd: root });
@@ -451,6 +546,7 @@ export async function diagnose(repoRoot = process.cwd()) {
     packageRoot: path.join(root, DEV_LOOPS_PACKAGE_PATH),
     expectedVersion: devLoopsPin?.version,
     probeCwd: root,
+    runtimeTarget: repo && pr ? { repo, pr } : null,
   });
   const gateHelperReadiness = evaluateFullGateHelperReadiness(gateHelper);
   checks.push(
@@ -631,7 +727,10 @@ async function main() {
     process.stdout.write(usage());
     return;
   }
-  const result = await diagnose(options.repoRoot);
+  const result = await diagnose(options.repoRoot, {
+    repo: options.repo,
+    pr: options.pr,
+  });
   if (options.json)
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   else printHuman(result);

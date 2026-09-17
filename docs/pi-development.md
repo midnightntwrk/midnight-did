@@ -128,38 +128,50 @@ stable release channel; a prerelease requires a separate Pi/schema migration.
 Check the effective repository configuration before starting work. Every Pi,
 dev-loop, review, and harness command must run inside the Nix development shell
 (or through `nix develop --command`) so repository operations use the flake's
-pinned `gh`, not an inherited host executable. Report the effective CLI version,
-but do not treat the version alone as proof of compatibility: the diagnostic's
-read-only field-capability probe is authoritative. A config schema error means
-the repository-specific policy was not applied and must be fixed before
-continuing:
+pinned `gh`, not an inherited host executable. Before issue intake, run the
+package/schema checks below. They deliberately do not require a current pull
+request, so starting from a no-PR issue is not blocked by PR-only diagnostics. A
+config schema error means the repository-specific policy was not applied and
+must be fixed before continuing:
 
 ```sh
 nix develop --command gh --version
-nix develop --command gh pr view --json closingIssuesReferences
 nix develop --command node .pi/npm/node_modules/dev-loops/cli/index.mjs doctor
 nix develop --command node .pi/npm/node_modules/dev-loops/cli/index.mjs gates
 nix develop --command node scripts/harness/diagnose.mjs
 ```
 
+Once a PR exists, and before resuming its loop, supply its authoritative target
+so the diagnostic also proves the helper's read-only runtime field capability:
+
+```sh
+nix develop --command node scripts/harness/diagnose.mjs --repo midnightntwrk/midnight-did --pr <n>
+```
+
 The repository diagnostic independently validates the pinned 0.9.0 schema because that version's CLI doctor can report a false clean result when configuration loading falls back. The diagnostic reports that known upstream gap but never turns a real schema, package, worktree, review-readiness, or runtime-path failure into success.
 
 The diagnostic also resolves the full checkpoint helper from the pinned
-project-local package, syntax-checks it, probes its CLI help contract, and runs
-a bounded, read-only `gh pr view` probe for the exact pull-request fields used
-by the helper's gate-coordination runtime. The probe is time- and output-bounded,
-does not stream provider output, and must succeed for the current pull request.
-Inspect the helper's authoritative command contract at that bounded path before
-considering the fallback:
+project-local package, syntax-checks it, and probes its CLI help contract under
+a bounded timeout that terminates the process group. With an explicit PR target,
+it runs a bounded, read-only `gh pr view` probe for the exact pull-request fields
+used by the helper's gate-coordination runtime. `gh --jq` projects that response
+to fixed-size own-key booleans before capture, so author-controlled body,
+review, file, and status data is neither parsed by the diagnostic nor truncated
+into invalid JSON. Every required field must be present. Inspect the helper's
+authoritative command contract at that bounded path before considering the
+fallback:
 
 ```sh
-node .pi/npm/node_modules/dev-loops/scripts/github/upsert-checkpoint-verdict.mjs --help
+nix develop --command node .pi/npm/node_modules/dev-loops/scripts/github/upsert-checkpoint-verdict.mjs --help
 ```
 
 Do not infer that the full helper is absent merely because there is no
-repository-root `scripts/github/upsert-checkpoint-verdict.mjs`. A diagnostic
-result of `full-helper-ready` identifies a helper whose package and required
-Nix-provided `gh` runtime surface are usable. The current flake resolves
+repository-root `scripts/github/upsert-checkpoint-verdict.mjs`.
+`helper-package-ready` is sufficient only for the no-PR issue-intake phase: it
+proves package, syntax, and help readiness but deliberately does not claim PR
+runtime capability. A targeted diagnostic result of `full-helper-ready`
+identifies a helper whose package and required Nix-provided `gh` runtime surface
+are usable for that PR. The current flake resolves
 `gh 2.97.0`, and its `closingIssuesReferences` support is proven by the
 capability probe rather than inferred from that version. `fallback-only` means
 the installed helper is missing or malformed, or that its required `gh` fields
