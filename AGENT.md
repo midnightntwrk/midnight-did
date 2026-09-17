@@ -168,6 +168,10 @@ pnpm --filter ./packages/contract test
 
 ## PR review dispatch
 
+Run every dev-loop, gate, and review command from an entered repository Nix
+shell or prefix it with `nix develop --command`; do not inherit host `gh` for
+these workflows.
+
 Every PR workflow—dev-loop or standalone—must run
 `scripts/review/request-pr-reviews.mjs` after PR creation and after every push.
 The caller must supply the exact current head SHA. The helper validates that SHA
@@ -245,8 +249,10 @@ where histories are comparable.
 
 ## Dev-loop and retrospective discipline
 
-The pinned dev-loop configuration is schema-validated. Run these checks before
-starting or resuming a loop and treat configuration errors as blockers:
+The pinned dev-loop configuration is schema-validated. From an entered Nix
+shell, run these checks before starting or resuming a loop and treat
+configuration errors as blockers (otherwise use `nix develop --command` for
+each command):
 
 ```bash
 node .pi/npm/node_modules/dev-loops/cli/index.mjs doctor
