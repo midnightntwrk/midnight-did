@@ -125,14 +125,21 @@ with the permissions of the invoking user. Update pins deliberately and
 validate the development workflow before merging. Keep `dev-loops` on its
 stable release channel; a prerelease requires a separate Pi/schema migration.
 
-Check the effective repository configuration before starting work. A config
-schema error means the repository-specific policy was not applied and must be
-fixed before continuing:
+Check the effective repository configuration before starting work. Every Pi,
+dev-loop, review, and harness command must run inside the Nix development shell
+(or through `nix develop --command`) so repository operations use the flake's
+pinned `gh`, not an inherited host executable. Report the effective CLI version,
+but do not treat the version alone as proof of compatibility: the diagnostic's
+read-only field-capability probe is authoritative. A config schema error means
+the repository-specific policy was not applied and must be fixed before
+continuing:
 
 ```sh
-node .pi/npm/node_modules/dev-loops/cli/index.mjs doctor
-node .pi/npm/node_modules/dev-loops/cli/index.mjs gates
-node scripts/harness/diagnose.mjs
+nix develop --command gh --version
+nix develop --command gh pr view --json closingIssuesReferences
+nix develop --command node .pi/npm/node_modules/dev-loops/cli/index.mjs doctor
+nix develop --command node .pi/npm/node_modules/dev-loops/cli/index.mjs gates
+nix develop --command node scripts/harness/diagnose.mjs
 ```
 
 The repository diagnostic independently validates the pinned 0.9.0 schema because that version's CLI doctor can report a false clean result when configuration loading falls back. The diagnostic reports that known upstream gap but never turns a real schema, package, worktree, review-readiness, or runtime-path failure into success.
@@ -152,9 +159,11 @@ node .pi/npm/node_modules/dev-loops/scripts/github/upsert-checkpoint-verdict.mjs
 Do not infer that the full helper is absent merely because there is no
 repository-root `scripts/github/upsert-checkpoint-verdict.mjs`. A diagnostic
 result of `full-helper-ready` identifies a helper whose package and required
-local `gh` runtime surface are usable. `fallback-only` means the installed
-helper is missing or malformed, or that its required `gh` fields are unsupported
-or unavailable. The packaged `post-gate-verdict-fallback.mjs` path is
+Nix-provided `gh` runtime surface are usable. The current flake resolves
+`gh 2.97.0`, and its `closingIssuesReferences` support is proven by the
+capability probe rather than inferred from that version. `fallback-only` means
+the installed helper is missing or malformed, or that its required `gh` fields
+are unsupported or unavailable. The packaged `post-gate-verdict-fallback.mjs` path is
 intentionally degraded: it omits full stale-head, gate-coordination,
 blocking-severity, and internal-only-PR checks. Fallback output must be
 identified as degraded evidence, never counts as diagnostic readiness, and

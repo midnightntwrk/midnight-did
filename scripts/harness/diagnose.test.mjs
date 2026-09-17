@@ -175,6 +175,25 @@ test("runtime capability probe is bounded and suppresses gh provider output", as
   assert.doesNotMatch(JSON.stringify(result), /provider/);
 });
 
+test("runtime capability probe fails closed without required field evidence", async () => {
+  const result = await probeFullGateHelperRuntime({
+    cwd: "/deterministic/repository-fixture",
+    runCommand: async () => ({
+      ok: true,
+      code: 0,
+      stdout: JSON.stringify({ number: 482 }),
+      stderr: "",
+      timedOut: false,
+    }),
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    status: "unavailable",
+    reason: "gh runtime capability probe returned an invalid response",
+  });
+});
+
 test("reports a missing package-local helper as fallback only", async (t) => {
   const packageRoot = await createDevLoopsFixture(t, {});
 

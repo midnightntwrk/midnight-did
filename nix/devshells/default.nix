@@ -20,6 +20,7 @@
         packages = with pkgs; [
           docker
           git
+          gh
           gnutar
           just
           nodejs_24

@@ -33,11 +33,13 @@ compact update 0.31.1
 ```
 
 The Nix development shell is the expected local environment. It provides the
-repository baseline for Node.js, pnpm, the Compact toolchain, the pinned Pi
-CLI, supporting CLI dependencies, and the Chromium executable used by docs
-visual checks. The project-local Pi settings provide the pinned dev-loop,
+repository baseline for Node.js, pnpm, the Compact toolchain, the pinned Pi and
+GitHub CLIs, supporting CLI dependencies, and the Chromium executable used by
+docs visual checks. The project-local Pi settings provide the pinned dev-loop,
 subagent, and agent-peer-review packages; `nix develop` provisions them before
-using Pi. When changing tool versions or environment dependencies, update
+using Pi. Run every repository harness operation from inside `nix develop` (or
+with `nix develop --command ...`) so it cannot inherit an incompatible host
+`gh`. When changing tool versions or environment dependencies, update
 `flake.nix` / `flake.lock` and the setup documentation in the same PR.
 
 Fast validation:
@@ -248,13 +250,17 @@ where histories are comparable.
 The pinned dev-loop configuration is schema-validated. The repository
 diagnostic also exercises the full gate helper's required read-only `gh pr view`
 field surface; `fallback-only` is degraded evidence and fails readiness just like
-a package failure. Run these checks before starting or resuming a loop and treat
-configuration or helper-readiness errors as blockers:
+a package failure. Run all harness operations through the Nix development shell,
+report its pinned `gh` version, and require the field-capability probe to pass;
+a version string alone is not readiness evidence. Run these checks before
+starting or resuming a loop and treat configuration or helper-readiness errors
+as blockers:
 
 ```bash
-node .pi/npm/node_modules/dev-loops/cli/index.mjs doctor
-node .pi/npm/node_modules/dev-loops/cli/index.mjs gates
-node scripts/harness/diagnose.mjs
+nix develop --command gh --version
+nix develop --command node .pi/npm/node_modules/dev-loops/cli/index.mjs doctor
+nix develop --command node .pi/npm/node_modules/dev-loops/cli/index.mjs gates
+nix develop --command node scripts/harness/diagnose.mjs
 ```
 
 GitHub uses `main` as the release/default branch. Normal feature work integrates

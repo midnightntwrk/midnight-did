@@ -1279,6 +1279,15 @@ test("pnpm supply-chain policy stays strict with only reviewed exact-version exc
   );
 });
 
+test("the Nix development shell explicitly provides the GitHub CLI", async () => {
+  const devshell = await text("nix/devshells/default.nix");
+
+  assert.match(
+    devshell,
+    /packages = with pkgs; \[[\s\S]*?\n\s+gh\n[\s\S]*?\n\s+\];/u,
+  );
+});
+
 test("branch, runtime, local-validation, and exact-head review invariants stay documented", async () => {
   const [agent, ignore, packageJson, policy] = await Promise.all([
     text("AGENT.md"),
