@@ -61,8 +61,9 @@ be read as broader compatibility guarantees.
 ## Keeping the matrix current
 
 The generator derives the 0.6.0 row's repository-owned pins from
-`.nvmrc`, the exact pnpm package-manager pin, API/root manifests, CI and
-publish workflow constants, and both Compact language pragmas. Generation fails
-when those inputs drift from the reviewed machine-readable baseline. Add or
+`.nvmrc`, the exact pnpm package-manager pin, root/workspace manifests, CI,
+quality, and publish workflow constants, and both Compact language pragmas.
+Generation fails when those inputs drift from the reviewed machine-readable
+baseline. Add or
 update a reviewed release baseline rather than silently carrying old evidence
 forward.

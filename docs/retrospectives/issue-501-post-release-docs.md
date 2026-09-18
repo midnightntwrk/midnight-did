@@ -23,6 +23,9 @@ cross-release toolchain/runtime baseline.
 - Focused extraction and drift tests bind the current row to manifests,
   `.nvmrc`, workflow constants, and Compact pragmas, so future pin changes fail
   closed instead of silently leaving the matrix stale.
+- The bounded exact-head follow-up made duplicated pin ownership explicit:
+  Compact compiler workflows and every repeated runtime, ledger, Midnight JS,
+  and wallet SDK manifest pin must agree before the matrix can be generated.
 
 ## Friction, failures, and configuration drift
 
@@ -39,15 +42,26 @@ cross-release toolchain/runtime baseline.
   explicitly authorized local implementation in an already dedicated,
   main-based worktree. Work remained on that requested worktree and no issue
   assignment or duplicate PR was created.
+- Adding the standard empty `## [Unreleased]` section exposed an overly narrow
+  deterministic release-note parser that accepted only versioned level-two
+  headings. The parser now recognizes exactly that standard boundary while
+  preserving exact target-heading, duplicate-section, and non-empty-body
+  validation.
+- Code Quality identified the unused compatibility baseline path constant. It
+  was removed, and the default repository-relative baseline loader remains
+  covered directly.
 
 ## Validation and review evidence
 
-The focused matrix and docs-validation tests cover extraction, rendering,
+The focused matrix, release-note extractor, and docs-validation tests cover
+exact 0.6.0 body extraction with the standard Unreleased boundary, malformed
+and duplicate target rejection, duplicated-pin disagreement, rendering,
 baseline drift, final-release coordinates, navigation, and removal of future
 wording. Docs validation checks generated-page freshness and local links. The
 broader evidence includes VitePress build and visual checks, Prettier, package
-audit, repository verification, exact-head CI, and one review-only draft gate.
-Commit signature/DCO and routed review evidence are verified separately.
+audit, repository verification, exact-head CI, and one review-only current-head
+regate. Commit signature/DCO and routed review evidence are verified
+separately.
 
 ## Follow-ups
 

@@ -6,10 +6,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const repoRoot = resolve(dirname(scriptPath), "..", "..");
-const baselinePath = resolve(
-  repoRoot,
-  "docs-site/data/compatibility-baselines.json",
-);
 const packageWorkspaces = [
   ["api", "@midnight-ntwrk/midnight-did-api"],
   ["domain", "@midnight-ntwrk/midnight-did-domain"],
@@ -27,31 +23,87 @@ const requiredMatch = (source, pattern, label) => {
   return match[1];
 };
 
-const exactDependency = (manifests, packageName) => {
-  for (const manifest of manifests) {
-    const version = manifest.dependencies?.[packageName];
-    if (version) return version;
+const dependencySections = [
+  "dependencies",
+  "devDependencies",
+  "optionalDependencies",
+  "peerDependencies",
+];
+
+const dependencyPins = (manifests, predicate) =>
+  manifests.flatMap(({ manifest, source }) =>
+    dependencySections.flatMap((section) =>
+      Object.entries(manifest[section] ?? {})
+        .filter(([name]) => predicate(name))
+        .map(([name, version]) => ({
+          name,
+          source: `${source}:${section}`,
+          version,
+        })),
+    ),
+  );
+
+const consistentPin = (pins, label) => {
+  if (pins.length === 0) throw new Error(`Cannot find ${label}`);
+  if (new Set(pins.map(({ version }) => version)).size !== 1) {
+    throw new Error(
+      `${label} pins disagree: ${pins
+        .map(({ name, source, version }) => `${source} ${name}=${version}`)
+        .join(", ")}`,
+    );
   }
-  throw new Error(`Cannot find dependency ${packageName}`);
+  return pins[0].version;
+};
+
+const exactDependency = (manifests, packageName) =>
+  consistentPin(
+    dependencyPins(manifests, (name) => name === packageName),
+    `dependency ${packageName}`,
+  );
+
+const exactDependencyFamily = (manifests, prefix, label) =>
+  consistentPin(
+    dependencyPins(manifests, (name) => name.startsWith(prefix)),
+    label,
+  );
+
+const exactDependencyMap = (manifests, prefix, label) => {
+  const pins = dependencyPins(manifests, (name) => name.startsWith(prefix));
+  if (pins.length === 0) throw new Error(`Cannot find ${label}`);
+  const names = [...new Set(pins.map(({ name }) => name))].sort();
+  return Object.fromEntries(
+    names.map((name) => [
+      name.slice(prefix.length),
+      consistentPin(
+        pins.filter((pin) => pin.name === name),
+        `${label} dependency ${name}`,
+      ),
+    ]),
+  );
 };
 
 const readCurrentCompatibilityEvidence = async (root = repoRoot) => {
   const rootPackage = await readJson(resolve(root, "package.json"));
-  const apiPackage = await readJson(resolve(root, "packages/api/package.json"));
-  const manifests = [apiPackage, rootPackage];
-  const workspacePackages = await Promise.all(
+  const workspaceManifests = await Promise.all(
     packageWorkspaces.map(async ([workspace, expectedName]) => {
-      const manifest = await readJson(
-        resolve(root, `packages/${workspace}/package.json`),
-      );
+      const source = `packages/${workspace}/package.json`;
+      const manifest = await readJson(resolve(root, source));
       if (manifest.name !== expectedName) {
         throw new Error(
           `Expected ${expectedName} at packages/${workspace}, found ${manifest.name}`,
         );
       }
-      return { name: manifest.name, version: manifest.version };
+      return { manifest, source };
     }),
   );
+  const manifests = [
+    { manifest: rootPackage, source: "package.json" },
+    ...workspaceManifests,
+  ];
+  const workspacePackages = workspaceManifests.map(({ manifest }) => ({
+    name: manifest.name,
+    version: manifest.version,
+  }));
   const coordinatedVersions = new Set(
     workspacePackages.map(({ version }) => version),
   );
@@ -64,43 +116,52 @@ const readCurrentCompatibilityEvidence = async (root = repoRoot) => {
     );
   }
 
-  const [ciWorkflow, publishWorkflow, didCompact, jubjubCompact, nodeVersion] =
-    await Promise.all([
-      readFile(resolve(root, ".github/workflows/ci.yml"), "utf8"),
-      readFile(resolve(root, ".github/workflows/publish.yml"), "utf8"),
-      readFile(resolve(root, "packages/contract/src/did.compact"), "utf8"),
-      readFile(
-        resolve(root, "packages/jubjub-schnorr/src/jubjub-schnorr.compact"),
-        "utf8",
-      ),
-      readFile(resolve(root, ".nvmrc"), "utf8"),
-    ]);
-
-  const ciCompactCompiler = requiredMatch(
+  const [
     ciWorkflow,
-    /^\s*COMPACT_COMPILER_VERSION:\s*([^\s#]+)\s*$/mu,
-    "CI Compact compiler version",
-  );
-  const publishCompactCompiler = requiredMatch(
     publishWorkflow,
-    /^\s*COMPACT_COMPILER_VERSION:\s*([^\s#]+)\s*$/mu,
-    "publish Compact compiler version",
-  );
-  if (ciCompactCompiler !== publishCompactCompiler) {
-    throw new Error(
-      `Compact compiler pins disagree: CI=${ciCompactCompiler}, publish=${publishCompactCompiler}`,
-    );
-  }
+    qualityWorkflow,
+    didCompact,
+    jubjubCompact,
+    nodeVersion,
+  ] = await Promise.all([
+    readFile(resolve(root, ".github/workflows/ci.yml"), "utf8"),
+    readFile(resolve(root, ".github/workflows/publish.yml"), "utf8"),
+    readFile(resolve(root, ".github/workflows/quality.yml"), "utf8"),
+    readFile(resolve(root, "packages/contract/src/did.compact"), "utf8"),
+    readFile(
+      resolve(root, "packages/jubjub-schnorr/src/jubjub-schnorr.compact"),
+      "utf8",
+    ),
+    readFile(resolve(root, ".nvmrc"), "utf8"),
+  ]);
 
-  const midnightJsVersions = Object.entries(apiPackage.dependencies)
-    .filter(([name]) => name.startsWith("@midnight-ntwrk/midnight-js-"))
-    .map(([, version]) => version);
-  if (
-    midnightJsVersions.length === 0 ||
-    new Set(midnightJsVersions).size !== 1
-  ) {
-    throw new Error("Midnight JS package family must use one exact version");
-  }
+  const compactCompiler = consistentPin(
+    [
+      ["CI", ciWorkflow],
+      ["publish", publishWorkflow],
+      ["quality", qualityWorkflow],
+    ].map(([name, workflow]) => ({
+      name: "COMPACT_COMPILER_VERSION",
+      source: `.github/workflows/${name === "CI" ? "ci" : name}.yml`,
+      version: requiredMatch(
+        workflow,
+        /^\s*COMPACT_COMPILER_VERSION:\s*([^\s#]+)\s*$/mu,
+        `${name} Compact compiler version`,
+      ),
+    })),
+    "Compact compiler",
+  );
+
+  const midnightJsFamily = exactDependencyFamily(
+    manifests,
+    "@midnight-ntwrk/midnight-js-",
+    "Midnight JS package family",
+  );
+  const walletSdk = exactDependencyMap(
+    manifests,
+    "@midnight-ntwrk/wallet-sdk-",
+    "wallet SDK",
+  );
 
   return {
     version: rootPackage.version,
@@ -110,7 +171,7 @@ const readCurrentCompatibilityEvidence = async (root = repoRoot) => {
       /^pnpm@(.+)$/u,
       "pnpm package-manager pin",
     ),
-    compactCompiler: ciCompactCompiler,
+    compactCompiler,
     didLanguagePragma: requiredMatch(
       didCompact,
       /^pragma language_version\s+(.+);$/mu,
@@ -130,27 +191,8 @@ const readCurrentCompatibilityEvidence = async (root = repoRoot) => {
       manifests,
       "@midnight-ntwrk/ledger-v8",
     )}`,
-    midnightJsFamily: midnightJsVersions[0],
-    walletSdk: {
-      "address-format": exactDependency(
-        manifests,
-        "@midnight-ntwrk/wallet-sdk-address-format",
-      ),
-      "dust-wallet": exactDependency(
-        manifests,
-        "@midnight-ntwrk/wallet-sdk-dust-wallet",
-      ),
-      facade: exactDependency(manifests, "@midnight-ntwrk/wallet-sdk-facade"),
-      hd: exactDependency(manifests, "@midnight-ntwrk/wallet-sdk-hd"),
-      shielded: exactDependency(
-        manifests,
-        "@midnight-ntwrk/wallet-sdk-shielded",
-      ),
-      "unshielded-wallet": exactDependency(
-        manifests,
-        "@midnight-ntwrk/wallet-sdk-unshielded-wallet",
-      ),
-    },
+    midnightJsFamily,
+    walletSdk,
     proofServer: requiredMatch(
       ciWorkflow,
       /['"](midnightntwrk\/proof-server:[^'"]+)['"]/u,
@@ -334,9 +376,10 @@ be read as broader compatibility guarantees.
 ## Keeping the matrix current
 
 The generator derives the ${current.version} row's repository-owned pins from
-\`.nvmrc\`, the exact pnpm package-manager pin, API/root manifests, CI and
-publish workflow constants, and both Compact language pragmas. Generation fails
-when those inputs drift from the reviewed machine-readable baseline. Add or
+\`.nvmrc\`, the exact pnpm package-manager pin, root/workspace manifests, CI,
+quality, and publish workflow constants, and both Compact language pragmas.
+Generation fails when those inputs drift from the reviewed machine-readable
+baseline. Add or
 update a reviewed release baseline rather than silently carrying old evidence
 forward.
 `;
