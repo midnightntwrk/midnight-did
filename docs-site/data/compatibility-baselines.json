@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "currentRelease": "0.6.0",
+  "baselines": [
+    {
+      "version": "0.5.0",
+      "status": "Compatibility reference / legacy; no continuing-support implication",
+      "releaseTag": "v0.5.0",
+      "sourceCommit": "a14267cec3c1ab7e00bb0f058a54267d913a321b",
+      "nodeMajor": "24",
+      "pnpm": "10.34.1",
+      "compactCompiler": "0.30.0",
+      "didLanguagePragma": ">= 0.20",
+      "jubjubLanguagePragma": "0.22",
+      "compactRuntime": "0.16.0",
+      "compactJs": "2.5.0",
+      "ledger": "@midnight-ntwrk/ledger-v8@8.1.0",
+      "midnightJsFamily": "4.0.2",
+      "walletSdk": {
+        "address-format": "3.1.0",
+        "dust-wallet": "3.0.0",
+        "facade": "3.0.0",
+        "hd": "3.0.0",
+        "shielded": "2.1.0",
+        "unshielded-wallet": "2.1.0"
+      },
+      "proofServer": "midnightntwrk/proof-server:8.0.3",
+      "sourceManifestVersion": "0.4.0"
+    },
+    {
+      "version": "0.6.0",
+      "status": "Current published and release-tested baseline",
+      "releaseTag": "v0.6.0",
+      "sourceCommit": "8f788e2ef5652fa7f9cfdc71a3cac40d5f3683bf",
+      "nodeMajor": "24",
+      "pnpm": "10.34.5",
+      "compactCompiler": "0.31.1",
+      "didLanguagePragma": ">= 0.20",
+      "jubjubLanguagePragma": ">= 0.22",
+      "compactRuntime": "0.16.0",
+      "compactJs": "2.5.0",
+      "ledger": "@midnight-ntwrk/ledger-v8@8.1.0",
+      "midnightJsFamily": "4.0.2",
+      "walletSdk": {
+        "address-format": "3.1.0",
+        "dust-wallet": "3.0.0",
+        "facade": "3.0.0",
+        "hd": "3.0.0",
+        "shielded": "2.1.0",
+        "unshielded-wallet": "2.1.0"
+      },
+      "proofServer": "midnightntwrk/proof-server:8.0.3",
+      "sourceManifestVersion": "0.6.0"
+    }
+  ]
+}

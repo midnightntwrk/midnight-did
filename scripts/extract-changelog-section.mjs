@@ -8,6 +8,7 @@ import path from "node:path";
 const stableSemver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
 const versionHeading =
   /^## \[((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))\] - (Unreleased|\d{4}-\d{2}-\d{2})$/u;
+const unreleasedHeading = "## [Unreleased]";
 const levelTwoHeading = /^##(?:\s|$)/u;
 const malformedControl = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/u;
 
@@ -137,10 +138,19 @@ function extractChangelogSection(source, version) {
   const lines = source.split("\n");
   const sections = [];
   const seenVersions = new Set();
+  let sawUnreleased = false;
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     if (!levelTwoHeading.test(line)) continue;
+    if (line === unreleasedHeading) {
+      if (sawUnreleased) {
+        fail("CHANGELOG.md contains duplicate Unreleased sections.");
+      }
+      sawUnreleased = true;
+      sections.push({ index, version: null });
+      continue;
+    }
     const match = versionHeading.exec(line);
     if (match == null) {
       fail("CHANGELOG.md contains an unexpected level-two heading boundary.");

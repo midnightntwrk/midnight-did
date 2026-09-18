@@ -5,9 +5,10 @@ resolves the DID Document, and verifies a SchnorrJubjub signature against the ke
 stored in ledger state.
 
 External consumers should first follow [Adopt and migrate to
-0.6](/guide/migrating-to-0.6) to install the exact published RC1 packages and
-bootstrap the matching ZK bundle. The commands below otherwise assume a source
-checkout of this repository.
+0.6](/guide/migrating-to-0.6) to install the exact published `0.6.0` packages
+and bootstrap the matching ZK bundle. Check the exact release-tested toolchain
+and runtime pins in the [compatibility matrix](/guide/compatibility). The
+commands below otherwise assume a source checkout of this repository.
 
 ## Prerequisites
 

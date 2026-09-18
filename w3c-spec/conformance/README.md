@@ -36,7 +36,7 @@ DID Core 1.0 is the normative conformance baseline for 0.6. DID Core 1.1 and DID
 - Repository: `midnightntwrk/midnight-did`
 - 0.6 integration base: `55dde88ce1e451587303b5f4fc388eef4bdb32f5`
 - Runtime implementation under test: the exact clean `git rev-parse HEAD` printed by `pnpm test:conformance`; it is intentionally not hardcoded in this document or script.
-- Package version: `0.6.0` (unreleased)
+- Package version: published `0.6.0`
 - Package manager pin: `pnpm@10.34.5` (authoritative `package.json#packageManager`)
 - External-lane runtime policy: Node major `24` and npm major `11` (the exact accepted versions are recorded in evidence); `pnpm@10.34.5` remains exact and authoritative
 - Inspected surfaces: `w3c-spec/midnight-method.md`, `packages/domain`, `packages/did`, `packages/api`, `packages/contract`, and their tests.
