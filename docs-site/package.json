@@ -5,8 +5,9 @@
   "scripts": {
     "docs:sync-spec": "node scripts/sync-spec-docs.mjs",
     "docs:sync-network-endpoints": "node scripts/sync-network-endpoints.mjs",
+    "docs:sync-compatibility": "node scripts/sync-compatibility.mjs",
     "docs:api": "node scripts/generate-api-docs.mjs",
-    "docs:prepare": "pnpm run docs:sync-spec && pnpm run docs:sync-network-endpoints",
+    "docs:prepare": "pnpm run docs:sync-spec && pnpm run docs:sync-network-endpoints && pnpm run docs:sync-compatibility",
     "predocs:dev": "pnpm run docs:prepare",
     "predocs:build": "pnpm run docs:prepare",
     "docs:dev": "vitepress dev . --host 127.0.0.1 --port 4173",

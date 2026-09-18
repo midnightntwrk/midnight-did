@@ -5,10 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.6.0] - Unreleased
+## [Unreleased]
 
-All breaking changes below are assigned to the upcoming 0.6.0 release; the
-published 0.5.0 packages retain their existing API and behavior.
+## [0.6.0] - 2026-09-18
+
+All breaking changes below are part of the published 0.6.0 release; the 0.5.0
+packages retain their existing API and behavior.
 
 ### Changed
 
@@ -122,9 +124,9 @@ published 0.5.0 packages retain their existing API and behavior.
 ### Migration from 0.5.0
 
 Downstream consumers pinned to the exact published 0.5.0 packages should update
-all coordinated `@midnight-ntwrk/midnight-did-*` dependencies together to a
-0.6.0 snapshot for pre-release validation, or to 0.6.0 once available. Do not
-point an exact 0.5.0 dependency at this breaking source revision.
+all coordinated `@midnight-ntwrk/midnight-did-*` dependencies and the matching
+ZK artifact together to exact version 0.6.0. Do not point an exact 0.5.0
+dependency at this breaking release.
 
 Before removing a verification method, remove each selected verification
 relationship explicitly with `removeVerificationMethodRelation`, wait for and

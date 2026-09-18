@@ -1,50 +1,52 @@
 # Adopt and migrate to 0.6
 
-Version `0.6.0-rc1` is the currently published 0.6 prerelease. It is suitable
-for consumer testing, but it is not the final `0.6.0` release. Keep every
-Midnight DID package and the ZK artifact bundle on the same exact version; do
-not combine `0.5.0`, snapshots, RCs, or a future final release in one runtime.
+Version `0.6.0` is the current published release. Keep every Midnight DID
+package and the ZK artifact bundle on that same exact version; do not combine
+`0.5.0`, snapshots, RCs, or final releases in one runtime. See the
+[compatibility matrix](/guide/compatibility) for exact release-tested toolchain
+and runtime baselines. Those baselines do not imply compatibility with newer
+upstream versions.
 
 The 0.6 evidence is bounded to the repository's DID Core 1.0 profile. It is not
 W3C certification and does not establish DID Core 1.1 or DID Resolution
 support.
 
-## Install the published RC
+## Install the published release
 
 The documentation examples directly import the API, domain, DID, and Jubjub
 Schnorr packages. The contract package is also published for consumers that
 import its generated runtime types or Compact artifacts directly. Install the
-exact RC versions required by the examples or application:
+exact final versions required by the examples or application:
 
 ```bash
 pnpm add \
-  @midnight-ntwrk/midnight-did-api@0.6.0-rc1 \
-  @midnight-ntwrk/midnight-did-domain@0.6.0-rc1 \
-  @midnight-ntwrk/midnight-did@0.6.0-rc1 \
-  @midnight-ntwrk/midnight-did-jubjub-schnorr@0.6.0-rc1 \
-  @midnight-ntwrk/midnight-did-contract@0.6.0-rc1
+  @midnight-ntwrk/midnight-did-api@0.6.0 \
+  @midnight-ntwrk/midnight-did-domain@0.6.0 \
+  @midnight-ntwrk/midnight-did@0.6.0 \
+  @midnight-ntwrk/midnight-did-jubjub-schnorr@0.6.0 \
+  @midnight-ntwrk/midnight-did-contract@0.6.0
 ```
 
 These exact versions are public on npmjs:
 
-- [`@midnight-ntwrk/midnight-did-api@0.6.0-rc1`](https://www.npmjs.com/package/@midnight-ntwrk/midnight-did-api/v/0.6.0-rc1)
-- [`@midnight-ntwrk/midnight-did-domain@0.6.0-rc1`](https://www.npmjs.com/package/@midnight-ntwrk/midnight-did-domain/v/0.6.0-rc1)
-- [`@midnight-ntwrk/midnight-did@0.6.0-rc1`](https://www.npmjs.com/package/@midnight-ntwrk/midnight-did/v/0.6.0-rc1)
-- [`@midnight-ntwrk/midnight-did-jubjub-schnorr@0.6.0-rc1`](https://www.npmjs.com/package/@midnight-ntwrk/midnight-did-jubjub-schnorr/v/0.6.0-rc1)
-- [`@midnight-ntwrk/midnight-did-contract@0.6.0-rc1`](https://www.npmjs.com/package/@midnight-ntwrk/midnight-did-contract/v/0.6.0-rc1)
+- [`@midnight-ntwrk/midnight-did-api@0.6.0`](https://www.npmjs.com/package/@midnight-ntwrk/midnight-did-api/v/0.6.0)
+- [`@midnight-ntwrk/midnight-did-domain@0.6.0`](https://www.npmjs.com/package/@midnight-ntwrk/midnight-did-domain/v/0.6.0)
+- [`@midnight-ntwrk/midnight-did@0.6.0`](https://www.npmjs.com/package/@midnight-ntwrk/midnight-did/v/0.6.0)
+- [`@midnight-ntwrk/midnight-did-jubjub-schnorr@0.6.0`](https://www.npmjs.com/package/@midnight-ntwrk/midnight-did-jubjub-schnorr/v/0.6.0)
+- [`@midnight-ntwrk/midnight-did-contract@0.6.0`](https://www.npmjs.com/package/@midnight-ntwrk/midnight-did-contract/v/0.6.0)
 
 The npmjs version pages expose each package's npm provenance. The public
 download path for the ZK bundle is the
-[`v0.6.0-rc1` GitHub prerelease](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.6.0-rc1).
-Download the [release archive](https://github.com/midnightntwrk/midnight-did/releases/download/v0.6.0-rc1/midnight-did-zk-artifacts-0.6.0-rc1.tar.gz);
+[`v0.6.0` GitHub Release](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.6.0).
+Download the [release archive](https://github.com/midnightntwrk/midnight-did/releases/download/v0.6.0/midnight-did-zk-artifacts-0.6.0.tar.gz);
 the release also contains its manifest, SHA-256 file, signatures, certificates,
 and SLSA provenance.
 
 The same bundle exists as the [GHCR package](https://github.com/orgs/midnightntwrk/packages/container/package/midnight-did-zk-artifacts)
-`ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.6.0-rc1`, but that path
-requires Midnight organization access and GitHub Container Registry
-authentication. It is not the public download path. For the existing artifact
-layout, checksum validation, signature/provenance behavior, and helper API, see
+`ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.6.0`, but that path requires
+Midnight organization access and GitHub Container Registry authentication. It
+is not the public download path. For the existing artifact layout, checksum
+validation, signature/provenance behavior, and helper API, see
 [Package Artifact Metadata](/development/publishing#package-artifact-metadata).
 
 ## Bootstrap the matching ZK bundle
@@ -55,8 +57,7 @@ application process imports the API package and calls it, provide:
 - a running indexer, node, and proof server selected through a documented
   [network profile](/guide/network-endpoints);
 - a built and funded wallet context; and
-- the unpacked `0.6.0-rc1` ZK bundle through
-  `MIDNIGHT_DID_ZK_CONFIG_PATH`.
+- the unpacked `0.6.0` ZK bundle through `MIDNIGHT_DID_ZK_CONFIG_PATH`.
 
 One way to prepare the bundle is to run this as a separate bootstrap process:
 
@@ -65,8 +66,8 @@ node --input-type=module <<'EOF'
 import { downloadMidnightDidGithubReleaseZkArtifacts } from "@midnight-ntwrk/midnight-did-api";
 
 const bundle = await downloadMidnightDidGithubReleaseZkArtifacts({
-  version: "0.6.0-rc1",
-  outputDir: ".midnight-did-zk/0.6.0-rc1",
+  version: "0.6.0",
+  outputDir: ".midnight-did-zk/0.6.0",
 });
 console.log(bundle.zkConfigPath);
 EOF
@@ -77,7 +78,7 @@ against the archive manifest, and validates every circuit file checksum. Then
 start the application with the path set **before its first API import**:
 
 ```bash
-export MIDNIGHT_DID_ZK_CONFIG_PATH="$PWD/.midnight-did-zk/0.6.0-rc1"
+export MIDNIGHT_DID_ZK_CONFIG_PATH="$PWD/.midnight-did-zk/0.6.0"
 node dist/app.js
 ```
 
@@ -100,28 +101,6 @@ const providers = await configureProviders(walletContext, config);
 available to the new wallet. Use an application-owned persisted seed or wallet
 restore flow outside disposable standalone testing. Key custody, resolver
 services, and manager/product workflows are outside this DID package bootstrap.
-
-## Future final 0.6.0
-
-**Not yet published:** do not run the following command until all five exact
-`0.6.0` package versions and the matching `0.6.0` ZK bundle are publicly
-available:
-
-```bash
-# FUTURE FINAL 0.6.0 — NOT YET PUBLISHED
-pnpm add \
-  @midnight-ntwrk/midnight-did-api@0.6.0 \
-  @midnight-ntwrk/midnight-did-domain@0.6.0 \
-  @midnight-ntwrk/midnight-did@0.6.0 \
-  @midnight-ntwrk/midnight-did-jubjub-schnorr@0.6.0 \
-  @midnight-ntwrk/midnight-did-contract@0.6.0
-```
-
-When final `0.6.0` is published, use its public `v0.6.0` GitHub Release asset
-with those packages. The GHCR copy,
-`ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.6.0`, will require Midnight
-organization access and GitHub Container Registry authentication. Do not reuse
-the RC1 ZK bundle with final packages.
 
 ## Migrate from 0.5.0
 
