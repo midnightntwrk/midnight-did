@@ -8,6 +8,7 @@ on:
     paths:
       - ".github/workflows/fuzz.yml"
       - "packages/domain/package.json"
+      - "packages/domain/src/**"
       - "packages/domain/fuzz/**"
       - "pnpm-lock.yaml"
   workflow_dispatch:

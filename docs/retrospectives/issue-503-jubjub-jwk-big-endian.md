@@ -57,6 +57,11 @@ non-standard transport convention.
 - A direct DID-package test initially failed because the contract package had
   not been built in the fresh worktree. Building the documented prerequisite
   restored the focused lane.
+- The final draft gate found that the offchain fuzz generator still emitted
+  unrestricted 256-bit Jubjub coordinates and that domain source changes did
+  not trigger fuzz CI. The generator now separates bounded Jubjub values from
+  other EC profiles, fuzzes out-of-field rejection, and the workflow watches
+  `packages/domain/src/**`.
 - The conformance runner intentionally refuses a dirty tracked worktree. It must
   run after the signed implementation commit rather than as an uncommitted
   focused check.
@@ -69,8 +74,9 @@ non-standard transport convention.
 Focused domain and DID suites cover canonical base64url, exact 32-byte width,
 big-endian vectors, the base-field boundary, mapper error translation, complete
 DID resolution envelopes, MOD1 wire/hash stability, and the public package
-surface. The full Docker-backed API integration suite proves that a deterministic
-seed's resolved coordinates reconstruct the original native point and verify its
+surface, including bounded property-based offchain fuzzing. The full
+Docker-backed API integration suite proves that a deterministic seed's resolved
+coordinates reconstruct the original native point and verify its
 Schnorr signature through both local and ledger-bound paths. Package builds,
 package-content smoke checks, docs validation, and the VitePress build/visual
 checks also pass. Mandatory repository verification, exact-head CI, commit

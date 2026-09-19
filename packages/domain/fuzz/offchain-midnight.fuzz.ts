@@ -1,7 +1,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { CurveType, KeyType } from "../src/did-document.js";
+import { encodeJubjubJwkCoordinate } from "../src/crypto-codecs.js";
+import { CurveType, KeyType, PublicKeyJwkSchema } from "../src/did-document.js";
 import {
   decodeOffchainMidnightDIDState,
   encodeOffchainMidnightDIDState,
@@ -16,6 +17,21 @@ const bytesBase64Url = (length: number) =>
   fc
     .uint8Array({ minLength: length, maxLength: length })
     .map((bytes) => Buffer.from(bytes).toString("base64url"));
+
+const JUBJUB_BASE_FIELD_MODULUS =
+  52435875175126190479447740508185965837690552500527637822603658699938581184513n;
+
+const jubjubCoordinateArbitrary = fc
+  .bigInt({ min: 0n, max: JUBJUB_BASE_FIELD_MODULUS - 1n })
+  .map(encodeJubjubJwkCoordinate);
+
+const outOfFieldJubjubCoordinateArbitrary = fc
+  .bigInt({ min: JUBJUB_BASE_FIELD_MODULUS, max: (1n << 256n) - 1n })
+  .map((value) =>
+    Buffer.from(value.toString(16).padStart(64, "0"), "hex").toString(
+      "base64url",
+    ),
+  );
 
 const fragmentArbitrary = fc
   .stringOf(fc.constantFrom(..."abcdefghijklmnopqrstuvwxyz0123456789-_"), {
@@ -57,7 +73,13 @@ const jwkArbitrary = fc.oneof(
   }),
   fc.record({
     kty: fc.constant(KeyType.EC),
-    crv: fc.constantFrom(CurveType.Jubjub, CurveType.P256, CurveType.Secp256k1),
+    crv: fc.constant(CurveType.Jubjub),
+    x: jubjubCoordinateArbitrary,
+    y: jubjubCoordinateArbitrary,
+  }),
+  fc.record({
+    kty: fc.constant(KeyType.EC),
+    crv: fc.constantFrom(CurveType.P256, CurveType.Secp256k1),
     x: bytesBase64Url(32),
     y: bytesBase64Url(32),
   }),
@@ -118,6 +140,22 @@ describe("offchain Midnight DID fuzz targets", () => {
         const encoded = encodeOffchainMidnightDIDState(state);
         expect(encoded.encoding).toBe(OFFCHAIN_STATE_ENCODING);
         expect(decodeOffchainMidnightDIDState(encoded)).toEqual(state);
+      }),
+      { numRuns: fuzzRuns },
+    );
+  });
+
+  it("rejects generated Jubjub coordinates outside the base field", () => {
+    fc.assert(
+      fc.property(outOfFieldJubjubCoordinateArbitrary, (x) => {
+        expect(() =>
+          PublicKeyJwkSchema.parse({
+            kty: KeyType.EC,
+            crv: CurveType.Jubjub,
+            x,
+            y: encodeJubjubJwkCoordinate(0n),
+          }),
+        ).toThrow(Error);
       }),
       { numRuns: fuzzRuns },
     );
