@@ -4,9 +4,9 @@
 
 This is a draft document and may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to cite this document as anything other than a work in progress.
 
-The published version 0.6 targets the method-specific profile of the [W3C DID Core 1.0 Recommendation, 19 July 2022](https://www.w3.org/TR/2022/REC-did-core-20220719/). Its [DID Core 1.0 evidence matrix](./conformance/did-core-1.0.md) combines repository tests with a pinned external fixture harness; that evidence is bounded and supplemental, not W3C certification or endorsement. This 0.7 draft introduces breaking method-profile changes but does not broaden that published conformance claim.
+Version 0.6 targets the method-specific profile of the [W3C DID Core 1.0 Recommendation, 19 July 2022](https://www.w3.org/TR/2022/REC-did-core-20220719/). Its [DID Core 1.0 evidence matrix](./conformance/did-core-1.0.md) combines repository tests with a pinned external fixture harness; that evidence is bounded and supplemental, not W3C certification or endorsement. This 0.7 draft introduces breaking method-profile changes on top of that published baseline but does not broaden the bounded conformance evidence.
 
-Version 0.7 does not currently claim conformance to [W3C DID Core 1.1 Candidate Recommendation Snapshot, 05 March 2026](https://www.w3.org/TR/2026/CR-did-1.1-20260305/) or the [2026 W3C DID Resolution v1 Candidate Recommendation Snapshot](https://www.w3.org/TR/2026/CR-did-resolution-1.0-20260806/). The [DID Core 1.1 compatibility matrix](./conformance/did-core-1.1.md), [2026 DID Resolution CR compatibility matrix](./conformance/did-resolution.md), and [current resolution limitations](#723-resolution-response-composition-and-media-types) record the inherited 0.6 failures; [#447](https://github.com/midnightntwrk/midnight-did/issues/447) owns the coordinated migration.
+Version 0.6 does not claim conformance to [W3C DID Core 1.1 Candidate Recommendation Snapshot, 05 March 2026](https://www.w3.org/TR/2026/CR-did-1.1-20260305/) or the [2026 W3C DID Resolution v1 Candidate Recommendation Snapshot](https://www.w3.org/TR/2026/CR-did-resolution-1.0-20260806/). The [DID Core 1.1 compatibility matrix](./conformance/did-core-1.1.md), [2026 DID Resolution CR compatibility matrix](./conformance/did-resolution.md), and [current resolution limitations](#723-resolution-response-composition-and-media-types) record those failures; [#447](https://github.com/midnightntwrk/midnight-did/issues/447) owns the coordinated migration. This draft makes no broader 0.7 conformance assertion before that migration and its evidence are complete.
 
 # Contributions
 
@@ -917,8 +917,9 @@ The 0.6 validation boundary has three categories:
 2. **Expressible as a bounded Compact defense but deferred in 0.6.** For a
    supported OKP profile, equality against the empty `Opaque<"string">` sentinel
    could reject non-empty `y`. Adding that defense changes circuit artifacts and
-   has not been justified for the compatibility-frozen 0.6 candidate; it is a
-   0.7 hardening item. Resolver and SDK validation remain normative in 0.6.
+   was not justified for the compatibility-frozen 0.6 release; it remains
+   separately tracked 0.7 contract hardening outside this coordinate-codec
+   change. Resolver and SDK validation remain normative at this boundary.
 3. **SDK/resolver-only with the current schema, or requiring a future
    migration.** Base64url parsing/canonicality, URI and JSON service parsing,
    DID-subject binding, and canonical identifier normalization require rich
@@ -926,7 +927,8 @@ The 0.6 validation boundary has three categories:
    profile-specific coordinate lengths in contract requires replacing or
    profile-tagging opaque coordinates with fixed-size byte representations;
    fragment-only identifiers and structured services likewise require a ledger
-   schema/circuit design and migration. These changes are deferred to 0.7.
+   schema/circuit design and migration. These remain separate post-0.6 work and
+   are not delivered by this coordinate-codec change.
 
 The resolver applies the malformed-ledger-state policy in Section 7.2.3 and
 fails closed: foreign verification-method subjects are rejected rather than

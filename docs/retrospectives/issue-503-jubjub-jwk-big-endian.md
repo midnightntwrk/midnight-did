@@ -50,6 +50,10 @@ non-standard transport convention.
 - The first visual-docs run found mobile overflow from the unbroken decimal
   field modulus. Moving the value into a contained code block preserved the
   normative constant and restored the mobile layout.
+- The exact-head draft gate then found that the new 0.7 status prose no longer
+  contained validator-required bounded 0.6 conformance sentences. The status
+  now retains those exact published-baseline claims while separately scoping
+  the 0.7 draft, and `docs:validate` passes again.
 - A direct DID-package test initially failed because the contract package had
   not been built in the fresh worktree. Building the documented prerequisite
   restored the focused lane.
@@ -68,17 +72,18 @@ DID resolution envelopes, MOD1 wire/hash stability, and the public package
 surface. The full Docker-backed API integration suite proves that a deterministic
 seed's resolved coordinates reconstruct the original native point and verify its
 Schnorr signature through both local and ledger-bound paths. Package builds,
-package-content smoke checks, and the VitePress build also pass. Mandatory
-repository verification, exact-head CI, commit integrity, and routed review are
-recorded separately on the pull request.
+package-content smoke checks, docs validation, and the VitePress build/visual
+checks also pass. Mandatory repository verification, exact-head CI, commit
+integrity, and routed review are recorded separately on the pull request.
 
 ## Follow-ups
 
-- `midnight-did-resolver` must update secret-storage generation/decoding and roll
-  all resolver replicas together before producing DID 0.7 documents.
-- `midnight-verifiable-credentials#659` must replace its normative little-endian
-  decoder and vectors before a credential-binding release claims DID 0.7
-  compatibility.
+- [`midnight-did-resolver#123`](https://github.com/midnightntwrk/midnight-did-resolver/issues/123)
+  tracks secret-storage generation/decoding and atomic resolver-replica rollout
+  before producing DID 0.7 documents.
+- [`midnight-verifiable-credentials#660`](https://github.com/midnightntwrk/midnight-verifiable-credentials/issues/660)
+  tracks the explicit 0.7 credential-binding decoder, vectors, and native-root
+  compatibility evidence. VC PR #659 remains scoped to DID 0.6 behavior.
 - IANA registration of the Jubjub curve name and any Schnorr algorithm remains
   separate standards work; big-endian coordinates do not make the private curve
   generally available in JOSE libraries.
