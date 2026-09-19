@@ -68,6 +68,10 @@ await smoke("node package imports", async () => {
         if (!domain.VerificationMethodType) {
           throw new Error("domain VerificationMethodType export is unavailable");
         }
+        const jubjubCoordinate = domain.encodeJubjubJwkCoordinate(256n);
+        if (jubjubCoordinate !== "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQA" || domain.decodeJubjubJwkCoordinate(jubjubCoordinate) !== 256n) {
+          throw new Error("domain Jubjub JWK coordinate codec exports are unavailable");
+        }
         if (!did.LedgerToDomain) {
           throw new Error("did LedgerToDomain export is unavailable");
         }

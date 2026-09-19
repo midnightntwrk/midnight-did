@@ -16,9 +16,10 @@ import {
   createService,
   createVerificationMethod,
   CurveType,
-  decodeBase64Url,
+  decodeJubjubJwkCoordinate,
   DIDStringSchema,
   encodeBase64Url,
+  encodeJubjubJwkCoordinate,
   KeyType,
   MidnightDIDSchema,
   MidnightDIDString,
@@ -117,31 +118,13 @@ const generateEcPublicJwkPair = (
   };
 };
 
-const bigintTo32Le = (value: bigint): Uint8Array => {
-  const bytes = new Uint8Array(32);
-  let remaining = value;
-  for (let i = 0; i < bytes.length; i += 1) {
-    bytes[i] = Number(remaining & 0xffn);
-    remaining >>= 8n;
-  }
-  return bytes;
-};
-
-const bytesToBigintLe = (bytes: Uint8Array): bigint => {
-  let value = 0n;
-  for (let i = bytes.length - 1; i >= 0; i -= 1) {
-    value = (value << 8n) + BigInt(bytes[i]);
-  }
-  return value;
-};
-
 const createJubjubPublicJwk = (seed: Uint8Array): PublicKeyJwk => {
   const publicKey = deriveJubjubPublicKeyFromSeed(seed);
   return {
     kty: KeyType.EC,
     crv: CurveType.Jubjub,
-    x: encodeBase64Url(bigintTo32Le(publicKey.x)),
-    y: encodeBase64Url(bigintTo32Le(publicKey.y)),
+    x: encodeJubjubJwkCoordinate(publicKey.x),
+    y: encodeJubjubJwkCoordinate(publicKey.y),
   };
 };
 
@@ -526,6 +509,13 @@ describeApi("Midnight DID method API", () => {
       Array.from({ length: 32 }, (_, index) => index + 1),
     );
     const jubjubMethodId = `${realKeyDidString}#real-jubjub`;
+    const expectedJubjubPublicKey = deriveJubjubPublicKeyFromSeed(jubjubSeed);
+    expect(createJubjubPublicJwk(jubjubSeed)).toEqual({
+      kty: KeyType.EC,
+      crv: CurveType.Jubjub,
+      x: "EMyWcM8XCxkJTyn8MDXM4q6wVLMfqCxYCu0MwT0hHPQ",
+      y: "H0wYFnDb0GGRQPznl3NU9G1sohdsMMrVdZpEQyiZrd0",
+    });
 
     const realKeys = [
       {
@@ -567,7 +557,7 @@ describeApi("Midnight DID method API", () => {
     }
     await api.addSchnorrJubjubVerificationMethod(realKeyContract, providers, {
       id: jubjubMethodId,
-      publicKey: deriveJubjubPublicKeyFromSeed(jubjubSeed),
+      publicKey: expectedJubjubPublicKey,
     });
 
     const didDocument = await resolveRealKeyDocument();
@@ -633,9 +623,10 @@ describeApi("Midnight DID method API", () => {
       jubjubMethodId,
     ).publicKeyJwk;
     const jubjubPublicKey = {
-      x: bytesToBigintLe(decodeBase64Url(retrievedJubjub.x)),
-      y: bytesToBigintLe(decodeBase64Url(retrievedJubjub.y!)),
+      x: decodeJubjubJwkCoordinate(retrievedJubjub.x, "publicKeyJwk.x"),
+      y: decodeJubjubJwkCoordinate(retrievedJubjub.y!, "publicKeyJwk.y"),
     };
+    expect(jubjubPublicKey).toEqual(expectedJubjubPublicKey);
     const jubjubSignature = signJubjubPayloadFromSeed(jubjubSeed, payload);
     expect(verifyJubjubPayload(jubjubPublicKey, payload, jubjubSignature)).toBe(
       true,

@@ -1,6 +1,9 @@
 import { z } from "zod/v4-mini";
 
-import { decodeBase64UrlBytes } from "./crypto-codecs.js";
+import {
+  decodeBase64UrlBytes,
+  decodeJubjubJwkCoordinate,
+} from "./crypto-codecs.js";
 import { resolveDIDURLReference } from "./did-url.js";
 
 /** DID URL schema */
@@ -192,6 +195,9 @@ const isBase64UrlCoordinate = (
   if (expectedLength === undefined) return false;
   try {
     decodeBase64UrlBytes(value, expectedLength);
+    if (profile.crv === CurveType.Jubjub) {
+      decodeJubjubJwkCoordinate(value);
+    }
     return true;
   } catch {
     return false;
@@ -247,14 +253,14 @@ export const PublicKeyJwkSchema = z
   .check(
     z.refine(
       (value) => isBase64UrlCoordinate(value, "x", value.x),
-      "publicKeyJwk.x must be canonical base64url for the supported curve length",
+      "publicKeyJwk.x must be canonical base64url for the supported curve length and value range",
     ),
   )
   .check(
     z.refine(
       (value) =>
         value.y === undefined || isBase64UrlCoordinate(value, "y", value.y),
-      "publicKeyJwk.y must be canonical base64url for the supported curve length",
+      "publicKeyJwk.y must be canonical base64url for the supported curve length and value range",
     ),
   );
 

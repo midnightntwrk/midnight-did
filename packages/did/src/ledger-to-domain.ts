@@ -5,7 +5,7 @@ import {
   CurveType,
   DIDDocumentConsistencyError,
   DIDDocumentMetadata,
-  encodeBase64Url,
+  encodeJubjubJwkCoordinate,
   KeyType,
   normalizeAndValidateServiceEndpoint,
   normalizeFragmentId,
@@ -50,22 +50,6 @@ type LedgerPublicKeyJwk = DIDContract.PublicKeyJwk;
 type LedgerSchnorrJubjubVerificationMethod =
   DIDContract.SchnorrJubjubVerificationMethod;
 type LedgerService = DIDContract.Service;
-
-const bigintTo32Le = (value: bigint): Uint8Array => {
-  if (value < 0n) {
-    throw new Error("Jubjub public key coordinate must be non-negative");
-  }
-  const bytes = new Uint8Array(32);
-  let remaining = value;
-  for (let i = 0; i < bytes.length; i += 1) {
-    bytes[i] = Number(remaining & 0xffn);
-    remaining >>= 8n;
-  }
-  if (remaining !== 0n) {
-    throw new Error("Jubjub public key coordinate does not fit in 32 bytes");
-  }
-  return bytes;
-};
 
 export type LedgerDocumentValidationCode =
   | "invalidDid"
@@ -158,8 +142,8 @@ export class LedgerToDomain {
       return PublicKeyJwkSchema.parse({
         kty: KeyType.EC,
         crv: CurveType.Jubjub,
-        x: encodeBase64Url(bigintTo32Le(verificationMethod.publicKey.x)),
-        y: encodeBase64Url(bigintTo32Le(verificationMethod.publicKey.y)),
+        x: encodeJubjubJwkCoordinate(verificationMethod.publicKey.x),
+        y: encodeJubjubJwkCoordinate(verificationMethod.publicKey.y),
       });
     } catch (error) {
       if (error instanceof LedgerDocumentValidationError) throw error;
