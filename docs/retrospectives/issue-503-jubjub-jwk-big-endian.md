@@ -53,7 +53,7 @@ non-standard transport convention.
 - The exact-head draft gate then found that the new 0.7 status prose no longer
   contained validator-required bounded 0.6 conformance sentences. The status
   now retains those exact published-baseline claims while separately scoping
-  the 0.7 draft, and `docs:validate` passes again.
+  the 0.7 draft in both status and abstract, and `docs:validate` passes again.
 - A direct DID-package test initially failed because the contract package had
   not been built in the fresh worktree. Building the documented prerequisite
   restored the focused lane.

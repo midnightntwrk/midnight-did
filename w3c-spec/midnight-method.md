@@ -34,7 +34,7 @@ Contact: <contact@identus.io>
 
 # Abstract
 
-This specification defines the Midnight DID method for storing DID state on the Midnight blockchain. Version 0.6 targets a method-specific profile of the dated [W3C DID Core 1.0 Recommendation](https://www.w3.org/TR/2022/REC-did-core-20220719/), subject to the bounded evidence and explicit exclusions in the status above.
+This specification defines the Midnight DID method for storing DID state on the Midnight blockchain. Version 0.6 targets a method-specific profile of the dated [W3C DID Core 1.0 Recommendation](https://www.w3.org/TR/2022/REC-did-core-20220719/), subject to the bounded evidence and explicit exclusions in the status above. This 0.7 draft changes Jubjub JWK coordinates to fixed-width big-endian transport encoding while preserving native ledger points and historical offchain DID hashes; it does not broaden the bounded conformance claim.
 
 # Contents
 
