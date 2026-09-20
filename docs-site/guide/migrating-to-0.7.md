@@ -68,4 +68,6 @@ custody adapters, credential bindings, application fixtures, and test vectors.
 Deploy consumers that understand the 0.7 profile first, then upgrade resolver
 producers. Do not add an unmarked dual-read fallback.
 
-See [Key Model](./key-model.md) for the current storage and verification paths.
+See [ADR: Jubjub JWK Coordinate Encoding](../architecture/adr-jubjub-jwk-coordinate-encoding.md)
+for the decision record and [Key Model](./key-model.md) for the current storage
+and verification paths.

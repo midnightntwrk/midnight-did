@@ -34,7 +34,9 @@ minimal-width `FieldCodec`.
 The `Jubjub` curve name remains Midnight-private and is not registered in the
 IANA JOSE curve registry. The 0.7 coordinate encoding follows RFC 7518's EC JWK
 `x`/`y` convention, but generic JOSE implementations can still reject the
-unsupported curve name.
+unsupported curve name. See
+[ADR: Jubjub JWK Coordinate Encoding](../architecture/adr-jubjub-jwk-coordinate-encoding.md)
+for the compatibility decision and rejected alternatives.
 
 The two maps are not duplicate storage. A verification method id belongs to
 exactly one map. Keeping one canonical representation per key avoids consistency

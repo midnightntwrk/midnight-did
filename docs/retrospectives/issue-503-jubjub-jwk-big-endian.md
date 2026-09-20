@@ -62,6 +62,12 @@ non-standard transport convention.
   not trigger fuzz CI. The generator now separates bounded Jubjub values from
   other EC profiles, fuzzes out-of-field rejection, and the workflow watches
   `packages/domain/src/**`.
+- A focused documentation review found that the durable encoding and legacy
+  compatibility decision was specified but had no corresponding architecture
+  decision record. The accepted Jubjub JWK coordinate ADR now records the
+  alternatives, immutable MOD1 boundary, migration consequences, and explicit
+  non-goals. The same pass also restored the existing controller-recovery ADR
+  to the VitePress architecture sidebar.
 - The conformance runner intentionally refuses a dirty tracked worktree. It must
   run after the signed implementation commit rather than as an uncommitted
   focused check.

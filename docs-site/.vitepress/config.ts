@@ -159,6 +159,14 @@ export default defineConfig({
               text: "ADR: Controller Authorization Signatures",
               link: "/architecture/adr-controller-authorization-signatures",
             },
+            {
+              text: "ADR: Controller Recovery Authority",
+              link: "/architecture/adr-controller-recovery-authority",
+            },
+            {
+              text: "ADR: Jubjub JWK Coordinate Encoding",
+              link: "/architecture/adr-jubjub-jwk-coordinate-encoding",
+            },
           ],
         },
       ],
