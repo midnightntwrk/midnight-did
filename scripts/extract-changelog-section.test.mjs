@@ -4,6 +4,7 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -13,6 +14,8 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const extractor = path.join(repoRoot, "scripts/extract-changelog-section.mjs");
 const expectedBody = "### Changed\n\n- Reviewed release note.\n";
+const published060BodySha256 =
+  "0f8196a4aa7fb324ad6b578764f91e780e69b69c0c320c82471185e33133740e";
 
 function changelog({
   heading = "## [0.6.0] - 2026-09-18",
@@ -63,6 +66,22 @@ test("extracts the exact base-version body for RC and final release notes", asyn
         cleanup(root);
       }
     });
+  }
+});
+
+test("keeps the published 0.6.0 release body immutable", () => {
+  const source = fs.readFileSync(path.join(repoRoot, "CHANGELOG.md"), "utf8");
+  const root = fixture(source);
+  try {
+    const result = run(root);
+    assert.equal(result.status, 0, result.stderr);
+    const body = fs.readFileSync(path.join(root, "dist/notes.md"));
+    assert.equal(
+      createHash("sha256").update(body).digest("hex"),
+      published060BodySha256,
+    );
+  } finally {
+    cleanup(root);
   }
 });
 

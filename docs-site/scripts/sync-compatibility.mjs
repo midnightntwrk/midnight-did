@@ -123,6 +123,10 @@ const readCurrentCompatibilityEvidence = async (root = repoRoot) => {
     didCompact,
     jubjubCompact,
     nodeVersion,
+    standaloneCompose,
+    standaloneLatestCompose,
+    apiTestCommons,
+    proofServerBootstrap,
   ] = await Promise.all([
     readFile(resolve(root, ".github/workflows/ci.yml"), "utf8"),
     readFile(resolve(root, ".github/workflows/publish.yml"), "utf8"),
@@ -133,6 +137,10 @@ const readCurrentCompatibilityEvidence = async (root = repoRoot) => {
       "utf8",
     ),
     readFile(resolve(root, ".nvmrc"), "utf8"),
+    readFile(resolve(root, "packages/api/standalone.yml"), "utf8"),
+    readFile(resolve(root, "packages/api/standalone-latest.yml"), "utf8"),
+    readFile(resolve(root, "packages/api/src/test/commons.ts"), "utf8"),
+    readFile(resolve(root, "proof-server-bootstrap/bootstrap.py"), "utf8"),
   ]);
 
   const compactCompiler = consistentPin(
@@ -161,6 +169,50 @@ const readCurrentCompatibilityEvidence = async (root = repoRoot) => {
     manifests,
     "@midnight-ntwrk/wallet-sdk-",
     "wallet SDK",
+  );
+  const proofServer = consistentPin(
+    [
+      {
+        name: "PROOF_SERVER_IMAGE",
+        source: ".github/workflows/ci.yml",
+        version: requiredMatch(
+          ciWorkflow,
+          /['"](midnightntwrk\/proof-server:[^'"]+)['"]/u,
+          "CI proof-server image",
+        ),
+      },
+      ...[
+        ["packages/api/standalone.yml", standaloneCompose],
+        ["packages/api/standalone-latest.yml", standaloneLatestCompose],
+      ].map(([source, compose]) => ({
+        name: "PROOF_SERVER_IMAGE",
+        source,
+        version: requiredMatch(
+          compose,
+          /PROOF_SERVER_IMAGE:-([^}'"]+)/u,
+          `${source} proof-server fallback`,
+        ),
+      })),
+      {
+        name: "PROOF_SERVER_IMAGE",
+        source: "packages/api/src/test/commons.ts",
+        version: requiredMatch(
+          apiTestCommons,
+          /process\.env\.PROOF_SERVER_IMAGE\s*\?\?\s*["']([^"']+)["']/u,
+          "API test proof-server fallback",
+        ),
+      },
+      {
+        name: "PROOF_SERVER_IMAGE",
+        source: "proof-server-bootstrap/bootstrap.py",
+        version: requiredMatch(
+          proofServerBootstrap,
+          /^image_name\s*=\s*["'](midnightntwrk\/proof-server:[^"']+)["']$/mu,
+          "proof-server bootstrap source image",
+        ),
+      },
+    ],
+    "proof-server defaults",
   );
 
   return {
@@ -193,11 +245,7 @@ const readCurrentCompatibilityEvidence = async (root = repoRoot) => {
     )}`,
     midnightJsFamily,
     walletSdk,
-    proofServer: requiredMatch(
-      ciWorkflow,
-      /['"](midnightntwrk\/proof-server:[^'"]+)['"]/u,
-      "CI proof-server image",
-    ),
+    proofServer,
     packageVersions: Object.fromEntries(
       workspacePackages.map(({ name, version }) => [name, version]),
     ),
@@ -256,6 +304,19 @@ const walletSdkCell = (walletSdk) =>
 const releaseCell = (baseline) =>
   `[\`${baseline.releaseTag}\`](https://github.com/midnightntwrk/midnight-did/releases/tag/${baseline.releaseTag}) → [\`${baseline.sourceCommit}\`](https://github.com/midnightntwrk/midnight-did/commit/${baseline.sourceCommit})`;
 
+const nodeRuntimeCell = (baseline) => {
+  const hasVersion = baseline.nodeTestedVersion != null;
+  const hasRun = baseline.nodeTestedRun != null;
+  if (hasVersion !== hasRun) {
+    throw new Error(
+      `Node release evidence is incomplete for ${baseline.version}`,
+    );
+  }
+  return hasVersion
+    ? `[\`${baseline.nodeTestedVersion}\`](https://github.com/midnightntwrk/midnight-did/actions/runs/${baseline.nodeTestedRun})`
+    : "Exact patch not retained";
+};
+
 const zkReleaseCell = (version) =>
   `[\`v${version}\`](https://github.com/midnightntwrk/midnight-did/releases/tag/v${version}) / [\`midnight-did-zk-artifacts-${version}.tar.gz\`](https://github.com/midnightntwrk/midnight-did/releases/download/v${version}/midnight-did-zk-artifacts-${version}.tar.gz)`;
 
@@ -273,10 +334,11 @@ const generateCompatibilityMarkdown = (baselines, currentRelease) => {
     ),
     matrixRow("Release tag / source commit", baselines, releaseCell),
     matrixRow(
-      "Node tested baseline",
+      "Node CI selector",
       baselines,
       (item) => `Major \`${item.nodeMajor}\``,
     ),
+    matrixRow("Node release-tested runtime", baselines, nodeRuntimeCell),
     matrixRow("pnpm tested baseline", baselines, (item) => `\`${item.pnpm}\``),
     matrixRow(
       "Compact compiler",
@@ -313,7 +375,7 @@ const generateCompatibilityMarkdown = (baselines, currentRelease) => {
       walletSdkCell(item.walletSdk),
     ),
     matrixRow(
-      "Proof-server reference",
+      "Proof-server source image",
       baselines,
       (item) => `\`${item.proofServer}\``,
     ),
@@ -340,8 +402,9 @@ Published npm manifests and matching release artifacts are authoritative for
 published package identities. Manifest \`engines\`, Compact language pragmas,
 and similar constraints describe admissible inputs; this matrix does not infer
 support for newer Node, pnpm, Compact, Midnight JS, wallet SDK, ledger, or
-proof-server versions. Re-test the complete integration before moving any component
-beyond the exact baseline below.
+proof-server versions. A major-only Node CI selector is not an exact patch-level
+runtime claim. Re-test the complete integration before moving any component
+beyond its recorded baseline or selector below.
 
 This page is generated from
 [\`docs-site/data/compatibility-baselines.json\`](https://github.com/midnightntwrk/midnight-did/blob/main/docs-site/data/compatibility-baselines.json)
@@ -376,8 +439,11 @@ be read as broader compatibility guarantees.
 ## Keeping the matrix current
 
 The generator derives the ${current.version} row's repository-owned pins from
-\`.nvmrc\`, the exact pnpm package-manager pin, root/workspace manifests, CI,
-quality, and publish workflow constants, and both Compact language pragmas.
+the \`.nvmrc\` CI selector, the exact pnpm package-manager pin,
+root/workspace manifests, CI, quality, and publish workflow constants, both
+Compact language pragmas, and every runtime-owned
+\`midnightntwrk/proof-server\` fallback. The exact Node release runtime is
+retained separately as historical run evidence.
 Generation fails when those inputs drift from the reviewed machine-readable
 baseline. Add or
 update a reviewed release baseline rather than silently carrying old evidence

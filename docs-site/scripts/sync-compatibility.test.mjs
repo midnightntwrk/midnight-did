@@ -31,12 +31,16 @@ const evidenceFixturePaths = [
   ".github/workflows/quality.yml",
   "package.json",
   "packages/api/package.json",
+  "packages/api/src/test/commons.ts",
+  "packages/api/standalone-latest.yml",
+  "packages/api/standalone.yml",
   "packages/contract/package.json",
   "packages/contract/src/did.compact",
   "packages/did/package.json",
   "packages/domain/package.json",
   "packages/jubjub-schnorr/package.json",
   "packages/jubjub-schnorr/src/jubjub-schnorr.compact",
+  "proof-server-bootstrap/bootstrap.py",
 ];
 
 const evidenceFixture = async (t) => {
@@ -134,6 +138,28 @@ test("fails when duplicated authoritative current pins disagree", async (t) => {
         }),
       error: /dependency @midnight-ntwrk\/compact-runtime pins disagree/u,
     },
+    {
+      name: "proof-server runtime defaults",
+      mutate: (root) =>
+        replaceFixtureText(
+          root,
+          "packages/api/standalone-latest.yml",
+          "midnightntwrk/proof-server:8.0.3",
+          "midnightntwrk/proof-server:8.0.4",
+        ),
+      error: /proof-server defaults pins disagree/u,
+    },
+    {
+      name: "proof-server bootstrap source",
+      mutate: (root) =>
+        replaceFixtureText(
+          root,
+          "proof-server-bootstrap/bootstrap.py",
+          "midnightntwrk/proof-server:8.0.3",
+          "midnightntwrk/proof-server:8.0.4",
+        ),
+      error: /proof-server defaults pins disagree/u,
+    },
   ];
 
   for (const fixtureCase of cases) {
@@ -153,6 +179,9 @@ test("loads the reviewed baseline from its repository-relative data file", async
 
   assert.equal(source.currentRelease, "0.6.0");
   assert.equal(source.baselines.at(-1).version, source.currentRelease);
+  assert.equal(source.baselines[0].nodeTestedVersion, null);
+  assert.equal(source.baselines.at(-1).nodeTestedVersion, "24.20.0");
+  assert.equal(source.baselines.at(-1).nodeTestedRun, "35322501440");
 });
 
 test("fails closed when a current repository pin drifts from reviewed baseline data", async () => {
@@ -183,6 +212,10 @@ test("generated compatibility page records status semantics and 0.5 manifest cav
   assert.match(content, /v0\.6\.0.*8f788e2ef5652fa7f9cfdc71a3cac40d5f3683bf/u);
   assert.match(content, /source tag reports version\n`0\.4\.0`/u);
   assert.match(content, /does not infer\nsupport for newer Node/u);
+  assert.match(content, /Node CI selector/u);
+  assert.match(content, /Exact patch not retained/u);
+  assert.match(content, /24\.20\.0.*35322501440/u);
+  assert.match(content, /major-only Node CI selector is not an exact/u);
 });
 
 test("committed compatibility page matches generated repository evidence", async () => {

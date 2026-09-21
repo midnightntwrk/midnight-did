@@ -72,6 +72,9 @@ jobs:
       - name: Validate docs
         run: pnpm run docs:validate
 
+      - name: Test docs validation contracts
+        run: pnpm run test:docs-validate
+
       - name: Build docs site
         run: ./run.sh docs
 

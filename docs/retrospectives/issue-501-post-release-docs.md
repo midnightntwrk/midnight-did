@@ -50,15 +50,30 @@ cross-release toolchain/runtime baseline.
 - Code Quality identified the unused compatibility baseline path constant. It
   was removed, and the default repository-relative baseline loader remains
   covered directly.
+- The pre-approval review found that post-release wording had changed the body
+  extracted for the already immutable `v0.6.0` GitHub Release. The published
+  section body was restored byte-for-byte, post-release guidance moved under
+  `Unreleased`, and a SHA-256 regression test now pins the released body.
+- The same review separated the moving Node 24 CI selector from exact retained
+  run evidence. The matrix now records Node `24.20.0` for the final publication
+  run while explicitly stating that the 0.5 patch-level runtime was not
+  retained rather than inventing historical precision.
+- Proof-server drift validation initially covered only the CI fallback. It now
+  requires agreement across CI, both standalone compose files, the API test
+  default, and the bootstrap source image. Hosted docs CI runs the negative
+  validation tests, and visual checks visit the compatibility matrix on desktop
+  and mobile.
 
 ## Validation and review evidence
 
 The focused matrix, release-note extractor, and docs-validation tests cover
 exact 0.6.0 body extraction with the standard Unreleased boundary, malformed
 and duplicate target rejection, duplicated-pin disagreement, rendering,
-baseline drift, final-release coordinates, navigation, and removal of future
-wording. Docs validation checks generated-page freshness and local links. The
-broader evidence includes VitePress build and visual checks, Prettier, package
+baseline drift, proof-server-default disagreement, immutable final-release
+notes, final-release coordinates, navigation, and removal of future wording.
+Docs validation checks generated-page freshness and local links, hosted docs CI
+runs the negative contracts, and visual checks cover the compatibility table.
+The broader evidence includes VitePress build and visual checks, Prettier, package
 audit, repository verification, exact-head CI, and one review-only current-head
 regate. Commit signature/DCO and routed review evidence are verified
 separately.
