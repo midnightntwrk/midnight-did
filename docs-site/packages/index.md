@@ -3,7 +3,8 @@
 Use these packages when integrating or extending the Midnight DID reference
 implementation. Before installing them, follow [Adopt and migrate to
 0.6](/guide/migrating-to-0.6) for exact published versions and the matching ZK
-bundle.
+bundle. Use the [compatibility matrix](/guide/compatibility) for the exact
+release-tested toolchain and runtime baselines.
 
 | Package                                       | Use when                                                        | Responsibility                                                    |
 | --------------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------- |

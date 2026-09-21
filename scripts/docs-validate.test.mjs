@@ -454,7 +454,7 @@ test("validateReleaseDocExamples rejects stale documented release trains", async
   }
 });
 
-test("validateReleaseDocExamples accepts an unreleased source baseline with the published badge", async () => {
+test("validateReleaseDocExamples accepts the published source baseline and badge", async () => {
   const root = await mkdtemp(resolve(tmpdir(), "docs-validate-release-"));
   try {
     await writeFile(
@@ -465,7 +465,7 @@ test("validateReleaseDocExamples accepts an unreleased source baseline with the 
     await writeFile(
       resolve(root, "README.md"),
       [
-        "[![Latest Release](https://img.shields.io/badge/release-v0.5.0-blue)](https://example.test)",
+        "[![Latest Release](https://img.shields.io/badge/release-v0.6.0-blue)](https://example.test)",
         'export VERSION="0.6.0-snapshot.local"',
         'export ZK_ARCHIVE="artifacts/zk/midnight-did-zk-artifacts-${VERSION}.tar.gz"',
         'export VERSION="0.6.0-rc1"',
@@ -512,6 +512,11 @@ test("0.6 adoption guidance preserves consumer release boundaries", async () => 
       `{ text: "Migrate to 0.6", link: "${adoptionRoute}" }`,
     ),
   );
+  assert.ok(
+    vitepressConfig.includes(
+      '{ text: "Compatibility", link: "/guide/compatibility" }',
+    ),
+  );
 
   assert.ok(
     guide.includes(
@@ -523,11 +528,11 @@ test("0.6 adoption guidance preserves consumer release boundaries", async () => 
       [
         "```bash",
         "pnpm add \\",
-        "  @midnight-ntwrk/midnight-did-api@0.6.0-rc1 \\",
-        "  @midnight-ntwrk/midnight-did-domain@0.6.0-rc1 \\",
-        "  @midnight-ntwrk/midnight-did@0.6.0-rc1 \\",
-        "  @midnight-ntwrk/midnight-did-jubjub-schnorr@0.6.0-rc1 \\",
-        "  @midnight-ntwrk/midnight-did-contract@0.6.0-rc1",
+        "  @midnight-ntwrk/midnight-did-api@0.6.0 \\",
+        "  @midnight-ntwrk/midnight-did-domain@0.6.0 \\",
+        "  @midnight-ntwrk/midnight-did@0.6.0 \\",
+        "  @midnight-ntwrk/midnight-did-jubjub-schnorr@0.6.0 \\",
+        "  @midnight-ntwrk/midnight-did-contract@0.6.0",
         "```",
       ].join("\n"),
     ),
@@ -543,27 +548,21 @@ test("0.6 adoption guidance preserves consumer release boundaries", async () => 
     ),
   );
 
-  assert.ok(
-    guide.includes(
-      "**Not yet published:** do not run the following command until all five exact\n`0.6.0` package versions and the matching `0.6.0` ZK bundle are publicly\navailable:",
-    ),
-  );
-  assert.ok(guide.includes("# FUTURE FINAL 0.6.0 — NOT YET PUBLISHED"));
+  assert.doesNotMatch(guide, /not yet published|future final/iu);
 
   assert.ok(
     guide.includes(
-      "The public\ndownload path for the ZK bundle is the\n[`v0.6.0-rc1` GitHub prerelease](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.6.0-rc1).",
+      "The public\ndownload path for the ZK bundle is the\n[`v0.6.0` GitHub Release](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.6.0).",
     ),
   );
   assert.ok(
     guide.includes(
-      "[release archive](https://github.com/midnightntwrk/midnight-did/releases/download/v0.6.0-rc1/midnight-did-zk-artifacts-0.6.0-rc1.tar.gz)",
+      "[release archive](https://github.com/midnightntwrk/midnight-did/releases/download/v0.6.0/midnight-did-zk-artifacts-0.6.0.tar.gz)",
     ),
   );
-  assert.ok(
-    guide.includes(
-      "requires Midnight organization access and GitHub Container Registry\nauthentication. It is not the public download path.",
-    ),
+  assert.match(
+    guide,
+    /requires\s+Midnight organization access and GitHub Container Registry\s+authentication\. It\s+is not the public download path\./u,
   );
   assert.doesNotMatch(
     guide,

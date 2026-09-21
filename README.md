@@ -7,7 +7,7 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/midnightntwrk/midnight-did/badge)](https://scorecard.dev/viewer/?uri=github.com/midnightntwrk/midnight-did)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13956/badge)](https://www.bestpractices.dev/projects/13956)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/midnightntwrk/midnight-did/blob/main/LICENSE)
-[![Latest Release](https://img.shields.io/badge/release-v0.5.0-blue)](https://github.com/midnightntwrk/midnight-did/releases/latest)
+[![Latest Release](https://img.shields.io/badge/release-v0.6.0-blue)](https://github.com/midnightntwrk/midnight-did/releases/latest)
 
 Midnight DID is the reference implementation of the `did:midnight` method.
 This repository owns the core DID contract, domain model, ledger mapping, and TypeScript API orchestration.
@@ -25,6 +25,9 @@ VC packages and use cases live in [`midnight-verifiable-credentials`](https://gi
 | [`packages/did`](packages/did/README.md)                       | `@midnight-ntwrk/midnight-did`                | Ledger to domain mapping and DID resolution helpers                              |
 | [`packages/api`](packages/api/README.md)                       | `@midnight-ntwrk/midnight-did-api`            | Programmatic DID operations, wallet/provider orchestration, and network profiles |
 | [`docs-site`](docs-site/)                                      | `docs-site`                                   | VitePress documentation site                                                     |
+
+Consumers should use the [compatibility and release baseline matrix](docs-site/guide/compatibility.md)
+to coordinate exact package, toolchain, runtime, and ZK artifact versions.
 
 ## Architecture
 
@@ -284,7 +287,7 @@ asset. It downloads that provenance on both creation and reuse, verifies its
 signature and pinned reusable-workflow certificate identity with GitHub's OIDC
 issuer, and then checks its SLSA v0.2 subjects and publication context. For
 example, after all external Trusted Publisher and `npm-release` environment
-prerequisites are confirmed, dispatch a later `0.6.0` snapshot with:
+prerequisites are confirmed, dispatch a `0.6.0` snapshot with:
 
 ```bash
 gh workflow run publish.yml --repo midnightntwrk/midnight-did --ref develop --field channel=snapshot --field version=0.6.0
@@ -363,7 +366,7 @@ Published consumers can also use the Node helper exported by the API package:
 import { downloadMidnightDidGithubReleaseZkArtifacts } from "@midnight-ntwrk/midnight-did-api";
 
 const bundle = await downloadMidnightDidGithubReleaseZkArtifacts({
-  version: "0.6.0-rc1",
+  version: "0.6.0",
   outputDir: ".midnight-did-zk",
 });
 ```

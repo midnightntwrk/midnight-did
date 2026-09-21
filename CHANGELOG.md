@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.6.0] - Unreleased
+## [Unreleased]
+
+### Documentation
+
+- Publish final 0.6.0 consumer guidance and an evidence-backed compatibility
+  matrix without changing the immutable 0.6.0 GitHub Release notes below.
+
+## [0.6.0] - 2026-09-18
 
 All breaking changes below are assigned to the upcoming 0.6.0 release; the
 published 0.5.0 packages retain their existing API and behavior.

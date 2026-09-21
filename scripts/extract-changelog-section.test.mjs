@@ -4,6 +4,7 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -13,12 +14,15 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const extractor = path.join(repoRoot, "scripts/extract-changelog-section.mjs");
 const expectedBody = "### Changed\n\n- Reviewed release note.\n";
+const published060BodySha256 =
+  "0f8196a4aa7fb324ad6b578764f91e780e69b69c0c320c82471185e33133740e";
 
 function changelog({
-  heading = "## [0.6.0] - Unreleased",
+  heading = "## [0.6.0] - 2026-09-18",
   body = expectedBody,
+  unreleased = "## [Unreleased]\n\n",
 } = {}) {
-  return `# Changelog\n\n${heading}\n\n${body}\n## [0.5.0] - 2026-08-03\n\n### Added\n\n- Older note.\n`;
+  return `# Changelog\n\n${unreleased}${heading}\n\n${body}\n## [0.5.0] - 2026-08-03\n\n### Added\n\n- Older note.\n`;
 }
 
 function fixture(source = changelog()) {
@@ -41,12 +45,16 @@ function cleanup(root) {
 }
 
 test("extracts the exact base-version body for RC and final release notes", async (t) => {
-  for (const [name, heading] of [
-    ["RC from Unreleased", "## [0.6.0] - Unreleased"],
-    ["final from dated section", "## [0.6.0] - 2026-09-14"],
+  for (const [name, heading, unreleased] of [
+    ["RC from versioned Unreleased", "## [0.6.0] - Unreleased", ""],
+    [
+      "final from dated section with standard Unreleased section",
+      "## [0.6.0] - 2026-09-14",
+      "## [Unreleased]\n\n",
+    ],
   ]) {
     await t.test(name, () => {
-      const root = fixture(changelog({ heading }));
+      const root = fixture(changelog({ heading, unreleased }));
       try {
         const result = run(root);
         assert.equal(result.status, 0, result.stderr);
@@ -61,6 +69,22 @@ test("extracts the exact base-version body for RC and final release notes", asyn
   }
 });
 
+test("keeps the published 0.6.0 release body immutable", () => {
+  const source = fs.readFileSync(path.join(repoRoot, "CHANGELOG.md"), "utf8");
+  const root = fixture(source);
+  try {
+    const result = run(root);
+    assert.equal(result.status, 0, result.stderr);
+    const body = fs.readFileSync(path.join(root, "dist/notes.md"));
+    assert.equal(
+      createHash("sha256").update(body).digest("hex"),
+      published060BodySha256,
+    );
+  } finally {
+    cleanup(root);
+  }
+});
+
 test("fails closed for missing, duplicate, empty, and malformed sections", async (t) => {
   const cases = [
     ["missing", changelog(), { version: "0.7.0" }],
@@ -72,6 +96,16 @@ test("fails closed for missing, duplicate, empty, and malformed sections", async
     ["empty", changelog({ body: "" }), {}],
     ["heading-only", changelog({ body: "### Changed\n" }), {}],
     ["bad target heading", changelog({ heading: "## 0.6.0 - Unreleased" }), {}],
+    [
+      "duplicate target with standard Unreleased present",
+      `${changelog()}\n## [0.6.0] - 2026-09-19\n\n${expectedBody}`,
+      {},
+    ],
+    [
+      "duplicate standard Unreleased section",
+      changelog({ unreleased: "## [Unreleased]\n\n## [Unreleased]\n\n" }),
+      {},
+    ],
     ["unexpected boundary", `${changelog()}\n## Security notes\n`, {}],
     ["invalid date", changelog({ heading: "## [0.6.0] - 2026-02-30" }), {}],
     ["control character", changelog().replace("Reviewed", "Reviewed\r"), {}],
