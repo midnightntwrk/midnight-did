@@ -95,9 +95,10 @@ return [privateState, [q, r]];
 
 This host computation selects the canonical honest witness used by the signer,
 but does not make the in-circuit decomposition unique. Cryptographic, circuit,
-and formal remediation remains separately reviewed 0.7 work or part of a
-coordinated upstream Jubjub integration; this documentation correction does not
-claim that remediation is complete.
+and formal remediation remains separately reviewed 0.8 work under
+[issue #241](https://github.com/midnightntwrk/midnight-did/issues/241) or part of
+a coordinated upstream Jubjub integration; this documentation correction does
+not claim that remediation is complete.
 
 Constants:
 
