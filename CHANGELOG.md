@@ -5,10 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.6.0] - Unreleased
+## [Unreleased]
 
-All breaking changes below are assigned to the upcoming 0.6.0 release; the
-published 0.5.0 packages retain their existing API and behavior.
+### Changed
+
+- BREAKING (planned for 0.7.0): Project native ledger Jubjub public keys into
+  `publicKeyJwk.x` and `publicKeyJwk.y` as canonical base64url-encoded,
+  fixed-width 32-byte unsigned big-endian coordinates. Versions through 0.6.0
+  emitted little-endian coordinates. Native ledger points and signatures remain
+  unchanged, but persisted DID Documents, JWK thumbprints, JWK-derived key
+  identifiers, and caches must be re-resolved or rebuilt. The domain package now
+  exports endian-explicit Jubjub JWK coordinate codecs. Existing offchain MOD1
+  bytes and DID hashes remain immutable: the 0.7 offchain codec converts its
+  historical little-endian Jubjub wire fields to canonical big-endian JWKs at
+  the domain boundary.
+
+### Migration from 0.6.0
+
+Upgrade resolver deployments and Jubjub-consuming integrations together. Do not
+reinterpret persisted 0.6.0 DID Document snapshots with the 0.7 codec or add an
+unmarked little-endian/big-endian fallback. Re-resolve ledger-backed DIDs,
+invalidate cached documents, and rebuild JWK-derived identifiers. Use
+`encodeJubjubJwkCoordinate` and `decodeJubjubJwkCoordinate` for new integration
+code. Existing offchain MOD1 DIDs retain their identifiers; pass only canonical
+big-endian values to the 0.7 domain API and let its codec preserve the legacy
+wire representation.
+
+## [0.6.0] - 2026-09-18
+
+All breaking changes below are part of the published 0.6.0 release; the 0.5.0
+packages retain their existing API and behavior.
 
 ### Changed
 
@@ -122,9 +148,9 @@ published 0.5.0 packages retain their existing API and behavior.
 ### Migration from 0.5.0
 
 Downstream consumers pinned to the exact published 0.5.0 packages should update
-all coordinated `@midnight-ntwrk/midnight-did-*` dependencies together to a
-0.6.0 snapshot for pre-release validation, or to 0.6.0 once available. Do not
-point an exact 0.5.0 dependency at this breaking source revision.
+all coordinated `@midnight-ntwrk/midnight-did-*` dependencies and the matching
+ZK artifact together to exact version 0.6.0. Do not point an exact 0.5.0
+dependency at this breaking release.
 
 Before removing a verification method, remove each selected verification
 relationship explicitly with `removeVerificationMethodRelation`, wait for and

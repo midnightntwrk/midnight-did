@@ -78,6 +78,20 @@ registered keywords such as `invalidDid`, `notFound`,
 Extension keywords remain valid when they are a single ASCII keyword.
 Resolution error keywords must start with a letter.
 
+## Jubjub JWK coordinate codec
+
+Use `encodeJubjubJwkCoordinate` and `decodeJubjubJwkCoordinate` at the
+Jubjub JWK transport boundary. They encode coordinates as canonical unpadded
+base64url strings containing exactly 32 unsigned big-endian bytes, as required
+by the Midnight DID 0.7 profile.
+
+These helpers are intentionally distinct from `FieldCodec`. `FieldCodec` uses a
+minimal-width big-endian field representation for its existing callers, while
+EC JWK coordinates require their curve's full coordinate width. The Jubjub JWK
+decoder validates canonical base64url, width, and the Jubjub base-field bound,
+but it does not replace on-curve, subgroup, or identity-point validation at a
+cryptographic boundary.
+
 ## Build & Test
 
 - Build: `pnpm --filter ./packages/domain build`

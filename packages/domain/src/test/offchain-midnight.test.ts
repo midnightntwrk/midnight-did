@@ -133,6 +133,46 @@ describe("offchain Midnight DID helpers", () => {
     expect(decodeOffchainMidnightDIDState(first)).toEqual(sampleState);
   });
 
+  it("keeps the MOD1 legacy Jubjub wire vector stable while exposing canonical JWKs", () => {
+    const state: OffchainMidnightDIDState = {
+      version: 1,
+      alsoKnownAs: [],
+      verificationMethod: [
+        {
+          id: "#legacy-jubjub",
+          publicKeyJwk: {
+            kty: KeyType.EC,
+            crv: CurveType.Jubjub,
+            x: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE",
+            y: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQA",
+          },
+          relationships: {
+            authentication: false,
+            assertionMethod: true,
+            keyAgreement: false,
+            capabilityInvocation: false,
+            capabilityDelegation: false,
+          },
+        },
+      ],
+      service: [],
+    };
+    const encodedState = {
+      encoding: "midnight-offchain-did-state-v1.base64url",
+      payload:
+        "TU9EMQAAAC0AAAABAQAAAAAAAAAAAAAAAAAAAAAAAAABAQAAAA4jbGVnYWN5LWp1Ymp1YgAAAAEBAAAAK0FRQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUEAAAArQUFFQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQQAAAAECAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    } as const;
+    const shortDid =
+      "did:midnight:offchain:caaf5141ea9cf2be085e4bd8371978084ab98cce79bca50bd8f1ae2d21e7dea5";
+
+    expect(encodeOffchainMidnightDIDState(state)).toEqual(encodedState);
+    expect(decodeOffchainMidnightDIDState(encodedState)).toEqual(state);
+    expect(createOffchainMidnightDIDStringFromState(state)).toBe(shortDid);
+    expect(createLongFormOffchainMidnightDIDString(state)).toBe(
+      `${shortDid}:${encodedState.payload}`,
+    );
+  });
+
   it("creates a stable offchain Midnight DID subject from state", () => {
     const did = createOffchainMidnightDIDStringFromState(sampleState);
     expect(did).toMatch(/^did:midnight:offchain:[0-9a-f]{64}$/);
