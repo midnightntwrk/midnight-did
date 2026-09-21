@@ -64,8 +64,8 @@ promotion exception.
 - The first aggregate `pnpm run verify` attempt ran while several focused jobs
   had recently loaded the host and hit the review-dispatch suite's one-second
   subprocess timeout while reading a mocked PR head. The exact focused suite
-  immediately passed all 32 tests on rerun. This is not recorded as a green
-  aggregate gate; a clean exact-head rerun remains required.
+  immediately passed all 32 tests, and a subsequent clean exact-head aggregate
+  rerun completed successfully.
 - New worktrees do not share dependency or project-local Pi installations. The
   reconciliation worktree used a frozen install; the promotion tree relies on
   deterministic tree equivalence until its final exact-head validation.
@@ -77,9 +77,8 @@ promotion exception.
 
 The combined tree passed frozen installation, docs/compatibility tests, docs
 validation/build/visual checks, release-context tests, a 1,000-case-per-property
-domain fuzz run, repository policy, and the focused review-dispatch rerun. The
-aggregate verification reached the review-dispatch timing failure described
-above; exact-head aggregate and hosted CI evidence remain draft gates.
+domain fuzz run, repository policy, the focused review-dispatch rerun, and a
+subsequent clean exact-head `pnpm run verify`. Hosted CI remains a draft gate.
 
 ## Next actions
 
