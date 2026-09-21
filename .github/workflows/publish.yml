@@ -120,6 +120,19 @@ jobs:
           DISPATCH_RC_INDEX: ${{ inputs.rc_index }}
         run: ./scripts/release-resolve-context.sh
 
+      - name: Preflight reviewed GitHub Release notes
+        if: steps.context.outputs.channel != 'snapshot'
+        env:
+          BASE_VERSION: ${{ steps.context.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/release
+          notes_file="dist/release/github-release-notes.md"
+          node scripts/extract-changelog-section.mjs \
+            --version "${BASE_VERSION}" \
+            --output-file "${notes_file}"
+          node scripts/validate-release-notes.mjs --notes-file "${notes_file}"
+
       - name: Set up Node.js, pnpm, and Compact without installing dependencies
         uses: ./.github/actions/setup-node-pnpm
         with:
@@ -448,6 +461,7 @@ jobs:
         env:
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_SHA: ${{ github.sha }}
           RELEASE_TAG: ${{ needs.build-release-assets.outputs.release_tag }}
         run: |
           set -euo pipefail

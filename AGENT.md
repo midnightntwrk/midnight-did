@@ -441,13 +441,15 @@ reruns do not normalize CRLF. Initial creation accepts only that generated notes
 file; reruns require byte-identical body content and the exact canonical asset
 multiset, including exactly one `multiple.intoto.jsonl`, and never edit or
 upload into an existing release. Creation is allowed only after an exact bounded
-`release not found` result; ambiguous provider failures stop. Both creation and
-reuse download the canonical provenance and cryptographically verify it against
-the commit-pinned SLSA reusable-workflow identity, GitHub OIDC issuer, source
-repository, and SLSA v0.2 predicate before dependency-free semantic checks bind
-every non-provenance asset and the dispatch context. After a partial release, rerun the same channel, base version,
-and RC index from an allowed branch revision whose packed package payloads are
-unchanged: reruns skip npm packages only when the exact immutable payload and
+`release not found` result; ambiguous provider failures stop. Generated
+provenance is cryptographically and semantically verified before creation.
+Reuse downloads and verifies the canonical provenance before any remote package
+or archive is parsed. Both paths bind the commit-pinned SLSA reusable-workflow
+identity, GitHub OIDC issuer, exact source SHA/ref, workflow inputs, resolved
+tag target, material, and every non-provenance subject, then reverify the
+downloaded byte set before parsing it. After a partial release, rerun the same
+channel, base version, and RC index from the exact original source SHA and ref:
+reruns skip npm packages only when the exact immutable payload and
 requested dist-tag already match, then publish the still-absent packages in
 dependency order. Do not create a replacement version, mutate an existing
 release, or repair tags through the normal workflow.

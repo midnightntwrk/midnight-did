@@ -253,7 +253,6 @@ const readCurrentCompatibilityEvidence = async (root = repoRoot) => {
 };
 
 const currentEvidenceFields = [
-  "version",
   "nodeMajor",
   "pnpm",
   "compactCompiler",
@@ -279,8 +278,16 @@ const assertCurrentBaselineMatchesEvidence = (evidence, baseline) => {
     );
   }
 
+  const expectedSourceManifestVersion =
+    baseline.sourceManifestVersion ?? baseline.version;
+  if (evidence.version !== expectedSourceManifestVersion) {
+    throw new Error(
+      `Current compatibility baseline ${baseline.version} expects source manifest version ${expectedSourceManifestVersion}, found ${evidence.version}.`,
+    );
+  }
+
   const packageVersionMismatches = Object.entries(evidence.packageVersions)
-    .filter(([, version]) => version !== baseline.version)
+    .filter(([, version]) => version !== expectedSourceManifestVersion)
     .map(([name]) => name);
   if (packageVersionMismatches.length > 0) {
     throw new Error(
@@ -301,8 +308,13 @@ const walletSdkCell = (walletSdk) =>
     )
     .join("<br>");
 
-const releaseCell = (baseline) =>
-  `[\`${baseline.releaseTag}\`](https://github.com/midnightntwrk/midnight-did/releases/tag/${baseline.releaseTag}) → [\`${baseline.sourceCommit}\`](https://github.com/midnightntwrk/midnight-did/commit/${baseline.sourceCommit})`;
+const releaseCell = (baseline) => {
+  const source = baseline.sourceCommit ?? baseline.sourceRef;
+  if (typeof source !== "string" || source.length === 0) {
+    throw new Error(`Missing source commit or ref for ${baseline.version}`);
+  }
+  return `[\`${baseline.releaseTag}\`](https://github.com/midnightntwrk/midnight-did/releases/tag/${baseline.releaseTag}) → [\`${source}\`](https://github.com/midnightntwrk/midnight-did/commit/${source})`;
+};
 
 const nodeRuntimeCell = (baseline) => {
   const hasVersion = baseline.nodeTestedVersion != null;
@@ -424,7 +436,7 @@ requires Midnight organization access and GitHub Container Registry
 authentication; the linked GitHub Release archives are the public download
 path.
 
-## 0.5.0 publication-manifest caveat
+## Publication-manifest caveats
 
 The \`v0.5.0\` source tag reports version
 \`${baselines[0].sourceManifestVersion}\` in the root and workspace manifests,
@@ -435,6 +447,15 @@ metadata and release artifacts as authority for the published \`0.5.0\` package
 identities, and uses tagged source only for its release-tested toolchain and
 runtime pins. Dependency similarity, \`engines\`, and language pragmas must not
 be read as broader compatibility guarantees.
+
+The \`v0.7.0\` source keeps version
+\`${current.sourceManifestVersion}\` in the root and workspace manifests. The
+manual publication pipeline rewrites the five package manifests and
+\`MIDNIGHT_DID_API_VERSION\` to \`0.7.0\` before packing, then verifies the
+coordinated tarball inventory without committing those release-only rewrites.
+The immutable \`v0.7.0\` tag target and published manifests are therefore the
+authority for 0.7 package identity; the tagged repository inputs remain the
+authority for the toolchain and runtime pins in this matrix.
 
 ## Keeping the matrix current
 

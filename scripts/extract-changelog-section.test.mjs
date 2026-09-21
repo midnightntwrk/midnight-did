@@ -85,6 +85,23 @@ test("keeps the published 0.6.0 release body immutable", () => {
   }
 });
 
+test("extracts repository-owned canonical 0.7.0 release notes", () => {
+  const source = fs.readFileSync(path.join(repoRoot, "CHANGELOG.md"), "utf8");
+  const root = fixture(source);
+  try {
+    const result = run(root, { version: "0.7.0" });
+    assert.equal(result.status, 0, result.stderr);
+    const body = fs.readFileSync(path.join(root, "dist/notes.md"), "utf8");
+    assert.match(body, /fixed-width 32-byte unsigned big-endian/u);
+    assert.match(body, /Verify SLSA provenance cryptographically/u);
+    assert.doesNotMatch(body, /published DID resolver runtime/iu);
+    assert.equal(body.endsWith("\n"), true);
+    assert.equal(body.endsWith("\n\n"), false);
+  } finally {
+    cleanup(root);
+  }
+});
+
 test("fails closed for missing, duplicate, empty, and malformed sections", async (t) => {
   const cases = [
     ["missing", changelog(), { version: "0.7.0" }],

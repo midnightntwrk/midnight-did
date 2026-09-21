@@ -52,7 +52,6 @@ function parseArguments(argv) {
     "entry-point",
     "channel",
     "version",
-    "rc-index",
   ];
   if (
     required.some((name) => options[name] == null) ||
@@ -65,6 +64,17 @@ function parseArguments(argv) {
   }
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(options["source-repo"])) {
     fail("Expected source repository is malformed.");
+  }
+  if (options.channel === "rc") {
+    if (!/^[1-9]\d*$/u.test(options["rc-index"] ?? "")) {
+      fail("RC provenance requires a positive rc_index input.");
+    }
+  } else if (options.channel === "release") {
+    if (options["rc-index"] != null) {
+      fail("Final-release provenance must omit rc_index.");
+    }
+  } else {
+    fail("Provenance channel must be rc or release.");
   }
   return options;
 }
@@ -154,11 +164,17 @@ function verifySource(statement, options) {
   const environment = invocation?.environment;
   const eventPayload = environment?.github_event_payload;
   const sourceUri = `git+https://github.com/${options["source-repo"]}@${options["source-ref"]}`;
-  const expectedInputs = {
-    channel: options.channel,
-    rc_index: options["rc-index"],
-    version: options.version,
-  };
+  const expectedInputs =
+    options.channel === "rc"
+      ? {
+          channel: options.channel,
+          rc_index: options["rc-index"],
+          version: options.version,
+        }
+      : {
+          channel: options.channel,
+          version: options.version,
+        };
 
   if (
     statement._type !== statementType ||
