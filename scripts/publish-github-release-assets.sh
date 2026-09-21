@@ -101,31 +101,127 @@ fi
 
 release_assets=()
 expected_asset_names=()
-declare -A local_asset_paths=()
+local_asset_names=()
+local_asset_paths=()
 for asset in "${non_provenance_assets[@]}"; do
   if [[ ! -f "${asset}" ]]; then
     echo "::error::Release asset not found: ${asset}" >&2
     exit 1
   fi
   asset_name="$(basename "${asset}")"
-  if [[ -n "${local_asset_paths[${asset_name}]+present}" ]]; then
-    echo "::error::Canonical release asset names contain a duplicate." >&2
-    exit 1
+  if ((${#local_asset_names[@]} > 0)); then
+    for existing_name in "${local_asset_names[@]}"; do
+      if [[ "${existing_name}" == "${asset_name}" ]]; then
+        echo "::error::Canonical release asset names contain a duplicate." >&2
+        exit 1
+      fi
+    done
   fi
-  local_asset_paths["${asset_name}"]="${asset}"
+  local_asset_names+=("${asset_name}")
+  local_asset_paths+=("${asset}")
   release_assets+=("${asset}")
   expected_asset_names+=("${asset_name}")
 done
 expected_asset_names+=("${canonical_provenance_name}")
 
 if [[ -n "${provenance_file}" ]]; then
-  if [[ ! -f "${provenance_file}" || "$(basename "${provenance_file}")" != "${canonical_provenance_name}" ]]; then
+  if [[ ! -f "${provenance_file}" || -L "${provenance_file}" || "$(basename "${provenance_file}")" != "${canonical_provenance_name}" ]]; then
     echo "::error::Generated provenance must be the regular file ${canonical_provenance_name}." >&2
     exit 1
   fi
-  local_asset_paths["${canonical_provenance_name}"]="${provenance_file}"
+  if ((${#local_asset_names[@]} > 0)); then
+    for existing_name in "${local_asset_names[@]}"; do
+      if [[ "${existing_name}" == "${canonical_provenance_name}" ]]; then
+        echo "::error::Canonical release asset names contain a duplicate." >&2
+        exit 1
+      fi
+    done
+  fi
+  local_asset_names+=("${canonical_provenance_name}")
+  local_asset_paths+=("${provenance_file}")
   release_assets+=("${provenance_file}")
 fi
+
+verify_provenance() {
+  local bundle_file="$1"
+  local subject_archive="$2"
+  shift 2
+  local subject_assets=("$@")
+  local attestation_output semantic_output
+  attestation_output="$(mktemp)"
+  semantic_output="$(mktemp)"
+  temporary_files+=("${attestation_output}" "${semantic_output}")
+  local attestation_args=(
+    attestation verify "${subject_archive}"
+    --bundle "${bundle_file}"
+    --repo "${canonical_repo}"
+    --cert-identity "${slsa_certificate_identity}"
+    --cert-oidc-issuer "${slsa_oidc_issuer}"
+    --predicate-type "${slsa_predicate_type}"
+    --format json
+  )
+  if ! run_bounded_gh read "${attestation_output}" "${attestation_args[@]}"; then
+    echo "::error::GitHub Release provenance signature or certificate policy verification failed; provider output suppressed." >&2
+    return 1
+  fi
+
+  local semantic_args=(
+    --verified-json "${attestation_output}"
+    --github-sha "${github_sha}"
+    --source-ref "${github_ref}"
+    --source-repo "${canonical_repo}"
+    --builder-id "${slsa_certificate_identity}"
+    --entry-point "${slsa_entry_point}"
+    --channel "${channel}"
+    --version "${base_version}"
+  )
+  if [[ "${channel}" == "rc" ]]; then
+    semantic_args+=(--rc-index "${rc_index}")
+  fi
+  for asset in "${subject_assets[@]}"; do
+    semantic_args+=(--asset "${asset}")
+  done
+  if ! "${node_executable}" scripts/verify-slsa-provenance.mjs "${semantic_args[@]}" \
+    >"${semantic_output}" 2>&1; then
+    echo "::error::GitHub Release provenance semantics do not match the release; verifier output suppressed." >&2
+    return 1
+  fi
+}
+
+verify_release_state() {
+  local state_file="$1"
+  local state_args=(
+    --release-json "${state_file}"
+    --notes-file "${notes_file}"
+    --prerelease "${prerelease}"
+  )
+  for asset_name in "${expected_asset_names[@]}"; do
+    state_args+=(--asset-name "${asset_name}")
+  done
+  local state_verify_output
+  state_verify_output="$(mktemp)"
+  temporary_files+=("${state_verify_output}")
+  if ! "${node_executable}" scripts/verify-github-release-state.mjs "${state_args[@]}" \
+    >"${state_verify_output}" 2>&1; then
+    echo "::error::Existing immutable GitHub Release body or asset multiset is not canonical; verifier output suppressed." >&2
+    return 1
+  fi
+}
+
+download_release_asset() {
+  local asset_name="$1"
+  local download_output
+  download_output="$(mktemp)"
+  temporary_files+=("${download_output}")
+  if ! run_bounded_gh read "${download_output}" release download "${release_tag}" \
+    --repo "${gh_repo}" \
+    --pattern "${asset_name}" \
+    --dir "${download_dir}" \
+    --clobber; then
+    echo "::error::Unable to download GitHub Release asset ${asset_name}; provider output suppressed." >&2
+    return 1
+  fi
+}
 
 release_args=(
   --target "${github_sha}"
@@ -149,26 +245,22 @@ if ! release_classification="$(GH_RELEASE_READ_TIMEOUT_MS="${GH_RELEASE_READ_TIM
 fi
 
 if [[ "${release_classification}" == "present" ]]; then
-  state_args=(
-    --release-json "${release_state_file}"
-    --notes-file "${notes_file}"
-    --prerelease "${prerelease}"
-  )
-  for asset_name in "${expected_asset_names[@]}"; do
-    state_args+=(--asset-name "${asset_name}")
-  done
-  state_verify_output="$(mktemp)"
-  temporary_files+=("${state_verify_output}")
-  if ! "${node_executable}" scripts/verify-github-release-state.mjs "${state_args[@]}" \
-    >"${state_verify_output}" 2>&1; then
-    echo "::error::Existing immutable GitHub Release body or asset multiset is not canonical; verifier output suppressed." >&2
-    exit 1
-  fi
+  verify_release_state "${release_state_file}"
+  mkdir -p "${download_dir}"
+  download_release_asset "${canonical_provenance_name}"
+  verify_provenance \
+    "${download_dir}/${canonical_provenance_name}" \
+    "${archive}" \
+    "${non_provenance_assets[@]}"
 elif [[ "${release_classification}" == "absent" ]]; then
   if [[ -z "${provenance_file}" ]]; then
     echo "::error::A confirmed-absent GitHub Release requires ${canonical_provenance_name}." >&2
     exit 1
   fi
+  verify_provenance \
+    "${provenance_file}" \
+    "${archive}" \
+    "${non_provenance_assets[@]}"
   create_output="$(mktemp)"
   temporary_files+=("${create_output}")
   if ! run_bounded_gh mutation "${create_output}" release create "${release_tag}" \
@@ -176,25 +268,38 @@ elif [[ "${release_classification}" == "absent" ]]; then
     echo "::error::Unable to create the immutable GitHub Release; provider output suppressed." >&2
     exit 1
   fi
+  post_create_state_file="$(mktemp)"
+  temporary_files+=("${post_create_state_file}")
+  if ! post_create_classification="$(GH_RELEASE_READ_TIMEOUT_MS="${GH_RELEASE_READ_TIMEOUT_MS:-30000}" \
+    GH_RELEASE_OUTPUT_LIMIT_BYTES="${GH_RELEASE_OUTPUT_LIMIT_BYTES:-1048576}" \
+    ./scripts/read-github-release-state.sh --state-file "${post_create_state_file}")" ||
+    [[ "${post_create_classification}" != "present" ]]; then
+    echo "::error::Unable to bind the created GitHub Release to the publication commit; provider output suppressed." >&2
+    exit 1
+  fi
+  verify_release_state "${post_create_state_file}"
 else
   echo "::error::Release-state classification is invalid; output suppressed." >&2
   exit 1
 fi
 
 mkdir -p "${download_dir}"
+remote_non_provenance_assets=()
 for asset_name in "${expected_asset_names[@]}"; do
-  download_output="$(mktemp)"
-  temporary_files+=("${download_output}")
-  if ! run_bounded_gh read "${download_output}" release download "${release_tag}" \
-    --repo "${gh_repo}" \
-    --pattern "${asset_name}" \
-    --dir "${download_dir}" \
-    --clobber; then
-    echo "::error::Unable to download GitHub Release asset ${asset_name}; provider output suppressed." >&2
-    exit 1
+  if [[ "${asset_name}" != "${canonical_provenance_name}" || "${release_classification}" != "present" ]]; then
+    download_release_asset "${asset_name}"
   fi
-  if [[ -n "${local_asset_paths[${asset_name}]+present}" ]]; then
-    local_asset="${local_asset_paths[${asset_name}]}"
+  if [[ "${asset_name}" != "${canonical_provenance_name}" ]]; then
+    remote_non_provenance_assets+=("${download_dir}/${asset_name}")
+  fi
+  local_asset=""
+  for ((asset_index = 0; asset_index < ${#local_asset_names[@]}; asset_index += 1)); do
+    if [[ "${local_asset_names[${asset_index}]}" == "${asset_name}" ]]; then
+      local_asset="${local_asset_paths[${asset_index}]}"
+      break
+    fi
+  done
+  if [[ -n "${local_asset}" ]]; then
     if [[ "${asset_name}" == *.tgz ]]; then
       if ! cmp -s "${local_asset}" "${download_dir}/${asset_name}" && ! "${node_executable}" scripts/verify-npm-package-identity.mjs \
         --expected "${local_asset}" \
@@ -209,6 +314,13 @@ for asset_name in "${expected_asset_names[@]}"; do
   fi
 done
 
+# Bind the exact downloaded byte set before signatures, checksums, archives, or
+# packages from an existing release are parsed.
+verify_provenance \
+  "${download_dir}/${canonical_provenance_name}" \
+  "${download_dir}/${archive_name}" \
+  "${remote_non_provenance_assets[@]}"
+
 COSIGN_CERTIFICATE_IDENTITY="${COSIGN_CERTIFICATE_IDENTITY:?COSIGN_CERTIFICATE_IDENTITY is required}" \
 COSIGN_CERTIFICATE_OIDC_ISSUER="${COSIGN_CERTIFICATE_OIDC_ISSUER:-https://token.actions.githubusercontent.com}" \
 ./scripts/verify-release-signatures.sh --assets-dir "${download_dir}"
@@ -222,46 +334,6 @@ remote_manifest="${download_dir}/$(basename "${manifest}")"
   --expected-manifest "${manifest}" \
   --actual-manifest "${remote_manifest}"
 "${node_executable}" scripts/smoke-published-artifacts.mjs --skip-npm --zk-archive "${download_dir}/${archive_name}"
-
-attestation_output="$(mktemp)"
-temporary_files+=("${attestation_output}")
-attestation_args=(
-  attestation verify "${download_dir}/${archive_name}"
-  --bundle "${download_dir}/${canonical_provenance_name}"
-  --repo "${canonical_repo}"
-  --cert-identity "${slsa_certificate_identity}"
-  --cert-oidc-issuer "${slsa_oidc_issuer}"
-  --predicate-type "${slsa_predicate_type}"
-  --format json
-)
-if ! run_bounded_gh read "${attestation_output}" "${attestation_args[@]}"; then
-  echo "::error::GitHub Release provenance signature or certificate policy verification failed; provider output suppressed." >&2
-  exit 1
-fi
-
-semantic_args=(
-  --verified-json "${attestation_output}"
-  --github-sha "${github_sha}"
-  --source-ref "${github_ref}"
-  --source-repo "${canonical_repo}"
-  --builder-id "${slsa_certificate_identity}"
-  --entry-point "${slsa_entry_point}"
-  --channel "${channel}"
-  --version "${base_version}"
-  --rc-index "${rc_index}"
-)
-for asset_name in "${expected_asset_names[@]}"; do
-  if [[ "${asset_name}" != "${canonical_provenance_name}" ]]; then
-    semantic_args+=(--asset "${download_dir}/${asset_name}")
-  fi
-done
-semantic_output="$(mktemp)"
-temporary_files+=("${semantic_output}")
-if ! "${node_executable}" scripts/verify-slsa-provenance.mjs "${semantic_args[@]}" \
-  >"${semantic_output}" 2>&1; then
-  echo "::error::GitHub Release provenance semantics do not match the release; verifier output suppressed." >&2
-  exit 1
-fi
 
 if [[ "${release_classification}" == "present" ]]; then
   for asset_name in "${expected_asset_names[@]}"; do

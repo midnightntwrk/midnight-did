@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "currentRelease": "0.6.0",
+  "currentRelease": "0.7.0",
   "baselines": [
     {
       "version": "0.5.0",
@@ -37,6 +37,33 @@
       "nodeMajor": "24",
       "nodeTestedVersion": "24.20.0",
       "nodeTestedRun": "35322501440",
+      "pnpm": "10.34.5",
+      "compactCompiler": "0.31.1",
+      "didLanguagePragma": ">= 0.20",
+      "jubjubLanguagePragma": ">= 0.22",
+      "compactRuntime": "0.16.0",
+      "compactJs": "2.5.0",
+      "ledger": "@midnight-ntwrk/ledger-v8@8.1.0",
+      "midnightJsFamily": "4.0.2",
+      "walletSdk": {
+        "address-format": "3.1.0",
+        "dust-wallet": "3.0.0",
+        "facade": "3.0.0",
+        "hd": "3.0.0",
+        "shielded": "2.1.0",
+        "unshielded-wallet": "2.1.0"
+      },
+      "proofServer": "midnightntwrk/proof-server:8.0.3",
+      "sourceManifestVersion": "0.6.0"
+    },
+    {
+      "version": "0.7.0",
+      "status": "Current published and release-tested baseline",
+      "releaseTag": "v0.7.0",
+      "sourceRef": "v0.7.0",
+      "nodeMajor": "24",
+      "nodeTestedVersion": null,
+      "nodeTestedRun": null,
       "pnpm": "10.34.5",
       "compactCompiler": "0.31.1",
       "didLanguagePragma": ">= 0.20",

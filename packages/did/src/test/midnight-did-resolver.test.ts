@@ -493,6 +493,15 @@ describe("MidnightDIDResolver", () => {
       },
     },
     {
+      name: "out-of-range native Jubjub coordinate",
+      error: "invalidPublicKey",
+      mutate: (ledger: any): void => {
+        ledger.schnorrJubjubVerificationMethods = makeIterablePairs([
+          ["#key-jubjub-out-of-range", { publicKey: { x: 1n, y: 1n << 256n } }],
+        ]);
+      },
+    },
+    {
       name: "malformed service payload",
       error: "invalidDid",
       mutate: (ledger: any): void => {

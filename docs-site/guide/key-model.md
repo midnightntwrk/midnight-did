@@ -24,15 +24,28 @@ base64url coordinates into cryptographic values.
 SchnorrJubjub keys are different. Midnight-native verification needs a real
 `JubjubPoint`, so the contract stores those keys in
 `schnorrJubjubVerificationMethods`. The resolver merges both maps into one DID
-Document `verificationMethod` array.
+Document `verificationMethod` array. For native Jubjub methods, Midnight DID
+0.7 encodes each affine coordinate as exactly 32 unsigned big-endian bytes and
+then canonical unpadded base64url. Use the domain package's
+`encodeJubjubJwkCoordinate` and `decodeJubjubJwkCoordinate` helpers instead of
+reusing Midnight's native little-endian field serialization or the
+minimal-width `FieldCodec`.
+
+The `Jubjub` curve name remains Midnight-private and is not registered in the
+IANA JOSE curve registry. The 0.7 coordinate encoding follows RFC 7518's EC JWK
+`x`/`y` convention, but generic JOSE implementations can still reject the
+unsupported curve name. See
+[ADR: Jubjub JWK Coordinate Encoding](../architecture/adr-jubjub-jwk-coordinate-encoding.md)
+for the compatibility decision and rejected alternatives.
 
 The two maps are not duplicate storage. A verification method id belongs to
 exactly one map. Keeping one canonical representation per key avoids consistency
 bugs while still supporting both W3C JWK output and native Midnight proofs.
 
 `publicKeyJwk` values are validated with profile-specific byte lengths: 32 bytes
-for Ed25519, X25519, P-256, and secp256k1; 48 bytes for BLS12381G1; and 96
-bytes for BLS12381G2. Public JWKs must not include private `d` material.
+for Ed25519, X25519, Jubjub `x`/`y`, P-256, and secp256k1; 48 bytes for
+BLS12381G1; and 96 bytes for BLS12381G2. Jubjub values must also be below its
+base-field modulus. Public JWKs must not include private `d` material.
 
 `publicKeyMultibase` / `Multikey` is not a Midnight DID ledger profile in this
 method version. Data Integrity and BBS-oriented suites that require Multikey are

@@ -23,32 +23,32 @@ hand.
 ## Evidence-backed matrix
 
 <!-- prettier-ignore -->
-| Evidence-backed baseline | DID 0.5.0 | DID 0.6.0 |
-| --- | --- | --- |
-| Recommended status wording | Compatibility reference / legacy; no continuing-support implication | Current published and release-tested baseline |
-| Coordinated package set | `@midnight-ntwrk/midnight-did-api@0.5.0`<br>`@midnight-ntwrk/midnight-did-domain@0.5.0`<br>`@midnight-ntwrk/midnight-did@0.5.0`<br>`@midnight-ntwrk/midnight-did-jubjub-schnorr@0.5.0`<br>`@midnight-ntwrk/midnight-did-contract@0.5.0` | `@midnight-ntwrk/midnight-did-api@0.6.0`<br>`@midnight-ntwrk/midnight-did-domain@0.6.0`<br>`@midnight-ntwrk/midnight-did@0.6.0`<br>`@midnight-ntwrk/midnight-did-jubjub-schnorr@0.6.0`<br>`@midnight-ntwrk/midnight-did-contract@0.6.0` |
-| Release tag / source commit | [`v0.5.0`](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.5.0) → [`a14267cec3c1ab7e00bb0f058a54267d913a321b`](https://github.com/midnightntwrk/midnight-did/commit/a14267cec3c1ab7e00bb0f058a54267d913a321b) | [`v0.6.0`](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.6.0) → [`8f788e2ef5652fa7f9cfdc71a3cac40d5f3683bf`](https://github.com/midnightntwrk/midnight-did/commit/8f788e2ef5652fa7f9cfdc71a3cac40d5f3683bf) |
-| Node CI selector | Major `24` | Major `24` |
-| Node release-tested runtime | Exact patch not retained | [`24.20.0`](https://github.com/midnightntwrk/midnight-did/actions/runs/35322501440) |
-| pnpm tested baseline | `10.34.1` | `10.34.5` |
-| Compact compiler | `0.30.0` | `0.31.1` |
-| DID Compact pragma | `>= 0.20` | `>= 0.20` |
-| Jubjub wrapper pragma | `0.22` | `>= 0.22` |
-| `compact-runtime` | `0.16.0` | `0.16.0` |
-| `compact-js` | `2.5.0` | `2.5.0` |
-| Ledger generation/package | `@midnight-ntwrk/ledger-v8@8.1.0` | `@midnight-ntwrk/ledger-v8@8.1.0` |
-| Midnight JS package family | `4.0.2` | `4.0.2` |
-| Wallet SDK baseline | `@midnight-ntwrk/wallet-sdk-address-format@3.1.0`<br>`@midnight-ntwrk/wallet-sdk-dust-wallet@3.0.0`<br>`@midnight-ntwrk/wallet-sdk-facade@3.0.0`<br>`@midnight-ntwrk/wallet-sdk-hd@3.0.0`<br>`@midnight-ntwrk/wallet-sdk-shielded@2.1.0`<br>`@midnight-ntwrk/wallet-sdk-unshielded-wallet@2.1.0` | `@midnight-ntwrk/wallet-sdk-address-format@3.1.0`<br>`@midnight-ntwrk/wallet-sdk-dust-wallet@3.0.0`<br>`@midnight-ntwrk/wallet-sdk-facade@3.0.0`<br>`@midnight-ntwrk/wallet-sdk-hd@3.0.0`<br>`@midnight-ntwrk/wallet-sdk-shielded@2.1.0`<br>`@midnight-ntwrk/wallet-sdk-unshielded-wallet@2.1.0` |
-| Proof-server source image | `midnightntwrk/proof-server:8.0.3` | `midnightntwrk/proof-server:8.0.3` |
-| Public ZK release | [`v0.5.0`](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.5.0) / [`midnight-did-zk-artifacts-0.5.0.tar.gz`](https://github.com/midnightntwrk/midnight-did/releases/download/v0.5.0/midnight-did-zk-artifacts-0.5.0.tar.gz) | [`v0.6.0`](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.6.0) / [`midnight-did-zk-artifacts-0.6.0.tar.gz`](https://github.com/midnightntwrk/midnight-did/releases/download/v0.6.0/midnight-did-zk-artifacts-0.6.0.tar.gz) |
-| GHCR coordinate | `ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.5.0` | `ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.6.0` |
+| Evidence-backed baseline | DID 0.5.0 | DID 0.6.0 | DID 0.7.0 |
+| --- | --- | --- | --- |
+| Recommended status wording | Compatibility reference / legacy; no continuing-support implication | Current published and release-tested baseline | Current published and release-tested baseline |
+| Coordinated package set | `@midnight-ntwrk/midnight-did-api@0.5.0`<br>`@midnight-ntwrk/midnight-did-domain@0.5.0`<br>`@midnight-ntwrk/midnight-did@0.5.0`<br>`@midnight-ntwrk/midnight-did-jubjub-schnorr@0.5.0`<br>`@midnight-ntwrk/midnight-did-contract@0.5.0` | `@midnight-ntwrk/midnight-did-api@0.6.0`<br>`@midnight-ntwrk/midnight-did-domain@0.6.0`<br>`@midnight-ntwrk/midnight-did@0.6.0`<br>`@midnight-ntwrk/midnight-did-jubjub-schnorr@0.6.0`<br>`@midnight-ntwrk/midnight-did-contract@0.6.0` | `@midnight-ntwrk/midnight-did-api@0.7.0`<br>`@midnight-ntwrk/midnight-did-domain@0.7.0`<br>`@midnight-ntwrk/midnight-did@0.7.0`<br>`@midnight-ntwrk/midnight-did-jubjub-schnorr@0.7.0`<br>`@midnight-ntwrk/midnight-did-contract@0.7.0` |
+| Release tag / source commit | [`v0.5.0`](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.5.0) → [`a14267cec3c1ab7e00bb0f058a54267d913a321b`](https://github.com/midnightntwrk/midnight-did/commit/a14267cec3c1ab7e00bb0f058a54267d913a321b) | [`v0.6.0`](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.6.0) → [`8f788e2ef5652fa7f9cfdc71a3cac40d5f3683bf`](https://github.com/midnightntwrk/midnight-did/commit/8f788e2ef5652fa7f9cfdc71a3cac40d5f3683bf) | [`v0.7.0`](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.7.0) → [`v0.7.0`](https://github.com/midnightntwrk/midnight-did/commit/v0.7.0) |
+| Node CI selector | Major `24` | Major `24` | Major `24` |
+| Node release-tested runtime | Exact patch not retained | [`24.20.0`](https://github.com/midnightntwrk/midnight-did/actions/runs/35322501440) | Exact patch not retained |
+| pnpm tested baseline | `10.34.1` | `10.34.5` | `10.34.5` |
+| Compact compiler | `0.30.0` | `0.31.1` | `0.31.1` |
+| DID Compact pragma | `>= 0.20` | `>= 0.20` | `>= 0.20` |
+| Jubjub wrapper pragma | `0.22` | `>= 0.22` | `>= 0.22` |
+| `compact-runtime` | `0.16.0` | `0.16.0` | `0.16.0` |
+| `compact-js` | `2.5.0` | `2.5.0` | `2.5.0` |
+| Ledger generation/package | `@midnight-ntwrk/ledger-v8@8.1.0` | `@midnight-ntwrk/ledger-v8@8.1.0` | `@midnight-ntwrk/ledger-v8@8.1.0` |
+| Midnight JS package family | `4.0.2` | `4.0.2` | `4.0.2` |
+| Wallet SDK baseline | `@midnight-ntwrk/wallet-sdk-address-format@3.1.0`<br>`@midnight-ntwrk/wallet-sdk-dust-wallet@3.0.0`<br>`@midnight-ntwrk/wallet-sdk-facade@3.0.0`<br>`@midnight-ntwrk/wallet-sdk-hd@3.0.0`<br>`@midnight-ntwrk/wallet-sdk-shielded@2.1.0`<br>`@midnight-ntwrk/wallet-sdk-unshielded-wallet@2.1.0` | `@midnight-ntwrk/wallet-sdk-address-format@3.1.0`<br>`@midnight-ntwrk/wallet-sdk-dust-wallet@3.0.0`<br>`@midnight-ntwrk/wallet-sdk-facade@3.0.0`<br>`@midnight-ntwrk/wallet-sdk-hd@3.0.0`<br>`@midnight-ntwrk/wallet-sdk-shielded@2.1.0`<br>`@midnight-ntwrk/wallet-sdk-unshielded-wallet@2.1.0` | `@midnight-ntwrk/wallet-sdk-address-format@3.1.0`<br>`@midnight-ntwrk/wallet-sdk-dust-wallet@3.0.0`<br>`@midnight-ntwrk/wallet-sdk-facade@3.0.0`<br>`@midnight-ntwrk/wallet-sdk-hd@3.0.0`<br>`@midnight-ntwrk/wallet-sdk-shielded@2.1.0`<br>`@midnight-ntwrk/wallet-sdk-unshielded-wallet@2.1.0` |
+| Proof-server source image | `midnightntwrk/proof-server:8.0.3` | `midnightntwrk/proof-server:8.0.3` | `midnightntwrk/proof-server:8.0.3` |
+| Public ZK release | [`v0.5.0`](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.5.0) / [`midnight-did-zk-artifacts-0.5.0.tar.gz`](https://github.com/midnightntwrk/midnight-did/releases/download/v0.5.0/midnight-did-zk-artifacts-0.5.0.tar.gz) | [`v0.6.0`](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.6.0) / [`midnight-did-zk-artifacts-0.6.0.tar.gz`](https://github.com/midnightntwrk/midnight-did/releases/download/v0.6.0/midnight-did-zk-artifacts-0.6.0.tar.gz) | [`v0.7.0`](https://github.com/midnightntwrk/midnight-did/releases/tag/v0.7.0) / [`midnight-did-zk-artifacts-0.7.0.tar.gz`](https://github.com/midnightntwrk/midnight-did/releases/download/v0.7.0/midnight-did-zk-artifacts-0.7.0.tar.gz) |
+| GHCR coordinate | `ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.5.0` | `ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.6.0` | `ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.7.0` |
 
 The GHCR coordinates identify matching generic OCI artifacts. Registry access
 requires Midnight organization access and GitHub Container Registry
 authentication; the linked GitHub Release archives are the public download
 path.
 
-## 0.5.0 publication-manifest caveat
+## Publication-manifest caveats
 
 The `v0.5.0` source tag reports version
 `0.4.0` in the root and workspace manifests,
@@ -60,9 +60,18 @@ identities, and uses tagged source only for its release-tested toolchain and
 runtime pins. Dependency similarity, `engines`, and language pragmas must not
 be read as broader compatibility guarantees.
 
+The `v0.7.0` source keeps version
+`0.6.0` in the root and workspace manifests. The
+manual publication pipeline rewrites the five package manifests and
+`MIDNIGHT_DID_API_VERSION` to `0.7.0` before packing, then verifies the
+coordinated tarball inventory without committing those release-only rewrites.
+The immutable `v0.7.0` tag target and published manifests are therefore the
+authority for 0.7 package identity; the tagged repository inputs remain the
+authority for the toolchain and runtime pins in this matrix.
+
 ## Keeping the matrix current
 
-The generator derives the 0.6.0 row's repository-owned pins from
+The generator derives the 0.7.0 row's repository-owned pins from
 the `.nvmrc` CI selector, the exact pnpm package-manager pin,
 root/workspace manifests, CI, quality, and publish workflow constants, both
 Compact language pragmas, and every runtime-owned

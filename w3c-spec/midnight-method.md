@@ -1,12 +1,12 @@
-# Midnight DID Specification Draft v0.6.0
+# Midnight DID Specification Draft v0.7.0
 
 # Status of This Document
 
 This is a draft document and may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to cite this document as anything other than a work in progress.
 
-Version 0.6 targets the method-specific profile of the [W3C DID Core 1.0 Recommendation, 19 July 2022](https://www.w3.org/TR/2022/REC-did-core-20220719/). Its [DID Core 1.0 evidence matrix](./conformance/did-core-1.0.md) combines repository tests with a pinned external fixture harness; that evidence is bounded and supplemental, not W3C certification or endorsement.
+Version 0.6 targets the method-specific profile of the [W3C DID Core 1.0 Recommendation, 19 July 2022](https://www.w3.org/TR/2022/REC-did-core-20220719/). Its [DID Core 1.0 evidence matrix](./conformance/did-core-1.0.md) combines repository tests with a pinned external fixture harness; that evidence is bounded and supplemental, not W3C certification or endorsement. Version 0.7 introduces breaking method-profile changes on top of that published baseline but does not broaden the bounded conformance evidence.
 
-Version 0.6 does not claim conformance to [W3C DID Core 1.1 Candidate Recommendation Snapshot, 05 March 2026](https://www.w3.org/TR/2026/CR-did-1.1-20260305/) or the [2026 W3C DID Resolution v1 Candidate Recommendation Snapshot](https://www.w3.org/TR/2026/CR-did-resolution-1.0-20260806/). The [DID Core 1.1 compatibility matrix](./conformance/did-core-1.1.md), [2026 DID Resolution CR compatibility matrix](./conformance/did-resolution.md), and [current resolution limitations](#723-resolution-response-composition-and-media-types) record those failures; [#447](https://github.com/midnightntwrk/midnight-did/issues/447) owns the coordinated migration.
+Version 0.6 does not claim conformance to [W3C DID Core 1.1 Candidate Recommendation Snapshot, 05 March 2026](https://www.w3.org/TR/2026/CR-did-1.1-20260305/) or the [2026 W3C DID Resolution v1 Candidate Recommendation Snapshot](https://www.w3.org/TR/2026/CR-did-resolution-1.0-20260806/). The [DID Core 1.1 compatibility matrix](./conformance/did-core-1.1.md), [2026 DID Resolution CR compatibility matrix](./conformance/did-resolution.md), and [current resolution limitations](#723-resolution-response-composition-and-media-types) record those failures; [#447](https://github.com/midnightntwrk/midnight-did/issues/447) owns the coordinated migration. Version 0.7 makes no broader conformance assertion before that migration and its evidence are complete.
 
 # Contributions
 
@@ -34,7 +34,7 @@ Contact: <contact@identus.io>
 
 # Abstract
 
-This specification defines the Midnight DID method for storing DID state on the Midnight blockchain. Version 0.6 targets a method-specific profile of the dated [W3C DID Core 1.0 Recommendation](https://www.w3.org/TR/2022/REC-did-core-20220719/), subject to the bounded evidence and explicit exclusions in the status above.
+This specification defines the Midnight DID method for storing DID state on the Midnight blockchain. Version 0.6 targets a method-specific profile of the dated [W3C DID Core 1.0 Recommendation](https://www.w3.org/TR/2022/REC-did-core-20220719/), subject to the bounded evidence and explicit exclusions in the status above. Version 0.7 changes Jubjub JWK coordinates to fixed-width big-endian transport encoding while preserving native ledger points and historical offchain DID hashes; it does not broaden the bounded conformance claim.
 
 # Contents
 
@@ -144,6 +144,8 @@ The chunk payloads are the Compact runtime value emitted by the following descri
 4. `x`: `Opaque<"string">`, the canonical JWK `x` value.
 5. `y`: `Opaque<"string">`, the canonical JWK `y` value, or the empty-string sentinel for OKP keys.
 6. `relationshipsMask`: `Uint<8>`.
+
+For every key kind except Jubjub, the v1 offchain state encoding stores `x` and `y` as literal JWK strings. The historical `keyKind = 1` Jubjub wire profile instead stores each coordinate as canonical unpadded base64url of exactly 32 little-endian bytes. This internal encoding remains fixed so existing long-form DID bytes and state hashes stay immutable. The 0.7 domain boundary **MUST** reverse each `keyKind = 1` coordinate between that legacy wire representation and the fixed-width big-endian JWK representation defined in Section 3.4.4.2. Resolved DID Documents and decoded domain state therefore expose only canonical big-endian Jubjub JWK values, while re-encoding that state reproduces the original v1 payload. Implementations **MUST NOT** expose the internal little-endian string as a JWK or guess byte order by trying both interpretations.
 
 `OffchainService` is encoded as:
 
@@ -359,16 +361,26 @@ Keys are represented as JWK in compressed format with:
 
 #### 3.4.4.2 Jubjub (Midnight compatible)
 Uses Schnorr over Jubjub for signatures inside Midnight's ZK context (smart contract and Midnight JS library).
-Keys are represented as JWK in uncompressed format with 32-byte little-endian field-element encodings:
+Keys are represented as uncompressed EC JWKs:
 
-- `kty`=`EC`, 
-- `crv`=`Jubjub`, 
+- `kty`=`EC`,
+- `crv`=`Jubjub`,
 - `x`, and
 - `y` parameters.
 
-Jubjub keys are stored on ledger as native `JubjubPoint` values in the `schnorrJubjubVerificationMethods` map. Resolvers project those native points into DID Document `publicKeyJwk` entries by encoding the `x` and `y` field elements as 32-byte little-endian, canonical unpadded base64url strings.
+Each `x` and `y` value **MUST** be the canonical unpadded base64url encoding of exactly 32 octets containing the unsigned coordinate in big-endian order, left-padded with zero octets when necessary. The decoded integer **MUST** be less than the following Jubjub base-field modulus:
 
-`crv`=`Jubjub` is Midnight-private and is not a registered JOSE curve name. It is intended for Midnight-native SchnorrJubjub signing and verification flows, not for generic JOSE/JWK verification libraries.
+```text
+52435875175126190479447740508185965837690552500527637822603658699938581184513
+```
+
+This follows the EC JWK coordinate convention in [RFC7518] Sections 6.2.1.2 and 6.2.1.3 and the field-element octet-string conversion in [SEC1] Sections 2.3.5 and 2.3.7. Implementations **MUST NOT** use a minimal-width integer encoding, reduce an out-of-range value, or infer little-endian order from Midnight's native field representation.
+
+Jubjub keys are stored on ledger as native `JubjubPoint` values in the `schnorrJubjubVerificationMethods` map. Resolvers project those native points into DID Document `publicKeyJwk` entries using the fixed-width big-endian transport encoding above. The native ledger point, contract arithmetic, and Schnorr transcript are unaffected by this representation boundary.
+
+Reference implementation versions through 0.6 emitted the same coordinates as fixed-width little-endian bytes. Version 0.7 corrects this transport representation. Persisted 0.6 DID Document snapshots, JWK thumbprints, JWK-derived key identifiers, and caches are not byte-compatible with the 0.7 output; consumers must re-resolve ledger DIDs and rebuild derived indexes rather than auto-detecting an unmarked byte order.
+
+`crv`=`Jubjub` is Midnight-private and is not a registered JOSE curve name. It is intended for Midnight-native SchnorrJubjub signing and verification flows, not for generic JOSE/JWK verification libraries. Big-endian coordinates align the `x` and `y` semantics with RFC 7518 but do not make this private curve generally supported by JOSE implementations.
 
 Current Midnight DID mutation circuits do not parse opaque JWK coordinate strings in contract code. SDK producers MUST use the SchnorrJubjub verification method API for Jubjub keys so the native `JubjubPoint` is the on-ledger source of truth. Jubjub signing and verification flows use the dedicated `jubjub-schnorr` package rather than additional exported circuits on the DID contract.
 
@@ -905,8 +917,10 @@ The 0.6 validation boundary has three categories:
 2. **Expressible as a bounded Compact defense but deferred in 0.6.** For a
    supported OKP profile, equality against the empty `Opaque<"string">` sentinel
    could reject non-empty `y`. Adding that defense changes circuit artifacts and
-   has not been justified for the compatibility-frozen 0.6 candidate; it is a
-   0.7 hardening item. Resolver and SDK validation remain normative in 0.6.
+   was not justified for the compatibility-frozen 0.6 release and is not
+   delivered by the 0.7 coordinate-codec change. Future contract hardening is
+   tracked separately for 0.8. Resolver and SDK validation remain normative at
+   this boundary.
 3. **SDK/resolver-only with the current schema, or requiring a future
    migration.** Base64url parsing/canonicality, URI and JSON service parsing,
    DID-subject binding, and canonical identifier normalization require rich
@@ -914,7 +928,8 @@ The 0.6 validation boundary has three categories:
    profile-specific coordinate lengths in contract requires replacing or
    profile-tagging opaque coordinates with fixed-size byte representations;
    fragment-only identifiers and structured services likewise require a ledger
-   schema/circuit design and migration. These changes are deferred to 0.7.
+   schema/circuit design and migration. These remain separate post-0.6 work and
+   are not delivered by this coordinate-codec change.
 
 The resolver applies the malformed-ledger-state policy in Section 7.2.3 and
 fails closed: foreign verification-method subjects are rejected rather than
@@ -1433,8 +1448,8 @@ A simple example of a Midnight DID Document is as follows:
       "publicKeyJwk": {
         "kty": "EC",
         "crv": "Jubjub",
-        "x": "Kg",
-        "y": "VA"
+        "x": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACo",
+        "y": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFQ"
       }
     }
   ],
@@ -1468,7 +1483,9 @@ A simple example of a Midnight DID Document is as follows:
 - [RFC3986] - Uniform Resource Identifier (URI): Generic Syntax
 - [RFC4648] - The Base16, Base32, and Base64 Data Encodings
 - [RFC7517] - JSON Web Key (JWK)
+- [RFC7518] - JSON Web Algorithms (JWA)
 - [RFC8037] - CFRG Elliptic Curve Diffie-Hellman and Signatures in JOSE
+- [SEC1] - SEC 1: Elliptic Curve Cryptography, Version 2.0
 - [VC-DATA-MODEL] - Verifiable Credentials Data Model
 - [DID-SPEC-REGISTRIES] - DID Specification Registries
 
@@ -1487,7 +1504,9 @@ A simple example of a Midnight DID Document is as follows:
 [RFC3986]: https://www.rfc-editor.org/info/rfc3986 "RFC 3986: Uniform Resource Identifier (URI): Generic Syntax"
 [RFC4648]: https://www.rfc-editor.org/info/rfc4648 "RFC 4648: The Base16, Base32, and Base64 Data Encodings"
 [RFC7517]: https://www.rfc-editor.org/info/rfc7517 "RFC 7517: JSON Web Key (JWK)"
+[RFC7518]: https://www.rfc-editor.org/info/rfc7518 "RFC 7518: JSON Web Algorithms (JWA)"
 [RFC8037]: https://www.rfc-editor.org/info/rfc8037 "RFC 8037: CFRG Elliptic Curve Diffie-Hellman and Signatures in JOSE"
+[SEC1]: https://www.secg.org/sec1-v2.pdf "SEC 1: Elliptic Curve Cryptography, Version 2.0"
 [VC-DATA-MODEL]: https://www.w3.org/TR/vc-data-model/ "Verifiable Credentials Data Model"
 [DID-SPEC-REGISTRIES]: https://www.w3.org/TR/did-spec-registries/ "DID Specification Registries"
 [DID-CORE-VERIFICATION-RELATIONSHIPS]: https://www.w3.org/TR/did-core/#verification-relationships "DID Core: Verification Relationships"

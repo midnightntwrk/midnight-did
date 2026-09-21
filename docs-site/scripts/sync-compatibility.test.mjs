@@ -66,7 +66,10 @@ const updateManifest = async (root, relativePath, update) => {
 const replaceFixtureText = async (root, relativePath, before, after) => {
   const filePath = path.join(root, relativePath);
   const source = await readFile(filePath, "utf8");
-  assert.match(source, new RegExp(before.replaceAll(".", "\\."), "u"));
+  assert.ok(
+    source.includes(before),
+    `Expected ${relativePath} to contain fixture text`,
+  );
   await writeFile(filePath, source.replace(before, after), "utf8");
 };
 
@@ -177,11 +180,12 @@ test("fails when duplicated authoritative current pins disagree", async (t) => {
 test("loads the reviewed baseline from its repository-relative data file", async () => {
   const source = await loadCompatibilityBaselines();
 
-  assert.equal(source.currentRelease, "0.6.0");
+  assert.equal(source.currentRelease, "0.7.0");
   assert.equal(source.baselines.at(-1).version, source.currentRelease);
   assert.equal(source.baselines[0].nodeTestedVersion, null);
-  assert.equal(source.baselines.at(-1).nodeTestedVersion, "24.20.0");
-  assert.equal(source.baselines.at(-1).nodeTestedRun, "35322501440");
+  assert.equal(source.baselines.at(-1).nodeTestedVersion, null);
+  assert.equal(source.baselines.at(-1).nodeTestedRun, null);
+  assert.equal(source.baselines.at(-1).sourceManifestVersion, "0.6.0");
 });
 
 test("fails closed when a current repository pin drifts from reviewed baseline data", async () => {
@@ -210,12 +214,14 @@ test("generated compatibility page records status semantics and 0.5 manifest cav
   assert.match(content, /no continuing-support implication/u);
   assert.match(content, /v0\.5\.0.*a14267cec3c1ab7e00bb0f058a54267d913a321b/u);
   assert.match(content, /v0\.6\.0.*8f788e2ef5652fa7f9cfdc71a3cac40d5f3683bf/u);
+  assert.match(content, /v0\.7\.0.*v0\.7\.0/u);
   assert.match(content, /source tag reports version\n`0\.4\.0`/u);
   assert.match(content, /does not infer\nsupport for newer Node/u);
   assert.match(content, /Node CI selector/u);
   assert.match(content, /Exact patch not retained/u);
   assert.match(content, /24\.20\.0.*35322501440/u);
   assert.match(content, /major-only Node CI selector is not an exact/u);
+  assert.match(content, /MIDNIGHT_DID_API_VERSION.*0\.7\.0/su);
 });
 
 test("committed compatibility page matches generated repository evidence", async () => {

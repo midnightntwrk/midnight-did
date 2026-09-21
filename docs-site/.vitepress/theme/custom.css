@@ -218,6 +218,11 @@ body {
   background: var(--midnight-black);
 }
 
+.vp-doc #evidence-backed-matrix + table {
+  display: block;
+  max-width: 100%;
+}
+
 .vp-doc th,
 .vp-doc td {
   border: 0;

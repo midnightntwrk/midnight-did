@@ -36,14 +36,15 @@ const save = () => fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
 const fail = (text = state.hostileOutput) => { save(); process.stderr.write(text); process.exit(1); };
 if (args[0] === "attestation" && args[1] === "verify") {
   if (state.attestationFailure) fail();
-  const subjects = state.assets
-    .filter((name) => name !== "multiple.intoto.jsonl")
-    .map((name) => ({
-      name,
-      digest: { sha256: crypto.createHash("sha256").update(fs.readFileSync(path.join(remote, name))).digest("hex") },
+  const subjects = state.subjectPaths
+    .map((subjectPath) => ({
+      name: path.basename(subjectPath),
+      digest: { sha256: crypto.createHash("sha256").update(fs.readFileSync(subjectPath)).digest("hex") },
     }));
-  const inputs = { channel: "rc", rc_index: "2", version: "0.6.0" };
-  const sourceUri = "git+https://github.com/midnightntwrk/midnight-did@refs/heads/develop";
+  const inputs = state.channel === "rc"
+    ? { channel: "rc", rc_index: "2", version: "0.7.0" }
+    : { channel: "release", version: "0.7.0" };
+  const sourceUri = "git+https://github.com/midnightntwrk/midnight-did@" + state.githubRef;
   const statement = {
     _type: "https://in-toto.io/Statement/v0.1",
     predicateType: "https://slsa.dev/provenance/v0.2",
@@ -60,11 +61,11 @@ if (args[0] === "attestation" && args[1] === "verify") {
         parameters: { event_inputs: inputs },
         environment: {
           github_event_name: "workflow_dispatch",
-          github_ref: "refs/heads/develop",
+          github_ref: state.githubRef,
           github_sha1: ${JSON.stringify(githubSha)},
           github_event_payload: {
             inputs,
-            ref: "refs/heads/develop",
+            ref: state.githubRef,
             repository: { full_name: "midnightntwrk/midnight-did" },
           },
         },
@@ -75,6 +76,12 @@ if (args[0] === "attestation" && args[1] === "verify") {
   if (state.semanticMismatch) statement.predicate.builder.id = state.hostileOutput;
   save();
   process.stdout.write(JSON.stringify({ verificationResult: { statement } }));
+  process.exit(0);
+}
+if (args[0] === "api") {
+  if (state.tagLookupFailure) fail();
+  save();
+  process.stdout.write(JSON.stringify({ sha: state.tagTargetSha }));
   process.exit(0);
 }
 if (args[0] !== "release") fail();
@@ -123,6 +130,7 @@ if (args[1] === "create") {
   state.isPrerelease = prerelease;
   state.body = fs.readFileSync(notesFile, "utf8");
   state.assets = assets.map((asset) => path.basename(asset));
+  state.tagTargetSha = args[args.indexOf("--target") + 1];
   save();
   process.stdout.write(state.hostileOutput);
   process.exit(0);
@@ -179,7 +187,7 @@ function setup({
   fs.writeFileSync(path.join(bin, "gh"), fakeGh, { mode: 0o755 });
   fs.writeFileSync(
     path.join(bin, "node"),
-    `#!/usr/bin/env bash\ncase "\${1:-}" in\n  scripts/run-bounded-command.mjs|scripts/classify-github-release-view.mjs|scripts/validate-release-notes.mjs|scripts/verify-github-release-state.mjs|scripts/verify-slsa-provenance.mjs) exec "\${REAL_NODE}" "$@" ;;\n  *) exit 0 ;;\nesac\n`,
+    `#!/usr/bin/env bash\ncase "\${1:-}" in\n  scripts/run-bounded-command.mjs|scripts/classify-github-release-view.mjs|scripts/validate-release-notes.mjs|scripts/verify-github-release-state.mjs|scripts/verify-github-tag-target.mjs|scripts/verify-slsa-provenance.mjs) exec "\${REAL_NODE}" "$@" ;;\n  *) exit 0 ;;\nesac\n`,
     { mode: 0o755 },
   );
   fs.writeFileSync(path.join(bin, "cosign"), "#!/usr/bin/env bash\nexit 0\n", {
@@ -187,16 +195,27 @@ function setup({
   });
 
   const statePath = path.join(root, "state.json");
+  const subjectPaths = [
+    archive,
+    manifest,
+    checksum,
+    path.join(signatures, `${path.basename(archive)}.pem`),
+    path.join(signatures, `${path.basename(archive)}.sig`),
+  ];
   fs.writeFileSync(
     statePath,
     JSON.stringify({
       assets: [],
       body: "",
       calls: [],
+      channel: prerelease ? "rc" : "release",
       exists: false,
+      githubRef: prerelease ? "refs/heads/develop" : "refs/heads/main",
       hostileOutput,
       isDraft: false,
       isPrerelease: prerelease,
+      subjectPaths,
+      tagTargetSha: githubSha,
       viewMode: "normal",
     }),
   );
@@ -239,20 +258,20 @@ function run(
       ...process.env,
       ARCHIVE: fixture.archive,
       ARCHIVE_NAME: path.basename(fixture.archive),
-      BASE_VERSION: "0.6.0",
-      CHANNEL: "rc",
+      BASE_VERSION: "0.7.0",
+      CHANNEL: fixture.prerelease ? "rc" : "release",
       COSIGN_CERTIFICATE_IDENTITY: "https://github.com/example/workflow",
       GH_REPO: "midnightntwrk/midnight-did",
-      GITHUB_REF: githubRef,
+      GITHUB_REF: fixture.prerelease ? githubRef : "refs/heads/main",
       GITHUB_SHA: githubSha,
       MANIFEST: fixture.manifest,
       NPM_ASSETS_DIR: "",
       PATH: `${fixture.bin}${path.delimiter}${process.env.PATH}`,
       PRERELEASE: String(fixture.prerelease),
       PROVENANCE_FILE: provenance ? fixture.provenance : "",
-      RC_INDEX: "2",
+      RC_INDEX: fixture.prerelease ? "2" : "",
       REAL_NODE: process.execPath,
-      RELEASE_TAG: fixture.prerelease ? "v0.6.0-rc2" : "v0.6.0",
+      RELEASE_TAG: fixture.prerelease ? "v0.7.0-rc2" : "v0.7.0",
       SHA256: fixture.checksum,
       SIGNATURE_ASSETS_DIR: fixture.signatures,
       ...env,
@@ -299,6 +318,24 @@ test("confirmed exact release not found creates RC and final releases with revie
           ["multiple.intoto.jsonl"],
         );
         assert.equal(mutationCalls(fixture).length, 1);
+        const calls = state.calls;
+        const createIndex = calls.findIndex(
+          (args) => args[0] === "release" && args[1] === "create",
+        );
+        const preflightIndex = calls.findIndex(
+          (args) => args[0] === "attestation" && args[1] === "verify",
+        );
+        assert.ok(preflightIndex >= 0 && preflightIndex < createIndex);
+        assert.ok(
+          calls.some(
+            (args) =>
+              args[0] === "api" &&
+              args[1] ===
+                `repos/midnightntwrk/midnight-did/commits/${
+                  prerelease ? "v0.7.0-rc2" : "v0.7.0"
+                }`,
+          ),
+        );
         assert.doesNotMatch(
           `${result.stdout}${result.stderr}`,
           /must-not-leak/u,
@@ -347,6 +384,24 @@ test("same-body rerun downloads and verifies canonical provenance without mutati
     assert.equal(rerun.status, 0, `${rerun.stdout}\n${rerun.stderr}`);
     assert.equal(mutationCalls(fixture).length, 0);
     const calls = readState(fixture).calls;
+    const provenanceDownloadIndex = calls.findIndex(
+      (args) =>
+        args[1] === "download" &&
+        args[args.indexOf("--pattern") + 1] === "multiple.intoto.jsonl",
+    );
+    const firstOtherDownloadIndex = calls.findIndex(
+      (args) =>
+        args[1] === "download" &&
+        args[args.indexOf("--pattern") + 1] !== "multiple.intoto.jsonl",
+    );
+    const preflightIndex = calls.findIndex(
+      (args) => args[0] === "attestation" && args[1] === "verify",
+    );
+    assert.ok(
+      provenanceDownloadIndex >= 0 &&
+        preflightIndex > provenanceDownloadIndex &&
+        preflightIndex < firstOtherDownloadIndex,
+    );
     assert.ok(
       calls.some(
         (args) =>
@@ -375,6 +430,36 @@ test("same-body rerun downloads and verifies canonical provenance without mutati
     assert.equal(
       verify[verify.indexOf("--predicate-type") + 1],
       "https://slsa.dev/provenance/v0.2",
+    );
+  });
+});
+
+test("generated provenance must verify before release creation", () => {
+  const fixture = setup();
+  try {
+    const state = readState(fixture);
+    state.attestationFailure = true;
+    writeState(fixture, state);
+    const result = run(fixture);
+    assert.notEqual(result.status, 0);
+    assert.equal(mutationCalls(fixture).length, 0);
+    assert.doesNotMatch(`${result.stdout}${result.stderr}`, /must-not-leak/u);
+  } finally {
+    cleanup(fixture);
+  }
+});
+
+test("existing release tag must resolve to the exact publication SHA", async () => {
+  await withCreatedFixture((fixture) => {
+    const state = readState(fixture);
+    state.tagTargetSha = "0".repeat(40);
+    writeState(fixture, state);
+    const result = run(fixture, { provenance: false });
+    assert.notEqual(result.status, 0);
+    assert.equal(mutationCalls(fixture).length, 0);
+    assert.equal(
+      readState(fixture).calls.some((args) => args[1] === "download"),
+      false,
     );
   });
 });

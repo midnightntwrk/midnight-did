@@ -23,6 +23,7 @@ flowchart LR
 | Choose network endpoint defaults | [Network Endpoints](/guide/network-endpoints) |
 | Bootstrap an issuer DID with real Ed25519 and SchnorrJubjub keys | [API Examples](/packages/api-examples#bootstrap-an-issuer-did) |
 | Understand supported keys and signing paths | [Key Model](/guide/key-model) |
+| Migrate Jubjub JWK consumers from 0.6 to 0.7 | [Migrating to 0.7](/guide/migrating-to-0.7) |
 | Learn the DID method rules | [DID Method](/spec/midnight-method) |
 | Work on Compact circuits | [Compact Contract Surface](/compact/) |
 | Pick the right TypeScript package | [Libs](/packages/) |

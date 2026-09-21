@@ -96,6 +96,69 @@ export const decodeBase64UrlBytes32 = (
   label = "value",
 ): Uint8Array => decodeBase64UrlBytes(input, 32, label);
 
+const JUBJUB_JWK_COORDINATE_LENGTH = 32;
+// Jubjub is defined over Compact's scalar field; this is MAX_FIELD + 1.
+const JUBJUB_BASE_FIELD_MODULUS =
+  52435875175126190479447740508185965837690552500527637822603658699938581184513n;
+
+const assertJubjubJwkCoordinate = (value: bigint, label: string): void => {
+  if (value < 0n) {
+    throw new Error(`${label} must be non-negative`);
+  }
+  if (value >= JUBJUB_BASE_FIELD_MODULUS) {
+    throw new Error(`${label} must be less than the Jubjub base field modulus`);
+  }
+};
+
+const bigintToFixedWidthBytes = (
+  value: bigint,
+  length: number,
+  label: string,
+): Uint8Array => {
+  if (value < 0n) {
+    throw new Error(`${label} must be non-negative`);
+  }
+
+  const bytes = new Uint8Array(length);
+  let remaining = value;
+  for (let index = length - 1; index >= 0; index -= 1) {
+    bytes[index] = Number(remaining & 0xffn);
+    remaining >>= 8n;
+  }
+  if (remaining !== 0n) {
+    throw new Error(`${label} does not fit in ${length} bytes`);
+  }
+  return bytes;
+};
+
+export const encodeJubjubJwkCoordinate = (value: bigint): string => {
+  assertJubjubJwkCoordinate(value, "Jubjub JWK coordinate");
+  return encodeBase64Url(
+    bigintToFixedWidthBytes(
+      value,
+      JUBJUB_JWK_COORDINATE_LENGTH,
+      "Jubjub JWK coordinate",
+    ),
+  );
+};
+
+export const decodeJubjubJwkCoordinate = (
+  input: string,
+  label = "Jubjub JWK coordinate",
+): bigint => {
+  const bytes = decodeBase64UrlBytes(
+    input,
+    JUBJUB_JWK_COORDINATE_LENGTH,
+    label,
+  );
+  let value = 0n;
+  for (const byte of bytes) {
+    value = (value << 8n) + BigInt(byte);
+  }
+  assertJubjubJwkCoordinate(value, label);
+  return value;
+};
+
 const bigintToBytes = (x: bigint): Uint8Array => {
   if (x === 0n) return Uint8Array.of(0);
   const out: number[] = [];
