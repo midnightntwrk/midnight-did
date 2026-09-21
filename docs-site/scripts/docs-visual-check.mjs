@@ -399,6 +399,11 @@ const pages = [
     checks: [checkPageTitle, checkCodeBlocks],
   },
   {
+    name: "compatibility",
+    path: "/guide/compatibility",
+    checks: [checkPageTitle, checkTables],
+  },
+  {
     name: "spec-method",
     path: "/spec/midnight-method",
     checks: [checkPageTitle, checkTables],

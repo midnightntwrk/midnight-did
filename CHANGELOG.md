@@ -31,10 +31,15 @@ code. Existing offchain MOD1 DIDs retain their identifiers; pass only canonical
 big-endian values to the 0.7 domain API and let its codec preserve the legacy
 wire representation.
 
+### Documentation
+
+- Publish final 0.6.0 consumer guidance and an evidence-backed compatibility
+  matrix without changing the immutable 0.6.0 GitHub Release notes below.
+
 ## [0.6.0] - 2026-09-18
 
-All breaking changes below are part of the published 0.6.0 release; the 0.5.0
-packages retain their existing API and behavior.
+All breaking changes below are assigned to the upcoming 0.6.0 release; the
+published 0.5.0 packages retain their existing API and behavior.
 
 ### Changed
 
@@ -148,9 +153,9 @@ packages retain their existing API and behavior.
 ### Migration from 0.5.0
 
 Downstream consumers pinned to the exact published 0.5.0 packages should update
-all coordinated `@midnight-ntwrk/midnight-did-*` dependencies and the matching
-ZK artifact together to exact version 0.6.0. Do not point an exact 0.5.0
-dependency at this breaking release.
+all coordinated `@midnight-ntwrk/midnight-did-*` dependencies together to a
+0.6.0 snapshot for pre-release validation, or to 0.6.0 once available. Do not
+point an exact 0.5.0 dependency at this breaking source revision.
 
 Before removing a verification method, remove each selected verification
 relationship explicitly with `removeVerificationMethodRelation`, wait for and
