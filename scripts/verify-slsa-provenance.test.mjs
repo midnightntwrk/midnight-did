@@ -18,10 +18,15 @@ const ref = "refs/heads/develop";
 const repo = "midnightntwrk/midnight-did";
 const builder =
   "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a";
-const inputs = { channel: "rc", rc_index: "2", version: "0.6.0" };
 const sourceUri = `git+https://github.com/${repo}@${ref}`;
 
-function setup() {
+function releaseInputs(channel) {
+  return channel === "rc"
+    ? { channel, rc_index: "2", version: "0.7.0" }
+    : { channel, version: "0.7.0" };
+}
+
+function setup({ channel = "rc" } = {}) {
   const root = fs.mkdtempSync(
     path.join(os.tmpdir(), "did-slsa-verifier-test-"),
   );
@@ -36,6 +41,7 @@ function setup() {
       sha256: createHash("sha256").update(fs.readFileSync(file)).digest("hex"),
     },
   }));
+  const inputs = releaseInputs(channel);
   const document = {
     verificationResult: {
       statement: {
@@ -69,10 +75,10 @@ function setup() {
       },
     },
   };
-  return { asset, document, other, root, verifiedJson };
+  return { asset, channel, document, other, root, verifiedJson };
 }
 
-function run(fixture) {
+function run(fixture, { channel = fixture.channel, rcIndex } = {}) {
   fs.writeFileSync(fixture.verifiedJson, JSON.stringify(fixture.document));
   return spawnSync(
     process.execPath,
@@ -95,11 +101,14 @@ function run(fixture) {
       "--entry-point",
       ".github/workflows/publish.yml",
       "--channel",
-      "rc",
+      channel,
       "--version",
-      "0.6.0",
-      "--rc-index",
-      "2",
+      "0.7.0",
+      ...(rcIndex === undefined
+        ? channel === "rc"
+          ? ["--rc-index", "2"]
+          : []
+        : ["--rc-index", rcIndex]),
     ],
     { cwd: repoRoot, encoding: "utf8" },
   );
@@ -111,13 +120,46 @@ function mutatePath(root, pathParts, value) {
   target[pathParts.at(-1)] = value;
 }
 
-test("accepts the exact verified SLSA v0.2 statement", () => {
-  const fixture = setup();
-  try {
-    const result = run(fixture);
-    assert.equal(result.status, 0, result.stderr);
-  } finally {
-    fs.rmSync(fixture.root, { recursive: true, force: true });
+test("accepts exact RC and final SLSA v0.2 statements", async (t) => {
+  for (const channel of ["rc", "release"]) {
+    await t.test(channel, () => {
+      const fixture = setup({ channel });
+      try {
+        const result = run(fixture);
+        assert.equal(result.status, 0, result.stderr);
+      } finally {
+        fs.rmSync(fixture.root, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test("models omitted final rc_index separately from RC input", async (t) => {
+  const cases = [
+    [
+      "final empty rc_index argument",
+      setup({ channel: "release" }),
+      { rcIndex: "" },
+    ],
+    ["final statement extra rc_index", setup({ channel: "release" }), null],
+    ["RC statement missing rc_index", setup(), null],
+  ];
+  cases[1][1].document.verificationResult.statement.predicate.invocation.parameters.event_inputs.rc_index =
+    "";
+  cases[1][1].document.verificationResult.statement.predicate.invocation.environment.github_event_payload.inputs.rc_index =
+    "";
+  delete cases[2][1].document.verificationResult.statement.predicate.invocation
+    .parameters.event_inputs.rc_index;
+  delete cases[2][1].document.verificationResult.statement.predicate.invocation
+    .environment.github_event_payload.inputs.rc_index;
+  for (const [name, fixture, options] of cases) {
+    await t.test(name, () => {
+      try {
+        assert.notEqual(run(fixture, options ?? {}).status, 0);
+      } finally {
+        fs.rmSync(fixture.root, { recursive: true, force: true });
+      }
+    });
   }
 });
 
@@ -188,7 +230,7 @@ test("rejects malformed verified output", () => {
       "--channel",
       "rc",
       "--version",
-      "0.6.0",
+      "0.7.0",
       "--rc-index",
       "2",
     ];
@@ -281,12 +323,66 @@ test("rejects source, builder, workflow, event, input, and predicate mismatches"
       "9.9.9",
     ],
     ["material", [...base, "predicate", "materials", 0, "uri"], "wrong"],
+    [
+      "material SHA",
+      [...base, "predicate", "materials", 0, "digest", "sha1"],
+      "0".repeat(40),
+    ],
   ];
   for (const [name, pathParts, value] of cases) {
     await t.test(name, () => {
       const fixture = setup();
       try {
         mutatePath(fixture.document, pathParts, value);
+        assert.notEqual(run(fixture).status, 0);
+      } finally {
+        fs.rmSync(fixture.root, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test("rejects missing or extra input keys and material cardinality", async (t) => {
+  const cases = [
+    [
+      "missing input key",
+      (statement) => {
+        delete statement.predicate.invocation.parameters.event_inputs.version;
+      },
+    ],
+    [
+      "extra input key",
+      (statement) => {
+        statement.predicate.invocation.parameters.event_inputs.extra = "x";
+      },
+    ],
+    [
+      "payload extra input key",
+      (statement) => {
+        statement.predicate.invocation.environment.github_event_payload.inputs.extra =
+          "x";
+      },
+    ],
+    [
+      "extra material",
+      (statement) => {
+        statement.predicate.materials.push(
+          structuredClone(statement.predicate.materials[0]),
+        );
+      },
+    ],
+    [
+      "missing material",
+      (statement) => {
+        statement.predicate.materials = [];
+      },
+    ],
+  ];
+  for (const [name, mutate] of cases) {
+    await t.test(name, () => {
+      const fixture = setup();
+      try {
+        mutate(fixture.document.verificationResult.statement);
         assert.notEqual(run(fixture).status, 0);
       } finally {
         fs.rmSync(fixture.root, { recursive: true, force: true });

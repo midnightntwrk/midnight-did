@@ -128,7 +128,9 @@ and fails before the privileged boundary for a missing, duplicate, empty, or
 malformed section, an unexpected level-two boundary, an invalid version, or an
 unsafe output path. The privileged publisher receives the generated file only
 through `--notes-file`; it does not construct notes from event text or shell
-arguments.
+arguments. The build job performs the same extraction and canonical-byte check
+before npm, GHCR, tag, or GitHub Release mutation can begin; the finalizer
+re-extracts from the same immutable dispatch SHA at the privileged boundary.
 
 The workflow revalidates the event, exact full source ref, branch ref type,
 channel, base version, resolved version, and RC index immediately before signing
@@ -207,10 +209,11 @@ move together.
 ## ORAS and GHCR artifacts
 
 The workflow installs ORAS before the GHCR step because GHCR stores the ZK bundle
-as a generic OCI artifact. `npm publish` handles TypeScript packages, and
-`gh release upload` handles release assets, but neither pushes arbitrary
-provider-key archives to an OCI registry. ORAS provides the registry protocol
-client for `oras push` and `oras pull`.
+as a generic OCI artifact. `npm publish` handles TypeScript packages, and the
+immutable GitHub Release creator submits the complete reviewed asset set in its
+initial request, but neither path pushes arbitrary provider-key archives to an
+OCI registry. ORAS provides the registry protocol client for `oras push` and
+`oras pull`.
 
 The publish workflow downloads the configured `ORAS_VERSION`, verifies the ORAS
 release checksum, installs the `oras` binary, pushes the ZK archive and manifest
@@ -266,10 +269,12 @@ safe reruns after partial failure:
   reviewed generated changelog notes and complete canonical asset multiset; a
   rerun requires raw byte equality for the LF-terminated body and rejects every
   duplicate, extra, or missing asset instead of editing or uploading;
-- the canonical `multiple.intoto.jsonl` is downloaded after both creation and
-  reuse, cryptographically checked against the pinned reusable SLSA workflow
-  identity and GitHub OIDC issuer, and semantically bound to every downloaded
-  non-provenance asset plus the exact source and dispatch context;
+- generated `multiple.intoto.jsonl` provenance is cryptographically and
+  semantically verified before creation; reuse downloads and verifies canonical
+  provenance before any remote package or archive is parsed;
+- both paths bind every non-provenance subject, the exact source SHA/ref,
+  workflow inputs, material, and resolved release tag target, then reverify the
+  downloaded byte set before parsing it;
 - ZK archives use a reproducible timestamp, ordering, ownership, and gzip header
   so equivalent builds produce the same payload.
 
@@ -332,9 +337,10 @@ transactional. If a run fails:
 - Record the workflow SHA, exact version, channel/tag, first failing package, and
   final publisher evidence. Do not replace a version merely to hide a partial
   snapshot.
-- Retry the same workflow SHA/version/tag. A publish that succeeded despite a
-  lost response is recognized only when its immutable payload and requested tag
-  both match; only missing packages continue in dependency order.
+- Retry the exact original source SHA and ref with the same version/channel/tag.
+  A publish that succeeded despite a lost response is recognized only when its
+  immutable payload and requested tag both match; only missing packages continue
+  in dependency order.
 - Stop when any existing payload/tag differs or any read is ambiguous. Do not
   overwrite, unpublish, change access, or mutate tags in automated recovery.
 - Treat npm publication as complete only after final all-five public metadata,
