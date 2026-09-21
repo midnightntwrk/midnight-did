@@ -66,7 +66,10 @@ const updateManifest = async (root, relativePath, update) => {
 const replaceFixtureText = async (root, relativePath, before, after) => {
   const filePath = path.join(root, relativePath);
   const source = await readFile(filePath, "utf8");
-  assert.match(source, new RegExp(before.replaceAll(".", "\\."), "u"));
+  assert.ok(
+    source.includes(before),
+    `Expected ${relativePath} to contain fixture text`,
+  );
   await writeFile(filePath, source.replace(before, after), "utf8");
 };
 
