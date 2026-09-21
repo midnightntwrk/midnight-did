@@ -45,7 +45,7 @@
     "test:fuzz": "vitest run --config vitest.fuzz.config.ts"
   },
   "dependencies": {
-    "@midnight-ntwrk/compact-runtime": "0.16.0",
+    "@midnight-ntwrk/compact-runtime": "0.19.0",
     "@noble/hashes": "^2.2.0",
     "zod": "^4.1.0"
   },
