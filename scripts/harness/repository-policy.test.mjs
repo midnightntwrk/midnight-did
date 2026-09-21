@@ -1148,6 +1148,15 @@ test("revalidates release context at every privileged publication boundary", asy
     finalizeStep.run,
     /publish-github-release-assets\.sh --notes-file "\$\{notes_file\}"/u,
   );
+  const notesPreflight = workflow.jobs["build-release-assets"].steps.find(
+    ({ name }) => name === "Preflight reviewed GitHub Release notes",
+  );
+  assert.equal(
+    notesPreflight.if,
+    "steps.context.outputs.channel != 'snapshot'",
+  );
+  assert.match(notesPreflight.run, /extract-changelog-section\.mjs/u);
+  assert.match(notesPreflight.run, /validate-release-notes\.mjs/u);
 });
 
 test("keeps GitHub Release notes, assets, and provenance immutable across reruns", async () => {
@@ -1166,6 +1175,8 @@ test("keeps GitHub Release notes, assets, and provenance immutable across reruns
   ]);
   assert.match(publisher, /--notes-file/u);
   assert.match(releaseReader, /--json isDraft,isPrerelease,assets,body/u);
+  assert.match(releaseReader, /verify-github-tag-target\.mjs/u);
+  assert.match(releaseReader, /commits\/\$\{release_tag\}/u);
   assert.match(publisher, /verify-github-release-state\.mjs/u);
   assert.match(releaseReader, /scripts\/run-bounded-command\.mjs/u);
   assert.match(releaseReader, /classify-github-release-view\.mjs/u);

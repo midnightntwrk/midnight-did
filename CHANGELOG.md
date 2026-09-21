@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-21
+
 ### Changed
 
-- BREAKING (planned for 0.7.0): Project native ledger Jubjub public keys into
+- BREAKING: Project native ledger Jubjub public keys into
   `publicKeyJwk.x` and `publicKeyJwk.y` as canonical base64url-encoded,
   fixed-width 32-byte unsigned big-endian coordinates. Versions through 0.6.0
   emitted little-endian coordinates. Native ledger points and signatures remain
@@ -35,6 +37,20 @@ wire representation.
 
 - Publish final 0.6.0 consumer guidance and an evidence-backed compatibility
   matrix without changing the immutable 0.6.0 GitHub Release notes below.
+- Publish the accepted Jubjub coordinate-encoding decision, 0.7 migration
+  guidance, updated method specification, deterministic vectors, and bounded
+  conformance wording without claiming an HTTP resolver runtime is delivered by
+  these packages.
+
+### Security
+
+- Verify SLSA provenance cryptographically and semantically before creating or
+  reusing immutable GitHub Release assets. Bind the exact subject set, source
+  SHA/ref, workflow inputs, material, and resolved release tag target; model the
+  final channel without the RC-only `rc_index` input.
+- This release does not resolve invalid or identity Jubjub public keys,
+  non-canonical Schnorr response scalars, or non-unique Schnorr challenge
+  reduction. Those hardening changes remain planned for 0.8.0.
 
 ## [0.6.0] - 2026-09-18
 
