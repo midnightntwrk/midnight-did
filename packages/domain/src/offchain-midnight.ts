@@ -10,7 +10,11 @@ import { blake2s } from "@noble/hashes/blake2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { z } from "zod/v4-mini";
 
-import { decodeBase64Url, encodeBase64Url } from "./crypto-codecs.js";
+import {
+  decodeBase64Url,
+  decodeBase64UrlBytes32,
+  encodeBase64Url,
+} from "./crypto-codecs.js";
 import {
   createService,
   createVerificationMethod,
@@ -319,6 +323,11 @@ const maskToRelationships = (
   capabilityDelegation: (mask & 16) !== 0,
 });
 
+const reverseJubjubJwkCoordinate = (value: string, label: string): string =>
+  encodeBase64Url(
+    Uint8Array.from(decodeBase64UrlBytes32(value, label)).reverse(),
+  );
+
 const keyKindFromJwk = (jwk: PublicKeyJwk): number => {
   if (jwk.kty === KeyType.EC && jwk.crv === CurveType.Jubjub) {
     return OffchainKeyKind.Jubjub;
@@ -355,8 +364,8 @@ const jwkFromKeyKind = (
     return PublicKeyJwkSchema.parse({
       kty: KeyType.EC,
       crv: CurveType.Jubjub,
-      x,
-      y,
+      x: reverseJubjubJwkCoordinate(x, "offchain publicKeyJwk.x"),
+      y: reverseJubjubJwkCoordinate(y, "offchain publicKeyJwk.y"),
     });
   }
   if (keyKind === OffchainKeyKind.P256) {
@@ -527,14 +536,29 @@ const encodeStateShape = (
       () => "",
     ) as SerializedOffchainMidnightDIDState["alsoKnownAs"],
     verificationMethod: padFixedArray(
-      parsed.verificationMethod.map((method) => ({
-        present: true,
-        id: method.id,
-        keyKind: keyKindFromJwk(method.publicKeyJwk),
-        x: method.publicKeyJwk.x,
-        y: method.publicKeyJwk.y ?? "",
-        relationshipsMask: relationshipsToMask(method.relationships),
-      })),
+      parsed.verificationMethod.map((method) => {
+        const isJubjub =
+          method.publicKeyJwk.kty === KeyType.EC &&
+          method.publicKeyJwk.crv === CurveType.Jubjub;
+        return {
+          present: true,
+          id: method.id,
+          keyKind: keyKindFromJwk(method.publicKeyJwk),
+          x: isJubjub
+            ? reverseJubjubJwkCoordinate(
+                method.publicKeyJwk.x,
+                "publicKeyJwk.x",
+              )
+            : method.publicKeyJwk.x,
+          y: isJubjub
+            ? reverseJubjubJwkCoordinate(
+                method.publicKeyJwk.y ?? "",
+                "publicKeyJwk.y",
+              )
+            : (method.publicKeyJwk.y ?? ""),
+          relationshipsMask: relationshipsToMask(method.relationships),
+        };
+      }),
       MAX_VERIFICATION_METHODS,
       emptyVerificationMethodSlot,
     ) as SerializedOffchainMidnightDIDState["verificationMethod"],

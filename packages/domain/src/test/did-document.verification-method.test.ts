@@ -74,6 +74,23 @@ describe("createVerificationMethod", () => {
     expect(vm.publicKeyJwk).toEqual(exampleEcJsonWebKey);
   });
 
+  it("rejects Jubjub coordinates outside the base field", () => {
+    const fieldModulus = "c-2nUymdfUgzOdgICaHYBVO9pAL__lv-_____wAAAAE";
+
+    expect(() =>
+      createVerificationMethod({
+        ...exampleVerificationMethodInput,
+        id: `${exampleVerificationMethodInput.controller}#key-jubjub-out-of-field`,
+        publicKeyJwk: {
+          kty: KeyType.EC,
+          crv: CurveType.Jubjub,
+          x: fieldModulus,
+          y: bytes32Zero,
+        },
+      }),
+    ).toThrow(/supported curve length/);
+  });
+
   it("accepts P-256 EC keys", () => {
     const vm = createVerificationMethod({
       ...exampleVerificationMethodInput,

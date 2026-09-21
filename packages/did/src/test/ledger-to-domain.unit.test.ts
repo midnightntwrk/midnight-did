@@ -81,18 +81,6 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     Buffer.from(bytes32(fill)).toString("base64url");
   const keyStringOfLength = (fill: number, length: number) =>
     Buffer.from(new Uint8Array(length).fill(fill)).toString("base64url");
-  const bigintTo32Le = (value: bigint) => {
-    const bytes = new Uint8Array(32);
-    let remaining = value;
-    for (let i = 0; i < bytes.length; i += 1) {
-      bytes[i] = Number(remaining & 0xffn);
-      remaining >>= 8n;
-    }
-    return bytes;
-  };
-  const fieldString = (value: bigint) =>
-    Buffer.from(bigintTo32Le(value)).toString("base64url");
-
   let stubLedger: any;
 
   beforeEach(() => {
@@ -276,10 +264,29 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(out).toEqual({
       kty: "EC",
       crv: "Jubjub",
-      x: fieldString(1n),
-      y: fieldString(256n),
+      x: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE",
+      y: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQA",
     });
+    expect(out.x).not.toBe("AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    expect(out.y).not.toBe("AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
   });
+
+  it.each([
+    ["negative", -1n],
+    ["wider than 32 bytes", 1n << 256n],
+  ])(
+    "schnorrJubjubPublicKeyJwk rejects a %s coordinate",
+    (_name, coordinate) => {
+      expectLedgerValidationCode(
+        () =>
+          LedgerToDomain.schnorrJubjubPublicKeyJwk({
+            id: "key-native",
+            publicKey: { x: coordinate, y: 1n },
+          } as any),
+        "invalidPublicKey",
+      );
+    },
+  );
 
   it("service filters blank endpoints and preserves id/type", () => {
     const svc = LedgerToDomain.service({
@@ -601,8 +608,8 @@ describe("LedgerToDomain (unit, mocked managed runtime)", () => {
     expect(nativeMethod?.publicKeyJwk).toEqual({
       kty: "EC",
       crv: "Jubjub",
-      x: fieldString(1n),
-      y: fieldString(256n),
+      x: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE",
+      y: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQA",
     });
     expect(doc.assertionMethod).toEqual([`${didSubject}#key-schnorr-jubjub`]);
   });

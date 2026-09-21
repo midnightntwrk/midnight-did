@@ -57,6 +57,7 @@ export default defineConfig({
             { text: "Network Endpoints", link: "/guide/network-endpoints" },
             { text: "Key Model", link: "/guide/key-model" },
             { text: "Compatibility", link: "/guide/compatibility" },
+            { text: "Migrate to 0.7", link: "/guide/migrating-to-0.7" },
             { text: "Migrate to 0.6", link: "/guide/migrating-to-0.6" },
           ],
         },
@@ -158,6 +159,14 @@ export default defineConfig({
             {
               text: "ADR: Controller Authorization Signatures",
               link: "/architecture/adr-controller-authorization-signatures",
+            },
+            {
+              text: "ADR: Controller Recovery Authority",
+              link: "/architecture/adr-controller-recovery-authority",
+            },
+            {
+              text: "ADR: Jubjub JWK Coordinate Encoding",
+              link: "/architecture/adr-jubjub-jwk-coordinate-encoding",
             },
           ],
         },

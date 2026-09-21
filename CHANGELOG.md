@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- BREAKING (planned for 0.7.0): Project native ledger Jubjub public keys into
+  `publicKeyJwk.x` and `publicKeyJwk.y` as canonical base64url-encoded,
+  fixed-width 32-byte unsigned big-endian coordinates. Versions through 0.6.0
+  emitted little-endian coordinates. Native ledger points and signatures remain
+  unchanged, but persisted DID Documents, JWK thumbprints, JWK-derived key
+  identifiers, and caches must be re-resolved or rebuilt. The domain package now
+  exports endian-explicit Jubjub JWK coordinate codecs. Existing offchain MOD1
+  bytes and DID hashes remain immutable: the 0.7 offchain codec converts its
+  historical little-endian Jubjub wire fields to canonical big-endian JWKs at
+  the domain boundary.
+
+### Migration from 0.6.0
+
+Upgrade resolver deployments and Jubjub-consuming integrations together. Do not
+reinterpret persisted 0.6.0 DID Document snapshots with the 0.7 codec or add an
+unmarked little-endian/big-endian fallback. Re-resolve ledger-backed DIDs,
+invalidate cached documents, and rebuild JWK-derived identifiers. Use
+`encodeJubjubJwkCoordinate` and `decodeJubjubJwkCoordinate` for new integration
+code. Existing offchain MOD1 DIDs retain their identifiers; pass only canonical
+big-endian values to the 0.7 domain API and let its codec preserve the legacy
+wire representation.
+
 ### Documentation
 
 - Publish final 0.6.0 consumer guidance and an evidence-backed compatibility
