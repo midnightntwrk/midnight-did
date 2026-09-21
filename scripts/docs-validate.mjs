@@ -12,6 +12,7 @@ import {
 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { syncCompatibilityPage } from "../docs-site/scripts/sync-compatibility.mjs";
 import { writeNetworkEndpointsPage } from "../docs-site/scripts/sync-network-endpoints.mjs";
 import {
   latestPublishedReleaseVersion,
@@ -341,6 +342,7 @@ const documentationEntries = async (root = repoRoot) => {
     : [];
 
   const sourceFiles = [
+    resolve(root, "docs-site/scripts/sync-compatibility.mjs"),
     resolve(root, "docs-site/scripts/sync-network-endpoints.mjs"),
   ].filter((filePath) => existsSync(filePath));
   const files = [
@@ -546,6 +548,7 @@ const prepareGeneratedDocs = async () => {
     stdio: "inherit",
   });
   await writeNetworkEndpointsPage();
+  await syncCompatibilityPage({ check: true });
 };
 
 const printFailures = (failures) => {

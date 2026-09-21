@@ -11,7 +11,7 @@ const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const stableSemverPattern = "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)";
 
 // Update only after the corresponding GitHub and npm release is published.
-export const latestPublishedReleaseVersion = "0.5.0";
+export const latestPublishedReleaseVersion = "0.6.0";
 
 export const releaseTrainVersionFromPackageVersion = (version) => {
   const match = new RegExp(`${stableSemverPattern}(?:-.+)?$`, "u").exec(
@@ -64,6 +64,9 @@ export const releaseDocExamplesFromRoot = (root = repoRoot) =>
     latestPublishedReleaseVersion,
   );
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   console.log(JSON.stringify(releaseDocExamplesFromRoot(), null, 2));
 }
