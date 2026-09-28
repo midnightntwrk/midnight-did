@@ -17,7 +17,7 @@
   "devDependencies": {
     "mermaid": "11.17.2",
     "typedoc": "0.28.20",
-    "typedoc-plugin-markdown": "4.13.0",
+    "typedoc-plugin-markdown": "4.13.1",
     "vitepress": "1.6.4"
   }
 }
