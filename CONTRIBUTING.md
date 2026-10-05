@@ -50,6 +50,24 @@ git commit --amend -s --no-edit
 git rebase --signoff HEAD~N
 ```
 
+A DCO GitHub App runs on every pull request and will block merges until all commits are signed off.
+
+### Automating sign-off
+
+To avoid having to remember `-s` on every commit, install a `prepare-commit-msg` hook in your clone of this repo that appends the sign-off automatically:
+
+```bash
+cat > .git/hooks/prepare-commit-msg <<'EOF'
+#!/bin/sh
+NAME=$(git config user.name)
+EMAIL=$(git config user.email)
+grep -qs "^Signed-off-by: " "$1" || printf "\nSigned-off-by: %s <%s>\n" "$NAME" "$EMAIL" >> "$1"
+EOF
+chmod +x .git/hooks/prepare-commit-msg
+```
+
+After installing the hook, every `git commit` in this repo will include a `Signed-off-by` trailer automatically. Make sure your `user.name` and `user.email` are set correctly, since the hook certifies the DCO on your behalf for every commit.
+
 ## Code Contribution Process
 
 - **Fork and branch:** Create a focused branch from `develop` unless a maintainer asks for a release or hotfix branch. When updating an existing PR, preserve its actual base.
