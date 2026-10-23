@@ -18,6 +18,8 @@ minimumReleaseAgeExclude:
   - pnpm@10.34.4
   # Renovate security update: js-yaml@4.3.2
   - js-yaml@4.3.2
+  # Renovate security update: zod@4.6.6
+  - zod@4.6.6
 trustPolicyExclude:
   # mermaid@11.16.0 pulls @antfu/install-pkg via @iconify/utils, which resolves
   # tinyexec@1.2.2. pnpm flags the package's attestation-only publication as a
