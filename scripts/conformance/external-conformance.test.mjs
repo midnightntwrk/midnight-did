@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
-import {
+import childProcess, { execFileSync, spawnSync } from "node:child_process";
+import fs, {
   chmodSync,
   existsSync,
   mkdirSync,
@@ -13,6 +13,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { basename, delimiter, join } from "node:path";
 import { test } from "node:test";
@@ -39,6 +40,7 @@ import {
   buildLinuxSandboxCommand,
   linuxNetworkSandboxCommand,
   networkDeniedCommand,
+  trustedSudo,
 } from "./network-sandbox.mjs";
 import { generateFixture } from "../../packages/did/scripts/generate-w3c-fixture.mjs";
 
@@ -573,6 +575,181 @@ test("fresh temporary roots are unpredictable mode-0700 and removed in finally",
   });
   assert.notEqual(first, second);
   assert.equal(existsSync(second), false);
+});
+
+// Model root-owned distro binaries without creating root-owned files, executing
+// sudo or changing host alternatives. Restore ESM bindings before other tests.
+const withSudoCandidates = (context, candidates, check, probe) => {
+  const originalPath = process.env.PATH;
+  const versionCalls = [];
+  const entry = (path) => {
+    assert.ok(Object.hasOwn(candidates, path), `missing fixture: ${path}`);
+    return candidates[path];
+  };
+  try {
+    process.env.PATH = "/usr/bin";
+    context.mock.method(fs, "realpathSync", (path) => {
+      entry(path);
+      return path;
+    });
+    context.mock.method(fs, "accessSync", (path, mode) => {
+      assert.equal(mode, fs.constants.X_OK);
+      if (entry(path).executable === false) throw new Error("not executable");
+    });
+    context.mock.method(fs, "statSync", (path) => ({
+      isFile: () => entry(path).isFile !== false,
+      mode: entry(path).mode ?? 0o104755,
+      uid: entry(path).uid ?? 0,
+    }));
+    context.mock.method(childProcess, "spawnSync", (path, args, options) => {
+      if (args.length !== 1 || args[0] !== "--version") {
+        assert.ok(probe, "unexpected sandbox probe");
+        return probe(path, args, options);
+      }
+      assert.deepEqual(args, ["--version"]);
+      assert.deepEqual(options, { encoding: "utf8", timeout: 5_000 });
+      versionCalls.push(path);
+      return {
+        status: 0,
+        stdout: "Sudo version 1.9.17p2\n",
+        stderr: "",
+        ...entry(path).version,
+      };
+    });
+    syncBuiltinESMExports();
+    check(versionCalls);
+  } finally {
+    context.mock.restoreAll();
+    syncBuiltinESMExports();
+    if (originalPath === undefined) delete process.env.PATH;
+    else process.env.PATH = originalPath;
+  }
+};
+
+test("trusted sudo prefers classic PATH sudo and falls back only to the classic distro alias", (context) => {
+  withSudoCandidates(
+    context,
+    { "/usr/bin/sudo": {}, "/usr/bin/sudo.ws": {} },
+    (calls) => {
+      assert.equal(trustedSudo(), "/usr/bin/sudo");
+      assert.deepEqual(calls, ["/usr/bin/sudo"]);
+    },
+  );
+  withSudoCandidates(
+    context,
+    {
+      "/usr/bin/sudo": { version: { stdout: "sudo-rs 0.2.13\n" } },
+      "/usr/bin/sudo.ws": {},
+    },
+    (calls) => {
+      assert.equal(trustedSudo(), "/usr/bin/sudo.ws");
+      assert.deepEqual(calls, ["/usr/bin/sudo", "/usr/bin/sudo.ws"]);
+    },
+  );
+  withSudoCandidates(context, { "/usr/bin/sudo.ws": {} }, (calls) => {
+    // The known absolute alias does not depend on PATH containing /usr/bin.
+    process.env.PATH = "";
+    assert.equal(trustedSudo(), "/usr/bin/sudo.ws");
+    assert.deepEqual(calls, ["/usr/bin/sudo.ws"]);
+  });
+});
+
+test("trusted sudo alias rejects missing, untrusted, non-executable and non-classic candidates", (context) => {
+  for (const rejected of [
+    { uid: 1000 },
+    { mode: 0o104775 },
+    { mode: 0o104757 },
+    { isFile: false },
+    { executable: false },
+    { version: { stdout: "sudo-rs 0.2.13\n" } },
+    { version: { stdout: "unknown vendor 1.9.17\n" } },
+    { version: { status: 1 } },
+    { version: { status: null, signal: "SIGTERM" } },
+  ]) {
+    withSudoCandidates(context, { "/usr/bin/sudo.ws": rejected }, (calls) => {
+      assert.throws(
+        trustedSudo,
+        /Required trusted isolation utility is unavailable: sudo/u,
+      );
+      assert.deepEqual(calls, rejected.version ? ["/usr/bin/sudo.ws"] : []);
+    });
+  }
+  withSudoCandidates(context, {}, () => {
+    assert.throws(
+      trustedSudo,
+      /Required trusted isolation utility is unavailable: sudo/u,
+    );
+  });
+});
+
+test("classic sudo alias is usable only after the existing guarded privileged probe succeeds", (context) => {
+  for (const privilegedStatus of [0, 1]) {
+    const probes = [];
+    context.mock.method(process, "getuid", () => 1000);
+    context.mock.method(process, "getgid", () => 1001);
+    withSudoCandidates(
+      context,
+      {
+        "/bin/sh": {},
+        "/usr/bin/env": { version: { stdout: "env (GNU coreutils) 9.10" } },
+        "/usr/bin/setpriv": {
+          version: { stdout: "setpriv from util-linux 2.41" },
+        },
+        "/usr/bin/unshare": {
+          version: { stdout: "unshare from util-linux 2.41" },
+        },
+        "/usr/bin/sudo": { version: { stdout: "sudo-rs 0.2.13" } },
+        "/usr/bin/sudo.ws": {},
+      },
+      () => {
+        const resolve = () =>
+          linuxNetworkSandboxCommand("/trusted/node", ["external.js"]);
+        if (privilegedStatus === 0) {
+          const sandbox = resolve();
+          assert.equal(sandbox.command, "/usr/bin/sudo.ws");
+          assert.equal(
+            sandbox.kind,
+            "linux-privileged-network-namespace-privilege-dropped",
+          );
+          assert.equal(sandbox.args.at(-1), "external.js");
+        } else {
+          assert.throws(
+            resolve,
+            /No verified Linux network namespace with privilege drop is available/u,
+          );
+        }
+        assert.deepEqual(probes, ["/usr/bin/unshare", "/usr/bin/sudo.ws"]);
+      },
+      (command, args, options) => {
+        probes.push(command);
+        assert.deepEqual(options, {
+          env: {},
+          stdio: "ignore",
+          timeout: 10_000,
+        });
+        if (command === "/usr/bin/unshare") return { status: 1 };
+        assert.equal(command, "/usr/bin/sudo.ws");
+        assert.deepEqual(args.slice(0, 5), [
+          "-n",
+          "/usr/bin/unshare",
+          "--net",
+          "--",
+          "/usr/bin/setpriv",
+        ]);
+        assert.deepEqual(args.slice(5, 12), [
+          "--reuid",
+          "1000",
+          "--regid",
+          "1001",
+          "--clear-groups",
+          "--no-new-privs",
+          "--",
+        ]);
+        assert.match(args[args.indexOf("-ceu") + 1], /\/proc\/self\/status/u);
+        return { status: privilegedStatus };
+      },
+    );
+  }
 });
 
 test("Linux sandbox contract drops identity, groups, and privilege before external execution", () => {
