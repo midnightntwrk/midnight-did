@@ -25,7 +25,7 @@
     "coverage:all": "pnpm --filter ./packages/domain coverage && pnpm --filter ./packages/did coverage && pnpm --filter ./packages/contract coverage && pnpm --filter ./packages/jubjub-schnorr coverage && pnpm --filter ./packages/api coverage && pnpm run test:api-module-coverage && pnpm run check:api-module-coverage",
     "ci": "pnpm run verify",
     "ci:packages": "pnpm run lint && pnpm run build:all && pnpm run test:all",
-    "ci:core": "pnpm run test:ci-change-classifier && pnpm run test:release-context && pnpm run test:pr-review-dispatch && pnpm run test:pr-commit-integrity && pnpm run test:harness-contracts && pnpm run check:agent-skills && pnpm run test:did-surface-discipline && pnpm run check:did-surface-discipline && pnpm run test:workspace-manifests && pnpm run check:workspace-manifests && pnpm run test:artifact-workspaces && pnpm run test:npm-trusted-publishing && pnpm run test:publish-npm && pnpm run test:zk-artifact-bundle && pnpm run test:managed-artifacts && pnpm run test:integration-report && pnpm run test:source-imports && pnpm run check:source-imports && pnpm run test:engine-agnostic-imports && pnpm run check:engine-agnostic-imports && pnpm run test:ensure-onchain-runtime && pnpm run check:run-target-catalog && SKIP_LINT_FIX=1 pnpm run lint:core && pnpm --filter ./packages/jubjub-schnorr build && pnpm --filter ./packages/jubjub-schnorr test:ci && pnpm --filter ./packages/contract build:prepared && SKIP_RUNTIME_TESTS=1 pnpm --filter ./packages/contract test:ci && pnpm run check:managed-artifacts && pnpm --filter ./packages/domain build && pnpm --filter ./packages/domain test:ci && pnpm --filter ./packages/did build && pnpm --filter ./packages/did test:ci",
+    "ci:core": "pnpm run test:ci-change-classifier && pnpm run test:release-context && pnpm run test:pr-review-dispatch && pnpm run test:pr-commit-integrity && pnpm run test:harness-contracts && pnpm run check:agent-skills && pnpm run test:did-surface-discipline && pnpm run check:did-surface-discipline && pnpm run test:workspace-manifests && pnpm run check:workspace-manifests && pnpm run test:security-parent-compatibility && pnpm run test:artifact-workspaces && pnpm run test:npm-trusted-publishing && pnpm run test:publish-npm && pnpm run test:zk-artifact-bundle && pnpm run test:managed-artifacts && pnpm run test:integration-report && pnpm run test:source-imports && pnpm run check:source-imports && pnpm run test:engine-agnostic-imports && pnpm run check:engine-agnostic-imports && pnpm run test:ensure-onchain-runtime && pnpm run check:run-target-catalog && SKIP_LINT_FIX=1 pnpm run lint:core && pnpm --filter ./packages/jubjub-schnorr build && pnpm --filter ./packages/jubjub-schnorr test:ci && pnpm --filter ./packages/contract build:prepared && SKIP_RUNTIME_TESTS=1 pnpm --filter ./packages/contract test:ci && pnpm run check:managed-artifacts && pnpm --filter ./packages/domain build && pnpm --filter ./packages/domain test:ci && pnpm --filter ./packages/did build && pnpm --filter ./packages/did test:ci",
     "build:api-prereqs": "pnpm --filter ./packages/contract build:prepared && pnpm --filter ./packages/did build && pnpm --filter ./packages/api build",
     "pack:contract": "pnpm --filter ./packages/contract pack",
     "pack:all": "pnpm run pack:contract && echo 'Artifacts:' && ls -1 *.tgz || true && ls -1 packages/contract/*.tgz || true",
@@ -58,6 +58,7 @@
     "test:api-module-coverage": "node --test scripts/check-api-module-coverage.test.mjs",
     "check:agent-skills": "node scripts/check-agent-skills.mjs",
     "test:run-sh": "node scripts/run-sh-contract.test.mjs",
+    "test:security-parent-compatibility": "node --test scripts/security-parent-compatibility.test.mjs",
     "test:ensure-onchain-runtime": "node --test scripts/ensure-onchain-runtime-cjs.test.mjs",
     "check:run-target-catalog": "node scripts/check-run-target-catalog.mjs",
     "check:did-surface-discipline": "node scripts/check-did-surface-discipline.mjs",
@@ -101,7 +102,16 @@
       "@vue/shared": "3.5.42",
       "markdown-it": "14.3.3",
       "zod": "4.6.6",
-      "fast-copy": "4.1.0"
+      "fast-copy": "4.1.0",
+      "@midnight-ntwrk/platform-js@3.0.0>@effect/platform": "0.97.2",
+      "archiver-utils@5.0.2>glob": "14.0.2",
+      "glob@14.0.2>minimatch": "11.0.1",
+      "@typescript-eslint/typescript-estree@8.67.0>minimatch": "11.0.1",
+      "typedoc@0.28.20>minimatch": "11.0.1",
+      "mermaid@12.2.0>katex": "0.18.2"
+    },
+    "patchedDependencies": {
+      "typedoc@0.28.20": "patches/typedoc@0.28.20.patch"
     }
   },
   "type": "module",

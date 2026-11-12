@@ -1,5 +1,9 @@
 # Trust and release-age exceptions
 
+Temporary parent-API compatibility resolutions are documented separately in
+[Security compatibility boundaries](security-compatibility-overrides.md). They
+are not trust/release-age waivers and do not disable the defaults below.
+
 This repository allows only exact `package@version` exceptions. Each entry was
 added only after an actual pnpm failure and registry metadata review. Default
 `minimumReleaseAge: 10080`, `trustPolicy: no-downgrade`, and

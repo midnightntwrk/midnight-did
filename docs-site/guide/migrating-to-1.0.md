@@ -33,6 +33,65 @@ Compact `0.36.0` emits ZKIR v3 only. Recompiling the same Compact source
 therefore produces **different verifier keys** from a Ledger8 deployment.
 Artifacts are not interchangeable across the two toolchains.
 
+### Temporary SDK resolution for consumer applications
+
+**Repository-root overrides do not propagate when you install the DID
+libraries.** The selected SDK includes `@midnight-ntwrk/platform-js@3.0.0`,
+whose declared Effect-platform range does not include the security-fixed
+`0.97.2`. Until a supported parent fix is adopted, an application needs an
+explicit, temporary parent-scoped resolution in its own `package.json`.
+
+Merge the applicable fields below with your existing application dependencies.
+Keep `effect@3.22.4` and the SDK/runtime/wallet cohort above; do not replace the
+SDK cohort or force unrelated Effect versions to silence an audit.
+
+For pnpm:
+
+```json
+{
+  "dependencies": {
+    "effect": "3.22.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "@midnight-ntwrk/platform-js@3.0.0>@effect/platform": "0.97.2"
+    }
+  }
+}
+```
+
+For npm:
+
+```json
+{
+  "dependencies": {
+    "effect": "3.22.4"
+  },
+  "overrides": {
+    "@midnight-ntwrk/platform-js@3.0.0": {
+      "@effect/platform": "0.97.2"
+    }
+  }
+}
+```
+
+Reinstall and inspect the application's actual lockfile: platform-js `3.0.0`
+must resolve Effect-platform `0.97.2`, with compatible `effect@3.22.4`. Run the
+application's audit and runtime/wallet tests against that graph. This is an
+interim compatibility choice, not an automatic downstream fix, an audit
+exemption, or a whole-application safety guarantee.
+
+Remove the override after adopting an upstream-supported parent/cohort fix
+that no longer needs this out-of-range resolution and passes application
+validation. Reconsider it whenever the parent version changes; the selector
+intentionally applies only to platform-js `3.0.0`. Detailed rationale and
+removal obligations are retained in the repository's
+`docs/security-compatibility-overrides.md`.
+
+Do **not** copy the repository's TypeDoc, glob, lint or documentation-tooling
+overrides into a runtime application as part of this SDK workaround. Manage
+application tooling separately.
+
 ## Dust readiness uses indexed block time
 
 `registerForDustGeneration(wallet, keystore, readinessOptions)` now requires a
@@ -94,11 +153,14 @@ operations. See the method specification for the current custody posture.
 
 ## Toolchain and validation
 
-From a source checkout in the repository Nix shell:
+From a source checkout in the repository Nix shell, verify that the compiler
+banner reports `0.36.0`. The shell already exports an immutable, pinned
+`COMPACT_DIRECTORY`; do not update that toolchain or change the global manager
+configuration from this recipe.
 
 ```bash
 pnpm install --frozen-lockfile
-compact update 0.36.0
+compact compile --version
 pnpm run verify
 ./run.sh --strict
 pnpm run check:managed-artifacts
