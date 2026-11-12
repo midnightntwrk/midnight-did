@@ -25,11 +25,13 @@ import {
 } from "./destructive-output-path.mjs";
 import {
   assertCleanExactHead,
+  assertSupportedCompactVersion,
   assertSupportedNodeVersion,
   assertSupportedNpmVersion,
   canonicalJson,
   hashDirectory,
   loadAndValidateBaseline,
+  parseCompactCompilerVersion,
   sha256,
   validateEvidence,
 } from "./external-conformance-lib.mjs";
@@ -297,6 +299,91 @@ test("supported npm 11 patches are accepted and other majors or malformed versio
       /npm major 11/u,
     );
   }
+});
+
+const supportedCompactOutputs = [
+  "0.36.0",
+  "0.36.0 (b5d9e4dfc 2026-11-03)",
+  "0.36.0 (b5d9e4dfc532fe47011c4f6296e254f4853eb469 2026-11-03)",
+];
+
+const unsupportedCompactOutputs = [
+  "0.36.1",
+  "0.36.1 (b5d9e4dfc 2026-11-03)",
+  "0.35.0",
+  "0.36.0-rc.1",
+  "0.36.0-rc.1 (b5d9e4dfc 2026-11-03)",
+  "0.36.0+unreviewed",
+  "00.36.0",
+  "0.036.0",
+  "v0.36.0",
+  "compact 0.36.0",
+  "unavailable",
+  " 0.36.0",
+  "0.36.0 ",
+  "0.36.0\n",
+  "0.36.0\r\n",
+  "0.36.0\n0.36.1",
+  "warning\n0.36.0",
+  "0.36.0\u0000",
+  "0.36.0 (b5d9e4dfc 2026-11-03) trailing",
+  "0.36.0 (not-a-sha 2026-11-03)",
+  "0.36.0 (b5d9e4 2026-11-03)",
+  "0.36.0 (b5d9e4dfc 2026-1-03)",
+  "0.36.0 (b5d9e4dfc 2026-13-03)",
+  "0.36.0 (b5d9e4dfc 2026-02-30)",
+  "0.36.0 (b5d9e4dfc 2026-11-03",
+  "0.36.0 (b5d9e4dfc\n2026-11-03)",
+];
+
+test("Compact preflight accepts only the exact stable baseline and supported build banners", () => {
+  for (const output of supportedCompactOutputs) {
+    assert.equal(parseCompactCompilerVersion(output), "0.36.0");
+    assert.equal(assertSupportedCompactVersion(output, "0.36.0"), output);
+  }
+  for (const output of unsupportedCompactOutputs) {
+    assert.throws(
+      () => assertSupportedCompactVersion(output, "0.36.0"),
+      /Compact compiler/u,
+      JSON.stringify(output),
+    );
+  }
+  assert.throws(
+    () => assertSupportedCompactVersion("0.36.0", supportedCompactOutputs[1]),
+    /does not match baseline/u,
+  );
+});
+
+test("canonical evidence preserves full Compact banners and rejects compiler identity drift", () => {
+  const baseline = loadAndValidateBaseline(baselineUrl);
+  for (const output of supportedCompactOutputs) {
+    const evidence = createValidEvidence(baseline);
+    evidence.toolchains.compact = output;
+    assert.doesNotThrow(() => validateEvidence(evidence, baseline));
+    const serialized = canonicalJson(evidence);
+    const retained = JSON.parse(serialized);
+    assert.equal(retained.toolchains.compact, output);
+    assert.doesNotThrow(() => validateEvidence(retained, baseline));
+  }
+  for (const output of unsupportedCompactOutputs) {
+    const evidence = createValidEvidence(baseline);
+    evidence.toolchains.compact = output;
+    assert.throws(
+      () => validateEvidence(evidence, baseline),
+      /Compact compiler/u,
+      JSON.stringify(output),
+    );
+  }
+  const historicalBaseline = structuredClone(baseline);
+  historicalBaseline.toolchains.compact = "0.31.1";
+  const historicalEvidence = createValidEvidence(historicalBaseline);
+  assert.doesNotThrow(() =>
+    validateEvidence(historicalEvidence, historicalBaseline),
+  );
+  assert.throws(
+    () => validateEvidence(historicalEvidence, baseline),
+    /does not match baseline/u,
+  );
 });
 
 test("trusted evidence validation fails closed on status, count, runtime, and identity drift", () => {
