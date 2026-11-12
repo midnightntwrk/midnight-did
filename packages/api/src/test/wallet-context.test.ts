@@ -7,12 +7,16 @@ const mocks = vi.hoisted(() => {
   const unshieldedWallet = { kind: "unshielded" };
   const dustWallet = { kind: "dust" };
   const wallet = { start: vi.fn() };
+  const seeds = {
+    shielded: new Uint8Array([11]),
+    unshielded: new Uint8Array([22]),
+    dust: new Uint8Array([33]),
+  };
   const keys = {
     zswap: new Uint8Array([1]),
     nightExternal: new Uint8Array([2]),
     dust: new Uint8Array([3]),
   };
-
   return {
     freshHistory,
     restoredHistory,
@@ -20,96 +24,82 @@ const mocks = vi.hoisted(() => {
     unshieldedWallet,
     dustWallet,
     wallet,
+    seeds,
     keys,
     shieldedSecretKeys: { kind: "shielded-secret-keys" },
     dustSecretKey: { kind: "dust-secret-key" },
     unshieldedKeystore: { kind: "unshielded-keystore" },
     publicKey: { kind: "public-key" },
-    dustParameters: { kind: "dust-parameters" },
-    shieldedConfig: { shieldedConfig: true },
-    unshieldedConfig: { unshieldedConfig: true },
-    dustConfig: { dustConfig: true },
     loggerInfo: vi.fn(),
+    networkId: vi.fn(),
     deriveMidnightWalletKeys: vi.fn(),
     createUnshieldedKeystoreFromKeys: vi.fn(),
     zswapFromSeed: vi.fn(),
     dustFromSeed: vi.fn(),
-    initialParameters: vi.fn(),
     historyConstructor: vi.fn(),
-    historyFromSerialized: vi.fn(),
+    historyRestore: vi.fn(),
     publicKeyFromKeyStore: vi.fn(),
-    buildShieldedConfig: vi.fn(),
-    buildUnshieldedConfig: vi.fn(),
-    buildDustConfig: vi.fn(),
+    walletSeedsFromMasterSeed: vi.fn(),
+    shieldedFactory: vi.fn(),
     shieldedRestore: vi.fn(),
-    shieldedStart: vi.fn(),
+    shieldedStartSeed: vi.fn(),
+    unshieldedFactory: vi.fn(),
     unshieldedRestore: vi.fn(),
     unshieldedStart: vi.fn(),
+    dustFactory: vi.fn(),
     dustRestore: vi.fn(),
-    dustStart: vi.fn(),
+    dustStartSeed: vi.fn(),
     walletFacadeInit: vi.fn(),
+    protocolVersion: { V9NativeForkSchedule: { v9: 2_000_000 } },
   };
 });
 
-vi.mock("@midnight-ntwrk/ledger-v8", () => ({
+vi.mock("@midnightntwrk/ledger-v9", () => ({
   ZswapSecretKeys: { fromSeed: mocks.zswapFromSeed },
   DustSecretKey: { fromSeed: mocks.dustFromSeed },
-  LedgerParameters: { initialParameters: mocks.initialParameters },
 }));
 
-vi.mock("@midnight-ntwrk/wallet-sdk-hd", () => ({
-  Roles: {
-    Zswap: "zswap",
-    NightExternal: "nightExternal",
-    Dust: "dust",
-  },
-}));
-
-vi.mock("@midnight-ntwrk/wallet-sdk-shielded", () => ({
-  ShieldedWallet: vi.fn(() => ({
-    restore: mocks.shieldedRestore,
-    startWithSecretKeys: mocks.shieldedStart,
-  })),
-}));
-
-vi.mock("@midnight-ntwrk/wallet-sdk-unshielded-wallet", () => ({
+vi.mock("@midnight-ntwrk/wallet-sdk-abstractions", () => ({
   InMemoryTransactionHistoryStorage: Object.assign(
     vi.fn(function InMemoryTransactionHistoryStorage() {
       return mocks.historyConstructor();
     }),
-    { fromSerialized: mocks.historyFromSerialized },
+    { restore: mocks.historyRestore },
   ),
-  PublicKey: { fromKeyStore: mocks.publicKeyFromKeyStore },
-  UnshieldedWallet: vi.fn(() => ({
-    restore: mocks.unshieldedRestore,
-    startWithPublicKey: mocks.unshieldedStart,
-  })),
+  ProtocolVersion: mocks.protocolVersion,
 }));
 
+vi.mock("@midnight-ntwrk/wallet-sdk-hd", () => ({
+  Roles: { Zswap: "zswap", NightExternal: "nightExternal", Dust: "dust" },
+  WalletSeeds: { fromMasterSeed: mocks.walletSeedsFromMasterSeed },
+}));
+
+vi.mock("@midnight-ntwrk/wallet-sdk-shielded", () => ({
+  ShieldedWallet: mocks.shieldedFactory,
+}));
+vi.mock("@midnight-ntwrk/wallet-sdk-unshielded-wallet", () => ({
+  PublicKey: { fromKeyStore: mocks.publicKeyFromKeyStore },
+  UnshieldedWallet: mocks.unshieldedFactory,
+}));
 vi.mock("@midnight-ntwrk/wallet-sdk-dust-wallet", () => ({
-  DustWallet: vi.fn(() => ({
-    restore: mocks.dustRestore,
-    startWithSecretKey: mocks.dustStart,
-  })),
+  DustWallet: mocks.dustFactory,
 }));
 
 vi.mock("@midnight-ntwrk/wallet-sdk-facade", () => ({
   WalletFacade: { init: mocks.walletFacadeInit },
+  WalletEntrySchema: { kind: "wallet-entry-schema" },
+  mergeWalletEntries: vi.fn(),
 }));
 
 vi.mock("../api-logger.js", () => ({
   getLogger: () => ({ info: mocks.loggerInfo }),
 }));
-
+vi.mock("../network-context.js", () => ({
+  getCurrentNetworkId: mocks.networkId,
+}));
 vi.mock("../wallet-keys.js", () => ({
   deriveMidnightWalletKeys: mocks.deriveMidnightWalletKeys,
   createUnshieldedKeystoreFromKeys: mocks.createUnshieldedKeystoreFromKeys,
-}));
-
-vi.mock("../wallet-sdk-config.js", () => ({
-  buildShieldedConfig: mocks.buildShieldedConfig,
-  buildUnshieldedConfig: mocks.buildUnshieldedConfig,
-  buildDustConfig: mocks.buildDustConfig,
 }));
 
 import { type Config } from "../config.js";
@@ -122,152 +112,172 @@ const config: Config = {
   node: "http://node",
   proofServer: "http://proof",
 };
-
+const seed = "11".repeat(32);
 const snapshot = {
   shieldedState: "shielded-state",
   unshieldedState: "unshielded-state",
   dustState: "dust-state",
-  unshieldedHistory: "history-state",
+  unshieldedHistory: JSON.stringify({ history: true }),
+};
+const resolvedConfig = {
+  ...config,
+  networkId: "testnet",
+  forks: mocks.protocolVersion.V9NativeForkSchedule,
+  txHistoryStorage: { source: "shared-feeding-history" },
 };
 
 describe("wallet context", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.networkId.mockReturnValue("testnet");
     mocks.deriveMidnightWalletKeys.mockReturnValue(mocks.keys);
     mocks.createUnshieldedKeystoreFromKeys.mockReturnValue(
       mocks.unshieldedKeystore,
     );
     mocks.zswapFromSeed.mockReturnValue(mocks.shieldedSecretKeys);
     mocks.dustFromSeed.mockReturnValue(mocks.dustSecretKey);
-    mocks.initialParameters.mockReturnValue({ dust: mocks.dustParameters });
+    mocks.walletSeedsFromMasterSeed.mockReturnValue(mocks.seeds);
     mocks.historyConstructor.mockReturnValue(mocks.freshHistory);
-    mocks.historyFromSerialized.mockReturnValue(mocks.restoredHistory);
+    mocks.historyRestore.mockReturnValue(mocks.restoredHistory);
     mocks.publicKeyFromKeyStore.mockReturnValue(mocks.publicKey);
-    mocks.buildShieldedConfig.mockReturnValue(mocks.shieldedConfig);
-    mocks.buildUnshieldedConfig.mockReturnValue(mocks.unshieldedConfig);
-    mocks.buildDustConfig.mockReturnValue(mocks.dustConfig);
+    mocks.shieldedFactory.mockImplementation((resolved: unknown) => ({
+      config: resolved,
+      restore: mocks.shieldedRestore,
+      startWithSeed: mocks.shieldedStartSeed,
+    }));
+    mocks.unshieldedFactory.mockImplementation((resolved: unknown) => ({
+      config: resolved,
+      restore: mocks.unshieldedRestore,
+      startWithPublicKey: mocks.unshieldedStart,
+    }));
+    mocks.dustFactory.mockImplementation((resolved: unknown) => ({
+      config: resolved,
+      restore: mocks.dustRestore,
+      startWithSeed: mocks.dustStartSeed,
+    }));
     mocks.shieldedRestore.mockReturnValue(mocks.shieldedWallet);
-    mocks.shieldedStart.mockReturnValue(mocks.shieldedWallet);
+    mocks.shieldedStartSeed.mockResolvedValue(mocks.shieldedWallet);
     mocks.unshieldedRestore.mockReturnValue(mocks.unshieldedWallet);
-    mocks.unshieldedStart.mockReturnValue(mocks.unshieldedWallet);
+    mocks.unshieldedStart.mockResolvedValue(mocks.unshieldedWallet);
     mocks.dustRestore.mockReturnValue(mocks.dustWallet);
-    mocks.dustStart.mockReturnValue(mocks.dustWallet);
-    mocks.walletFacadeInit.mockResolvedValue(mocks.wallet);
+    mocks.dustStartSeed.mockResolvedValue(mocks.dustWallet);
+    mocks.walletFacadeInit.mockImplementation(async (init: any) => {
+      const resolved = {
+        ...init.configuration,
+        txHistoryStorage: resolvedConfig.txHistoryStorage,
+      };
+      await init.shielded(resolved);
+      await init.unshielded(resolved);
+      await init.dust(resolved);
+      return mocks.wallet;
+    });
     mocks.wallet.start.mockResolvedValue(undefined);
   });
 
-  it("constructs and starts a fresh wallet from derived keys", async () => {
-    await expect(createWalletContext(config, "seed")).resolves.toEqual({
+  it("starts every component from its role seed and snapshots the network", async () => {
+    const context = await createWalletContext(config, seed);
+
+    expect(mocks.walletSeedsFromMasterSeed).toHaveBeenCalledWith(
+      Buffer.from(seed, "hex"),
+    );
+    expect(mocks.shieldedStartSeed).toHaveBeenCalledWith(mocks.seeds.shielded);
+    expect(mocks.dustStartSeed).toHaveBeenCalledWith(mocks.seeds.dust);
+    expect(mocks.unshieldedStart).toHaveBeenCalledWith(mocks.publicKey);
+    expect(mocks.createUnshieldedKeystoreFromKeys).toHaveBeenCalledWith(
+      mocks.keys,
+      "testnet",
+    );
+    expect(mocks.walletFacadeInit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        configuration: expect.objectContaining({
+          networkId: "testnet",
+          txHistoryStorage: mocks.freshHistory,
+        }),
+      }),
+    );
+    expect(mocks.wallet.start).toHaveBeenCalledWith(mocks.seeds);
+    expect(context).toMatchObject({
+      networkId: "testnet",
       wallet: mocks.wallet,
       shieldedWallet: mocks.shieldedWallet,
       unshieldedWallet: mocks.unshieldedWallet,
       dustWallet: mocks.dustWallet,
       unshieldedHistoryStorage: mocks.freshHistory,
-      shieldedSecretKeys: mocks.shieldedSecretKeys,
-      dustSecretKey: mocks.dustSecretKey,
-      unshieldedKeystore: mocks.unshieldedKeystore,
     });
+  });
 
-    expect(mocks.deriveMidnightWalletKeys).toHaveBeenCalledWith("seed");
-    expect(mocks.zswapFromSeed).toHaveBeenCalledWith(mocks.keys.zswap);
-    expect(mocks.dustFromSeed).toHaveBeenCalledWith(mocks.keys.dust);
-    expect(mocks.createUnshieldedKeystoreFromKeys).toHaveBeenCalledWith(
-      mocks.keys,
+  it("uses the facade-supplied shared history and components built inside callbacks", async () => {
+    await createWalletContext(config, seed);
+
+    expect(mocks.shieldedFactory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        txHistoryStorage: resolvedConfig.txHistoryStorage,
+      }),
     );
-    expect(mocks.publicKeyFromKeyStore).toHaveBeenCalledWith(
-      mocks.unshieldedKeystore,
+    expect(mocks.unshieldedFactory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        txHistoryStorage: resolvedConfig.txHistoryStorage,
+      }),
     );
-    expect(mocks.shieldedStart).toHaveBeenCalledWith(mocks.shieldedSecretKeys);
-    expect(mocks.unshieldedStart).toHaveBeenCalledWith(mocks.publicKey);
-    expect(mocks.dustStart).toHaveBeenCalledWith(
-      mocks.dustSecretKey,
-      mocks.dustParameters,
-    );
-    expect(mocks.wallet.start).toHaveBeenCalledWith(
-      mocks.shieldedSecretKeys,
-      mocks.dustSecretKey,
+    expect(mocks.dustFactory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        txHistoryStorage: resolvedConfig.txHistoryStorage,
+      }),
     );
   });
 
-  it("restores every wallet component and serialized history with exact facade wiring", async () => {
-    await createWalletContext(config, "seed", snapshot);
+  it("restores every component and the shared history from a snapshot", async () => {
+    await createWalletContext(config, seed, snapshot);
 
-    expect(mocks.historyFromSerialized).toHaveBeenCalledWith("history-state");
+    expect(mocks.historyRestore).toHaveBeenCalledWith(
+      { history: true },
+      expect.anything(),
+      expect.anything(),
+    );
     expect(mocks.shieldedRestore).toHaveBeenCalledWith("shielded-state");
     expect(mocks.unshieldedRestore).toHaveBeenCalledWith("unshielded-state");
     expect(mocks.dustRestore).toHaveBeenCalledWith("dust-state");
-    expect(mocks.shieldedStart).not.toHaveBeenCalled();
+    expect(mocks.shieldedStartSeed).not.toHaveBeenCalled();
     expect(mocks.unshieldedStart).not.toHaveBeenCalled();
-    expect(mocks.dustStart).not.toHaveBeenCalled();
-    expect(mocks.buildUnshieldedConfig).toHaveBeenCalledWith(
-      config,
-      mocks.restoredHistory,
-    );
-    expect(mocks.walletFacadeInit).toHaveBeenCalledWith({
-      configuration: {
-        ...mocks.shieldedConfig,
-        ...mocks.unshieldedConfig,
-        ...mocks.dustConfig,
-      },
-      shielded: expect.any(Function),
-      unshielded: expect.any(Function),
-      dust: expect.any(Function),
-    });
-
-    const facadeInput = mocks.walletFacadeInit.mock.calls[0]?.[0];
-    await expect(facadeInput.shielded()).resolves.toBe(mocks.shieldedWallet);
-    await expect(facadeInput.unshielded()).resolves.toBe(
-      mocks.unshieldedWallet,
-    );
-    await expect(facadeInput.dust()).resolves.toBe(mocks.dustWallet);
+    expect(mocks.dustStartSeed).not.toHaveBeenCalled();
   });
 
-  it("uses fresh history storage when an otherwise complete snapshot omits history", async () => {
-    const { unshieldedHistory: _history, ...snapshotWithoutHistory } = snapshot;
+  it("keeps the network captured before deferred initialization", async () => {
+    mocks.networkId
+      .mockReturnValueOnce("testnet")
+      .mockReturnValueOnce("mainnet");
 
-    const context = await createWalletContext(
-      config,
-      "seed",
-      snapshotWithoutHistory,
+    await createWalletContext(config, seed, snapshot);
+
+    expect(mocks.createUnshieldedKeystoreFromKeys).toHaveBeenCalledWith(
+      mocks.keys,
+      "testnet",
     );
-
-    expect(context.unshieldedHistoryStorage).toBe(mocks.freshHistory);
-    expect(mocks.historyFromSerialized).not.toHaveBeenCalled();
-    expect(mocks.buildUnshieldedConfig).toHaveBeenCalledWith(
-      config,
-      mocks.freshHistory,
+    expect(mocks.walletFacadeInit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        configuration: expect.objectContaining({ networkId: "testnet" }),
+      }),
     );
   });
 
-  it("propagates restore failure and short-circuits later factories and facade initialization", async () => {
+  it("propagates restore failure without initializing the facade", async () => {
     mocks.shieldedRestore.mockImplementationOnce(() => {
       throw new Error("shielded restore failed");
     });
 
-    await expect(createWalletContext(config, "seed", snapshot)).rejects.toThrow(
+    await expect(createWalletContext(config, seed, snapshot)).rejects.toThrow(
       "shielded restore failed",
     );
-    expect(mocks.unshieldedRestore).not.toHaveBeenCalled();
-    expect(mocks.dustRestore).not.toHaveBeenCalled();
-    expect(mocks.walletFacadeInit).not.toHaveBeenCalled();
-  });
-
-  it("propagates facade initialization failure without starting the facade", async () => {
-    mocks.walletFacadeInit.mockRejectedValueOnce(new Error("init failed"));
-
-    await expect(createWalletContext(config, "seed")).rejects.toThrow(
-      "init failed",
-    );
+    expect(mocks.walletFacadeInit).toHaveBeenCalledOnce();
     expect(mocks.wallet.start).not.toHaveBeenCalled();
   });
 
   it("propagates facade start failure after initialization", async () => {
     mocks.wallet.start.mockRejectedValueOnce(new Error("start failed"));
 
-    await expect(createWalletContext(config, "seed")).rejects.toThrow(
+    await expect(createWalletContext(config, seed)).rejects.toThrow(
       "start failed",
     );
     expect(mocks.walletFacadeInit).toHaveBeenCalledOnce();
-    expect(mocks.wallet.start).toHaveBeenCalledOnce();
   });
 });

@@ -13,6 +13,10 @@ import {
   parseContractAddress,
 } from "@midnight-ntwrk/midnight-did/midnight";
 import {
+  DIDContract,
+  signControllerAuthorization,
+} from "@midnight-ntwrk/midnight-did-contract";
+import {
   createService,
   createVerificationMethod,
   CurveType,
@@ -49,7 +53,7 @@ import {
   type MidnightDIDProviders,
 } from "../index.js";
 import { createLogger } from "../logger-utils.js";
-import { TestEnvironment } from "./commons.js";
+import { type TestConfiguration, TestEnvironment } from "./commons.js";
 
 const logDir = path.resolve(
   currentDir,
@@ -235,6 +239,11 @@ describeApi("Midnight DID method API", () => {
   let contractAddress: ReturnType<typeof parseContractAddress>;
   let didString: MidnightDIDString;
   let didAsDid: ReturnType<typeof DIDStringSchema.parse>;
+  let testConfig: TestConfiguration;
+  let oldControllerSecret: Uint8Array;
+  let restoredWalletCtx: api.MidnightDIDWalletContext | undefined;
+  let restoredProviders: MidnightDIDProviders | undefined;
+  let restoredContract: DeployedMidnightDIDContract | undefined;
   const serviceId = ServiceIdSchema.parse("#service-1");
   const secondAlias = DIDStringSchema.parse("did:example:aka-2");
 
@@ -247,6 +256,7 @@ describeApi("Midnight DID method API", () => {
       api.setLogger(logger);
       testEnvironment = new TestEnvironment(logger);
       const testConfiguration = await testEnvironment.start();
+      testConfig = testConfiguration;
       walletCtx = await testEnvironment.getWallet();
       providers = await api.configureProviders(
         walletCtx,
@@ -267,8 +277,11 @@ describeApi("Midnight DID method API", () => {
       );
       return;
     }
+    if (restoredWalletCtx !== undefined) {
+      await restoredWalletCtx.wallet.stop();
+    }
     await testEnvironment.shutdown();
-  });
+  }, 120_000);
 
   it("should publish the associated smart-contract to the Midnight blockchain with an empty state", async () => {
     const privateState = await api.initPrivateState(providers);
@@ -319,6 +332,124 @@ describeApi("Midnight DID method API", () => {
     const alias = "did:example:rotated-controller";
     await api.addAlsoKnownAs(contract, providers, alias);
     await api.removeAlsoKnownAs(contract, providers, alias);
+  });
+
+  it("should find and join the deployed DID with matching document state", async () => {
+    const joined = await api.joinContract(providers, contractAddress);
+    expect(joined.deployTxData.public.contractAddress).toBe(contractAddress);
+    const joinedResolution = await api.resolve(providers, joined);
+    expect(joinedResolution?.didDocument.id).toBe(didString);
+    const [state, joinedState] = await Promise.all([
+      api.getMidnightDIDLedgerState(providers, contractAddress),
+      api.getMidnightDIDLedgerState(
+        providers,
+        parseContractAddress(joined.deployTxData.public.contractAddress),
+      ),
+    ]);
+    expect(joinedState?.version).toBe(state?.version);
+    expect([...(joinedState?.alsoKnownAs ?? [])]).toEqual([
+      ...(state?.alsoKnownAs ?? []),
+    ]);
+  });
+
+  it("should recover the controller key with the generated recovery secret and keep updates authorized", async () => {
+    const beforeRecovery = await api.getMidnightDIDLedgerState(
+      providers,
+      contractAddress,
+    );
+    oldControllerSecret = (await api.requirePrivateState(providers)).secretKey;
+
+    await expect(
+      api.recoverControllerKey(contract, providers),
+    ).resolves.toBeDefined();
+
+    const afterRecovery = await api.getMidnightDIDLedgerState(
+      providers,
+      contractAddress,
+    );
+    expect(afterRecovery!.controllerPublicKey).not.toEqual(
+      beforeRecovery!.controllerPublicKey,
+    );
+    expect(afterRecovery!.version).toBeGreaterThan(beforeRecovery!.version);
+    const promoted = await api.requirePrivateState(providers);
+    expect(promoted.secretKey).not.toEqual(oldControllerSecret);
+
+    const alias = "did:example:post-recovery-update";
+    await api.addAlsoKnownAs(contract, providers, alias);
+    const afterUpdate = await api.getMidnightDIDLedgerState(
+      providers,
+      contractAddress,
+    );
+    expect([...(afterUpdate?.alsoKnownAs ?? [])]).toContain(alias);
+  });
+
+  it("should reject stale-version and old-controller authorizations without ledger mutation", async () => {
+    const staleState = await api.getMidnightDIDLedgerState(
+      providers,
+      contractAddress,
+    );
+    const currentPrivateState = await api.requirePrivateState(providers);
+    const staleAlias = "did:example:stale-authorization";
+    const staleSignature = signControllerAuthorization(
+      currentPrivateState.secretKey,
+      DIDContract.pureCircuits.setAlsoKnownAsAuthorizationDigest(
+        staleState!.id,
+        staleState!.version,
+        staleAlias,
+        DIDContract.SetMutation.Insert,
+      ) as api.SchnorrJubjubDigest,
+    );
+
+    const advanceAlias = "did:example:advance-version";
+    await api.addAlsoKnownAs(contract, providers, advanceAlias);
+    const afterAdvance = await api.getMidnightDIDLedgerState(
+      providers,
+      contractAddress,
+    );
+    await expect(
+      contract.callTx.setAlsoKnownAs(
+        staleAlias,
+        DIDContract.SetMutation.Insert,
+        staleSignature,
+        staleState!.version,
+      ),
+    ).rejects.toThrow(/Controller authorization version is stale/u);
+    const afterStale = await api.getMidnightDIDLedgerState(
+      providers,
+      contractAddress,
+    );
+    expect(afterStale?.version).toBe(afterAdvance?.version);
+    expect([...(afterStale?.alsoKnownAs ?? [])]).toEqual([
+      ...(afterAdvance?.alsoKnownAs ?? []),
+    ]);
+    expect([...(afterStale?.alsoKnownAs ?? [])]).not.toContain(staleAlias);
+
+    const unauthorizedAlias = "did:example:old-controller";
+    const unauthorizedSignature = signControllerAuthorization(
+      oldControllerSecret,
+      DIDContract.pureCircuits.setAlsoKnownAsAuthorizationDigest(
+        afterStale!.id,
+        afterStale!.version,
+        unauthorizedAlias,
+        DIDContract.SetMutation.Insert,
+      ) as api.SchnorrJubjubDigest,
+    );
+    await expect(
+      contract.callTx.setAlsoKnownAs(
+        unauthorizedAlias,
+        DIDContract.SetMutation.Insert,
+        unauthorizedSignature,
+        afterStale!.version,
+      ),
+    ).rejects.toThrow(/Invalid Jubjub Schnorr signature/u);
+    const afterUnauthorized = await api.getMidnightDIDLedgerState(
+      providers,
+      contractAddress,
+    );
+    expect(afterUnauthorized?.version).toBe(afterStale?.version);
+    expect([...(afterUnauthorized?.alsoKnownAs ?? [])]).toEqual([
+      ...(afterStale?.alsoKnownAs ?? []),
+    ]);
   });
 
   it("should resolve the DID Document including a reference to the DID Core 1.0 specification in the `@context` property", async () => {
@@ -989,9 +1120,57 @@ describeApi("Midnight DID method API", () => {
     ).rejects.toThrow(/aliasUri must not be empty/);
   });
 
+  it("should serialize and restore wallet history, then update using restored-wallet balancing and signing", async () => {
+    const snapshot = await api.serializeWalletState(walletCtx);
+    expect(snapshot.unshieldedHistory).toBeDefined();
+    restoredWalletCtx = await api.restoreWalletFromState(
+      testConfig.dappConfig,
+      testConfig.seed,
+      snapshot,
+    );
+    await api.waitForWalletSync(restoredWalletCtx);
+    const restoredHistory = JSON.stringify(
+      await restoredWalletCtx.unshieldedHistoryStorage.serialize(),
+    );
+    expect(restoredHistory).toBe(snapshot.unshieldedHistory);
+    const restoredWalletAndMidnightProvider =
+      await api.createWalletAndMidnightProvider(restoredWalletCtx);
+    restoredProviders = {
+      ...providers,
+      walletProvider: restoredWalletAndMidnightProvider,
+      midnightProvider: restoredWalletAndMidnightProvider,
+    };
+    await api.registerForDustGeneration(
+      restoredWalletCtx.wallet,
+      restoredWalletCtx.unshieldedKeystore,
+      {
+        indexedBlockTime: api.createIndexerIndexedBlockTime(
+          testConfig.dappConfig.indexer,
+        ),
+        timeoutMs: 120_000,
+      },
+    );
+    restoredContract = await api.joinContract(
+      restoredProviders,
+      contractAddress,
+    );
+    const alias = "did:example:restored-wallet-update";
+    await api.addAlsoKnownAs(restoredContract, restoredProviders, alias);
+    const state = await api.getMidnightDIDLedgerState(
+      restoredProviders,
+      contractAddress,
+    );
+    expect([...(state?.alsoKnownAs ?? [])]).toContain(alias);
+  });
+
   it("should deactivate the DID", async () => {
-    await api.deactivate(contract, providers);
-    const resolution = await api.resolve(providers, contract);
+    const deactivationProviders = restoredProviders ?? providers;
+    const deactivationContract = restoredContract ?? contract;
+    await api.deactivate(deactivationContract, deactivationProviders);
+    const resolution = await api.resolve(
+      deactivationProviders,
+      deactivationContract,
+    );
     expect(resolution?.didDocumentMetadata.deactivated).toBe(true);
   });
 });

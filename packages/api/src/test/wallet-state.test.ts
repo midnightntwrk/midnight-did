@@ -1,4 +1,4 @@
-import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
+import { unshieldedToken } from "@midnightntwrk/ledger-v9";
 import * as Rx from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -40,7 +40,7 @@ describe("wallet state helpers", () => {
       shieldedState: "shielded-state",
       unshieldedState: "unshielded-state",
       dustState: "dust-state",
-      unshieldedHistory: "history-state",
+      unshieldedHistory: JSON.stringify("history-state"),
     });
   });
 

@@ -131,7 +131,9 @@ const publishedPackageNames = () =>
   publishWorkspaces.map((workspace) => {
     const manifest = packageManifestCatalog.get(workspace);
     if (!manifest) {
-      throw new Error(`Missing package manifest catalog entry for ${workspace}`);
+      throw new Error(
+        `Missing package manifest catalog entry for ${workspace}`,
+      );
     }
     return manifest.name;
   });
@@ -142,10 +144,18 @@ const writeNpmAuthConfig = ({ directory, registry, token }) => {
     const registryHost = new URL(registry).host;
     npmrcLines.push(`//${registryHost}/:_authToken=${token}`);
   }
-  fs.writeFileSync(path.join(directory, ".npmrc"), `${npmrcLines.join("\n")}\n`);
+  fs.writeFileSync(
+    path.join(directory, ".npmrc"),
+    `${npmrcLines.join("\n")}\n`,
+  );
 };
 
-const packageTarballUrl = ({ consumerRoot, packageName, registry, version }) => {
+const packageTarballUrl = ({
+  consumerRoot,
+  packageName,
+  registry,
+  version,
+}) => {
   const result = run(
     "npm",
     [
@@ -363,8 +373,11 @@ const smokeNpmPackages = async ({
   try {
     fs.writeFileSync(
       path.join(consumerRoot, "package.json"),
-      JSON.stringify({ name: "did-npm-smoke", private: true, type: "module" }, null, 2) +
-        "\n",
+      JSON.stringify(
+        { name: "did-npm-smoke", private: true, type: "module" },
+        null,
+        2,
+      ) + "\n",
     );
 
     writeNpmAuthConfig({
@@ -421,7 +434,9 @@ const smokeNpmPackages = async ({
 const extractArchive = (archivePath) => {
   const absoluteArchivePath = path.resolve(archivePath);
   if (!fs.existsSync(absoluteArchivePath)) {
-    throw new Error(`ZK artifact archive does not exist: ${absoluteArchivePath}`);
+    throw new Error(
+      `ZK artifact archive does not exist: ${absoluteArchivePath}`,
+    );
   }
 
   const extractRoot = fs.mkdtempSync(path.join(os.tmpdir(), "did-zk-smoke-"));
@@ -434,10 +449,14 @@ const artifactFilePath = (extractRoot, input) => {
   const relativePath = url.pathname.replace(/^\/+/u, "");
   const normalizedPath = path.posix.normalize(relativePath);
 
+  const isArtifact =
+    /^(keys|zkir)\//u.test(normalizedPath) ||
+    normalizedPath === "compiler/contract-manifest.json" ||
+    normalizedPath === "compiler/contract-info.json";
   if (
     normalizedPath.startsWith("../") ||
     normalizedPath === ".." ||
-    !/^(keys|zkir)\//u.test(normalizedPath)
+    !isArtifact
   ) {
     return undefined;
   }
@@ -445,35 +464,37 @@ const artifactFilePath = (extractRoot, input) => {
   return path.join(extractRoot, ...normalizedPath.split("/"));
 };
 
-const fileBackedFetch = (extractRoot) => async (input, init = {}) => {
-  const method = init.method ?? "GET";
-  if (method !== "GET") {
-    return new Response("Method Not Allowed", {
-      status: 405,
-      statusText: "Method Not Allowed",
-    });
-  }
+const fileBackedFetch =
+  (extractRoot) =>
+  async (input, init = {}) => {
+    const method = init.method ?? "GET";
+    if (method !== "GET") {
+      return new Response("Method Not Allowed", {
+        status: 405,
+        statusText: "Method Not Allowed",
+      });
+    }
 
-  const filePath = artifactFilePath(extractRoot, input);
-  if (filePath === undefined) {
-    return new Response("Bad Request", {
-      status: 400,
-      statusText: "Bad Request",
-    });
-  }
+    const filePath = artifactFilePath(extractRoot, input);
+    if (filePath === undefined) {
+      return new Response("Bad Request", {
+        status: 400,
+        statusText: "Bad Request",
+      });
+    }
 
-  if (!fs.existsSync(filePath)) {
-    return new Response("Not Found", {
-      status: 404,
-      statusText: "Not Found",
-    });
-  }
+    if (!fs.existsSync(filePath)) {
+      return new Response("Not Found", {
+        status: 404,
+        statusText: "Not Found",
+      });
+    }
 
-  return new Response(fs.readFileSync(filePath), {
-    status: 200,
-    statusText: "OK",
-  });
-};
+    return new Response(fs.readFileSync(filePath), {
+      status: 200,
+      statusText: "OK",
+    });
+  };
 
 const serveExtractedArchive = async (extractRoot) => {
   const server = http.createServer((request, response) => {
@@ -596,7 +617,9 @@ if (
   !Number.isInteger(options.npmInstallRetryDelayMs) ||
   options.npmInstallRetryDelayMs < 0
 ) {
-  throw new Error("--npm-install-retry-delay-ms must be a non-negative integer");
+  throw new Error(
+    "--npm-install-retry-delay-ms must be a non-negative integer",
+  );
 }
 
 if (!["http", "injected"].includes(options.zkFetchMode)) {
@@ -608,7 +631,11 @@ if (options.skipNpm && options.skipZk) {
 }
 
 const artifactLocations = artifactLocationsForVersion(options.version);
-if (artifactLocations && options.ociRef && options.ociRef !== artifactLocations.ghcr.reference) {
+if (
+  artifactLocations &&
+  options.ociRef &&
+  options.ociRef !== artifactLocations.ghcr.reference
+) {
   throw new Error(
     `--oci-ref ${options.ociRef} does not match package version metadata ${artifactLocations.ghcr.reference}`,
   );
@@ -627,7 +654,9 @@ if (
   artifactLocations &&
   !artifactLocations.githubRelease
 ) {
-  throw new Error("GitHub Release ZK artifacts are not published for snapshot versions");
+  throw new Error(
+    "GitHub Release ZK artifacts are not published for snapshot versions",
+  );
 }
 
 if (!options.skipNpm) {

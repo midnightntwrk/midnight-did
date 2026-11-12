@@ -3,7 +3,7 @@ import {
   VerificationMethod,
   VerificationMethodRelationType,
 } from "@midnight-ntwrk/midnight-did-domain";
-import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
+import { type Ledger9FinalizedCallTxPublicData } from "@midnight-ntwrk/midnight-js-contracts";
 
 import { registeredContractProviders } from "./contract-provider-registry.js";
 import {
@@ -41,7 +41,7 @@ export const addVerificationMethod = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
   verificationMethod: VerificationMethod,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   const ledgerVerificationMethod = verificationMethodToLedger(
     didContract,
     verificationMethod,
@@ -87,7 +87,7 @@ export const updateVerificationMethod = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
   verificationMethod: VerificationMethod,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   const canonicalVerificationMethod = verificationMethodToLedger(
     didContract,
     verificationMethod,
@@ -144,7 +144,7 @@ export const removeVerificationMethod = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
   methodId: string,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   const canonicalMethodId = normalizeBoundFragmentId(
     didContract,
     methodId,
@@ -186,7 +186,7 @@ export const addSchnorrJubjubVerificationMethod = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
   verificationMethod: SchnorrJubjubVerificationMethod,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   const ledgerVerificationMethod = schnorrJubjubVerificationMethodToLedger(
     didContract,
     verificationMethod,
@@ -232,7 +232,7 @@ export const updateSchnorrJubjubVerificationMethod = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
   verificationMethod: SchnorrJubjubVerificationMethod,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   const canonicalVerificationMethod = schnorrJubjubVerificationMethodToLedger(
     didContract,
     verificationMethod,
@@ -284,7 +284,7 @@ export const removeSchnorrJubjubVerificationMethod = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
   methodId: string,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   const canonicalMethodId = normalizeBoundFragmentId(
     didContract,
     methodId,
@@ -336,7 +336,7 @@ type VerifySchnorrJubjubDigestSignature = {
     methodId: string,
     digest: SchnorrJubjubDigest,
     signature: SchnorrJubjubSignature,
-  ): Promise<FinalizedTxData>;
+  ): Promise<Ledger9FinalizedCallTxPublicData>;
   /**
    * @deprecated Pass `providers` as the second argument. Contract handles
    * created by `deploy`, `createDID`, or `joinContract` retain their providers
@@ -348,7 +348,7 @@ type VerifySchnorrJubjubDigestSignature = {
     methodId: string,
     digest: SchnorrJubjubDigest,
     signature: SchnorrJubjubSignature,
-  ): Promise<FinalizedTxData>;
+  ): Promise<Ledger9FinalizedCallTxPublicData>;
 };
 
 export const verifySchnorrJubjubDigestSignature: VerifySchnorrJubjubDigestSignature =
@@ -358,7 +358,7 @@ export const verifySchnorrJubjubDigestSignature: VerifySchnorrJubjubDigestSignat
     methodIdOrDigest: string | SchnorrJubjubDigest,
     digestOrSignature: SchnorrJubjubDigest | SchnorrJubjubSignature,
     maybeSignature?: SchnorrJubjubSignature,
-  ): Promise<FinalizedTxData> => {
+  ): Promise<Ledger9FinalizedCallTxPublicData> => {
     const stateAware = typeof providersOrMethodId !== "string";
     const methodId = stateAware
       ? (methodIdOrDigest as string)
@@ -405,7 +405,7 @@ export const addVerificationMethodRelation = async (
   providers: MidnightDIDProviders,
   relation: VerificationMethodRelationType,
   methodId: string,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   const canonicalMethodId = normalizeBoundFragmentId(
     didContract,
     methodId,
@@ -460,7 +460,7 @@ export const removeVerificationMethodRelation = async (
   providers: MidnightDIDProviders,
   relation: VerificationMethodRelationType,
   methodId: string,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   const canonicalMethodId = normalizeBoundFragmentId(
     didContract,
     methodId,

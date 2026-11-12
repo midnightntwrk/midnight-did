@@ -1,6 +1,5 @@
 import type { ProvableCircuitId } from "@midnight-ntwrk/compact-js";
 import type { JubjubPoint } from "@midnight-ntwrk/compact-runtime";
-import * as ledger from "@midnight-ntwrk/ledger-v8";
 import {
   DIDContract,
   type DIDPrivateState,
@@ -9,18 +8,28 @@ import type {
   DeployedContract,
   FoundContract,
 } from "@midnight-ntwrk/midnight-js-contracts";
-import type { MidnightProviders } from "@midnight-ntwrk/midnight-js-types";
-import type { DustWallet } from "@midnight-ntwrk/wallet-sdk-dust-wallet";
+import type {
+  MidnightProviders,
+  NetworkId,
+} from "@midnight-ntwrk/midnight-js-types";
+import type { InMemoryTransactionHistoryStorage } from "@midnight-ntwrk/wallet-sdk-abstractions";
+import type {
+  DustKeysByEpoch,
+  DustWalletAPI,
+} from "@midnight-ntwrk/wallet-sdk-dust-wallet";
 import type {
   FacadeState,
   WalletFacade,
 } from "@midnight-ntwrk/wallet-sdk-facade";
-import type { ShieldedWallet } from "@midnight-ntwrk/wallet-sdk-shielded";
 import type {
-  InMemoryTransactionHistoryStorage,
+  ShieldedKeysByEpoch,
+  ShieldedWalletAPI,
+} from "@midnight-ntwrk/wallet-sdk-shielded";
+import type {
   UnshieldedKeystore,
-  UnshieldedWallet,
+  UnshieldedWalletAPI,
 } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
+import * as ledger from "@midnightntwrk/ledger-v9";
 
 import {
   RUNTIME_TO_DOMAIN_NETWORK_MAP,
@@ -69,10 +78,12 @@ export type SchnorrJubjubDigest = [bigint, bigint, bigint, bigint];
 export type SchnorrJubjubSignature = DIDContract.Schnorr_SchnorrSignature;
 
 export interface MidnightDIDWalletContext {
+  /** Network captured when the wallet context was created. */
+  readonly networkId: NetworkId;
   wallet: WalletFacade;
-  shieldedWallet: ShieldedWallet;
-  unshieldedWallet: UnshieldedWallet;
-  dustWallet: DustWallet;
+  shieldedWallet: ShieldedWalletAPI<ShieldedKeysByEpoch>;
+  unshieldedWallet: UnshieldedWalletAPI;
+  dustWallet: DustWalletAPI<DustKeysByEpoch>;
   unshieldedHistoryStorage: InMemoryTransactionHistoryStorage;
   shieldedSecretKeys: ledger.ZswapSecretKeys;
   dustSecretKey: ledger.DustSecretKey;

@@ -8,13 +8,13 @@ import {
   normalizeBoundDIDURL as normalizeBoundDIDURLWithSubject,
   normalizeBoundFragmentId as normalizeBoundFragmentIdWithSubject,
 } from "@midnight-ntwrk/midnight-did-domain";
-import { getNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 
+import { getCurrentNetworkId } from "./network-context.js";
 import { RuntimeToDomain } from "./runtime-to-domain.js";
 import { type DeployedMidnightDIDContract } from "./types.js";
 
 export const getMidnightNetwork = (): MidnightNetwork =>
-  RuntimeToDomain.NetworkMap[getNetworkId()];
+  RuntimeToDomain.NetworkMap[getCurrentNetworkId()];
 
 export const getDidSubject = (
   didContract: DeployedMidnightDIDContract,

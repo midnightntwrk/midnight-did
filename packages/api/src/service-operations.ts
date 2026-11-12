@@ -1,6 +1,6 @@
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import { Service } from "@midnight-ntwrk/midnight-did-domain";
-import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
+import { type Ledger9FinalizedCallTxPublicData } from "@midnight-ntwrk/midnight-js-contracts";
 
 import {
   asSchnorrJubjubDigest,
@@ -23,7 +23,7 @@ export const addService = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
   service: Service,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   const ledgerService = serviceToLedger(didContract, service);
   const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
@@ -64,7 +64,7 @@ export const updateService = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
   service: Service,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   const canonicalService = serviceToLedger(didContract, service);
   const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
@@ -102,7 +102,7 @@ export const removeService = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
   serviceId: string,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   const canonicalServiceId = normalizeBoundDIDURL(
     didContract,
     serviceId,

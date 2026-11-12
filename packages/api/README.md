@@ -39,6 +39,33 @@ graph TD
   Providers --> Indexer
 ```
 
+## Dust Readiness
+
+`registerForDustGeneration` requires indexed block time as its third argument.
+SDK5 values spendable Dust at the indexed block time, not at wall-clock time, so
+callers must provide the reader explicitly:
+
+```ts
+import {
+  createIndexerIndexedBlockTime,
+  registerForDustGeneration,
+} from "@midnight-ntwrk/midnight-did-api";
+
+await registerForDustGeneration(
+  walletContext.wallet,
+  walletContext.unshieldedKeystore,
+  {
+    indexedBlockTime: createIndexerIndexedBlockTime(config.indexer),
+    timeoutMs: 120_000,
+  },
+);
+```
+
+`createIndexerIndexedBlockTime(indexerUrl)` returns the reference GraphQL
+adapter. The readiness wait is bounded by a single deadline across state reads,
+indexer reads, and polling. It never falls back to wall-clock balance or merely
+existing Dust coins, because genesis coins may still have zero spendable value.
+
 ## Update Sequence
 
 ```mermaid

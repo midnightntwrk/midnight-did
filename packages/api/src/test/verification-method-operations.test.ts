@@ -1,9 +1,10 @@
 import { VerificationMethodRelationType } from "@midnight-ntwrk/midnight-did-domain";
-import {
-  getNetworkId,
-  setNetworkId,
-} from "@midnight-ntwrk/midnight-js-network-id";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  getCurrentNetworkId,
+  setCurrentNetworkId,
+} from "../network-context.js";
 
 const mocks = vi.hoisted(() => ({
   createControllerAuthorization: vi.fn(
@@ -112,14 +113,14 @@ import {
 
 let previousNetworkId: string | undefined;
 try {
-  previousNetworkId = getNetworkId();
+  previousNetworkId = getCurrentNetworkId();
 } catch {
   previousNetworkId = undefined;
 }
-setNetworkId("undeployed");
+setCurrentNetworkId("undeployed");
 afterAll(() => {
   if (previousNetworkId !== undefined) {
-    setNetworkId(previousNetworkId);
+    setCurrentNetworkId(previousNetworkId);
   }
 });
 

@@ -70,12 +70,10 @@ interface DeploymentPrivateStateInterceptor {
 }
 
 /**
- * midnight-js-contracts 4.0.2 binds the target and then awaits active-state and
- * signing-key writes after ledger success. deployContract subsequently builds
- * the returned call interface, which binds the same target a second time.
- * Intercepting those operations reserves the finalized target before mutation
- * and tracks each post-finality setup stage without regressing on that repeat
- * binding.
+ * SDK5 deploy finalizes the target, calls forContract(address).set(...), then
+ * setSigningKey(address, key), and only afterwards constructs the returned
+ * handle. Intercepting those calls reserves the finalized target before
+ * mutation and records exactly which post-finality setup step failed.
  */
 const interceptDeploymentPrivateStateProvider = (
   providers: MidnightDIDProviders,
@@ -103,23 +101,22 @@ const interceptDeploymentPrivateStateProvider = (
 
   const privateStateProvider = new Proxy(provider, {
     get(target, property) {
-      if (property === "setContractAddress") {
-        return (contractAddress: string): void => {
+      if (property === "forContract") {
+        return (contractAddress: string): unknown => {
           if (!active) {
             // deployContract retains its providers in the returned call
             // interfaces. After deployment, behave like the original provider
             // without consulting this interceptor's settled lease.
-            provider.setContractAddress(contractAddress);
-            return;
+            return provider.forContract(contractAddress as never);
           }
           const canonicalContractAddress =
             parseContractAddress(contractAddress);
           if (observedContractAddress === undefined) {
             observedContractAddress = canonicalContractAddress;
           } else {
-            // createCircuitCallTxInterface performs a second bind after both
-            // persistence writes. It begins handle construction; it must never
-            // make a later failure look like an earlier persistence failure.
+            // A repeat forContract after the target is already reserved means
+            // upstream has moved on to handle construction; a later failure
+            // must not be classified as an earlier persistence failure.
             advanceSetupStage("contract_handle_construction");
           }
           bindPrivateStateProviderWithinLease(
@@ -127,7 +124,35 @@ const interceptDeploymentPrivateStateProvider = (
             canonicalContractAddress,
             lease,
           );
+          const view = provider.forContract(canonicalContractAddress as never);
           advanceSetupStage("private_state_persistence");
+          return new Proxy(view, {
+            get(viewTarget, viewProperty) {
+              const viewValue = Reflect.get(
+                viewTarget,
+                viewProperty,
+                viewTarget,
+              );
+              if (typeof viewValue !== "function") return viewValue;
+              if (viewProperty === "set") {
+                return (...args: unknown[]): unknown => {
+                  if (active) advanceSetupStage("private_state_persistence");
+                  const result = Reflect.apply(viewValue, viewTarget, args);
+                  return Promise.resolve(result).then((resolved) => {
+                    if (active) advanceSetupStage("signing_key_persistence");
+                    return resolved;
+                  });
+                };
+              }
+              if (viewProperty === "remove") {
+                return (...args: unknown[]): unknown => {
+                  if (active) advanceSetupStage("signing_key_persistence");
+                  return Reflect.apply(viewValue, viewTarget, args);
+                };
+              }
+              return viewValue.bind(viewTarget) as unknown;
+            },
+          });
         };
       }
 
@@ -140,35 +165,21 @@ const interceptDeploymentPrivateStateProvider = (
         return existing.bound;
       }
       const bound =
-        property === "set"
+        property === "setSigningKey"
           ? function (this: unknown, ...args: unknown[]): unknown {
               if (!active) {
                 return Reflect.apply(value, target, args) as unknown;
               }
-              advanceSetupStage("private_state_persistence");
+              advanceSetupStage("signing_key_persistence");
               const result = Reflect.apply(value, target, args) as unknown;
               return Promise.resolve(result).then((resolved) => {
                 if (active) {
-                  advanceSetupStage("signing_key_persistence");
+                  advanceSetupStage("contract_handle_construction");
                 }
                 return resolved;
               });
             }
-          : property === "setSigningKey"
-            ? function (this: unknown, ...args: unknown[]): unknown {
-                if (!active) {
-                  return Reflect.apply(value, target, args) as unknown;
-                }
-                advanceSetupStage("signing_key_persistence");
-                const result = Reflect.apply(value, target, args) as unknown;
-                return Promise.resolve(result).then((resolved) => {
-                  if (active) {
-                    advanceSetupStage("contract_handle_construction");
-                  }
-                  return resolved;
-                });
-              }
-            : (value.bind(target) as Function);
+          : (value.bind(target) as Function);
       boundMethods.set(property, { original: value, bound });
       return bound;
     },

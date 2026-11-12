@@ -1,4 +1,4 @@
-import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
+import { unshieldedToken } from "@midnightntwrk/ledger-v9";
 import { describe, expect, it } from "vitest";
 
 import { getWalletBalances } from "../lib.js";

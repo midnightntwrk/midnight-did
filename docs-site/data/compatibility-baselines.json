@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "currentRelease": "0.7.0",
+  "currentRelease": "1.0.0",
   "baselines": [
     {
       "version": "0.5.0",
@@ -27,11 +27,16 @@
         "unshielded-wallet": "2.1.0"
       },
       "proofServer": "midnightntwrk/proof-server:8.0.3",
-      "sourceManifestVersion": "0.4.0"
+      "sourceManifestVersion": "0.4.0",
+      "nodeImage": null,
+      "indexerImage": null,
+      "testedTopology": null,
+      "testedNetwork": null,
+      "nodeLocalTestedVersion": null
     },
     {
       "version": "0.6.0",
-      "status": "Current published and release-tested baseline",
+      "status": "Published historical baseline \u2014 no continuing Ledger8 support",
       "releaseTag": "v0.6.0",
       "sourceCommit": "8f788e2ef5652fa7f9cfdc71a3cac40d5f3683bf",
       "nodeMajor": "24",
@@ -54,11 +59,16 @@
         "unshielded-wallet": "2.1.0"
       },
       "proofServer": "midnightntwrk/proof-server:8.0.3",
-      "sourceManifestVersion": "0.6.0"
+      "sourceManifestVersion": "0.6.0",
+      "nodeImage": null,
+      "indexerImage": null,
+      "testedTopology": null,
+      "testedNetwork": null,
+      "nodeLocalTestedVersion": null
     },
     {
       "version": "0.7.0",
-      "status": "Current published and release-tested baseline",
+      "status": "Published historical baseline \u2014 no continuing Ledger8 support",
       "releaseTag": "v0.7.0",
       "sourceRef": "v0.7.0",
       "nodeMajor": "24",
@@ -81,7 +91,44 @@
         "unshielded-wallet": "2.1.0"
       },
       "proofServer": "midnightntwrk/proof-server:8.0.3",
-      "sourceManifestVersion": "0.6.0"
+      "sourceManifestVersion": "0.6.0",
+      "nodeImage": null,
+      "indexerImage": null,
+      "testedTopology": null,
+      "testedNetwork": null,
+      "nodeLocalTestedVersion": null
+    },
+    {
+      "version": "1.0.0",
+      "status": "Candidate \u2014 local Ledger9 integration validated; not published",
+      "sourceRef": "Ledger9 migration for issue #520 (unreleased)",
+      "sourceManifestVersion": "0.6.0",
+      "nodeMajor": "24",
+      "nodeTestedVersion": null,
+      "nodeTestedRun": null,
+      "pnpm": "10.34.5",
+      "compactCompiler": "0.36.0",
+      "didLanguagePragma": ">= 0.20",
+      "jubjubLanguagePragma": ">= 0.22",
+      "compactRuntime": "0.21.0",
+      "compactJs": "3.0.0",
+      "ledger": "@midnightntwrk/ledger-v9@1.0.0",
+      "midnightJsFamily": "5.0.0",
+      "walletSdk": {
+        "abstractions": "3.0.0",
+        "address-format": "4.0.0",
+        "dust-wallet": "5.0.0",
+        "facade": "5.0.0",
+        "hd": "4.0.0",
+        "shielded": "4.0.0",
+        "unshielded-wallet": "4.0.0"
+      },
+      "proofServer": "midnightntwrk/proof-server:9.0.1",
+      "nodeImage": "midnightntwrk/midnight-node:2.1.101",
+      "indexerImage": "midnightntwrk/indexer-standalone:4.4.101",
+      "testedTopology": "Disposable local standalone (node + indexer + proof server)",
+      "testedNetwork": "undeployed",
+      "nodeLocalTestedVersion": "24.18.1"
     }
   ]
 }

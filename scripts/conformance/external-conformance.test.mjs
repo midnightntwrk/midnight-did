@@ -381,7 +381,15 @@ test("exact-head guard permits untracked output but rejects dirty tracked files"
   const repository = mkdtempSync(join(tmpdir(), "w3c-clean-head-"));
   try {
     const git = (...args) =>
-      execFileSync("git", args, { cwd: repository, encoding: "utf8" }).trim();
+      execFileSync("git", args, {
+        cwd: repository,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GIT_CONFIG_GLOBAL: "/dev/null",
+          GIT_CONFIG_SYSTEM: "/dev/null",
+        },
+      }).trim();
     git("init", "--quiet");
     git("config", "user.email", "conformance@example.invalid");
     git("config", "user.name", "Conformance Test");

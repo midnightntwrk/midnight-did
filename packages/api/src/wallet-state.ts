@@ -1,5 +1,5 @@
-import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
 import { type FacadeState } from "@midnight-ntwrk/wallet-sdk-facade";
+import { unshieldedToken } from "@midnightntwrk/ledger-v9";
 import * as Rx from "rxjs";
 
 import { getLogger } from "./api-logger.js";
@@ -22,7 +22,9 @@ export const serializeWalletState = async (
   shieldedState: await ctx.shieldedWallet.serializeState(),
   unshieldedState: await ctx.unshieldedWallet.serializeState(),
   dustState: await ctx.dustWallet.serializeState(),
-  unshieldedHistory: ctx.unshieldedHistoryStorage.serialize(),
+  unshieldedHistory: JSON.stringify(
+    await ctx.unshieldedHistoryStorage.serialize(),
+  ),
 });
 
 export const waitForWalletSync = async (

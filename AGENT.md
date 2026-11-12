@@ -29,7 +29,7 @@ Then run repository setup from inside the Nix shell:
 
 ```bash
 pnpm install
-compact update 0.31.1
+compact update 0.36.0
 ```
 
 The Nix development shell is the expected local environment. It provides the
@@ -59,7 +59,7 @@ integration remains opt-in through the full runner.
 Full validation:
 
 ```bash
-PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh --strict
+PROOF_SERVER_IMAGE=proof-server-bootstrap:9.0.1 ./run.sh --strict
 ```
 
 Prefer the bootstrapped proof-server image for local full validation when it is
@@ -527,4 +527,4 @@ Clean stale local Docker/test infra:
 Common fixes:
 
 - `EADDRINUSE`: stop the conflicting process or run cleanup script.
-- Slow proof server startup: use `PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3` if available.
+- Slow proof server startup: use `PROOF_SERVER_IMAGE=proof-server-bootstrap:9.0.1` if available.

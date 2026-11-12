@@ -30,17 +30,24 @@ const makeLogger = () =>
     warn: vi.fn(),
   }) as any;
 
+const defaultContractAddress = "a".repeat(64);
+
 const makeProviders = ({
   storedPrivateState = null,
   getError,
   setError,
+  bound = true,
 }: {
   readonly storedPrivateState?: unknown;
   readonly getError?: Error;
   readonly setError?: Error;
+  readonly bound?: boolean;
 } = {}) => {
   const privateStateProvider = {
     setContractAddress: vi.fn(),
+    forContract: vi.fn(function (this: any) {
+      return this;
+    }),
     get: vi.fn(async () => {
       if (getError) throw getError;
       return storedPrivateState;
@@ -50,10 +57,14 @@ const makeProviders = ({
     }),
     remove: vi.fn(async () => undefined),
   };
+  const providers = {
+    privateStateProvider,
+  } as any;
+  if (bound) {
+    bindPrivateStateProvider(providers, defaultContractAddress);
+  }
   return {
-    providers: {
-      privateStateProvider,
-    } as any,
+    providers,
     privateStateProvider,
   };
 };
@@ -149,52 +160,40 @@ describe("DID private state lifecycle", () => {
   });
 
   it("allows restore and save before a contract address is bound", async () => {
-    const { providers, privateStateProvider } = makeProviders({
-      getError: new Error(contractAddressUnsetErrorMessage),
-      setError: new Error(contractAddressUnsetErrorMessage),
-    });
+    const { providers, privateStateProvider } = makeProviders({ bound: false });
 
     const privateState = await initPrivateState(providers);
 
     expect(privateState.secretKey).toHaveLength(32);
-    expect(privateStateProvider.get).toHaveBeenCalledWith(
-      MidnightDIDPrivateStateId,
-    );
-    expect(privateStateProvider.set).toHaveBeenCalledWith(
-      MidnightDIDPrivateStateId,
-      privateState,
-    );
+    expect(privateStateProvider.get).not.toHaveBeenCalled();
+    expect(privateStateProvider.set).not.toHaveBeenCalled();
   });
 
   it("restorePrivateState returns null when the provider has no contract address", async () => {
-    const { providers, privateStateProvider } = makeProviders({
-      getError: new Error(contractAddressUnsetErrorMessage),
-    });
+    const { providers, privateStateProvider } = makeProviders({ bound: false });
 
     await expect(restorePrivateState(providers)).resolves.toBeNull();
-    expect(privateStateProvider.get).toHaveBeenCalledWith(
-      MidnightDIDPrivateStateId,
-    );
+    expect(privateStateProvider.get).not.toHaveBeenCalled();
     expect(privateStateProvider.set).not.toHaveBeenCalled();
   });
 
   it("uses the exact upstream unbound error for recovery, attach, and discard reads", async () => {
     const recoveryProviders = makeProviders({
-      getError: new Error(contractAddressUnsetErrorMessage),
+      bound: false,
     }).providers;
     await expect(
       restoreRecoverySecretKey(recoveryProviders),
     ).resolves.toBeNull();
 
     const attachProviders = makeProviders({
-      getError: new Error(contractAddressUnsetErrorMessage),
+      bound: false,
     }).providers;
     await expect(
       requireAttachablePrivateState(attachProviders),
     ).rejects.toThrow(/private state is missing or malformed/);
 
     const { providers: discardProviders } = makeProviders({
-      getError: new Error(contractAddressUnsetErrorMessage),
+      bound: false,
     });
     await expect(
       discardPendingControllerPrivateState(discardProviders, {
@@ -250,26 +249,28 @@ describe("DID private state lifecycle", () => {
     ).rejects.toBe(decoratedError);
   });
 
-  it("binds the private-state provider to a contract address", () => {
+  it("binds the private-state provider to a contract address", async () => {
     const { providers, privateStateProvider } = makeProviders();
 
     const mixedCaseAddress = `${"A".repeat(32)}${"c".repeat(32)}`;
     bindPrivateStateProvider(providers, mixedCaseAddress);
+    await restorePrivateState(providers);
 
-    expect(privateStateProvider.setContractAddress).toHaveBeenCalledWith(
+    expect(privateStateProvider.forContract).toHaveBeenCalledWith(
       mixedCaseAddress.toLowerCase(),
     );
   });
 
-  it("auto-binds an untracked provider and accepts canonical-equivalent addresses", () => {
-    const { providers, privateStateProvider } = makeProviders();
+  it("auto-binds an untracked provider and accepts canonical-equivalent addresses", async () => {
+    const { providers, privateStateProvider } = makeProviders({ bound: false });
     const mixedCaseAddress = `${"A".repeat(32)}${"c".repeat(32)}`;
 
     bindOrAssertPrivateStateProvider(providers, mixedCaseAddress);
     bindOrAssertPrivateStateProvider(providers, mixedCaseAddress.toLowerCase());
+    await restorePrivateState(providers);
 
-    expect(privateStateProvider.setContractAddress).toHaveBeenCalledTimes(1);
-    expect(privateStateProvider.setContractAddress).toHaveBeenCalledWith(
+    expect(privateStateProvider.forContract).toHaveBeenCalledTimes(1);
+    expect(privateStateProvider.forContract).toHaveBeenCalledWith(
       mixedCaseAddress.toLowerCase(),
     );
   });
@@ -373,6 +374,9 @@ describe("DID private state lifecycle", () => {
       const removeError = new Error("remove acknowledgement unavailable");
       const privateStateProvider = {
         setContractAddress: vi.fn(),
+        forContract: vi.fn(function (this: any) {
+          return this;
+        }),
         get: vi.fn(async () => pending),
         set: vi.fn(),
         remove: vi.fn(async () => {

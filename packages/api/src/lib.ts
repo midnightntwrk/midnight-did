@@ -71,6 +71,8 @@ export {
   buildFreshWallet,
   buildWallet,
   buildWalletAndWaitForFunds,
+  createIndexerIndexedBlockTime,
+  type DustReadinessOptions,
   getWalletBalances,
   registerForDustGeneration,
   restoreWalletFromState,

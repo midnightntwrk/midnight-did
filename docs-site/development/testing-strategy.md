@@ -32,7 +32,7 @@ service, and secret-storage checks live in
 ## Full Local Loop
 
 ```bash
-PROOF_SERVER_IMAGE=proof-server-bootstrap:8.0.3 ./run.sh --strict
+PROOF_SERVER_IMAGE=proof-server-bootstrap:9.0.1 ./run.sh --strict
 ```
 
 Use the full loop for API/provider/runtime changes that need Docker-backed integration coverage.
