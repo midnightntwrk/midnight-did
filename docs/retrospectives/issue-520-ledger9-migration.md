@@ -55,3 +55,29 @@ runtime or automatic on-chain migration.
   reference/runtime validation is not claimed.
 - Keep the candidate unpublished until maintainer review and the separate
   release/publication process authorize otherwise.
+
+## PR #521 review-repair follow-up
+
+- **What worked:** Independent bounded review and failing-before/passing-after
+  regressions exercised the exported public archive helper, actual SDK5 injected
+  fetch caller, and shared readiness budget across delayed initial wallet state.
+- **Failures and drift:** The public archive consumer rejected the exact compiler
+  metadata pair; injected fetch retained the old constructor shape instead of
+  SDK5's `options.fetchFunc`; registration restarted its readiness deadline;
+  current deployment/network guidance still described SDK4 behavior.
+- **Process gap:** Prior green script-checker, HTTP and workspace fixture evidence
+  did not exercise the public unpacker or injected-fetch boundary. Those results
+  were not proof of compatibility at the omitted consumer boundaries.
+- **Preserved boundaries:** Configuration, dependency cohort and repository policy
+  are unchanged. Repairs retain default artifact integrity and the existing
+  sequential transaction/custody behavior; readiness tests do not establish an
+  end-to-end transaction cancellation guarantee.
+- **Tracked follow-up:** Retain the public-helper/compiler-metadata negatives,
+  real-SDK injected/HTTP integrity regressions and delayed-state shared-budget
+  regressions in the owning issue #520 test lanes. Companion VC integration
+  remains tracked by the existing #754 follow-up above.
+
+At this checkpoint, targeted **working-tree** validation passed 329 API tests
+and 83 bundle/smoke tests. Full verify/strict, actual production bundle/package
+and clean-consumer checks, docs validation and current-CI validation are still
+pending. These results are not new-head or final delivery acceptance evidence.

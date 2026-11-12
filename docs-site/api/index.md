@@ -70,16 +70,18 @@ purges relationships implicitly and throws `VerificationMethodReferencedError`
 (with `code`, `methodId`, and ordered `relations`) while references remain.
 Missing relationship removals continue to fail explicitly.
 
-`@midnight-ntwrk/midnight-js-contracts` 4.0.2 calls
-`setContractAddress(target)`, then awaits the initial-state and signing-key
-writes after ledger deployment success but before `deployContract` returns.
-`deploy` intercepts that synchronous bind to canonicalize and reserve the target
-under its already-owned source lease before the dependency mutates the provider.
+`@midnight-ntwrk/midnight-js-contracts` 5.0.0 calls
+`forContract(target).set(privateStateId, initialPrivateState)`, then awaits
+`setSigningKey(target, signingKey)` after ledger deployment success and before
+constructing the handle returned by `deployContract`. `deploy` intercepts the
+synchronous `forContract(target)` call to canonicalize and reserve the target
+under its already-owned source lease before delegating to the contract-scoped
+view and its state write. Provider and view methods retain their receivers.
 The lease covers the dependency's complete return or rejection and has no unsafe
 elapsed-time expiry; the interceptor is deactivated on settlement and cannot
-reuse the released lease. The dependency already performs the bind and both
-writes, so the API does not duplicate them or overwrite a concurrently rotated
-controller key.
+reuse the released lease. The interceptor reserves the target and the dependency performs both writes,
+so the API does not repeat the bind or writes and cannot overwrite a concurrently
+rotated controller key through a duplicate setup write.
 
 A target reservation, either post-finality persistence failure, or returned
 contract-handle construction failure becomes
@@ -89,8 +91,8 @@ a stable `code`/`name`, canonical `contractAddress`, and controlled `setupStage`
 `signing_key_persistence`, or `contract_handle_construction`). The observed
 address tells callers that the dependency reported ledger success; the stage
 identifies incomplete local setup. Handle construction begins after both writes
-complete and includes `deployContract`'s second address bind, which cannot reset
-the stage to reservation or persistence. The error discards the source error,
+complete; SDK5 constructs `callTx` closures without a second provider address
+bind. The error discards the source error,
 contract handle, deployment and
 transaction/finality objects, provider name/message, and all public/private
 evidence. It has no `cause`. Every pre-target rejection, including primitive

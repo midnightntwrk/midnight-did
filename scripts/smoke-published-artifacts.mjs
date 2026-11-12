@@ -555,7 +555,7 @@ const fetchProviderForExtractedArchive = async (extractRoot, zkFetchMode) => {
       return {
         provider: new FetchZkConfigProvider(
           providerBaseUrl,
-          fileBackedFetch(extractRoot),
+          { fetchFunc: fileBackedFetch(extractRoot) },
         ),
         close: async () => undefined,
         modeLabel: "injected file-backed fetch",

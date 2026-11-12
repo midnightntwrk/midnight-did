@@ -68,7 +68,7 @@
     "test:artifact-workspaces": "node scripts/artifact-workspaces.test.mjs",
     "test:npm-trusted-publishing": "node --test scripts/check-npm-trusted-publishing.test.mjs",
     "test:publish-npm": "node --test scripts/publish-npm-packages.test.mjs",
-    "test:zk-artifact-bundle": "node --test scripts/check-zk-artifact-bundle.test.mjs",
+    "test:zk-artifact-bundle": "node --test scripts/check-zk-artifact-bundle.test.mjs scripts/smoke-published-artifacts.test.mjs",
     "test:managed-artifacts": "node scripts/managed-artifact-catalog.test.mjs",
     "test:integration-report": "node scripts/report-integration.test.mjs",
     "test:docs-validate": "node --test scripts/docs-validate.test.mjs docs-site/scripts/sync-compatibility.test.mjs",

@@ -247,8 +247,22 @@ export const waitForSpendableDust = async (
   wallet: WalletFacade,
   options: DustReadinessOptions,
 ): Promise<void> => {
-  const { timeoutMs, pollIntervalMs, deadline } =
-    normalizeReadinessOptions(options);
+  await waitForSpendableDustWithinBudget(
+    wallet,
+    options,
+    normalizeReadinessOptions(options),
+  );
+};
+
+const waitForSpendableDustWithinBudget = async (
+  wallet: WalletFacade,
+  options: DustReadinessOptions,
+  {
+    timeoutMs,
+    pollIntervalMs,
+    deadline,
+  }: ReturnType<typeof normalizeReadinessOptions>,
+): Promise<void> => {
   let last = "no indexed block read yet";
   while (Date.now() < deadline) {
     const state = await readWalletState(wallet, deadline, options.signal);
@@ -289,11 +303,15 @@ export const registerForDustGeneration = async (
   unshieldedKeystore: UnshieldedKeystore,
   readiness: DustReadinessOptions,
 ): Promise<void> => {
-  const { deadline } = normalizeReadinessOptions(readiness);
-  const state = await readWalletState(wallet, deadline, readiness.signal);
+  const budget = normalizeReadinessOptions(readiness);
+  const state = await readWalletState(
+    wallet,
+    budget.deadline,
+    readiness.signal,
+  );
 
   if (state.dust.availableCoins.length > 0) {
-    await waitForSpendableDust(wallet, readiness);
+    await waitForSpendableDustWithinBudget(wallet, readiness, budget);
     getLogger().info("Dust already available and spendable at indexed time");
     return;
   }
@@ -304,7 +322,7 @@ export const registerForDustGeneration = async (
 
   if (nightUtxos.length === 0) {
     getLogger().info("Waiting for existing dust generation...");
-    await waitForSpendableDust(wallet, readiness);
+    await waitForSpendableDustWithinBudget(wallet, readiness, budget);
     return;
   }
 
@@ -320,6 +338,6 @@ export const registerForDustGeneration = async (
   await wallet.submitTransaction(finalized);
 
   getLogger().info("Waiting for dust generation...");
-  await waitForSpendableDust(wallet, readiness);
+  await waitForSpendableDustWithinBudget(wallet, readiness, budget);
   getLogger().info("Dust generation complete");
 };

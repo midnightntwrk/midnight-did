@@ -119,19 +119,20 @@ direct callers or concurrent updates.
 
 ## Finalized Deployment With Incomplete Private-State Setup
 
-`@midnight-ntwrk/midnight-js-contracts` 4.0.2 performs more work after the
+`@midnight-ntwrk/midnight-js-contracts` 5.0.0 performs more work after the
 ledger reports deployment success but before `deployContract` returns:
-`submitDeployTx` synchronously calls `setContractAddress(target)`, then awaits
-`set(initialPrivateState)` and `setSigningKey(target, signingKey)`. A wrapper
+`submitLedger9DeployTx` calls `forContract(target)` and awaits the returned
+view's `set(privateStateId, initialPrivateState)`, then awaits
+`setSigningKey(target, signingKey)` before constructing the contract handle. A wrapper
 around only the returned promise cannot distinguish rejection of those
 post-finality writes from a pre-success deployment failure, and reserving the
 target after return is too late.
 
 `deploy` therefore passes a deployment-scoped private-state-provider interceptor
-to `deployContract`. On the dependency's synchronous target-binding call it
+to `deployContract`. On the dependency's synchronous `forContract(target)` call it
 canonicalizes and reserves the target under the already-held source lease before
-delegating the provider mutation. All other provider methods retain their
-original receiver. The source and target reservations remain held until the
+delegating to the provider's contract-scoped view and its state write. Provider
+and view methods retain their original receivers. The source and target reservations remain held until the
 entire dependency call settles; there is no elapsed-time lease expiry, because
 stale dependency work could otherwise mutate state after a competitor takes the
 same target. The captured interceptor is deactivated when that call settles and
@@ -143,19 +144,18 @@ returned-handle construction then fails, `deploy`/`createDID` throws
 `code`/`name`, canonical `contractAddress`, and interceptor-controlled
 `setupStage`: `target_reservation`, `private_state_persistence`,
 `signing_key_persistence`, or `contract_handle_construction`. The address is
-evidence that the dependency reported ledger success by calling
-`setContractAddress`; the stage identifies the local step that did not complete.
-The handle-construction stage begins after both writes complete and includes the
-second address bind performed while `deployContract` builds `callTx`; that repeat
-bind never resets the stage to reservation or persistence. The error deliberately
+evidence that the dependency reported ledger success before calling
+`forContract(target)`; the stage identifies the local step that did not complete.
+The handle-construction stage begins after both writes complete. SDK5 builds
+`callTx` closures without a second provider address bind. The error deliberately
 discards the source error,
 deployed-contract handle, transaction/finality data, and all public or private
 deployment data. It never uses `cause`, copies provider fields, or includes an
 arbitrary provider name/message. Every rejection before the target is observed,
 including primitive rejection values, adversarial error objects, and a genuine
 `DeployTxFailedError`, is preserved unchanged. On success
-the dependency has already bound the provider and persisted both values, so the
-API performs no second bind or active-state write that could overwrite a
+the interceptor has already reserved the target and the dependency has persisted
+both values, so the API performs no second bind or active-state write that could overwrite a
 concurrently rotated controller key.
 
 Do not retry deployment blindly. Retain the original private state separately
@@ -313,7 +313,9 @@ Defaults:
 - all profile defaults live in `src/config-profiles.ts`
 - `PreprodConfig` and `MainnetConfig` use public indexer v4 endpoints (`/api/v4/graphql` + `/ws`).
 - `MainnetConfig` defaults to local proof server (`http://127.0.0.1:6300`) so it can be used with local proving while targeting mainnet indexer/node.
-- constructing any profile config calls `setNetworkId()` through `applyMidnightNetworkProfile()`, so wallet and contract operations see the correct Midnight network before they start.
+- constructing any profile config calls `applyMidnightNetworkProfile()`, which updates this API's process-local construction default through `setCurrentNetworkId()`, not an upstream global SDK setter.
+- wallet initialization snapshots that local default before its first await and retains it as `ctx.networkId`. `configureProviders(ctx, config)` uses that snapshot for the provider set's explicit `config.networkId`.
+- select the profile before initializing the wallet. A later profile change does not retarget an initialized wallet or its provider set.
 
 The docs site publishes the generated endpoint matrix at
 <https://midnightntwrk.github.io/midnight-did/guide/network-endpoints>; it is

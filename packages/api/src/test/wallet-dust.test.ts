@@ -121,6 +121,78 @@ describe("wallet dust registration", () => {
     expect(subject.observers).toHaveLength(0);
   });
 
+  it.each([
+    ["existing Dust", true, "stalled indexer"],
+    ["existing Dust", true, "zero balance"],
+    ["no eligible NIGHT", false, "stalled indexer"],
+    ["no eligible NIGHT", false, "zero balance"],
+  ] as const)(
+    "keeps the original registration budget: %s then %s/%s",
+    async (_branch, hasDust, wait) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(0);
+      const controller = new AbortController();
+      const add = vi.spyOn(controller.signal, "addEventListener");
+      const remove = vi.spyOn(controller.signal, "removeEventListener");
+      const initial = new Rx.Subject();
+      const state = syncedState({
+        dustAvailable: hasDust ? [{}] : [],
+        dustBalance: 0n,
+        nightCoins: [{ meta: { registeredForDustGeneration: true } }],
+      });
+      const wallet = {
+        state: vi
+          .fn()
+          .mockReturnValueOnce(initial)
+          .mockImplementation(() => Rx.of(state)),
+        registerNightUtxosForDustGeneration: vi.fn(),
+        finalizeRecipe: vi.fn(),
+        submitTransaction: vi.fn(),
+      };
+      const indexedBlockTime = vi.fn(() =>
+        wait === "stalled indexer"
+          ? new Promise<Date>(() => undefined)
+          : Promise.resolve(new Date(1000)),
+      );
+      let failure: unknown;
+      const pending = registerForDustGeneration(
+        wallet as any,
+        makeKeystore() as any,
+        {
+          indexedBlockTime,
+          timeoutMs: 100,
+          pollIntervalMs: 5,
+          signal: controller.signal,
+        },
+      ).catch((error) => {
+        failure = error;
+      });
+      try {
+        await vi.advanceTimersByTimeAsync(80);
+        initial.next(state);
+        await vi.advanceTimersByTimeAsync(19);
+        expect(failure).toBeUndefined();
+        await vi.advanceTimersByTimeAsync(1);
+        expect(failure).toBeInstanceOf(Error);
+        expect((failure as Error).message).toMatch(/deadline|within 100ms/u);
+        expect(initial.observers).toHaveLength(0);
+        expect(vi.getTimerCount()).toBe(0);
+        expect(add.mock.calls).toHaveLength(remove.mock.calls.length);
+        expect(indexedBlockTime).toHaveBeenCalled();
+        expect(
+          wallet.registerNightUtxosForDustGeneration,
+        ).not.toHaveBeenCalled();
+        expect(wallet.finalizeRecipe).not.toHaveBeenCalled();
+        expect(wallet.submitTransaction).not.toHaveBeenCalled();
+      } finally {
+        controller.abort();
+        await pending;
+        add.mockRestore();
+        remove.mockRestore();
+      }
+    },
+  );
+
   it("bounds the initial registration state read", async () => {
     const subject = new Rx.Subject();
     const wallet = {

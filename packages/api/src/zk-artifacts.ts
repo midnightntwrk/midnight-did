@@ -54,6 +54,7 @@ export interface MidnightDidZkArtifactManifest {
   readonly schemaVersion: 1;
   readonly version: string;
   readonly packageName: string;
+  readonly compactCompilerVersion?: string;
   readonly providerLayout: MidnightDidZkArtifactProviderLayout;
   readonly circuits: readonly MidnightDidZkArtifactCircuitManifest[];
 }
@@ -260,6 +261,14 @@ const parseManifest = (value: unknown): MidnightDidZkArtifactManifest => {
     schemaVersion: 1,
     version: requireString(value.version, "version"),
     packageName,
+    ...(value.compactCompilerVersion === undefined
+      ? {}
+      : {
+          compactCompilerVersion: requireString(
+            value.compactCompilerVersion,
+            "compactCompilerVersion",
+          ),
+        }),
     providerLayout: expectedProviderLayout,
     circuits: value.circuits.map((circuit, index) =>
       parseCircuitManifest(circuit, index),
@@ -396,6 +405,7 @@ const assertArchiveSizeLimit = (
 const assertAllowedArchiveEntry = (entry: string): void => {
   if (
     entry === "manifest.json" ||
+    compilerPaths.includes(entry) ||
     /^keys\/[^/]+\.(prover|verifier)$/u.test(entry) ||
     /^zkir\/[^/]+\.bzkir$/u.test(entry)
   ) {
@@ -566,6 +576,155 @@ const assertRegularFile = (filePath: string, label: string): void => {
       "unsafe_archive",
       `${label} must be a regular file`,
     );
+  }
+};
+
+const compilerPaths = [
+  "compiler/contract-info.json",
+  "compiler/contract-manifest.json",
+];
+
+const compilerMetadataError = (message: string): never => {
+  throw new MidnightDidZkArtifactError("manifest_mismatch", message);
+};
+
+// Match the owning bundle checker's bare-version/banner contract, including
+// calendar validity and the entire input (JS '$' alone permits a final LF).
+const parseCompilerVersion = (value: unknown, bare = false): string => {
+  const match =
+    typeof value === "string"
+      ? /^((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))(?: \([0-9a-f]{7,40} (\d{4}-\d{2}-\d{2})\))?$/u.exec(
+          value,
+        )
+      : null;
+  if (!match || match[0] !== value || (bare && match[1] !== value)) {
+    return compilerMetadataError("Invalid compiler metadata version");
+  }
+  if (match[2] !== undefined) {
+    const date = new Date(`${match[2]}T00:00:00.000Z`);
+    if (
+      Number.isNaN(date.getTime()) ||
+      date.toISOString().slice(0, 10) !== match[2]
+    ) {
+      return compilerMetadataError("Invalid compiler build date");
+    }
+  }
+  return match[1];
+};
+
+const verifyCompilerMetadata = (
+  manifest: MidnightDidZkArtifactManifest,
+  root: string,
+  archiveEntries?: readonly string[],
+): void => {
+  const version =
+    manifest.compactCompilerVersion === undefined
+      ? undefined
+      : parseCompilerVersion(manifest.compactCompilerVersion);
+  const currentCompiler =
+    version !== undefined &&
+    (BigInt(version.split(".")[0]) > 0n ||
+      BigInt(version.split(".")[1]) >= 36n);
+  const present = compilerPaths.filter((file) =>
+    archiveEntries === undefined
+      ? fs.existsSync(path.join(root, file))
+      : archiveEntries.includes(file),
+  );
+  if (present.length !== 2) {
+    if (present.length !== 0 || currentCompiler)
+      compilerMetadataError("Compiler metadata pair required");
+    // Key-only schema-1 archives remain checkable as data, not operational
+    // support for their historical ledger/runtime.
+    return;
+  }
+  const objects = compilerPaths.map((file) => {
+    const absolute = path.join(root, file);
+    assertRegularFile(absolute, file);
+    const value = readJsonFile(absolute, file);
+    if (!isRecord(value))
+      return compilerMetadataError(`${file} must be a JSON object`);
+    return value;
+  });
+  const [info, metadata] = objects;
+  if (metadata["manifest-version"] !== "1")
+    compilerMetadataError("Invalid compiler manifest-version");
+  for (const field of [
+    "compiler-version",
+    "compiler-commit",
+    "language-version",
+    "runtime-version",
+  ]) {
+    if (
+      typeof metadata[field] !== "string" ||
+      metadata[field].length === 0 ||
+      info[field] !== metadata[field]
+    ) {
+      compilerMetadataError(`Compiler metadata ${field} identity mismatch`);
+    }
+  }
+  if (parseCompilerVersion(metadata["compiler-version"], true) !== version)
+    compilerMetadataError("Bundle/compiler metadata compiler-version mismatch");
+  for (const field of ["language-version", "runtime-version"])
+    parseCompilerVersion(metadata[field], true);
+  const commit = metadata["compiler-commit"];
+  if (
+    typeof commit !== "string" ||
+    !/^[0-9a-f]{40}$/u.test(commit) ||
+    commit.length !== 40
+  )
+    compilerMetadataError("Invalid compiler-commit");
+  const bannerCommit = /\(([0-9a-f]{7,40}) /u.exec(
+    manifest.compactCompilerVersion ?? "",
+  )?.[1];
+  if (
+    bannerCommit &&
+    (commit as string).slice(0, bannerCommit.length) !== bannerCommit
+  )
+    compilerMetadataError("Bundle/compiler metadata compiler-commit mismatch");
+  const checkDescriptor = (relative: string): void => {
+    const [directory, name] = relative.split("/");
+    const dir = metadata[directory];
+    if (!isRecord(dir) || dir.type !== "directory")
+      return compilerMetadataError(
+        `${directory}: invalid directory descriptor`,
+      );
+    const descriptor = dir[name];
+    if (
+      !isRecord(descriptor) ||
+      descriptor.type !== "file" ||
+      typeof descriptor.hash !== "string" ||
+      descriptor.hash.length !== 64 ||
+      !/^[0-9a-f]{64}$/u.test(descriptor.hash) ||
+      !Number.isSafeInteger(descriptor.size) ||
+      (descriptor.size as number) < 0
+    ) {
+      return compilerMetadataError(`${relative}: invalid file descriptor`);
+    }
+    const file = path.join(root, relative);
+    assertRegularFile(file, relative);
+    if (sha256File(file) !== descriptor.hash)
+      compilerMetadataError(`${relative}: compiler descriptor sha256 mismatch`);
+    if (fs.statSync(file).size !== descriptor.size)
+      compilerMetadataError(
+        `${relative}: compiler descriptor byte size mismatch`,
+      );
+  };
+  checkDescriptor(compilerPaths[0]);
+  // Check every included provider file, not just manifest.circuits, and not
+  // archive-external compiler outputs. Consistency is not provenance.
+  for (const directory of ["keys", "zkir"]) {
+    const absolute = path.join(root, directory);
+    if (!fs.existsSync(absolute)) continue;
+    for (const name of fs.readdirSync(absolute)) {
+      const relative = `${directory}/${name}`;
+      if (
+        (archiveEntries === undefined || archiveEntries.includes(relative)) &&
+        (directory === "keys" ? /\.(prover|verifier)$/u : /\.bzkir$/u).test(
+          name,
+        )
+      )
+        checkDescriptor(relative);
+    }
   }
 };
 
@@ -809,19 +968,28 @@ export const createMidnightDidZkArtifactFetchUrls = (
   };
 };
 
-export const verifyMidnightDidZkArtifactManifest = ({
-  expectedManifest,
-  expectedManifestJson,
-  manifestPath,
-  version,
-  zkConfigPath,
-}: {
+type VerifyManifestOptions = {
   readonly expectedManifest?: MidnightDidZkArtifactManifest;
   readonly expectedManifestJson?: unknown;
   readonly manifestPath: string;
   readonly version?: string;
   readonly zkConfigPath: string;
-}): MidnightDidZkArtifactManifest => {
+};
+
+export const verifyMidnightDidZkArtifactManifest = (
+  options: VerifyManifestOptions,
+): MidnightDidZkArtifactManifest => verifyArtifactManifest(options);
+
+const verifyArtifactManifest = (
+  {
+    expectedManifest,
+    expectedManifestJson,
+    manifestPath,
+    version,
+    zkConfigPath,
+  }: VerifyManifestOptions,
+  archiveEntries?: readonly string[],
+): MidnightDidZkArtifactManifest => {
   assertRegularFile(manifestPath, "ZK artifact manifest");
   const manifestJson = readJsonFile(manifestPath, "ZK artifact manifest");
   const manifest = parseManifest(manifestJson);
@@ -837,6 +1005,7 @@ export const verifyMidnightDidZkArtifactManifest = ({
   if (expectedManifestJson !== undefined) {
     assertManifestJsonMatches(manifestJson, expectedManifestJson);
   }
+  verifyCompilerMetadata(manifest, zkConfigPath, archiveEntries);
   verifyManifestFiles(manifest, zkConfigPath);
   return manifest;
 };
@@ -862,13 +1031,16 @@ export const unpackMidnightDidZkArtifactArchive = (
   extractArchive(archivePath, outputDir);
   assertExtractedTreeSafe(outputDir, archiveEntries, limits);
 
-  const manifest = verifyMidnightDidZkArtifactManifest({
-    expectedManifest: options.expectedManifest,
-    expectedManifestJson: options.expectedManifestJson,
-    manifestPath: path.join(outputDir, "manifest.json"),
-    version: options.version,
-    zkConfigPath: outputDir,
-  });
+  const manifest = verifyArtifactManifest(
+    {
+      expectedManifest: options.expectedManifest,
+      expectedManifestJson: options.expectedManifestJson,
+      manifestPath: path.join(outputDir, "manifest.json"),
+      version: options.version,
+      zkConfigPath: outputDir,
+    },
+    archiveEntries,
+  );
 
   return {
     archivePath,
