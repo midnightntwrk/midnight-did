@@ -87,14 +87,21 @@
   "packageManager": "pnpm@10.34.5",
   "pnpm": {
     "overrides": {
-      "vitepress>vite": "^6.4.2",
-      "dompurify": "^3.4.13",
+      "vitepress>vite": "6.4.5",
+      "dompurify": "3.4.17",
       "js-yaml": "^4.3.2",
       "nanoid": "^3.3.18",
       "postcss": "^8.5.23",
       "esbuild@>=0.27.3 <0.28.1": "0.28.2",
-      "undici": "^7.29.0",
-      "brace-expansion@<5.0.8": "5.0.9"
+      "undici": "7.30.1",
+      "brace-expansion@<5.0.8": "5.0.12",
+      "@grpc/grpc-js": "1.14.5",
+      "source-map-js": "1.2.2",
+      "vue": "3.5.42",
+      "@vue/shared": "3.5.42",
+      "markdown-it": "14.3.3",
+      "zod": "4.6.6",
+      "fast-copy": "4.1.0"
     }
   },
   "type": "module",
@@ -114,7 +121,7 @@
     "@types/ws": "8.18.1",
     "@typescript-eslint/eslint-plugin": "8.67.0",
     "@typescript-eslint/parser": "8.67.0",
-    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/coverage-v8": "4.1.12",
     "eslint": "9.39.5",
     "eslint-import-resolver-typescript": "4.4.5",
     "eslint-plugin-import": "2.32.0",
@@ -127,8 +134,8 @@
     "ts-node": "10.9.2",
     "turbo": "2.10.11",
     "typescript": "5.9.3",
-    "vite": "7.3.6",
-    "vitest": "4.1.11"
+    "vite": "7.3.7",
+    "vitest": "4.1.12"
   },
   "dependencies": {
     "@midnightntwrk/ledger-v9": "1.0.0",
@@ -149,7 +156,7 @@
     "pino": "^9.7.0",
     "pino-pretty": "^13.0.0",
     "ws": "^8.18.2",
-    "zod": "^4.1.0"
+    "zod": "^4.6.6"
   },
   "eslintConfig": {
     "plugins": [

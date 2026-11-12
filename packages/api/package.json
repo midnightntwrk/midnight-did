@@ -71,11 +71,11 @@
     "pino-pretty": "^13.0.0",
     "rxjs": "7.8.2",
     "ws": "^8.18.2",
-    "zod": "^4.1.0"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@midnight-ntwrk/midnight-did-jubjub-schnorr": "workspace:*",
-    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/coverage-v8": "4.1.12",
     "globals": "14.0.0",
     "long": "5.3.2",
     "protobufjs": "7.6.5"
