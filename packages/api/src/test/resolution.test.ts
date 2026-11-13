@@ -1,8 +1,11 @@
 import { MidnightDIDResolver } from "@midnight-ntwrk/midnight-did";
-import { parseContractAddress } from "@midnight-ntwrk/midnight-did/midnight";
+import {
+  MidnightNetwork,
+  parseContractAddress,
+} from "@midnight-ntwrk/midnight-did/midnight";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getDidSubject, getMidnightNetwork } from "../did-subject.js";
+import { getDidSubject, getProviderMidnightNetwork } from "../did-subject.js";
 import { getMidnightDIDLedgerState } from "../ledger-state.js";
 import {
   resolve,
@@ -37,14 +40,21 @@ vi.mock("@midnight-ntwrk/midnight-did", () => ({
   MidnightDIDResolver: midnightDidMocks.resolver,
 }));
 
-vi.mock("@midnight-ntwrk/midnight-did/midnight", () => ({
+vi.mock("@midnight-ntwrk/midnight-did/midnight", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@midnight-ntwrk/midnight-did/midnight")
+  >()),
   parseContractAddress: vi.fn((value: string) => value.toLowerCase()),
 }));
 
-vi.mock("../did-subject.js", () => ({
-  getDidSubject: vi.fn(() => `did:midnight:devnet:${"a".repeat(64)}`),
-  getMidnightNetwork: vi.fn(() => "devnet"),
-}));
+vi.mock("../did-subject.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../did-subject.js")>();
+  return {
+    ...actual,
+    getProviderMidnightNetwork: vi.fn(actual.getProviderMidnightNetwork),
+    getDidSubject: vi.fn(() => `did:midnight:devnet:${"a".repeat(64)}`),
+  };
+});
 
 vi.mock("../ledger-state.js", () => ({
   getMidnightDIDLedgerState: vi.fn(),
@@ -81,16 +91,19 @@ describe("resolution helpers", () => {
     });
 
     const result = await resolveDIDResolutionResult(
-      {} as never,
+      { config: { networkId: "devnet" } } as never,
       didContract as never,
     );
 
     expect(MidnightDIDResolver).toHaveBeenCalledWith({
-      expectedNetwork: "devnet",
+      expectedNetwork: MidnightNetwork.DevNet,
       ledgerReader: expect.any(Function),
     });
-    expect(getDidSubject).toHaveBeenCalledWith(didContract);
-    expect(getMidnightNetwork).toHaveBeenCalled();
+    expect(getDidSubject).toHaveBeenCalledWith(
+      didContract,
+      MidnightNetwork.DevNet,
+    );
+    expect(getProviderMidnightNetwork).toHaveBeenCalled();
     expect(
       midnightDidMocks.state.resolveDIDResolutionResult,
     ).toHaveBeenCalledWith(`did:midnight:devnet:${"a".repeat(64)}`);
@@ -102,7 +115,7 @@ describe("resolution helpers", () => {
   });
 
   it("adapts resolver ledger reads to the API public data provider", async () => {
-    const providers = {} as never;
+    const providers = { config: { networkId: "devnet" } } as never;
     const ledgerState = { version: 1n };
 
     midnightDidMocks.state.resolveResult.mockResolvedValue(null);
@@ -131,7 +144,7 @@ describe("resolution helpers", () => {
     });
 
     const result = await resolveDIDResolutionResult(
-      {} as never,
+      { config: { networkId: "devnet" } } as never,
       didContract as never,
     );
 
@@ -150,7 +163,7 @@ describe("resolution helpers", () => {
     });
 
     const result = await resolveDIDResolutionResult(
-      {} as never,
+      { config: { networkId: "devnet" } } as never,
       didContract as never,
     );
 
@@ -168,10 +181,13 @@ describe("resolution helpers", () => {
       didDocumentMetadata,
     });
 
-    const result = await resolve({} as never, didContract as never);
+    const result = await resolve(
+      { config: { networkId: "devnet" } } as never,
+      didContract as never,
+    );
 
     expect(MidnightDIDResolver).toHaveBeenCalledWith({
-      expectedNetwork: "devnet",
+      expectedNetwork: MidnightNetwork.DevNet,
       ledgerReader: expect.any(Function),
     });
     expect(midnightDidMocks.state.resolveResult).toHaveBeenCalledWith(
@@ -192,7 +208,7 @@ describe("resolution helpers", () => {
     );
 
     const result = await resolveRepresentation(
-      {} as never,
+      { config: { networkId: "devnet" } } as never,
       didContract as never,
       options,
     );

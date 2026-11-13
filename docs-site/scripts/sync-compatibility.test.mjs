@@ -79,14 +79,19 @@ test("extracts the current compatibility row from repository evidence", async ()
   assert.equal(evidence.version, "0.6.0");
   assert.equal(evidence.nodeMajor, "24");
   assert.equal(evidence.pnpm, "10.34.5");
-  assert.equal(evidence.compactCompiler, "0.31.1");
+  assert.equal(evidence.compactCompiler, "0.36.0");
   assert.equal(evidence.didLanguagePragma, ">= 0.20");
   assert.equal(evidence.jubjubLanguagePragma, ">= 0.22");
-  assert.equal(evidence.compactRuntime, "0.16.0");
-  assert.equal(evidence.compactJs, "2.5.0");
-  assert.equal(evidence.ledger, "@midnight-ntwrk/ledger-v8@8.1.0");
-  assert.equal(evidence.midnightJsFamily, "4.0.2");
-  assert.equal(evidence.proofServer, "midnightntwrk/proof-server:8.0.3");
+  assert.equal(evidence.compactRuntime, "0.21.0");
+  assert.equal(evidence.compactJs, "3.0.0");
+  assert.equal(evidence.ledger, "@midnightntwrk/ledger-v9@1.0.0");
+  assert.equal(evidence.midnightJsFamily, "5.0.0");
+  assert.equal(evidence.proofServer, "midnightntwrk/proof-server:9.0.1");
+  assert.equal(evidence.nodeImage, "midnightntwrk/midnight-node:2.1.101");
+  assert.equal(
+    evidence.indexerImage,
+    "midnightntwrk/indexer-standalone:4.4.101",
+  );
   assert.deepEqual(
     new Set(Object.values(evidence.packageVersions)),
     new Set(["0.6.0"]),
@@ -101,8 +106,8 @@ test("fails when duplicated authoritative current pins disagree", async (t) => {
         replaceFixtureText(
           root,
           ".github/workflows/quality.yml",
-          "COMPACT_COMPILER_VERSION: 0.31.1",
-          "COMPACT_COMPILER_VERSION: 0.31.2",
+          "COMPACT_COMPILER_VERSION: 0.36.0",
+          "COMPACT_COMPILER_VERSION: 0.36.1",
         ),
       error: /Compact compiler pins disagree/u,
     },
@@ -110,9 +115,9 @@ test("fails when duplicated authoritative current pins disagree", async (t) => {
       name: "ledger package manifests",
       mutate: (root) =>
         updateManifest(root, "packages/api/package.json", (manifest) => {
-          manifest.dependencies["@midnight-ntwrk/ledger-v8"] = "8.2.0";
+          manifest.dependencies["@midnightntwrk/ledger-v9"] = "1.0.1";
         }),
-      error: /dependency @midnight-ntwrk\/ledger-v8 pins disagree/u,
+      error: /dependency @midnightntwrk\/ledger-v9 pins disagree/u,
     },
     {
       name: "Midnight JS package manifests",
@@ -142,13 +147,35 @@ test("fails when duplicated authoritative current pins disagree", async (t) => {
       error: /dependency @midnight-ntwrk\/compact-runtime pins disagree/u,
     },
     {
+      name: "midnight node runtime defaults",
+      mutate: (root) =>
+        replaceFixtureText(
+          root,
+          "packages/api/standalone-latest.yml",
+          "midnightntwrk/midnight-node:2.1.101",
+          "midnightntwrk/midnight-node:2.1.102",
+        ),
+      error: /Midnight node defaults pins disagree/u,
+    },
+    {
+      name: "indexer runtime defaults",
+      mutate: (root) =>
+        replaceFixtureText(
+          root,
+          "packages/api/standalone.yml",
+          "midnightntwrk/indexer-standalone:4.4.101",
+          "midnightntwrk/indexer-standalone:4.4.102",
+        ),
+      error: /indexer defaults pins disagree/u,
+    },
+    {
       name: "proof-server runtime defaults",
       mutate: (root) =>
         replaceFixtureText(
           root,
           "packages/api/standalone-latest.yml",
-          "midnightntwrk/proof-server:8.0.3",
-          "midnightntwrk/proof-server:8.0.4",
+          "midnightntwrk/proof-server:9.0.1",
+          "midnightntwrk/proof-server:9.0.2",
         ),
       error: /proof-server defaults pins disagree/u,
     },
@@ -158,8 +185,8 @@ test("fails when duplicated authoritative current pins disagree", async (t) => {
         replaceFixtureText(
           root,
           "proof-server-bootstrap/bootstrap.py",
-          "midnightntwrk/proof-server:8.0.3",
-          "midnightntwrk/proof-server:8.0.4",
+          "midnightntwrk/proof-server:9.0.1",
+          "midnightntwrk/proof-server:9.0.2",
         ),
       error: /proof-server defaults pins disagree/u,
     },
@@ -180,12 +207,32 @@ test("fails when duplicated authoritative current pins disagree", async (t) => {
 test("loads the reviewed baseline from its repository-relative data file", async () => {
   const source = await loadCompatibilityBaselines();
 
-  assert.equal(source.currentRelease, "0.7.0");
+  assert.equal(source.currentRelease, "1.0.0");
   assert.equal(source.baselines.at(-1).version, source.currentRelease);
   assert.equal(source.baselines[0].nodeTestedVersion, null);
   assert.equal(source.baselines.at(-1).nodeTestedVersion, null);
   assert.equal(source.baselines.at(-1).nodeTestedRun, null);
   assert.equal(source.baselines.at(-1).sourceManifestVersion, "0.6.0");
+  assert.equal(
+    source.baselines.at(-1).status,
+    "Candidate — local Ledger9 integration validated; not published",
+  );
+  assert.equal(
+    source.baselines.at(-1).nodeImage,
+    "midnightntwrk/midnight-node:2.1.101",
+  );
+  assert.equal(
+    source.baselines.at(-1).indexerImage,
+    "midnightntwrk/indexer-standalone:4.4.101",
+  );
+  assert.equal(
+    source.baselines.at(-1).testedTopology,
+    "Disposable local standalone (node + indexer + proof server)",
+  );
+  assert.equal(source.baselines.at(-1).testedNetwork, "undeployed");
+  assert.equal(source.baselines.at(-1).nodeLocalTestedVersion, "24.18.1");
+  assert.equal(source.baselines[0].nodeImage, null);
+  assert.equal(source.baselines[0].indexerImage, null);
 });
 
 test("fails closed when a current repository pin drifts from reviewed baseline data", async () => {
@@ -206,7 +253,10 @@ test("fails closed when a current repository pin drifts from reviewed baseline d
 test("generated compatibility page records status semantics and 0.5 manifest caveat", async () => {
   const { content } = await buildCompatibilityPage();
 
-  assert.match(content, /\*\*Current\*\* means the latest published/u);
+  assert.match(
+    content,
+    /\*\*published historical baseline\*\*\s+records the exact DID package/u,
+  );
   assert.match(
     content,
     /Compatibility reference\*\* records a\s+legacy release/u,
@@ -218,10 +268,25 @@ test("generated compatibility page records status semantics and 0.5 manifest cav
   assert.match(content, /source tag reports version\n`0\.4\.0`/u);
   assert.match(content, /does not infer\nsupport for newer Node/u);
   assert.match(content, /Node CI selector/u);
+  assert.match(
+    content,
+    /Candidate — local Ledger9 integration validated; not published/u,
+  );
+  assert.match(content, /Not published \(candidate artifacts only\)/u);
   assert.match(content, /Exact patch not retained/u);
   assert.match(content, /24\.20\.0.*35322501440/u);
   assert.match(content, /major-only Node CI selector is not an exact/u);
   assert.match(content, /MIDNIGHT_DID_API_VERSION.*0\.7\.0/su);
+  assert.match(content, /Midnight node image/u);
+  assert.match(content, /midnightntwrk\/midnight-node:2\.1\.101/u);
+  assert.match(content, /Indexer source image/u);
+  assert.match(content, /midnightntwrk\/indexer-standalone:4\.4\.101/u);
+  assert.match(content, /Tested topology/u);
+  assert.match(content, /Disposable local standalone/u);
+  assert.match(content, /Tested network/u);
+  assert.match(content, /Local Node runtime evidence/u);
+  assert.match(content, /24\.18\.1.*local/u);
+  assert.match(content, /Not retained/u);
 });
 
 test("committed compatibility page matches generated repository evidence", async () => {

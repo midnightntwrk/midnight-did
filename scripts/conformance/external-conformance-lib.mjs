@@ -110,6 +110,44 @@ export const assertSupportedNpmVersion = (version, requiredMajor) => {
   return version;
 };
 
+// compact compile --version emits either a stable semver or that semver
+// followed by a parenthesized abbreviated/full Git SHA and UTC build date.
+// Keep the full banner in evidence; parse only for exact baseline comparison.
+export const parseCompactCompilerVersion = (output) => {
+  requireString(output, "Compact compiler output");
+  const match =
+    /^((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))(?: \([0-9a-f]{7,40} (\d{4}-\d{2}-\d{2})\))?$/u.exec(
+      output,
+    );
+  // JavaScript's $ also permits a final newline; require the entire string.
+  if (!match || match[0] !== output) {
+    fail(`unsupported Compact compiler output: ${JSON.stringify(output)}`);
+  }
+  if (match[2] !== undefined) {
+    const date = new Date(`${match[2]}T00:00:00.000Z`);
+    if (
+      Number.isNaN(date.getTime()) ||
+      date.toISOString().slice(0, 10) !== match[2]
+    ) {
+      fail(`invalid Compact compiler build date: ${match[2]}`);
+    }
+  }
+  return match[1];
+};
+
+export const assertSupportedCompactVersion = (output, requiredVersion) => {
+  const version = parseCompactCompilerVersion(output);
+  if (
+    parseCompactCompilerVersion(requiredVersion) !== requiredVersion ||
+    version !== requiredVersion
+  ) {
+    fail(
+      `Compact compiler ${output} does not match baseline ${requiredVersion}`,
+    );
+  }
+  return output;
+};
+
 export const loadAndValidateBaseline = (
   baselineUrl,
   { packageJsonUrl = new URL("../../package.json", import.meta.url) } = {},
@@ -350,6 +388,10 @@ export const validateEvidence = (evidence, baseline) => {
   assertSupportedNpmVersion(
     evidence.toolchains.npm,
     baseline.toolchains.npmMajor,
+  );
+  assertSupportedCompactVersion(
+    evidence.toolchains.compact,
+    baseline.toolchains.compact,
   );
   if (evidence.toolchains.pnpm !== baseline.toolchains.pnpm) {
     fail("runtime package-manager toolchain does not match the baseline");

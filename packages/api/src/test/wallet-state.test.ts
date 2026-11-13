@@ -1,4 +1,4 @@
-import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
+import { unshieldedToken } from "@midnightntwrk/ledger-v9";
 import * as Rx from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -23,6 +23,11 @@ describe("wallet state helpers", () => {
   it("serializes each wallet component into a restorable snapshot", async () => {
     await expect(
       serializeWalletState({
+        wallet: {
+          transactionLifecycleService: {
+            serializeState: vi.fn(async () => "  opaque-lifecycle-state\n"),
+          },
+        },
         shieldedWallet: {
           serializeState: vi.fn(async () => "shielded-state"),
         },
@@ -37,10 +42,11 @@ describe("wallet state helpers", () => {
         },
       } as any),
     ).resolves.toEqual({
+      transactionLifecycleState: "  opaque-lifecycle-state\n",
       shieldedState: "shielded-state",
       unshieldedState: "unshielded-state",
       dustState: "dust-state",
-      unshieldedHistory: "history-state",
+      unshieldedHistory: JSON.stringify("history-state"),
     });
   });
 

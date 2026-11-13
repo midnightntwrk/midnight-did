@@ -9,6 +9,7 @@ on:
     branches:
       - main
       - develop
+      - milestone-1.0.0
   workflow_dispatch:
   schedule:
     - cron: "15 3 * * *"
@@ -18,7 +19,7 @@ permissions:
   pull-requests: read
 
 env:
-  COMPACT_COMPILER_VERSION: 0.31.1
+  COMPACT_COMPILER_VERSION: 0.36.0
   PNPM_CONFIG_AUDIT: "false"
   PNPM_CONFIG_FUND: "false"
 

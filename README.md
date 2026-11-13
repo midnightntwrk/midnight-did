@@ -137,7 +137,7 @@ Install dependencies:
 
 ```bash
 pnpm install
-compact update 0.31.1
+compact update 0.36.0
 ```
 
 Local validation:

@@ -1,5 +1,5 @@
 import { MidnightNetwork } from "@midnight-ntwrk/midnight-did/midnight";
-import type { NetworkId } from "@midnight-ntwrk/midnight-js-network-id";
+import type { NetworkId } from "@midnight-ntwrk/midnight-js-types";
 import { describe, expect, it } from "vitest";
 
 import { DomainToRuntime } from "../domain-to-runtime.js";

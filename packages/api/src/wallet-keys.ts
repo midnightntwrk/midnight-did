@@ -1,4 +1,3 @@
-import { getNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import { HDWallet, Roles } from "@midnight-ntwrk/wallet-sdk-hd";
 import {
   createKeystore,
@@ -6,6 +5,7 @@ import {
 } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
 import { Buffer } from "buffer";
 
+import { getCurrentNetworkId } from "./network-context.js";
 import { parseSeed } from "./seed.js";
 
 export const deriveMidnightWalletKeys = (seed: string) => {
@@ -28,8 +28,12 @@ export type MidnightWalletKeys = ReturnType<typeof deriveMidnightWalletKeys>;
 
 export const createUnshieldedKeystoreFromKeys = (
   keys: MidnightWalletKeys,
+  networkId: ReturnType<typeof getCurrentNetworkId> = getCurrentNetworkId(),
 ): UnshieldedKeystore => {
-  return createKeystore(keys[Roles.NightExternal], getNetworkId());
+  return createKeystore(
+    { kind: "schnorr", secret: keys[Roles.NightExternal] },
+    networkId,
+  );
 };
 
 export const deriveUnshieldedAddressFromSeed = (seed: string): string =>

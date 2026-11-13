@@ -778,6 +778,27 @@ test("uses OIDC Trusted Publishing without npm token secrets on the normal path"
   assert.doesNotMatch(checker, /(?:jwt|id_token).*decode/iu);
 });
 
+test("PR validation workflows include the milestone-1.0.0 base", async () => {
+  for (const workflow of [
+    ".github/workflows/quality.yml",
+    ".github/workflows/docs.yml",
+    ".github/workflows/fuzz.yml",
+  ]) {
+    const parsed = await text(workflow).then(loadYaml);
+    assert.deepEqual(parsed.on.pull_request.branches, [
+      "main",
+      "develop",
+      "milestone-1.0.0",
+    ]);
+  }
+  const ci = await text(".github/workflows/ci.yml").then(loadYaml);
+  assert.equal(
+    Object.hasOwn(ci.on, "pull_request"),
+    true,
+    "CI pull_request trigger must remain unfiltered",
+  );
+});
+
 test("shared setup freezes installs and Quality always runs the explicit audit", async () => {
   const [action, quality] = await Promise.all([
     text(".github/actions/setup-node-pnpm/action.yml").then(loadYaml),
@@ -1334,12 +1355,41 @@ test("pnpm supply-chain policy stays strict with only reviewed exact-version exc
   assert.equal(workspace.minimumReleaseAge, 10080);
   assert.equal(workspace.trustPolicy, "no-downgrade");
   assert.deepEqual(workspace.minimumReleaseAgeExclude, [
+    "@midnight-ntwrk/compact-js@3.0.0",
+    "@midnight-ntwrk/midnight-js-contracts@5.0.0",
+    "@midnight-ntwrk/midnight-js-fetch-zk-config-provider@5.0.0",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider@5.0.0",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider@5.0.0",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider@5.0.0",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider@5.0.0",
+    "@midnight-ntwrk/midnight-js-protocol@5.0.0",
+    "@midnight-ntwrk/midnight-js-types@5.0.0",
+    "@midnight-ntwrk/midnight-js-utils@5.0.0",
+    "@midnight-ntwrk/wallet-sdk-abstractions@3.0.0",
+    "@midnight-ntwrk/wallet-sdk-address-format@4.0.0",
+    "@midnight-ntwrk/wallet-sdk-capabilities@4.0.0",
+    "@midnight-ntwrk/wallet-sdk-dust-wallet@5.0.0",
+    "@midnight-ntwrk/wallet-sdk-facade@5.0.0",
+    "@midnight-ntwrk/wallet-sdk-hd@4.0.0",
+    "@midnight-ntwrk/wallet-sdk-indexer-client@2.0.0",
+    "@midnight-ntwrk/wallet-sdk-node-client@2.0.0",
+    "@midnight-ntwrk/wallet-sdk-prover-client@2.0.0",
+    "@midnight-ntwrk/wallet-sdk-runtime@2.0.0",
+    "@midnight-ntwrk/wallet-sdk-shielded@4.0.0",
+    "@midnight-ntwrk/wallet-sdk-unshielded-wallet@4.0.0",
+    "@midnight-ntwrk/wallet-sdk-utilities@1.3.0",
+    "@midnightntwrk/ledger-v9@1.0.0",
+    "@midnightntwrk/onchain-runtime-v4@4.0.0",
+    "@midnightntwrk/wallet-sdk-address-format@4.0.0",
+    "@midnightntwrk/zkir-v2@2.2.0",
     "brace-expansion@5.0.8",
     "mermaid@11.16.1",
     "pnpm@10.34.4",
     "js-yaml@4.3.2",
   ]);
   assert.deepEqual(workspace.trustPolicyExclude, [
+    "semver@6.3.1",
+    "undici-types@6.21.0",
     "tinyexec@1.2.2",
     "pino@9.14.0",
   ]);

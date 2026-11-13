@@ -55,6 +55,31 @@ read the source at
 Use [Libs](/packages/) for package selection details and
 [Quickstart](/guide/quickstart) for a complete create/update/resolve flow.
 
+## Wallet snapshots
+
+`serializeWalletState(ctx)` preserves the SDK's opaque
+`transactionLifecycleState` alongside shielded, unshielded, Dust and separate
+shared-history state. Both `buildWallet(config, seed, snapshot)` and
+`restoreWalletFromState(config, seed, snapshot)` require a nonempty lifecycle
+string and restore it through the SDK before wallet startup. Fresh creation
+without a snapshot keeps the SDK default lifecycle service.
+
+**Breaking compatibility:** every supplied snapshot missing lifecycle data is
+rejected as incomplete/incompatible, including older backups that appear
+settled. There is no automatic reconstruction or empty-lifecycle fallback for
+supplied snapshots. Do not add an empty payload to an older backup: component
+state and history cannot reconstruct outstanding transaction records. SDK
+corrupt/unknown-format errors propagate before startup.
+
+Treat the entire snapshot as sensitive wallet/transaction backup data: protect
+it at rest and in transit and never log its payloads. Preserve the lifecycle
+string exactly, without interpreting or rewriting it. These sequential saves
+are not an atomic backup during concurrent wallet operations; coordinate
+backup with application activity. Lifecycle persistence retains live input
+reservations across restore; it does not guarantee inclusion, cancel or roll
+back transactions, or recover omitted records. Controller private-state/secret
+backups remain separate and required.
+
 ## Key Rules
 
 Use `addVerificationMethod` for Ed25519, X25519, P-256, secp256k1,
@@ -70,16 +95,18 @@ purges relationships implicitly and throws `VerificationMethodReferencedError`
 (with `code`, `methodId`, and ordered `relations`) while references remain.
 Missing relationship removals continue to fail explicitly.
 
-`@midnight-ntwrk/midnight-js-contracts` 4.0.2 calls
-`setContractAddress(target)`, then awaits the initial-state and signing-key
-writes after ledger deployment success but before `deployContract` returns.
-`deploy` intercepts that synchronous bind to canonicalize and reserve the target
-under its already-owned source lease before the dependency mutates the provider.
+`@midnight-ntwrk/midnight-js-contracts` 5.0.0 calls
+`forContract(target).set(privateStateId, initialPrivateState)`, then awaits
+`setSigningKey(target, signingKey)` after ledger deployment success and before
+constructing the handle returned by `deployContract`. `deploy` intercepts the
+synchronous `forContract(target)` call to canonicalize and reserve the target
+under its already-owned source lease before delegating to the contract-scoped
+view and its state write. Provider and view methods retain their receivers.
 The lease covers the dependency's complete return or rejection and has no unsafe
 elapsed-time expiry; the interceptor is deactivated on settlement and cannot
-reuse the released lease. The dependency already performs the bind and both
-writes, so the API does not duplicate them or overwrite a concurrently rotated
-controller key.
+reuse the released lease. The interceptor reserves the target and the dependency performs both writes,
+so the API does not repeat the bind or writes and cannot overwrite a concurrently
+rotated controller key through a duplicate setup write.
 
 A target reservation, either post-finality persistence failure, or returned
 contract-handle construction failure becomes
@@ -89,8 +116,8 @@ a stable `code`/`name`, canonical `contractAddress`, and controlled `setupStage`
 `signing_key_persistence`, or `contract_handle_construction`). The observed
 address tells callers that the dependency reported ledger success; the stage
 identifies incomplete local setup. Handle construction begins after both writes
-complete and includes `deployContract`'s second address bind, which cannot reset
-the stage to reservation or persistence. The error discards the source error,
+complete; SDK5 constructs `callTx` closures without a second provider address
+bind. The error discards the source error,
 contract handle, deployment and
 transaction/finality objects, provider name/message, and all public/private
 evidence. It has no `cause`. Every pre-target rejection, including primitive

@@ -32,6 +32,7 @@ export const configureProviders = async (
   ctx: MidnightDIDWalletContext,
   config: Config,
 ) => {
+  const networkId = ctx.networkId;
   const {
     httpClientProofProvider,
     indexerPublicDataProvider,
@@ -45,16 +46,20 @@ export const configureProviders = async (
 
   return {
     privateStateProvider: createDIDPrivateStateProvider(ctx, config, accountId),
-    publicDataProvider: indexerPublicDataProvider(
-      config.indexer,
-      config.indexerWS,
-    ),
+    publicDataProvider: indexerPublicDataProvider({
+      queryURL: config.indexer,
+      subscriptionURL: config.indexerWS,
+    }),
     zkConfigProvider,
-    proofProvider: httpClientProofProvider(
-      config.proofServer,
+    proofProvider: httpClientProofProvider({
+      url: config.proofServer,
       zkConfigProvider,
-    ),
+    }),
     walletProvider: walletAndMidnightProvider,
     midnightProvider: walletAndMidnightProvider,
+    config: {
+      networkId,
+      ttlSeconds: 30 * 60,
+    },
   };
 };

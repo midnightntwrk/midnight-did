@@ -1,3 +1,4 @@
+import { MidnightNetwork } from "@midnight-ntwrk/midnight-did/midnight";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -28,7 +29,8 @@ vi.mock("../controller-authorization.js", () => ({
   createControllerAuthorization: mocks.createControllerAuthorization,
 }));
 
-vi.mock("../did-subject.js", () => ({
+vi.mock("../did-subject.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../did-subject.js")>()),
   normalizeBoundDIDURL: mocks.normalizeBoundDIDURL,
 }));
 
@@ -60,7 +62,10 @@ const didContract = {
     removeService: vi.fn(async () => ({ public: { txId: "remove" } })),
   },
 } as any;
-const providers = { privateStateProvider: {} } as any;
+const providers = {
+  config: { networkId: "undeployed" },
+  privateStateProvider: {},
+} as any;
 const didState = {};
 const service = { id: "#service", serviceEndpoint: "https://example.test" };
 const ledgerService = {
@@ -92,7 +97,11 @@ describe("service operations", () => {
       txId: "set",
     });
 
-    expect(mocks.serviceToLedger).toHaveBeenCalledWith(didContract, service);
+    expect(mocks.serviceToLedger).toHaveBeenCalledWith(
+      didContract,
+      service,
+      MidnightNetwork.Undeployed,
+    );
     expect(mocks.setServiceAuthorizationDigest).toHaveBeenCalledWith(
       "did-id",
       4n,
@@ -152,6 +161,7 @@ describe("service operations", () => {
       didContract,
       "did:midnight:example#service",
       "serviceId",
+      MidnightNetwork.Undeployed,
     );
     expect(mocks.removeServiceAuthorizationDigest).toHaveBeenCalledWith(
       "did-id",
