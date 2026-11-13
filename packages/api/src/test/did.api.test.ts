@@ -1123,6 +1123,8 @@ describeApi("Midnight DID method API", () => {
   it("should serialize and restore wallet history, then update using restored-wallet balancing and signing", async () => {
     const snapshot = await api.serializeWalletState(walletCtx);
     expect(snapshot.unshieldedHistory).toBeDefined();
+    expect(typeof snapshot.transactionLifecycleState).toBe("string");
+    expect(snapshot.transactionLifecycleState.length).toBeGreaterThan(0);
     restoredWalletCtx = await api.restoreWalletFromState(
       testConfig.dappConfig,
       testConfig.seed,

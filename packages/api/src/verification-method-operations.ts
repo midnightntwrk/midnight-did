@@ -10,7 +10,11 @@ import {
   asSchnorrJubjubDigest,
   createControllerAuthorization,
 } from "./controller-authorization.js";
-import { normalizeBoundFragmentId } from "./did-subject.js";
+import {
+  getMidnightNetwork,
+  getProviderMidnightNetwork,
+  normalizeBoundFragmentId,
+} from "./did-subject.js";
 import {
   findExistingVerificationMethodLedgerIdentifier,
   ledgerIdentifier,
@@ -42,9 +46,11 @@ export const addVerificationMethod = async (
   providers: MidnightDIDProviders,
   verificationMethod: VerificationMethod,
 ): Promise<Ledger9FinalizedCallTxPublicData> => {
+  const network = getProviderMidnightNetwork(providers);
   const ledgerVerificationMethod = verificationMethodToLedger(
     didContract,
     verificationMethod,
+    network,
   );
   const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
@@ -53,7 +59,7 @@ export const addVerificationMethod = async (
   if (
     findExistingVerificationMethodLedgerIdentifier(
       didState,
-      ledgerIdentifier(didContract, ledgerVerificationMethod.id),
+      ledgerIdentifier(didContract, ledgerVerificationMethod.id, network),
     ) !== null
   ) {
     throw new Error(
@@ -88,9 +94,11 @@ export const updateVerificationMethod = async (
   providers: MidnightDIDProviders,
   verificationMethod: VerificationMethod,
 ): Promise<Ledger9FinalizedCallTxPublicData> => {
+  const network = getProviderMidnightNetwork(providers);
   const canonicalVerificationMethod = verificationMethodToLedger(
     didContract,
     verificationMethod,
+    network,
   );
   const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
@@ -98,7 +106,7 @@ export const updateVerificationMethod = async (
   );
   const existingMethodId = requireExistingVerificationMethodLedgerId(
     didState,
-    ledgerIdentifier(didContract, canonicalVerificationMethod.id),
+    ledgerIdentifier(didContract, canonicalVerificationMethod.id, network),
     "opaque",
   );
   const ledgerVerificationMethod = {
@@ -145,10 +153,12 @@ export const removeVerificationMethod = async (
   providers: MidnightDIDProviders,
   methodId: string,
 ): Promise<Ledger9FinalizedCallTxPublicData> => {
+  const network = getProviderMidnightNetwork(providers);
   const canonicalMethodId = normalizeBoundFragmentId(
     didContract,
     methodId,
     "methodId",
+    network,
   );
   const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
@@ -156,7 +166,7 @@ export const removeVerificationMethod = async (
   );
   const normalizedMethodId = requireExistingVerificationMethodLedgerId(
     didState,
-    ledgerIdentifier(didContract, canonicalMethodId),
+    ledgerIdentifier(didContract, canonicalMethodId, network),
     "opaque",
   );
   assertVerificationMethodIsNotReferenced(didState, normalizedMethodId);
@@ -187,9 +197,11 @@ export const addSchnorrJubjubVerificationMethod = async (
   providers: MidnightDIDProviders,
   verificationMethod: SchnorrJubjubVerificationMethod,
 ): Promise<Ledger9FinalizedCallTxPublicData> => {
+  const network = getProviderMidnightNetwork(providers);
   const ledgerVerificationMethod = schnorrJubjubVerificationMethodToLedger(
     didContract,
     verificationMethod,
+    network,
   );
   const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
@@ -198,7 +210,7 @@ export const addSchnorrJubjubVerificationMethod = async (
   if (
     findExistingVerificationMethodLedgerIdentifier(
       didState,
-      ledgerIdentifier(didContract, ledgerVerificationMethod.id),
+      ledgerIdentifier(didContract, ledgerVerificationMethod.id, network),
     ) !== null
   ) {
     throw new Error(
@@ -233,9 +245,11 @@ export const updateSchnorrJubjubVerificationMethod = async (
   providers: MidnightDIDProviders,
   verificationMethod: SchnorrJubjubVerificationMethod,
 ): Promise<Ledger9FinalizedCallTxPublicData> => {
+  const network = getProviderMidnightNetwork(providers);
   const canonicalVerificationMethod = schnorrJubjubVerificationMethodToLedger(
     didContract,
     verificationMethod,
+    network,
   );
   const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
@@ -243,7 +257,7 @@ export const updateSchnorrJubjubVerificationMethod = async (
   );
   const existingMethodId = requireExistingVerificationMethodLedgerId(
     didState,
-    ledgerIdentifier(didContract, canonicalVerificationMethod.id),
+    ledgerIdentifier(didContract, canonicalVerificationMethod.id, network),
     "schnorrJubjub",
   );
   const ledgerVerificationMethod = {
@@ -285,10 +299,12 @@ export const removeSchnorrJubjubVerificationMethod = async (
   providers: MidnightDIDProviders,
   methodId: string,
 ): Promise<Ledger9FinalizedCallTxPublicData> => {
+  const network = getProviderMidnightNetwork(providers);
   const canonicalMethodId = normalizeBoundFragmentId(
     didContract,
     methodId,
     "methodId",
+    network,
   );
   const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
@@ -296,7 +312,7 @@ export const removeSchnorrJubjubVerificationMethod = async (
   );
   const normalizedMethodId = requireExistingVerificationMethodLedgerId(
     didState,
-    ledgerIdentifier(didContract, canonicalMethodId),
+    ledgerIdentifier(didContract, canonicalMethodId, network),
     "schnorrJubjub",
   );
   assertVerificationMethodIsNotReferenced(didState, normalizedMethodId);
@@ -369,17 +385,27 @@ export const verifySchnorrJubjubDigestSignature: VerifySchnorrJubjubDigestSignat
     const signature = stateAware
       ? (maybeSignature as SchnorrJubjubSignature)
       : (digestOrSignature as SchnorrJubjubSignature);
+    const providers = stateAware
+      ? providersOrMethodId
+      : registeredContractProviders(didContract);
+    // Only truly unregistered legacy handles retain construction-default semantics.
+    const network =
+      providers === undefined
+        ? getMidnightNetwork()
+        : getProviderMidnightNetwork(providers);
     const canonicalMethodId = normalizeBoundFragmentId(
       didContract,
       methodId,
       "methodId",
+      network,
     );
-    const identifier = ledgerIdentifier(didContract, canonicalMethodId);
-    const providers = stateAware
-      ? providersOrMethodId
-      : registeredContractProviders(didContract);
+    const identifier = ledgerIdentifier(
+      didContract,
+      canonicalMethodId,
+      network,
+    );
     let normalizedMethodId: string;
-    if (typeof providers !== "string" && providers !== undefined) {
+    if (providers !== undefined) {
       const didState = await requireDeployedMidnightDIDLedgerState(
         providers,
         didContract,
@@ -406,10 +432,12 @@ export const addVerificationMethodRelation = async (
   relation: VerificationMethodRelationType,
   methodId: string,
 ): Promise<Ledger9FinalizedCallTxPublicData> => {
+  const network = getProviderMidnightNetwork(providers);
   const canonicalMethodId = normalizeBoundFragmentId(
     didContract,
     methodId,
     "methodId",
+    network,
   );
   const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
@@ -417,7 +445,7 @@ export const addVerificationMethodRelation = async (
   );
   const normalizedMethodId = requireExistingVerificationMethodLedgerId(
     didState,
-    ledgerIdentifier(didContract, canonicalMethodId),
+    ledgerIdentifier(didContract, canonicalMethodId, network),
   );
   assertVerificationMethodRelationAbsent(
     didState,
@@ -461,10 +489,12 @@ export const removeVerificationMethodRelation = async (
   relation: VerificationMethodRelationType,
   methodId: string,
 ): Promise<Ledger9FinalizedCallTxPublicData> => {
+  const network = getProviderMidnightNetwork(providers);
   const canonicalMethodId = normalizeBoundFragmentId(
     didContract,
     methodId,
     "methodId",
+    network,
   );
   const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
@@ -472,7 +502,7 @@ export const removeVerificationMethodRelation = async (
   );
   const normalizedMethodId = requireExistingVerificationMethodLedgerId(
     didState,
-    ledgerIdentifier(didContract, canonicalMethodId),
+    ledgerIdentifier(didContract, canonicalMethodId, network),
   );
   assertVerificationMethodRelationPresent(
     didState,

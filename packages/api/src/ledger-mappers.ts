@@ -1,3 +1,4 @@
+import { type MidnightNetwork } from "@midnight-ntwrk/midnight-did/midnight";
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import {
   CurveType,
@@ -154,12 +155,13 @@ const assertMidnightKeyProfile = (publicKeyJwk: PublicKeyJwk): void => {
 export const verificationMethodToLedger = (
   didContract: DeployedMidnightDIDContract,
   method: VerificationMethod,
+  network?: MidnightNetwork,
 ): DIDContract.VerificationMethod => {
   if (method.type !== VerificationMethodType.JsonWebKey) {
     throw new Error("verificationMethod.type must be JsonWebKey");
   }
   assertMidnightKeyProfile(method.publicKeyJwk);
-  const didSubject = getDidSubject(didContract);
+  const didSubject = getDidSubject(didContract, network);
   if (method.controller !== didSubject) {
     throw new Error(
       `verificationMethod.controller must equal DID subject (${didSubject})`,
@@ -170,6 +172,7 @@ export const verificationMethodToLedger = (
       didContract,
       method.id,
       "verificationMethod.id",
+      network,
     ),
     typ: LedgerVerificationMethodTypeMap[method.type],
     publicKeyJwk: publicKeyJwkToLedger(method.publicKeyJwk),
@@ -179,11 +182,13 @@ export const verificationMethodToLedger = (
 export const schnorrJubjubVerificationMethodToLedger = (
   didContract: DeployedMidnightDIDContract,
   method: SchnorrJubjubVerificationMethod,
+  network?: MidnightNetwork,
 ): DIDContract.SchnorrJubjubVerificationMethod => ({
   id: normalizeBoundFragmentId(
     didContract,
     method.id,
     "schnorrJubjubVerificationMethod.id",
+    network,
   ),
   publicKey: method.publicKey,
 });
@@ -191,6 +196,7 @@ export const schnorrJubjubVerificationMethodToLedger = (
 export const serviceToLedger = (
   didContract: DeployedMidnightDIDContract,
   service: Service,
+  network?: MidnightNetwork,
 ): DIDContract.Service => {
   let endpoint: string;
   try {
@@ -200,7 +206,7 @@ export const serviceToLedger = (
   }
 
   return {
-    id: normalizeBoundDIDURL(didContract, service.id, "service.id"),
+    id: normalizeBoundDIDURL(didContract, service.id, "service.id", network),
     typ: serviceTypeToLedgerValue(service.type),
     serviceEndpoint: endpoint,
   };

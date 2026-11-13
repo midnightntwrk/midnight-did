@@ -152,7 +152,7 @@ const didContract = {
     })),
   },
 } as unknown as DeployedMidnightDIDContract;
-const providers = {} as any;
+const providers = { config: { networkId: "undeployed" } } as any;
 const emptySet = { member: () => false };
 const stateWithMethod = (
   methodId: string,

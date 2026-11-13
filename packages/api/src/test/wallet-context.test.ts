@@ -50,6 +50,10 @@ const mocks = vi.hoisted(() => {
     dustRestore: vi.fn(),
     dustStartSeed: vi.fn(),
     walletFacadeInit: vi.fn(),
+    lifecycleRestore: vi.fn(),
+    lifecycleTraits: vi.fn(() => ({ traits: "resolved-v9" })),
+    facadeClock: { now: () => new Date("2030-01-01") },
+    facadeResolvedConfig: undefined as unknown,
     protocolVersion: { V9NativeForkSchedule: { v9: 2_000_000 } },
   };
 });
@@ -85,7 +89,12 @@ vi.mock("@midnight-ntwrk/wallet-sdk-dust-wallet", () => ({
   DustWallet: mocks.dustFactory,
 }));
 
+vi.mock("@midnight-ntwrk/wallet-sdk-capabilities/transactionLifecycle", () => ({
+  TransactionLifecycleServiceImpl: { restore: mocks.lifecycleRestore },
+}));
+
 vi.mock("@midnight-ntwrk/wallet-sdk-facade", () => ({
+  lifecycleTransactionTraits: mocks.lifecycleTraits,
   WalletFacade: { init: mocks.walletFacadeInit },
   WalletEntrySchema: { kind: "wallet-entry-schema" },
   mergeWalletEntries: vi.fn(),
@@ -114,6 +123,7 @@ const config: Config = {
 };
 const seed = "11".repeat(32);
 const snapshot = {
+  transactionLifecycleState: " exact opaque SDK payload\n",
   shieldedState: "shielded-state",
   unshieldedState: "unshielded-state",
   dustState: "dust-state",
@@ -166,9 +176,14 @@ describe("wallet context", () => {
         ...init.configuration,
         txHistoryStorage: resolvedConfig.txHistoryStorage,
       };
+      mocks.facadeResolvedConfig = resolved;
       await init.shielded(resolved);
       await init.unshielded(resolved);
       await init.dust(resolved);
+      if (init.transactionLifecycleService)
+        await init.transactionLifecycleService(resolved, {
+          clock: mocks.facadeClock,
+        });
       return mocks.wallet;
     });
     mocks.wallet.start.mockResolvedValue(undefined);
@@ -206,6 +221,41 @@ describe("wallet context", () => {
     });
   });
 
+  it("retains the SDK default lifecycle service for fresh creation", async () => {
+    await createWalletContext(config, seed);
+    expect(
+      mocks.walletFacadeInit.mock.calls[0][0].transactionLifecycleService,
+    ).toBeUndefined();
+    expect(mocks.lifecycleRestore).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, null, "", "  ", 7])(
+    "rejects incomplete legacy lifecycle payload %s before derivation or init",
+    async (payload) => {
+      await expect(
+        createWalletContext(config, "invalid-seed", {
+          ...snapshot,
+          transactionLifecycleState: payload,
+        } as any),
+      ).rejects.toThrow(/incomplete|incompatible.*snapshot/i);
+      expect(mocks.walletSeedsFromMasterSeed).not.toHaveBeenCalled();
+      expect(mocks.walletFacadeInit).not.toHaveBeenCalled();
+      expect(mocks.wallet.start).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["corrupt lifecycle", "unknown lifecycle version"])(
+    "propagates SDK %s rejection before start",
+    async (message) => {
+      const failure = new Error(message);
+      mocks.lifecycleRestore.mockRejectedValueOnce(failure);
+      await expect(createWalletContext(config, seed, snapshot)).rejects.toBe(
+        failure,
+      );
+      expect(mocks.wallet.start).not.toHaveBeenCalled();
+    },
+  );
+
   it("uses the facade-supplied shared history and components built inside callbacks", async () => {
     await createWalletContext(config, seed);
 
@@ -229,6 +279,22 @@ describe("wallet context", () => {
   it("restores every component and the shared history from a snapshot", async () => {
     await createWalletContext(config, seed, snapshot);
 
+    expect(mocks.lifecycleTraits).toHaveBeenCalledWith(
+      mocks.protocolVersion.V9NativeForkSchedule.v9,
+    );
+    expect(mocks.lifecycleRestore).toHaveBeenCalledWith(
+      snapshot.transactionLifecycleState,
+      { traits: "resolved-v9" },
+      expect.objectContaining({
+        forks: mocks.protocolVersion.V9NativeForkSchedule,
+        txHistoryStorage: resolvedConfig.txHistoryStorage,
+      }),
+      mocks.facadeClock,
+    );
+    expect(mocks.lifecycleRestore.mock.calls[0][2]).toBe(
+      mocks.facadeResolvedConfig,
+    );
+    expect(mocks.lifecycleRestore.mock.calls[0][3]).toBe(mocks.facadeClock);
     expect(mocks.historyRestore).toHaveBeenCalledWith(
       { history: true },
       expect.anything(),
@@ -240,6 +306,12 @@ describe("wallet context", () => {
     expect(mocks.shieldedStartSeed).not.toHaveBeenCalled();
     expect(mocks.unshieldedStart).not.toHaveBeenCalled();
     expect(mocks.dustStartSeed).not.toHaveBeenCalled();
+    expect(mocks.loggerInfo).toHaveBeenCalledWith(
+      "Restoring wallet from serialized state",
+    );
+    expect(mocks.loggerInfo.mock.calls.flat()).not.toContain(
+      snapshot.transactionLifecycleState,
+    );
   });
 
   it("keeps the network captured before deferred initialization", async () => {

@@ -13,12 +13,15 @@ import {
 export const serializeWalletState = async (
   ctx: Pick<
     MidnightDIDWalletContext,
+    | "wallet"
     | "shieldedWallet"
     | "unshieldedWallet"
     | "dustWallet"
     | "unshieldedHistoryStorage"
   >,
 ): Promise<MidnightWalletStateSnapshot> => ({
+  transactionLifecycleState:
+    await ctx.wallet.transactionLifecycleService.serializeState(),
   shieldedState: await ctx.shieldedWallet.serializeState(),
   unshieldedState: await ctx.unshieldedWallet.serializeState(),
   dustState: await ctx.dustWallet.serializeState(),

@@ -2,8 +2,10 @@ import {
   InMemoryTransactionHistoryStorage,
   ProtocolVersion,
 } from "@midnight-ntwrk/wallet-sdk-abstractions";
+import { TransactionLifecycleServiceImpl } from "@midnight-ntwrk/wallet-sdk-capabilities/transactionLifecycle";
 import { DustWallet } from "@midnight-ntwrk/wallet-sdk-dust-wallet";
 import {
+  lifecycleTransactionTraits,
   mergeWalletEntries,
   type WalletEntry,
   WalletEntrySchema,
@@ -55,6 +57,17 @@ export const createWalletContext = async (
   seed: string,
   snapshot?: MidnightWalletStateSnapshot,
 ): Promise<MidnightDIDWalletContext> => {
+  // Legacy component/history backups cannot reconstruct outstanding lifecycle records.
+  // Reject before derivation or initialization, even if the backup appears settled.
+  const lifecycleState = snapshot?.transactionLifecycleState;
+  if (
+    snapshot !== undefined &&
+    (typeof lifecycleState !== "string" || lifecycleState.trim().length === 0)
+  ) {
+    throw new Error(
+      "Incomplete/incompatible legacy wallet snapshot: nonempty transactionLifecycleState is required",
+    );
+  }
   getLogger().info(
     snapshot
       ? "Restoring wallet from serialized state"
@@ -94,6 +107,17 @@ export const createWalletContext = async (
 
   const wallet = await WalletFacade.init({
     configuration: facadeConfig,
+    ...(lifecycleState !== undefined
+      ? {
+          transactionLifecycleService: (resolved, { clock }) =>
+            TransactionLifecycleServiceImpl.restore(
+              lifecycleState,
+              lifecycleTransactionTraits(resolved.forks.v9),
+              resolved,
+              clock,
+            ),
+        }
+      : {}),
     shielded: async (resolved) => {
       shieldedWallet =
         snapshot?.shieldedState !== undefined

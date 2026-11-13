@@ -217,6 +217,9 @@ importers:
       '@midnight-ntwrk/wallet-sdk-abstractions':
         specifier: 3.0.0
         version: 3.0.0
+      '@midnight-ntwrk/wallet-sdk-capabilities':
+        specifier: 4.0.0
+        version: 4.0.0(@effect/platform@0.97.2(effect@3.22.4))(testcontainers@12.1.0)(ws@8.21.0)
       '@midnight-ntwrk/wallet-sdk-dust-wallet':
         specifier: 5.0.0
         version: 5.0.0(@effect/platform@0.97.2(effect@3.22.4))(testcontainers@12.1.0)(ws@8.21.0)

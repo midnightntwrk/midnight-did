@@ -299,6 +299,31 @@ the emitted ESM graph and avoids resolver-only test behavior.
 The wider `check:source-imports` guard applies the same rule to all DID-owned
 TypeScript package sources outside generated `src/managed` artifacts.
 
+## Wallet snapshots
+
+`serializeWalletState(ctx)` preserves the SDK's opaque
+`transactionLifecycleState` alongside shielded, unshielded, Dust and separate
+shared-history state. Both `buildWallet(config, seed, snapshot)` and
+`restoreWalletFromState(config, seed, snapshot)` require a nonempty lifecycle
+string and restore it through the SDK before wallet startup. Fresh creation
+without a snapshot keeps the SDK default lifecycle service.
+
+**Breaking compatibility:** every supplied snapshot missing lifecycle data is
+rejected as incomplete/incompatible, including older backups that appear
+settled. There is no automatic reconstruction or empty-lifecycle fallback for
+supplied snapshots. Do not add an empty payload to an older backup: component
+state and history cannot reconstruct outstanding transaction records. SDK
+corrupt/unknown-format errors propagate before startup.
+
+Treat the entire snapshot as sensitive wallet/transaction backup data: protect
+it at rest and in transit and never log its payloads. Preserve the lifecycle
+string exactly, without interpreting or rewriting it. These sequential saves
+are not an atomic backup during concurrent wallet operations; coordinate
+backup with application activity. Lifecycle persistence retains live input
+reservations across restore; it does not guarantee inclusion, cancel or roll
+back transactions, or recover omitted records. Controller private-state/secret
+backups remain separate and required.
+
 ## Runtime Profiles
 
 - `StandaloneConfig`
@@ -316,6 +341,7 @@ Defaults:
 - constructing any profile config calls `applyMidnightNetworkProfile()`, which updates this API's process-local construction default through `setCurrentNetworkId()`, not an upstream global SDK setter.
 - wallet initialization snapshots that local default before its first await and retains it as `ctx.networkId`. `configureProviders(ctx, config)` uses that snapshot for the provider set's explicit `config.networkId`.
 - select the profile before initializing the wallet. A later profile change does not retarget an initialized wallet or its provider set.
+- provider-backed resolution, mapping, mutations, relations and signature lookups capture that provider network once per operation, even across ledger awaits. Registered contract handles use their associated providers for the deprecated verifier overload; only truly unregistered handles retain its historical construction-default fallback. Pure `getMidnightNetwork()`/subject helpers without an explicit network still follow the construction default.
 
 The docs site publishes the generated endpoint matrix at
 <https://midnightntwrk.github.io/midnight-did/guide/network-endpoints>; it is

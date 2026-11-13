@@ -55,6 +55,31 @@ read the source at
 Use [Libs](/packages/) for package selection details and
 [Quickstart](/guide/quickstart) for a complete create/update/resolve flow.
 
+## Wallet snapshots
+
+`serializeWalletState(ctx)` preserves the SDK's opaque
+`transactionLifecycleState` alongside shielded, unshielded, Dust and separate
+shared-history state. Both `buildWallet(config, seed, snapshot)` and
+`restoreWalletFromState(config, seed, snapshot)` require a nonempty lifecycle
+string and restore it through the SDK before wallet startup. Fresh creation
+without a snapshot keeps the SDK default lifecycle service.
+
+**Breaking compatibility:** every supplied snapshot missing lifecycle data is
+rejected as incomplete/incompatible, including older backups that appear
+settled. There is no automatic reconstruction or empty-lifecycle fallback for
+supplied snapshots. Do not add an empty payload to an older backup: component
+state and history cannot reconstruct outstanding transaction records. SDK
+corrupt/unknown-format errors propagate before startup.
+
+Treat the entire snapshot as sensitive wallet/transaction backup data: protect
+it at rest and in transit and never log its payloads. Preserve the lifecycle
+string exactly, without interpreting or rewriting it. These sequential saves
+are not an atomic backup during concurrent wallet operations; coordinate
+backup with application activity. Lifecycle persistence retains live input
+reservations across restore; it does not guarantee inclusion, cancel or roll
+back transactions, or recover omitted records. Controller private-state/secret
+backups remain separate and required.
+
 ## Key Rules
 
 Use `addVerificationMethod` for Ed25519, X25519, P-256, secp256k1,

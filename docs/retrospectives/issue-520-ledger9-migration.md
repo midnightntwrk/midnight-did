@@ -81,3 +81,31 @@ At this checkpoint, targeted **working-tree** validation passed 329 API tests
 and 83 bundle/smoke tests. Full verify/strict, actual production bundle/package
 and clean-consumer checks, docs validation and current-CI validation are still
 pending. These results are not new-head or final delivery acceptance evidence.
+
+## 2026-11-13 — cycle2 captured-network and snapshot follow-up
+
+- **F-006:** Provider-backed operations now retain one validated, captured
+  network through resolution, mapping and mutation. Regressions cover a later
+  profile switch and a default-network change during an awaited operation.
+- **F-007:** Snapshots retain the actual SDK transaction-lifecycle payload;
+  real-SDK roundtrips preserve pending input reservations and reject rebooking.
+  The explicitly approved policy rejects ALL supplied older snapshots without
+  lifecycle data before wallet initialization, including apparently settled
+  backups; fresh seed-only creation remains supported.
+- **What worked / failure boundary:** Failing-before/passing-after regressions
+  exposed identity drift and lifecycle loss that component/history snapshots
+  alone missed. Direct dependency declaration and its compatibility entry were
+  aligned without changing the SDK cohort or trust policy. SDK boundary tests
+  and a live restored-wallet continuation are not a live pending-mempool restart
+  experiment, wrong-network submission test, or cancellation/rollback guarantee;
+  snapshots remain sensitive and separately persisted state is not atomic.
+- **Validation provenance:** Focused checks and fresh mandatory verify, full
+  strict (31 real live cases), 364 API unit tests, protected-eight coverage and
+  docs validation/build/visual checks passed on repaired **WORKING source** at
+  historical HEAD `8def5112b1964289f08a7acff31efb33144caf3f`. These are not
+  executions on a future checkpoint commit. The existing local adversarial
+  isolation skip and absent companion VC runtime remain disclosed limitations.
+- **Tracked follow-up:** Retain these regressions in existing issue #520 and
+  companion #754. New clean-head conformance, production/package and physical
+  consumer checks, applicable exact-head CI, and independent recorded-ID
+  verification remain pending. This checkpoint makes no final readiness claim.

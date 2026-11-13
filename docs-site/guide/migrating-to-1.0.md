@@ -92,6 +92,31 @@ Do **not** copy the repository's TypeDoc, glob, lint or documentation-tooling
 overrides into a runtime application as part of this SDK workaround. Manage
 application tooling separately.
 
+## Lifecycle-complete wallet backups
+
+Current `MidnightWalletStateSnapshot` requires the opaque string
+`transactionLifecycleState`. `serializeWalletState` saves the SDK lifecycle
+service along with component state and separate shared history; both snapshot
+entrypoints restore it using the SDK's resolved configuration and facade clock
+before startup. This keeps live transaction records available to protect restored
+NIGHT reservations when sync reaches tip.
+
+Every supplied older snapshot without a nonempty lifecycle string is rejected
+before initialization, **even if it appears settled**. This blanket incompatibility
+is intentional: no history-based reconstruction, automatic conversion or silent
+empty-lifecycle fallback is supported. Do not fabricate an empty store to make an
+old backup pass. Fresh seed-only creation without a snapshot remains supported,
+but is not a recovery procedure for missing lifecycle data. Preserve old backups
+and use their matching software independently; this API cannot recover omitted
+records. Corrupt or unknown SDK payloads fail before wallet start.
+
+Protect snapshots as sensitive data and never log their contents. Keep the SDK
+string exactly as emitted. Backup remains sequential, not atomic with concurrent
+wallet activity; applications must coordinate it. Persistence does not guarantee
+transaction inclusion or invent cancellation/rollback. Separate controller
+private-state and secret backup obligations are unchanged. See
+[Wallet snapshots](/api/#wallet-snapshots).
+
 ## Dust readiness uses indexed block time
 
 `registerForDustGeneration(wallet, keystore, readinessOptions)` now requires a

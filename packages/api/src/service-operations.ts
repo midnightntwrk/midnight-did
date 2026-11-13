@@ -6,7 +6,10 @@ import {
   asSchnorrJubjubDigest,
   createControllerAuthorization,
 } from "./controller-authorization.js";
-import { normalizeBoundDIDURL } from "./did-subject.js";
+import {
+  getProviderMidnightNetwork,
+  normalizeBoundDIDURL,
+} from "./did-subject.js";
 import {
   findExistingServiceLedgerId,
   ledgerIdentifier,
@@ -24,7 +27,8 @@ export const addService = async (
   providers: MidnightDIDProviders,
   service: Service,
 ): Promise<Ledger9FinalizedCallTxPublicData> => {
-  const ledgerService = serviceToLedger(didContract, service);
+  const network = getProviderMidnightNetwork(providers);
+  const ledgerService = serviceToLedger(didContract, service, network);
   const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
     didContract,
@@ -32,7 +36,7 @@ export const addService = async (
   if (
     findExistingServiceLedgerId(
       didState,
-      ledgerIdentifier(didContract, ledgerService.id),
+      ledgerIdentifier(didContract, ledgerService.id, network),
     ) !== null
   ) {
     throw new Error(`service ${ledgerService.id} already exists`);
@@ -65,14 +69,15 @@ export const updateService = async (
   providers: MidnightDIDProviders,
   service: Service,
 ): Promise<Ledger9FinalizedCallTxPublicData> => {
-  const canonicalService = serviceToLedger(didContract, service);
+  const network = getProviderMidnightNetwork(providers);
+  const canonicalService = serviceToLedger(didContract, service, network);
   const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
     didContract,
   );
   const existingServiceId = requireExistingServiceLedgerId(
     didState,
-    ledgerIdentifier(didContract, canonicalService.id),
+    ledgerIdentifier(didContract, canonicalService.id, network),
   );
   const ledgerService = { ...canonicalService, id: existingServiceId };
   const [signature, expectedVersion] = await createControllerAuthorization(
@@ -103,10 +108,12 @@ export const removeService = async (
   providers: MidnightDIDProviders,
   serviceId: string,
 ): Promise<Ledger9FinalizedCallTxPublicData> => {
+  const network = getProviderMidnightNetwork(providers);
   const canonicalServiceId = normalizeBoundDIDURL(
     didContract,
     serviceId,
     "serviceId",
+    network,
   );
   const didState = await requireDeployedMidnightDIDLedgerState(
     providers,
@@ -114,7 +121,7 @@ export const removeService = async (
   );
   const normalizedServiceId = requireExistingServiceLedgerId(
     didState,
-    ledgerIdentifier(didContract, canonicalServiceId),
+    ledgerIdentifier(didContract, canonicalServiceId, network),
   );
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,

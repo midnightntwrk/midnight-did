@@ -17,12 +17,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `registerForDustGeneration(wallet, keystore, readinessOptions)`. The
   `createIndexerIndexedBlockTime(indexerUrl)` adapter supplies SDK5's indexed
   Dust valuation time; there is no wall-clock or existing-coin fallback.
+- BREAKING: Require opaque `transactionLifecycleState` in every supplied wallet
+  snapshot, including apparently settled older backups. Serialize and restore the
+  SDK lifecycle store before startup; reject incomplete legacy snapshots without
+  reconstruction or empty-store fallback. Fresh no-snapshot creation is unchanged.
 - Adopt SDK5 wallet/facade, provider, private-state, network-snapshot,
   transaction balancing/signing/finalization, and wallet state serialization
   behavior, including real recovery and restored-wallet integration coverage.
 
 ### Fixed
 
+- Bind provider-backed DID resolution, identifier mapping, mutations, relations
+  and signature lookup to one captured provider network rather than a later
+  construction default. Preserve live wallet input reservations across snapshot
+  restore through the SDK lifecycle store; backups remain sensitive and are not
+  atomic with concurrent operations.
 - Include the Compact compiler metadata manifest in local ZK artifact archives
   so SDK5 integrity verification and archive consumers can validate prover,
   verifier, and ZKIR files.

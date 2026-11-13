@@ -23,6 +23,11 @@ describe("wallet state helpers", () => {
   it("serializes each wallet component into a restorable snapshot", async () => {
     await expect(
       serializeWalletState({
+        wallet: {
+          transactionLifecycleService: {
+            serializeState: vi.fn(async () => "  opaque-lifecycle-state\n"),
+          },
+        },
         shieldedWallet: {
           serializeState: vi.fn(async () => "shielded-state"),
         },
@@ -37,6 +42,7 @@ describe("wallet state helpers", () => {
         },
       } as any),
     ).resolves.toEqual({
+      transactionLifecycleState: "  opaque-lifecycle-state\n",
       shieldedState: "shielded-state",
       unshieldedState: "unshielded-state",
       dustState: "dust-state",

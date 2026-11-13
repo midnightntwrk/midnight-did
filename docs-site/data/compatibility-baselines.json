@@ -117,6 +117,7 @@
       "walletSdk": {
         "abstractions": "3.0.0",
         "address-format": "4.0.0",
+        "capabilities": "4.0.0",
         "dust-wallet": "5.0.0",
         "facade": "5.0.0",
         "hd": "4.0.0",

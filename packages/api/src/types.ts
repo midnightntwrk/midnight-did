@@ -91,6 +91,8 @@ export interface MidnightDIDWalletContext {
 }
 
 export interface MidnightWalletStateSnapshot {
+  /** Opaque SDK lifecycle payload; required even for settled snapshots. Sensitive backup data. */
+  transactionLifecycleState: string;
   shieldedState: string;
   unshieldedState: string;
   dustState: string;
