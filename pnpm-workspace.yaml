@@ -53,6 +53,8 @@ minimumReleaseAgeExclude:
   - mermaid@11.16.1
   - pnpm@10.34.4
   - js-yaml@4.3.2
+  # Renovate security update: vite@7.3.7
+  - vite@7.3.7
 trustPolicyExclude:
   # Ledger9/issue-520: exact baseline-locked versions approved by the
   # maintainer. Registry SHA-512 equals the baseline lock for both; details in
