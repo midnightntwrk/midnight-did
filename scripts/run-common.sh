@@ -151,8 +151,8 @@ run_common_auto_proof_server_image() {
   local caller="${1:-run}"
   if [[ -z "${PROOF_SERVER_IMAGE:-}" ]] \
     && command -v docker >/dev/null 2>&1 \
-    && docker image inspect proof-server-bootstrap:8.0.3 >/dev/null 2>&1; then
-    export PROOF_SERVER_IMAGE="proof-server-bootstrap:8.0.3"
+    && docker image inspect proof-server-bootstrap:9.0.1 >/dev/null 2>&1; then
+    export PROOF_SERVER_IMAGE="proof-server-bootstrap:9.0.1"
     echo "[${caller}] Using local bootstrapped proof server image: ${PROOF_SERVER_IMAGE}"
   fi
 }

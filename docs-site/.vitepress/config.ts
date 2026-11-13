@@ -57,6 +57,7 @@ export default defineConfig({
             { text: "Network Endpoints", link: "/guide/network-endpoints" },
             { text: "Key Model", link: "/guide/key-model" },
             { text: "Compatibility", link: "/guide/compatibility" },
+            { text: "Migrate to 1.0", link: "/guide/migrating-to-1.0" },
             { text: "Migrate to 0.7", link: "/guide/migrating-to-0.7" },
             { text: "Migrate to 0.6", link: "/guide/migrating-to-0.6" },
           ],

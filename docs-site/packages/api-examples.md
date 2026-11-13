@@ -50,6 +50,26 @@ Output keystore shape:
 Use this example when a downstream issuer needs a DID plus local signing secrets
 for Ed25519 authentication and SchnorrJubjub `assertionMethod` flows.
 
+## Register For Dust Generation
+
+`registerForDustGeneration` requires indexed block time so Dust is evaluated at
+the chain tip the wallet has indexed rather than at wall-clock time:
+
+```ts
+import {
+  createIndexerIndexedBlockTime,
+  registerForDustGeneration,
+} from "@midnight-ntwrk/midnight-did-api";
+
+await registerForDustGeneration(wallet, unshieldedKeystore, {
+  indexedBlockTime: createIndexerIndexedBlockTime(config.indexer),
+  timeoutMs: 120_000,
+});
+```
+
+Use `INDEXER_URL`/the profile’s `indexer` endpoint for the adapter. The wait is
+bounded and cancellable; there is no implicit wall-clock fallback.
+
 ## Deploy A DID
 
 Run against a funded standalone wallet seed and local standalone network:

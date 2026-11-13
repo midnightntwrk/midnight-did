@@ -1,0 +1,29 @@
+diff --git a/dist/node-utils.js b/dist/node-utils.js
+index 96a483d44c9ca066a5128dc40abcffdb8a3aee4b..9005e59be8c1935a50cf5ac21458385f1636f136 100644
+--- a/dist/node-utils.js
++++ b/dist/node-utils.js
+@@ -316,6 +316,10 @@ function discoverFiles(rootDir, controller) {
+ }
+ function glob(pattern, root, options = {}) {
+   const mini = new Minimatch2(pattern);
++  // Recurse using the parsed pattern, without applying inclusion negation.
++  // minimatch 11 keeps public partial match(), but makes matchOne private.
++  // The original matcher interpreted comments before stripping negation.
++  const traversal = new Minimatch2(mini.pattern, { nonegate: true, nocomment: true });
+   const shouldIncludeNodeModules = pattern.includes("node_modules");
+   const controller = {
+     matches(path) {
+@@ -325,12 +329,7 @@ function glob(pattern, root, options = {}) {
+       if (childPath[childPath.length - 1] === "node_modules" && !shouldIncludeNodeModules) {
+         return false;
+       }
+-      return mini.set.some((row) => mini.matchOne(
+-        childPath,
+-        row,
+-        /* partial */
+-        true
+-      ));
++      return mini.set.length !== 0 && traversal.match(childPath.join("/"), true);
+     },
+     matchDirectories: options.includeDirectories,
+     followSymlinks: options.followSymlinks

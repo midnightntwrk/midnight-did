@@ -14,7 +14,8 @@
       "matchPackageNames": [
         "@midnight-ntwrk/compact-js",
         "@midnight-ntwrk/compact-runtime",
-        "@midnight-ntwrk/ledger-v8",
+        "@midnightntwrk/ledger-v9",
+        "@midnightntwrk/onchain-runtime-v4",
         "/^@midnight-ntwrk\\/midnight-js-/",
         "/^@midnight-ntwrk\\/wallet-sdk-/"
       ],

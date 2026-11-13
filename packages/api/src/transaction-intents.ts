@@ -1,4 +1,4 @@
-import * as ledger from "@midnight-ntwrk/ledger-v8";
+import * as ledger from "@midnightntwrk/ledger-v9";
 
 type SerializableIntent = {
   serialize: () => Uint8Array;
@@ -37,7 +37,7 @@ export const signTransactionIntents = (
           cloned.fallibleUnshieldedOffer!.signatures.at(i) ?? signature,
       );
       cloned.fallibleUnshieldedOffer =
-        cloned.fallibleUnshieldedOffer.addSignatures(sigs);
+        cloned.fallibleUnshieldedOffer.addSignatures(sigs as never[]);
     }
 
     if (cloned.guaranteedUnshieldedOffer) {
@@ -46,7 +46,7 @@ export const signTransactionIntents = (
           cloned.guaranteedUnshieldedOffer!.signatures.at(i) ?? signature,
       );
       cloned.guaranteedUnshieldedOffer =
-        cloned.guaranteedUnshieldedOffer.addSignatures(sigs);
+        cloned.guaranteedUnshieldedOffer.addSignatures(sigs as never[]);
     }
 
     tx.intents.set(segment, cloned);

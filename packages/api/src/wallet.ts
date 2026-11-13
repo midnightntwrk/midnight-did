@@ -11,7 +11,11 @@ import {
 import { createWalletContext } from "./wallet-context.js";
 import { waitForWalletFunds, waitForWalletSync } from "./wallet-state.js";
 
-export { registerForDustGeneration } from "./wallet-dust.js";
+export {
+  createIndexerIndexedBlockTime,
+  type DustReadinessOptions,
+  registerForDustGeneration,
+} from "./wallet-dust.js";
 export {
   getWalletBalances,
   serializeWalletState,

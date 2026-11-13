@@ -18,6 +18,7 @@ import {
 } from "./destructive-output-path.mjs";
 import {
   assertCleanExactHead,
+  assertSupportedCompactVersion,
   assertSupportedNodeVersion,
   assertSupportedNpmVersion,
   canonicalJson,
@@ -154,16 +155,12 @@ if (pnpm !== baseline.toolchains.pnpm) {
     `pnpm ${pnpm} does not match package.json authority ${baseline.toolchains.pnpm}`,
   );
 }
-const compact = commandVersion(
-  "compact",
-  ["compile", "--version"],
-  "unavailable",
-);
-if (compact !== baseline.toolchains.compact) {
-  throw new Error(
-    `Compact compiler ${compact} does not match baseline ${baseline.toolchains.compact}`,
-  );
-}
+// Remove only the CLI line terminator, not arbitrary whitespace or extra
+// lines. Preserve the full banner (including build metadata) in evidence.
+const compact = execFileSync("compact", ["compile", "--version"], {
+  encoding: "utf8",
+}).replace(/\r?\n$/u, "");
+assertSupportedCompactVersion(compact, baseline.toolchains.compact);
 
 let outputWorkspace = prepareConformanceOutputPath({ repositoryRoot });
 process.once("exit", () => outputWorkspace?.cleanup());

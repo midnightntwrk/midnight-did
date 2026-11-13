@@ -1,3 +1,4 @@
+import { type MidnightNetwork } from "@midnight-ntwrk/midnight-did/midnight";
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 
 import { getDidSubject } from "./did-subject.js";
@@ -29,8 +30,9 @@ type LedgerMap = {
 export const ledgerIdentifier = (
   didContract: DeployedMidnightDIDContract,
   canonical: string,
+  network?: MidnightNetwork,
 ): LedgerIdentifier => {
-  const didSubject = getDidSubject(didContract);
+  const didSubject = getDidSubject(didContract, network);
   const legacy = canonical.startsWith(`${didSubject}#`)
     ? canonical.slice(didSubject.length)
     : undefined;

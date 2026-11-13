@@ -1,6 +1,6 @@
 import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
 import { assertAbsoluteUri } from "@midnight-ntwrk/midnight-did-domain";
-import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
+import { type Ledger9FinalizedCallTxPublicData } from "@midnight-ntwrk/midnight-js-contracts";
 
 import {
   asSchnorrJubjubDigest,
@@ -15,7 +15,7 @@ export const addAlsoKnownAs = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
   aliasUri: string,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   const alias = assertAbsoluteUri(aliasUri, "aliasUri");
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
@@ -43,7 +43,7 @@ export const removeAlsoKnownAs = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
   aliasUri: string,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   const alias = assertAbsoluteUri(aliasUri, "aliasUri");
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
@@ -70,7 +70,7 @@ export const removeAlsoKnownAs = async (
 export const deactivate = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   const [signature, expectedVersion] = await createControllerAuthorization(
     didContract,
     providers,

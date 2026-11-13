@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- BREAKING: Move Midnight DID public operation to Ledger9 with Compact 0.36
+  artifacts and the Midnight JS 5 / wallet SDK 5 runtime. The public API is
+  Ledger9-only; hypothetical Ledger8 DIDs require replacement deployment with a
+  new DID/address and no automatic on-chain history transfer.
+- BREAKING: Require the indexed-block-time readiness argument for
+  `registerForDustGeneration(wallet, keystore, readinessOptions)`. The
+  `createIndexerIndexedBlockTime(indexerUrl)` adapter supplies SDK5's indexed
+  Dust valuation time; there is no wall-clock or existing-coin fallback.
+- BREAKING: Require opaque `transactionLifecycleState` in every supplied wallet
+  snapshot, including apparently settled older backups. Serialize and restore the
+  SDK lifecycle store before startup; reject incomplete legacy snapshots without
+  reconstruction or empty-store fallback. Fresh no-snapshot creation is unchanged.
+- Adopt SDK5 wallet/facade, provider, private-state, network-snapshot,
+  transaction balancing/signing/finalization, and wallet state serialization
+  behavior, including real recovery and restored-wallet integration coverage.
+- Allow RC publication from `main`, `develop`, and top-level `milestone-*`
+  branches with a nonempty slash-free suffix. Snapshots remain `develop`-only
+  and final releases `main`-only; milestone publication still requires separately
+  authorized `npm-release` branch/reviewer controls and all five npm Trusted
+  Publisher mappings.
+
+### Fixed
+
+- Bind provider-backed DID resolution, identifier mapping, mutations, relations
+  and signature lookup to one captured provider network rather than a later
+  construction default. Preserve live wallet input reservations across snapshot
+  restore through the SDK lifecycle store; backups remain sensitive and are not
+  atomic with concurrent operations.
+- Include the Compact compiler metadata manifest in local ZK artifact archives
+  so SDK5 integrity verification and archive consumers can validate prover,
+  verifier, and ZKIR files.
+- Replace the proof-server image's invalid curl-based healthcheck with a native
+  HTTP `/version` status probe, and wait for a fresh node block before starting
+  the dependent standalone indexer's SPO client.
+
 ## [0.7.0] - 2026-09-21
 
 ### Changed

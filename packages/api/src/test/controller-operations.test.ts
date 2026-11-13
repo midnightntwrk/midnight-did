@@ -77,6 +77,9 @@ describe("controller operations", () => {
     const recoverySecretKey = new Uint8Array(32).fill(99);
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({
         recoverySecretKey,
         secretKey: new Uint8Array(32).fill(98),
@@ -134,6 +137,9 @@ describe("controller operations", () => {
     }));
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({ secretKey: new Uint8Array(32).fill(4) }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -166,6 +172,9 @@ describe("controller operations", () => {
     }));
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({
         recoverySecretKey,
         secretKey: new Uint8Array(32).fill(8),
@@ -212,6 +221,9 @@ describe("controller operations", () => {
     }));
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({ recoverySecretKey }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -244,6 +256,9 @@ describe("controller operations", () => {
     }));
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState(null),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -302,6 +317,9 @@ describe("controller operations", () => {
     }));
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: vi.fn(async (privateStateId: string) => {
         if (privateStateId === MidnightDIDPrivateStateId) {
           privateStateReadStarted = true;
@@ -364,6 +382,9 @@ describe("controller operations", () => {
     }));
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({ recoverySecretKey: storedRecoverySecretKey }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -392,6 +413,9 @@ describe("controller operations", () => {
     const recoverControllerKeyTx = vi.fn();
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: vi.fn(),
       set: vi.fn(),
       remove: vi.fn(),
@@ -422,6 +446,9 @@ describe("controller operations", () => {
     const recoverControllerKeyTx = vi.fn();
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({
         recoverySecretKey: new Uint8Array(32).fill(20),
       }),
@@ -451,6 +478,9 @@ describe("controller operations", () => {
     const recoverControllerKeyTx = vi.fn();
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({ recoverySecretKey: storedRecoverySecretKey }),
       set: vi.fn(),
       remove: vi.fn(),
@@ -477,6 +507,9 @@ describe("controller operations", () => {
     const recoverControllerKeyTx = vi.fn();
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({
         recoverySecretKey,
         secretKey: new Uint8Array(32).fill(8),
@@ -509,6 +542,9 @@ describe("controller operations", () => {
     const recoverControllerKeyTx = vi.fn();
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState(
         {
           recoverySecretKey,
@@ -544,6 +580,9 @@ describe("controller operations", () => {
     });
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({
         recoverySecretKey,
         secretKey: new Uint8Array(32).fill(8),
@@ -574,6 +613,9 @@ describe("controller operations", () => {
     }));
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({
         recoverySecretKey,
         secretKey: new Uint8Array(32).fill(8),
@@ -611,6 +653,9 @@ describe("controller operations", () => {
         {
           privateStateProvider: {
             setContractAddress: vi.fn(),
+            forContract: vi.fn(function (this: any) {
+              return this;
+            }),
             get: getPrivateState({
               recoverySecretKey: new Uint8Array(32).fill(5),
               secretKey: new Uint8Array(32).fill(4),
@@ -632,6 +677,9 @@ describe("controller operations", () => {
       const boundContractAddress = "B".repeat(64);
       const privateStateProvider = {
         setContractAddress: vi.fn(),
+        forContract: vi.fn(function (this: any) {
+          return this;
+        }),
         get: vi.fn(),
         set: vi.fn(),
         remove: vi.fn(),
@@ -679,6 +727,9 @@ describe("controller operations", () => {
     const rotateControllerKeyTx = vi.fn();
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({
         recoverySecretKey: new Uint8Array(32).fill(5),
         secretKey: new Uint8Array(32).fill(4),
@@ -710,6 +761,9 @@ describe("controller operations", () => {
     const rotateControllerKeyTx = vi.fn();
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState(
         { secretKey: activeSecretKey },
         { secretKey: pendingSecretKey },
@@ -754,6 +808,9 @@ describe("controller operations", () => {
     let pendingReads = 0;
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: vi.fn(async (privateStateId: string) => {
         if (privateStateId !== MidnightDIDPendingControllerPrivateStateId) {
           return { secretKey: activeSecretKey };
@@ -806,6 +863,9 @@ describe("controller operations", () => {
     });
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({
         recoverySecretKey: new Uint8Array(32).fill(5),
         secretKey: new Uint8Array(32).fill(4),
@@ -840,6 +900,9 @@ describe("controller operations", () => {
     );
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({ secretKey: oldSecretKey }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -880,6 +943,9 @@ describe("controller operations", () => {
     );
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({ recoverySecretKey, secretKey: oldSecretKey }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -912,6 +978,9 @@ describe("controller operations", () => {
     }));
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({
         recoverySecretKey: new Uint8Array(32).fill(5),
         secretKey: new Uint8Array(32).fill(4),
@@ -941,6 +1010,9 @@ describe("controller operations", () => {
     const malformedPendingPrivateState = { secretKey: new Uint8Array(31) };
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState(null, malformedPendingPrivateState),
       set: vi.fn(),
       remove: vi.fn(async () => undefined),
@@ -967,6 +1039,9 @@ describe("controller operations", () => {
   it("rejects absent pending discard with the typed unavailable error without mutation", async () => {
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState(null),
       set: vi.fn(),
       remove: vi.fn(),
@@ -992,6 +1067,9 @@ describe("controller operations", () => {
     async (_description, pendingPrivateState) => {
       const privateStateProvider = {
         setContractAddress: vi.fn(),
+        forContract: vi.fn(function (this: any) {
+          return this;
+        }),
         get: getPrivateState(null, pendingPrivateState),
         set: vi.fn(),
         remove: vi.fn(),
@@ -1023,6 +1101,9 @@ describe("controller operations", () => {
     let removeAttempts = 0;
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: vi.fn(async (privateStateId: string) =>
         privateStateId === MidnightDIDPendingControllerPrivateStateId
           ? retainedPendingPrivateState
@@ -1098,6 +1179,9 @@ describe("controller operations", () => {
     );
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: vi.fn(async (privateStateId: string) =>
         privateStateId === MidnightDIDPendingControllerPrivateStateId
           ? pending
@@ -1151,6 +1235,9 @@ describe("controller operations", () => {
       const cleanupError = new Error("cleanup acknowledgement unavailable");
       const privateStateProvider = {
         setContractAddress: vi.fn(),
+        forContract: vi.fn(function (this: any) {
+          return this;
+        }),
         get: vi.fn(async (privateStateId: string) =>
           privateStateId === MidnightDIDPendingControllerPrivateStateId
             ? pendingPrivateState
@@ -1216,6 +1303,9 @@ describe("controller operations", () => {
     const rotateControllerKeyTx = vi.fn();
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({ secretKey: new Uint8Array(32).fill(4) }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -1261,6 +1351,9 @@ describe("controller operations", () => {
       const rotateControllerKeyTx = vi.fn();
       const privateStateProvider = {
         setContractAddress: vi.fn(),
+        forContract: vi.fn(function (this: any) {
+          return this;
+        }),
         get: vi.fn(async (privateStateId: string) =>
           privateStateId === MidnightDIDPendingControllerPrivateStateId
             ? pending
@@ -1313,6 +1406,9 @@ describe("controller operations", () => {
     });
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: getPrivateState({ secretKey: new Uint8Array(32).fill(4) }),
       set: vi.fn(async () => undefined),
       remove: vi.fn(async () => undefined),
@@ -1356,6 +1452,9 @@ describe("controller operations", () => {
     let ownerSettled = false;
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: vi.fn(async (privateStateId: string) =>
         privateStateId === MidnightDIDPendingControllerPrivateStateId
           ? pending
@@ -1453,6 +1552,9 @@ describe("controller operations", () => {
     });
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: vi.fn(async (privateStateId: string) =>
         privateStateId === MidnightDIDPendingControllerPrivateStateId
           ? pending
@@ -1528,6 +1630,9 @@ describe("controller operations", () => {
     });
     const privateStateProvider = {
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
       get: vi.fn(async (privateStateId: string) =>
         privateStateId === MidnightDIDPendingControllerPrivateStateId
           ? pending
@@ -1593,11 +1698,14 @@ describe("controller operations", () => {
       releaseActiveRead = resolve;
     });
     const makeWrapper = (deferActiveRead = false) => {
-      let contractAddress: string | undefined;
       return {
-        get contractAddress() {
-          return contractAddress;
-        },
+        forContract: vi.fn(function (this: any) {
+          return {
+            get: this.get.bind(this),
+            remove: this.remove.bind(this),
+            set: this.set.bind(this),
+          };
+        }),
         get: vi.fn(async (privateStateId: string) => {
           if (deferActiveRead && privateStateId === MidnightDIDPrivateStateId) {
             activeReadStarted();
@@ -1608,9 +1716,6 @@ describe("controller operations", () => {
         }),
         remove: vi.fn(),
         set: vi.fn(),
-        setContractAddress: vi.fn((nextContractAddress: string) => {
-          contractAddress = nextContractAddress;
-        }),
       };
     };
     const wrapperA = makeWrapper(true);
@@ -1637,10 +1742,8 @@ describe("controller operations", () => {
     expect(() =>
       bindPrivateStateProvider(providersB, contractAddressA),
     ).toThrow(PendingControllerPrivateStateBusyError);
-    expect(wrapperA.contractAddress).toBe(contractAddressA);
-    expect(wrapperB.contractAddress).toBe(contractAddressB);
-    expect(wrapperA.setContractAddress).toHaveBeenCalledTimes(1);
-    expect(wrapperB.setContractAddress).toHaveBeenCalledTimes(1);
+    expect(wrapperA.forContract).toHaveBeenCalledWith(contractAddressA);
+    expect(wrapperB.forContract).not.toHaveBeenCalled();
     expect(wrapperA.set).not.toHaveBeenCalled();
     expect(wrapperA.remove).not.toHaveBeenCalled();
     expect(createControllerAuthorization).not.toHaveBeenCalled();
@@ -1655,8 +1758,6 @@ describe("controller operations", () => {
     expect(() =>
       bindPrivateStateProvider(providersB, contractAddressA),
     ).not.toThrow();
-    expect(wrapperA.contractAddress).toBe(contractAddressB);
-    expect(wrapperB.contractAddress).toBe(contractAddressA);
   });
 
   it("reserves the provider during recovery ledger preflight and releases it on failure", async () => {
@@ -1680,11 +1781,14 @@ describe("controller operations", () => {
       },
     );
     const makeWrapper = (activePrivateState: unknown = null) => {
-      let contractAddress: string | undefined;
       return {
-        get contractAddress() {
-          return contractAddress;
-        },
+        forContract: vi.fn(function (this: any) {
+          return {
+            get: this.get.bind(this),
+            remove: this.remove.bind(this),
+            set: this.set.bind(this),
+          };
+        }),
         get: vi.fn(async (privateStateId: string) =>
           privateStateId === MidnightDIDPrivateStateId
             ? activePrivateState
@@ -1692,9 +1796,6 @@ describe("controller operations", () => {
         ),
         remove: vi.fn(),
         set: vi.fn(),
-        setContractAddress: vi.fn((nextContractAddress: string) => {
-          contractAddress = nextContractAddress;
-        }),
       };
     };
     const wrapperA = makeWrapper({ recoverySecretKey });
@@ -1721,10 +1822,8 @@ describe("controller operations", () => {
     expect(() =>
       bindPrivateStateProvider(providersB, contractAddressA),
     ).toThrow(PendingControllerPrivateStateBusyError);
-    expect(wrapperA.contractAddress).toBe(contractAddressA);
-    expect(wrapperB.contractAddress).toBe(contractAddressB);
-    expect(wrapperA.setContractAddress).toHaveBeenCalledTimes(1);
-    expect(wrapperB.setContractAddress).toHaveBeenCalledTimes(1);
+    expect(wrapperA.forContract).toHaveBeenCalledWith(contractAddressA);
+    expect(wrapperB.forContract).not.toHaveBeenCalled();
     expect(wrapperA.set).not.toHaveBeenCalled();
     expect(wrapperA.remove).not.toHaveBeenCalled();
     expect(recoverControllerKeyTx).not.toHaveBeenCalled();
@@ -1738,8 +1837,6 @@ describe("controller operations", () => {
     expect(() =>
       bindPrivateStateProvider(providersB, contractAddressA),
     ).not.toThrow();
-    expect(wrapperA.contractAddress).toBe(contractAddressB);
-    expect(wrapperB.contractAddress).toBe(contractAddressA);
   });
 
   it("rejects provider rebinding while an ambiguous rotation owns either address lock", async () => {
@@ -1762,13 +1859,15 @@ describe("controller operations", () => {
 
     const makeAddressScopedWrapper = (initialAddress?: string) => {
       let contractAddress = initialAddress;
-      const setContractAddress = vi.fn((nextContractAddress: string) => {
-        contractAddress = nextContractAddress;
-      });
       return {
-        get contractAddress() {
-          return contractAddress;
-        },
+        forContract: vi.fn(function (this: any, nextContractAddress: string) {
+          contractAddress = nextContractAddress;
+          return {
+            get: this.get.bind(this),
+            remove: this.remove.bind(this),
+            set: this.set.bind(this),
+          };
+        }),
         get: vi.fn(async (privateStateId: string) => {
           const state = stateByAddress.get(contractAddress ?? "");
           if (state === undefined) throw new Error("Contract address not set");
@@ -1790,7 +1889,6 @@ describe("controller operations", () => {
             state.active = privateState;
           }
         }),
-        setContractAddress,
       };
     };
 
@@ -1833,13 +1931,9 @@ describe("controller operations", () => {
     expect(() =>
       bindPrivateStateProvider(providersB, contractAddressA),
     ).toThrow(PendingControllerPrivateStateBusyError);
-    expect(wrapperA.setContractAddress).toHaveBeenCalledTimes(1);
-    expect(wrapperA.setContractAddress).not.toHaveBeenCalledWith(
-      contractAddressB,
-    );
-    expect(wrapperB.setContractAddress).toHaveBeenCalledTimes(1);
-    expect(wrapperA.contractAddress).toBe(contractAddressA);
-    expect(wrapperB.contractAddress).toBe(contractAddressB);
+    expect(wrapperA.forContract).toHaveBeenCalledTimes(2);
+    expect(wrapperA.forContract).toHaveBeenCalledWith(contractAddressA);
+    expect(wrapperB.forContract).not.toHaveBeenCalled();
     await expect(
       discardPendingControllerPrivateState(providersA, {
         contractAddress: contractAddressA,
@@ -1859,7 +1953,6 @@ describe("controller operations", () => {
 
     releaseCall();
     await expect(rotation).rejects.toThrow(/DID A rotation outcome unknown/);
-    expect(wrapperA.contractAddress).toBe(contractAddressA);
     expect(stateByAddress.get(contractAddressA)).toEqual({
       active: activeA,
       pending: { secretKey: candidateA },
@@ -1895,6 +1988,9 @@ describe("controller operations", () => {
         }
       }),
       setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return this;
+      }),
     });
     const wrapperA = makeWrapper();
     const wrapperB = makeWrapper();
