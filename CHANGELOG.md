@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adopt SDK5 wallet/facade, provider, private-state, network-snapshot,
   transaction balancing/signing/finalization, and wallet state serialization
   behavior, including real recovery and restored-wallet integration coverage.
+- Allow RC publication from `main`, `develop`, and top-level `milestone-*`
+  branches with a nonempty slash-free suffix. Snapshots remain `develop`-only
+  and final releases `main`-only; milestone publication still requires separately
+  authorized `npm-release` branch/reviewer controls and all five npm Trusted
+  Publisher mappings.
 
 ### Fixed
 

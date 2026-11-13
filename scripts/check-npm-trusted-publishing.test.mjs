@@ -154,6 +154,85 @@ test("checks npm >=11.5.1 and public readability for the canonical five packages
   }
 });
 
+test("accepts main, develop, and top-level milestone publication refs", async (t) => {
+  for (const branch of [
+    "main",
+    "develop",
+    "milestone-1.0.0",
+    "milestone-2.0.0",
+  ]) {
+    await t.test(branch, async () => {
+      const ref = `refs/heads/${branch}`;
+      const { error, result } = await run({
+        environment: baselineEnvironment({
+          GITHUB_REF: ref,
+          GITHUB_WORKFLOW_REF: `midnightntwrk/midnight-did/.github/workflows/publish.yml@${ref}`,
+        }),
+      });
+      assert.equal(error, undefined);
+      assert.equal(result.npmVersion, "11.5.1");
+    });
+  }
+});
+
+test("rejects milestone lookalikes, empty suffixes, nested refs, and tags before npm", async (t) => {
+  for (const ref of [
+    "refs/heads/milestone",
+    "refs/heads/milestone-",
+    "refs/heads/milestones-1.0.0",
+    "refs/heads/not-milestone-1.0.0",
+    "refs/heads/Milestone-1.0.0",
+    "refs/heads/feature/milestone-1.0.0",
+    "refs/heads/milestone-1.0.0/nested",
+    "refs/heads/milestone-/nested",
+    "refs/tags/milestone-1.0.0",
+  ]) {
+    await t.test(ref, async () => {
+      const { error, state } = await run({
+        environment: baselineEnvironment({
+          GITHUB_REF: ref,
+          GITHUB_REF_TYPE: ref.startsWith("refs/tags/") ? "tag" : "branch",
+          GITHUB_WORKFLOW_REF: `midnightntwrk/midnight-did/.github/workflows/publish.yml@${ref}`,
+        }),
+      });
+      assertRedacted(error);
+      assertNoNpm(state);
+    });
+  }
+});
+
+test("milestone refs retain exact workflow identity and authentication guards", async (t) => {
+  for (const overrides of [
+    { GITHUB_REPOSITORY: "other/repo" },
+    {
+      GITHUB_WORKFLOW_REF:
+        "midnightntwrk/midnight-did/.github/workflows/publish.yml@refs/heads/main",
+    },
+    {
+      GITHUB_WORKFLOW_REF:
+        "midnightntwrk/midnight-did/.github/workflows/other.yml@refs/heads/milestone-1.0.0",
+    },
+    { RUNNER_ENVIRONMENT: "self-hosted" },
+    { GITHUB_REF_TYPE: "tag" },
+    { NPM_TRUSTED_PUBLISHING_ENVIRONMENT: "other" },
+    { ACTIONS_ID_TOKEN_REQUEST_TOKEN: "" },
+    { NODE_AUTH_TOKEN: secret },
+  ]) {
+    await t.test(Object.keys(overrides)[0], async () => {
+      const { error, state } = await run({
+        environment: baselineEnvironment({
+          GITHUB_REF: "refs/heads/milestone-1.0.0",
+          GITHUB_WORKFLOW_REF:
+            "midnightntwrk/midnight-did/.github/workflows/publish.yml@refs/heads/milestone-1.0.0",
+          ...overrides,
+        }),
+      });
+      assertRedacted(error);
+      assertNoNpm(state);
+    });
+  }
+});
+
 test("success notice honestly states that npm-side mapping cannot be pre-verified", () => {
   const source = fs.readFileSync(
     path.join(repoRoot, "scripts/check-npm-trusted-publishing.mjs"),

@@ -882,6 +882,12 @@ test("allows only manual dispatch to reach publication jobs and protects Trusted
     publishCondition,
     /inputs\.channel == 'release' && github\.ref == 'refs\/heads\/main'/u,
   );
+  assert.match(
+    publishCondition,
+    /startsWith\(github\.ref, 'refs\/heads\/milestone-'\)/u,
+  );
+  assert.match(publishCondition, /github\.ref != 'refs\/heads\/milestone-'/u);
+  assert.match(publishCondition, /!contains\(github\.ref_name, '\/'\)/u);
   assert.doesNotMatch(publishCondition, /github\.event_name == 'push'/u);
 
   const gate = publish.jobs["validate-dispatch-ref"];
@@ -971,6 +977,28 @@ test("release environment gate rejects every disallowed dispatch ref and channel
     ["snapshot develop", 0, "snapshot", "refs/heads/develop", "branch"],
     ["rc main", 0, "rc", "refs/heads/main", "branch"],
     ["rc develop", 0, "rc", "refs/heads/develop", "branch"],
+    ...["milestone-1.0.0", "milestone-2.0.0"].flatMap((branch) => [
+      [`rc ${branch}`, 0, "rc", `refs/heads/${branch}`, "branch"],
+      [`snapshot ${branch}`, 1, "snapshot", `refs/heads/${branch}`, "branch"],
+      [`release ${branch}`, 1, "release", `refs/heads/${branch}`, "branch"],
+    ]),
+    ...[
+      "milestone",
+      "milestone-",
+      "milestones-1.0.0",
+      "not-milestone-1.0.0",
+      "Milestone-1.0.0",
+      "feature/milestone-1.0.0",
+      "milestone-1.0.0/nested",
+      "milestone-/nested",
+    ].map((branch) => [
+      `rc ${branch}`,
+      1,
+      "rc",
+      `refs/heads/${branch}`,
+      "branch",
+    ]),
+    ["milestone tag", 1, "rc", "refs/tags/milestone-1.0.0", "tag"],
     ["release main", 0, "release", "refs/heads/main", "branch"],
     ["snapshot main", 1, "snapshot", "refs/heads/main", "branch"],
     ["rc feature", 1, "rc", "refs/heads/feature", "branch"],

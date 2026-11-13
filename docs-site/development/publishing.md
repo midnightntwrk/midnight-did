@@ -90,12 +90,20 @@ Publisher to each package:
 | `@midnight-ntwrk/midnight-did-api`            | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-release` |
 
 Repository administrators must configure required `npm-release` reviewers with
-self-review prevention and exact selected deployment branches `main` and
-`develop`, excluding tags, wildcard branches, and all other branches. Repository
-code cannot inspect or prove those external settings; an environment
-administrator must attest them before a publication is dispatched. No
-additional secret is required. After confirming no other workflow depends on
-the old organization credential, it can be removed from this normal release
+self-review prevention and deployment-branch restrictions that permit the exact
+intended publication branch while excluding tags and unauthorized branches.
+Milestone RC eligibility in source code is not environment authorization.
+The deployment policy observed for this change permits protected branches only,
+with required `ex-identus` reviewers: `main` and `develop` are protected, but
+`milestone-1.0.0` is not. That configuration blocks milestone publication even
+when the source guards accept it. Before a milestone RC dispatch, an environment
+administrator must separately authorize and attest the intended branch under
+the deployment policy while preserving required reviewers and self-review
+prevention. This code change does not modify those settings or establish that
+npm-side Trusted Publisher mappings are configured. Repository code cannot
+inspect or prove these external settings; an administrator must attest them
+before publication. No additional secret is required. After confirming no other
+workflow depends on the old organization credential, it can be removed from this normal release
 path.
 
 The environment deployment-branch restrictions and required reviewers are the
@@ -106,11 +114,11 @@ the complete configuration before any publication is dispatched.
 
 Publication channels:
 
-| Channel  | Trigger                  | Branches          | Version shape                | npm tag    | ZK artifacts                               |
-| -------- | ------------------------ | ----------------- | ---------------------------- | ---------- | ------------------------------------------ |
-| Snapshot | Manual workflow dispatch | `develop`         | `x.y.z-snapshot.<run>.<sha>` | `snapshot` | Workflow artifact and GHCR OCI artifact    |
-| RC       | Manual workflow dispatch | `main`, `develop` | `x.y.z-rc{index}`            | `rc`       | GitHub Release asset and GHCR OCI artifact |
-| Release  | Manual workflow dispatch | `main` only       | `x.y.z`                      | `latest`   | GitHub Release asset and GHCR OCI artifact |
+| Channel  | Trigger                  | Branches                                            | Version shape                | npm tag    | ZK artifacts                               |
+| -------- | ------------------------ | --------------------------------------------------- | ---------------------------- | ---------- | ------------------------------------------ |
+| Snapshot | Manual workflow dispatch | `develop`                                           | `x.y.z-snapshot.<run>.<sha>` | `snapshot` | Workflow artifact and GHCR OCI artifact    |
+| RC       | Manual workflow dispatch | `main`, `develop`, top-level `milestone-<nonempty>` | `x.y.z-rc{index}`            | `rc`       | GitHub Release asset and GHCR OCI artifact |
+| Release  | Manual workflow dispatch | `main` only                                         | `x.y.z`                      | `latest`   | GitHub Release asset and GHCR OCI artifact |
 
 Every manual dispatch requires `version` to be exactly one stable SemVer base,
 such as `0.6.0`. Do not supply a leading `v`, prerelease/build suffix, whitespace,
@@ -135,9 +143,14 @@ re-extracts from the same immutable dispatch SHA at the privileged boundary.
 The workflow revalidates the event, exact full source ref, branch ref type,
 channel, base version, resolved version, and RC index immediately before signing
 or publishing. Snapshots require `refs/heads/develop`; RCs allow
-`refs/heads/main` or `refs/heads/develop`; final releases require
-`refs/heads/main`. A dispatch from another branch or a tag, even one named
-`main` or `develop`, fails in a checkout-free, secret-free job before environment
+`refs/heads/main`, `refs/heads/develop`, or top-level
+`refs/heads/milestone-<nonempty>` branch refs with no `/` in the suffix (for
+example, `milestone-1.0.0` and `milestone-2.0.0`); final releases require
+`refs/heads/main`. Bare `milestone-`, lookalikes such as `milestones-1.0.0`,
+nested refs such as `milestone-1.0.0/fix`, and arbitrary feature branches are
+ineligible. Milestone branches cannot publish snapshots or final releases.
+A dispatch from another branch or a tag, even one named `main`, `develop`, or
+`milestone-1.0.0`, fails in a checkout-free, secret-free job before environment
 approval or repository checkout. An eligible dispatch then checks out the
 immutable dispatch SHA rather than a later-moving branch head. These checks
 consume GitHub's full ref directly rather than trusting short ref names. A
