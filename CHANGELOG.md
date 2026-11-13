@@ -7,12 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - Unreleased
+
+These notes cover the Ledger9 release candidate train, beginning with
+`1.0.0-rc1`. Historical published versions, including the source manifest's
+`0.6.0`, are not evidence of published Ledger9 support. Upgrade all five DID
+packages and the matching ZK archive together; do not mix runtime cohorts.
+
 ### Changed
 
 - BREAKING: Move Midnight DID public operation to Ledger9 with Compact 0.36
   artifacts and the Midnight JS 5 / wallet SDK 5 runtime. The public API is
   Ledger9-only; hypothetical Ledger8 DIDs require replacement deployment with a
-  new DID/address and no automatic on-chain history transfer.
+  new DID/address and no on-chain history transfer. There is no dual-era
+  compatibility path or CMA migration.
 - BREAKING: Require the indexed-block-time readiness argument for
   `registerForDustGeneration(wallet, keystore, readinessOptions)`. The
   `createIndexerIndexedBlockTime(indexerUrl)` adapter supplies SDK5's indexed
@@ -43,6 +51,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace the proof-server image's invalid curl-based healthcheck with a native
   HTTP `/version` status probe, and wait for a fresh node block before starting
   the dependent standalone indexer's SPO client.
+- Keep published docs link checks alive while Linkinator services delayed queue
+  work, fail incomplete crawls within a bounded deadline, and correct the
+  historical source-commit and access-restricted artifact guidance links.
+
+### Known limitations
+
+- Strict downstream TypeScript checks encounter existing upstream SDK,
+  Polkadot, and supporting dependency declaration errors. Candidate consumer
+  checks pass with `skipLibCheck`; this is not full dependency-declaration
+  compatibility.
 
 ## [0.7.0] - 2026-09-21
 

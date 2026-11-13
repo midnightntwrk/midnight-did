@@ -71,7 +71,7 @@
     "test:zk-artifact-bundle": "node --test scripts/check-zk-artifact-bundle.test.mjs scripts/smoke-published-artifacts.test.mjs",
     "test:managed-artifacts": "node scripts/managed-artifact-catalog.test.mjs",
     "test:integration-report": "node scripts/report-integration.test.mjs",
-    "test:docs-validate": "node --test scripts/docs-validate.test.mjs docs-site/scripts/sync-compatibility.test.mjs",
+    "test:docs-validate": "node --test scripts/docs-validate.test.mjs docs-site/scripts/sync-compatibility.test.mjs scripts/run-linkinator.test.mjs",
     "check:source-imports": "node scripts/check-source-imports.mjs",
     "test:source-imports": "node scripts/check-source-imports.test.mjs",
     "check:engine-agnostic-imports": "node scripts/check-engine-agnostic-imports.mjs",

@@ -49,6 +49,27 @@ Published pages may be read by people who cannot access every Midnight GitHub
 repository. Follow the [public/private link policy](/development/public-private-links)
 when adding source links or references to access-restricted repositories.
 
+## Published link validation
+
+`Published Docs Links` checks the deployed site after relevant `develop` pushes
+and on its scheduled run. To run the same pinned checker locally from the
+repository Nix shell:
+
+```bash
+pnpm --package linkinator@8.0.1 dlx node scripts/run-linkinator.mjs \
+  https://midnightntwrk.github.io/midnight-did/ \
+  --config .linkinatorrc.json --status-code '429:warn' --format json
+```
+
+The runner keeps a referenced ten-minute deadline while the checker runs.
+Linkinator 8.0.1's unreferenced queue rescue timer can otherwise leave delayed
+work unfinished and terminate Node with exit 13. The deadline lets that timer
+service pending work; it does not change URL rules, retries, results, or checker
+exit codes. A real hang fails with exit 124, and the hosted job is bounded to
+15 minutes. Empty or incomplete JSON is a failed crawl, not evidence of zero
+broken links. Runner and documentation regressions run with
+`pnpm run test:docs-validate`.
+
 ## Workflow Behavior
 
 - Pull requests to `main` or `develop`: build the docs only.
