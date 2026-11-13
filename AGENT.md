@@ -426,9 +426,15 @@ a separately authorized npm-administration process.
 
 The release workflow is on-demand only: pushes and merges never start
 publication. Manual `workflow_dispatch` runs may publish snapshot versions only
-from the exact ref `refs/heads/develop`, RC versions from the exact trusted
-branch refs `refs/heads/main` or `refs/heads/develop`, and final releases only
-from `refs/heads/main`. ZK artifacts are
+from the exact ref `refs/heads/develop`, RC versions from `refs/heads/main`,
+`refs/heads/develop`, or top-level `refs/heads/milestone-<nonempty>` branch refs
+(with no `/` in the suffix), and final releases only from `refs/heads/main`.
+Tags, bare `milestone-`, lookalikes, and nested milestone refs are ineligible.
+Before any milestone RC dispatch, an environment administrator must attest that
+`npm-release` permits the selected branch without weakening required reviewers;
+source eligibility alone does not grant environment access. See
+`docs-site/development/publishing.md` for the external prerequisites.
+ZK artifacts are
 distributed as a separate validated archive with the provider layout
 `keys/*.prover`, `keys/*.verifier`, and `zkir/*.bzkir`; do not rely on package
 consumers to discover proving keys by walking arbitrary generated directories.
