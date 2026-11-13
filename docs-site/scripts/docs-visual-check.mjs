@@ -380,6 +380,32 @@ const checkTables = async (page, label) => {
   }
 };
 
+const checkMermaid = async (page, label) => {
+  const blocks = page.locator(".mermaid-block__canvas");
+  const count = await blocks.count();
+  if (count === 0) fail(`${label} has no expected Mermaid diagrams`);
+  await page.waitForFunction(() => {
+    const canvases = [...document.querySelectorAll(".mermaid-block__canvas")];
+    return (
+      canvases.length > 0 &&
+      canvases.every((canvas) => {
+        const svg = canvas.querySelector("svg");
+        const box = svg?.getBoundingClientRect();
+        return box && box.width > 0 && box.height > 0;
+      })
+    );
+  });
+  const unsafe = await blocks.evaluateAll((canvases) =>
+    canvases.some((canvas) =>
+      canvas.querySelector(
+        "script, [onload], [onerror], a[href^='javascript:']",
+      ),
+    ),
+  );
+  if (unsafe) fail(`${label} contains unsafe diagram output`);
+  await checkNoPageOverflow(page, `${label} after diagram rendering`);
+};
+
 const checkPageTitle = async (page, label) => {
   const title = page.locator(".vp-doc h1").first();
   await title.waitFor({ state: "visible" });
@@ -393,6 +419,11 @@ const viewports = [
 ];
 
 const pages = [
+  {
+    name: "guide-diagrams",
+    path: "/guide/",
+    checks: [checkPageTitle, checkMermaid],
+  },
   {
     name: "quickstart",
     path: "/guide/quickstart",

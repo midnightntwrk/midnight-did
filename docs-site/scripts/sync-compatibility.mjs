@@ -215,6 +215,38 @@ const readCurrentCompatibilityEvidence = async (root = repoRoot) => {
     "proof-server defaults",
   );
 
+  const nodeImage = consistentPin(
+    [
+      ["packages/api/standalone.yml", standaloneCompose],
+      ["packages/api/standalone-latest.yml", standaloneLatestCompose],
+    ].map(([source, compose]) => ({
+      name: "MIDNIGHT_NODE_IMAGE",
+      source,
+      version: requiredMatch(
+        compose,
+        /image:\s*["']?(midnightntwrk\/midnight-node:[^"'\s]+)["']?/u,
+        `${source} node image`,
+      ),
+    })),
+    "Midnight node defaults",
+  );
+
+  const indexerImage = consistentPin(
+    [
+      ["packages/api/standalone.yml", standaloneCompose],
+      ["packages/api/standalone-latest.yml", standaloneLatestCompose],
+    ].map(([source, compose]) => ({
+      name: "INDEXER_IMAGE",
+      source,
+      version: requiredMatch(
+        compose,
+        /image:\s*["']?(midnightntwrk\/indexer-standalone:[^"'\s]+)["']?/u,
+        `${source} indexer image`,
+      ),
+    })),
+    "indexer defaults",
+  );
+
   return {
     version: rootPackage.version,
     nodeMajor: nodeVersion.trim(),
@@ -239,13 +271,15 @@ const readCurrentCompatibilityEvidence = async (root = repoRoot) => {
       "@midnight-ntwrk/compact-runtime",
     ),
     compactJs: exactDependency(manifests, "@midnight-ntwrk/compact-js"),
-    ledger: `@midnight-ntwrk/ledger-v8@${exactDependency(
+    ledger: `@midnightntwrk/ledger-v9@${exactDependency(
       manifests,
-      "@midnight-ntwrk/ledger-v8",
+      "@midnightntwrk/ledger-v9",
     )}`,
     midnightJsFamily,
     walletSdk,
     proofServer,
+    nodeImage,
+    indexerImage,
     packageVersions: Object.fromEntries(
       workspacePackages.map(({ name, version }) => [name, version]),
     ),
@@ -264,6 +298,8 @@ const currentEvidenceFields = [
   "midnightJsFamily",
   "walletSdk",
   "proofServer",
+  "nodeImage",
+  "indexerImage",
 ];
 
 const assertCurrentBaselineMatchesEvidence = (evidence, baseline) => {
@@ -298,8 +334,19 @@ const assertCurrentBaselineMatchesEvidence = (evidence, baseline) => {
   }
 };
 
-const coordinatedPackages = (version) =>
-  packageWorkspaces.map(([, name]) => `\`${name}@${version}\``).join("<br>");
+const isCandidate = (baseline) =>
+  typeof baseline.status === "string" &&
+  baseline.status.startsWith("Candidate");
+
+const coordinatedPackages = (baseline) =>
+  packageWorkspaces
+    .map(([, name]) => {
+      const version = isCandidate(baseline)
+        ? `source ${baseline.sourceManifestVersion}`
+        : baseline.version;
+      return `\`${name}@${version}\``;
+    })
+    .join("<br>");
 
 const walletSdkCell = (walletSdk) =>
   Object.entries(walletSdk)
@@ -312,6 +359,9 @@ const releaseCell = (baseline) => {
   const source = baseline.sourceCommit ?? baseline.sourceRef;
   if (typeof source !== "string" || source.length === 0) {
     throw new Error(`Missing source commit or ref for ${baseline.version}`);
+  }
+  if (isCandidate(baseline)) {
+    return `Not released — candidate source \`${source}\``;
   }
   return `[\`${baseline.releaseTag}\`](https://github.com/midnightntwrk/midnight-did/releases/tag/${baseline.releaseTag}) → [\`${source}\`](https://github.com/midnightntwrk/midnight-did/commit/${source})`;
 };
@@ -329,8 +379,21 @@ const nodeRuntimeCell = (baseline) => {
     : "Exact patch not retained";
 };
 
-const zkReleaseCell = (version) =>
-  `[\`v${version}\`](https://github.com/midnightntwrk/midnight-did/releases/tag/v${version}) / [\`midnight-did-zk-artifacts-${version}.tar.gz\`](https://github.com/midnightntwrk/midnight-did/releases/download/v${version}/midnight-did-zk-artifacts-${version}.tar.gz)`;
+const zkReleaseCell = (baseline) =>
+  isCandidate(baseline)
+    ? "Not published (candidate artifacts only)"
+    : `[\`v${baseline.version}\`](https://github.com/midnightntwrk/midnight-did/releases/tag/v${baseline.version}) / [\`midnight-did-zk-artifacts-${baseline.version}.tar.gz\`](https://github.com/midnightntwrk/midnight-did/releases/download/v${baseline.version}/midnight-did-zk-artifacts-${baseline.version}.tar.gz)`;
+
+const retainedCell = (value) =>
+  typeof value === "string" && value.length > 0
+    ? `\`${value}\``
+    : "Not retained";
+
+const localNodeRuntimeCell = (baseline) =>
+  typeof baseline.nodeLocalTestedVersion === "string" &&
+  baseline.nodeLocalTestedVersion.length > 0
+    ? `\`${baseline.nodeLocalTestedVersion}\` (local)`
+    : "Not retained";
 
 const matrixRow = (label, baselines, value) =>
   `| ${label} | ${baselines.map(value).join(" | ")} |`;
@@ -338,12 +401,11 @@ const matrixRow = (label, baselines, value) =>
 const generateCompatibilityMarkdown = (baselines, currentRelease) => {
   const current = baselines.find(({ version }) => version === currentRelease);
   if (!current) throw new Error(`Missing current release ${currentRelease}`);
+  const previousRelease = baselines.find(({ version }) => version === "0.7.0");
 
   const rows = [
     matrixRow("Recommended status wording", baselines, (item) => item.status),
-    matrixRow("Coordinated package set", baselines, (item) =>
-      coordinatedPackages(item.version),
-    ),
+    matrixRow("Coordinated package set", baselines, coordinatedPackages),
     matrixRow("Release tag / source commit", baselines, releaseCell),
     matrixRow(
       "Node CI selector",
@@ -391,24 +453,38 @@ const generateCompatibilityMarkdown = (baselines, currentRelease) => {
       baselines,
       (item) => `\`${item.proofServer}\``,
     ),
-    matrixRow("Public ZK release", baselines, (item) =>
-      zkReleaseCell(item.version),
+    matrixRow("Midnight node image", baselines, (item) =>
+      retainedCell(item.nodeImage),
     ),
-    matrixRow(
-      "GHCR coordinate",
-      baselines,
-      (item) =>
-        `\`ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${item.version}\``,
+    matrixRow("Indexer source image", baselines, (item) =>
+      retainedCell(item.indexerImage),
+    ),
+    matrixRow("Tested topology", baselines, (item) =>
+      retainedCell(item.testedTopology),
+    ),
+    matrixRow("Tested network", baselines, (item) =>
+      retainedCell(item.testedNetwork),
+    ),
+    matrixRow("Local Node runtime evidence", baselines, localNodeRuntimeCell),
+    matrixRow("Public ZK release", baselines, zkReleaseCell),
+    matrixRow("GHCR coordinate", baselines, (item) =>
+      isCandidate(item)
+        ? "Not published"
+        : `\`ghcr.io/midnightntwrk/midnight-did-zk-artifacts:${item.version}\``,
     ),
   ].join("\n");
 
   return `# Compatibility and Release Baselines
 
-This page records **tested release baselines**, not open-ended compatibility
-ranges. **Current** means the latest published DID package and ZK artifact set
-that this repository release-tested. **Compatibility reference** records a
-legacy release for migration comparison only; it does not imply continuing
-support.
+This page records **tested release baselines** and, separately, an explicitly
+labelled **candidate** row for an unpublished migration. The candidate records
+local Ledger9 integration evidence; it is not a published support claim. It is
+not an open-ended compatibility range. A **published historical baseline**
+records the exact DID package and ZK artifact set this repository release-tested;
+it is superseded and does not imply continuing Ledger8 support. A **Candidate**
+row records the pins and local integration evidence for an unreleased migration;
+it must not be read as published support or as a published artifact set. **Compatibility reference** records a legacy release for migration
+comparison only; it does not imply continuing support.
 
 Published npm manifests and matching release artifacts are authoritative for
 published package identities. Manifest \`engines\`, Compact language pragmas,
@@ -424,7 +500,7 @@ and current repository pins. Edit the source data or owning manifests and run
 \`pnpm --filter docs-site docs:sync-compatibility\`; do not edit this page by
 hand.
 
-## Evidence-backed matrix
+## Compatibility matrix
 
 <!-- prettier-ignore -->
 | Evidence-backed baseline | ${baselines.map((item) => `DID ${item.version}`).join(" | ")} |
@@ -449,7 +525,7 @@ runtime pins. Dependency similarity, \`engines\`, and language pragmas must not
 be read as broader compatibility guarantees.
 
 The \`v0.7.0\` source keeps version
-\`${current.sourceManifestVersion}\` in the root and workspace manifests. The
+\`${previousRelease.sourceManifestVersion}\` in the root and workspace manifests. The
 manual publication pipeline rewrites the five package manifests and
 \`MIDNIGHT_DID_API_VERSION\` to \`0.7.0\` before packing, then verifies the
 coordinated tarball inventory without committing those release-only rewrites.
@@ -462,9 +538,10 @@ authority for the toolchain and runtime pins in this matrix.
 The generator derives the ${current.version} row's repository-owned pins from
 the \`.nvmrc\` CI selector, the exact pnpm package-manager pin,
 root/workspace manifests, CI, quality, and publish workflow constants, both
-Compact language pragmas, and every runtime-owned
-\`midnightntwrk/proof-server\` fallback. The exact Node release runtime is
-retained separately as historical run evidence.
+Compact language pragmas, and every runtime-owned node, indexer, and
+\`midnightntwrk/proof-server\` image pin in both standalone compose files. The
+exact CI Node release runtime and local Node patch are retained separately as
+evidence.
 Generation fails when those inputs drift from the reviewed machine-readable
 baseline. Add or
 update a reviewed release baseline rather than silently carrying old evidence

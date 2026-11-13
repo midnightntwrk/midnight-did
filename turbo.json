@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["COMPACT_DIRECTORY", "COMPACT_COMPILER_VERSION"],
   "globalDependencies": [
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
@@ -19,32 +20,19 @@
       "outputs": []
     },
     "typecheck": {
-      "dependsOn": [
-        "build",
-        "^build"
-      ],
+      "dependsOn": ["build", "^build"],
       "outputs": []
     },
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        "dist/**",
-        "src/managed/**",
-        "*.tsbuildinfo"
-      ]
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "src/managed/**", "*.tsbuildinfo"]
     },
     "test": {
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "outputs": []
     },
     "test:ci": {
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "outputs": []
     }
   }
