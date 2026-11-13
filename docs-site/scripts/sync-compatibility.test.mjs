@@ -264,7 +264,11 @@ test("generated compatibility page records status semantics and 0.5 manifest cav
   assert.match(content, /no continuing-support implication/u);
   assert.match(content, /v0\.5\.0.*a14267cec3c1ab7e00bb0f058a54267d913a321b/u);
   assert.match(content, /v0\.6\.0.*8f788e2ef5652fa7f9cfdc71a3cac40d5f3683bf/u);
-  assert.match(content, /v0\.7\.0.*v0\.7\.0/u);
+  assert.match(
+    content,
+    /v0\.7\.0.*commit\/4e7f6b0f69bf4e2c8506a9693f8d0c3dfe68e550/u,
+  );
+  assert.doesNotMatch(content, /\/commit\/v0\.7\.0/u);
   assert.match(content, /source tag reports version\n`0\.4\.0`/u);
   assert.match(content, /does not infer\nsupport for newer Node/u);
   assert.match(content, /Node CI selector/u);

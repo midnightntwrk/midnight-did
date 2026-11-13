@@ -71,6 +71,7 @@
       "status": "Published historical baseline \u2014 no continuing Ledger8 support",
       "releaseTag": "v0.7.0",
       "sourceRef": "v0.7.0",
+      "sourceCommit": "4e7f6b0f69bf4e2c8506a9693f8d0c3dfe68e550",
       "nodeMajor": "24",
       "nodeTestedVersion": null,
       "nodeTestedRun": null,

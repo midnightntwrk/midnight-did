@@ -42,7 +42,7 @@ Download the [release archive](https://github.com/midnightntwrk/midnight-did/rel
 the release also contains its manifest, SHA-256 file, signatures, certificates,
 and SLSA provenance.
 
-The same bundle exists as the [GHCR package](https://github.com/orgs/midnightntwrk/packages/container/package/midnight-did-zk-artifacts)
+The same bundle exists at the GHCR coordinate
 `ghcr.io/midnightntwrk/midnight-did-zk-artifacts:0.6.0`, but that path requires
 Midnight organization access and GitHub Container Registry authentication. It
 is not the public download path. For the existing artifact layout, checksum
