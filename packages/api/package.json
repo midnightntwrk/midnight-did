@@ -65,7 +65,7 @@
     "@midnight-ntwrk/wallet-sdk-hd": "4.0.0",
     "@midnight-ntwrk/wallet-sdk-shielded": "4.0.0",
     "@midnight-ntwrk/wallet-sdk-unshielded-wallet": "4.0.0",
-    "@midnightntwrk/ledger-v9": "1.0.0",
+    "@midnightntwrk/ledger-v9": "1.0.1",
     "@noble/curves": "^1.9.7",
     "effect": "3.22.4",
     "pino": "^9.7.0",
