@@ -67,6 +67,7 @@ import {
   buildWalletAndWaitForFunds,
   configureProviders,
   createDID,
+  createIndexerIndexedBlockTime,
   getMidnightNetwork,
   initPrivateState,
   ProfileConfig,
@@ -186,6 +187,10 @@ try {
   await registerForDustGeneration(
     walletCtx.wallet,
     walletCtx.unshieldedKeystore,
+    {
+      indexedBlockTime: createIndexerIndexedBlockTime(dappConfig.indexer),
+      timeoutMs: 120_000,
+    },
   );
 
   console.error("[bootstrap] step 3/7 configure providers…");

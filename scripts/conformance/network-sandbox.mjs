@@ -50,11 +50,17 @@ EOF
 exec "$@"
 `;
 
-const trustedUtility = (name, versionPattern) => {
-  for (const directory of (process.env.PATH ?? "").split(delimiter)) {
-    if (!directory) continue;
+const trustedUtility = (name, versionPattern, alternatives = []) => {
+  const candidates = [
+    ...(process.env.PATH ?? "")
+      .split(delimiter)
+      .filter(Boolean)
+      .map((directory) => join(directory, name)),
+    ...alternatives,
+  ];
+  for (const candidate of candidates) {
     try {
-      const path = realpathSync(join(directory, name));
+      const path = realpathSync(candidate);
       accessSync(path, constants.X_OK);
       const stat = statSync(path);
       if (!stat.isFile() || stat.uid !== 0 || (stat.mode & 0o022) !== 0)
@@ -72,11 +78,17 @@ const trustedUtility = (name, versionPattern) => {
       }
       return path;
     } catch {
-      // Try the next trusted PATH entry.
+      // Try the next candidate under the same trust checks.
     }
   }
   throw new Error(`Required trusted isolation utility is unavailable: ${name}`);
 };
+
+// Ubuntu's classic sudo package installs sudo.ws alongside the default
+// alternative, which may be sudo-rs. Accept only the existing classic vendor
+// banner and apply the same ownership, mode, executable and version checks.
+export const trustedSudo = () =>
+  trustedUtility("sudo", /Sudo version/iu, ["/usr/bin/sudo.ws"]);
 
 const trustedShell = () => {
   const path = realpathSync("/bin/sh");
@@ -222,7 +234,7 @@ export const linuxNetworkSandboxCommand = (
       utilities,
     });
   }
-  utilities.sudo = trustedUtility("sudo", /Sudo version/iu);
+  utilities.sudo = trustedSudo();
   const privilegedProbe = buildLinuxSandboxCommand({
     args: probePayload.slice(1),
     command: probePayload[0],

@@ -47,6 +47,7 @@ const walletContext = {
   wallet: { kind: "facade" },
 } as unknown as MidnightDIDWalletContext;
 const snapshot = {
+  transactionLifecycleState: "lifecycle",
   shieldedState: "shielded",
   unshieldedState: "unshielded",
   dustState: "dust",

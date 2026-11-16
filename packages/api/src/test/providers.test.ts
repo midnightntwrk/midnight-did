@@ -14,16 +14,21 @@ const providerMocks = vi.hoisted(() => ({
     getCoinPublicKey: () => "coin-public-key",
     kind: "wallet-and-midnight-provider",
   })),
-  httpClientProofProvider: vi.fn((proofServer: string, zkConfig: unknown) => ({
-    kind: "proof-provider",
-    proofServer,
-    zkConfig,
-  })),
-  indexerPublicDataProvider: vi.fn((indexer: string, indexerWS: string) => ({
-    indexer,
-    indexerWS,
-    kind: "public-data-provider",
-  })),
+  httpClientProofProvider: vi.fn(
+    (options: { url: string; zkConfigProvider: unknown }) => ({
+      kind: "proof-provider",
+      proofServer: options.url,
+      zkConfig: options.zkConfigProvider,
+    }),
+  ),
+  indexerPublicDataProvider: vi.fn(
+    (options: { queryURL: string; subscriptionURL: string }) => ({
+      indexer: options.queryURL,
+      indexerWS: options.subscriptionURL,
+      kind: "public-data-provider",
+    }),
+  ),
+  getCurrentNetworkId: vi.fn(() => "testnet"),
   NodeZkConfigProvider: vi.fn(function NodeZkConfigProvider(
     this: { kind?: string; zkConfigPath?: string },
     zkConfigPath: string,
@@ -35,6 +40,10 @@ const providerMocks = vi.hoisted(() => ({
 
 vi.mock("../config.js", () => ({
   contractConfig: providerMocks.contractConfig,
+}));
+
+vi.mock("../network-context.js", () => ({
+  getCurrentNetworkId: providerMocks.getCurrentNetworkId,
 }));
 
 vi.mock("../private-state-storage.js", () => ({
@@ -70,10 +79,11 @@ const makeConfig = () =>
 describe("provider composition", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    providerMocks.getCurrentNetworkId.mockReturnValue("testnet");
   });
 
   it("loads runtime provider adapters only when configuring providers", async () => {
-    const ctx = { kind: "wallet-context" } as any;
+    const ctx = { kind: "wallet-context", networkId: "testnet" } as any;
     const config = makeConfig();
 
     const providers = await configureProviders(ctx, config);
@@ -89,14 +99,14 @@ describe("provider composition", () => {
       config,
       "coin-public-key",
     );
-    expect(providerMocks.indexerPublicDataProvider).toHaveBeenCalledWith(
-      "https://indexer.example.test",
-      "wss://indexer.example.test",
-    );
-    expect(providerMocks.httpClientProofProvider).toHaveBeenCalledWith(
-      "https://proof.example.test",
-      providers.zkConfigProvider,
-    );
+    expect(providerMocks.indexerPublicDataProvider).toHaveBeenCalledWith({
+      queryURL: "https://indexer.example.test",
+      subscriptionURL: "wss://indexer.example.test",
+    });
+    expect(providerMocks.httpClientProofProvider).toHaveBeenCalledWith({
+      url: "https://proof.example.test",
+      zkConfigProvider: providers.zkConfigProvider,
+    });
     expect(providers).toMatchObject({
       midnightProvider: { kind: "wallet-and-midnight-provider" },
       privateStateProvider: {
@@ -120,13 +130,53 @@ describe("provider composition", () => {
     });
   });
 
+  it("uses the context network when the global profile changed before composition", async () => {
+    providerMocks.getCurrentNetworkId.mockReturnValue("mainnet");
+
+    await expect(
+      configureProviders(
+        { kind: "wallet-context", networkId: "testnet" } as any,
+        makeConfig(),
+      ),
+    ).resolves.toMatchObject({ config: { networkId: "testnet" } });
+    expect(providerMocks.getCurrentNetworkId).not.toHaveBeenCalled();
+  });
+
+  it("keeps the context network when the profile switches during provider setup", async () => {
+    let resolveWallet!: (value: unknown) => void;
+    const walletGate = new Promise((resolve) => {
+      resolveWallet = resolve;
+    });
+    providerMocks.createWalletAndMidnightProvider.mockImplementationOnce(
+      async () => walletGate as never,
+    );
+
+    const pending = configureProviders(
+      { kind: "wallet-context", networkId: "testnet" } as any,
+      makeConfig(),
+    );
+    // A profile switch after composition starts must not leak into this set.
+    providerMocks.getCurrentNetworkId.mockReturnValue("mainnet");
+    resolveWallet({
+      getCoinPublicKey: () => "coin-public-key",
+      kind: "wallet-and-midnight-provider",
+    });
+
+    await expect(pending).resolves.toMatchObject({
+      config: { networkId: "testnet" },
+    });
+  });
+
   it("bubbles wallet setup failures before constructing providers", async () => {
     providerMocks.createWalletAndMidnightProvider.mockRejectedValueOnce(
       new Error("wallet unavailable"),
     );
 
     await expect(
-      configureProviders({ kind: "wallet-context" } as any, makeConfig()),
+      configureProviders(
+        { kind: "wallet-context", networkId: "testnet" } as any,
+        makeConfig(),
+      ),
     ).rejects.toThrow("wallet unavailable");
 
     expect(providerMocks.NodeZkConfigProvider).not.toHaveBeenCalled();

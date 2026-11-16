@@ -193,6 +193,60 @@ test("preserves valid manually dispatched snapshot, RC, and final release contex
   }
 });
 
+test("milestone branches allow only RC resolution and privileged context", async (t) => {
+  for (const branch of ["milestone-1.0.0", "milestone-2.0.0"]) {
+    await t.test(branch, () => {
+      const context = { ref: `refs/heads/${branch}`, refName: branch };
+      const resolved = runResolver(context);
+      assert.equal(resolved.status, 0, resolved.stderr);
+      assert.equal(resolved.output, "channel=rc\nversion=0.6.0\nrc_index=1\n");
+      assert.equal(runValidator(context).status, 0);
+      for (const channel of ["snapshot", "release"]) {
+        const invalid = {
+          ...context,
+          channel,
+          rcIndex: "",
+          releaseVersion:
+            channel === "release" ? "0.6.0" : "0.6.0-snapshot.42.abcdef123456",
+        };
+        assertRejectedWithoutOutput(invalid);
+        const boundary = runValidatorBoundary(invalid);
+        assert.notEqual(boundary.status, 0);
+        assert.equal(boundary.executed, false);
+      }
+      for (const releaseVersion of ["0.6.0", "0.6.0-rc.1", "0.6.0-rc2"]) {
+        assert.notEqual(runValidator({ ...context, releaseVersion }).status, 0);
+      }
+    });
+  }
+});
+
+test("RC rejects milestone lookalikes, empty suffixes, nested refs, and tags", async (t) => {
+  for (const ref of [
+    "refs/heads/feature",
+    "refs/heads/milestone",
+    "refs/heads/milestone-",
+    "refs/heads/milestones-1.0.0",
+    "refs/heads/not-milestone-1.0.0",
+    "refs/heads/Milestone-1.0.0",
+    "refs/heads/feature/milestone-1.0.0",
+    "refs/heads/milestone-1.0.0/nested",
+    "refs/heads/milestone-/nested",
+    "refs/tags/milestone-1.0.0",
+  ]) {
+    await t.test(ref, () => {
+      const context = {
+        ref,
+        refType: ref.startsWith("refs/tags/") ? "tag" : "branch",
+      };
+      assertRejectedWithoutOutput(context);
+      const boundary = runValidatorBoundary(context);
+      assert.notEqual(boundary.status, 0);
+      assert.equal(boundary.executed, false);
+    });
+  }
+});
+
 test("manual dispatch requires one exact stable SemVer base", async (t) => {
   const invalidVersions = [
     "",

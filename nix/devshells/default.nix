@@ -28,6 +28,9 @@
           pi-coding-agent
           playwright-browsers
           turbo
+          (pkgs.writeShellScriptBin "pnpm" ''
+            exec ${pkgs.nodejs_24}/bin/corepack pnpm "$@"
+          '')
           self'.packages.compact-midnight
           self'.packages.compact-toolchain
         ];

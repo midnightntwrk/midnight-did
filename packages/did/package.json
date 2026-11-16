@@ -51,10 +51,10 @@
   "dependencies": {
     "@midnight-ntwrk/midnight-did-contract": "workspace:*",
     "@midnight-ntwrk/midnight-did-domain": "workspace:*",
-    "zod": "^4.1.0"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/coverage-v8": "4.1.12",
     "@types/jsonld": "1.5.15",
     "globals": "14.0.0",
     "jsonld": "9.0.0"

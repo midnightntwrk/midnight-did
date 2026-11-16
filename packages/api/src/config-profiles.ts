@@ -1,9 +1,8 @@
 import path from "node:path";
 
-import {
-  type NetworkId,
-  setNetworkId,
-} from "@midnight-ntwrk/midnight-js-network-id";
+import type { NetworkId } from "@midnight-ntwrk/midnight-js-types";
+
+import { setCurrentNetworkId } from "./network-context.js";
 
 export interface MidnightEndpointConfig {
   readonly indexer: string;
@@ -106,7 +105,7 @@ export const getMidnightNetworkProfile = (
 export const applyMidnightNetworkProfile = (
   profileName: MidnightNetworkProfileName,
 ): void => {
-  setNetworkId(getMidnightNetworkProfile(profileName).networkId);
+  setCurrentNetworkId(getMidnightNetworkProfile(profileName).networkId);
 };
 
 export const resolveMidnightNetworkConfig = (

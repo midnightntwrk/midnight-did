@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/docs-link-check.yml"
       - ".linkinatorrc.json"
+      - "scripts/run-linkinator.mjs"
       - "docs-site/**"
       - "w3c-spec/**"
   schedule:
@@ -24,6 +25,7 @@ jobs:
   check:
     name: Check Published Docs Links
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       DOCS_SITE_URL: ${{ vars.DOCS_SITE_URL != '' && vars.DOCS_SITE_URL || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
       LINKINATOR_VERSION: 8.0.1
@@ -35,6 +37,7 @@ jobs:
             .linkinatorrc.json
             .nvmrc
             package.json
+            scripts/run-linkinator.mjs
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -50,12 +53,18 @@ jobs:
       - name: Check published links
         run: |
           set +e
-          corepack pnpm dlx "linkinator@${LINKINATOR_VERSION}" "${DOCS_SITE_URL}" \
+          corepack pnpm --package "linkinator@${LINKINATOR_VERSION}" dlx node scripts/run-linkinator.mjs "${DOCS_SITE_URL}" \
             --config .linkinatorrc.json \
             --status-code "429:warn" \
             --format json > link-check-results.json
           exit_code=$?
           set -e
+
+          if ! jq -e 'type == "object" and (.links | type == "array") and (.passed | type == "boolean")' link-check-results.json >/dev/null; then
+            echo "Linkinator produced no complete result (exit ${exit_code}); crawl failed." >> "${GITHUB_STEP_SUMMARY}"
+            [[ "${exit_code}" -ne 0 ]] || exit_code=1
+            exit "${exit_code}"
+          fi
 
           if [[ "${exit_code}" -eq 0 ]]; then
             echo "Published docs link check passed for ${DOCS_SITE_URL}" >> "${GITHUB_STEP_SUMMARY}"

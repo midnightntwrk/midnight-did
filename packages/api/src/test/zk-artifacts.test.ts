@@ -100,6 +100,8 @@ const createFixtureArchive = (
       MidnightDidZkArtifactManifest["circuits"][number]["sha256"]
     >;
     readonly version?: string;
+    readonly compilerMetadata?: boolean;
+    readonly mutateMetadata?: (root: string) => void;
   } = {},
 ): {
   readonly archivePath: string;
@@ -151,6 +153,50 @@ const createFixtureArchive = (
   };
   const manifestPath = path.join(contentRoot, "manifest.json");
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  if (options.compilerMetadata) {
+    const identity = {
+      "compiler-version": "0.36.0",
+      "compiler-commit": "a".repeat(40),
+      "language-version": "0.22.0",
+      "runtime-version": "0.21.0",
+    };
+    const infoPath = writeFixtureFile(
+      contentRoot,
+      "compiler/contract-info.json",
+      JSON.stringify(identity),
+    );
+    const descriptor = (filePath: string) => ({
+      type: "file",
+      hash: sha256(filePath),
+      size: fs.statSync(filePath).size,
+    });
+    writeFixtureFile(
+      contentRoot,
+      "compiler/contract-manifest.json",
+      JSON.stringify({
+        "manifest-version": "1",
+        ...identity,
+        compiler: {
+          type: "directory",
+          "contract-info.json": descriptor(infoPath),
+        },
+        keys: {
+          type: "directory",
+          "add.prover": descriptor(filePaths.prover),
+          "add.verifier": descriptor(filePaths.verifier),
+        },
+        zkir: { type: "directory", "add.bzkir": descriptor(filePaths.zkir) },
+      }),
+    );
+    fs.writeFileSync(
+      manifestPath,
+      JSON.stringify({
+        ...manifest,
+        compactCompilerVersion: "0.36.0 (aaaaaaa 2026-04-01)",
+      }),
+    );
+  }
+  options.mutateMetadata?.(contentRoot);
 
   const archivePath = path.join(
     tempRoot,
@@ -210,8 +256,301 @@ afterEach(() => {
 });
 
 describe("ZK artifact consumption helpers", () => {
+  type JsonObject = Record<string, any>;
+  const jsonEdit = (
+    root: string,
+    file: string,
+    mutate: (value: JsonObject) => void,
+  ) => {
+    const target = path.join(root, file);
+    const value = JSON.parse(fs.readFileSync(target, "utf8"));
+    mutate(value);
+    fs.writeFileSync(target, JSON.stringify(value));
+  };
+  const metadataCases: [string, (root: string) => void][] = [
+    [
+      "missing info",
+      (r) => fs.unlinkSync(path.join(r, "compiler/contract-info.json")),
+    ],
+    [
+      "missing manifest",
+      (r) => fs.unlinkSync(path.join(r, "compiler/contract-manifest.json")),
+    ],
+    [
+      "missing pair",
+      (r) => fs.rmSync(path.join(r, "compiler"), { recursive: true }),
+    ],
+    ...[
+      "compiler/contract-info.json",
+      "compiler/contract-manifest.json",
+    ].flatMap(
+      (file) =>
+        [
+          [
+            `malformed ${file}`,
+            (r: string) => fs.writeFileSync(path.join(r, file), "{"),
+          ],
+          [
+            `nonobject ${file}`,
+            (r: string) => fs.writeFileSync(path.join(r, file), "[]"),
+          ],
+        ] as [string, (root: string) => void][],
+    ),
+    [
+      "manifest version",
+      (r) =>
+        jsonEdit(r, "compiler/contract-manifest.json", (v) => {
+          v["manifest-version"] = 1;
+        }),
+    ],
+    ...[
+      "compiler-version",
+      "compiler-commit",
+      "language-version",
+      "runtime-version",
+    ].map(
+      (field) =>
+        [
+          `${field} identity`,
+          (r: string) =>
+            jsonEdit(r, "compiler/contract-manifest.json", (v) => {
+              v[field] = "different";
+            }),
+        ] as [string, (root: string) => void],
+    ),
+    ...[
+      "0.36.0\n",
+      "0.36.0 trailing",
+      "0.36.0 (aaaaaaa 2026-02-30)",
+      "00.36.0",
+      "0.36.1",
+      "0.36.0 (bbbbbbb 2026-04-01)",
+    ].map(
+      (version) =>
+        [
+          `bundle version ${JSON.stringify(version)}`,
+          (r: string) =>
+            jsonEdit(r, "manifest.json", (v) => {
+              v.compactCompilerVersion = version;
+            }),
+        ] as [string, (root: string) => void],
+    ),
+    ...[
+      "compiler-version",
+      "compiler-commit",
+      "language-version",
+      "runtime-version",
+    ].map(
+      (field) =>
+        [
+          `${field} invalid in both`,
+          (r: string) => {
+            for (const file of [
+              "compiler/contract-info.json",
+              "compiler/contract-manifest.json",
+            ])
+              jsonEdit(r, file, (v) => {
+                v[field] =
+                  field === "compiler-commit"
+                    ? "A".repeat(40)
+                    : "0.36.0 (aaaaaaa 2026-04-01)";
+              });
+          },
+        ] as [string, (root: string) => void],
+    ),
+    ...["compiler", "keys", "zkir"].map(
+      (dir) =>
+        [
+          `${dir} directory descriptor`,
+          (r: string) =>
+            jsonEdit(r, "compiler/contract-manifest.json", (v) => {
+              v[dir].type = "file";
+            }),
+        ] as [string, (root: string) => void],
+    ),
+    ...["type", "hash", "size"].flatMap((field) =>
+      [
+        "compiler/contract-info.json",
+        "keys/add.prover",
+        "keys/add.verifier",
+        "zkir/add.bzkir",
+      ].map(
+        (file) =>
+          [
+            `${file} descriptor ${field}`,
+            (r: string) =>
+              jsonEdit(r, "compiler/contract-manifest.json", (v) => {
+                const [dir, name] = file.split("/");
+                v[dir][name][field] =
+                  field === "type"
+                    ? "directory"
+                    : field === "hash"
+                      ? "0".repeat(64)
+                      : 999;
+              }),
+          ] as [string, (root: string) => void],
+      ),
+    ),
+    [
+      "unlisted included provider",
+      (r) => {
+        writeFixtureFile(r, "keys/extra.prover", "extra");
+      },
+    ],
+    [
+      "unlisted included provider corruption",
+      (r) => {
+        const f = writeFixtureFile(r, "keys/extra.prover", "extra");
+        jsonEdit(r, "compiler/contract-manifest.json", (v) => {
+          v.keys["extra.prover"] = { type: "file", hash: sha256(f), size: 5 };
+        });
+        fs.writeFileSync(f, "other");
+      },
+    ],
+  ];
+  it.each(metadataCases)(
+    "rejects current compiler metadata: %s",
+    (_name, mutateMetadata) => {
+      const fixture = createFixtureArchive({
+        compilerMetadata: true,
+        mutateMetadata,
+      });
+      expectArtifactError(
+        () =>
+          unpackMidnightDidZkArtifactArchive({
+            archivePath: fixture.archivePath,
+            outputDir: path.join(makeTempRoot(), "out"),
+          }),
+        "manifest_mismatch",
+      );
+    },
+  );
+  it.each([
+    "0.36.0",
+    "0.36.0 (aaaaaaa 2026-04-01)",
+    `0.36.0 (${"a".repeat(40)} 2026-04-01)`,
+  ])("accepts exact bare/banner compiler identity: %s", (version) => {
+    const fixture = createFixtureArchive({
+      compilerMetadata: true,
+      mutateMetadata: (r) =>
+        jsonEdit(r, "manifest.json", (v) => {
+          v.compactCompilerVersion = version;
+        }),
+    });
+    const bundle = unpackMidnightDidZkArtifactArchive({
+      archivePath: fixture.archivePath,
+      outputDir: path.join(makeTempRoot(), "out"),
+    });
+    expect(bundle.manifest.compactCompilerVersion).toBe(version);
+  });
+  it.each([
+    ["missing", undefined],
+    ["null", null],
+    ["negative", -1],
+    ["fractional", 1.5],
+    ["string", "10"],
+  ])("rejects invalid descriptor size: %s", (_label, size) => {
+    const fixture = createFixtureArchive({
+      compilerMetadata: true,
+      mutateMetadata: (r) =>
+        jsonEdit(r, "compiler/contract-manifest.json", (v) => {
+          v.keys["add.prover"].size = size;
+        }),
+    });
+    expectArtifactError(
+      () =>
+        unpackMidnightDidZkArtifactArchive({
+          archivePath: fixture.archivePath,
+          outputDir: path.join(makeTempRoot(), "out"),
+        }),
+      "manifest_mismatch",
+    );
+  });
+  it("accepts unlisted included providers only with valid descriptors", () => {
+    const fixture = createFixtureArchive({
+      compilerMetadata: true,
+      mutateMetadata: (r) => {
+        const f = writeFixtureFile(r, "keys/extra.prover", "extra");
+        jsonEdit(r, "compiler/contract-manifest.json", (v) => {
+          v.keys["extra.prover"] = { type: "file", hash: sha256(f), size: 5 };
+          v.contract = {
+            type: "directory",
+            "index.js": { type: "file", hash: "0".repeat(64), size: 123 },
+          };
+        });
+      },
+    });
+    expect(
+      unpackMidnightDidZkArtifactArchive({
+        archivePath: fixture.archivePath,
+        outputDir: path.join(makeTempRoot(), "out"),
+      }).manifest.circuits,
+    ).toHaveLength(1);
+  });
+  it("keeps compiler identity in expected manifest comparison", () => {
+    const fixture = createFixtureArchive({ compilerMetadata: true });
+    const expected = JSON.parse(fs.readFileSync(fixture.manifestPath, "utf8"));
+    expected.compactCompilerVersion = "0.36.1";
+    expectArtifactError(
+      () =>
+        unpackMidnightDidZkArtifactArchive({
+          archivePath: fixture.archivePath,
+          expectedManifestJson: expected,
+          outputDir: path.join(makeTempRoot(), "out"),
+        }),
+      "manifest_mismatch",
+    );
+  });
+  it("requires metadata from this archive, not pre-existing output files", () => {
+    const current = createFixtureArchive({ compilerMetadata: true });
+    const outputDir = path.join(makeTempRoot(), "out");
+    unpackMidnightDidZkArtifactArchive({
+      archivePath: current.archivePath,
+      outputDir,
+    });
+    const missing = createFixtureArchive({
+      compilerMetadata: true,
+      mutateMetadata: (root) =>
+        fs.rmSync(path.join(root, "compiler"), { recursive: true }),
+    });
+    expectArtifactError(
+      () =>
+        unpackMidnightDidZkArtifactArchive({
+          archivePath: missing.archivePath,
+          outputDir,
+        }),
+      "manifest_mismatch",
+    );
+  });
+  it("checks included providers without claiming pre-existing output files", () => {
+    const fixture = createFixtureArchive({ compilerMetadata: true });
+    const outputDir = makeTempRoot();
+    writeFixtureFile(outputDir, "keys/unrelated.prover", "pre-existing");
+    expect(
+      unpackMidnightDidZkArtifactArchive({
+        archivePath: fixture.archivePath,
+        outputDir,
+      }).manifest.circuits,
+    ).toHaveLength(1);
+  });
+  it("rejects arbitrary compiler paths", () => {
+    const fixture = createFixtureArchive({
+      compilerMetadata: true,
+      mutateMetadata: (r) => {
+        writeFixtureFile(r, "compiler/extra.json", "{}");
+      },
+    });
+    expectArtifactError(
+      () =>
+        unpackMidnightDidZkArtifactArchive({
+          archivePath: fixture.archivePath,
+        }),
+      "provider_path_mismatch",
+    );
+  });
+
   it("unpacks and verifies an archive for NodeZkConfigProvider roots", () => {
-    const fixture = createFixtureArchive();
+    const fixture = createFixtureArchive({ compilerMetadata: true });
     const outputDir = path.join(makeTempRoot(), "unpacked");
 
     const bundle = unpackMidnightDidZkArtifactArchive({
@@ -423,8 +762,12 @@ describe("ZK artifact consumption helpers", () => {
   });
 
   it("downloads, verifies, and unpacks GitHub Release assets", async () => {
-    const fixture = createFixtureArchive({ version: "0.4.0-rc2" });
+    const fixture = createFixtureArchive({
+      version: "0.4.0-rc2",
+      compilerMetadata: true,
+    });
     const reorderedManifest = {
+      ...JSON.parse(fs.readFileSync(fixture.manifestPath, "utf8")),
       circuits: fixture.manifest.circuits,
       providerLayout: fixture.manifest.providerLayout,
       packageName: fixture.manifest.packageName,
@@ -628,7 +971,10 @@ describe("ZK artifact consumption helpers", () => {
 
   it("pulls, verifies, and unpacks GHCR OCI artifacts", () => {
     const tempRoot = makeTempRoot();
-    const fixture = createFixtureArchive({ version: "0.4.0" });
+    const fixture = createFixtureArchive({
+      version: "0.4.0",
+      compilerMetadata: true,
+    });
     const fakeOras = path.join(tempRoot, "fake-oras.sh");
     const manifestTarget = path.join(
       path.dirname(fixture.archivePath),

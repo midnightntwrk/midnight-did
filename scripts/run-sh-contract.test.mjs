@@ -41,11 +41,7 @@ function assertNotContains(haystack, expected, label) {
 }
 
 const apiRunner = readFileSync(path.join(ROOT_DIR, "run-api.sh"), "utf8");
-assertContains(
-  apiRunner,
-  "pnpm --filter ./packages/api lint",
-  "API runner",
-);
+assertContains(apiRunner, "pnpm --filter ./packages/api lint", "API runner");
 assertNotContains(apiRunner, "lint:fix", "API runner");
 
 const helpResult = runRunSh(["--help"]);
@@ -58,7 +54,11 @@ assertContains(helpResult.stdout, "./run-api.sh", "help output");
 assertContains(helpResult.stdout, "./run-docs.sh", "help output");
 
 const shortHelpResult = runRunSh(["-h"]);
-assert.equal(shortHelpResult.exitCode, 0, "short help should exit successfully");
+assert.equal(
+  shortHelpResult.exitCode,
+  0,
+  "short help should exit successfully",
+);
 assertContains(shortHelpResult.stdout, "Usage: ./run.sh", "short help output");
 
 const targetsResult = runRunSh(["targets"]);
@@ -137,17 +137,31 @@ const coreDryRunResult = runRunSh(["core", "--light", "--strict"], {
 });
 assert.equal(coreDryRunResult.exitCode, 0, "core dry run should succeed");
 assertContains(coreDryRunResult.stdout, "./run-core.sh", "core dry-run stdout");
-assertNotContains(coreDryRunResult.stdout, "./run-api.sh", "core dry-run stdout");
+assertNotContains(
+  coreDryRunResult.stdout,
+  "./run-api.sh",
+  "core dry-run stdout",
+);
 
-for (const [target, expectedCommand] of [
-  ["api", "./run-api.sh"],
-]) {
+for (const [target, expectedCommand] of [["api", "./run-api.sh"]]) {
   const laneDryRunResult = runRunSh([target, "--light", "--strict"], {
     MIDNIGHT_DID_DRY_RUN: "1",
   });
-  assert.equal(laneDryRunResult.exitCode, 0, `${target} dry run should succeed`);
-  assertContains(laneDryRunResult.stdout, expectedCommand, `${target} dry-run stdout`);
-  assertNotContains(laneDryRunResult.stdout, "./run-core.sh", `${target} dry-run stdout`);
+  assert.equal(
+    laneDryRunResult.exitCode,
+    0,
+    `${target} dry run should succeed`,
+  );
+  assertContains(
+    laneDryRunResult.stdout,
+    expectedCommand,
+    `${target} dry-run stdout`,
+  );
+  assertNotContains(
+    laneDryRunResult.stdout,
+    "./run-core.sh",
+    `${target} dry-run stdout`,
+  );
 }
 
 const docsDryRunResult = runRunSh(["docs", "--metrics"], {
@@ -155,12 +169,20 @@ const docsDryRunResult = runRunSh(["docs", "--metrics"], {
 });
 assert.equal(docsDryRunResult.exitCode, 0, "docs dry run should succeed");
 assertContains(docsDryRunResult.stdout, "./run-docs.sh", "docs dry-run stdout");
-assertNotContains(docsDryRunResult.stdout, "./run-core.sh", "docs dry-run stdout");
+assertNotContains(
+  docsDryRunResult.stdout,
+  "./run-core.sh",
+  "docs dry-run stdout",
+);
 
 const docsUnsupportedFlagsResult = runRunSh(["docs", "--light", "--strict"], {
   MIDNIGHT_DID_DRY_RUN: "1",
 });
-assert.equal(docsUnsupportedFlagsResult.exitCode, 0, "docs with ignored flags should succeed");
+assert.equal(
+  docsUnsupportedFlagsResult.exitCode,
+  0,
+  "docs with ignored flags should succeed",
+);
 assertContains(
   docsUnsupportedFlagsResult.stderr,
   "Warning: --light is ignored by target 'docs'",
@@ -213,5 +235,113 @@ assert.ok(
 );
 
 rmSync(metricsDir, { recursive: true, force: true });
+
+const compilerSelectors = ["COMPACT_DIRECTORY", "COMPACT_COMPILER_VERSION"];
+const turboConfig = JSON.parse(
+  readFileSync(path.join(ROOT_DIR, "turbo.json"), "utf8"),
+);
+assert.deepEqual(
+  [...turboConfig.globalEnv].sort(),
+  [...compilerSelectors].sort(),
+  "Turbo must preserve and hash both explicit compiler selectors",
+);
+assert.equal(
+  turboConfig.globalPassThroughEnv,
+  undefined,
+  "Compiler selection must not use an unhashed environment pass-through",
+);
+
+function compilerBuildDryRun(env) {
+  // Canary directories/versions are for hash inspection ONLY. Never compile
+  // against them, create them, or mutate the caller's toolchain selection.
+  const result = spawnSync(
+    "pnpm",
+    [
+      "exec",
+      "turbo",
+      "run",
+      "build",
+      "--filter=./packages/jubjub-schnorr",
+      "--dry-run=json",
+      "--env-mode=strict",
+    ],
+    { cwd: ROOT_DIR, encoding: "utf8", env, timeout: 30_000 },
+  );
+  assert.equal(result.status, 0, `Turbo dry run failed: ${result.stderr}`);
+  const plan = JSON.parse(result.stdout);
+  assert.equal(plan.envMode, "strict", "Turbo must retain strict env mode");
+  const task = plan.tasks.find(
+    (entry) =>
+      entry.taskId === "@midnight-ntwrk/midnight-did-jubjub-schnorr#build",
+  );
+  assert.ok(task, "Jubjub build task must exist in the actual dry-run plan");
+  assert.equal(task.envMode, "strict");
+  const globalEnv = plan.globalCacheInputs.environmentVariables;
+  assert.deepEqual(
+    [...globalEnv.specified.env].sort(),
+    [...compilerSelectors].sort(),
+    "Both selectors must be declared in the global cache inputs",
+  );
+  assert.equal(globalEnv.specified.passThroughEnv, null);
+  for (const selector of compilerSelectors) {
+    assert.equal(
+      globalEnv.configured.some((entry) => entry.startsWith(`${selector}=`)),
+      Object.hasOwn(env, selector),
+      `${selector} must enter the hashed environment exactly when present`,
+    );
+  }
+  return {
+    hash: task.hash,
+    inputs: task.inputs,
+    globalFiles: plan.globalCacheInputs.files,
+    externalDependencies: plan.globalCacheInputs.hashOfExternalDependencies,
+  };
+}
+
+function assertCompilerHashChanges(beforeEnv, afterEnv, selector) {
+  assert.deepEqual(
+    Object.keys(beforeEnv).filter((key) => beforeEnv[key] !== afterEnv[key]),
+    [selector],
+    "Only the selected compiler environment value may change",
+  );
+  const before = compilerBuildDryRun(beforeEnv);
+  const after = compilerBuildDryRun(afterEnv);
+  assert.deepEqual(
+    before.inputs,
+    after.inputs,
+    "Task source inputs must match",
+  );
+  assert.deepEqual(before.globalFiles, after.globalFiles);
+  assert.equal(before.externalDependencies, after.externalDependencies);
+  assert.notEqual(
+    before.hash,
+    after.hash,
+    `${selector} must change the task hash`,
+  );
+}
+
+const directoryCanaryEnv = {
+  ...process.env,
+  COMPACT_DIRECTORY: path.join(tmpdir(), "midnight-compact-hash-canary-a"),
+  COMPACT_COMPILER_VERSION: "0.36.0",
+};
+assertCompilerHashChanges(
+  directoryCanaryEnv,
+  {
+    ...directoryCanaryEnv,
+    COMPACT_DIRECTORY: path.join(tmpdir(), "midnight-compact-hash-canary-b"),
+  },
+  "COMPACT_DIRECTORY",
+);
+const versionCanaryEnv = { ...directoryCanaryEnv };
+delete versionCanaryEnv.COMPACT_DIRECTORY;
+assertCompilerHashChanges(
+  versionCanaryEnv,
+  { ...versionCanaryEnv, COMPACT_COMPILER_VERSION: "0.36.1" },
+  "COMPACT_COMPILER_VERSION",
+);
+console.log(
+  "Turbo compiler selectors are preserved and hashed in strict mode.",
+);
 
 console.log("run.sh contract checks passed.");

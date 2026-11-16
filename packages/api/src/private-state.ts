@@ -208,6 +208,16 @@ const recordPrivateStateProviderBinding = (
   );
 };
 
+const boundPrivateStateView = (providers: MidnightDIDProviders) => {
+  const contractAddress = privateStateProviderContractAddresses.get(
+    providers.privateStateProvider,
+  );
+  if (contractAddress === undefined) {
+    throw new Error(CONTRACT_ADDRESS_UNSET_ERROR_MESSAGE);
+  }
+  return providers.privateStateProvider.forContract(contractAddress as never);
+};
+
 export const bindPrivateStateProvider = (
   providers: MidnightDIDProviders,
   contractAddress: string,
@@ -222,7 +232,6 @@ export const bindPrivateStateProvider = (
     throw new PendingControllerPrivateStateBusyError();
   }
 
-  providers.privateStateProvider.setContractAddress(canonicalContractAddress);
   recordPrivateStateProviderBinding(providers, canonicalContractAddress);
 };
 
@@ -240,7 +249,6 @@ export const bindPrivateStateProviderWithinLease = (
     lease,
     canonicalContractLockKey(canonicalContractAddress),
   );
-  providers.privateStateProvider.setContractAddress(canonicalContractAddress);
   recordPrivateStateProviderBinding(providers, canonicalContractAddress);
 };
 
@@ -285,7 +293,7 @@ export async function restorePrivateState(
   let providedPrivateState: MidnightDIDPrivateState | null = null;
   try {
     providedPrivateState =
-      await providers.privateStateProvider.get(privateStateId);
+      await boundPrivateStateView(providers).get(privateStateId);
   } catch (error: unknown) {
     if (!isContractAddressUnsetError(error)) {
       throw error;
@@ -311,7 +319,7 @@ export async function restoreRecoverySecretKey(
   let providedPrivateState: unknown = null;
   try {
     providedPrivateState =
-      await providers.privateStateProvider.get(privateStateId);
+      await boundPrivateStateView(providers).get(privateStateId);
   } catch (error: unknown) {
     if (!isContractAddressUnsetError(error)) {
       throw error;
@@ -362,7 +370,7 @@ export async function requireAttachablePrivateState(
   let providedPrivateState: MidnightDIDPrivateState | null = null;
   try {
     providedPrivateState =
-      await providers.privateStateProvider.get(privateStateId);
+      await boundPrivateStateView(providers).get(privateStateId);
   } catch (error: unknown) {
     if (!isContractAddressUnsetError(error)) {
       throw error;
@@ -413,7 +421,7 @@ export async function savePrivateState(
   privateState: MidnightDIDPrivateState,
   privateStateId: MidnightDIDPrivateStateIds = MidnightDIDPrivateStateId,
 ): Promise<void> {
-  await providers.privateStateProvider.set(privateStateId, privateState);
+  await boundPrivateStateView(providers).set(privateStateId, privateState);
 }
 
 export async function initPrivateState(
@@ -449,7 +457,7 @@ export async function savePendingControllerPrivateStateWithinLock(
   providers: MidnightDIDProviders,
   privateState: MidnightDIDPrivateState,
 ): Promise<void> {
-  const provider = providers.privateStateProvider;
+  const provider = boundPrivateStateView(providers);
   const existing = await provider.get(
     MidnightDIDPendingControllerPrivateStateId,
   );
@@ -462,7 +470,7 @@ export async function savePendingControllerPrivateStateWithinLock(
 export async function clearPendingControllerPrivateState(
   providers: MidnightDIDProviders,
 ): Promise<void> {
-  await providers.privateStateProvider.remove(
+  await boundPrivateStateView(providers).remove(
     MidnightDIDPendingControllerPrivateStateId,
   );
 }
@@ -489,7 +497,7 @@ export async function discardPendingControllerPrivateState(
   await withPendingControllerPrivateStateLock(providers, async () => {
     let pendingPrivateState: unknown = null;
     try {
-      pendingPrivateState = await providers.privateStateProvider.get(
+      pendingPrivateState = await boundPrivateStateView(providers).get(
         MidnightDIDPendingControllerPrivateStateId,
       );
     } catch (error: unknown) {

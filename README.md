@@ -137,7 +137,7 @@ Install dependencies:
 
 ```bash
 pnpm install
-compact update 0.31.1
+compact update 0.36.0
 ```
 
 Local validation:
@@ -274,8 +274,15 @@ Release CI publishes the same packages to npmjs through npm Trusted Publishing
 (GitHub Actions OIDC); no npm publication secret is required. Publication is
 manual only: pushes and merges cannot start the workflow. A manual dispatch can
 publish `x.y.z-snapshot.<run>.<sha>` with the `snapshot` npm tag from `develop`,
-`x.y.z-rc{index}` with the `rc` npm tag from `main` or `develop`, and `x.y.z`
-with the `latest` npm tag from `main` only. RC and final GitHub Releases use the
+`x.y.z-rc{index}` with the `rc` npm tag from `main`, `develop`, or a top-level
+`milestone-<nonempty>` branch (no `/` in the suffix), and `x.y.z` with the
+`latest` npm tag from `main` only. Tags, bare `milestone-`, lookalikes, and
+nested milestone refs are rejected. Milestone source eligibility does not grant
+access to the protected `npm-release` environment: an administrator must attest
+branch eligibility and required reviewers before dispatch; npm-side Trusted
+Publisher mappings remain independently unverified. See the
+[publishing prerequisites](docs-site/development/publishing.md).
+RC and final GitHub Releases use the
 body beneath the one exact `## [x.y.z] - ...` section in `CHANGELOG.md`; the
 workflow generates that notes file before its privileged context validation.
 The canonical body uses LF line endings and exactly one terminal newline, and

@@ -1,6 +1,5 @@
 import path from "node:path";
 
-import { getNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -19,6 +18,7 @@ import {
   TestnetLocalConfig,
   TestnetRemoteConfig,
 } from "../config.js";
+import { getCurrentNetworkId } from "../network-context.js";
 
 describe("config", () => {
   it("resolves workspace directories", () => {
@@ -37,7 +37,7 @@ describe("config", () => {
     expect(config.proofServer).toBe("http://127.0.0.1:6300");
     expect(config.logDir).toContain(path.join("logs", "testnet-local"));
     expect(config.logDir.endsWith(".log")).toBe(true);
-    expect(getNetworkId()).toBe("testnet");
+    expect(getCurrentNetworkId()).toBe("testnet");
   });
 
   it("builds standalone defaults and network id", () => {
@@ -48,7 +48,7 @@ describe("config", () => {
     expect(config.proofServer).toBe("http://127.0.0.1:6300");
     expect(config.logDir).toContain(path.join("logs", "standalone"));
     expect(config.logDir.endsWith(".log")).toBe(true);
-    expect(getNetworkId()).toBe("undeployed");
+    expect(getCurrentNetworkId()).toBe("undeployed");
   });
 
   it("builds testnet-remote defaults and network id", () => {
@@ -63,7 +63,7 @@ describe("config", () => {
     expect(config.proofServer).toBe("http://127.0.0.1:6300");
     expect(config.logDir).toContain(path.join("logs", "testnet-remote"));
     expect(config.logDir.endsWith(".log")).toBe(true);
-    expect(getNetworkId()).toBe("testnet");
+    expect(getCurrentNetworkId()).toBe("testnet");
   });
 
   it("builds preprod defaults and network id", () => {
@@ -77,7 +77,7 @@ describe("config", () => {
     expect(config.node).toBe("https://rpc.preprod.midnight.network");
     expect(config.proofServer).toBe("http://127.0.0.1:6300");
     expect(config.logDir).toContain(path.join("logs", "preprod"));
-    expect(getNetworkId()).toBe("preprod");
+    expect(getCurrentNetworkId()).toBe("preprod");
   });
 
   it("builds mainnet defaults and supports explicit overrides", () => {
@@ -90,7 +90,7 @@ describe("config", () => {
     );
     expect(defaults.node).toBe("https://rpc.mainnet.midnight.network");
     expect(defaults.proofServer).toBe("http://127.0.0.1:6300");
-    expect(getNetworkId()).toBe("mainnet");
+    expect(getCurrentNetworkId()).toBe("mainnet");
 
     const config = new MainnetConfig({
       indexer: "https://indexer.mainnet.example/api/v4/graphql",
@@ -107,7 +107,7 @@ describe("config", () => {
     expect(config.node).toBe("https://rpc.mainnet.example");
     expect(config.proofServer).toBe("https://proof.mainnet.example");
     expect(config.logDir).toContain(path.join("logs", "mainnet"));
-    expect(getNetworkId()).toBe("mainnet");
+    expect(getCurrentNetworkId()).toBe("mainnet");
   });
 
   it("keeps network profiles in a single explicit catalog", () => {
@@ -159,9 +159,9 @@ describe("config", () => {
 
   it("applies profile network ids through one helper", () => {
     applyMidnightNetworkProfile("standalone");
-    expect(getNetworkId()).toBe("undeployed");
+    expect(getCurrentNetworkId()).toBe("undeployed");
     applyMidnightNetworkProfile("preprod");
-    expect(getNetworkId()).toBe("preprod");
+    expect(getCurrentNetworkId()).toBe("preprod");
   });
 
   it("builds a generic profile config for tooling and examples", () => {
@@ -174,6 +174,6 @@ describe("config", () => {
     expect(config.indexer).toBe(
       "https://indexer.preprod.midnight.network/api/v4/graphql",
     );
-    expect(getNetworkId()).toBe("preprod");
+    expect(getCurrentNetworkId()).toBe("preprod");
   });
 });

@@ -4,7 +4,7 @@ const ledgerMocks = vi.hoisted(() => ({
   deserialize: vi.fn(),
 }));
 
-vi.mock("@midnight-ntwrk/ledger-v8", () => ({
+vi.mock("@midnightntwrk/ledger-v9", () => ({
   Intent: {
     deserialize: ledgerMocks.deserialize,
   },

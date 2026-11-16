@@ -22,7 +22,6 @@ import {
   signJubjubPayloadFromSeed,
   TWO_248
 } from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
-import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import * as ContractExports from "../index.js";
@@ -37,8 +36,6 @@ import {
 } from "../managed/did/contract/index.js";
 import { witnesses } from "../witnesses.js";
 import { DIDSimulator } from "./did-simulator.js";
-
-setNetworkId("undeployed");
 
 const keyBytes = (seed: number): Uint8Array =>
   new Uint8Array(Array.from({ length: 32 }, (_, i) => (seed + i) & 0xff));
@@ -65,8 +62,8 @@ const COMPACT_FIELD_MODULUS =
   52435875175126190479447740508185965837690552500527637822603658699938581184512n;
 
 describe("DID smart contract", () => {
-  it("properly initializes ledger state and private state", () => {
-    const simulator = new DIDSimulator();
+  it("properly initializes ledger state and private state", async () => {
+    const simulator = await DIDSimulator.create();
     const initialLedgerState = simulator.getLedger();
     expect(initialLedgerState.contractVersion).toEqual(2n);
     expect(initialLedgerState.controllerPublicKey.x).toBeTypeOf("bigint");
@@ -96,12 +93,12 @@ describe("DID smart contract", () => {
     );
   });
 
-  it("re-exports the managed contract bundle", () => {
+  it("re-exports the managed contract bundle", async () => {
     expect(ContractExports.DIDContract).toBeDefined();
   });
 
-  it("authorizes controller updates with a wallet-local operation-bound signature", () => {
-    const simulator = new DIDSimulator();
+  it("authorizes controller updates with a wallet-local operation-bound signature", async () => {
+    const simulator = await DIDSimulator.create();
     const oldSecretKey = simulator.getPrivateState().secretKey;
     const newSecretKey = keyBytes(99);
     const newControllerPublicKey =
@@ -111,55 +108,53 @@ describe("DID smart contract", () => {
       ContractExports.deriveControllerPublicKey(oldSecretKey!)
     );
 
-    simulator.rotateControllerPublicKey(newControllerPublicKey);
+    await simulator.rotateControllerPublicKey(newControllerPublicKey);
     expect(simulator.getLedger().controllerPublicKey).toEqual(
       newControllerPublicKey
     );
     expect(simulator.getLedger().version).toEqual(1n);
 
-    expect(() => simulator.addAlsoKnownAs("did:example:old-secret")).toThrow(
-      /Invalid Jubjub Schnorr signature/
-    );
+    await expect(
+      simulator.addAlsoKnownAs("did:example:old-secret")
+    ).rejects.toThrow(/Invalid Jubjub Schnorr signature/);
 
     simulator.setPrivateState({
       ...simulator.getPrivateState(),
       secretKey: newSecretKey
     });
-    simulator.addAlsoKnownAs("did:example:new-secret");
+    await simulator.addAlsoKnownAs("did:example:new-secret");
     expect(
       simulator.getLedger().alsoKnownAs.member("did:example:new-secret")
     ).toEqual(true);
     expect(simulator.getLedger().version).toEqual(2n);
   });
 
-  it("rejects constructor private state with matching controller and recovery authority keys", () => {
-    expect(
-      () =>
-        new DIDSimulator({
-          ...witnesses,
-          localRecoveryAuthorityPublicKey: ({ privateState }) => [
-            privateState,
-            ContractExports.deriveControllerPublicKey(privateState.secretKey!)
-          ]
-        })
-    ).toThrow(/New controller key matches recovery authority key/);
+  it("rejects constructor private state with matching controller and recovery authority keys", async () => {
+    await expect(
+      DIDSimulator.create({
+        ...witnesses,
+        localRecoveryAuthorityPublicKey: ({ privateState }) => [
+          privateState,
+          ContractExports.deriveControllerPublicKey(privateState.secretKey!)
+        ]
+      })
+    ).rejects.toThrow(/New controller key matches recovery authority key/);
   });
 
-  it("rejects constructor private state without a recovery authority secret", () => {
-    expect(
-      () =>
-        new DIDSimulator({
-          ...witnesses,
-          localRecoveryAuthorityPublicKey: ({ privateState }) =>
-            witnesses.localRecoveryAuthorityPublicKey({
-              privateState: { secretKey: privateState.secretKey } as any
-            } as any)
-        })
-    ).toThrow(/recovery secret key is required/);
+  it("rejects constructor private state without a recovery authority secret", async () => {
+    await expect(
+      DIDSimulator.create({
+        ...witnesses,
+        localRecoveryAuthorityPublicKey: ({ privateState }) =>
+          witnesses.localRecoveryAuthorityPublicKey({
+            privateState: { secretKey: privateState.secretKey } as any
+          } as any)
+      })
+    ).rejects.toThrow(/recovery secret key is required/);
   });
 
-  it("recovers controller control with the recovery public key", () => {
-    const simulator = new DIDSimulator();
+  it("recovers controller control with the recovery public key", async () => {
+    const simulator = await DIDSimulator.create();
     const oldSecretKey = simulator.getPrivateState().secretKey;
     const recoveryAuthorityPublicKey =
       simulator.getLedger().recoveryAuthorityPublicKey;
@@ -171,7 +166,7 @@ describe("DID smart contract", () => {
       simulator.getLedger().controllerPublicKey
     );
 
-    simulator.recoverControllerKey(recoveredSecretKey);
+    await simulator.recoverControllerKey(recoveredSecretKey);
     expect(simulator.getLedger().controllerPublicKey).toEqual(
       recoveredPublicKey
     );
@@ -183,15 +178,15 @@ describe("DID smart contract", () => {
       ...simulator.getPrivateState(),
       secretKey: oldSecretKey
     });
-    expect(() =>
+    await expect(
       simulator.addAlsoKnownAs("did:example:old-controller")
-    ).toThrow(/Invalid Jubjub Schnorr signature/);
+    ).rejects.toThrow(/Invalid Jubjub Schnorr signature/);
 
     simulator.setPrivateState({
       ...simulator.getPrivateState(),
       secretKey: recoveredSecretKey
     });
-    simulator.addAlsoKnownAs("did:example:recovered-controller");
+    await simulator.addAlsoKnownAs("did:example:recovered-controller");
     expect(
       simulator
         .getLedger()
@@ -199,8 +194,8 @@ describe("DID smart contract", () => {
     ).toEqual(true);
   });
 
-  it("rejects controller signatures for recovery operations", () => {
-    const simulator = new DIDSimulator();
+  it("rejects controller signatures for recovery operations", async () => {
+    const simulator = await DIDSimulator.create();
     const recoveredSecretKey = keyBytes(77);
     const recoveredPublicKey =
       ContractExports.deriveControllerPublicKey(recoveredSecretKey);
@@ -213,18 +208,18 @@ describe("DID smart contract", () => {
       )
     );
 
-    expect(() =>
+    await expect(
       simulator.contract.impureCircuits.recoverControllerKey(
         simulator.circuitContext,
         recoveredPublicKey,
         controllerSignature,
         expectedVersion
       )
-    ).toThrow(/Invalid Jubjub Schnorr signature/);
+    ).rejects.toThrow(/Invalid Jubjub Schnorr signature/);
   });
 
-  it("rejects recovery signatures for normal controller operations", () => {
-    const simulator = new DIDSimulator();
+  it("rejects recovery signatures for normal controller operations", async () => {
+    const simulator = await DIDSimulator.create();
     const alias = "did:example:recovery-not-controller";
     const expectedVersion = simulator.getLedger().version;
     const [recoverySignature] = simulator.recoveryAuthorization(
@@ -236,7 +231,7 @@ describe("DID smart contract", () => {
       )
     );
 
-    expect(() =>
+    await expect(
       simulator.contract.impureCircuits.setAlsoKnownAs(
         simulator.circuitContext,
         alias,
@@ -244,11 +239,11 @@ describe("DID smart contract", () => {
         recoverySignature,
         expectedVersion
       )
-    ).toThrow(/Invalid Jubjub Schnorr signature/);
+    ).rejects.toThrow(/Invalid Jubjub Schnorr signature/);
   });
 
-  it("rejects stale and no-op recovery attempts", () => {
-    const simulator = new DIDSimulator();
+  it("rejects stale and no-op recovery attempts", async () => {
+    const simulator = await DIDSimulator.create();
     const recoveredSecretKey = keyBytes(77);
     const recoveredPublicKey =
       ContractExports.deriveControllerPublicKey(recoveredSecretKey);
@@ -261,15 +256,15 @@ describe("DID smart contract", () => {
       )
     );
 
-    simulator.addAlsoKnownAs("did:example:version-bump");
-    expect(() =>
+    await simulator.addAlsoKnownAs("did:example:version-bump");
+    await expect(
       simulator.contract.impureCircuits.recoverControllerKey(
         simulator.circuitContext,
         recoveredPublicKey,
         signature,
         expectedVersion
       )
-    ).toThrow(/Recovery authorization version is stale/);
+    ).rejects.toThrow(/Recovery authorization version is stale/);
 
     const currentPublicKey = simulator.getLedger().controllerPublicKey;
     const [currentKeySignature, currentVersion] =
@@ -280,14 +275,14 @@ describe("DID smart contract", () => {
           currentPublicKey
         )
       );
-    expect(() =>
+    await expect(
       simulator.contract.impureCircuits.recoverControllerKey(
         simulator.circuitContext,
         currentPublicKey,
         currentKeySignature,
         currentVersion
       )
-    ).toThrow(/New controller key matches current controller key/);
+    ).rejects.toThrow(/New controller key matches current controller key/);
 
     const recoveryAuthorityPublicKey =
       simulator.getLedger().recoveryAuthorityPublicKey;
@@ -299,49 +294,49 @@ describe("DID smart contract", () => {
           recoveryAuthorityPublicKey
         )
       );
-    expect(() =>
+    await expect(
       simulator.contract.impureCircuits.recoverControllerKey(
         simulator.circuitContext,
         recoveryAuthorityPublicKey,
         recoveryKeySignature,
         recoveryKeyVersion
       )
-    ).toThrow(/New controller key matches recovery authority key/);
+    ).rejects.toThrow(/New controller key matches recovery authority key/);
   });
 
-  it("rejects recovery after deactivation", () => {
-    const simulator = new DIDSimulator();
-    simulator.deactivate();
+  it("rejects recovery after deactivation", async () => {
+    const simulator = await DIDSimulator.create();
+    await simulator.deactivate();
 
-    expect(() => simulator.recoverControllerKey(keyBytes(77))).toThrow(
+    await expect(simulator.recoverControllerKey(keyBytes(77))).rejects.toThrow(
       /Contract is not active/
     );
   });
 
-  it("rejects controller signatures reused with different operation arguments", () => {
-    const simulator = new DIDSimulator();
+  it("rejects controller signatures reused with different operation arguments", async () => {
+    const simulator = await DIDSimulator.create();
     const [signature, expectedVersion] =
       simulator.controllerAuthorizationForAddAlsoKnownAs(
         "did:example:intended-update"
       );
 
-    expect(() =>
+    await expect(
       simulator.addAlsoKnownAsWithAuthorization(
         "did:example:tampered-update",
         signature,
         expectedVersion
       )
-    ).toThrow(/Invalid Jubjub Schnorr signature/);
+    ).rejects.toThrow(/Invalid Jubjub Schnorr signature/);
   });
 
-  it("rejects controller signatures reused with a different operation", () => {
-    const simulator = new DIDSimulator();
+  it("rejects controller signatures reused with a different operation", async () => {
+    const simulator = await DIDSimulator.create();
     const [signature, expectedVersion] =
       simulator.controllerAuthorizationForAddAlsoKnownAs(
         "did:example:intended-update"
       );
 
-    expect(() =>
+    await expect(
       simulator.contract.impureCircuits.setService(
         simulator.circuitContext,
         {
@@ -353,36 +348,36 @@ describe("DID smart contract", () => {
         signature,
         expectedVersion
       )
-    ).toThrow(/Invalid Jubjub Schnorr signature/);
+    ).rejects.toThrow(/Invalid Jubjub Schnorr signature/);
   });
 
-  it("rejects replayed controller authorizations after the DID version changes", () => {
-    const simulator = new DIDSimulator();
+  it("rejects replayed controller authorizations after the DID version changes", async () => {
+    const simulator = await DIDSimulator.create();
     const [signature, expectedVersion] =
       simulator.controllerAuthorizationForAddAlsoKnownAs(
         "did:example:replayed-update"
       );
 
-    simulator.addAlsoKnownAs("did:example:first-update");
+    await simulator.addAlsoKnownAs("did:example:first-update");
 
-    expect(() =>
+    await expect(
       simulator.addAlsoKnownAsWithAuthorization(
         "did:example:replayed-update",
         signature,
         expectedVersion
       )
-    ).toThrow(/Controller authorization version is stale/);
+    ).rejects.toThrow(/Controller authorization version is stale/);
   });
 
   describe("Verification Methods", () => {
     let simulator: DIDSimulator;
 
-    beforeEach(() => {
-      simulator = new DIDSimulator();
+    beforeEach(async () => {
+      simulator = await DIDSimulator.create();
     });
 
-    it("should add a verification method", () => {
-      simulator.addVerificationMethod({
+    it("should add a verification method", async () => {
+      await simulator.addVerificationMethod({
         id: "#key-1",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -407,8 +402,8 @@ describe("DID smart contract", () => {
       expect(vm.publicKeyJwk.y).toEqual("");
     });
 
-    it("should reject non-JsonWebKey verification methods", () => {
-      expect(() =>
+    it("should reject non-JsonWebKey verification methods", async () => {
+      await expect(
         simulator.addVerificationMethod({
           id: "#key-1",
           typ: VerificationMethodType.Undefined,
@@ -418,11 +413,11 @@ describe("DID smart contract", () => {
             ...okpKey(12345)
           }
         })
-      ).toThrow();
+      ).rejects.toThrow();
     });
 
-    it("should reject unsupported key type profiles", () => {
-      expect(() =>
+    it("should reject unsupported key type profiles", async () => {
+      await expect(
         simulator.addVerificationMethod({
           id: "#key-rsa",
           typ: VerificationMethodType.JsonWebKey,
@@ -432,11 +427,11 @@ describe("DID smart contract", () => {
             ...ecKey(12345, 67890)
           }
         })
-      ).toThrow();
+      ).rejects.toThrow();
     });
 
-    it("should reject unsupported key/curve combinations", () => {
-      expect(() =>
+    it("should reject unsupported key/curve combinations", async () => {
+      await expect(
         simulator.addVerificationMethod({
           id: "#key-ec-invalid",
           typ: VerificationMethodType.JsonWebKey,
@@ -446,11 +441,11 @@ describe("DID smart contract", () => {
             ...ecKey(12345, 67890)
           }
         })
-      ).toThrow();
+      ).rejects.toThrow();
     });
 
-    it("should reject Jubjub keys in the opaque verification method circuit", () => {
-      expect(() =>
+    it("should reject Jubjub keys in the opaque verification method circuit", async () => {
+      await expect(
         simulator.addVerificationMethod({
           id: "#key-jubjub-native",
           typ: VerificationMethodType.JsonWebKey,
@@ -460,11 +455,11 @@ describe("DID smart contract", () => {
             ...ecKey(12345, 67890)
           }
         })
-      ).toThrow(/SchnorrJubjub/);
+      ).rejects.toThrow(/SchnorrJubjub/);
     });
 
-    it("should add an EC P-256 verification method", () => {
-      simulator.addVerificationMethod({
+    it("should add an EC P-256 verification method", async () => {
+      await simulator.addVerificationMethod({
         id: "#key-p256",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -480,8 +475,8 @@ describe("DID smart contract", () => {
       expect(vm.publicKeyJwk.crv).toEqual(CurveType.P256);
     });
 
-    it("should add X25519 and secp256k1 verification methods", () => {
-      simulator.addVerificationMethod({
+    it("should add X25519 and secp256k1 verification methods", async () => {
+      await simulator.addVerificationMethod({
         id: "#key-x25519",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -490,7 +485,7 @@ describe("DID smart contract", () => {
           ...okpKey(10)
         }
       });
-      simulator.addVerificationMethod({
+      await simulator.addVerificationMethod({
         id: "#key-secp256k1",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -510,8 +505,8 @@ describe("DID smart contract", () => {
       ).toEqual(CurveType.Secp256k1);
     });
 
-    it("should add BLS12-381 OKP verification methods", () => {
-      simulator.addVerificationMethod({
+    it("should add BLS12-381 OKP verification methods", async () => {
+      await simulator.addVerificationMethod({
         id: "#key-bls12381-g1",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -521,7 +516,7 @@ describe("DID smart contract", () => {
           y: ""
         }
       });
-      simulator.addVerificationMethod({
+      await simulator.addVerificationMethod({
         id: "#key-bls12381-g2",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -542,9 +537,9 @@ describe("DID smart contract", () => {
       ).toEqual(CurveType.BLS12381G2);
     });
 
-    it("characterizes controller-authorized raw Compact opaque state reachability", () => {
-      const malformedJwk = new DIDSimulator();
-      malformedJwk.addVerificationMethod({
+    it("characterizes controller-authorized raw Compact opaque state reachability", async () => {
+      const malformedJwk = await DIDSimulator.create();
+      await malformedJwk.addVerificationMethod({
         id: "#malformed-jwk",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -558,8 +553,8 @@ describe("DID smart contract", () => {
         malformedJwk.getLedger().verificationMethods.member("#malformed-jwk")
       ).toEqual(true);
 
-      const nonEmptyOkpY = new DIDSimulator();
-      nonEmptyOkpY.addVerificationMethod({
+      const nonEmptyOkpY = await DIDSimulator.create();
+      await nonEmptyOkpY.addVerificationMethod({
         id: "#non-empty-okp-y",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -574,8 +569,8 @@ describe("DID smart contract", () => {
           .publicKeyJwk.y
       ).toEqual(keyValue(2));
 
-      const malformedService = new DIDSimulator();
-      malformedService.addService({
+      const malformedService = await DIDSimulator.create();
+      await malformedService.addService({
         id: "#malformed-service",
         typ: "",
         serviceEndpoint: "{not-json"
@@ -584,9 +579,9 @@ describe("DID smart contract", () => {
         malformedService.getLedger().services.member("#malformed-service")
       ).toEqual(true);
 
-      const foreignSubject = new DIDSimulator();
+      const foreignSubject = await DIDSimulator.create();
       const foreignId = `did:midnight:testnet:${"f".repeat(64)}#key-1`;
-      foreignSubject.addVerificationMethod({
+      await foreignSubject.addVerificationMethod({
         id: foreignId,
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -599,9 +594,9 @@ describe("DID smart contract", () => {
         foreignSubject.getLedger().verificationMethods.member(foreignId)
       ).toEqual(true);
 
-      const sameStoreAliases = new DIDSimulator();
+      const sameStoreAliases = await DIDSimulator.create();
       for (const id of ["alias-key", "#alias-key"]) {
-        sameStoreAliases.addVerificationMethod({
+        await sameStoreAliases.addVerificationMethod({
           id,
           typ: VerificationMethodType.JsonWebKey,
           publicKeyJwk: {
@@ -615,8 +610,8 @@ describe("DID smart contract", () => {
         2n
       );
 
-      const crossStoreAliases = new DIDSimulator();
-      crossStoreAliases.addVerificationMethod({
+      const crossStoreAliases = await DIDSimulator.create();
+      await crossStoreAliases.addVerificationMethod({
         id: "cross-store-key",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -625,7 +620,7 @@ describe("DID smart contract", () => {
           ...okpKey(4)
         }
       });
-      crossStoreAliases.addSchnorrJubjubVerificationMethod({
+      await crossStoreAliases.addSchnorrJubjubVerificationMethod({
         id: "#cross-store-key",
         publicKey: deriveJubjubPublicKeyFromSeed(keyBytes(5))
       });
@@ -635,8 +630,8 @@ describe("DID smart contract", () => {
           .schnorrJubjubVerificationMethods.member("#cross-store-key")
       ).toEqual(true);
 
-      const exactCrossStoreKey = new DIDSimulator();
-      exactCrossStoreKey.addVerificationMethod({
+      const exactCrossStoreKey = await DIDSimulator.create();
+      await exactCrossStoreKey.addVerificationMethod({
         id: "#exact-cross-store-key",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -645,15 +640,15 @@ describe("DID smart contract", () => {
           ...okpKey(6)
         }
       });
-      expect(() =>
+      await expect(
         exactCrossStoreKey.addSchnorrJubjubVerificationMethod({
           id: "#exact-cross-store-key",
           publicKey: deriveJubjubPublicKeyFromSeed(keyBytes(7))
         })
-      ).toThrow(/already exists/);
+      ).rejects.toThrow(/already exists/);
     });
 
-    it("should add, update, relate, and remove SchnorrJubjub verification methods", () => {
+    it("should add, update, relate, and remove SchnorrJubjub verification methods", async () => {
       const seed = new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1));
       const updatedSeed = new Uint8Array(
         Array.from({ length: 32 }, (_, i) => i + 33)
@@ -661,7 +656,7 @@ describe("DID smart contract", () => {
       const publicKey = deriveJubjubPublicKeyFromSeed(seed);
       const updatedPublicKey = deriveJubjubPublicKeyFromSeed(updatedSeed);
 
-      simulator.addSchnorrJubjubVerificationMethod({
+      await simulator.addSchnorrJubjubVerificationMethod({
         id: "#key-schnorr-jubjub",
         publicKey
       });
@@ -678,7 +673,7 @@ describe("DID smart contract", () => {
           .publicKey
       ).toEqual(publicKey);
 
-      expect(() =>
+      await expect(
         simulator.addVerificationMethod({
           id: "#key-schnorr-jubjub",
           typ: VerificationMethodType.JsonWebKey,
@@ -688,9 +683,9 @@ describe("DID smart contract", () => {
             ...okpKey(123)
           }
         })
-      ).toThrow(/already exists/);
+      ).rejects.toThrow(/already exists/);
 
-      simulator.updateSchnorrJubjubVerificationMethod({
+      await simulator.updateSchnorrJubjubVerificationMethod({
         id: "#key-schnorr-jubjub",
         publicKey: updatedPublicKey
       });
@@ -700,19 +695,21 @@ describe("DID smart contract", () => {
           .publicKey
       ).toEqual(updatedPublicKey);
 
-      simulator.addVerificationMethodRelation(
+      await simulator.addVerificationMethodRelation(
         VerificationMethodRelation.Authentication,
         "#key-schnorr-jubjub"
       );
-      expect(() =>
+      await expect(
         simulator.removeSchnorrJubjubVerificationMethod("#key-schnorr-jubjub")
-      ).toThrow(/still referenced in authenticationRelation/);
+      ).rejects.toThrow(/still referenced in authenticationRelation/);
 
-      simulator.removeVerificationMethodRelation(
+      await simulator.removeVerificationMethodRelation(
         VerificationMethodRelation.Authentication,
         "#key-schnorr-jubjub"
       );
-      simulator.removeSchnorrJubjubVerificationMethod("#key-schnorr-jubjub");
+      await simulator.removeSchnorrJubjubVerificationMethod(
+        "#key-schnorr-jubjub"
+      );
       ledger = simulator.getLedger();
       expect(
         ledger.schnorrJubjubVerificationMethods.member("#key-schnorr-jubjub")
@@ -732,53 +729,57 @@ describe("DID smart contract", () => {
       ]
     ])(
       "should fail to remove a SchnorrJubjub method referenced by %s",
-      (relation, ledgerRelation) => {
-        simulator.addSchnorrJubjubVerificationMethod({
+      async (relation, ledgerRelation) => {
+        await simulator.addSchnorrJubjubVerificationMethod({
           id: "#key-schnorr-referenced",
           publicKey: deriveJubjubPublicKeyFromSeed(keyBytes(44))
         });
-        simulator.addVerificationMethodRelation(
+        await simulator.addVerificationMethodRelation(
           relation,
           "#key-schnorr-referenced"
         );
 
-        expect(() =>
+        await expect(
           simulator.removeSchnorrJubjubVerificationMethod(
             "#key-schnorr-referenced"
           )
-        ).toThrow(`Verification method still referenced in ${ledgerRelation}`);
+        ).rejects.toThrow(
+          `Verification method still referenced in ${ledgerRelation}`
+        );
       }
     );
 
-    it("should reject using a SchnorrJubjub method for key agreement", () => {
-      simulator.addSchnorrJubjubVerificationMethod({
+    it("should reject using a SchnorrJubjub method for key agreement", async () => {
+      await simulator.addSchnorrJubjubVerificationMethod({
         id: "#key-schnorr-agreement",
         publicKey: deriveJubjubPublicKeyFromSeed(keyBytes(45))
       });
 
-      expect(() =>
+      await expect(
         simulator.addVerificationMethodRelation(
           VerificationMethodRelation.KeyAgreement,
           "#key-schnorr-agreement"
         )
-      ).toThrow(/KeyAgreement requires an agreement verification method/);
+      ).rejects.toThrow(
+        /KeyAgreement requires an agreement verification method/
+      );
     });
 
-    it("should verify SchnorrJubjub signatures against the ledger method id", () => {
+    it("should verify SchnorrJubjub signatures against the ledger method id", async () => {
       const seed = new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1));
       const publicKey = deriveJubjubPublicKeyFromSeed(seed);
       const payload = Buffer.from("midnight-did-ledger-bound-jubjub", "utf8");
       const digest = payloadToJubjubDigest(payload);
       const signature = signJubjubPayloadFromSeed(seed, payload);
 
-      simulator.addSchnorrJubjubVerificationMethod({
+      await simulator.addSchnorrJubjubVerificationMethod({
         id: "#key-schnorr-jubjub",
         publicKey
       });
       const version = simulator.getLedger().version;
       const operationCount = simulator.getLedger().operationCount;
 
-      simulator.verifySchnorrJubjubDigestSignature(
+      await simulator.verifySchnorrJubjubDigestSignature(
         "#key-schnorr-jubjub",
         digest,
         signature
@@ -786,24 +787,24 @@ describe("DID smart contract", () => {
       expect(simulator.getLedger().version).toEqual(version);
       expect(simulator.getLedger().operationCount).toEqual(operationCount);
 
-      expect(() =>
+      await expect(
         simulator.verifySchnorrJubjubDigestSignature(
           "#missing-key",
           digest,
           signature
         )
-      ).toThrow(/Verification method does not exist/);
+      ).rejects.toThrow(/Verification method does not exist/);
 
-      expect(() =>
+      await expect(
         simulator.verifySchnorrJubjubDigestSignature(
           "#key-schnorr-jubjub",
           payloadToJubjubDigest(Buffer.from("tampered", "utf8")),
           signature
         )
-      ).toThrow(/Invalid Jubjub Schnorr signature/);
+      ).rejects.toThrow(/Invalid Jubjub Schnorr signature/);
     });
 
-    it("rejects malformed Schnorr challenge reduction witnesses", () => {
+    it("rejects malformed Schnorr challenge reduction witnesses", async () => {
       const malformedWitnesses: typeof witnesses = {
         ...witnesses,
         getSchnorrReduction: (context, challengeHash) => {
@@ -814,30 +815,30 @@ describe("DID smart contract", () => {
           return [privateState, [q + 1n, r]];
         }
       };
-      const simulator = new DIDSimulator();
-      const badSimulator = new DIDSimulator(malformedWitnesses);
+      const simulator = await DIDSimulator.create();
+      const badSimulator = await DIDSimulator.create(malformedWitnesses);
       const seed = new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1));
       const publicKey = deriveJubjubPublicKeyFromSeed(seed);
       const payload = Buffer.from("midnight-did-ledger-bound-jubjub", "utf8");
       const digest = payloadToJubjubDigest(payload);
       const signature = signJubjubPayloadFromSeed(seed, payload);
 
-      simulator.addSchnorrJubjubVerificationMethod({
+      await simulator.addSchnorrJubjubVerificationMethod({
         id: "#key-schnorr-jubjub",
         publicKey
       });
       badSimulator.circuitContext = simulator.circuitContext;
 
-      expect(() =>
+      await expect(
         badSimulator.verifySchnorrJubjubDigestSignature(
           "#key-schnorr-jubjub",
           digest,
           signature
         )
-      ).toThrow(/Invalid challenge reduction/);
+      ).rejects.toThrow(/Invalid challenge reduction/);
     });
 
-    it("rejects field-modulus alias Schnorr challenge reduction witnesses", () => {
+    it("rejects field-modulus alias Schnorr challenge reduction witnesses", async () => {
       const seed = new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1));
       const publicKey = deriveJubjubPublicKeyFromSeed(seed);
       const payload = Buffer.from(
@@ -866,27 +867,27 @@ describe("DID smart contract", () => {
           [116n, aliasR]
         ]
       };
-      const simulator = new DIDSimulator();
-      const badSimulator = new DIDSimulator(aliasWitnesses);
+      const simulator = await DIDSimulator.create();
+      const badSimulator = await DIDSimulator.create(aliasWitnesses);
 
-      simulator.addSchnorrJubjubVerificationMethod({
+      await simulator.addSchnorrJubjubVerificationMethod({
         id: "#key-schnorr-jubjub",
         publicKey
       });
       badSimulator.circuitContext = simulator.circuitContext;
 
-      expect(() =>
+      await expect(
         badSimulator.verifySchnorrJubjubDigestSignature(
           "#key-schnorr-jubjub",
           digest,
           signature
         )
-      ).toThrow(/Schnorr quotient out of range/);
+      ).rejects.toThrow(/Schnorr quotient out of range/);
     });
 
-    it("should update a verification method", () => {
+    it("should update a verification method", async () => {
       // First add
-      simulator.addVerificationMethod({
+      await simulator.addVerificationMethod({
         id: "#key-1",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -897,7 +898,7 @@ describe("DID smart contract", () => {
       });
 
       // Then update
-      simulator.updateVerificationMethod({
+      await simulator.updateVerificationMethod({
         id: "#key-1",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -915,8 +916,8 @@ describe("DID smart contract", () => {
       expect(ledger.operationCount).toEqual(2n);
     });
 
-    it("should update a verification method to EC P-256", () => {
-      simulator.addVerificationMethod({
+    it("should update a verification method to EC P-256", async () => {
+      await simulator.addVerificationMethod({
         id: "#key-update-p256",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -926,7 +927,7 @@ describe("DID smart contract", () => {
         }
       });
 
-      simulator.updateVerificationMethod({
+      await simulator.updateVerificationMethod({
         id: "#key-update-p256",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -944,9 +945,9 @@ describe("DID smart contract", () => {
       expect(vm.publicKeyJwk.y).toEqual(keyValue(888));
     });
 
-    it("should remove a verification method", () => {
+    it("should remove a verification method", async () => {
       // First add
-      simulator.addVerificationMethod({
+      await simulator.addVerificationMethod({
         id: "#key-1",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -957,7 +958,7 @@ describe("DID smart contract", () => {
       });
 
       // Then remove
-      simulator.removeVerificationMethod("#key-1");
+      await simulator.removeVerificationMethod("#key-1");
 
       const ledger = simulator.getLedger();
       expect(ledger.verificationMethods.member("#key-1")).toEqual(false);
@@ -993,8 +994,8 @@ describe("DID smart contract", () => {
       ]
     ])(
       "should fail to remove a verification method referenced by %s",
-      (relation, curve, ledgerRelation) => {
-        simulator.addVerificationMethod({
+      async (relation, curve, ledgerRelation) => {
+        await simulator.addVerificationMethod({
           id: "#key-2",
           typ: VerificationMethodType.JsonWebKey,
           publicKeyJwk: {
@@ -1003,17 +1004,19 @@ describe("DID smart contract", () => {
             ...okpKey(333)
           }
         });
-        simulator.addVerificationMethodRelation(relation, "#key-2");
+        await simulator.addVerificationMethodRelation(relation, "#key-2");
 
-        expect(() => simulator.removeVerificationMethod("#key-2")).toThrow(
+        await expect(
+          simulator.removeVerificationMethod("#key-2")
+        ).rejects.toThrow(
           `Verification method still referenced in ${ledgerRelation}`
         );
       }
     );
 
-    it("should remove verification method and its relations", () => {
+    it("should remove verification method and its relations", async () => {
       // Add verification method
-      simulator.addVerificationMethod({
+      await simulator.addVerificationMethod({
         id: "#key-1",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -1024,11 +1027,11 @@ describe("DID smart contract", () => {
       });
 
       // Add relations
-      simulator.addVerificationMethodRelation(
+      await simulator.addVerificationMethodRelation(
         VerificationMethodRelation.Authentication,
         "#key-1"
       );
-      simulator.addVerificationMethodRelation(
+      await simulator.addVerificationMethodRelation(
         VerificationMethodRelation.AssertionMethod,
         "#key-1"
       );
@@ -1039,17 +1042,17 @@ describe("DID smart contract", () => {
       expect(ledger.assertionMethodRelation.member("#key-1")).toEqual(true);
 
       // Remove relations first (new decomposed pattern)
-      simulator.removeVerificationMethodRelation(
+      await simulator.removeVerificationMethodRelation(
         VerificationMethodRelation.Authentication,
         "#key-1"
       );
-      simulator.removeVerificationMethodRelation(
+      await simulator.removeVerificationMethodRelation(
         VerificationMethodRelation.AssertionMethod,
         "#key-1"
       );
 
       // Then remove verification method
-      simulator.removeVerificationMethod("#key-1");
+      await simulator.removeVerificationMethod("#key-1");
 
       // Verify method and relations are gone
       ledger = simulator.getLedger();
@@ -1062,10 +1065,10 @@ describe("DID smart contract", () => {
   describe("Verification Method Relations", () => {
     let simulator: DIDSimulator;
 
-    beforeEach(() => {
-      simulator = new DIDSimulator();
+    beforeEach(async () => {
+      simulator = await DIDSimulator.create();
       // Add verification methods first
-      simulator.addVerificationMethod({
+      await simulator.addVerificationMethod({
         id: "#key-1",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -1074,7 +1077,7 @@ describe("DID smart contract", () => {
           ...okpKey(111)
         }
       });
-      simulator.addVerificationMethod({
+      await simulator.addVerificationMethod({
         id: "#key-x25519",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -1085,8 +1088,8 @@ describe("DID smart contract", () => {
       });
     });
 
-    it("should add Authentication relation", () => {
-      simulator.addVerificationMethodRelation(
+    it("should add Authentication relation", async () => {
+      await simulator.addVerificationMethodRelation(
         VerificationMethodRelation.Authentication,
         "#key-1"
       );
@@ -1096,8 +1099,8 @@ describe("DID smart contract", () => {
       expect(ledger.authenticationRelation.size()).toEqual(1n);
     });
 
-    it("should add AssertionMethod relation", () => {
-      simulator.addVerificationMethodRelation(
+    it("should add AssertionMethod relation", async () => {
+      await simulator.addVerificationMethodRelation(
         VerificationMethodRelation.AssertionMethod,
         "#key-1"
       );
@@ -1106,8 +1109,8 @@ describe("DID smart contract", () => {
       expect(ledger.assertionMethodRelation.member("#key-1")).toEqual(true);
     });
 
-    it("should add KeyAgreement relation", () => {
-      simulator.addVerificationMethodRelation(
+    it("should add KeyAgreement relation", async () => {
+      await simulator.addVerificationMethodRelation(
         VerificationMethodRelation.KeyAgreement,
         "#key-x25519"
       );
@@ -1116,30 +1119,30 @@ describe("DID smart contract", () => {
       expect(ledger.keyAgreementRelation.member("#key-x25519")).toEqual(true);
     });
 
-    it("should reject signing keys in KeyAgreement relation", () => {
-      expect(() =>
+    it("should reject signing keys in KeyAgreement relation", async () => {
+      await expect(
         simulator.addVerificationMethodRelation(
           VerificationMethodRelation.KeyAgreement,
           "#key-1"
         )
-      ).toThrow("KeyAgreement requires an X25519 verification method");
+      ).rejects.toThrow("KeyAgreement requires an X25519 verification method");
     });
 
-    it("should reject X25519 keys in signing relations", () => {
-      expect(() =>
+    it("should reject X25519 keys in signing relations", async () => {
+      await expect(
         simulator.addVerificationMethodRelation(
           VerificationMethodRelation.Authentication,
           "#key-x25519"
         )
-      ).toThrow("Signing verification relations cannot use X25519");
+      ).rejects.toThrow("Signing verification relations cannot use X25519");
     });
 
-    it("should reject updates that would make existing relations incompatible", () => {
-      simulator.addVerificationMethodRelation(
+    it("should reject updates that would make existing relations incompatible", async () => {
+      await simulator.addVerificationMethodRelation(
         VerificationMethodRelation.Authentication,
         "#key-1"
       );
-      expect(() =>
+      await expect(
         simulator.updateVerificationMethod({
           id: "#key-1",
           typ: VerificationMethodType.JsonWebKey,
@@ -1149,13 +1152,15 @@ describe("DID smart contract", () => {
             ...okpKey(113)
           }
         })
-      ).toThrow("Existing signing verification relations cannot use X25519");
+      ).rejects.toThrow(
+        "Existing signing verification relations cannot use X25519"
+      );
 
-      simulator.addVerificationMethodRelation(
+      await simulator.addVerificationMethodRelation(
         VerificationMethodRelation.KeyAgreement,
         "#key-x25519"
       );
-      expect(() =>
+      await expect(
         simulator.updateVerificationMethod({
           id: "#key-x25519",
           typ: VerificationMethodType.JsonWebKey,
@@ -1165,11 +1170,11 @@ describe("DID smart contract", () => {
             ...okpKey(114)
           }
         })
-      ).toThrow("Existing KeyAgreement relation requires an X25519");
+      ).rejects.toThrow("Existing KeyAgreement relation requires an X25519");
     });
 
-    it("should add CapabilityInvocation relation", () => {
-      simulator.addVerificationMethodRelation(
+    it("should add CapabilityInvocation relation", async () => {
+      await simulator.addVerificationMethodRelation(
         VerificationMethodRelation.CapabilityInvocation,
         "#key-1"
       );
@@ -1180,8 +1185,8 @@ describe("DID smart contract", () => {
       );
     });
 
-    it("should add CapabilityDelegation relation", () => {
-      simulator.addVerificationMethodRelation(
+    it("should add CapabilityDelegation relation", async () => {
+      await simulator.addVerificationMethodRelation(
         VerificationMethodRelation.CapabilityDelegation,
         "#key-1"
       );
@@ -1192,15 +1197,15 @@ describe("DID smart contract", () => {
       );
     });
 
-    it("should remove a relation", () => {
+    it("should remove a relation", async () => {
       // Add relation
-      simulator.addVerificationMethodRelation(
+      await simulator.addVerificationMethodRelation(
         VerificationMethodRelation.Authentication,
         "#key-1"
       );
 
       // Remove relation
-      simulator.removeVerificationMethodRelation(
+      await simulator.removeVerificationMethodRelation(
         VerificationMethodRelation.Authentication,
         "#key-1"
       );
@@ -1210,38 +1215,38 @@ describe("DID smart contract", () => {
       expect(ledger.authenticationRelation.size()).toEqual(0n);
     });
 
-    it("should fail when adding the same relation twice", () => {
-      simulator.addVerificationMethodRelation(
+    it("should fail when adding the same relation twice", async () => {
+      await simulator.addVerificationMethodRelation(
         VerificationMethodRelation.Authentication,
         "#key-1"
       );
-      expect(() =>
+      await expect(
         simulator.addVerificationMethodRelation(
           VerificationMethodRelation.Authentication,
           "#key-1"
         )
-      ).toThrow();
+      ).rejects.toThrow();
     });
 
-    it("should fail when removing a relation that does not exist", () => {
-      expect(() =>
+    it("should fail when removing a relation that does not exist", async () => {
+      await expect(
         simulator.removeVerificationMethodRelation(
           VerificationMethodRelation.Authentication,
           "#key-1"
         )
-      ).toThrow();
+      ).rejects.toThrow();
     });
   });
 
   describe("Services", () => {
     let simulator: DIDSimulator;
 
-    beforeEach(() => {
-      simulator = new DIDSimulator();
+    beforeEach(async () => {
+      simulator = await DIDSimulator.create();
     });
 
-    it("should add a service", () => {
-      simulator.addService({
+    it("should add a service", async () => {
+      await simulator.addService({
         id: "#service-1",
         typ: "MessagingService",
         serviceEndpoint: "https://example.com/messages"
@@ -1257,16 +1262,16 @@ describe("DID smart contract", () => {
       expect(service.serviceEndpoint).toEqual("https://example.com/messages");
     });
 
-    it("should update a service", () => {
+    it("should update a service", async () => {
       // Add service
-      simulator.addService({
+      await simulator.addService({
         id: "#service-1",
         typ: "MessagingService",
         serviceEndpoint: "https://example.com/messages"
       });
 
       // Update service
-      simulator.updateService({
+      await simulator.updateService({
         id: "#service-1",
         typ: "MessagingService",
         serviceEndpoint: "https://new-endpoint.com/messages"
@@ -1280,16 +1285,16 @@ describe("DID smart contract", () => {
       expect(ledger.version).toEqual(2n);
     });
 
-    it("should remove a service", () => {
+    it("should remove a service", async () => {
       // Add service
-      simulator.addService({
+      await simulator.addService({
         id: "#service-1",
         typ: "MessagingService",
         serviceEndpoint: "https://example.com/messages"
       });
 
       // Remove service
-      simulator.removeService("#service-1");
+      await simulator.removeService("#service-1");
 
       const ledger = simulator.getLedger();
       expect(ledger.services.member("#service-1")).toEqual(false);
@@ -1300,12 +1305,12 @@ describe("DID smart contract", () => {
   describe("AlsoKnownAs", () => {
     let simulator: DIDSimulator;
 
-    beforeEach(() => {
-      simulator = new DIDSimulator();
+    beforeEach(async () => {
+      simulator = await DIDSimulator.create();
     });
 
-    it("should add an alsoKnownAs value", () => {
-      simulator.addAlsoKnownAs("did:example:alternative-id");
+    it("should add an alsoKnownAs value", async () => {
+      await simulator.addAlsoKnownAs("did:example:alternative-id");
 
       const ledger = simulator.getLedger();
       expect(ledger.alsoKnownAs.member("did:example:alternative-id")).toEqual(
@@ -1315,12 +1320,12 @@ describe("DID smart contract", () => {
       expect(ledger.version).toEqual(1n);
     });
 
-    it("should remove an alsoKnownAs value", () => {
+    it("should remove an alsoKnownAs value", async () => {
       // Add
-      simulator.addAlsoKnownAs("did:example:alternative-id");
+      await simulator.addAlsoKnownAs("did:example:alternative-id");
 
       // Remove
-      simulator.removeAlsoKnownAs("did:example:alternative-id");
+      await simulator.removeAlsoKnownAs("did:example:alternative-id");
 
       const ledger = simulator.getLedger();
       expect(ledger.alsoKnownAs.member("did:example:alternative-id")).toEqual(
@@ -1329,9 +1334,9 @@ describe("DID smart contract", () => {
       expect(ledger.alsoKnownAs.size()).toEqual(0n);
     });
 
-    it("should add multiple alsoKnownAs values", () => {
-      simulator.addAlsoKnownAs("alias-1");
-      simulator.addAlsoKnownAs("alias-2");
+    it("should add multiple alsoKnownAs values", async () => {
+      await simulator.addAlsoKnownAs("alias-1");
+      await simulator.addAlsoKnownAs("alias-2");
 
       const ledger = simulator.getLedger();
       expect(ledger.alsoKnownAs.size()).toEqual(2n);
@@ -1343,12 +1348,12 @@ describe("DID smart contract", () => {
   describe("Deactivation", () => {
     let simulator: DIDSimulator;
 
-    beforeEach(() => {
-      simulator = new DIDSimulator();
+    beforeEach(async () => {
+      simulator = await DIDSimulator.create();
     });
 
-    it("should deactivate the DID", () => {
-      simulator.deactivate();
+    it("should deactivate the DID", async () => {
+      await simulator.deactivate();
 
       const ledger = simulator.getLedger();
       expect(ledger.active).toEqual(false);
@@ -1356,18 +1361,20 @@ describe("DID smart contract", () => {
       expect(ledger.version).toEqual(1n);
     });
 
-    it("rejects repeated deactivation", () => {
-      simulator.deactivate();
+    it("rejects repeated deactivation", async () => {
+      await simulator.deactivate();
 
-      expect(() => simulator.deactivate()).toThrow(/DID is already inactive/);
+      await expect(simulator.deactivate()).rejects.toThrow(
+        /DID is already inactive/
+      );
     });
 
-    it("should fail when trying to add verification method after deactivation", () => {
+    it("should fail when trying to add verification method after deactivation", async () => {
       // Deactivate
-      simulator.deactivate();
+      await simulator.deactivate();
 
       // Try to add verification method (should fail)
-      expect(() => {
+      await expect(
         simulator.addVerificationMethod({
           id: "#key-1",
           typ: VerificationMethodType.JsonWebKey,
@@ -1376,27 +1383,27 @@ describe("DID smart contract", () => {
             crv: CurveType.Ed25519,
             ...okpKey(111)
           }
-        });
-      }).toThrow();
+        })
+      ).rejects.toThrow();
     });
 
-    it("rejects every mutating circuit after deactivation", () => {
-      const operations: Array<[string, () => void]> = [
+    it("rejects every mutating circuit after deactivation", async () => {
+      const operations: Array<[string, () => Promise<void>]> = [
         [
           "rotateControllerKey",
-          () =>
-            simulator.rotateControllerPublicKey(
+          async () =>
+            await simulator.rotateControllerPublicKey(
               ContractExports.deriveControllerPublicKey(keyBytes(201))
             )
         ],
         [
           "setAlsoKnownAs",
-          () => simulator.addAlsoKnownAs("did:example:inactive")
+          async () => await simulator.addAlsoKnownAs("did:example:inactive")
         ],
         [
           "setVerificationMethod",
-          () =>
-            simulator.addVerificationMethod({
+          async () =>
+            await simulator.addVerificationMethod({
               id: "#key-inactive",
               typ: VerificationMethodType.JsonWebKey,
               publicKeyJwk: {
@@ -1408,72 +1415,77 @@ describe("DID smart contract", () => {
         ],
         [
           "removeVerificationMethod",
-          () => simulator.removeVerificationMethod("#key-inactive")
+          async () => await simulator.removeVerificationMethod("#key-inactive")
         ],
         [
           "setSchnorrJubjubVerificationMethod",
-          () =>
-            simulator.addSchnorrJubjubVerificationMethod({
+          async () =>
+            await simulator.addSchnorrJubjubVerificationMethod({
               id: "#key-schnorr-inactive",
               publicKey: deriveJubjubPublicKeyFromSeed(keyBytes(202))
             })
         ],
         [
           "removeSchnorrJubjubVerificationMethod",
-          () =>
-            simulator.removeSchnorrJubjubVerificationMethod(
+          async () =>
+            await simulator.removeSchnorrJubjubVerificationMethod(
               "#key-schnorr-inactive"
             )
         ],
         [
           "setVerificationMethodRelation",
-          () =>
-            simulator.addVerificationMethodRelation(
+          async () =>
+            await simulator.addVerificationMethodRelation(
               VerificationMethodRelation.Authentication,
               "#key-inactive"
             )
         ],
         [
           "setService",
-          () =>
-            simulator.addService({
+          async () =>
+            await simulator.addService({
               id: "#service-inactive",
               typ: "MessagingService",
               serviceEndpoint: "https://example.com"
             })
         ],
-        ["removeService", () => simulator.removeService("#service-inactive")]
+        [
+          "removeService",
+          async () => await simulator.removeService("#service-inactive")
+        ]
       ];
 
-      simulator.deactivate();
+      await simulator.deactivate();
 
       for (const [name, operation] of operations) {
-        expect(operation, name).toThrow(/Contract is not active/);
+        await expect(operation(), name).rejects.toThrow(
+          /Contract is not active/
+        );
       }
     });
 
-    it("rejects Schnorr verification when deactivated", () => {
+    it("rejects Schnorr verification when deactivated", async () => {
       const seed = new Uint8Array(Array.from({ length: 32 }, (_, i) => i + 1));
       const publicKey = deriveJubjubPublicKeyFromSeed(seed);
       const payload = Buffer.from("midnight-did-inactive-jubjub", "utf8");
       const digest = payloadToJubjubDigest(payload);
       const signature = signJubjubPayloadFromSeed(seed, payload);
 
-      simulator.addSchnorrJubjubVerificationMethod({
+      await simulator.addSchnorrJubjubVerificationMethod({
         id: "#key-schnorr-jubjub",
         publicKey
       });
-      simulator.deactivate();
+      await simulator.deactivate();
       const version = simulator.getLedger().version;
       const operationCount = simulator.getLedger().operationCount;
 
-      expect(() =>
+      await expect(
         simulator.verifySchnorrJubjubDigestSignature(
           "#key-schnorr-jubjub",
           digest,
           signature
         )
-      ).toThrow(/Contract is not active/);
+      ).rejects.toThrow(/Contract is not active/);
       expect(simulator.getLedger().version).toEqual(version);
       expect(simulator.getLedger().operationCount).toEqual(operationCount);
     });
@@ -1482,14 +1494,14 @@ describe("DID smart contract", () => {
   describe("Mutation enum guards", () => {
     let simulator: DIDSimulator;
 
-    beforeEach(() => {
-      simulator = new DIDSimulator();
+    beforeEach(async () => {
+      simulator = await DIDSimulator.create();
     });
 
-    it("rejects undefined map and set mutations without changing version", () => {
+    it("rejects undefined map and set mutations without changing version", async () => {
       const version = simulator.getLedger().version;
 
-      expect(() => {
+      await expect(async () => {
         const verificationMethod = {
           id: "#key-undefined-mutation",
           typ: VerificationMethodType.JsonWebKey,
@@ -1508,16 +1520,16 @@ describe("DID smart contract", () => {
             MapMutation.Undefined
           )
         );
-        simulator.contract.impureCircuits.setVerificationMethod(
+        await simulator.contract.impureCircuits.setVerificationMethod(
           simulator.circuitContext,
           verificationMethod,
           MapMutation.Undefined,
           signature,
           expectedVersion
         );
-      }).toThrow(/Map mutation must be Insert or Update/);
+      }).rejects.toThrow(/Map mutation must be Insert or Update/);
 
-      expect(() => {
+      await expect(async () => {
         const expectedVersion = simulator.getLedger().version;
         const [signature] = simulator.controllerAuthorization(
           pureCircuits.setVerificationMethodRelationAuthorizationDigest(
@@ -1528,7 +1540,7 @@ describe("DID smart contract", () => {
             SetMutation.Undefined
           )
         );
-        simulator.contract.impureCircuits.setVerificationMethodRelation(
+        await simulator.contract.impureCircuits.setVerificationMethodRelation(
           simulator.circuitContext,
           VerificationMethodRelation.Authentication,
           "#key-undefined-mutation",
@@ -1536,7 +1548,7 @@ describe("DID smart contract", () => {
           signature,
           expectedVersion
         );
-      }).toThrow(/Set mutation must be Insert or Remove/);
+      }).rejects.toThrow(/Set mutation must be Insert or Remove/);
 
       expect(simulator.getLedger().version).toEqual(version);
     });
@@ -1545,12 +1557,12 @@ describe("DID smart contract", () => {
   describe("Multiple Operations", () => {
     let simulator: DIDSimulator;
 
-    beforeEach(() => {
-      simulator = new DIDSimulator();
+    beforeEach(async () => {
+      simulator = await DIDSimulator.create();
     });
 
-    it("should apply multiple operations sequentially", () => {
-      simulator.addVerificationMethod({
+    it("should apply multiple operations sequentially", async () => {
+      await simulator.addVerificationMethod({
         id: "#key-1",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -1559,16 +1571,16 @@ describe("DID smart contract", () => {
           ...okpKey(111)
         }
       });
-      simulator.addVerificationMethodRelation(
+      await simulator.addVerificationMethodRelation(
         VerificationMethodRelation.Authentication,
         "#key-1"
       );
-      simulator.addService({
+      await simulator.addService({
         id: "#service-1",
         typ: "MessagingService",
         serviceEndpoint: "https://example.com"
       });
-      simulator.addAlsoKnownAs("did:example:alias");
+      await simulator.addAlsoKnownAs("did:example:alias");
 
       const ledger = simulator.getLedger();
       expect(ledger.verificationMethods.member("#key-1")).toEqual(true);
@@ -1579,9 +1591,9 @@ describe("DID smart contract", () => {
       expect(ledger.operationCount).toEqual(4n);
     });
 
-    it("should handle version counter correctly across multiple transactions", () => {
+    it("should handle version counter correctly across multiple transactions", async () => {
       // Transaction 1
-      simulator.addVerificationMethod({
+      await simulator.addVerificationMethod({
         id: "#key-1",
         typ: VerificationMethodType.JsonWebKey,
         publicKeyJwk: {
@@ -1594,7 +1606,7 @@ describe("DID smart contract", () => {
       expect(simulator.getLedger().version).toEqual(1n);
 
       // Transaction 2
-      simulator.addService({
+      await simulator.addService({
         id: "#service-1",
         typ: "Test",
         serviceEndpoint: "https://test.com"
@@ -1603,8 +1615,8 @@ describe("DID smart contract", () => {
       expect(simulator.getLedger().version).toEqual(2n);
 
       // Transaction 3
-      simulator.addAlsoKnownAs("alias-1");
-      simulator.addAlsoKnownAs("alias-2");
+      await simulator.addAlsoKnownAs("alias-1");
+      await simulator.addAlsoKnownAs("alias-2");
 
       const ledger = simulator.getLedger();
       expect(ledger.version).toEqual(4n);

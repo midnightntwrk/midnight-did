@@ -7,18 +7,58 @@ packages:
   - docs-site
 
 blockExoticSubdeps: true
+# Reviewed native dependencies required by this repository's tests/docs.
+# Keep this list exact; do not replace it with a build-all bypass.
+onlyBuiltDependencies:
+  - classic-level
+  - esbuild
+  - tree-sitter
+  - tree-sitter-bash
+  - unrs-resolver
 minimumReleaseAge: 10080
 trustPolicy: no-downgrade
 minimumReleaseAgeExclude:
-  # Renovate security update: brace-expansion@5.0.8
+  # Ledger9/issue-520 exact exceptions. Each entry follows an observed
+  # ERR_PNPM_NO_MATURE_MATCHING_VERSION; rationale and registry metadata
+  # are recorded in docs/trust-policy-exceptions.md. Defaults unchanged.
+  - "@midnight-ntwrk/compact-js@3.0.0"
+  - "@midnight-ntwrk/midnight-js-contracts@5.0.0"
+  - "@midnight-ntwrk/midnight-js-fetch-zk-config-provider@5.0.0"
+  - "@midnight-ntwrk/midnight-js-http-client-proof-provider@5.0.0"
+  - "@midnight-ntwrk/midnight-js-indexer-public-data-provider@5.0.0"
+  - "@midnight-ntwrk/midnight-js-level-private-state-provider@5.0.0"
+  - "@midnight-ntwrk/midnight-js-node-zk-config-provider@5.0.0"
+  - "@midnight-ntwrk/midnight-js-protocol@5.0.0"
+  - "@midnight-ntwrk/midnight-js-types@5.0.0"
+  - "@midnight-ntwrk/midnight-js-utils@5.0.0"
+  - "@midnight-ntwrk/wallet-sdk-abstractions@3.0.0"
+  - "@midnight-ntwrk/wallet-sdk-address-format@4.0.0"
+  - "@midnight-ntwrk/wallet-sdk-capabilities@4.0.0"
+  - "@midnight-ntwrk/wallet-sdk-dust-wallet@5.0.0"
+  - "@midnight-ntwrk/wallet-sdk-facade@5.0.0"
+  - "@midnight-ntwrk/wallet-sdk-hd@4.0.0"
+  - "@midnight-ntwrk/wallet-sdk-indexer-client@2.0.0"
+  - "@midnight-ntwrk/wallet-sdk-node-client@2.0.0"
+  - "@midnight-ntwrk/wallet-sdk-prover-client@2.0.0"
+  - "@midnight-ntwrk/wallet-sdk-runtime@2.0.0"
+  - "@midnight-ntwrk/wallet-sdk-shielded@4.0.0"
+  - "@midnight-ntwrk/wallet-sdk-unshielded-wallet@4.0.0"
+  - "@midnight-ntwrk/wallet-sdk-utilities@1.3.0"
+  - "@midnightntwrk/ledger-v9@1.0.0"
+  - "@midnightntwrk/onchain-runtime-v4@4.0.0"
+  - "@midnightntwrk/wallet-sdk-address-format@4.0.0"
+  - "@midnightntwrk/zkir-v2@2.2.0"
+  # Pre-existing exceptions (unchanged):
   - brace-expansion@5.0.8
-  # Renovate security update: mermaid@11.16.1
   - mermaid@11.16.1
-  # Renovate security update: pnpm@10.34.4
   - pnpm@10.34.4
-  # Renovate security update: js-yaml@4.3.2
   - js-yaml@4.3.2
 trustPolicyExclude:
+  # Ledger9/issue-520: exact baseline-locked versions approved by the
+  # maintainer. Registry SHA-512 equals the baseline lock for both; details in
+  # docs/trust-policy-exceptions.md. These entries do not permit other versions.
+  - semver@6.3.1
+  - undici-types@6.21.0
   # mermaid@11.16.0 pulls @antfu/install-pkg via @iconify/utils, which resolves
   # tinyexec@1.2.2. pnpm flags the package's attestation-only publication as a
   # trust-policy downgrade from earlier trusted-publisher evidence.

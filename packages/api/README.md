@@ -39,6 +39,33 @@ graph TD
   Providers --> Indexer
 ```
 
+## Dust Readiness
+
+`registerForDustGeneration` requires indexed block time as its third argument.
+SDK5 values spendable Dust at the indexed block time, not at wall-clock time, so
+callers must provide the reader explicitly:
+
+```ts
+import {
+  createIndexerIndexedBlockTime,
+  registerForDustGeneration,
+} from "@midnight-ntwrk/midnight-did-api";
+
+await registerForDustGeneration(
+  walletContext.wallet,
+  walletContext.unshieldedKeystore,
+  {
+    indexedBlockTime: createIndexerIndexedBlockTime(config.indexer),
+    timeoutMs: 120_000,
+  },
+);
+```
+
+`createIndexerIndexedBlockTime(indexerUrl)` returns the reference GraphQL
+adapter. The readiness wait is bounded by a single deadline across state reads,
+indexer reads, and polling. It never falls back to wall-clock balance or merely
+existing Dust coins, because genesis coins may still have zero spendable value.
+
 ## Update Sequence
 
 ```mermaid
@@ -92,19 +119,20 @@ direct callers or concurrent updates.
 
 ## Finalized Deployment With Incomplete Private-State Setup
 
-`@midnight-ntwrk/midnight-js-contracts` 4.0.2 performs more work after the
+`@midnight-ntwrk/midnight-js-contracts` 5.0.0 performs more work after the
 ledger reports deployment success but before `deployContract` returns:
-`submitDeployTx` synchronously calls `setContractAddress(target)`, then awaits
-`set(initialPrivateState)` and `setSigningKey(target, signingKey)`. A wrapper
+`submitLedger9DeployTx` calls `forContract(target)` and awaits the returned
+view's `set(privateStateId, initialPrivateState)`, then awaits
+`setSigningKey(target, signingKey)` before constructing the contract handle. A wrapper
 around only the returned promise cannot distinguish rejection of those
 post-finality writes from a pre-success deployment failure, and reserving the
 target after return is too late.
 
 `deploy` therefore passes a deployment-scoped private-state-provider interceptor
-to `deployContract`. On the dependency's synchronous target-binding call it
+to `deployContract`. On the dependency's synchronous `forContract(target)` call it
 canonicalizes and reserves the target under the already-held source lease before
-delegating the provider mutation. All other provider methods retain their
-original receiver. The source and target reservations remain held until the
+delegating to the provider's contract-scoped view and its state write. Provider
+and view methods retain their original receivers. The source and target reservations remain held until the
 entire dependency call settles; there is no elapsed-time lease expiry, because
 stale dependency work could otherwise mutate state after a competitor takes the
 same target. The captured interceptor is deactivated when that call settles and
@@ -116,19 +144,18 @@ returned-handle construction then fails, `deploy`/`createDID` throws
 `code`/`name`, canonical `contractAddress`, and interceptor-controlled
 `setupStage`: `target_reservation`, `private_state_persistence`,
 `signing_key_persistence`, or `contract_handle_construction`. The address is
-evidence that the dependency reported ledger success by calling
-`setContractAddress`; the stage identifies the local step that did not complete.
-The handle-construction stage begins after both writes complete and includes the
-second address bind performed while `deployContract` builds `callTx`; that repeat
-bind never resets the stage to reservation or persistence. The error deliberately
+evidence that the dependency reported ledger success before calling
+`forContract(target)`; the stage identifies the local step that did not complete.
+The handle-construction stage begins after both writes complete. SDK5 builds
+`callTx` closures without a second provider address bind. The error deliberately
 discards the source error,
 deployed-contract handle, transaction/finality data, and all public or private
 deployment data. It never uses `cause`, copies provider fields, or includes an
 arbitrary provider name/message. Every rejection before the target is observed,
 including primitive rejection values, adversarial error objects, and a genuine
 `DeployTxFailedError`, is preserved unchanged. On success
-the dependency has already bound the provider and persisted both values, so the
-API performs no second bind or active-state write that could overwrite a
+the interceptor has already reserved the target and the dependency has persisted
+both values, so the API performs no second bind or active-state write that could overwrite a
 concurrently rotated controller key.
 
 Do not retry deployment blindly. Retain the original private state separately
@@ -272,6 +299,31 @@ the emitted ESM graph and avoids resolver-only test behavior.
 The wider `check:source-imports` guard applies the same rule to all DID-owned
 TypeScript package sources outside generated `src/managed` artifacts.
 
+## Wallet snapshots
+
+`serializeWalletState(ctx)` preserves the SDK's opaque
+`transactionLifecycleState` alongside shielded, unshielded, Dust and separate
+shared-history state. Both `buildWallet(config, seed, snapshot)` and
+`restoreWalletFromState(config, seed, snapshot)` require a nonempty lifecycle
+string and restore it through the SDK before wallet startup. Fresh creation
+without a snapshot keeps the SDK default lifecycle service.
+
+**Breaking compatibility:** every supplied snapshot missing lifecycle data is
+rejected as incomplete/incompatible, including older backups that appear
+settled. There is no automatic reconstruction or empty-lifecycle fallback for
+supplied snapshots. Do not add an empty payload to an older backup: component
+state and history cannot reconstruct outstanding transaction records. SDK
+corrupt/unknown-format errors propagate before startup.
+
+Treat the entire snapshot as sensitive wallet/transaction backup data: protect
+it at rest and in transit and never log its payloads. Preserve the lifecycle
+string exactly, without interpreting or rewriting it. These sequential saves
+are not an atomic backup during concurrent wallet operations; coordinate
+backup with application activity. Lifecycle persistence retains live input
+reservations across restore; it does not guarantee inclusion, cancel or roll
+back transactions, or recover omitted records. Controller private-state/secret
+backups remain separate and required.
+
 ## Runtime Profiles
 
 - `StandaloneConfig`
@@ -286,7 +338,10 @@ Defaults:
 - all profile defaults live in `src/config-profiles.ts`
 - `PreprodConfig` and `MainnetConfig` use public indexer v4 endpoints (`/api/v4/graphql` + `/ws`).
 - `MainnetConfig` defaults to local proof server (`http://127.0.0.1:6300`) so it can be used with local proving while targeting mainnet indexer/node.
-- constructing any profile config calls `setNetworkId()` through `applyMidnightNetworkProfile()`, so wallet and contract operations see the correct Midnight network before they start.
+- constructing any profile config calls `applyMidnightNetworkProfile()`, which updates this API's process-local construction default through `setCurrentNetworkId()`, not an upstream global SDK setter.
+- wallet initialization snapshots that local default before its first await and retains it as `ctx.networkId`. `configureProviders(ctx, config)` uses that snapshot for the provider set's explicit `config.networkId`.
+- select the profile before initializing the wallet. A later profile change does not retarget an initialized wallet or its provider set.
+- provider-backed resolution, mapping, mutations, relations and signature lookups capture that provider network once per operation, even across ledger awaits. Registered contract handles use their associated providers for the deprecated verifier overload; only truly unregistered handles retain its historical construction-default fallback. Pure `getMidnightNetwork()`/subject helpers without an explicit network still follow the construction default.
 
 The docs site publishes the generated endpoint matrix at
 <https://midnightntwrk.github.io/midnight-did/guide/network-endpoints>; it is

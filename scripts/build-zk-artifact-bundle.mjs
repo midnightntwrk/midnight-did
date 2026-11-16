@@ -163,6 +163,15 @@ const outDir = path.resolve(repoRoot, options.outDir);
 fs.mkdirSync(outDir, { recursive: true });
 
 const sourceManifest = explainProfile("contract").sourceManifest;
+const compilerRoot = path.join(managedRoot, "compiler");
+requireDirectory("managed compiler directory", compilerRoot);
+for (const fileName of ["contract-manifest.json", "contract-info.json"]) {
+  const sourcePath = path.join(compilerRoot, fileName);
+  if (!fs.existsSync(sourcePath)) {
+    throw new Error(`Missing compiler artifact ${sourcePath}`);
+  }
+  copyFile(sourcePath, path.join(stagingRoot, "compiler", fileName));
+}
 const circuits = [];
 
 for (const circuitId of circuitIds) {

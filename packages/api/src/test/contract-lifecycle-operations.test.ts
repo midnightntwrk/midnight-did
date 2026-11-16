@@ -1,7 +1,7 @@
 import {
   deployContract,
-  DeployTxFailedError,
   findDeployedContract,
+  TxFailedError,
 } from "@midnight-ntwrk/midnight-js-contracts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -118,7 +118,13 @@ describe("contract lifecycle operations", () => {
       secretKey: new Uint8Array(32).fill(7),
     };
     const privateStateProvider = {
-      setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return {
+          get: this.get?.bind(this),
+          set: this.set?.bind(this),
+          remove: this.remove?.bind(this),
+        };
+      }),
       get: vi.fn(async () => privateState),
     };
     const joinedContract = {
@@ -132,11 +138,11 @@ describe("contract lifecycle operations", () => {
     );
     expect(registeredContractProviders(joinedContract as any)).toBe(providers);
 
-    expect(privateStateProvider.setContractAddress).toHaveBeenCalledWith(
+    expect(privateStateProvider.forContract).toHaveBeenCalledWith(
       contractAddress.toLowerCase(),
     );
     expect(
-      privateStateProvider.setContractAddress.mock.invocationCallOrder[0],
+      privateStateProvider.forContract.mock.invocationCallOrder[0],
     ).toBeLessThan(privateStateProvider.get.mock.invocationCallOrder[0]);
     expect(privateStateProvider.get.mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(findDeployedContract).mock.invocationCallOrder[0],
@@ -159,7 +165,13 @@ describe("contract lifecycle operations", () => {
       recoverySecretKey: new Uint8Array(32).fill(9),
     };
     const privateStateProvider = {
-      setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return {
+          get: this.get?.bind(this),
+          set: this.set?.bind(this),
+          remove: this.remove?.bind(this),
+        };
+      }),
       get: vi.fn(async () => privateState),
     };
     const joinedContract = {
@@ -179,7 +191,13 @@ describe("contract lifecycle operations", () => {
 
   it("does not join a contract when controller and recovery private state are missing", async () => {
     const privateStateProvider = {
-      setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return {
+          get: this.get?.bind(this),
+          set: this.set?.bind(this),
+          remove: this.remove?.bind(this),
+        };
+      }),
       get: vi.fn(async () => null),
     };
 
@@ -193,10 +211,16 @@ describe("contract lifecycle operations", () => {
   it("fails join before target binding when another lifecycle owns the target and releases the source", async () => {
     const sourceAddress = "C".repeat(64);
     const joiningProvider = {
-      setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return {
+          get: this.get?.bind(this),
+          set: this.set?.bind(this),
+          remove: this.remove?.bind(this),
+        };
+      }),
       get: vi.fn(async () => ({ secretKey: new Uint8Array(32).fill(7) })),
     };
-    const targetOwnerProvider = { setContractAddress: vi.fn() };
+    const targetOwnerProvider = {};
     const joiningProviders = { privateStateProvider: joiningProvider } as any;
     const targetOwnerProviders = {
       privateStateProvider: targetOwnerProvider,
@@ -224,14 +248,11 @@ describe("contract lifecycle operations", () => {
     await expect(
       joinContract(joiningProviders, contractAddress),
     ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
-    expect(joiningProvider.setContractAddress).toHaveBeenCalledTimes(1);
-    expect(joiningProvider.setContractAddress).toHaveBeenCalledWith(
-      sourceAddress.toLowerCase(),
-    );
+    expect(joiningProvider.forContract).not.toHaveBeenCalled();
     expect(joiningProvider.get).not.toHaveBeenCalled();
     expect(findDeployedContract).not.toHaveBeenCalled();
 
-    const sourceCompetitor = { setContractAddress: vi.fn() };
+    const sourceCompetitor = {};
     expect(() =>
       bindPrivateStateProvider(
         { privateStateProvider: sourceCompetitor } as any,
@@ -247,17 +268,35 @@ describe("contract lifecycle operations", () => {
     const sourceAddress = "E".repeat(64);
     const privateState = { secretKey: new Uint8Array(32).fill(7) };
     const joiningProvider = {
-      setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return {
+          get: this.get?.bind(this),
+          set: this.set?.bind(this),
+          remove: this.remove?.bind(this),
+        };
+      }),
       get: vi.fn(async () => privateState),
     };
     const sourceProvider = {
-      setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return {
+          get: this.get?.bind(this),
+          set: this.set?.bind(this),
+          remove: this.remove?.bind(this),
+        };
+      }),
       get: vi.fn(),
       set: vi.fn(),
       remove: vi.fn(),
     };
     const targetProvider = {
-      setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return {
+          get: this.get?.bind(this),
+          set: this.set?.bind(this),
+          remove: this.remove?.bind(this),
+        };
+      }),
       get: vi.fn(),
       set: vi.fn(),
       remove: vi.fn(),
@@ -320,8 +359,6 @@ describe("contract lifecycle operations", () => {
     expect(targetProvider.get).not.toHaveBeenCalled();
     expect(targetProvider.set).not.toHaveBeenCalled();
     expect(targetProvider.remove).not.toHaveBeenCalled();
-    expect(sourceProvider.setContractAddress).toHaveBeenCalledTimes(1);
-    expect(targetProvider.setContractAddress).toHaveBeenCalledTimes(1);
 
     const joinedContract = {
       deployTxData: { public: { contractAddress } },
@@ -334,7 +371,13 @@ describe("contract lifecycle operations", () => {
     const sourceAddress = "F".repeat(64);
     const lookupFailure = new Error("lookup failed");
     const joiningProvider = {
-      setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return {
+          get: this.get?.bind(this),
+          set: this.set?.bind(this),
+          remove: this.remove?.bind(this),
+        };
+      }),
       get: vi.fn(async () => ({ secretKey: new Uint8Array(32).fill(7) })),
     };
     const joiningProviders = { privateStateProvider: joiningProvider } as any;
@@ -353,8 +396,8 @@ describe("contract lifecycle operations", () => {
     rejectLookup(lookupFailure);
     await expect(joining).rejects.toBe(lookupFailure);
 
-    const sourceProvider = { setContractAddress: vi.fn() };
-    const targetProvider = { setContractAddress: vi.fn() };
+    const sourceProvider = {};
+    const targetProvider = {};
     expect(() =>
       bindPrivateStateProvider(
         { privateStateProvider: sourceProvider } as any,
@@ -372,7 +415,13 @@ describe("contract lifecycle operations", () => {
   it("rejects a busy provider before deploying", async () => {
     const privateState = { secretKey: new Uint8Array(32).fill(8) };
     const privateStateProvider = {
-      setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return {
+          get: this.get?.bind(this),
+          set: this.set?.bind(this),
+          remove: this.remove?.bind(this),
+        };
+      }),
       set: vi.fn(),
     };
     const providers = { privateStateProvider } as any;
@@ -402,7 +451,7 @@ describe("contract lifecycle operations", () => {
     await heldLease;
   });
 
-  it("intercepts midnight-js-contracts 4.0.2 setup and persists each value once", async () => {
+  it("intercepts the SDK5 setup sequence and persists each value once", async () => {
     const sourceAddress = "B".repeat(64);
     const privateState = {
       recoverySecretKey: new Uint8Array(32).fill(9),
@@ -415,9 +464,6 @@ describe("contract lifecycle operations", () => {
     const signingKey = new Uint8Array(32).fill(5);
     let storedState: unknown;
     let privateStateProvider: any;
-    const setContractAddress = vi.fn(function (this: unknown) {
-      expect(this).toBe(privateStateProvider);
-    });
     const set = vi.fn(function (this: unknown, _id: string, state: unknown) {
       expect(this).toBe(privateStateProvider);
       storedState = state;
@@ -430,7 +476,14 @@ describe("contract lifecycle operations", () => {
       storedState = rotatedState;
       return Promise.resolve();
     });
-    privateStateProvider = { setContractAddress, set, setSigningKey };
+    const forContract = vi.fn(function (this: any) {
+      return {
+        get: this.get?.bind(this),
+        set: this.set.bind(this),
+        remove: this.remove?.bind(this),
+      };
+    });
+    privateStateProvider = { forContract, set, setSigningKey };
     const providers = { privateStateProvider } as any;
     bindPrivateStateProvider(providers, sourceAddress);
     let constructedContract: any;
@@ -438,21 +491,13 @@ describe("contract lifecycle operations", () => {
     vi.mocked(deployContract).mockImplementationOnce(
       async (deploymentProviders: any, options: any) => {
         capturedDeploymentProvider = deploymentProviders.privateStateProvider;
-        deploymentProviders.privateStateProvider.setContractAddress(
+        const view = deploymentProviders.privateStateProvider.forContract(
           deployedContractAddress,
         );
-        await deploymentProviders.privateStateProvider.set(
-          options.privateStateId,
-          options.initialPrivateState,
-        );
+        await view.set(options.privateStateId, options.initialPrivateState);
         await deploymentProviders.privateStateProvider.setSigningKey(
           deployedContractAddress,
           signingKey,
-        );
-        // deployContract 4.0.2 constructs callTx after submitDeployTx returns;
-        // createCircuitCallTxInterface binds the finalized address again.
-        deploymentProviders.privateStateProvider.setContractAddress(
-          deployedContractAddress,
         );
         constructedContract = {
           deployTxData: {
@@ -468,13 +513,8 @@ describe("contract lifecycle operations", () => {
     expect(deployment).toBe(constructedContract);
     expect(registeredContractProviders(deployment)).toBe(providers);
 
-    expect(setContractAddress).toHaveBeenCalledTimes(3);
-    expect(setContractAddress).toHaveBeenNthCalledWith(
-      2,
-      deployedContractAddress.toLowerCase(),
-    );
-    expect(setContractAddress).toHaveBeenNthCalledWith(
-      3,
+    expect(forContract).toHaveBeenCalledTimes(1);
+    expect(forContract).toHaveBeenCalledWith(
       deployedContractAddress.toLowerCase(),
     );
     expect(set).toHaveBeenCalledTimes(1);
@@ -486,11 +526,9 @@ describe("contract lifecycle operations", () => {
     );
     expect(storedState).toBe(rotatedState);
     bindOrAssertPrivateStateProvider(providers, deployedContractAddress);
-    expect(setContractAddress).toHaveBeenCalledTimes(3);
     expect(() =>
-      capturedDeploymentProvider.setContractAddress(deployedContractAddress),
+      capturedDeploymentProvider.forContract(deployedContractAddress),
     ).not.toThrow();
-    expect(setContractAddress).toHaveBeenCalledTimes(4);
 
     const postSettlementState = {
       recoverySecretKey: privateState.recoverySecretKey,
@@ -510,7 +548,13 @@ describe("contract lifecycle operations", () => {
     const sourceAddress = "C".repeat(64);
     const privateState = { secretKey: new Uint8Array(32).fill(8) };
     const deployingProvider = {
-      setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return {
+          get: this.get?.bind(this),
+          set: this.set?.bind(this),
+          remove: this.remove?.bind(this),
+        };
+      }),
       set: vi.fn(),
       setSigningKey: vi.fn(),
     };
@@ -519,7 +563,7 @@ describe("contract lifecycle operations", () => {
     } as any;
     bindPrivateStateProvider(deployingProviders, sourceAddress);
 
-    const targetOwnerProvider = { setContractAddress: vi.fn() };
+    const targetOwnerProvider = {};
     const targetOwnerProviders = {
       privateStateProvider: targetOwnerProvider,
     } as any;
@@ -543,7 +587,7 @@ describe("contract lifecycle operations", () => {
 
     vi.mocked(deployContract).mockImplementationOnce(
       async (deploymentProviders: any) => {
-        deploymentProviders.privateStateProvider.setContractAddress(
+        deploymentProviders.privateStateProvider.forContract(
           deployedContractAddress,
         );
         throw new Error("unreachable after target reservation failure");
@@ -553,6 +597,8 @@ describe("contract lifecycle operations", () => {
     const error = await deploy(deployingProviders, privateState).catch(
       (cause: unknown) => cause,
     );
+    releaseTarget();
+    await targetOwner;
     expect(error).toMatchObject({
       name: "DIDContractDeploymentFinalizedPrivateStateIncompleteError",
       code: "did_contract_deployment_finalized_private_state_incomplete",
@@ -562,14 +608,10 @@ describe("contract lifecycle operations", () => {
     expect(error).not.toHaveProperty("cause");
     expect(error).not.toHaveProperty("privateState");
     expect(JSON.stringify(error)).not.toContain("secretKey");
-    expect(deployingProvider.setContractAddress).toHaveBeenCalledTimes(1);
+    expect(deployingProvider.forContract).not.toHaveBeenCalled();
     expect(deployingProvider.set).not.toHaveBeenCalled();
     expect(deployingProvider.setSigningKey).not.toHaveBeenCalled();
     bindOrAssertPrivateStateProvider(deployingProviders, sourceAddress);
-    expect(deployingProvider.setContractAddress).toHaveBeenCalledTimes(1);
-
-    releaseTarget();
-    await targetOwner;
   });
 
   it("reserves source and observed target until all upstream setup and return work settles", async () => {
@@ -585,7 +627,13 @@ describe("contract lifecycle operations", () => {
       continueSetup = resolve;
     });
     const deployingProvider = {
-      setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return {
+          get: this.get?.bind(this),
+          set: this.set?.bind(this),
+          remove: this.remove?.bind(this),
+        };
+      }),
       set: vi.fn(async () => undefined),
       setSigningKey: vi.fn(async () => undefined),
     };
@@ -593,7 +641,7 @@ describe("contract lifecycle operations", () => {
       privateStateProvider: deployingProvider,
     } as any;
     bindPrivateStateProvider(deployingProviders, sourceAddress);
-    const sourceCompetitor = { setContractAddress: vi.fn() };
+    const sourceCompetitor = {};
     const sourceCompetitorProviders = {
       privateStateProvider: sourceCompetitor,
     } as any;
@@ -603,7 +651,7 @@ describe("contract lifecycle operations", () => {
     };
     vi.mocked(deployContract).mockImplementationOnce(
       async (deploymentProviders: any, options: any) => {
-        deploymentProviders.privateStateProvider.setContractAddress(
+        deploymentProviders.privateStateProvider.forContract(
           deployedContractAddress,
         );
         setupObserved();
@@ -616,9 +664,6 @@ describe("contract lifecycle operations", () => {
           deployedContractAddress,
           signingKey,
         );
-        deploymentProviders.privateStateProvider.setContractAddress(
-          deployedContractAddress,
-        );
         return deployedContract as any;
       },
     );
@@ -626,7 +671,7 @@ describe("contract lifecycle operations", () => {
     const deployment = deploy(deployingProviders, privateState);
     await setupStart;
 
-    const targetCompetitor = { setContractAddress: vi.fn() };
+    const targetCompetitor = {};
     await expect(
       withPendingControllerPrivateStateLock(
         sourceCompetitorProviders,
@@ -639,7 +684,6 @@ describe("contract lifecycle operations", () => {
         deployedContractAddress,
       ),
     ).toThrow(PendingControllerPrivateStateBusyError);
-    expect(targetCompetitor.setContractAddress).not.toHaveBeenCalled();
     await expect(
       withPendingControllerPrivateStateLock(deployingProviders, async () => {}),
     ).rejects.toBeInstanceOf(PendingControllerPrivateStateBusyError);
@@ -720,7 +764,13 @@ describe("contract lifecycle operations", () => {
       enumerable: false,
     });
     const privateStateProvider = {
-      setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return {
+          get: this.get?.bind(this),
+          set: this.set?.bind(this),
+          remove: this.remove?.bind(this),
+        };
+      }),
       set: vi.fn(async () => {
         throw saveFailure;
       }),
@@ -730,13 +780,10 @@ describe("contract lifecycle operations", () => {
     bindPrivateStateProvider(providers, sourceAddress);
     vi.mocked(deployContract).mockImplementationOnce(
       async (deploymentProviders: any, options: any) => {
-        deploymentProviders.privateStateProvider.setContractAddress(
+        const view = deploymentProviders.privateStateProvider.forContract(
           deployedContractAddress,
         );
-        await deploymentProviders.privateStateProvider.set(
-          options.privateStateId,
-          options.initialPrivateState,
-        );
+        await view.set(options.privateStateId, options.initialPrivateState);
         throw new Error("unreachable after active-state failure");
       },
     );
@@ -800,7 +847,13 @@ describe("contract lifecycle operations", () => {
     const signingKey = new Uint8Array(32).fill(5);
     const signingKeyFailure = new Error("signing key failed");
     const privateStateProvider = {
-      setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return {
+          get: this.get?.bind(this),
+          set: this.set?.bind(this),
+          remove: this.remove?.bind(this),
+        };
+      }),
       set: vi.fn(async () => undefined),
       setSigningKey: vi.fn(async () => {
         throw signingKeyFailure;
@@ -810,13 +863,10 @@ describe("contract lifecycle operations", () => {
     bindPrivateStateProvider(providers, sourceAddress);
     vi.mocked(deployContract).mockImplementationOnce(
       async (deploymentProviders: any, options: any) => {
-        deploymentProviders.privateStateProvider.setContractAddress(
+        const view = deploymentProviders.privateStateProvider.forContract(
           deployedContractAddress,
         );
-        await deploymentProviders.privateStateProvider.set(
-          options.privateStateId,
-          options.initialPrivateState,
-        );
+        await view.set(options.privateStateId, options.initialPrivateState);
         await deploymentProviders.privateStateProvider.setSigningKey(
           deployedContractAddress,
           signingKey,
@@ -846,7 +896,7 @@ describe("contract lifecycle operations", () => {
     ).toThrow(PrivateStateProviderContractMismatchError);
   });
 
-  it.each(["second binding", "later handle setup"] as const)(
+  it.each(["handle construction", "later handle setup"] as const)(
     "reports contract handle construction when %s fails after persistence",
     async (failurePoint) => {
       const sourceAddress = "8".repeat(64);
@@ -860,42 +910,37 @@ describe("contract lifecycle operations", () => {
         { handle: retainedHandle, deployTxData: retainedHandle },
       );
       handleFailure.name = "SourceHandleConstructionError";
-      let finalizedAddressBindings = 0;
       const privateStateProvider = {
-        setContractAddress: vi.fn((address: string) => {
-          if (address.toLowerCase() === deployedContractAddress.toLowerCase()) {
-            finalizedAddressBindings += 1;
-            if (
-              failurePoint === "second binding" &&
-              finalizedAddressBindings === 2
-            ) {
-              throw handleFailure;
-            }
-          }
+        forContract: vi.fn(function (this: any) {
+          return {
+            get: this.get?.bind(this),
+            set: this.set.bind(this),
+            remove: this.remove?.bind(this),
+          };
         }),
+        get: vi.fn(async () => null),
         set: vi.fn(async () => undefined),
+        remove: vi.fn(async () => undefined),
         setSigningKey: vi.fn(async () => undefined),
       };
       const providers = { privateStateProvider } as any;
       bindPrivateStateProvider(providers, sourceAddress);
       vi.mocked(deployContract).mockImplementationOnce(
         async (deploymentProviders: any, options: any) => {
-          // This mirrors submitDeployTx success followed by deployContract's
-          // createCircuitCallTxInterface construction in 4.0.2.
-          deploymentProviders.privateStateProvider.setContractAddress(
+          // SDK5 persists state and the signing key, then constructs the
+          // returned handle. The handle construction failure is the stimulus.
+          const view = deploymentProviders.privateStateProvider.forContract(
             deployedContractAddress,
           );
-          await deploymentProviders.privateStateProvider.set(
-            options.privateStateId,
-            options.initialPrivateState,
-          );
+          await view.set(options.privateStateId, options.initialPrivateState);
           await deploymentProviders.privateStateProvider.setSigningKey(
             deployedContractAddress,
             signingKey,
           );
-          deploymentProviders.privateStateProvider.setContractAddress(
-            deployedContractAddress,
-          );
+          if (failurePoint === "handle construction") {
+            throw handleFailure;
+          }
+          await Promise.resolve();
           throw handleFailure;
         },
       );
@@ -911,7 +956,6 @@ describe("contract lifecycle operations", () => {
       });
       expect(privateStateProvider.set).toHaveBeenCalledTimes(1);
       expect(privateStateProvider.setSigningKey).toHaveBeenCalledTimes(1);
-      expect(finalizedAddressBindings).toBe(2);
 
       const inspected = inspectOwnPropertyGraph(error);
       expect(error).not.toHaveProperty("cause");
@@ -941,7 +985,13 @@ describe("contract lifecycle operations", () => {
     async (_label, deployFailure) => {
       const privateState = { secretKey: new Uint8Array(32).fill(8) };
       const privateStateProvider = {
-        setContractAddress: vi.fn(),
+        forContract: vi.fn(function (this: any) {
+          return {
+            get: this.get?.bind(this),
+            set: this.set?.bind(this),
+            remove: this.remove?.bind(this),
+          };
+        }),
         set: vi.fn(),
         setSigningKey: vi.fn(),
       };
@@ -956,7 +1006,6 @@ describe("contract lifecycle operations", () => {
         (cause: unknown) => cause,
       );
       expect(Object.is(observed, deployFailure)).toBe(true);
-      expect(privateStateProvider.setContractAddress).not.toHaveBeenCalled();
       expect(privateStateProvider.set).not.toHaveBeenCalled();
       expect(privateStateProvider.setSigningKey).not.toHaveBeenCalled();
     },
@@ -974,26 +1023,24 @@ describe("contract lifecycle operations", () => {
       const privateState = { secretKey: new Uint8Array(32).fill(8) };
       const signingKey = new Uint8Array(32).fill(5);
       const adversarial = createAdversarialFailure(failureStage);
-      let finalizedAddressBindings = 0;
       const privateStateProvider = {
-        setContractAddress: vi.fn((address: string) => {
-          if (address.toLowerCase() !== deployedContractAddress.toLowerCase()) {
-            return;
-          }
-          finalizedAddressBindings += 1;
-          if (
-            failureStage === "target_reservation" ||
-            (failureStage === "contract_handle_construction" &&
-              finalizedAddressBindings === 2)
-          ) {
+        forContract: vi.fn(function (this: any) {
+          if (failureStage === "target_reservation") {
             throw adversarial.failure;
           }
+          return {
+            get: this.get?.bind(this),
+            set: this.set.bind(this),
+            remove: this.remove?.bind(this),
+          };
         }),
+        get: vi.fn(async () => null),
         set: vi.fn(async () => {
           if (failureStage === "private_state_persistence") {
             throw adversarial.failure;
           }
         }),
+        remove: vi.fn(async () => undefined),
         setSigningKey: vi.fn(async () => {
           if (failureStage === "signing_key_persistence") {
             throw adversarial.failure;
@@ -1004,20 +1051,17 @@ describe("contract lifecycle operations", () => {
       bindPrivateStateProvider(providers, sourceAddress);
       vi.mocked(deployContract).mockImplementationOnce(
         async (deploymentProviders: any, options: any) => {
-          deploymentProviders.privateStateProvider.setContractAddress(
+          const view = deploymentProviders.privateStateProvider.forContract(
             deployedContractAddress,
           );
-          await deploymentProviders.privateStateProvider.set(
-            options.privateStateId,
-            options.initialPrivateState,
-          );
+          await view.set(options.privateStateId, options.initialPrivateState);
           await deploymentProviders.privateStateProvider.setSigningKey(
             deployedContractAddress,
             signingKey,
           );
-          deploymentProviders.privateStateProvider.setContractAddress(
-            deployedContractAddress,
-          );
+          if (failureStage === "contract_handle_construction") {
+            throw adversarial.failure;
+          }
           throw new Error("unreachable after selected setup failure");
         },
       );
@@ -1041,21 +1085,81 @@ describe("contract lifecycle operations", () => {
     },
   );
 
-  it("preserves a genuine DeployTxFailedError when no finalized target was observed", async () => {
+  it("preserves a genuine TxFailedError when no finalized target was observed", async () => {
     const privateState = { secretKey: new Uint8Array(32).fill(8) };
     const privateStateProvider = {
-      setContractAddress: vi.fn(),
+      forContract: vi.fn(function (this: any) {
+        return {
+          get: this.get?.bind(this),
+          set: this.set?.bind(this),
+          remove: this.remove?.bind(this),
+        };
+      }),
       set: vi.fn(),
       setSigningKey: vi.fn(),
     };
-    const deployFailure = new DeployTxFailedError({ status: "Fail" } as any);
+    const deployFailure = new TxFailedError(
+      "deploy",
+      { era: "v9" } as never,
+      {} as never,
+    );
     vi.mocked(deployContract).mockRejectedValueOnce(deployFailure);
 
     await expect(
       deploy({ privateStateProvider } as any, privateState),
     ).rejects.toBe(deployFailure);
-    expect(privateStateProvider.setContractAddress).not.toHaveBeenCalled();
     expect(privateStateProvider.set).not.toHaveBeenCalled();
     expect(privateStateProvider.setSigningKey).not.toHaveBeenCalled();
+  });
+  it("keeps post-settlement interceptor proxies safe and memoized", async () => {
+    const sourceAddress = "9".repeat(64);
+    const privateState = { secretKey: new Uint8Array(32).fill(8) };
+    const signingKey = new Uint8Array(32).fill(5);
+    const view = {
+      get: vi.fn(async () => null),
+      set: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+      marker: "view-marker",
+    };
+    const privateStateProvider = {
+      forContract: vi.fn(() => view),
+      get: vi.fn(async () => null),
+      set: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+      setSigningKey: vi.fn(async () => undefined),
+    };
+    const providers = { privateStateProvider } as any;
+    bindPrivateStateProvider(providers, sourceAddress);
+    let captured: any;
+    const deployed = {
+      deployTxData: { public: { contractAddress: deployedContractAddress } },
+    };
+    vi.mocked(deployContract).mockImplementationOnce(
+      async (deploymentProviders: any, options: any) => {
+        captured = deploymentProviders.privateStateProvider;
+        const activeView = captured.forContract(deployedContractAddress);
+        await activeView.set(
+          options.privateStateId,
+          options.initialPrivateState,
+        );
+        await captured.setSigningKey(deployedContractAddress, signingKey);
+        return deployed as any;
+      },
+    );
+
+    await expect(deploy(providers, privateState)).resolves.toBe(deployed);
+
+    const inactiveView = captured.forContract(deployedContractAddress);
+    expect(inactiveView.marker).toBe("view-marker");
+    await inactiveView.get("id");
+    await inactiveView.remove("id");
+    await inactiveView.set("id", privateState);
+    await captured.setSigningKey(deployedContractAddress, signingKey);
+    await captured.setSigningKey(deployedContractAddress, signingKey);
+    expect(captured.notAFunction).toBeUndefined();
+    expect(view.get).toHaveBeenCalledWith("id");
+    expect(view.remove).toHaveBeenCalledWith("id");
+    expect(view.set).toHaveBeenCalled();
+    expect(privateStateProvider.setSigningKey).toHaveBeenCalledTimes(3);
   });
 });

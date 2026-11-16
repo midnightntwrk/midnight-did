@@ -163,7 +163,9 @@ const publishedPackageNames = () =>
   publishWorkspaces.map((workspace) => {
     const manifest = packageManifestCatalog.get(workspace);
     if (!manifest) {
-      throw new Error(`Missing package manifest catalog entry for ${workspace}`);
+      throw new Error(
+        `Missing package manifest catalog entry for ${workspace}`,
+      );
     }
     return manifest.name;
   });
@@ -181,7 +183,12 @@ const writeNpmAuthConfig = ({ consumerRoot, registry, token }) => {
   );
 };
 
-const packageTarballUrl = ({ consumerRoot, packageName, registry, version }) => {
+const packageTarballUrl = ({
+  consumerRoot,
+  packageName,
+  registry,
+  version,
+}) => {
   const result = run(
     "npm",
     [
@@ -420,6 +427,7 @@ const writeConsumerStandaloneScript = (consumerRoot) => {
       "  await api.registerForDustGeneration(",
       "    walletContext.wallet,",
       "    walletContext.unshieldedKeystore,",
+      "    { indexedBlockTime: api.createIndexerIndexedBlockTime(config.indexer) },",
       "  );",
       "  const providers = await api.configureProviders(walletContext, config);",
       "  const privateState = await api.initPrivateState(providers);",
@@ -685,11 +693,8 @@ const startStandalone = async (options) => {
     6300,
   );
   const indexerPort = parseMappedPort(
-    dockerCompose(projectName, options.composeFile, [
-      "port",
-      "indexer",
-      "8088",
-    ]).stdout,
+    dockerCompose(projectName, options.composeFile, ["port", "indexer", "8088"])
+      .stdout,
     "indexer",
     8088,
   );

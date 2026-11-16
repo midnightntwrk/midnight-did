@@ -1,7 +1,3 @@
-import {
-  getNetworkId,
-  setNetworkId,
-} from "@midnight-ntwrk/midnight-js-network-id";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { getDidSubject } from "../did-subject.js";
@@ -11,17 +7,21 @@ import {
   ledgerIdentifier,
   requireExistingVerificationMethodLedgerId,
 } from "../ledger-identifier-keys.js";
+import {
+  getCurrentNetworkId,
+  setCurrentNetworkId,
+} from "../network-context.js";
 import { type DeployedMidnightDIDContract } from "../types.js";
 
 let previousNetworkId: string | undefined;
 try {
-  previousNetworkId = getNetworkId();
+  previousNetworkId = getCurrentNetworkId();
 } catch {
   previousNetworkId = undefined;
 }
-setNetworkId("undeployed");
+setCurrentNetworkId("undeployed");
 afterAll(() => {
-  if (previousNetworkId !== undefined) setNetworkId(previousNetworkId);
+  if (previousNetworkId !== undefined) setCurrentNetworkId(previousNetworkId);
 });
 
 const didContract = {

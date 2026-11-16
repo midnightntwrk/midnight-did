@@ -44,8 +44,8 @@ validate_release_request() {
           fi
           ;;
         rc)
-          if [[ "${github_ref}" != "refs/heads/main" && "${github_ref}" != "refs/heads/develop" ]]; then
-            release_context_error "RC publication is only allowed from refs/heads/main or refs/heads/develop."
+          if [[ "${github_ref}" != "refs/heads/main" && "${github_ref}" != "refs/heads/develop" && ! "${github_ref}" =~ ^refs/heads/milestone-[^/]+$ ]]; then
+            release_context_error "RC publication requires main, develop, or a top-level milestone-* branch with a nonempty suffix."
             return 1
           fi
           if [[ ! "${rc_index}" =~ ^[1-9][0-9]*$ ]]; then

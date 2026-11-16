@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - milestone-1.0.0
     paths:
       - ".github/workflows/fuzz.yml"
       - "packages/domain/package.json"

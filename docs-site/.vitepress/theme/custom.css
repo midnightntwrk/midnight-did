@@ -218,7 +218,8 @@ body {
   background: var(--midnight-black);
 }
 
-.vp-doc #evidence-backed-matrix + table {
+.vp-doc #evidence-backed-matrix + table,
+.vp-doc #compatibility-matrix + table {
   display: block;
   max-width: 100%;
 }

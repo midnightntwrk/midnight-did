@@ -71,7 +71,10 @@ function validateContext(environment) {
     fail("Trusted publication requires a branch ref.");
   }
   if (
-    !["refs/heads/main", "refs/heads/develop"].includes(environment.GITHUB_REF)
+    !["refs/heads/main", "refs/heads/develop"].includes(
+      environment.GITHUB_REF,
+    ) &&
+    !/^refs\/heads\/milestone-[^/]+$/u.test(environment.GITHUB_REF)
   ) {
     fail("The publication ref is not an allowed exact branch ref.");
   }

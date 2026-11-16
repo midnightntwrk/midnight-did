@@ -3,7 +3,7 @@ import {
   DIDContract,
   signControllerAuthorization,
 } from "@midnight-ntwrk/midnight-did-contract";
-import { type FinalizedTxData } from "@midnight-ntwrk/midnight-js-types";
+import { type Ledger9FinalizedCallTxPublicData } from "@midnight-ntwrk/midnight-js-contracts";
 
 import { getLogger } from "./api-logger.js";
 import {
@@ -86,10 +86,10 @@ const runPendingControllerOperationWithinLock = async (
   providers: MidnightDIDProviders,
   nextPrivateState: MidnightDIDPrivateState,
   prepareCall: () => Promise<
-    () => Promise<{ readonly public: FinalizedTxData }>
+    () => Promise<{ readonly public: Ledger9FinalizedCallTxPublicData }>
   >,
   messages: PendingControllerOperationMessages,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   await savePendingControllerPrivateStateWithinLock(
     providers,
     nextPrivateState,
@@ -153,7 +153,7 @@ export const rotateControllerKey = async (
   didContract: DeployedMidnightDIDContract,
   providers: MidnightDIDProviders,
   newSecretKey: Uint8Array = randomBytes(32),
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   bindOrAssertPrivateStateProvider(
     providers,
     didContract.deployTxData.public.contractAddress,
@@ -225,7 +225,7 @@ export const recoverControllerKey = async (
   providers: MidnightDIDProviders,
   newSecretKey: Uint8Array = randomBytes(32),
   recoverySecretKey?: Uint8Array,
-): Promise<FinalizedTxData> => {
+): Promise<Ledger9FinalizedCallTxPublicData> => {
   bindOrAssertPrivateStateProvider(
     providers,
     didContract.deployTxData.public.contractAddress,

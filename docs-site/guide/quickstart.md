@@ -14,11 +14,11 @@ commands below otherwise assume a source checkout of this repository.
 
 - Node.js 24 and pnpm 10.
 - The standalone Midnight services required by `./run.sh api --light --strict`.
-- For a source checkout, Compact compiler `0.31.1` and repository dependencies:
+- For a source checkout, Compact compiler `0.36.0` and repository dependencies:
 
 ```bash
 pnpm install
-compact update 0.31.1
+compact update 0.36.0
 ```
 
 ## Prefer A Runnable Issuer Bootstrap

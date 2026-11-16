@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import * as path from "node:path";
 
-import { unshieldedToken } from "@midnight-ntwrk/ledger-v8";
+import { unshieldedToken } from "@midnightntwrk/ledger-v9";
 import type { Logger } from "pino";
 import * as Rx from "rxjs";
 import {
@@ -25,7 +25,7 @@ import * as api from "../index.js";
 const GENESIS_MINT_WALLET_SEED =
   "0000000000000000000000000000000000000000000000000000000000000001";
 const PROOF_SERVER_IMAGE =
-  process.env.PROOF_SERVER_IMAGE ?? "midnightntwrk/proof-server:8.0.3";
+  process.env.PROOF_SERVER_IMAGE ?? "midnightntwrk/proof-server:9.0.1";
 
 export interface TestConfiguration {
   seed: string;
@@ -209,7 +209,7 @@ export class TestEnvironment {
       }
       if (this.env !== undefined) {
         this.logger.info("Test containers closing");
-        await this.env.down({ removeVolumes: true, timeout: 30 });
+        await this.env.down({ removeVolumes: true, timeout: 30_000 });
       }
       if (this.container !== undefined) {
         this.logger.info("Test container closing");
@@ -316,6 +316,12 @@ export class TestEnvironment {
     await api.registerForDustGeneration(
       this.walletCtx.wallet,
       this.walletCtx.unshieldedKeystore,
+      {
+        indexedBlockTime: api.createIndexerIndexedBlockTime(
+          this.testConfig.dappConfig.indexer,
+        ),
+        timeoutMs: 120_000,
+      },
     );
 
     return this.walletCtx;
