@@ -101,7 +101,7 @@
       "vue": "3.5.42",
       "@vue/shared": "3.5.42",
       "markdown-it": "14.3.3",
-      "zod": "4.6.6",
+      "zod": "4.6.7",
       "fast-copy": "4.1.0",
       "@midnight-ntwrk/platform-js@3.0.0>@effect/platform": "0.97.2",
       "archiver-utils@5.0.2>glob": "14.0.2",
