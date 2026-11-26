@@ -12,13 +12,26 @@ dir="${1:?tarball directory required}"
 tag="${2:?npm tag required}"
 registry="https://registry.npmjs.org/"
 work="$(mktemp -d)"
+trap 'rm -rf -- "${work}"' EXIT
 
 npm_version="$(npm --version)"
 if [[ "$(printf '%s\n' 11.5.1 "${npm_version}" | sort -V | head -n1)" != "11.5.1" ]]; then
   echo "::error::npm ${npm_version} predates Trusted Publishing support (needs >= 11.5.1)."
   exit 1
 fi
-trap 'rm -rf -- "${work}"' EXIT
+
+view_stderr="${work}/npm-view-stderr"
+view_or_missing() {
+  if npm view "$1" "$2" --registry "${registry}" 2>"${view_stderr}"; then
+    return 0
+  fi
+  if grep -Eq '(E404|404 Not Found)' "${view_stderr}"; then
+    return 4
+  fi
+  echo "::error::npm view failed for $1; publication stopped." >&2
+  cat "${view_stderr}" >&2
+  return 1
+}
 
 shopt -s nullglob
 tarballs=("${dir}"/*.tgz)
@@ -28,6 +41,9 @@ if [[ ${#tarballs[@]} -eq 0 ]]; then
 fi
 
 missing=()
+publish_stages=()
+publish_names=()
+publish_versions=()
 for index in "${!tarballs[@]}"; do
   stage="${work}/${index}"
   mkdir -p "${stage}"
@@ -41,21 +57,34 @@ for index in "${!tarballs[@]}"; do
   fi
   new_name="@midnightntwrk/${old_name#@midnight-ntwrk/}"
 
-  if npm view "${new_name}@${version}" version --registry "${registry}" >/dev/null 2>&1; then
+  if view_or_missing "${new_name}@${version}" version >/dev/null; then
     echo "${new_name}@${version} is already published; skipping."
     continue
+  else
+    status=$?
+    [[ "${status}" -eq 4 ]] || exit "${status}"
   fi
-  if ! npm view "${new_name}" name --registry "${registry}" >/dev/null 2>&1; then
+  if view_or_missing "${new_name}" name >/dev/null; then
+    :
+  else
+    status=$?
+    [[ "${status}" -eq 4 ]] || exit "${status}"
     missing+=("${new_name}")
     continue
   fi
 
-  (cd "${stage}/package" && npm pkg set name="${new_name}" &&
-    npm publish --ignore-scripts --access public --provenance --tag "${tag}" --registry "${registry}")
-  echo "Published ${new_name}@${version} (dist-tag ${tag})."
+  publish_stages+=("${stage}/package")
+  publish_names+=("${new_name}")
+  publish_versions+=("${version}")
 done
 
 if [[ ${#missing[@]} -gt 0 ]]; then
   echo "::error::not on npmjs yet: ${missing[*]}. Bootstrap-publish each one once and add this workflow as its Trusted Publisher."
   exit 1
 fi
+
+for index in "${!publish_stages[@]}"; do
+  (cd "${publish_stages[$index]}" && npm pkg set name="${publish_names[$index]}" &&
+    npm publish --ignore-scripts --access public --provenance --tag "${tag}" --registry "${registry}")
+  echo "Published ${publish_names[$index]}@${publish_versions[$index]} (dist-tag ${tag})."
+done

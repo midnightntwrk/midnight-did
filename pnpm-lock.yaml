@@ -13,6 +13,7 @@ overrides:
   esbuild@>=0.27.3 <0.28.1: 0.28.2
   undici: ^7.29.0
   brace-expansion@<5.0.8: 5.0.9
+  effect: 3.22.1
 
 importers:
 
@@ -2644,8 +2645,8 @@ packages:
   eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
 
-  effect@3.21.2:
-    resolution: {integrity: sha512-rXd2FGDM8KdjSIrc+mqEELo7ScW7xTVxEf1iInmPSpIde9/nyGuFM710cjTo7/EreGXiUX2MOonPpprbz2XHCg==}
+  effect@3.22.1:
+    resolution: {integrity: sha512-TNoXushmPOBAjJlthF5d2QwnX2xBPEtcNJr5XKNKbRLbDvBcOYkXlYDfvGfSA0zriwLFuCll5MDtNMAdZL17PQ==}
 
   emoji-regex-xs@1.0.0:
     resolution: {integrity: sha512-LRlerrMYoIDrT6jgpeZ2YYl/L8EulRTt5hQcYjy5AInh7HWXKimpqx68aknBFpGL2+/IcogTcaydJEgaTmOpDg==}
@@ -4710,16 +4711,16 @@ snapshots:
     transitivePeerDependencies:
       - '@algolia/client-search'
 
-  '@effect/platform@0.95.0(effect@3.21.2)':
+  '@effect/platform@0.95.0(effect@3.22.1)':
     dependencies:
-      effect: 3.21.2
+      effect: 3.22.1
       find-my-way-ts: 0.1.6
       msgpackr: 1.11.12
       multipasta: 0.2.7
 
-  '@effect/platform@0.96.1(effect@3.21.2)':
+  '@effect/platform@0.96.1(effect@3.22.1)':
     dependencies:
-      effect: 3.21.2
+      effect: 3.22.1
       find-my-way-ts: 0.1.6
       msgpackr: 1.11.12
       multipasta: 0.2.7
@@ -5038,11 +5039,11 @@ snapshots:
 
   '@midnight-ntwrk/compact-js@2.5.0':
     dependencies:
-      '@effect/platform': 0.95.0(effect@3.21.2)
+      '@effect/platform': 0.95.0(effect@3.22.1)
       '@midnight-ntwrk/compact-runtime': 0.15.0
       '@midnight-ntwrk/ledger-v8': 8.1.0
       '@midnight-ntwrk/platform-js': 2.2.4
-      effect: 3.21.2
+      effect: 3.22.1
       tslib: 2.8.1
 
   '@midnight-ntwrk/compact-runtime@0.15.0':
@@ -5141,17 +5142,17 @@ snapshots:
 
   '@midnight-ntwrk/platform-js@2.2.4':
     dependencies:
-      '@effect/platform': 0.95.0(effect@3.21.2)
-      effect: 3.21.2
+      '@effect/platform': 0.95.0(effect@3.22.1)
+      effect: 3.22.1
       tslib: 2.8.1
 
   '@midnight-ntwrk/wallet-sdk-abstractions@2.0.0':
     dependencies:
-      effect: 3.21.2
+      effect: 3.22.1
 
   '@midnight-ntwrk/wallet-sdk-abstractions@2.1.0':
     dependencies:
-      effect: 3.21.2
+      effect: 3.22.1
 
   '@midnight-ntwrk/wallet-sdk-address-format@3.1.0':
     dependencies:
@@ -5168,7 +5169,7 @@ snapshots:
       '@midnight-ntwrk/wallet-sdk-prover-client': 1.2.1
       '@midnight-ntwrk/wallet-sdk-utilities': 1.1.0
       '@midnight-ntwrk/zkir-v2': 2.1.0
-      effect: 3.21.2
+      effect: 3.22.1
       rxjs: 7.8.2
     transitivePeerDependencies:
       - '@fastify/websocket'
@@ -5187,7 +5188,7 @@ snapshots:
       '@midnight-ntwrk/wallet-sdk-prover-client': 1.2.1
       '@midnight-ntwrk/wallet-sdk-utilities': 1.1.1
       '@midnight-ntwrk/zkir-v2': 2.1.0
-      effect: 3.21.2
+      effect: 3.22.1
       rxjs: 7.8.2
     transitivePeerDependencies:
       - '@fastify/websocket'
@@ -5206,7 +5207,7 @@ snapshots:
       '@midnight-ntwrk/wallet-sdk-indexer-client': 1.2.0(ws@8.21.0)
       '@midnight-ntwrk/wallet-sdk-runtime': 1.0.2
       '@midnight-ntwrk/wallet-sdk-utilities': 1.1.0
-      effect: 3.21.2
+      effect: 3.22.1
       rxjs: 7.8.2
     transitivePeerDependencies:
       - '@fastify/websocket'
@@ -5244,7 +5245,7 @@ snapshots:
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@16.14.0)
       '@midnight-ntwrk/wallet-sdk-utilities': 1.1.0
-      effect: 3.21.2
+      effect: 3.22.1
       graphql: 16.14.0
       graphql-http: 1.22.4(graphql@16.14.0)
       graphql-ws: 6.0.8(graphql@16.14.0)(ws@8.21.0)
@@ -5257,7 +5258,7 @@ snapshots:
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@16.14.0)
       '@midnight-ntwrk/wallet-sdk-utilities': 1.1.1
-      effect: 3.21.2
+      effect: 3.22.1
       graphql: 16.14.0
       graphql-http: 1.22.4(graphql@16.14.0)
       graphql-ws: 6.0.8(graphql@16.14.0)(ws@8.21.0)
@@ -5275,7 +5276,7 @@ snapshots:
       '@polkadot/util': 14.0.3
       '@types/bn.js': 5.2.0
       bn.js: 5.2.3
-      effect: 3.21.2
+      effect: 3.22.1
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -5283,18 +5284,18 @@ snapshots:
 
   '@midnight-ntwrk/wallet-sdk-prover-client@1.2.1':
     dependencies:
-      '@effect/platform': 0.96.1(effect@3.21.2)
+      '@effect/platform': 0.96.1(effect@3.22.1)
       '@midnight-ntwrk/ledger-v8': 8.1.0
       '@midnight-ntwrk/wallet-sdk-utilities': 1.1.1
       '@midnight-ntwrk/zkir-v2': 2.1.0
-      effect: 3.21.2
+      effect: 3.22.1
       web-worker: 1.5.0
 
   '@midnight-ntwrk/wallet-sdk-runtime@1.0.2':
     dependencies:
       '@midnight-ntwrk/wallet-sdk-abstractions': 2.0.0
       '@midnight-ntwrk/wallet-sdk-utilities': 1.1.0
-      effect: 3.21.2
+      effect: 3.22.1
       rxjs: 7.8.2
 
   '@midnight-ntwrk/wallet-sdk-shielded@2.1.0(ws@8.21.0)':
@@ -5306,7 +5307,7 @@ snapshots:
       '@midnight-ntwrk/wallet-sdk-indexer-client': 1.2.0(ws@8.21.0)
       '@midnight-ntwrk/wallet-sdk-runtime': 1.0.2
       '@midnight-ntwrk/wallet-sdk-utilities': 1.1.0
-      effect: 3.21.2
+      effect: 3.22.1
       rxjs: 7.8.2
     transitivePeerDependencies:
       - '@fastify/websocket'
@@ -5325,7 +5326,7 @@ snapshots:
       '@midnight-ntwrk/wallet-sdk-indexer-client': 1.2.0(ws@8.21.0)
       '@midnight-ntwrk/wallet-sdk-runtime': 1.0.2
       '@midnight-ntwrk/wallet-sdk-utilities': 1.1.0
-      effect: 3.21.2
+      effect: 3.22.1
       rxjs: 7.8.2
     transitivePeerDependencies:
       - '@fastify/websocket'
@@ -5337,12 +5338,12 @@ snapshots:
 
   '@midnight-ntwrk/wallet-sdk-utilities@1.1.0':
     dependencies:
-      effect: 3.21.2
+      effect: 3.22.1
       rxjs: 7.8.2
 
   '@midnight-ntwrk/wallet-sdk-utilities@1.1.1':
     dependencies:
-      effect: 3.21.2
+      effect: 3.22.1
       rxjs: 7.8.2
 
   '@midnight-ntwrk/zkir-v2@2.1.0': {}
@@ -7143,7 +7144,7 @@ snapshots:
 
   eastasianwidth@0.2.0: {}
 
-  effect@3.21.2:
+  effect@3.22.1:
     dependencies:
       '@standard-schema/spec': 1.1.0
       fast-check: 3.23.2
