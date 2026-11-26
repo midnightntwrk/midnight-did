@@ -5,12 +5,19 @@
 # code still imports sibling packages by their @midnight-ntwrk names, so
 # dependencies are left as they are.
 #   usage: publish-midnightntwrk-scope.sh <tarball-dir> <npm-tag>
+# Delete this script, and the job that runs it, once @midnight-ntwrk is retired.
 set -euo pipefail
 
 dir="${1:?tarball directory required}"
 tag="${2:?npm tag required}"
 registry="https://registry.npmjs.org/"
 work="$(mktemp -d)"
+
+npm_version="$(npm --version)"
+if [[ "$(printf '%s\n' 11.5.1 "${npm_version}" | sort -V | head -n1)" != "11.5.1" ]]; then
+  echo "::error::npm ${npm_version} predates Trusted Publishing support (needs >= 11.5.1)."
+  exit 1
+fi
 trap 'rm -rf -- "${work}"' EXIT
 
 shopt -s nullglob
