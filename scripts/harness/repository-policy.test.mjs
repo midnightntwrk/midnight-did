@@ -911,6 +911,7 @@ test("allows only manual dispatch to reach publication jobs and protects Trusted
     "scripts/check-npm-trusted-publishing.mjs",
     "scripts/did-workspace-catalog.mjs",
     "scripts/inspect-packed-npm-assets.mjs",
+    "scripts/publish-midnightntwrk-scope.sh",
     "scripts/publish-npm-packages.sh",
     "scripts/release-validate-context.sh",
     "scripts/run-bounded-command.mjs",

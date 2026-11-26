@@ -282,6 +282,7 @@ jobs:
             scripts/check-npm-trusted-publishing.mjs
             scripts/did-workspace-catalog.mjs
             scripts/inspect-packed-npm-assets.mjs
+            scripts/publish-midnightntwrk-scope.sh
             scripts/publish-npm-packages.sh
             scripts/release-validate-context.sh
             scripts/run-bounded-command.mjs
@@ -352,6 +353,14 @@ jobs:
         run: |
           ./scripts/release-validate-context.sh
           ./scripts/publish-npm-packages.sh
+
+      # Also publishes the same tarballs as @midnightntwrk/<name> during the npm
+      # scope move. It never blocks the release above.
+      - name: Publish npm packages as @midnightntwrk
+        continue-on-error: true
+        env:
+          NPM_TAG: ${{ needs.build-release-assets.outputs.npm_tag }}
+        run: ./scripts/publish-midnightntwrk-scope.sh dist/release/npm "$NPM_TAG"
 
   publish-release-assets:
     name: Publish and verify non-npm release assets
