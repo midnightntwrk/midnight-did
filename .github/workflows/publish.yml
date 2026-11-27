@@ -355,6 +355,50 @@ jobs:
           ./scripts/release-validate-context.sh
           ./scripts/publish-npm-packages.sh
 
+  # Publishes the same tested tarballs as @midnightntwrk/<name> while packages
+  # move scope. It runs in its own npm-publish-stable environment, so the
+  # npm-release flow above is unchanged and nothing depends on this job. Delete
+  # it once @midnight-ntwrk is retired.
+  publish-midnightntwrk:
+    name: Publish npm packages as @midnightntwrk
+    needs:
+      - build-release-assets
+      - npm-release
+    if: needs.npm-release.result == 'success'
+    environment: npm-publish-stable
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout publish script
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # ratchet:actions/checkout@v5
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+          sparse-checkout: |
+            .nvmrc
+            scripts/publish-midnightntwrk-scope.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # ratchet:actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Download npm package assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # ratchet:actions/download-artifact@v4
+        with:
+          name: midnight-did-npm-packages-${{ needs.build-release-assets.outputs.version }}
+          path: dist/release/npm
+
+      - name: Publish npm packages as @midnightntwrk
+        env:
+          NPM_TAG: ${{ needs.build-release-assets.outputs.npm_tag }}
+        run: ./scripts/publish-midnightntwrk-scope.sh dist/release/npm "$NPM_TAG"
+
   publish-release-assets:
     name: Publish and verify non-npm release assets
     needs:
