@@ -1,6 +1,6 @@
 # Domain Package
 
-`@midnight-ntwrk/midnight-did-domain` is the canonical TypeScript layer for DID document validation and normalization.
+`@midnightntwrk/midnight-did-domain` is the canonical TypeScript layer for DID document validation and normalization.
 
 ## Focus
 

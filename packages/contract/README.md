@@ -1,4 +1,4 @@
-# @midnight-ntwrk/midnight-did-contract
+# @midnightntwrk/midnight-did-contract
 
 Compact smart-contract implementation for Midnight DID ledger state.
 
@@ -59,6 +59,6 @@ stateDiagram-v2
 - Some full DID conformance checks are intentionally handled at SDK/domain layers.
 - Controller public keys can be derived locally with `deriveControllerPublicKey(secretKey)` as Jubjub points. Controller-gated circuits verify wallet-local signatures over a domain-separated digest containing the DID contract id, current version, operation name, and operation arguments.
 - Set/update circuits use explicit `MapMutation` and `SetMutation` enums so the exported circuit surface stays small without boolean intent flags.
-- Jubjub signing helpers and reusable Schnorr transcript logic live in `@midnight-ntwrk/midnight-did-jubjub-schnorr`.
+- Jubjub signing helpers and reusable Schnorr transcript logic live in `@midnightntwrk/midnight-did-jubjub-schnorr`.
 - The DID contract exposes one ledger-bound SchnorrJubjub verification circuit. It accepts a verification method id, looks up the native `JubjubPoint` stored in `schnorrJubjubVerificationMethods`, and verifies against that ledger key rather than a caller-supplied public key.
 - Circuit `k`, rows, and managed artifact byte sizes are documented in `docs-site/compact/index.md`.

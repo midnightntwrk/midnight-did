@@ -127,8 +127,8 @@ const createValidEvidence = (baseline, commit = "a".repeat(40)) => ({
   repository: { commit, clean: true },
   packages: {
     root: "midnight-did@0.6.0",
-    did: "@midnight-ntwrk/midnight-did@0.6.0",
-    contract: "@midnight-ntwrk/midnight-did-contract@0.6.0",
+    did: "@midnightntwrk/midnight-did@0.6.0",
+    contract: "@midnightntwrk/midnight-did-contract@0.6.0",
   },
   toolchains: {
     node: `v${baseline.toolchains.nodeMajor}.0.0`,

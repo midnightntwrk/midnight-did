@@ -1,6 +1,6 @@
-import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
-import { Service } from "@midnight-ntwrk/midnight-did-domain";
 import { type Ledger9FinalizedCallTxPublicData } from "@midnight-ntwrk/midnight-js-contracts";
+import { DIDContract } from "@midnightntwrk/midnight-did-contract";
+import { Service } from "@midnightntwrk/midnight-did-domain";
 
 import {
   asSchnorrJubjubDigest,

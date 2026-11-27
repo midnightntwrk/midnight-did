@@ -11,11 +11,11 @@ import {
 import {
   createMidnightDIDString,
   parseContractAddress,
-} from "@midnight-ntwrk/midnight-did/midnight";
+} from "@midnightntwrk/midnight-did/midnight";
 import {
   DIDContract,
   signControllerAuthorization,
-} from "@midnight-ntwrk/midnight-did-contract";
+} from "@midnightntwrk/midnight-did-contract";
 import {
   createService,
   createVerificationMethod,
@@ -35,13 +35,13 @@ import {
   type VerificationMethod,
   VerificationMethodRelationType,
   VerificationMethodType,
-} from "@midnight-ntwrk/midnight-did-domain";
+} from "@midnightntwrk/midnight-did-domain";
 import {
   deriveJubjubPublicKeyFromSeed,
   payloadToJubjubDigest,
   signJubjubPayloadFromSeed,
   verifyJubjubPayload,
-} from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
+} from "@midnightntwrk/midnight-did-jubjub-schnorr";
 import { bls12_381 } from "@noble/curves/bls12-381";
 import path from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";

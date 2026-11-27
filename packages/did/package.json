@@ -1,5 +1,5 @@
 {
-  "name": "@midnight-ntwrk/midnight-did",
+  "name": "@midnightntwrk/midnight-did",
   "version": "0.6.0",
   "license": "Apache-2.0",
   "type": "module",
@@ -34,23 +34,23 @@
     }
   },
   "scripts": {
-    "prebuild": "pnpm --filter @midnight-ntwrk/midnight-did-domain build",
+    "prebuild": "pnpm --filter @midnightntwrk/midnight-did-domain build",
     "build": "rm -rf dist && tsc -b tsconfig.build.json --force",
-    "pretypecheck": "pnpm --filter @midnight-ntwrk/midnight-did-domain build",
+    "pretypecheck": "pnpm --filter @midnightntwrk/midnight-did-domain build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "pretest": "pnpm --filter @midnight-ntwrk/midnight-did-domain build",
+    "pretest": "pnpm --filter @midnightntwrk/midnight-did-domain build",
     "test": "vitest run",
-    "pretest:ci": "pnpm --filter @midnight-ntwrk/midnight-did-domain build",
+    "pretest:ci": "pnpm --filter @midnightntwrk/midnight-did-domain build",
     "test:ci": "vitest run",
-    "precoverage": "pnpm --filter @midnight-ntwrk/midnight-did-domain build",
+    "precoverage": "pnpm --filter @midnightntwrk/midnight-did-domain build",
     "coverage": "vitest run --coverage",
     "clean": "rm -rf dist && rm -rf coverage",
     "lint": "prettier --check \"src/**/*.{ts,tsx}\" && eslint src",
     "lint:fix": "prettier --write \"src/**/*.{ts,tsx}\" && eslint src --fix"
   },
   "dependencies": {
-    "@midnight-ntwrk/midnight-did-contract": "workspace:*",
-    "@midnight-ntwrk/midnight-did-domain": "workspace:*",
+    "@midnightntwrk/midnight-did-contract": "workspace:*",
+    "@midnightntwrk/midnight-did-domain": "workspace:*",
     "zod": "^4.6.6"
   },
   "devDependencies": {

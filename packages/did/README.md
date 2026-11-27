@@ -1,4 +1,4 @@
-# @midnight-ntwrk/midnight-did
+# @midnightntwrk/midnight-did
 
 Mapping layer between on-ledger contract state and DID Core-compatible domain documents.
 

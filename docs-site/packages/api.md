@@ -1,6 +1,6 @@
 # API Package
 
-`@midnight-ntwrk/midnight-did-api` is the runtime orchestration package used by
+`@midnightntwrk/midnight-did-api` is the runtime orchestration package used by
 tests and higher-level applications that need DID contract operations.
 
 ## Focus

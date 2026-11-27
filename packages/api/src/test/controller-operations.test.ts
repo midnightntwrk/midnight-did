@@ -1,4 +1,4 @@
-import { deriveControllerPublicKey } from "@midnight-ntwrk/midnight-did-contract";
+import { deriveControllerPublicKey } from "@midnightntwrk/midnight-did-contract";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../controller-authorization.js", () => ({

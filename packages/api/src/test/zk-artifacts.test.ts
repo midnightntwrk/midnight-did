@@ -127,7 +127,7 @@ const createFixtureArchive = (
     schema: "midnight-did-zk-artifacts",
     schemaVersion: 1,
     version,
-    packageName: "@midnight-ntwrk/midnight-did-contract",
+    packageName: "@midnightntwrk/midnight-did-contract",
     providerLayout: {
       proverKey: "keys/{circuitId}.prover",
       verifierKey: "keys/{circuitId}.verifier",

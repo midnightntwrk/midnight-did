@@ -13,11 +13,11 @@ const workspaceRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const distEntry = (packagePath, entry = "index.js") =>
   path.join(workspaceRoot, "packages", packagePath, "dist", entry);
 const packageLinks = new Map([
-  ["@midnight-ntwrk/midnight-did-api", "api"],
-  ["@midnight-ntwrk/midnight-did-contract", "contract"],
-  ["@midnight-ntwrk/midnight-did-domain", "domain"],
-  ["@midnight-ntwrk/midnight-did", "did"],
-  ["@midnight-ntwrk/midnight-did-jubjub-schnorr", "jubjub-schnorr"],
+  ["@midnightntwrk/midnight-did-api", "api"],
+  ["@midnightntwrk/midnight-did-contract", "contract"],
+  ["@midnightntwrk/midnight-did-domain", "domain"],
+  ["@midnightntwrk/midnight-did", "did"],
+  ["@midnightntwrk/midnight-did-jubjub-schnorr", "jubjub-schnorr"],
 ]);
 
 const smoke = async (name, fn) => {
@@ -31,7 +31,7 @@ const smoke = async (name, fn) => {
 };
 
 const linkPackagesForConsumer = async (consumerRoot) => {
-  const scopeDir = path.join(consumerRoot, "node_modules", "@midnight-ntwrk");
+  const scopeDir = path.join(consumerRoot, "node_modules", "@midnightntwrk");
   await mkdir(scopeDir, { recursive: true });
 
   for (const [packageName, packagePath] of packageLinks.entries()) {
@@ -52,12 +52,12 @@ await smoke("node package imports", async () => {
     await writeFile(
       entry,
       `
-        import * as api from "@midnight-ntwrk/midnight-did-api";
-        import * as apiBrowser from "@midnight-ntwrk/midnight-did-api/browser";
-        import * as contract from "@midnight-ntwrk/midnight-did-contract";
-        import * as did from "@midnight-ntwrk/midnight-did";
-        import * as domain from "@midnight-ntwrk/midnight-did-domain";
-        import * as jubjubSchnorr from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
+        import * as api from "@midnightntwrk/midnight-did-api";
+        import * as apiBrowser from "@midnightntwrk/midnight-did-api/browser";
+        import * as contract from "@midnightntwrk/midnight-did-contract";
+        import * as did from "@midnightntwrk/midnight-did";
+        import * as domain from "@midnightntwrk/midnight-did-domain";
+        import * as jubjubSchnorr from "@midnightntwrk/midnight-did-jubjub-schnorr";
 
         if (typeof jubjubSchnorr.TWO_248 !== "bigint") {
           throw new Error("jubjub-schnorr TWO_248 export is unavailable");
@@ -119,7 +119,7 @@ await smoke("browser bundle imports", async () => {
     await writeFile(
       entry,
       `
-        import { DomainToRuntime, MIDNIGHT_DID_ZK_ARTIFACT_LOCATIONS, RuntimeToDomain, parseSeed, randomBytes } from "@midnight-ntwrk/midnight-did-api/browser";
+        import { DomainToRuntime, MIDNIGHT_DID_ZK_ARTIFACT_LOCATIONS, RuntimeToDomain, parseSeed, randomBytes } from "@midnightntwrk/midnight-did-api/browser";
 
         const parsedSeed = parseSeed("00".repeat(32));
         const random = randomBytes(4);
@@ -148,7 +148,7 @@ await smoke("browser bundle imports", async () => {
       resolve: {
         alias: [
           {
-            find: /^@midnight-ntwrk\/midnight-did-api\/browser$/,
+            find: /^@midnightntwrk\/midnight-did-api\/browser$/,
             replacement: distEntry("api", "browser.js"),
           },
         ],

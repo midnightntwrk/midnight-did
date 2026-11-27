@@ -1,10 +1,10 @@
-import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
+import { DIDContract } from "@midnightntwrk/midnight-did-contract";
 import {
   createVerificationMethod,
   CurveType,
   KeyType,
   VerificationMethodType,
-} from "@midnight-ntwrk/midnight-did-domain";
+} from "@midnightntwrk/midnight-did-domain";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { getDidSubject } from "../did-subject.js";

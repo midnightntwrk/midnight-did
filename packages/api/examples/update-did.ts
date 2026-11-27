@@ -8,7 +8,7 @@ import {
   resolve,
   StandaloneConfig,
   updateService,
-} from "@midnight-ntwrk/midnight-did-api";
+} from "@midnightntwrk/midnight-did-api";
 import {
   createService,
   createVerificationMethod,
@@ -16,7 +16,7 @@ import {
   KeyType,
   VerificationMethodRelationType,
   VerificationMethodType,
-} from "@midnight-ntwrk/midnight-did-domain";
+} from "@midnightntwrk/midnight-did-domain";
 
 const seed = process.env.MIDNIGHT_WALLET_SEED;
 const contractAddress = process.env.MIDNIGHT_DID_CONTRACT_ADDRESS;

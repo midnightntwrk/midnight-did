@@ -21,7 +21,7 @@ import {
   pureCircuits as schnorrPureCircuits,
   signJubjubPayloadFromSeed,
   TWO_248
-} from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
+} from "@midnightntwrk/midnight-did-jubjub-schnorr";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import * as ContractExports from "../index.js";

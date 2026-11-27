@@ -1,4 +1,4 @@
-# @midnight-ntwrk/midnight-did-domain
+# @midnightntwrk/midnight-did-domain
 
 Domain model and validation layer for Midnight DID documents and metadata.
 

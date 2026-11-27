@@ -1,5 +1,5 @@
-import { type MidnightNetwork } from "@midnight-ntwrk/midnight-did/midnight";
-import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
+import { type MidnightNetwork } from "@midnightntwrk/midnight-did/midnight";
+import { DIDContract } from "@midnightntwrk/midnight-did-contract";
 import {
   CurveType,
   decodeBase64UrlBytes,
@@ -12,7 +12,7 @@ import {
   VerificationMethod,
   VerificationMethodRelationType,
   VerificationMethodType,
-} from "@midnight-ntwrk/midnight-did-domain";
+} from "@midnightntwrk/midnight-did-domain";
 
 import {
   getDidSubject,

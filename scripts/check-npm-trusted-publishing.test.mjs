@@ -29,7 +29,7 @@ function baselineEnvironment(overrides = {}) {
     GITHUB_WORKFLOW_REF:
       "midnightntwrk/midnight-did/.github/workflows/publish.yml@refs/heads/develop",
     RUNNER_ENVIRONMENT: "github-hosted",
-    NPM_TRUSTED_PUBLISHING_ENVIRONMENT: "npm-release",
+    NPM_TRUSTED_PUBLISHING_ENVIRONMENT: "npm-publish-stable",
     ACTIONS_ID_TOKEN_REQUEST_URL: `https://oidc.invalid/${secret}`,
     ACTIONS_ID_TOKEN_REQUEST_TOKEN: secret,
     ...overrides,
@@ -117,11 +117,11 @@ function assertNoNpm(state) {
 test("checks npm >=11.5.1 and public readability for the canonical five packages", async () => {
   assert.equal(trustedPublishingMinimumNpmVersion, "11.5.1");
   assert.deepEqual(trustedPublishingPackages, [
-    "@midnight-ntwrk/midnight-did-jubjub-schnorr",
-    "@midnight-ntwrk/midnight-did-contract",
-    "@midnight-ntwrk/midnight-did-domain",
-    "@midnight-ntwrk/midnight-did",
-    "@midnight-ntwrk/midnight-did-api",
+    "@midnightntwrk/midnight-did-jubjub-schnorr",
+    "@midnightntwrk/midnight-did-contract",
+    "@midnightntwrk/midnight-did-domain",
+    "@midnightntwrk/midnight-did",
+    "@midnightntwrk/midnight-did-api",
   ]);
   const { result, state, error } = await run();
   assert.equal(error, undefined);

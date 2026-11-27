@@ -46,7 +46,7 @@ keys/<circuit>.verifier
 zkir/<circuit>.bzkir
 ```
 
-Release metadata in `@midnight-ntwrk/midnight-did-api` derives the matching
+Release metadata in `@midnightntwrk/midnight-did-api` derives the matching
 GitHub Release and GHCR artifact locations for the installed package version.
 
 ## Trust Model

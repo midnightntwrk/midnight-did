@@ -1,8 +1,8 @@
-import { parseContractAddress } from "@midnight-ntwrk/midnight-did/midnight";
 import {
   deployContract,
   findDeployedContract,
 } from "@midnight-ntwrk/midnight-js-contracts";
+import { parseContractAddress } from "@midnightntwrk/midnight-did/midnight";
 
 import { MidnightDidApiError } from "./api-errors.js";
 import { getLogger } from "./api-logger.js";

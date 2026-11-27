@@ -1,4 +1,4 @@
-import { VerificationMethodRelationType } from "@midnight-ntwrk/midnight-did-domain";
+import { VerificationMethodRelationType } from "@midnightntwrk/midnight-did-domain";
 import { describe, expect, it } from "vitest";
 
 import { MidnightDidApiError } from "../api-errors.js";

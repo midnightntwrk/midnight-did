@@ -126,7 +126,7 @@ const collectDidPackages = (repoRoot, warnings) => {
     }
 
     const packageJson = readJson(packageJsonPath);
-    if (packageJson.name?.startsWith("@midnight-ntwrk/midnight-did")) {
+    if (packageJson.name?.startsWith("@midnightntwrk/midnight-did")) {
       didPackages.set(packageJson.name, {
         name: packageJson.name,
         version: packageJson.version,

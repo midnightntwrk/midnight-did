@@ -1,4 +1,4 @@
-import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
+import { DIDContract } from "@midnightntwrk/midnight-did-contract";
 import {
   type ContractAddress,
   DIDDocumentConsistencyError,
@@ -8,7 +8,7 @@ import {
   type KnownDIDResolutionErrorCode,
   parseMidnightDID,
   parseMidnightDIDString,
-} from "@midnight-ntwrk/midnight-did-domain";
+} from "@midnightntwrk/midnight-did-domain";
 import { z } from "zod/v4-mini";
 
 import {

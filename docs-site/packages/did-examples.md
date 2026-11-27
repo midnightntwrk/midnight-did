@@ -5,7 +5,7 @@ Use the DID package when you already have ledger state and need DID Core-compati
 ## Convert ledger state into a DID document
 
 ```ts
-import { LedgerToDomain, MidnightNetwork } from "@midnight-ntwrk/midnight-did";
+import { LedgerToDomain, MidnightNetwork } from "@midnightntwrk/midnight-did";
 
 const didDocument = LedgerToDomain.ledgerStateToDIDDocument(
   ledgerState,
@@ -20,7 +20,7 @@ const didDocument = LedgerToDomain.ledgerStateToDIDDocument(
 import {
   MidnightDIDResolver,
   MidnightNetwork,
-} from "@midnight-ntwrk/midnight-did";
+} from "@midnightntwrk/midnight-did";
 
 const resolver = new MidnightDIDResolver({
   expectedNetwork: MidnightNetwork.Preprod,

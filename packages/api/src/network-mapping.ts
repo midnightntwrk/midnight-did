@@ -1,5 +1,5 @@
-import { MidnightNetwork } from "@midnight-ntwrk/midnight-did/midnight";
 import type { NetworkId } from "@midnight-ntwrk/midnight-js-types";
+import { MidnightNetwork } from "@midnightntwrk/midnight-did/midnight";
 
 export type RuntimeToDomainNetworkMap = Readonly<
   Record<NetworkId, MidnightNetwork>

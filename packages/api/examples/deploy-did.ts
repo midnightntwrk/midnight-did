@@ -5,7 +5,7 @@ import {
   initPrivateState,
   resolve,
   StandaloneConfig,
-} from "@midnight-ntwrk/midnight-did-api";
+} from "@midnightntwrk/midnight-did-api";
 
 const seed = process.env.MIDNIGHT_WALLET_SEED;
 if (seed === undefined || seed.length === 0) {

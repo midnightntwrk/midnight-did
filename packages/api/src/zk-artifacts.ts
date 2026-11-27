@@ -133,7 +133,7 @@ const expectedProviderLayout: MidnightDidZkArtifactProviderLayout = {
 };
 
 const artifactKinds = ["prover", "verifier", "zkir"] as const;
-const expectedPackageName = "@midnight-ntwrk/midnight-did-contract";
+const expectedPackageName = "@midnightntwrk/midnight-did-contract";
 
 const sha256File = (filePath: string): string =>
   createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");

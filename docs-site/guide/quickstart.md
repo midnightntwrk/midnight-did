@@ -54,7 +54,7 @@ import {
   configureProviders,
   deploy,
   initPrivateState,
-} from "@midnight-ntwrk/midnight-did-api";
+} from "@midnightntwrk/midnight-did-api";
 
 const config = new StandaloneConfig();
 const walletContext = await buildFreshWallet(config);
@@ -77,13 +77,13 @@ Use `addVerificationMethod` for Ed25519, X25519, P-256, secp256k1,
 BLS12381G1, and BLS12381G2 `publicKeyJwk` entries.
 
 ```ts
-import { addVerificationMethod } from "@midnight-ntwrk/midnight-did-api";
+import { addVerificationMethod } from "@midnightntwrk/midnight-did-api";
 import {
   createVerificationMethod,
   CurveType,
   KeyType,
   VerificationMethodType,
-} from "@midnight-ntwrk/midnight-did-domain";
+} from "@midnightntwrk/midnight-did-domain";
 
 const ed25519Method = createVerificationMethod({
   id: "#ed25519-1",
@@ -105,8 +105,8 @@ Use the SchnorrJubjub helper when the key must be usable by Midnight-native
 proof circuits.
 
 ```ts
-import { addSchnorrJubjubVerificationMethod } from "@midnight-ntwrk/midnight-did-api";
-import { deriveJubjubPublicKeyFromSeed } from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
+import { addSchnorrJubjubVerificationMethod } from "@midnightntwrk/midnight-did-api";
+import { deriveJubjubPublicKeyFromSeed } from "@midnightntwrk/midnight-did-jubjub-schnorr";
 
 const jubjubSeed = crypto.getRandomValues(new Uint8Array(32));
 const jubjubPublicKey = deriveJubjubPublicKeyFromSeed(jubjubSeed);
@@ -123,8 +123,8 @@ the public `JubjubPoint`.
 ## Link A Key To A Relationship
 
 ```ts
-import { addVerificationMethodRelation } from "@midnight-ntwrk/midnight-did-api";
-import { VerificationMethodRelationType } from "@midnight-ntwrk/midnight-did-domain";
+import { addVerificationMethodRelation } from "@midnightntwrk/midnight-did-api";
+import { VerificationMethodRelationType } from "@midnightntwrk/midnight-did-domain";
 
 await addVerificationMethodRelation(
   didContract,
@@ -137,7 +137,7 @@ await addVerificationMethodRelation(
 ## Resolve The DID
 
 ```ts
-import { resolve } from "@midnight-ntwrk/midnight-did-api";
+import { resolve } from "@midnightntwrk/midnight-did-api";
 
 const resolution = await resolve(providers, did);
 console.log(resolution.didDocument);
@@ -149,11 +149,11 @@ The resolver returns one DID Document with both key maps merged into
 ## Verify A SchnorrJubjub Signature
 
 ```ts
-import { verifySchnorrJubjubDigestSignature } from "@midnight-ntwrk/midnight-did-api";
+import { verifySchnorrJubjubDigestSignature } from "@midnightntwrk/midnight-did-api";
 import {
   payloadToJubjubDigest,
   signJubjubDigestFromSeed,
-} from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
+} from "@midnightntwrk/midnight-did-jubjub-schnorr";
 
 const payload = new TextEncoder().encode("example payload");
 const digest = payloadToJubjubDigest(payload);

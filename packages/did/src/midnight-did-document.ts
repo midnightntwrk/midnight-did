@@ -11,7 +11,7 @@ import {
   validateDIDDocumentConsistency,
   VerificationMethod,
   VerificationMethodType,
-} from "@midnight-ntwrk/midnight-did-domain";
+} from "@midnightntwrk/midnight-did-domain";
 import { z } from "zod/v4-mini";
 
 import {

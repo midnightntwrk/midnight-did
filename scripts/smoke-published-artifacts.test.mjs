@@ -64,7 +64,7 @@ const withFixture = (run) => {
       JSON.stringify({
         schema: "midnight-did-zk-artifacts",
         schemaVersion: 1,
-        packageName: "@midnight-ntwrk/midnight-did-contract",
+        packageName: "@midnightntwrk/midnight-did-contract",
         providerLayout: {
           proverKey: "keys/{circuitId}.prover",
           verifierKey: "keys/{circuitId}.verifier",

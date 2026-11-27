@@ -1,8 +1,8 @@
-import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
+import { DIDContract } from "@midnightntwrk/midnight-did-contract";
 import {
   CurveType,
   VerificationMethodRelationType,
-} from "@midnight-ntwrk/midnight-did-domain";
+} from "@midnightntwrk/midnight-did-domain";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../controller-authorization.js", () => ({

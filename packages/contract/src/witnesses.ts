@@ -17,7 +17,7 @@ import {
   type JubjubPoint,
   WitnessContext
 } from "@midnight-ntwrk/compact-runtime";
-import { TWO_248 } from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
+import { TWO_248 } from "@midnightntwrk/midnight-did-jubjub-schnorr";
 
 import { deriveControllerPublicKey } from "./controller-key.js";
 import { Ledger } from "./managed/did/contract/index.js";

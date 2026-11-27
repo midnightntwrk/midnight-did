@@ -8,7 +8,7 @@ import {
   parseLongFormOffchainMidnightDIDString,
   parseMidnightDID,
   parseMidnightDIDString,
-} from "@midnight-ntwrk/midnight-did-domain";
+} from "@midnightntwrk/midnight-did-domain";
 
 import {
   type MidnightDIDDocument,

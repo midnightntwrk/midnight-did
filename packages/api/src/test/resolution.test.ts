@@ -1,8 +1,8 @@
-import { MidnightDIDResolver } from "@midnight-ntwrk/midnight-did";
+import { MidnightDIDResolver } from "@midnightntwrk/midnight-did";
 import {
   MidnightNetwork,
   parseContractAddress,
-} from "@midnight-ntwrk/midnight-did/midnight";
+} from "@midnightntwrk/midnight-did/midnight";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getDidSubject, getProviderMidnightNetwork } from "../did-subject.js";
@@ -36,13 +36,13 @@ const midnightDidMocks = vi.hoisted(() => {
   return { resolver, state };
 });
 
-vi.mock("@midnight-ntwrk/midnight-did", () => ({
+vi.mock("@midnightntwrk/midnight-did", () => ({
   MidnightDIDResolver: midnightDidMocks.resolver,
 }));
 
-vi.mock("@midnight-ntwrk/midnight-did/midnight", async (importOriginal) => ({
+vi.mock("@midnightntwrk/midnight-did/midnight", async (importOriginal) => ({
   ...(await importOriginal<
-    typeof import("@midnight-ntwrk/midnight-did/midnight")
+    typeof import("@midnightntwrk/midnight-did/midnight")
   >()),
   parseContractAddress: vi.fn((value: string) => value.toLowerCase()),
 }));

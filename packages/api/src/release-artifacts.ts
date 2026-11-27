@@ -1,6 +1,6 @@
 export const MIDNIGHT_DID_API_VERSION = "0.6.0" as const;
 export const MIDNIGHT_DID_PACKAGE_NAME =
-  "@midnight-ntwrk/midnight-did-api" as const;
+  "@midnightntwrk/midnight-did-api" as const;
 export const MIDNIGHT_DID_NPM_REGISTRY = "https://registry.npmjs.org/" as const;
 export const MIDNIGHT_DID_GITHUB_REPOSITORY =
   "midnightntwrk/midnight-did" as const;

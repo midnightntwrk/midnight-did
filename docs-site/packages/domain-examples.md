@@ -5,7 +5,7 @@ Use the domain package when you need validation and canonicalization without any
 ## Parse a Midnight DID
 
 ```ts
-import { parseMidnightDIDString } from "@midnight-ntwrk/midnight-did-domain";
+import { parseMidnightDIDString } from "@midnightntwrk/midnight-did-domain";
 
 const did = parseMidnightDIDString(
   "did:midnight:undeployed:08bd152a17007269ba97bb169268321b6f782d162e90be176df5ec5fcb896633",
@@ -15,7 +15,7 @@ const did = parseMidnightDIDString(
 ## Parse and normalize a DID document
 
 ```ts
-import { parseDIDDocument } from "@midnight-ntwrk/midnight-did-domain";
+import { parseDIDDocument } from "@midnightntwrk/midnight-did-domain";
 
 const document = parseDIDDocument({
   "@context": ["https://www.w3.org/ns/did/v1"],

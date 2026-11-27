@@ -1,4 +1,4 @@
-# @midnight-ntwrk/midnight-did-api
+# @midnightntwrk/midnight-did-api
 
 Programmatic API for creating, updating, deactivating, and resolving Midnight DIDs.
 
@@ -49,7 +49,7 @@ callers must provide the reader explicitly:
 import {
   createIndexerIndexedBlockTime,
   registerForDustGeneration,
-} from "@midnight-ntwrk/midnight-did-api";
+} from "@midnightntwrk/midnight-did-api";
 
 await registerForDustGeneration(
   walletContext.wallet,
@@ -382,7 +382,7 @@ The package embeds ZK artifact locations for its own published version:
 import {
   MIDNIGHT_DID_API_VERSION,
   createMidnightDidZkArtifactLocations,
-} from "@midnight-ntwrk/midnight-did-api";
+} from "@midnightntwrk/midnight-did-api";
 
 const locations = createMidnightDidZkArtifactLocations(
   MIDNIGHT_DID_API_VERSION,
@@ -400,7 +400,7 @@ Node consumers can download, verify, and unpack GitHub Release assets directly:
 import {
   downloadMidnightDidGithubReleaseZkArtifacts,
   MIDNIGHT_DID_API_VERSION,
-} from "@midnight-ntwrk/midnight-did-api";
+} from "@midnightntwrk/midnight-did-api";
 
 const bundle = await downloadMidnightDidGithubReleaseZkArtifacts({
   version: MIDNIGHT_DID_API_VERSION,
@@ -423,7 +423,7 @@ with the `oras` CLI available.
 
 When the ZK bundle is unpacked outside the installed package, set
 `MIDNIGHT_DID_ZK_CONFIG_PATH` to the directory containing `manifest.json`,
-`keys/`, and `zkir/` before importing `@midnight-ntwrk/midnight-did-api`.
+`keys/`, and `zkir/` before importing `@midnightntwrk/midnight-did-api`.
 Without this override, the API uses the managed artifacts bundled with the
 installed contract package when available.
 
@@ -467,7 +467,7 @@ Type-safety policy:
 Legacy deep source files `src/contract-lifecycle.ts` and `src/did-operations.ts`
 remain as short-lived deprecation shims for external deep source-path imports.
 Internal code should use the split modules above, and package consumers should
-import from `@midnight-ntwrk/midnight-did-api`.
+import from `@midnightntwrk/midnight-did-api`.
 
 ## Deploy And Update Example
 

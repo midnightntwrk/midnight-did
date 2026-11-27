@@ -1,4 +1,4 @@
-import { parseContractAddress } from "@midnight-ntwrk/midnight-did/midnight";
+import { parseContractAddress } from "@midnightntwrk/midnight-did/midnight";
 
 import { MidnightDidApiError } from "./api-errors.js";
 import { getLogger } from "./api-logger.js";

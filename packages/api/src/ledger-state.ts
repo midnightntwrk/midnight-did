@@ -1,11 +1,11 @@
 import { ContractState } from "@midnight-ntwrk/compact-runtime";
-import { LedgerToDomain } from "@midnight-ntwrk/midnight-did";
+import { assertIsContractAddress } from "@midnight-ntwrk/midnight-js-utils";
+import { LedgerToDomain } from "@midnightntwrk/midnight-did";
 import {
   type ContractAddress,
   parseContractAddress,
-} from "@midnight-ntwrk/midnight-did/midnight";
-import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
-import { assertIsContractAddress } from "@midnight-ntwrk/midnight-js-utils";
+} from "@midnightntwrk/midnight-did/midnight";
+import { DIDContract } from "@midnightntwrk/midnight-did-contract";
 
 import { getLogger } from "./api-logger.js";
 import {

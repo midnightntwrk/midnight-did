@@ -3,9 +3,9 @@ import { Buffer } from "node:buffer";
 // moved from domain to did package
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-type ContractModule = typeof import("@midnight-ntwrk/midnight-did-contract");
+type ContractModule = typeof import("@midnightntwrk/midnight-did-contract");
 
-vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
+vi.mock("@midnightntwrk/midnight-did-contract", () => {
   const DIDContractMock = {
     CurveType: {
       Ed25519: 0,
@@ -34,7 +34,7 @@ vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
   } satisfies Partial<ContractModule>;
 });
 
-import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
+import { DIDContract } from "@midnightntwrk/midnight-did-contract";
 
 import {
   LedgerToDomain,

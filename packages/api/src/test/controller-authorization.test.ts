@@ -7,7 +7,7 @@ import {
 import { requireDeployedMidnightDIDLedgerState } from "../ledger-state.js";
 import { requirePrivateState } from "../private-state.js";
 
-vi.mock("@midnight-ntwrk/midnight-did-contract", () => ({
+vi.mock("@midnightntwrk/midnight-did-contract", () => ({
   signControllerAuthorization: vi.fn(),
 }));
 
@@ -36,7 +36,7 @@ describe("controller authorization", () => {
 
   it("signs the wallet-private controller secret against the current ledger state", async () => {
     const { signControllerAuthorization } =
-      await import("@midnight-ntwrk/midnight-did-contract");
+      await import("@midnightntwrk/midnight-did-contract");
     const privateState = { secretKey: new Uint8Array([7, 8, 9]) };
     const ledgerState = { id: "did-id", version: 12n };
     const digest = [1n, 2n, 3n, 4n] as const;
@@ -69,7 +69,7 @@ describe("controller authorization", () => {
 
   it("signs against a known preflight state without querying a newer version", async () => {
     const { signControllerAuthorization } =
-      await import("@midnight-ntwrk/midnight-did-contract");
+      await import("@midnightntwrk/midnight-did-contract");
     const privateState = { secretKey: new Uint8Array([7, 8, 9]) };
     const ledgerState = { id: "did-id", version: 12n };
     const digest = [1n, 2n, 3n, 4n] as const;
@@ -91,7 +91,7 @@ describe("controller authorization", () => {
 
   it("uses a known private state without reading it again", async () => {
     const { signControllerAuthorization } =
-      await import("@midnight-ntwrk/midnight-did-contract");
+      await import("@midnightntwrk/midnight-did-contract");
     const privateState = { secretKey: new Uint8Array([7, 8, 9]) };
     const ledgerState = { id: "did-id", version: 12n };
     const digest = [1n, 2n, 3n, 4n] as const;

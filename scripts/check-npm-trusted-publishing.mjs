@@ -25,7 +25,7 @@ import {
 } from "./did-workspace-catalog.mjs";
 
 export const trustedPublishingMinimumNpmVersion = "11.5.1";
-export const trustedPublishingEnvironment = "npm-release";
+export const trustedPublishingEnvironment = "npm-publish-stable";
 export const trustedPublishingRepository = "midnightntwrk/midnight-did";
 export const trustedPublishingWorkflow = ".github/workflows/publish.yml";
 export const trustedPublishingTimeoutMs = 15_000;
@@ -88,7 +88,7 @@ function validateContext(environment) {
     environment.NPM_TRUSTED_PUBLISHING_ENVIRONMENT !==
     trustedPublishingEnvironment
   ) {
-    fail("The trusted-publishing environment expectation is not npm-release.");
+    fail("The trusted-publishing environment expectation is not npm-publish-stable.");
   }
   for (const name of [
     "ACTIONS_ID_TOKEN_REQUEST_URL",
@@ -190,11 +190,11 @@ async function rejectCredentialNpmrc(environment, cwd) {
 
 function validateCatalog() {
   const expectedPackages = [
-    "@midnight-ntwrk/midnight-did-jubjub-schnorr",
-    "@midnight-ntwrk/midnight-did-contract",
-    "@midnight-ntwrk/midnight-did-domain",
-    "@midnight-ntwrk/midnight-did",
-    "@midnight-ntwrk/midnight-did-api",
+    "@midnightntwrk/midnight-did-jubjub-schnorr",
+    "@midnightntwrk/midnight-did-contract",
+    "@midnightntwrk/midnight-did-domain",
+    "@midnightntwrk/midnight-did",
+    "@midnightntwrk/midnight-did-api",
   ];
   if (
     npmPackageRegistry !== "https://registry.npmjs.org/" ||

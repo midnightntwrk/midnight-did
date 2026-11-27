@@ -36,11 +36,11 @@ try {
   const didRoot = path.join(fixtureRoot, "midnight-did");
   const vcRoot = path.join(fixtureRoot, "midnight-verifiable-credentials");
   const didDomainPackage = {
-    name: "@midnight-ntwrk/midnight-did-domain",
+    name: "@midnightntwrk/midnight-did-domain",
     version: "0.1.0",
   };
   const didApiPackage = {
-    name: "@midnight-ntwrk/midnight-did-api",
+    name: "@midnightntwrk/midnight-did-api",
     version: "0.1.0",
   };
   const domainTarball = npmPackFileName(
@@ -174,7 +174,7 @@ try {
   assert.equal(missingTarballReport.siblingVc.summary.missingVendorTarballCount, 1);
   assert.match(
     missingTarballReport.errors.join("\n"),
-    /missing-tarball-consumer references @midnight-ntwrk\/midnight-did-api, but vendor tarball is missing/u,
+    /missing-tarball-consumer references @midnightntwrk\/midnight-did-api, but vendor tarball is missing/u,
   );
 
   // The report walks all package.json files, not only declared workspaces, so
@@ -183,7 +183,7 @@ try {
     name: "stale-did-consumer",
     dependencies: {
       [didDomainPackage.name]:
-        "file:../../tooling/vendor/midnight-did/midnight-ntwrk-midnight-did-domain-0.0.1.tgz",
+        "file:../../tooling/vendor/midnight-did/midnightntwrk-midnight-did-domain-0.0.1.tgz",
     },
   });
 
@@ -204,11 +204,11 @@ try {
   assert.equal(failingCheck.status, 1, "stale file specs should fail --check");
   assert.match(
     failingCheck.stdout,
-    /expected file:\.\.\/\.\.\/tooling\/vendor\/midnight-did\/midnight-ntwrk-midnight-did-domain-0\.1\.0\.tgz/u,
+    /expected file:\.\.\/\.\.\/tooling\/vendor\/midnight-did\/midnightntwrk-midnight-did-domain-0\.1\.0\.tgz/u,
   );
   assert.match(
     failingCheck.stderr,
-    /\[report-integration\] Error: stale-did-consumer references @midnight-ntwrk\/midnight-did-domain/u,
+    /\[report-integration\] Error: stale-did-consumer references @midnightntwrk\/midnight-did-domain/u,
   );
   assert.match(failingCheck.stdout, /stale-file-specs=1/u);
   assert.match(failingCheck.stdout, /missing-vendor-tarballs=1/u);

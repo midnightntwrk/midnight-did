@@ -1,4 +1,4 @@
-import { VerificationMethodRelationType } from "@midnight-ntwrk/midnight-did-domain";
+import { VerificationMethodRelationType } from "@midnightntwrk/midnight-did-domain";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -42,7 +42,7 @@ const mocks = vi.hoisted(() => ({
   ),
 }));
 
-vi.mock("@midnight-ntwrk/midnight-did-contract", () => ({
+vi.mock("@midnightntwrk/midnight-did-contract", () => ({
   DIDContract: {
     MapMutation: { Insert: "insert", Update: "update" },
     SetMutation: { Insert: "insert", Remove: "remove" },

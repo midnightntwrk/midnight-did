@@ -184,15 +184,6 @@ importers:
       '@midnight-ntwrk/compact-runtime':
         specifier: 0.21.0
         version: 0.21.0
-      '@midnight-ntwrk/midnight-did':
-        specifier: workspace:*
-        version: link:../did
-      '@midnight-ntwrk/midnight-did-contract':
-        specifier: workspace:*
-        version: link:../contract
-      '@midnight-ntwrk/midnight-did-domain':
-        specifier: workspace:*
-        version: link:../domain
       '@midnight-ntwrk/midnight-js-contracts':
         specifier: 5.0.0
         version: 5.0.0
@@ -238,6 +229,15 @@ importers:
       '@midnightntwrk/ledger-v9':
         specifier: 1.0.0
         version: 1.0.0
+      '@midnightntwrk/midnight-did':
+        specifier: workspace:*
+        version: link:../did
+      '@midnightntwrk/midnight-did-contract':
+        specifier: workspace:*
+        version: link:../contract
+      '@midnightntwrk/midnight-did-domain':
+        specifier: workspace:*
+        version: link:../domain
       '@noble/curves':
         specifier: ^1.9.7
         version: 1.9.7
@@ -260,7 +260,7 @@ importers:
         specifier: 4.6.6
         version: 4.6.6
     devDependencies:
-      '@midnight-ntwrk/midnight-did-jubjub-schnorr':
+      '@midnightntwrk/midnight-did-jubjub-schnorr':
         specifier: workspace:*
         version: link:../jubjub-schnorr
       '@vitest/coverage-v8':
@@ -281,7 +281,7 @@ importers:
       '@midnight-ntwrk/compact-runtime':
         specifier: 0.21.0
         version: 0.21.0
-      '@midnight-ntwrk/midnight-did-jubjub-schnorr':
+      '@midnightntwrk/midnight-did-jubjub-schnorr':
         specifier: workspace:*
         version: link:../jubjub-schnorr
     devDependencies:
@@ -291,10 +291,10 @@ importers:
 
   packages/did:
     dependencies:
-      '@midnight-ntwrk/midnight-did-contract':
+      '@midnightntwrk/midnight-did-contract':
         specifier: workspace:*
         version: link:../contract
-      '@midnight-ntwrk/midnight-did-domain':
+      '@midnightntwrk/midnight-did-domain':
         specifier: workspace:*
         version: link:../domain
       zod:

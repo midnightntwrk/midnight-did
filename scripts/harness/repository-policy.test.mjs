@@ -684,7 +684,7 @@ test("uses OIDC Trusted Publishing without npm token secrets on the normal path"
   ]);
   const workflow = loadYaml(workflowText);
   const buildJob = workflow.jobs["build-release-assets"];
-  const npmReleaseJob = workflow.jobs["npm-release"];
+  const npmReleaseJob = workflow.jobs["npm-publish-stable"];
   const releaseJob = workflow.jobs["publish-release-assets"];
   const buildSteps = buildJob.steps;
   const npmSteps = npmReleaseJob.steps;
@@ -712,7 +712,7 @@ test("uses OIDC Trusted Publishing without npm token secrets on the normal path"
         ({ name }) => name === "Build packages and managed artifacts",
       ),
   );
-  assert.equal(npmReleaseJob.environment, "npm-release");
+  assert.equal(npmReleaseJob.environment, "npm-publish-stable");
   assert.equal(npmReleaseJob["timeout-minutes"], 75);
   assert.deepEqual(npmReleaseJob.permissions, {
     actions: "read",
@@ -743,7 +743,7 @@ test("uses OIDC Trusted Publishing without npm token secrets on the normal path"
   );
   assert.equal(
     npmSteps[preflightIndex].env.NPM_TRUSTED_PUBLISHING_ENVIRONMENT,
-    "npm-release",
+    "npm-publish-stable",
   );
   assert.equal(
     npmSteps[preflightIndex].run,
@@ -852,8 +852,8 @@ test("allows only manual dispatch to reach publication jobs and protects Trusted
   assert.equal(Object.hasOwn(publish.on, "push"), false);
 
   const buildJob = publish.jobs["build-release-assets"];
-  const npmReleaseJob = publish.jobs["npm-release"];
-  assert.equal(npmReleaseJob.environment, "npm-release");
+  const npmReleaseJob = publish.jobs["npm-publish-stable"];
+  assert.equal(npmReleaseJob.environment, "npm-publish-stable");
   assert.deepEqual(npmReleaseJob.permissions, {
     actions: "read",
     contents: "read",
@@ -862,8 +862,8 @@ test("allows only manual dispatch to reach publication jobs and protects Trusted
   assert.equal(Object.hasOwn(buildJob, "environment"), false);
   assert.equal(Object.hasOwn(buildJob.permissions, "id-token"), false);
   for (const [jobName, job] of Object.entries(publish.jobs)) {
-    if (jobName === "npm-release") continue;
-    assert.notEqual(job.environment, "npm-release");
+    if (jobName === "npm-publish-stable") continue;
+    assert.notEqual(job.environment, "npm-publish-stable");
   }
   assert.deepEqual(buildJob.needs, ["validate-dispatch-ref"]);
 
@@ -912,7 +912,7 @@ test("allows only manual dispatch to reach publication jobs and protects Trusted
   };
   for (const jobName of [
     "sign-release-assets",
-    "npm-release",
+    "npm-publish-stable",
     "publish-release-assets",
     "validate-github-release-context",
     "github-release-provenance",
@@ -954,11 +954,11 @@ test("allows only manual dispatch to reach publication jobs and protects Trusted
   assert.match(publishText, /Check npm Trusted Publishing prerequisites/u);
   assert.ok(
     publish.jobs["sign-release-assets"],
-    "signing must not share the npm-release job/environment",
+    "signing must not share the npm-publish-stable job/environment",
   );
   assert.ok(
     publish.jobs["publish-release-assets"],
-    "GHCR publication must not share the npm-release job/environment",
+    "GHCR publication must not share the npm-publish-stable job/environment",
   );
 });
 
@@ -1146,7 +1146,7 @@ test("revalidates release context at every privileged publication boundary", asy
     "./scripts/release-sign-assets.sh",
   );
   assertPrivilegedReleaseBoundary(
-    workflow.jobs["npm-release"].steps.find(
+    workflow.jobs["npm-publish-stable"].steps.find(
       ({ name }) => name === "Publish npm packages to npmjs",
     ),
     "./scripts/publish-npm-packages.sh",
