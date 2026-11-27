@@ -10,9 +10,9 @@ readonly npm_publish_timeout_ms="300000"
 readonly npm_output_limit_bytes="65536"
 readonly trusted_publishing_minimum_npm_version="11.5.1"
 # npmjs metadata may converge after a successful immutable publish. Bound each
-# post-publish package gate to five minutes, polling every 30 seconds; never
+# post-publish package gate to fifteen minutes, polling every 30 seconds; never
 # retry the publish mutation itself.
-readonly registry_convergence_deadline_seconds="300"
+readonly registry_convergence_deadline_seconds="900"
 readonly registry_convergence_poll_seconds="30"
 readonly tarball_connect_timeout_seconds="10"
 readonly tarball_timeout_seconds="120"
