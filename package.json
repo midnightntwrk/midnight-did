@@ -101,7 +101,7 @@
       "vue": "3.5.42",
       "@vue/shared": "3.5.42",
       "markdown-it": "14.3.3",
-      "zod": "4.6.6",
+      "zod": "4.6.7",
       "fast-copy": "4.1.0",
       "@midnight-ntwrk/platform-js@3.0.0>@effect/platform": "0.97.2",
       "archiver-utils@5.0.2>glob": "14.0.2",
@@ -128,7 +128,7 @@
     "@midnight-ntwrk/midnight-js-fetch-zk-config-provider": "5.0.0",
     "@playwright/test": "1.62.1",
     "@types/node": "24.13.3",
-    "@types/ws": "8.18.1",
+    "@types/ws": "8.18.2",
     "@typescript-eslint/eslint-plugin": "8.67.0",
     "@typescript-eslint/parser": "8.67.0",
     "@vitest/coverage-v8": "4.1.12",
@@ -148,7 +148,7 @@
     "vitest": "4.1.12"
   },
   "dependencies": {
-    "@midnightntwrk/ledger-v9": "1.0.0",
+    "@midnightntwrk/ledger-v9": "1.0.2",
     "@midnight-ntwrk/compact-runtime": "0.21.0",
     "@midnight-ntwrk/midnight-js-contracts": "5.0.0",
     "@midnight-ntwrk/midnight-js-http-client-proof-provider": "5.0.0",
