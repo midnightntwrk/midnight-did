@@ -825,9 +825,9 @@ test("post-publish requested tag converges without republishing", () => {
   }
 });
 
-test("registry evidence at exactly five minutes is accepted without republishing", () => {
+test("registry evidence at exactly fifteen minutes is accepted without republishing", () => {
   const fixture = setup({
-    visibilityDelayReads: { [packageNames[0]]: 10 },
+    visibilityDelayReads: { [packageNames[0]]: 30 },
   });
   try {
     const result = run(fixture);
@@ -838,21 +838,21 @@ test("registry evidence at exactly five minutes is accepted without republishing
       ).length,
       1,
     );
-    assert.equal(result.state.sleeps.length, 10);
+    assert.equal(result.state.sleeps.length, 30);
     assert.equal(
       result.state.sleeps.reduce((sum, value) => sum + value, 0),
-      300,
+      900,
     );
-    assert.match(result.stdout, /converged after 300 seconds/u);
+    assert.match(result.stdout, /converged after 900 seconds/u);
     assertNoAdministration(result.state);
   } finally {
     cleanup(fixture);
   }
 });
 
-test("registry evidence after five minutes fails closed without republishing", () => {
+test("registry evidence after fifteen minutes fails closed without republishing", () => {
   const fixture = setup({
-    postPublishExactReadAdvanceSeconds: { [packageNames[0]]: 301 },
+    postPublishExactReadAdvanceSeconds: { [packageNames[0]]: 901 },
   });
   try {
     const result = run(fixture);
@@ -864,7 +864,7 @@ test("registry evidence after five minutes fails closed without republishing", (
     assert.deepEqual(result.state.sleeps, []);
     assert.match(
       result.stderr,
-      /evidence arrived after the 300-second convergence deadline/u,
+      /evidence arrived after the 900-second convergence deadline/u,
     );
     assertNoAdministration(result.state);
   } finally {
@@ -885,9 +885,9 @@ test("registry convergence timeout publishes no dependent package", () => {
     );
     assert.equal(
       result.state.sleeps.reduce((sum, value) => sum + value, 0),
-      300,
+      900,
     );
-    assert.match(result.stderr, /Timed out after 300 seconds/u);
+    assert.match(result.stderr, /Timed out after 900 seconds/u);
     assertNoAdministration(result.state);
   } finally {
     cleanup(fixture);
@@ -944,7 +944,7 @@ test("wrong tag on the first successful publish times out before every dependent
     );
     assert.equal(
       result.state.sleeps.reduce((sum, value) => sum + value, 0),
-      300,
+      900,
     );
     assertNoAdministration(result.state);
   } finally {
@@ -1149,7 +1149,7 @@ test("harness allowance is separate from active production publisher limits", ()
     ],
     [
       "registry convergence deadline",
-      /^readonly registry_convergence_deadline_seconds="300"$/mu,
+      /^readonly registry_convergence_deadline_seconds="900"$/mu,
       /^  deadline=\$\(\(started_at \+ registry_convergence_deadline_seconds\)\)$/mu,
     ],
     [
@@ -1191,7 +1191,7 @@ test("publisher has one bounded npm publish call site and bounded tarball downlo
   );
   assert.match(source, /verify_npm_version_at_publication_boundary/u);
   assert.match(source, /trusted_publishing_minimum_npm_version="11\.5\.1"/u);
-  assert.match(source, /registry_convergence_deadline_seconds="300"/u);
+  assert.match(source, /registry_convergence_deadline_seconds="900"/u);
   assert.match(source, /registry_convergence_poll_seconds="30"/u);
   assert.match(
     source,

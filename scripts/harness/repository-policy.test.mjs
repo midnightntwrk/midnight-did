@@ -713,7 +713,7 @@ test("uses OIDC Trusted Publishing without npm token secrets on the normal path"
       ),
   );
   assert.equal(npmReleaseJob.environment, "npm-publish-stable");
-  assert.equal(npmReleaseJob["timeout-minutes"], 75);
+  assert.equal(npmReleaseJob["timeout-minutes"], 110);
   assert.deepEqual(npmReleaseJob.permissions, {
     actions: "read",
     contents: "read",
