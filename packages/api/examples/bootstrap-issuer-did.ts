@@ -59,7 +59,7 @@ import { existsSync, writeFileSync } from "node:fs";
 import {
   createMidnightDIDString,
   parseContractAddress,
-} from "@midnight-ntwrk/midnight-did/midnight";
+} from "@midnightntwrk/midnight-did/midnight";
 import {
   addSchnorrJubjubVerificationMethod,
   addVerificationMethod,
@@ -73,7 +73,7 @@ import {
   ProfileConfig,
   registerForDustGeneration,
   resolve,
-} from "@midnight-ntwrk/midnight-did-api";
+} from "@midnightntwrk/midnight-did-api";
 import {
   createVerificationMethod,
   CurveType,
@@ -81,8 +81,8 @@ import {
   KeyType,
   VerificationMethodRelationType,
   VerificationMethodType,
-} from "@midnight-ntwrk/midnight-did-domain";
-import { deriveJubjubPublicKeyFromSeed } from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
+} from "@midnightntwrk/midnight-did-domain";
+import { deriveJubjubPublicKeyFromSeed } from "@midnightntwrk/midnight-did-jubjub-schnorr";
 import { ed25519 } from "@noble/curves/ed25519";
 
 // ── config from env ─────────────────────────────────────────────

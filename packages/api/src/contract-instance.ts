@@ -1,5 +1,5 @@
 import { CompiledContract } from "@midnight-ntwrk/compact-js";
-import { DIDContract, witnesses } from "@midnight-ntwrk/midnight-did-contract";
+import { DIDContract, witnesses } from "@midnightntwrk/midnight-did-contract";
 
 import { contractConfig } from "./config.js";
 import { type MidnightDIDContract } from "./types.js";

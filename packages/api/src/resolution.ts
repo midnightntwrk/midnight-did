@@ -4,12 +4,12 @@ import {
   type MidnightDIDResolutionOptions as ResolverDIDResolutionOptions,
   type MidnightDIDResolutionResult as ResolverDIDResolutionResult,
   MidnightDIDResolver,
-} from "@midnight-ntwrk/midnight-did";
+} from "@midnightntwrk/midnight-did";
 import {
   type MidnightNetwork,
   parseContractAddress,
-} from "@midnight-ntwrk/midnight-did/midnight";
-import { type DIDDocumentMetadata } from "@midnight-ntwrk/midnight-did-domain";
+} from "@midnightntwrk/midnight-did/midnight";
+import { type DIDDocumentMetadata } from "@midnightntwrk/midnight-did-domain";
 
 import { getLogger } from "./api-logger.js";
 import { getDidSubject, getProviderMidnightNetwork } from "./did-subject.js";

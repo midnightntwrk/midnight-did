@@ -2,12 +2,12 @@ import {
   createMidnightDIDString,
   MidnightNetwork,
   parseContractAddress,
-} from "@midnight-ntwrk/midnight-did/midnight";
+} from "@midnightntwrk/midnight-did/midnight";
 import {
   type BoundIdField,
   normalizeBoundDIDURL as normalizeBoundDIDURLWithSubject,
   normalizeBoundFragmentId as normalizeBoundFragmentIdWithSubject,
-} from "@midnight-ntwrk/midnight-did-domain";
+} from "@midnightntwrk/midnight-did-domain";
 
 import { getCurrentNetworkId } from "./network-context.js";
 import { RuntimeToDomain } from "./runtime-to-domain.js";

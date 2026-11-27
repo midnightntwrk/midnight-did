@@ -1,9 +1,9 @@
+import { type Ledger9FinalizedCallTxPublicData } from "@midnight-ntwrk/midnight-js-contracts";
 import {
   deriveControllerPublicKey,
   DIDContract,
   signControllerAuthorization,
-} from "@midnight-ntwrk/midnight-did-contract";
-import { type Ledger9FinalizedCallTxPublicData } from "@midnight-ntwrk/midnight-js-contracts";
+} from "@midnightntwrk/midnight-did-contract";
 
 import { getLogger } from "./api-logger.js";
 import {

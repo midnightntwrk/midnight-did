@@ -23,11 +23,11 @@ const canonicalWorkspaces = [
   "packages/api",
 ];
 const canonicalPackageNames = [
-  "@midnight-ntwrk/midnight-did-jubjub-schnorr",
-  "@midnight-ntwrk/midnight-did-contract",
-  "@midnight-ntwrk/midnight-did-domain",
-  "@midnight-ntwrk/midnight-did",
-  "@midnight-ntwrk/midnight-did-api",
+  "@midnightntwrk/midnight-did-jubjub-schnorr",
+  "@midnightntwrk/midnight-did-contract",
+  "@midnightntwrk/midnight-did-domain",
+  "@midnightntwrk/midnight-did",
+  "@midnightntwrk/midnight-did-api",
 ];
 
 function fail(message) {

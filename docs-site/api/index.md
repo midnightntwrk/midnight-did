@@ -47,10 +47,10 @@ read the source at
 
 ## Package Split
 
-- `@midnight-ntwrk/midnight-did-api` is the high-level runtime facade.
-- `@midnight-ntwrk/midnight-did` maps ledger state to DID Resolution Results.
-- `@midnight-ntwrk/midnight-did-domain` validates DID model objects and method ids.
-- `@midnight-ntwrk/midnight-did-contract` exposes the Compact contract runtime.
+- `@midnightntwrk/midnight-did-api` is the high-level runtime facade.
+- `@midnightntwrk/midnight-did` maps ledger state to DID Resolution Results.
+- `@midnightntwrk/midnight-did-domain` validates DID model objects and method ids.
+- `@midnightntwrk/midnight-did-contract` exposes the Compact contract runtime.
 
 Use [Libs](/packages/) for package selection details and
 [Quickstart](/guide/quickstart) for a complete create/update/resolve flow.

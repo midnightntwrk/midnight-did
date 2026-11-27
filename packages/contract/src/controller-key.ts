@@ -8,7 +8,7 @@ import {
   type JubjubDigest,
   type JubjubSchnorrSignature,
   signJubjubDigestFromSeed
-} from "@midnight-ntwrk/midnight-did-jubjub-schnorr";
+} from "@midnightntwrk/midnight-did-jubjub-schnorr";
 
 export const deriveControllerPublicKey = (
   secretKey: Uint8Array

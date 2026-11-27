@@ -7,11 +7,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const scriptPath = fileURLToPath(import.meta.url);
 const repoRoot = resolve(dirname(scriptPath), "..", "..");
 const packageWorkspaces = [
-  ["api", "@midnight-ntwrk/midnight-did-api"],
-  ["domain", "@midnight-ntwrk/midnight-did-domain"],
-  ["did", "@midnight-ntwrk/midnight-did"],
-  ["jubjub-schnorr", "@midnight-ntwrk/midnight-did-jubjub-schnorr"],
-  ["contract", "@midnight-ntwrk/midnight-did-contract"],
+  ["api", "@midnightntwrk/midnight-did-api"],
+  ["domain", "@midnightntwrk/midnight-did-domain"],
+  ["did", "@midnightntwrk/midnight-did"],
+  ["jubjub-schnorr", "@midnightntwrk/midnight-did-jubjub-schnorr"],
+  ["contract", "@midnightntwrk/midnight-did-contract"],
 ];
 
 const readJson = async (filePath) =>

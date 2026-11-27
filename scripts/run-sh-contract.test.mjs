@@ -272,7 +272,7 @@ function compilerBuildDryRun(env) {
   assert.equal(plan.envMode, "strict", "Turbo must retain strict env mode");
   const task = plan.tasks.find(
     (entry) =>
-      entry.taskId === "@midnight-ntwrk/midnight-did-jubjub-schnorr#build",
+      entry.taskId === "@midnightntwrk/midnight-did-jubjub-schnorr#build",
   );
   assert.ok(task, "Jubjub build task must exist in the actual dry-run plan");
   assert.equal(task.envMode, "strict");

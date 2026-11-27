@@ -10,19 +10,19 @@ const outputRoot = resolve(docsRoot, "api", "reference");
 const packages = [
   {
     slug: "domain",
-    displayName: "@midnight-ntwrk/midnight-did-domain",
+    displayName: "@midnightntwrk/midnight-did-domain",
     entryPoint: resolve(repoRoot, "packages", "domain", "src", "index.ts"),
     tsconfig: resolve(repoRoot, "packages", "domain", "tsconfig.build.json"),
   },
   {
     slug: "did",
-    displayName: "@midnight-ntwrk/midnight-did",
+    displayName: "@midnightntwrk/midnight-did",
     entryPoint: resolve(repoRoot, "packages", "did", "src", "index.ts"),
     tsconfig: resolve(repoRoot, "packages", "did", "tsconfig.build.json"),
   },
   {
     slug: "api",
-    displayName: "@midnight-ntwrk/midnight-did-api",
+    displayName: "@midnightntwrk/midnight-did-api",
     entryPoint: resolve(repoRoot, "packages", "api", "src", "index.ts"),
     tsconfig: resolve(repoRoot, "packages", "api", "tsconfig.build.json"),
   },

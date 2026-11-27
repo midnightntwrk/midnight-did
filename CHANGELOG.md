@@ -32,6 +32,9 @@ packages and the matching ZK archive together; do not mix runtime cohorts.
 - Adopt SDK5 wallet/facade, provider, private-state, network-snapshot,
   transaction balancing/signing/finalization, and wallet state serialization
   behavior, including real recovery and restored-wallet integration coverage.
+- Publish all five DID packages under `@midnightntwrk` only. Update internal
+  package dependencies and imports to the new scope; `@midnight-ntwrk` remains
+  the scope for the separate Midnight runtime and wallet SDK packages.
 - Allow RC publication from `main`, `develop`, and top-level `milestone-*`
   branches with a nonempty slash-free suffix. Snapshots remain `develop`-only
   and final releases `main`-only; milestone publication still requires separately

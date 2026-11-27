@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-type ContractModule = typeof import("@midnight-ntwrk/midnight-did-contract");
+type ContractModule = typeof import("@midnightntwrk/midnight-did-contract");
 
-vi.mock("@midnight-ntwrk/midnight-did-contract", () => {
+vi.mock("@midnightntwrk/midnight-did-contract", () => {
   const DIDContractMock = {
     CurveType: { Ed25519: 0 },
     KeyType: { OKP: 3 },
@@ -18,7 +18,7 @@ import {
   CurveType,
   KeyType,
   VerificationMethodType,
-} from "@midnight-ntwrk/midnight-did-domain";
+} from "@midnightntwrk/midnight-did-domain";
 import jsonld, { type JsonLdDocument } from "jsonld";
 
 import { MidnightDIDSchema, MidnightNetwork } from "../midnight.js";

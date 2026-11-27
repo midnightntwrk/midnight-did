@@ -1,7 +1,7 @@
 import {
   DIDContract,
   signControllerAuthorization,
-} from "@midnight-ntwrk/midnight-did-contract";
+} from "@midnightntwrk/midnight-did-contract";
 
 import { requireDeployedMidnightDIDLedgerState } from "./ledger-state.js";
 import { requirePrivateState } from "./private-state.js";

@@ -24,11 +24,11 @@ const repositoryUrl = "git+https://github.com/midnightntwrk/midnight-did.git";
 // Fake date/sleep commands still advance convergence time without real waits.
 const publisherFixtureSubprocessTimeoutMs = 60_000;
 const packageNames = [
-  "@midnight-ntwrk/midnight-did-jubjub-schnorr",
-  "@midnight-ntwrk/midnight-did-contract",
-  "@midnight-ntwrk/midnight-did-domain",
-  "@midnight-ntwrk/midnight-did",
-  "@midnight-ntwrk/midnight-did-api",
+  "@midnightntwrk/midnight-did-jubjub-schnorr",
+  "@midnightntwrk/midnight-did-contract",
+  "@midnightntwrk/midnight-did-domain",
+  "@midnightntwrk/midnight-did",
+  "@midnightntwrk/midnight-did-api",
 ];
 
 const fakeNpm = String.raw`#!/usr/bin/env node
@@ -178,11 +178,11 @@ function makeTarball(root, name, content = name, manifestOverrides = {}) {
   const source = fs.mkdtempSync(path.join(root, "source-"));
   const packageRoot = path.join(source, "package");
   const workspace = {
-    "@midnight-ntwrk/midnight-did-jubjub-schnorr": "packages/jubjub-schnorr",
-    "@midnight-ntwrk/midnight-did-contract": "packages/contract",
-    "@midnight-ntwrk/midnight-did-domain": "packages/domain",
-    "@midnight-ntwrk/midnight-did": "packages/did",
-    "@midnight-ntwrk/midnight-did-api": "packages/api",
+    "@midnightntwrk/midnight-did-jubjub-schnorr": "packages/jubjub-schnorr",
+    "@midnightntwrk/midnight-did-contract": "packages/contract",
+    "@midnightntwrk/midnight-did-domain": "packages/domain",
+    "@midnightntwrk/midnight-did": "packages/did",
+    "@midnightntwrk/midnight-did-api": "packages/api",
   }[name];
   fs.mkdirSync(packageRoot);
   fs.writeFileSync(

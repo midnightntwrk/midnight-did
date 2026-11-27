@@ -323,15 +323,15 @@ const resolveZkArchive = (options) => {
 
 const writeConsumerSmokeScript = (consumerRoot, version) => {
   const imports = [
-    "@midnight-ntwrk/midnight-did-jubjub-schnorr",
-    "@midnight-ntwrk/midnight-did-jubjub-schnorr/managed/jubjub-schnorr/contract",
-    "@midnight-ntwrk/midnight-did-contract",
-    "@midnight-ntwrk/midnight-did-domain",
-    "@midnight-ntwrk/midnight-did-domain/midnight",
-    "@midnight-ntwrk/midnight-did",
-    "@midnight-ntwrk/midnight-did/midnight",
-    "@midnight-ntwrk/midnight-did-api",
-    "@midnight-ntwrk/midnight-did-api/browser",
+    "@midnightntwrk/midnight-did-jubjub-schnorr",
+    "@midnightntwrk/midnight-did-jubjub-schnorr/managed/jubjub-schnorr/contract",
+    "@midnightntwrk/midnight-did-contract",
+    "@midnightntwrk/midnight-did-domain",
+    "@midnightntwrk/midnight-did-domain/midnight",
+    "@midnightntwrk/midnight-did",
+    "@midnightntwrk/midnight-did/midnight",
+    "@midnightntwrk/midnight-did-api",
+    "@midnightntwrk/midnight-did-api/browser",
   ];
 
   fs.writeFileSync(
@@ -345,7 +345,7 @@ const writeConsumerSmokeScript = (consumerRoot, version) => {
       "    throw new Error(`${specifier} did not expose any exports`);",
       "  }",
       "}",
-      "const api = await import('@midnight-ntwrk/midnight-did-api');",
+      "const api = await import('@midnightntwrk/midnight-did-api');",
       "if (api.MIDNIGHT_DID_API_VERSION !== expectedVersion) {",
       "  throw new Error(`api package version metadata ${api.MIDNIGHT_DID_API_VERSION} did not match ${expectedVersion}`);",
       "}",

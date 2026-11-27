@@ -15,7 +15,7 @@ export const workspaceCatalog = [
     workspace: "packages/api",
     artifactPackage: true,
     manifest: {
-      name: "@midnight-ntwrk/midnight-did-api",
+      name: "@midnightntwrk/midnight-did-api",
       files: [
         "dist/**",
         "README.md",
@@ -31,7 +31,7 @@ export const workspaceCatalog = [
     workspace: "packages/domain",
     artifactPackage: true,
     manifest: {
-      name: "@midnight-ntwrk/midnight-did-domain",
+      name: "@midnightntwrk/midnight-did-domain",
       files: [
         "dist/**",
         "README.md",
@@ -46,7 +46,7 @@ export const workspaceCatalog = [
     workspace: "packages/did",
     artifactPackage: true,
     manifest: {
-      name: "@midnight-ntwrk/midnight-did",
+      name: "@midnightntwrk/midnight-did",
       files: [
         "dist/**",
         "README.md",
@@ -61,7 +61,7 @@ export const workspaceCatalog = [
     workspace: "packages/jubjub-schnorr",
     artifactPackage: true,
     manifest: {
-      name: "@midnight-ntwrk/midnight-did-jubjub-schnorr",
+      name: "@midnightntwrk/midnight-did-jubjub-schnorr",
       files: [
         "dist/**",
         "src/**/*.compact",
@@ -78,7 +78,7 @@ export const workspaceCatalog = [
     workspace: "packages/contract",
     artifactPackage: true,
     manifest: {
-      name: "@midnight-ntwrk/midnight-did-contract",
+      name: "@midnightntwrk/midnight-did-contract",
       files: [
         "dist/**",
         "README.md",

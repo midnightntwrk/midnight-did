@@ -56,11 +56,11 @@ RC/final releases, GitHub Release assets.
 
 The workflow publishes these package workspaces in dependency order:
 
-- `@midnight-ntwrk/midnight-did-jubjub-schnorr`
-- `@midnight-ntwrk/midnight-did-contract`
-- `@midnight-ntwrk/midnight-did-domain`
-- `@midnight-ntwrk/midnight-did`
-- `@midnight-ntwrk/midnight-did-api`
+- `@midnightntwrk/midnight-did-jubjub-schnorr`
+- `@midnightntwrk/midnight-did-contract`
+- `@midnightntwrk/midnight-did-domain`
+- `@midnightntwrk/midnight-did`
+- `@midnightntwrk/midnight-did-api`
 
 The root workspace and `docs-site` remain private. The package workspaces are
 publishable and keep `publishConfig.registry` pointed at
@@ -68,7 +68,7 @@ publishable and keep `publishConfig.registry` pointed at
 
 npmjs publication uses npm Trusted Publishing. Build, dependency installation,
 packing, signing, GHCR publication, and GitHub Release work run outside the
-`npm-release` environment. Only the minimal `npm-release` job has both that
+`npm-publish-stable` environment. Only the minimal `npm-publish-stable` job has both that
 environment and `id-token: write`; it sparsely checks out only immutable
 publisher scripts plus the Node version pin, downloads the package artifact by
 immutable ID, verifies the producer archive digest and exact checksummed
@@ -83,13 +83,13 @@ Publisher to each package:
 
 | npm package                                   | Organization    | Repository     | Workflow      | Environment   |
 | --------------------------------------------- | --------------- | -------------- | ------------- | ------------- |
-| `@midnight-ntwrk/midnight-did-jubjub-schnorr` | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-release` |
-| `@midnight-ntwrk/midnight-did-contract`       | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-release` |
-| `@midnight-ntwrk/midnight-did-domain`         | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-release` |
-| `@midnight-ntwrk/midnight-did`                | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-release` |
-| `@midnight-ntwrk/midnight-did-api`            | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-release` |
+| `@midnightntwrk/midnight-did-jubjub-schnorr` | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-publish-stable` |
+| `@midnightntwrk/midnight-did-contract`       | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-publish-stable` |
+| `@midnightntwrk/midnight-did-domain`         | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-publish-stable` |
+| `@midnightntwrk/midnight-did`                | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-publish-stable` |
+| `@midnightntwrk/midnight-did-api`            | `midnightntwrk` | `midnight-did` | `publish.yml` | `npm-publish-stable` |
 
-Repository administrators must configure required `npm-release` reviewers with
+Repository administrators must configure required `npm-publish-stable` reviewers with
 self-review prevention and deployment-branch restrictions that permit the exact
 intended publication branch while excluding tags and unauthorized branches.
 Milestone RC eligibility in source code is not environment authorization.
@@ -165,14 +165,14 @@ checks above still fail closed before a build or privileged job can run.
 ## Trusted Publishing prerequisite check
 
 After the unprivileged build job has uploaded the package artifact, the separate
-`npm-release` job downloads it by immutable artifact ID and verifies the
+`npm-publish-stable` job downloads it by immutable artifact ID and verifies the
 producer's archive digest, checksum-manifest digest, exact five-tarball
 inventory, packed manifest ownership metadata, and all tarball checksums. It
 then runs a fail-closed prerequisite check directly at the publication boundary.
 It installs no repository dependencies and runs no package, Compact, or
 lifecycle build. The checker verifies the
 exact repository, `publish.yml` workflow ref, allowed branch ref, GitHub-hosted
-runner, `npm-release` environment expectation, and presence of both GitHub OIDC
+runner, `npm-publish-stable` environment expectation, and presence of both GitHub OIDC
 request-capability variables. It does not request, decode, or log an OIDC JWT or
 any environment secret. Ambient `NODE_AUTH_TOKEN`, `NPM_TOKEN`, `NPM_ID_TOKEN`,
 npm credential/client-certificate settings, registry redirects, and
@@ -249,7 +249,7 @@ The local bundle and GitHub Release asset checks do not require ORAS.
 
 ## Package Artifact Metadata
 
-`@midnight-ntwrk/midnight-did-api` embeds release-artifact metadata for the same
+`@midnightntwrk/midnight-did-api` embeds release-artifact metadata for the same
 version as the published package. Use it when a service or downstream test needs
 to derive the matching ZK artifact location instead of hard-coding URLs:
 
@@ -257,7 +257,7 @@ to derive the matching ZK artifact location instead of hard-coding URLs:
 import {
   MIDNIGHT_DID_API_VERSION,
   createMidnightDidZkArtifactLocations,
-} from "@midnight-ntwrk/midnight-did-api";
+} from "@midnightntwrk/midnight-did-api";
 
 const locations = createMidnightDidZkArtifactLocations(
   MIDNIGHT_DID_API_VERSION,
@@ -394,7 +394,7 @@ PR CI validates package contents, ZK bundle structure, package imports, docs, an
 the normal core/API lanes. It does not publish packages or push GHCR artifacts.
 
 Merging a PR is non-publishing. After all five npm Trusted Publisher mappings
-and the protected `npm-release` environment prerequisites are configured and
+and the protected `npm-publish-stable` environment prerequisites are configured and
 attested, a release owner can later dispatch a `0.6.0` snapshot manually from
 the exact `develop` branch with:
 

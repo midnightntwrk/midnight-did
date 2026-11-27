@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-import { MidnightNetwork } from "@midnight-ntwrk/midnight-did/midnight";
+import { MidnightNetwork } from "@midnightntwrk/midnight-did/midnight";
 import {
   createVerificationMethod,
   CurveType,
   KeyType,
   VerificationMethodRelationType,
   VerificationMethodType,
-} from "@midnight-ntwrk/midnight-did-domain";
+} from "@midnightntwrk/midnight-did-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../ledger-state.js", () => ({

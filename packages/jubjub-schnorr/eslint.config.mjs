@@ -41,9 +41,9 @@ export default [
         'error',
         {
           paths: [
-            '@midnight-ntwrk/midnight-did',
-            '@midnight-ntwrk/midnight-did-contract',
-            '@midnight-ntwrk/midnight-did-api',
+            '@midnightntwrk/midnight-did',
+            '@midnightntwrk/midnight-did-contract',
+            '@midnightntwrk/midnight-did-api',
           ],
         },
       ],

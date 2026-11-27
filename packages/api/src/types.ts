@@ -1,9 +1,5 @@
 import type { ProvableCircuitId } from "@midnight-ntwrk/compact-js";
 import type { JubjubPoint } from "@midnight-ntwrk/compact-runtime";
-import {
-  DIDContract,
-  type DIDPrivateState,
-} from "@midnight-ntwrk/midnight-did-contract";
 import type {
   DeployedContract,
   FoundContract,
@@ -30,6 +26,10 @@ import type {
   UnshieldedWalletAPI,
 } from "@midnight-ntwrk/wallet-sdk-unshielded-wallet";
 import * as ledger from "@midnightntwrk/ledger-v9";
+import {
+  DIDContract,
+  type DIDPrivateState,
+} from "@midnightntwrk/midnight-did-contract";
 
 import {
   RUNTIME_TO_DOMAIN_NETWORK_MAP,

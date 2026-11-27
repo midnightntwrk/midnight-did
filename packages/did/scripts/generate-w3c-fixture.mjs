@@ -209,7 +209,7 @@ export const generateFixture = async (publicApi) => {
       ],
       source: "built-public-package-exports",
     },
-    implementation: "@midnight-ntwrk/midnight-did",
+    implementation: "@midnightntwrk/midnight-did",
     implementer: "Midnight",
     supportedContentTypes: mediaTypes,
     [did]: {

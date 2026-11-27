@@ -1,4 +1,4 @@
-# @midnight-ntwrk/midnight-did-jubjub-schnorr
+# @midnightntwrk/midnight-did-jubjub-schnorr
 
 Shared Jubjub Schnorr transcript and signature helpers for `midnight-did`.
 

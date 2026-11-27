@@ -1,4 +1,4 @@
-import { MidnightNetwork } from "@midnight-ntwrk/midnight-did/midnight";
+import { MidnightNetwork } from "@midnightntwrk/midnight-did/midnight";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   removeServiceAuthorizationDigest: vi.fn(() => [5n, 6n, 7n, 8n]),
 }));
 
-vi.mock("@midnight-ntwrk/midnight-did-contract", () => ({
+vi.mock("@midnightntwrk/midnight-did-contract", () => ({
   DIDContract: {
     MapMutation: { Insert: "insert", Update: "update" },
     pureCircuits: {

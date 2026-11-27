@@ -41,7 +41,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@midnight-ntwrk/midnight-did-contract': contractEntry,
+      '@midnightntwrk/midnight-did-contract': contractEntry,
     },
     extensions: ['.ts', '.js'],
     conditions: ['import', 'node', 'default'],

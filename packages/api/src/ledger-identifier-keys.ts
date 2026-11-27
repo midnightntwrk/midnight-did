@@ -1,5 +1,5 @@
-import { type MidnightNetwork } from "@midnight-ntwrk/midnight-did/midnight";
-import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
+import { type MidnightNetwork } from "@midnightntwrk/midnight-did/midnight";
+import { DIDContract } from "@midnightntwrk/midnight-did-contract";
 
 import { getDidSubject } from "./did-subject.js";
 import { type DeployedMidnightDIDContract } from "./types.js";

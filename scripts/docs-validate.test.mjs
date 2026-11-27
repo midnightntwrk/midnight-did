@@ -528,23 +528,23 @@ test("0.6 adoption guidance preserves consumer release boundaries", async () => 
       [
         "```bash",
         "pnpm add \\",
-        "  @midnight-ntwrk/midnight-did-api@0.6.0 \\",
-        "  @midnight-ntwrk/midnight-did-domain@0.6.0 \\",
-        "  @midnight-ntwrk/midnight-did@0.6.0 \\",
-        "  @midnight-ntwrk/midnight-did-jubjub-schnorr@0.6.0 \\",
-        "  @midnight-ntwrk/midnight-did-contract@0.6.0",
+        "  @midnightntwrk/midnight-did-api@0.6.0 \\",
+        "  @midnightntwrk/midnight-did-domain@0.6.0 \\",
+        "  @midnightntwrk/midnight-did@0.6.0 \\",
+        "  @midnightntwrk/midnight-did-jubjub-schnorr@0.6.0 \\",
+        "  @midnightntwrk/midnight-did-contract@0.6.0",
         "```",
       ].join("\n"),
     ),
   );
   assert.ok(
     guide.includes(
-      'import { downloadMidnightDidGithubReleaseZkArtifacts } from "@midnight-ntwrk/midnight-did-api";',
+      'import { downloadMidnightDidGithubReleaseZkArtifacts } from "@midnightntwrk/midnight-did-api";',
     ),
   );
   assert.ok(
     guide.includes(
-      '} from "@midnight-ntwrk/midnight-did-api";\n\nconst config = new StandaloneConfig();',
+      '} from "@midnightntwrk/midnight-did-api";\n\nconst config = new StandaloneConfig();',
     ),
   );
 

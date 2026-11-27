@@ -5,7 +5,7 @@ import {
   KeyType,
   Service,
   VerificationMethodType,
-} from "@midnight-ntwrk/midnight-did-domain";
+} from "@midnightntwrk/midnight-did-domain";
 import { describe, expect, it } from "vitest";
 
 import { MidnightDIDSchema } from "../midnight.js";

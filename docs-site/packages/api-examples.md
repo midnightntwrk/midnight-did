@@ -59,7 +59,7 @@ the chain tip the wallet has indexed rather than at wall-clock time:
 import {
   createIndexerIndexedBlockTime,
   registerForDustGeneration,
-} from "@midnight-ntwrk/midnight-did-api";
+} from "@midnightntwrk/midnight-did-api";
 
 await registerForDustGeneration(wallet, unshieldedKeystore, {
   indexedBlockTime: createIndexerIndexedBlockTime(config.indexer),
@@ -90,7 +90,7 @@ import {
   StandaloneConfig,
   buildFreshWallet,
   configureProviders,
-} from "@midnight-ntwrk/midnight-did-api";
+} from "@midnightntwrk/midnight-did-api";
 
 const config = new StandaloneConfig();
 const walletContext = await buildFreshWallet(config);
@@ -104,7 +104,7 @@ import {
   deploy,
   getMidnightDIDLedgerState,
   initPrivateState,
-} from "@midnight-ntwrk/midnight-did-api";
+} from "@midnightntwrk/midnight-did-api";
 
 await initPrivateState(providers);
 const didContract = await deploy(providers);
@@ -135,7 +135,7 @@ persistent network.
 ## Resolve a DID
 
 ```ts
-import { resolve } from "@midnight-ntwrk/midnight-did-api";
+import { resolve } from "@midnightntwrk/midnight-did-api";
 
 const resolution = await resolve(
   providers,

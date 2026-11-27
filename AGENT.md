@@ -82,11 +82,11 @@ Use it to inspect Compact entry points, generated `src/managed` outputs, TypeScr
 
 | Path                      | Package                                       | Responsibility                                                                                        |
 | ------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `packages/contract`       | `@midnight-ntwrk/midnight-did-contract`       | Compact contract for on-ledger DID state and circuit rules.                                           |
-| `packages/jubjub-schnorr` | `@midnight-ntwrk/midnight-did-jubjub-schnorr` | Shared Compact/TS JubJub Schnorr transcript, digest, signature, and verification helpers.             |
-| `packages/domain`         | `@midnight-ntwrk/midnight-did-domain`         | DID document schemas, validation, canonicalization, field encoding, and method-specific domain types. |
-| `packages/did`            | `@midnight-ntwrk/midnight-did`                | Ledger-to-domain mapping, DID resolution helpers, and method-specific conversion logic.               |
-| `packages/api`            | `@midnight-ntwrk/midnight-did-api`            | Runtime orchestration for wallets, providers, contracts, network profiles, and DID operations.        |
+| `packages/contract`       | `@midnightntwrk/midnight-did-contract`       | Compact contract for on-ledger DID state and circuit rules.                                           |
+| `packages/jubjub-schnorr` | `@midnightntwrk/midnight-did-jubjub-schnorr` | Shared Compact/TS JubJub Schnorr transcript, digest, signature, and verification helpers.             |
+| `packages/domain`         | `@midnightntwrk/midnight-did-domain`         | DID document schemas, validation, canonicalization, field encoding, and method-specific domain types. |
+| `packages/did`            | `@midnightntwrk/midnight-did`                | Ledger-to-domain mapping, DID resolution helpers, and method-specific conversion logic.               |
+| `packages/api`            | `@midnightntwrk/midnight-did-api`            | Runtime orchestration for wallets, providers, contracts, network profiles, and DID operations.        |
 | `docs-site`               | `docs-site`                                   | VitePress documentation site for DID-owned packages and specifications.                               |
 
 ## Architecture Boundaries
@@ -391,11 +391,11 @@ Refresh a downstream repo or vendor directory:
 
 Packed packages:
 
-- `@midnight-ntwrk/midnight-did-api`
-- `@midnight-ntwrk/midnight-did-domain`
-- `@midnight-ntwrk/midnight-did`
-- `@midnight-ntwrk/midnight-did-jubjub-schnorr`
-- `@midnight-ntwrk/midnight-did-contract`
+- `@midnightntwrk/midnight-did-api`
+- `@midnightntwrk/midnight-did-domain`
+- `@midnightntwrk/midnight-did`
+- `@midnightntwrk/midnight-did-jubjub-schnorr`
+- `@midnightntwrk/midnight-did-contract`
 
 The five DID packages are publishable to npmjs. Keep the repository root
 package and `docs-site` private, and keep package `publishConfig.registry`
@@ -407,7 +407,7 @@ npmjs package publication uses npm Trusted Publishing (GitHub Actions OIDC)
 with npm CLI `>=11.5.1`; no npm publication secret is required. Configure one
 npmjs Trusted Publisher for each of the five packages with organization
 `midnightntwrk`, repository `midnight-did`, workflow `publish.yml`, and GitHub
-environment `npm-release`. Build, dependency installation, packing, signing,
+environment `npm-publish-stable`. Build, dependency installation, packing, signing,
 and GHCR publication stay outside that environment; only the minimal npm job
 has its OIDC subject. That job sparsely checks out immutable publisher scripts,
 downloads the package artifact by ID, verifies producer and inventory digests,
@@ -431,7 +431,7 @@ from the exact ref `refs/heads/develop`, RC versions from `refs/heads/main`,
 (with no `/` in the suffix), and final releases only from `refs/heads/main`.
 Tags, bare `milestone-`, lookalikes, and nested milestone refs are ineligible.
 Before any milestone RC dispatch, an environment administrator must attest that
-`npm-release` permits the selected branch without weakening required reviewers;
+`npm-publish-stable` permits the selected branch without weakening required reviewers;
 source eligibility alone does not grant environment access. See
 `docs-site/development/publishing.md` for the external prerequisites.
 ZK artifacts are

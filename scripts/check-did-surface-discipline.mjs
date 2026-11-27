@@ -369,7 +369,7 @@ assertIncludes(
 );
 assertNotIncludes(publishWorkflow, "  push:", ".github/workflows/publish.yml");
 for (const requiredPhrase of [
-  "environment: npm-release",
+  "environment: npm-publish-stable",
   "id-token: write",
   "NPM_REGISTRY: https://registry.npmjs.org/",
   "scripts/check-npm-trusted-publishing.mjs",

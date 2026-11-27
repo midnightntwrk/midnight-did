@@ -7,4 +7,4 @@ export {
   parseContractAddress,
   parseMidnightDID,
   parseMidnightDIDString,
-} from "@midnight-ntwrk/midnight-did-domain/midnight";
+} from "@midnightntwrk/midnight-did-domain/midnight";

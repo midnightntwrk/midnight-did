@@ -1,9 +1,9 @@
-import { DIDContract } from "@midnight-ntwrk/midnight-did-contract";
+import { DIDContract } from "@midnightntwrk/midnight-did-contract";
 import {
   assertVerificationMethodRelationCompatibleWithCurve,
   CurveType,
   VerificationMethodRelationType,
-} from "@midnight-ntwrk/midnight-did-domain";
+} from "@midnightntwrk/midnight-did-domain";
 
 import { relationSetFromState } from "./ledger-mappers.js";
 import {

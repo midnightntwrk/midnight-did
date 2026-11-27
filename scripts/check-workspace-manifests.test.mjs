@@ -99,7 +99,7 @@ const rootPackage = {
 
 const packageFixtures = {
   "packages/api": distPackage({
-    name: "@midnight-ntwrk/midnight-did-api",
+    name: "@midnightntwrk/midnight-did-api",
     workspace: "packages/api",
     files: [
       "dist/**",
@@ -112,7 +112,7 @@ const packageFixtures = {
     exports: [".", "./browser"],
   }),
   "packages/domain": distPackage({
-    name: "@midnight-ntwrk/midnight-did-domain",
+    name: "@midnightntwrk/midnight-did-domain",
     workspace: "packages/domain",
     files: [
       "dist/**",
@@ -124,7 +124,7 @@ const packageFixtures = {
     exports: [".", "./midnight"],
   }),
   "packages/did": distPackage({
-    name: "@midnight-ntwrk/midnight-did",
+    name: "@midnightntwrk/midnight-did",
     workspace: "packages/did",
     files: [
       "dist/**",
@@ -136,7 +136,7 @@ const packageFixtures = {
     exports: [".", "./midnight"],
   }),
   "packages/jubjub-schnorr": distPackage({
-    name: "@midnight-ntwrk/midnight-did-jubjub-schnorr",
+    name: "@midnightntwrk/midnight-did-jubjub-schnorr",
     workspace: "packages/jubjub-schnorr",
     files: [
       "dist/**",
@@ -150,7 +150,7 @@ const packageFixtures = {
     exports: [".", "./managed/jubjub-schnorr/contract"],
   }),
   "packages/contract": distPackage({
-    name: "@midnight-ntwrk/midnight-did-contract",
+    name: "@midnightntwrk/midnight-did-contract",
     workspace: "packages/contract",
     files: [
       "dist/**",

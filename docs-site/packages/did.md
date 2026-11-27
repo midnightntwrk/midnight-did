@@ -1,6 +1,6 @@
 # DID Package
 
-`@midnight-ntwrk/midnight-did` sits between raw ledger state and domain DID documents.
+`@midnightntwrk/midnight-did` sits between raw ledger state and domain DID documents.
 
 ## Focus
 

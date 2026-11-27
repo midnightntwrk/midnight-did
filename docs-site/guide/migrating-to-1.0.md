@@ -127,7 +127,7 @@ chain time the wallet has indexed, not at wall-clock time:
 import {
   createIndexerIndexedBlockTime,
   registerForDustGeneration,
-} from "@midnight-ntwrk/midnight-did-api";
+} from "@midnightntwrk/midnight-did-api";
 
 await registerForDustGeneration(wallet, unshieldedKeystore, {
   indexedBlockTime: createIndexerIndexedBlockTime(config.indexer),

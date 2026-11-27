@@ -19,11 +19,11 @@ VC packages and use cases live in [`midnight-verifiable-credentials`](https://gi
 
 | Component                                                      | Package                                       | Responsibility                                                                   |
 | -------------------------------------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------- |
-| [`packages/contract`](packages/contract/README.md)             | `@midnight-ntwrk/midnight-did-contract`       | On-ledger DID state and circuit rules                                            |
-| [`packages/jubjub-schnorr`](packages/jubjub-schnorr/README.md) | `@midnight-ntwrk/midnight-did-jubjub-schnorr` | Shared Compact/TypeScript JubJub Schnorr transcript and signature helpers        |
-| [`packages/domain`](packages/domain/README.md)                 | `@midnight-ntwrk/midnight-did-domain`         | DID schemas, validation, canonicalization                                        |
-| [`packages/did`](packages/did/README.md)                       | `@midnight-ntwrk/midnight-did`                | Ledger to domain mapping and DID resolution helpers                              |
-| [`packages/api`](packages/api/README.md)                       | `@midnight-ntwrk/midnight-did-api`            | Programmatic DID operations, wallet/provider orchestration, and network profiles |
+| [`packages/contract`](packages/contract/README.md)             | `@midnightntwrk/midnight-did-contract`       | On-ledger DID state and circuit rules                                            |
+| [`packages/jubjub-schnorr`](packages/jubjub-schnorr/README.md) | `@midnightntwrk/midnight-did-jubjub-schnorr` | Shared Compact/TypeScript JubJub Schnorr transcript and signature helpers        |
+| [`packages/domain`](packages/domain/README.md)                 | `@midnightntwrk/midnight-did-domain`         | DID schemas, validation, canonicalization                                        |
+| [`packages/did`](packages/did/README.md)                       | `@midnightntwrk/midnight-did`                | Ledger to domain mapping and DID resolution helpers                              |
+| [`packages/api`](packages/api/README.md)                       | `@midnightntwrk/midnight-did-api`            | Programmatic DID operations, wallet/provider orchestration, and network profiles |
 | [`docs-site`](docs-site/)                                      | `docs-site`                                   | VitePress documentation site                                                     |
 
 Consumers should use the [compatibility and release baseline matrix](docs-site/guide/compatibility.md)
@@ -257,11 +257,11 @@ pnpm run artifacts:pack
 
 Packed packages:
 
-- `@midnight-ntwrk/midnight-did-api`
-- `@midnight-ntwrk/midnight-did-domain`
-- `@midnight-ntwrk/midnight-did`
-- `@midnight-ntwrk/midnight-did-jubjub-schnorr`
-- `@midnight-ntwrk/midnight-did-contract`
+- `@midnightntwrk/midnight-did-api`
+- `@midnightntwrk/midnight-did-domain`
+- `@midnightntwrk/midnight-did`
+- `@midnightntwrk/midnight-did-jubjub-schnorr`
+- `@midnightntwrk/midnight-did-contract`
 
 The generated tarballs are gitignored under [`artifacts/`](./artifacts/README.md).
 Use `./run.sh artifact-status` or `pnpm run artifacts:status` to inspect
@@ -278,7 +278,7 @@ publish `x.y.z-snapshot.<run>.<sha>` with the `snapshot` npm tag from `develop`,
 `milestone-<nonempty>` branch (no `/` in the suffix), and `x.y.z` with the
 `latest` npm tag from `main` only. Tags, bare `milestone-`, lookalikes, and
 nested milestone refs are rejected. Milestone source eligibility does not grant
-access to the protected `npm-release` environment: an administrator must attest
+access to the protected `npm-publish-stable` environment: an administrator must attest
 branch eligibility and required reviewers before dispatch; npm-side Trusted
 Publisher mappings remain independently unverified. See the
 [publishing prerequisites](docs-site/development/publishing.md).
@@ -293,7 +293,7 @@ assets fail closed. The workflow never edits the body or uploads a missing
 asset. It downloads that provenance on both creation and reuse, verifies its
 signature and pinned reusable-workflow certificate identity with GitHub's OIDC
 issuer, and then checks its SLSA v0.2 subjects and publication context. For
-example, after all external Trusted Publisher and `npm-release` environment
+example, after all external Trusted Publisher and `npm-publish-stable` environment
 prerequisites are confirmed, dispatch a `0.6.0` snapshot with:
 
 ```bash
@@ -350,13 +350,13 @@ developers only need the `oras` CLI when manually testing GHCR publication or
 retrieval; the Nix development shell includes ORAS for that path. GitHub Release
 asset checks do not require it.
 
-`@midnight-ntwrk/midnight-did-api` exports package-version artifact metadata:
+`@midnightntwrk/midnight-did-api` exports package-version artifact metadata:
 
 ```ts
 import {
   MIDNIGHT_DID_API_VERSION,
   createMidnightDidZkArtifactLocations,
-} from "@midnight-ntwrk/midnight-did-api";
+} from "@midnightntwrk/midnight-did-api";
 
 const locations = createMidnightDidZkArtifactLocations(
   MIDNIGHT_DID_API_VERSION,
@@ -370,7 +370,7 @@ not have GitHub Release assets.
 Published consumers can also use the Node helper exported by the API package:
 
 ```ts
-import { downloadMidnightDidGithubReleaseZkArtifacts } from "@midnight-ntwrk/midnight-did-api";
+import { downloadMidnightDidGithubReleaseZkArtifacts } from "@midnightntwrk/midnight-did-api";
 
 const bundle = await downloadMidnightDidGithubReleaseZkArtifacts({
   version: "0.6.0",

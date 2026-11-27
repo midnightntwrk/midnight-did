@@ -215,7 +215,7 @@ const manifest = {
   schema: "midnight-did-zk-artifacts",
   schemaVersion: 1,
   version,
-  packageName: "@midnight-ntwrk/midnight-did-contract",
+  packageName: "@midnightntwrk/midnight-did-contract",
   repository: repositoryUrl,
   gitSha: process.env.GITHUB_SHA ?? git("rev-parse", "HEAD") ?? "unknown",
   generatedAt: new Date(reproducibleEpoch * 1000).toISOString(),
