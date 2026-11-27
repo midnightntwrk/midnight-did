@@ -31,7 +31,7 @@ const smoke = async (name, fn) => {
 };
 
 const linkPackagesForConsumer = async (consumerRoot) => {
-  const scopeDir = path.join(consumerRoot, "node_modules", "@midnight-ntwrk");
+  const scopeDir = path.join(consumerRoot, "node_modules", "@midnightntwrk");
   await mkdir(scopeDir, { recursive: true });
 
   for (const [packageName, packagePath] of packageLinks.entries()) {
